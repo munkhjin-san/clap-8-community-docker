@@ -408,9 +408,9 @@ import { useDialog } from '@/composables/dialog';
             }
         }
     }
-    const refreshMessage = () => {
+    const refreshMessage = (data) => {
         if(mainRef.value.getMessageList){
-            mainRef.value.getMessageList()
+            mainRef.value.refreshMessages(data)
         }
     }
     const refreshRemind = (dataType) => {

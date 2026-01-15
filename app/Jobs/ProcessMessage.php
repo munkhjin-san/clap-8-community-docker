@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\messageRecord;
+use App\Services\DraftMessageSender;
 class ProcessMessage implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -25,7 +26,7 @@ class ProcessMessage implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(): void
+    public function handle(DraftMessageSender $sender): void
     {
         $startTime = Carbon::now()->startOfMinute();
         $messages = messageRecord::where('reserved_at', $startTime)->with('user')->get();
@@ -33,17 +34,19 @@ class ProcessMessage implements ShouldQueue
         Log::info('Messages to process:', ['count' => $messages->count(), 'startTime' => $startTime]);
 
         foreach ($messages as $message) {
-            $requestData = [
-                'id' => $message->id,
-                'draft_flag' => 0,
-                'user' => $message->user
-            ];
-            $request = new Request($requestData);
-            app('App\Http\Controllers\BoardController')->draftSend($request);
-            Log::info('Dispatched ProcessMessage job for message', [
-                'id' => $message->id,
-                'reserved_at' => $message->reserved_at,
-            ]);
+            try {
+                $new = $sender->send($message);
+                Log::info('Scheduled draft sent', [
+                    'old_id' => $message->id,
+                    'new_id' => $new->id,
+                    'record_id' => $new->record_id,
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('Scheduled draft send failed', [
+                    'id' => $message->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         Log::info('Scheduled message processing completed.');

@@ -1,5 +1,5 @@
 <template>
-    <div class="overlay">
+    <div v-if="auth.hasPrivilage" class="overlay">
         <div class="projectModalInner" style="width: 100%;height: 100%;">
             <div class="projectModalMainHeader !bg-[var(--bg3)]">
                 <div class="flex flex-col ml-[30px]">
@@ -237,6 +237,11 @@
               />
             </Transition>
         </div>
+        
+    </div>
+    <div v-else class="bg-[var(--background-color)] h-full text-center justify-center flex items-center flex-col">
+        <p>アクセス権限ありません。</p>
+        <router-link class="l-button" style="margin: 30px 0 70px 0;" :to="{ name: 'project' }">プロジェクトへ戻る</router-link>
     </div>
 </template>
 <script lang="ts" setup>

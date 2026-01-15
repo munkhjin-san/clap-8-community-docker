@@ -49,7 +49,7 @@
                 <p v-if="error" class="i-error" style="position: static;">{{ error }}</p>
             </div>
             <div class="si-box">
-                <LoaderButton @triggered="setSchedule" content="予約する"/>
+                <LoaderButton @triggered="setSchedule" :loading="reserving" content="予約する"/>
             </div>
         </div>
     </div>
@@ -68,6 +68,7 @@ const selectedTime = ref(DateTime.now().plus({hours: 1}).hour)
 const selectedMinutes = ref(0)
 const selectedDate = ref(DateTime.now().toISODate())
 const error = ref('')
+const reserving = ref(false)
 const refreshMessage = inject('refreshMessage') as Function
 const availableHours = Array.from({ length: 24 }, (_, index) => index + 1);
 const api = useApi()
@@ -90,10 +91,11 @@ const setSchedule = async() => {
         error.value = '将来のスケジュールのみ設定できます。'
         return
     }
-    await api.put('/set_message_schedule', {reserved_at: formattedDateTime, id: message_id}, {
+    const data = await api.put('/set_message_schedule', {reserved_at: formattedDateTime, id: message_id}, {
+        loadingRef: reserving,
         toast: '送信スケジュールを設定しました。'
     })
-    refreshMessage()
+    refreshMessage(data)
     close()
 
 }

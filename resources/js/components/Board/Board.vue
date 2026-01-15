@@ -953,7 +953,7 @@ import { DateTime } from 'luxon'
     provide('shareToTask', shareToTask)
     provide('closeMessageContainer', closeMessageContainer)   
     provide('reload', refreshBoardList)      
-    defineExpose({getBoardList, refreshBoardList, unreadLineTrigger, getMessageList, onPusher})
+    defineExpose({getBoardList, refreshBoardList, unreadLineTrigger, getMessageList, onPusher, refreshMessages})
 </script>
     
     

@@ -512,7 +512,10 @@ class ProjectController extends Controller
 
         $contract = $this->resolveProjectContract($project);
         if (!$contract) {
-            return response()->json(null, 404);
+            return response()->json([
+                'exists' => false,
+                'contract' => null,
+            ]);
         }
 
         $filePath = $contract->file_path;
@@ -524,7 +527,10 @@ class ProjectController extends Controller
         $payload['file_url'] = $fileExists ? route('projects.contract.preview', $project) : null;
         $payload['download_url'] = $fileExists ? route('projects.contract.download', $project) : null;
 
-        return response()->json($payload);
+        return response()->json([
+            'exists' => true,
+            'contract' => $payload,
+        ]);
     }
 
     public function preview_contract(ProjectRecord $project)

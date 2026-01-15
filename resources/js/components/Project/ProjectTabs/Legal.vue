@@ -361,7 +361,7 @@ const fetchContract = async (force = false) => {
     }
     try {
         const data = await api.get(`/projects/${props.selectedProject.id}/contract`, null, { loadingRef: loading, silent: true })
-        contractState.value = data ?? null
+        contractState.value = data.exists ? data.contract : null
     } catch (error) {
         contractState.value = null
     }

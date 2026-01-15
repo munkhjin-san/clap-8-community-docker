@@ -124,7 +124,7 @@ class AssetController extends Controller
         if($request->gl_number){
             $number = (int) $request->gl_number;
             $number_remove_leading_zero = preg_replace('/^0+/', '', $number);
-            $assets->where('id', $number_remove_leading_zero);
+            $assets->where('id', 'like',"%{$number_remove_leading_zero}%");
         }
 
         if(!empty($projectId)){

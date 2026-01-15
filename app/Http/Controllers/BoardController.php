@@ -27,6 +27,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Pusher\Pusher;
 use App\Services\SharedService;
+use App\Services\DraftMessageSender;
 use App\Mail\Confirm;
 use App\Jobs\SendNotification;
 use App\Jobs\SendEmail;
@@ -1025,78 +1026,24 @@ class BoardController extends Controller
         
          
     }
-    public function draftSend(Request $request) {
+    public function draftSend(Request $request, DraftMessageSender $sender)
+    {
         $request->validate([
-            'id' => 'required',
+            'id' => 'required|integer',
         ]);
+
         $chat_record = messageRecord::findOrFail($request->id);
-        
-        if(!empty($chat_record) && $chat_record->draft_flag === 1 && $request->draft_flag === 0) {
-            $socket = [];
-            $data = [];
-            
-           
-                $new_chat_record = $chat_record->replicate();
-                $chat_record->deleted_flag = 1;
-                $chat_record->save();
-                $chat_record->delete();
-                $new_chat_record->reserved_at = null;
-                $new_chat_record->draft_flag = $request->draft_flag;
-                $new_chat_record->created_at = now();
-                $new_chat_record->save();
-                $path_shared_files = 'shared_files/' . $new_chat_record->record_id;              
-                foreach ($chat_record->message_files as $file) {
-                    $newFile = new messageFile;
-                    $newFile->board_id =  $new_chat_record->record_id;
-                    $newFile->message_id =  $new_chat_record->id;
-                    $newFile->name = $file->name;
-                    $newFile->extension = $file->extension;                    
-                    $newFile->user_id = $file->user_id;
-                    $newFile->mime_type = $file->mime_type;  
-                    $newFile->size = $file->size;      
-                    $newFile->save(); 
-                    $origin_path = 'shared_files/' . $file->board_id . '/' . $file->id. '_' . $file->user_id . '_' . $file->message_id . '.' . $file->extension;
-                    $msg_file_path = $newFile->id . '_' . $newFile->user_id . '_' . $newFile->message_id . '.' . $newFile->extension;
-                    Storage::disk('local')->move($origin_path, $path_shared_files . '/' . $msg_file_path);
-                }
-                $chat_record->message_files()->delete();
-                // return response()->json($new_chat_record->board_record);
-                $this->mentionAndNotify($new_chat_record->board_record, $new_chat_record->user, $new_chat_record);
-                boardToUser::where('record_id', $new_chat_record->record_id)
-                    ->where('user_id', $new_chat_record->user_id)
-                    ->update(["last_message" => $new_chat_record->id]);
-                
-                $related_members = boardToUser::where('record_id', $new_chat_record->record_id)
-                    ->where('deleted_status', 0)
-                    ->where('user_id', '!=', $new_chat_record->user_id)
-                    ->pluck('user_id');
-                
-                $messageRecord = $this->get_messages(new Request([
-                    'page_index' => 1,
-                    'record_id' => $new_chat_record->record_id,
-                    'message_id' => $new_chat_record->id,
-                    'override_user' => $request->user ?? null
-                ]));
-                
-                $socket[] = ["event" => "board:{$new_chat_record->record_id}", "data" => []];
-                $socket[] = ["event" => 'refresh:badge', "data" => $related_members];
-                $socket[] = ["event" => 'refresh:board', "data" => $related_members];
-                
-                $data = [
-                    "success" => true,
-                    "u_id" => $new_chat_record->user_id,
-                    "data" => $new_chat_record,
-                    "socket" => $socket,
-                    "message" => $messageRecord?->original
-                ];
-                
-            
-            
-            $mutatedMessage = $this->message_refresh($new_chat_record);
-            return response()->json($mutatedMessage);
-                 
-           
+
+        // Only send if it’s draft and request asks to send
+        if ((int)$chat_record->draft_flag !== 1 || (int)$request->input('draft_flag', 0) !== 0) {
+            return response()->json(['success' => false, 'message' => 'Not a draft or invalid request'], 422);
         }
+
+        $new = $sender->send($chat_record);
+
+        // Keep your response behavior
+        $mutatedMessage = $this->message_refresh($new);
+        return response()->json($mutatedMessage);
     }
     public function set_message_schedule(Request $request) {
         $request->validate([
@@ -1109,7 +1056,8 @@ class BoardController extends Controller
             $message->reserved_at = $request->reserved_at;
             $message->save();
         }
-        return response()->json('success', 200);
+        $mutatedMessage = $this->message_refresh($message);
+        return response()->json($mutatedMessage);
     }
     public function chatEdit(Request $request){
         $active_user = $this->active_user();
