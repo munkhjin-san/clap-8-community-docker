@@ -18,20 +18,32 @@ class KintoneClient
             'query'      => $query,
             'fields'     => $fields,       // arrays are fine; will become fields[0]=...
         ]);
-        $resp = $this->http->get("{$base}/records.json?{$queryString}", [
-            'headers' => [
-                'X-Cybozu-Authorization' => $basic,
-                'X-Requested-With'       => 'XMLHttpRequest',
-                'Accept'                 => 'application/json',
-            ],
-            'timeout' => 15,
-        ]);
-        $data = json_decode((string)$resp->getBody(), true);
-        $records = $data['records'] ?? [];
+        try {
+            $resp = $this->http->get("{$base}/records.json?{$queryString}", [
+                'headers' => [
+                    'X-Cybozu-Authorization' => $basic,
+                    'X-Requested-With'       => 'XMLHttpRequest',
+                    'Accept'                 => 'application/json',
+                ],
+                'timeout' => 15,
+            ]);
+            $data = json_decode((string)$resp->getBody(), true);
+            $records = $data['records'] ?? [];
 
 
 
-        return $records;
+            return $records;
+        } catch (ClientException $e) {
+            $res  = $e->getResponse();
+            $body = $res ? (string) $res->getBody() : null;
+
+            // This is what you NEED to see
+            dd([
+                'status' => $res?->getStatusCode(),
+                'body'   => $body,
+                'json'   => $body ? json_decode($body, true) : null,
+            ]);
+        }
     }
     public function getRecord(string|int $appId, string|int $recordId, array $fields = []): array
     {

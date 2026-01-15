@@ -4604,13 +4604,77 @@ class ProjectController extends Controller
 
             $offset += $limit;
         }
+        $m_query = '退職フラグ in ("在籍中") and 社員コード != ""';
+        $m_fields = ["氏名", "所定労働日数月平均", "正社員日当計算"];
 
+        $m_limit = 500;
+        $m_offset = 0;
+        $m_out = [];
+        while (true) {
+            $q = $m_query . " limit {$m_limit} offset {$m_offset}";
+            $m_recs = $this->api->getRecords(96, $q, $m_fields);
+
+            if (empty($m_recs)) {
+                break;
+            }
+
+            foreach ($m_recs as $r) {
+                $name = $r["氏名"]["value"];
+                $amount = $r["正社員日当計算"]["value"];
+                $average = $r["所定労働日数月平均"]["value"];
+                $m_out[$name] = [
+                    '給料手当出金' => (float)($amount ?? 0),
+                    '所定労働日数' => (float)($average ?? 0),
+                ];
+            }
+
+            if (count($m_recs) < $m_limit) {
+                break;
+            }
+
+            $m_offset += $m_limit;
+        }
+        $months = [];
+        $cursor = $startInstance->copy()->startOfMonth();
+        $endMonthCursor = $endInstance->copy()->startOfMonth();
+        while ($cursor->lte($endMonthCursor)) {
+            $months[] = $cursor->format('Y-m');
+            $cursor->addMonth();
+        }
+        $defaultDept = ''; 
+
+        foreach ($m_out as $name => $member) {
+            foreach ($months as $ym) {
+                $hasMonthAlready = false;
+
+                if (isset($out[$name]) && is_array($out[$name])) {
+                    foreach ($out[$name] as $dept => $byMonth) {
+                        if (isset($byMonth[$ym])) {
+                            $hasMonthAlready = true;
+                            break;
+                        }
+                    }
+                }
+
+                if ($hasMonthAlready) {
+                    continue;
+                }
+                $out[$name][$defaultDept][$ym] = [
+                    '給料手当数量' => 0.0, 
+                    '所定労働日数' => (float)($member['所定労働日数'] ?? 0),
+                    '給料手当出金' => (float)($member['給料手当出金'] ?? 0),
+                    '部門コード'   => '',
+                    'レコード番号' => 0, 
+                ];
+            }
+        }
         return response()->json([
             'interval' => [
                 'startDate' => $startDate,
                 'endDate' => $endDate,
             ],
             'data' => $out,
+            'member' => $m_out
         ]);
     }
     public function update_resource_kintone(Request $request) 

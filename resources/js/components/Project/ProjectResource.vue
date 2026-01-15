@@ -139,7 +139,7 @@
                                 {{ formatNumber(project.periods[p.period]?.['給料手当数量']) }}
                               </span>
 
-                              <div v-if="managementAccounts" class="ml-4 shrink-0">
+                              <div v-if="managementAccounts && project.project" class="ml-4 shrink-0">
                                 <CommandButton
                                   :buttons="[
                                     { title: '編集', action: () => editQuantity(project.periods[p.period], member.member, project.project) }
