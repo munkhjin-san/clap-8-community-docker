@@ -4537,6 +4537,26 @@ class ProjectController extends Controller
             return response()->json(['message' => 'Invalid interval'], 422);
         }
 
+        [$startDate, $endDate, $months] = $this->resolveResourceInterval($startYear, $startMonth, $endYear, $endMonth);
+
+        [$out, $opt] = $this->fetchResourceRows($startDate, $endDate);
+        $m_out = $this->fetchResourceMembers();
+        $out = $this->backfillResourceMembers($out, $m_out, $months);
+        $memberMeta = $this->buildResourceMemberMeta($out, $m_out, $months);
+        return response()->json([
+            'interval' => [
+                'startDate' => $startDate,
+                'endDate' => $endDate,
+            ],
+            'data' => $out,
+            'member' => $m_out,
+            'options' => array_keys($opt),
+            'member_meta' => $memberMeta,
+        ]);
+    }
+
+    private function resolveResourceInterval(int $startYear, int $startMonth, int $endYear, int $endMonth): array
+    {
         $startInstance = Carbon::createFromDate($startYear, $startMonth, 1)->startOfDay();
         $endInstance   = Carbon::createFromDate($endYear, $endMonth, 1)->startOfDay();
 
@@ -4552,7 +4572,20 @@ class ProjectController extends Controller
 
         $startDate = $startInstance->copy()->startOfMonth()->toDateString();
         $endDate   = $endInstance->copy()->endOfMonth()->toDateString();
-        // 部門 in (\"{$project_names_str}\")
+
+        $months = [];
+        $cursor = $startInstance->copy()->startOfMonth();
+        $endMonthCursor = $endInstance->copy()->startOfMonth();
+        while ($cursor->lte($endMonthCursor)) {
+            $months[] = $cursor->format('Y-m');
+            $cursor->addMonth();
+        }
+
+        return [$startDate, $endDate, $months];
+    }
+
+    private function fetchResourceRows(string $startDate, string $endDate): array
+    {
         $query = "日付 >= \"{$startDate}\" and 日付 <= \"{$endDate}\"";
         $fields = ["給料手当テーブル", "部門", "日付", "新部門ｺｰﾄﾞ", "レコード番号"];
 
@@ -4571,35 +4604,38 @@ class ProjectController extends Controller
 
             foreach ($recs as $r) {
                 $date = (string)($r['日付']['value'] ?? '');
-                if ($date === '') continue;
+                if ($date === '') {
+                    continue;
+                }
 
                 $ym = date('Y-m', strtotime($date));
 
                 $dept = (string)($r['部門']['value'] ?? '');
-                if ($dept === '') $dept = '_no_dept_';
+                if ($dept === '') {
+                    $dept = '_no_dept_';
+                }
 
                 $rows = $r['給料手当テーブル']['value'] ?? [];
                 foreach ($rows as $row) {
                     $v = $row['value'] ?? [];
 
                     $name = (string)($v['ルックアップ_4']['value'] ?? '');
-                    if ($name === '') continue;
-                    // $out[$name] = [
-                    //     '社員コード'   => $v['社員コード']['value'] ?? null,
-                    // ];
+                    if ($name === '') {
+                        continue;
+                    }
+
                     $out[$name][$dept][$ym] = [
                         '給料手当数量' => (float)($v['給料手当数量']['value'] ?? 0),
                         '所定労働日数' => (float)($v['所定労働日数']['value'] ?? 0),
                         '給料手当出金' => (float)($v['給料手当出金']['value'] ?? 0),
                         '部門コード'   => (string)($r['新部門ｺｰﾄﾞ']['value'] ?? ''),
                         'レコード番号' => (int)($r['レコード番号']['value'] ?? 0),
-                        '雇用形態'     => (string)($v['雇用形態']['value'] ?? '')   
+                        '雇用形態'     => (string)($v['雇用形態']['value'] ?? '')
                     ];
-                    $val = (string)($v['雇用形態']['value'] ?? '');
-                    $val = trim($val);
 
-                    if ($val !== '' && !in_array($val, $opt, true)) {
-                        $opt[] = $val;
+                    $val = trim((string)($v['雇用形態']['value'] ?? ''));
+                    if ($val !== '') {
+                        $opt[$val] = true;
                     }
                 }
             }
@@ -4610,6 +4646,12 @@ class ProjectController extends Controller
 
             $offset += $limit;
         }
+
+        return [$out, $opt];
+    }
+
+    private function fetchResourceMembers(): array
+    {
         $m_query = '退職フラグ in ("在籍中") and 社員コード != ""';
         $m_fields = ["氏名", "所定労働日数月平均", "正社員日当計算", "雇用形態"];
 
@@ -4642,21 +4684,20 @@ class ProjectController extends Controller
 
             $m_offset += $m_limit;
         }
-        $months = [];
-        $cursor = $startInstance->copy()->startOfMonth();
-        $endMonthCursor = $endInstance->copy()->startOfMonth();
-        while ($cursor->lte($endMonthCursor)) {
-            $months[] = $cursor->format('Y-m');
-            $cursor->addMonth();
-        }
-        $defaultDept = ''; 
 
-        foreach ($m_out as $name => $member) {
+        return $m_out;
+    }
+
+    private function backfillResourceMembers(array $out, array $members, array $months): array
+    {
+        $defaultDept = '';
+
+        foreach ($members as $name => $member) {
             foreach ($months as $ym) {
                 $hasMonthAlready = false;
 
                 if (isset($out[$name]) && is_array($out[$name])) {
-                    foreach ($out[$name] as $dept => $byMonth) {
+                    foreach ($out[$name] as $byMonth) {
                         if (isset($byMonth[$ym])) {
                             $hasMonthAlready = true;
                             break;
@@ -4667,53 +4708,57 @@ class ProjectController extends Controller
                 if ($hasMonthAlready) {
                     continue;
                 }
+
                 $out[$name][$defaultDept][$ym] = [
-                    '給料手当数量' => 0.0, 
+                    '給料手当数量' => 0.0,
                     '所定労働日数' => (float)($member['所定労働日数'] ?? 0),
                     '給料手当出金' => (float)($member['給料手当出金'] ?? 0),
                     '部門コード'   => '',
-                    'レコード番号' => 0, 
+                    'レコード番号' => 0,
                     '雇用形態'     => (string)($member['雇用形態'] ?? ''),
                 ];
             }
         }
+
+        return $out;
+    }
+
+    private function buildResourceMemberMeta(array $out, array $members, array $months): array
+    {
         $memberMeta = [];
-        foreach ($out as $name => $depts) {
+        foreach ($members as $name => $member) {
             foreach ($months as $ym) {
-                $meta = null;
-                foreach ($depts as $byMonth) {
-                    if (isset($byMonth[$ym])) {
-                        $meta = [
-                            '雇用形態'     => (string)($byMonth[$ym]['雇用形態'] ?? ''),
-                            '所定労働日数' => (float)($byMonth[$ym]['所定労働日数'] ?? 0),
-                            '給料手当出金' => (float)($byMonth[$ym]['給料手当出金'] ?? 0),
-                        ];
-                        break;
-                    }
-                }
-
-                if ($meta === null) {
-                    $fallback = $m_out[$name] ?? null;
-                    $meta = [
-                        '雇用形態'     => (string)($fallback['雇用形態'] ?? ''),
-                        '所定労働日数' => (float)($fallback['所定労働日数'] ?? 0),
-                        '給料手当出金' => (float)($fallback['給料手当出金'] ?? 0),
-                    ];
-                }
-
-                $memberMeta[$name][$ym] = $meta;
+                $memberMeta[$name][$ym] = [
+                    '雇用形態'     => (string)($member['雇用形態'] ?? ''),
+                    '所定労働日数' => (float)($member['所定労働日数'] ?? 0),
+                    '給料手当出金' => (float)($member['給料手当出金'] ?? 0),
+                ];
             }
         }
-        return response()->json([
-            'interval' => [
-                'startDate' => $startDate,
-                'endDate' => $endDate,
-            ],
-            'data' => $out,
-            'member' => $m_out,
-            'options' => $opt,
-            'member_meta' => $memberMeta,
-        ]);
+
+        foreach ($out as $name => $depts) {
+            if (isset($memberMeta[$name])) {
+                continue;
+            }
+            foreach ($months as $ym) {
+                $memberMeta[$name][$ym] = [
+                    '雇用形態'     => '',
+                    '所定労働日数' => 0.0,
+                    '給料手当出金' => 0.0,
+                ];
+            }
+            foreach ($depts as $byMonth) {
+                foreach ($byMonth as $ym => $row) {
+                    $memberMeta[$name][$ym] = [
+                        '雇用形態'     => (string)($row['雇用形態'] ?? ''),
+                        '所定労働日数' => (float)($row['所定労働日数'] ?? 0),
+                        '給料手当出金' => (float)($row['給料手当出金'] ?? 0),
+                    ];
+                }
+            }
+        }
+
+        return $memberMeta;
     }
     public function update_resource_kintone(Request $request) 
     {
