@@ -55,7 +55,7 @@
                       <th 
                           v-for="(p, i) in periods"
                           :key="p.period"
-                          colspan="5"
+                          colspan="6"
                           :class="[
                             'border-r border-[var(--calendarBorder)]',
                             '[border-right-style:solid]',
@@ -70,13 +70,32 @@
                     </tr>
                     <tr>
                         <template v-for="p in periods" :key="p.period">
+                            <th data-cell="right-border">
+                              <div class="relative">
+                                <div class="cursor-pointer flex items-center gap-[5px] h-p" @click.stop="toggleFilterMenu('empTypeFilter')">
+                                  雇用形態
+                                  <Filter v-if="allowRemainingFilter" class="filter-icon" size="12"/>
+                                </div>
+                                <Transition name="slidePop">
+                                  <div v-if="menu.parent == 'empTypeFilter'" id="empTypeFilter" class="pc shadow-me absolute right-0 bg-[var(--bg3)] text-[var(--primary-color)] flex flex-col gap-[10px] text-[12px] p-[10px] top-0">
+                                      <button class="text-[11px] min-w-[50px] bg-[var(--primary-color)] text-[var(--background-color)] h-[26px] px-[3px]" @click.stop="selectedEmpFilter = [], menu.close()">リセット</button>
+                                      <div v-for="option in empFilterOptions">
+                                          <label class="cursor-pointer select-none whitespace-nowrap flex items-center gap-[5px]">
+                                              <input type="checkbox" class="custom-f-checkbox" name="class-selector"  v-model="selectedEmpFilter" :value="option"/>
+                                              {{ option }}
+                                          </label>
+                                      </div>
+                                  </div>
+                                </Transition>
+                              </div>  
+                            </th>
                             <th data-cell="right-border">給料手当数量</th>
                             <th data-cell="right-border">所定労働日数</th>
                             <th data-cell="right-border">給料手当出金</th>
                             <th data-cell="right-border">数量合計</th>
                             <th>
                               <div class="relative">
-                                <div class="cursor-pointer flex items-center gap-[5px] h-p" @click.stop="toggleRemainingFilterMenu">
+                                <div class="cursor-pointer flex items-center gap-[5px] h-p" @click.stop="toggleFilterMenu('minusPlusFilter')">
                                   数量残り
                                   <Filter v-if="allowRemainingFilter" class="filter-icon" size="12"/>
                                 </div>
@@ -90,7 +109,7 @@
                                           </label>
                                       </div>
                                   </div>
-                              </Transition>
+                                </Transition>
                               </div>
                               
                               
@@ -103,6 +122,7 @@
                       <td>{{ member.member }}</td>
                       <td></td>
                       <template v-for="p in periods" :key="p.period">
+                        <td></td>
                         <td></td>
                         <td></td>
                         <td></td>
@@ -131,6 +151,12 @@
                       </td>
                       <td data-cell="right-border" class="sticky-left second-col">{{ project.project }}</td>
                       <template v-for="p in periods" :key="p.period">
+                        <td data-cell="right-border" v-if="projectIndex === 0" :rowspan="member.projects.length">
+                          <div class="inner-col">
+                            <span class="mobile">雇用形態</span>
+                            {{ employmentType(member.member, p.period) }}
+                          </div>
+                        </td>
                         <td data-cell="right-border">
                           <div class="inner-col">
                             <span class="mobile">給料手当数量</span>
@@ -139,7 +165,7 @@
                                 {{ formatNumber(project.periods[p.period]?.['給料手当数量']) }}
                               </span>
 
-                              <div v-if="managementAccounts && project.project" class="ml-4 shrink-0">
+                              <div v-if="managementAccounts && project.project && formatNumber(project.periods[p.period]?.['給料手当数量'])" class="ml-4 shrink-0">
                                 <CommandButton
                                   :buttons="[
                                     { title: '編集', action: () => editQuantity(project.periods[p.period], member.member, project.project) }
@@ -154,13 +180,13 @@
                         <td data-cell="right-border" v-if="projectIndex === 0" :rowspan="member.projects.length">
                           <div class="inner-col">
                             <span class="mobile">所定労働日数</span>
-                            {{ totalWorkingDays(member.projects, p.period) }}
+                            {{ totalWorkingDays(member.member, p.period) }}
                           </div>
                         </td>
                         <td data-cell="right-border" v-if="projectIndex === 0" :rowspan="member.projects.length">
                           <div class="inner-col">
                              <span class="mobile">給料手当出金</span>
-                             {{ totalWithDrawal(member.projects, p.period) }}
+                             {{ totalWithDrawal(member.member, p.period) }}
                           </div>
                         </td>
                         <td data-cell="right-border" v-if="projectIndex === 0" :rowspan="member.projects.length">
@@ -172,7 +198,7 @@
                         <td data-cell="right-border" v-if="projectIndex === 0" :rowspan="member.projects.length">
                           <div class="inner-col">
                             <span class="mobile">数量残り</span>
-                            {{ remainingQuantity(member.projects, p.period) }}
+                            {{ remainingQuantity(member.member, member.projects, p.period) }}
                           </div>
                         </td>
                       </template>
@@ -241,6 +267,12 @@ type ResourceValue = {
   '給料手当出金': number
   'レコード番号': number
   '部門コード': string 
+  '雇用形態': string
+}
+type MemberMetaValue = {
+  '雇用形態': string
+  '所定労働日数': number
+  '給料手当出金': number
 }
 type EditResourceValue = ResourceValue & {
   project: string
@@ -251,6 +283,7 @@ const props = defineProps<{
 }>()
 const keywords = ref('')
 const resourceData = ref<Record<string, Record<string, Record<string, ResourceValue>>>>({})
+const memberMeta = ref<Record<string, Record<string, MemberMetaValue>>>({})
 const commentCount = ref<Record<string, number>>({})
 const selectedCommentMember = ref<string | null>(null)
 const auth = useAuthUserStore()
@@ -260,6 +293,8 @@ const editData = ref<EditResourceValue | null>(null)
 const editModal = ref(false)
 const filterOptions = ['－', '0', '＋']
 const selectedFilter = ref<string[]>([])
+const selectedEmpFilter = ref<string[]>([])
+const empFilterOptions = ref<string[]>([])
 const editQuantity = (data: ResourceValue, member: string, project: string) => {
   editData.value = {
     ...data,
@@ -357,12 +392,18 @@ const searchResults = computed(() => {
     }, [] as typeof resourceRows.value)
   }
 
-  if (!allowRemainingFilter.value || selectedFilter.value.length === 0) {
+  if (
+    !allowRemainingFilter.value ||
+    (selectedFilter.value.length === 0 && selectedEmpFilter.value.length === 0)
+  ) {
     return results
   }
 
   const period = periodStartIso.value
-  return results.filter((member) => matchesRemainingFilter(member.projects, period))
+  return results.filter((member) =>
+    matchesRemainingFilter(member.member, member.projects, period) &&
+    matchesEmpTypeFilter(member.member, period)
+  )
 })
 const intervalPayload = computed(() => ({
   startYear: normalizedRange.value.start.year,
@@ -374,6 +415,8 @@ const fetchData = async() => {
     loader.value = true
     const res = await api.post('/get_resources_kintone', {interval: intervalPayload.value}) 
     resourceData.value = res.data?.data ?? res.data ?? {}
+    memberMeta.value = res.member_meta ?? {}
+    empFilterOptions.value = res.options ?? []
     loader.value = false
 }
 const fetchCommentCounts = async () => {
@@ -408,82 +451,74 @@ const totalQuantityValue = (
     return sum + (project.periods?.[period]?.['給料手当数量'] ?? 0)
   }, 0)
 
-const getWorkingDaysValue = (
-  projects: Array<{ periods: Record<string, ResourceValue> }>,
-  period: string
-) => {
-  for (const project of projects) {
-    const raw = project.periods?.[period]?.['所定労働日数']
-    if (raw === null || raw === undefined) {
-      continue
-    }
-    const value = typeof raw === 'number' ? raw : Number(raw)
-    if (Number.isFinite(value)) {
-      return value
-    }
+const getWorkingDaysValue = (memberName: string, period: string) => {
+  const raw = memberMeta.value?.[memberName]?.[period]?.['所定労働日数']
+  if (raw === null || raw === undefined) {
+    return null
   }
-  return null
+  const value = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isFinite(value) ? value : null
 }
-const getWithDrawalValue = (
-  projects: Array<{ periods: Record<string, ResourceValue> }>,
-  period: string
-) => {
-  for (const project of projects) {
-    const raw = project.periods?.[period]?.['給料手当出金']
-    if (raw === null || raw === undefined) {
-      continue
-    }
-    const value = typeof raw === 'number' ? raw : Number(raw)
-    if (Number.isFinite(value)) {
-      return value
-    }
+const getWithDrawalValue = (memberName: string, period: string) => {
+  const raw = memberMeta.value?.[memberName]?.[period]?.['給料手当出金']
+  if (raw === null || raw === undefined) {
+    return null
   }
-  return null
+  const value = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isFinite(value) ? value : null
+}
+const getEmploymentValue = (memberName: string, period: string) => {
+  const raw = memberMeta.value?.[memberName]?.[period]?.['雇用形態']
+  if (raw === null || raw === undefined) {
+    return null
+  }
+  return raw
+}
+const employmentType = (memberName: string, period: string) => {
+  const value = getEmploymentValue(memberName, period)
+  return value === null ? '' : value
 }
 const totalQuantity = (
   projects: Array<{ periods: Record<string, ResourceValue> }>,
   period: string
 ) => formatNumber(totalQuantityValue(projects, period))
 
-const totalWorkingDays = (
-  projects: Array<{ periods: Record<string, ResourceValue> }>,
-  period: string
-) => {
-  const value = getWorkingDaysValue(projects, period)
+const totalWorkingDays = (memberName: string, period: string) => {
+  const value = getWorkingDaysValue(memberName, period)
   return value === null ? '' : formatNumber(value)
 }
-const totalWithDrawal = (
-  projects: Array<{ periods: Record<string, ResourceValue> }>,
-  period: string
-) => {
-  const value = getWithDrawalValue(projects, period)
+const totalWithDrawal = (memberName: string, period: string) => {
+  const value = getWithDrawalValue(memberName, period)
   return value === null ? '' : formatNumber(value)
 }
 const remainingQuantity = (
+  memberName: string,
   projects: Array<{ periods: Record<string, ResourceValue> }>,
   period: string
 ) => {
-  const remaining = remainingQuantityValue(projects, period)
+  const remaining = remainingQuantityValue(memberName, projects, period)
   return remaining === null ? '' : formatNumber(remaining)
 }
 const remainingQuantityValue = (
+  memberName: string,
   projects: Array<{ periods: Record<string, ResourceValue> }>,
   period: string
 ) => {
-  const workingDays = getWorkingDaysValue(projects, period)
+  const workingDays = getWorkingDaysValue(memberName, period)
   if (workingDays === null) {
     return null
   }
   return workingDays - totalQuantityValue(projects, period)
 }
 const matchesRemainingFilter = (
+  memberName: string,
   projects: Array<{ periods: Record<string, ResourceValue> }>,
   period: string
 ) => {
   if (!allowRemainingFilter.value || selectedFilter.value.length === 0) {
     return true
   }
-  const remaining = remainingQuantityValue(projects, period)
+  const remaining = remainingQuantityValue(memberName, projects, period)
   if (remaining === null) {
     return false
   }
@@ -493,6 +528,16 @@ const matchesRemainingFilter = (
     if (option === '＋') return remaining > 0
     return false
   })
+}
+const matchesEmpTypeFilter = (memberName: string, period: string) => {
+  if (!allowRemainingFilter.value || selectedEmpFilter.value.length === 0) {
+    return true
+  }
+  const empType = getEmploymentValue(memberName, period)
+  if (empType === null) {
+    return false
+  }
+  return selectedEmpFilter.value.includes(empType)
 }
 const parsePeriod = (value: string): DateTime => {
   const dt = DateTime.fromFormat(`${value}-01`, 'yyyy-MM-dd', { zone: 'Asia/Tokyo' })
@@ -511,9 +556,9 @@ const handleRangeChange = ({ start, end }: { start: string; end: string }) => {
 const shiftRange = (months: number) => {
   applyRange(periodStart.value.plus({ months }), periodEnd.value.plus({ months }))
 }
-const toggleRemainingFilterMenu = () => {
+const toggleFilterMenu = (val: string) => {
   if (!allowRemainingFilter.value) return
-  menu.setMenu({parent: 'minusPlusFilter'})
+  menu.setMenu({parent: val})
 }
 watch([periodStartIso, periodEndIso], async () => {
     await fetchData()
@@ -527,7 +572,8 @@ watch(showComment, (value) => {
 watch(allowRemainingFilter, (value) => {
     if (!value) {
         selectedFilter.value = []
-        if (menu.parent === 'minusPlusFilter') {
+        selectedEmpFilter.value = []
+        if (menu.parent === 'minusPlusFilter' || menu.parent === 'empTypeFilter') {
             menu.close()
         }
     }
@@ -560,7 +606,7 @@ table {
             background-color: var(--bg3);
             border-bottom: 1px solid var(--calendarBorder);
         }
-        th:nth-of-type(5n + 5) {
+        th:nth-of-type(6n + 6) {
             border-right: 1px solid var(--calendarBorder);
         }
         th.sticky-left,

@@ -3184,7 +3184,6 @@ class ProjectController extends Controller
                 'member_name' => $data['member_name'],
                 'user_id'     => $user->id,
                 'comment'     => $data['comment'],
-                'reply_id'    => $data['reply_id'] ?? null,
                 'period'      => $data['period'],
             ]);
 
@@ -4561,7 +4560,7 @@ class ProjectController extends Controller
         $offset = 0;
 
         $out = [];
-
+        $opt = [];
         while (true) {
             $q = $query . " limit {$limit} offset {$offset}";
             $recs = $this->api->getRecords(1068, $q, $fields);
@@ -4594,7 +4593,14 @@ class ProjectController extends Controller
                         '給料手当出金' => (float)($v['給料手当出金']['value'] ?? 0),
                         '部門コード'   => (string)($r['新部門ｺｰﾄﾞ']['value'] ?? ''),
                         'レコード番号' => (int)($r['レコード番号']['value'] ?? 0),
+                        '雇用形態'     => (string)($v['雇用形態']['value'] ?? '')   
                     ];
+                    $val = (string)($v['雇用形態']['value'] ?? '');
+                    $val = trim($val);
+
+                    if ($val !== '' && !in_array($val, $opt, true)) {
+                        $opt[] = $val;
+                    }
                 }
             }
 
@@ -4605,7 +4611,7 @@ class ProjectController extends Controller
             $offset += $limit;
         }
         $m_query = '退職フラグ in ("在籍中") and 社員コード != ""';
-        $m_fields = ["氏名", "所定労働日数月平均", "正社員日当計算"];
+        $m_fields = ["氏名", "所定労働日数月平均", "正社員日当計算", "雇用形態"];
 
         $m_limit = 500;
         $m_offset = 0;
@@ -4622,9 +4628,11 @@ class ProjectController extends Controller
                 $name = $r["氏名"]["value"];
                 $amount = $r["正社員日当計算"]["value"];
                 $average = $r["所定労働日数月平均"]["value"];
+                $type = $r['雇用形態']['value'];
                 $m_out[$name] = [
                     '給料手当出金' => (float)($amount ?? 0),
                     '所定労働日数' => (float)($average ?? 0),
+                    '雇用形態'     => (string)($type ?? 0),
                 ];
             }
 
@@ -4665,7 +4673,35 @@ class ProjectController extends Controller
                     '給料手当出金' => (float)($member['給料手当出金'] ?? 0),
                     '部門コード'   => '',
                     'レコード番号' => 0, 
+                    '雇用形態'     => (string)($member['雇用形態'] ?? ''),
                 ];
+            }
+        }
+        $memberMeta = [];
+        foreach ($out as $name => $depts) {
+            foreach ($months as $ym) {
+                $meta = null;
+                foreach ($depts as $byMonth) {
+                    if (isset($byMonth[$ym])) {
+                        $meta = [
+                            '雇用形態'     => (string)($byMonth[$ym]['雇用形態'] ?? ''),
+                            '所定労働日数' => (float)($byMonth[$ym]['所定労働日数'] ?? 0),
+                            '給料手当出金' => (float)($byMonth[$ym]['給料手当出金'] ?? 0),
+                        ];
+                        break;
+                    }
+                }
+
+                if ($meta === null) {
+                    $fallback = $m_out[$name] ?? null;
+                    $meta = [
+                        '雇用形態'     => (string)($fallback['雇用形態'] ?? ''),
+                        '所定労働日数' => (float)($fallback['所定労働日数'] ?? 0),
+                        '給料手当出金' => (float)($fallback['給料手当出金'] ?? 0),
+                    ];
+                }
+
+                $memberMeta[$name][$ym] = $meta;
             }
         }
         return response()->json([
@@ -4674,7 +4710,9 @@ class ProjectController extends Controller
                 'endDate' => $endDate,
             ],
             'data' => $out,
-            'member' => $m_out
+            'member' => $m_out,
+            'options' => $opt,
+            'member_meta' => $memberMeta,
         ]);
     }
     public function update_resource_kintone(Request $request) 

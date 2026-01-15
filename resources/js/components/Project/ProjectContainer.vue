@@ -142,7 +142,7 @@
                     </div>
                     <div class="project-cell pc" style="overflow: hidden">
                         <div class="flex">
-                            <div class="flex" @click="viewUsers(project.members)">
+                            <div class="flex" @click.stop="viewUsers(project.members)">
                                 <UserPanel v-for="member in project.members.slice(0, 5)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="20"/>
                             </div>
                             <span class="my-[auto] ml-[5px] text-[12px] cursor-pointer whitespace-nowrap" v-if="project.members.length > 10">...({{project.members.length}})</span>
