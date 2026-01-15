@@ -7,6 +7,8 @@ import { useSideMenuView } from '@/store/sideMenuView'
 import { useAuthUserStore } from './store/auth'
 import { useProjectUsers } from '@/store/projectUsers'
 import { useKeyboardStore } from '@/store/keyboardStore'
+import { useBoardList } from '@/composables/board'
+
 import axios from 'axios'
 const routes = [
     {
@@ -882,6 +884,7 @@ router.afterEach(() => {
     const messageUsers = useMessageUsers()
     const filePreview = useFilePreview()
     const projectUsers = useProjectUsers()
+    const { setNextCursor, nextCursor } = useBoardList() 
     projectUsers.setProjectUsers({
         active: false,
         userList: [],
@@ -900,6 +903,7 @@ router.afterEach(() => {
         index: 0,
         message: null
     })
+    setNextCursor(null)    
   }
   router.onError((error, to) => {
     if (error.message.includes('Failed to fetch dynamically imported module') || error.message.includes("Importing a module script failed")) {

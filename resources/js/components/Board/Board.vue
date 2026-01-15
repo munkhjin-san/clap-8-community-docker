@@ -767,7 +767,7 @@ import { DateTime } from 'luxon'
     const onScroll = (e) => {
         const el = e.currentTarget as HTMLElement
         if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
-            getBoardList()
+            getBoardList('scroll')
             if (reachEnd.value) return
             boardLoader.value = true
         }
@@ -806,7 +806,7 @@ import { DateTime } from 'luxon'
             if (atr == 'mounted' && route.params.chatId) {
                 chatId = Number(route.params.chatId) ?? null
             }
-            console.log('Fetching board list with atr:', atr, 'and chatId:', chatId);
+            console.debug('Fetching board list with atr:', atr, 'and chatId:', chatId);
             
             const payload: any = {}
             
