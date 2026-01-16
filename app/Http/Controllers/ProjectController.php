@@ -28,6 +28,7 @@ use App\Models\messageFile;
 use App\Models\ProjectMemberReportNotification;
 use App\Models\ProjectContract;
 use App\Models\ProjectResourceComment;
+use App\Models\ProjectPlanYear;
 
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ProjectMention;
@@ -46,6 +47,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\BoardController;
 use App\Services\SharedService;
 use App\Services\VarianceService;
+use App\Services\ProjectPlanFormulaService;
 use App\Imports\EvaluationImport;
 use App\Exports\YearlyBudgetTemplate;
 use App\Imports\YearlyBudgetImport;
@@ -89,7 +91,8 @@ class ProjectController extends Controller
         BoardController $boardController, 
         SharedService $sharedService, 
         private KintoneClient $api,
-        private GoogleSheetsClient $client
+        private GoogleSheetsClient $client,
+        private ProjectPlanFormulaService $planFormulaService
     ){
         $this->boardController = $boardController;
         $this->sharedService = $sharedService;
@@ -1805,7 +1808,27 @@ class ProjectController extends Controller
         $filePathYear = ($year > $currentYear && ($month == 1 || $month == 2)) ? $currentYear : $year;
         $file_path = storage_path("app/yearly_plan/{$filePathYear}.xlsx");
         if (!file_exists($file_path)) {
-            return response()->json([]);
+            $planYear = ProjectPlanYear::query()
+                ->where('fiscal_year', $filePathYear)
+                ->where('start_month', 3)
+                ->first();
+            if (! $planYear && $filePathYear !== $year) {
+                $planYear = ProjectPlanYear::query()
+                    ->where('fiscal_year', $year)
+                    ->where('start_month', 3)
+                    ->first();
+            }
+            if (! $planYear) {
+                return response()->json([]);
+            }
+            $out = $this->planFormulaService->buildMonthlyBalance(
+                $project->id,
+                $planYear->id,
+                (int) $planYear->start_month,
+                0,
+                ['sales' => '5050', 'expense' => '6270', 'profit' => '9130']
+            );
+            return response()->json($out);
         }
 
         $sheet = Excel::toCollection(new YearlyPlanImport, $file_path)[0];
