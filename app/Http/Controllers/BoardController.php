@@ -31,6 +31,7 @@ use App\Services\DraftMessageSender;
 use App\Mail\Confirm;
 use App\Jobs\SendNotification;
 use App\Jobs\SendEmail;
+use App\Jobs\IncrementUnreadCount;
 use DB;
 class BoardController extends Controller
 {
@@ -88,6 +89,8 @@ class BoardController extends Controller
                     if($to_user == $active_user->id){
                         $boardToUser->admin_flag = 1;
                         $boardToUser->last_act = now();
+                    } else {
+                        $boardToUser->unread_count = 1;
                     }                
                     $boardToUser->save();                   
                 }      
@@ -330,6 +333,8 @@ class BoardController extends Controller
                 if($to_user == $auth_user_id){
                     $boardToUser->admin_flag = 1;
                     $boardToUser->last_act = now();
+                } else {
+                    $boardToUser->unread_count = 1;
                 }                
                 $boardToUser->save();
                 $initialMember = User::where('id', $to_user)->select('id', 'name')->first();
@@ -626,34 +631,54 @@ class BoardController extends Controller
         $ids = [];
         foreach($request->file() as $file ){
             $mime_type = $file->getMimeType();
-            $mime_type_array = explode('/',$mime_type);
-            $file_type = $mime_type_array[0];
+            [$file_type] = explode('/', $mime_type);
             $file_extension = strtolower($file->getClientOriginalExtension());
-            $path = '/temp_upload';     
-            $file_name = $file->getClientOriginalName(); 
-            $file_size = $file->getSize();   
+
+            $dir = 'temp_upload'; // NO leading slash
+            $file_name = $file->getClientOriginalName();
+            $file_size = $file->getSize(); // original upload size (optional)
 
             $newFile = messageFile::create([
-                'name' => $file_name,
+                'name'      => $file_name,
                 'extension' => $file_extension,
-                'user_id' => $auth_user_id,
+                'user_id'   => $auth_user_id,
                 'mime_type' => $file_type,
             ]);
 
-            $set_path = "$newFile->id.$file_extension";
+            $set_path = "{$newFile->id}.{$file_extension}";
 
-            File::isDirectory(storage_path("app/$path")) or File::makeDirectory(storage_path("app/$path"), 0755, true, true);
+            // Build paths once, use them everywhere
+            $relative = "{$dir}/{$set_path}";
+            $absoluteDir  = storage_path("app/{$dir}");
+            $absoluteFile = storage_path("app/{$relative}");
 
-            if($file_type == 'image'){
-                $img = Image::read($file);
-                $img->save(storage_path("app/$path/$set_path"), 30);
-
-            }else{                
-                Storage::disk('local')->putFileAs('/temp_upload', $file, $set_path);
+            // Ensure directory exists
+            if (!File::isDirectory($absoluteDir)) {
+                File::makeDirectory($absoluteDir, 0755, true);
             }
 
-            $sizeAfter = File::size(storage_path("app/temp_upload/$set_path"));
-            $newFile->update([ 'size' => $sizeAfter ]);
+            // Save file
+            if ($file_type === 'image') {
+                $img = Image::read($file);
+                $img->save($absoluteFile, 30);  // compression quality 30
+            } else {
+                Storage::disk('local')->putFileAs($dir, $file, $set_path);
+            }
+
+            // Force PHP to re-stat this file (stop believing cached metadata)
+            clearstatcache(true, $absoluteFile);
+
+            // Hard check: fail loudly if write didn't happen
+            if (File::exists($absoluteFile)) {
+                // Read size reliably
+                $sizeAfter = File::size($absoluteFile);
+
+                // Persist
+                $newFile->update([
+                    'size' => $sizeAfter,
+                ]);
+            }            
+
             $ids[] = $newFile;
                        
         }
@@ -878,11 +903,9 @@ class BoardController extends Controller
             
             $not = $this->mentionAndNotify( $boardRecord, $active_user, $chat);
             $related_members = boardToUser::where('record_id','=', $request->record_id)->where('deleted_status', '=', 0)->where('user_id', '!=', $auth_user_id)->pluck('user_id');
-            if(!$request->override_user_id){
-                $update_last_message = boardToUser::where('record_id','=', $request->record_id)->where('user_id', '=', $auth_user_id)->update(["last_message" => $chat->id]);
-            }    
-            
-            // SendPusher::dispatchAfterResponse($rebound);  
+
+            IncrementUnreadCount::dispatchAfterResponse($request->record_id, $auth_user_id);
+
             $socket = array();
             array_push($socket, ["event" => "board:{$request->record_id}", "data" => []]);
             array_push($socket, ["event" => 'refresh:badge', "data" => $related_members]);
@@ -1114,21 +1137,11 @@ class BoardController extends Controller
         $active_user = $this->active_user();
         $auth_user_id = $active_user->id;
 
-        $updateLastMessage = boardToUser::where('record_id','=', $request->board_id)->where('user_id','=', $auth_user_id)->first();
-        if(!empty($updateLastMessage)){
-            $lastMessageId = messageRecord::where('record_id', '=', $request->board_id)->orderBy('created_at', 'desc')->withTrashed()->orderBy('created_at', 'desc')
-            ->orderBy('id', 'desc')->select('id')->first();
-            if(!empty($lastMessageId)){
-                $updateLastMessage->last_message = $lastMessageId->id;
-                $updateLastMessage->save();
-            }else{
-                $updateLastMessage->last_act = now();
-                $updateLastMessage->save();
-            }           
-        }
+        $updateLastMessage = boardToUser::where('record_id', $request->board_id)->where('user_id', $auth_user_id)->update([
+            'unread_count' => 0
+        ]);
         $res = $this->get_board_badge();
-        return $res;
-        
+        return $res;     
         
     }
     public function get_board_badge(){       
@@ -1138,66 +1151,29 @@ class BoardController extends Controller
         $leavePeriod = $this->user_onleave(Auth::id());
         $list = [];
         foreach($linked as $user_id){
-            $savedLastMessages = boardToUser::where('user_id', $user_id)
-            ->where('deleted_status', 0)
-            ->where('deleted_flag', 0)
-            ->whereNull('left_at')
-            ->whereHas('board', function ($q) {
-                $q->where('deleted_flag', 0)->where('deleted_at', null);
-            })
-            ->where(function ($query) {
-                $query->whereHas('user', function ($q) {
-                    $q->where('on_leave', 0);
+            $unreadByBoard = boardToUser::where('user_id', $user_id)
+                ->where('deleted_status', 0)
+                ->where('deleted_flag', 0)
+                ->whereHas('board', function ($q) {
+                    $q->where('deleted_flag', 0)->whereNull('deleted_at');
                 })
-                ->orWhereHas('board', function ($q) {
-                    $q->where('private_flag', 1); 
-                });
-            })
-            ->orderBy('record_id', 'desc')
-            ->get();
-
-            $result = [];
-            foreach($savedLastMessages as $record){
-                $last = $record->last_message;
-                if(!empty($last)){
-                    $unread_count = $record->messageRecords()
-                    ->where(function ($query) {
-                        $query->where('info_flag', '!=', 1)
-                              ->where('info_flag', '!=', 2);
+                ->where(function ($query) {
+                    $query->whereHas('user', function ($q) {
+                        $q->where('on_leave', 0);
                     })
-                    ->where('draft_flag', 0)
-                    ->when($last, function ($q) use ($last) {
-                        $q->where('id', '>', $last);
-                    })
-                    ->when($record->created_at, function ($q) use ($record) {
-                        $q->where('created_at', '>=', $record->created_at);
-                    })->when($leavePeriod, function ($query) use ($leavePeriod) {
-                        $query->where(function ($q) use ($leavePeriod) {
-                            $q->whereHas('board_record', function ($q) {
-                                $q->where('private_flag', 1);
-                            })
-                            ->orWhereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
-                        });
-                    })->count();
-
-                    if($unread_count > 0) {
-                        $result[$record->record_id] = $unread_count;
-                    }  
-                }else{
-                    if($record->last_act == null){
-                        $result[$record->record_id] = 1;
-                    }
-                }               
-                        
-            }
+                    ->orWhereHas('board', function ($q) {
+                        $q->where('private_flag', 1);
+                    });
+                })
+                ->where('unread_count', '>', 0)
+                ->pluck('unread_count', 'record_id')
+                ->map(fn($v) => (int) $v);
             $data = array(
                 "user_id" => $user_id,
-                "list" => $result
+                "list" => $unreadByBoard
             );
             array_push($list, $data);
         }
-
-
         return response()->json($list);       
     }
     
@@ -1306,21 +1282,26 @@ class BoardController extends Controller
         $auth_user_id = $active_user->id;
 
         $message_remind = messageRemindUser::where('message_id', $request->id)->where('user_id', $auth_user_id)->first();
-
+        $message = messageRecord::findOrFail($request->id);
         if ($message_remind) {
             $message_remind->reminded = !$message_remind->reminded;
             $message_remind->save();
-            return response()->json($message_remind->reminded ? true : false);
+            $reminded = $message_remind->reminded ? true : false;
         } else {
             $remind_user = new messageRemindUser;
             $remind_user->message_id = $request->id;
             $remind_user->user_id = $auth_user_id;
             $remind_user->reminded = 1;
             $remind_user->save();
-            return response()->json($remind_user->reminded ? true : false);
+            $reminded = $remind_user->reminded ? true : false;
         }
 
-        
+        $mutatedMessage = $this->message_refresh($message);
+
+        return response()->json([
+            'reminded' => $reminded,
+            'data'     => $mutatedMessage
+        ]);
     }    
     public function checkRequest(Request $request){
 

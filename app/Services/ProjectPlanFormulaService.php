@@ -12,8 +12,10 @@ class ProjectPlanFormulaService
         int $planYearId,
         int $startMonth,
         int $scenarioKey,
-        array $codeMap
+        array $codeMap,
+        ?float $bonusRate = null
     ): array {
+        $bonusRate = $bonusRate ?? 0.1;
         $accounts = ProjectAccount::query()
             ->where('project_record_id', $projectId)
             ->where('is_active', 1)
@@ -56,17 +58,28 @@ class ProjectPlanFormulaService
                 $val = 0.0;
                 if ($acct) {
                     $stack = [];
-                    $val = $this->evaluateAccount($acct, $periodIndex, $amounts, $accountByCode, $postableAccounts, $memo, $stack);
+                    $val = $this->evaluateAccount(
+                        $acct,
+                        $periodIndex,
+                        $amounts,
+                        $accountByCode,
+                        $postableAccounts,
+                        $memo,
+                        $stack,
+                        $bonusRate
+                    );
                 }
                 $vals[$key] = (int) round($val, 0, PHP_ROUND_HALF_UP);
             }
 
             $sales = $vals['sales'] ?? 0;
             $profit = $vals['profit'] ?? 0;
+            $t_expense = $vals['t_expense'] ?? 0;
+            $bonus = $vals['bonus'] ?? 0;
             $vals['profit_rate'] = $sales !== 0
                 ? round(($profit / $sales) * 100, 2, PHP_ROUND_HALF_UP)
                 : null;
-
+            $vals['expense'] = $t_expense + $bonus;
             $out[$month] = $vals;
         }
 
@@ -80,7 +93,8 @@ class ProjectPlanFormulaService
         array $accountByCode,
         array $postableAccounts,
         array &$memo,
-        array &$stack
+        array &$stack,
+        float $bonusRate
     ): float {
         $key = $acct->id . ':' . $periodIndex;
         if (array_key_exists($key, $memo)) {
@@ -98,6 +112,13 @@ class ProjectPlanFormulaService
 
         $stack[$acct->id] = true;
         $expr = (string) ($acct->formula ?? '');
+        if ($acct->code === '9120' && !str_contains($expr, '{bonus_rate}')) {
+            $normalized = preg_replace('/\s+/', '', $expr);
+            if ($normalized === '[9110]*0.2' || $normalized === '[9110]*0.1') {
+                $expr = '[9110]*{bonus_rate}';
+            }
+        }
+        $expr = str_replace('{bonus_rate}', (string) $bonusRate, $expr);
 
         $replaced = preg_replace_callback('/\[([0-9]{4})(\/\*)?\]/', function ($m) use (
             $periodIndex,
@@ -105,7 +126,8 @@ class ProjectPlanFormulaService
             $accountByCode,
             $postableAccounts,
             &$memo,
-            &$stack
+            &$stack,
+            $bonusRate
         ) {
             $code = $m[1];
             $isSection = $m[2] ?? null;
@@ -116,7 +138,16 @@ class ProjectPlanFormulaService
             if (! $dep) {
                 return '0';
             }
-            return (string) $this->evaluateAccount($dep, $periodIndex, $amounts, $accountByCode, $postableAccounts, $memo, $stack);
+            return (string) $this->evaluateAccount(
+                $dep,
+                $periodIndex,
+                $amounts,
+                $accountByCode,
+                $postableAccounts,
+                $memo,
+                $stack,
+                $bonusRate
+            );
         }, $expr);
 
         $replaced = preg_replace('/\s+/', '', $replaced ?? '');

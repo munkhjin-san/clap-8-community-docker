@@ -138,6 +138,14 @@
                 <button class="px-2 py-1 border border-solid border-[var(--normalBorder)] text-xs" @click.prevent="appendOp('(')">(</button>
                 <button class="px-2 py-1 border border-solid border-[var(--normalBorder)] text-xs" @click.prevent="appendOp(')')">)</button>
               </div>
+              <div v-if="isBonusFormulaTarget" class="flex items-center gap-2 text-xs">
+                <button
+                  class="px-2 py-1 border border-solid border-[var(--normalBorder)]"
+                  @click.prevent="applyDefaultBonusFormula(true)"
+                >
+                  標準式を挿入（{{ selectedProjectIsNew ? '新規: 20%' : '既存: 10%' }}）
+                </button>
+              </div>
               <textarea v-model="form.formula" rows="3" class="w-full px-2 py-1 border border-solid border-[var(--normalBorder)] bg-[var(--background-color)] text-[var(--primary-color)]"></textarea>
               <p class="text-[11px] text-[var(--primary-color)] opacity-80 mt-1">※ [CODE] または [CODE/*] を使用。存在しないコードは登録できません。</p>
             </div>
@@ -154,7 +162,7 @@
 
 <script setup lang="ts">
 import { useApi } from '@/composables/api'
-import { reactive, ref, onMounted, computed } from 'vue'
+import { reactive, ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import FloatButton from '@/components/Global/FloatButton.vue'
 import Modal from '@/components/Global/Modal.vue'
@@ -209,6 +217,14 @@ const currentProjectId = () => {
   if (route.params.projectId) return Number(route.params.projectId)
   return null
 }
+const activeProjectId = computed(() => currentProjectId())
+const selectedProject = computed(() => {
+  if (!activeProjectId.value) return null
+  return projects.value.find(p => p.id === activeProjectId.value) ?? null
+})
+const selectedProjectIsNew = computed(() => Number(selectedProject.value?.is_new ?? 0) === 1)
+const defaultBonusFormula = computed(() => '[9110]*{bonus_rate}')
+const isBonusFormulaTarget = computed(() => form.is_formula && form.code.trim() === '9120')
 
 const loadProjects = async () => {
   // Uses existing projects endpoint; adjust if you have a dedicated admin list
@@ -251,6 +267,11 @@ const appendCode = (code: string) => {
 }
 const appendOp = (op: string) => {
   form.formula = `${form.formula || ''}${op}`
+}
+const applyDefaultBonusFormula = (force = false) => {
+  if (!isBonusFormulaTarget.value) return
+  if (!force && form.formula.trim()) return
+  form.formula = defaultBonusFormula.value
 }
 
 const validateFormula = (formula: string): { ok: boolean; unknown: string[] } => {
@@ -374,5 +395,10 @@ const indent = (depth: number) => '— '.repeat(Math.max(0, depth))
 onMounted(async () => {
   await loadProjects()
   await load()
+})
+
+watch([() => form.code, () => form.is_formula, activeProjectId, selectedProjectIsNew], () => {
+  if (!openModal.value || isEditing.value) return
+  applyDefaultBonusFormula(false)
 })
 </script>

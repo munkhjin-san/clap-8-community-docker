@@ -123,7 +123,7 @@ class CoATemplates
                 'is_postable' => false,
                 'children' => [
                     ['code' => '9110', 'name' => '通常利益', 'is_postable' => false, 'is_formula' => true, 'formula' => '[5050]-[6270]'],
-                    ['code' => '9120', 'name' => '業績連動賞与積立金', 'is_postable' => false, 'is_formula' => true, 'formula' => '[9110]*0.2'],
+                    ['code' => '9120', 'name' => '業績連動賞与積立金', 'is_postable' => false, 'is_formula' => true, 'formula' => '[9110]*{bonus_rate}'],
                     ['code' => '9130', 'name' => '利益', 'is_postable' => false, 'is_formula' => true, 'formula' => '[9110]-[9120]'],
                 ]
             ]

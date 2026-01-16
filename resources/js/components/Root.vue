@@ -83,7 +83,7 @@ import InstantProfile from './Board/InstantProfile.vue';
 import { useSideMenuView } from '@/store/sideMenuView';
 import { useTitle } from '@vueuse/core'
 import axios from 'axios';
-import { instance as socket } from '@/utils/broadcaster'
+import { instance as socket, isSocketReady } from '@/utils/broadcaster'
 import { PWAPrompt } from 'vue-ios-pwa-prompt'
 import { DateTime } from 'luxon';
 import { useDialog } from '@/composables/dialog';
@@ -387,11 +387,16 @@ import { useDialog } from '@/composables/dialog';
         const before = localStorage.getItem('notification_check')
         if(!before || DateTime.now().diff(DateTime.fromSQL(before), 'minutes').minutes > 1){
             authCheck();
-            await badge.getBoardBadge();
-            if(mainRef.value.refreshBoardList){
-                mainRef.value.refreshBoardList()
-                mainRef.value.unreadLineTrigger()
-            }            
+            if(!isSocketReady.value){            
+                await badge.getBoardBadge();
+                const hasNewMessages = badge.totalBoardBadge(auth.activeUser.id)      
+                if(mainRef.value.refreshBoardList){
+                    if(hasNewMessages){                        
+                        mainRef.value.refreshBoardList()
+                        mainRef.value.unreadLineTrigger()
+                    }                   
+                }   
+            }         
             const time = DateTime.now().toFormat('yyyy-MM-dd HH:mm:ss')
             localStorage.setItem('notification_check', time)
         }

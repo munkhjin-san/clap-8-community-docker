@@ -578,13 +578,12 @@ import { DateTime } from 'luxon'
         }       
     }
     const remindRequest = async(message) => {
-        const data = await api.post('/remind_add', { id: message.id })
-        const inf = data === true ? 'リマインドしました。' : 'リマインドを取り消しました。'
+        const res = await api.post('/remind_add', { id: message.id })
+        const inf = res.reminded === true ? 'リマインドしました。' : 'リマインドを取り消しました。'
         toast(inf)
-        if(data !== null){
-            badge.getRemindBadge()
-            getMessageList()
-        } 
+        badge.getRemindBadge()
+        refreshMessages(res.data)
+        
     }
     const checkRequest = (data, request) => {
         checkRequestData.value = data
@@ -913,7 +912,7 @@ import { DateTime } from 'luxon'
         setTrayItem(1)
         trayComponentKey.value ++
     }
-    const refreshMessages = (message, oldId) => {
+    const refreshMessages = (message, oldId?: number) => {
         const targetId = oldId ? oldId : message.id
         const index = messageList.value.map( ob => ob.id).indexOf(targetId)
         if (index > -1) {

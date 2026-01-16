@@ -1826,7 +1826,8 @@ class ProjectController extends Controller
                 $planYear->id,
                 (int) $planYear->start_month,
                 0,
-                ['sales' => '5050', 'expense' => '6270', 'profit' => '9130']
+                ['sales' => '5050', 't_expense' => '6270', 'profit' => '9130', 'bonus' => '9120'],
+                $project->is_new ? 0.2 : 0.1
             );
             return response()->json($out);
         }
@@ -1982,7 +1983,7 @@ class ProjectController extends Controller
             if ($date === '') continue;
             $month = $date ? (int)date('n', strtotime($date)) : null;
             $totalSales = round((float) $r['売上高合計']['value'] + (float) $r['内部売上高合計']['value'], 0, PHP_ROUND_HALF_UP);
-            $totalExpense = round((float)  $r['販売管理費合計']['value'] + (float) $r['間接費配賦']['value'] + (float) $r['業績連動賞与積立金']['value'], 0, PHP_ROUND_HALF_UP);
+            $totalExpense = (int)  $r['販売管理費合計']['value'] + (int) $r['間接費配賦']['value'] + (int) $r['業績連動賞与積立金']['value'];
             $totalProfit = $this->f($r['利益']['value']);
             $totalProfitRate = $this->f($r['利益率']['value']);
             $out[$month] = [
@@ -2557,7 +2558,7 @@ class ProjectController extends Controller
                 ->first();
                 if($profitData){
                     $totalSales = round( (float) $profitData['売上高合計'] + (float) $profitData['内部売上高合計'], 0, PHP_ROUND_HALF_UP);
-                    $totalExpense = round((float)  $profitData['販売管理費合計'] + (float) $profitData['間接費配賦'] + (float) $profitData['業績連動賞与積立金'], 0, PHP_ROUND_HALF_UP);
+                    $totalExpense = (int)  $profitData['販売管理費合計'] + (int) $profitData['間接費配賦'] + (int) $profitData['業績連動賞与積立金'];
                     $profitData = [
                         "sales" => $totalSales,
                         "expense" => $totalExpense,

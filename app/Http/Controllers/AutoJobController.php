@@ -42,6 +42,7 @@ use App\Models\workGroup;
 use App\Models\ProjectRecord;
 use App\Models\ProjectMember;
 use App\Models\customFieldDataRecord;
+use App\Models\UserLeaveRecord;
 use App\Mail\Warning;
 use Arr;
 use Illuminate\Support\Facades\Storage;
@@ -765,5 +766,77 @@ class AutoJobController extends Controller
             'members' => $members,
             'tasks' => $tasks,
         ]);
+    }
+    public function board_badge_update_auto()
+    {
+        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
+        $all_users = User::where('deleted_flag', 0)
+        ->where('retire', 0)
+        ->whereNotIn('name', $ng_list)
+        ->select('id', 'name', 'icon_path', 'icon_bg')
+        ->get();
+        $result_users = [];
+        foreach($all_users as $user) {
+            $user_id = $user->id;
+            $leavePeriod = UserLeaveRecord::where('user_id', $user_id)
+                ->where('active', 2)
+                ->first();
+            $savedLastMessages = boardToUser::where('user_id', $user_id)
+                ->where('deleted_status', 0)
+                ->where('deleted_flag', 0)
+                ->whereNull('left_at')
+                ->whereHas('board', function ($q) {
+                    $q->where('deleted_flag', 0)->where('deleted_at', null);
+                })
+                ->where(function ($query) {
+                    $query->whereHas('user', function ($q) {
+                        $q->where('on_leave', 0);
+                    })
+                    ->orWhereHas('board', function ($q) {
+                        $q->where('private_flag', 1); 
+                    });
+                })
+                ->orderBy('record_id', 'desc')
+                ->get();
+            
+            foreach($savedLastMessages as $record){
+                $last = $record->last_message;
+                if(!empty($last)){
+                    $unread_count = $record->messageRecords()
+                    ->where(function ($query) {
+                        $query->where('info_flag', '!=', 1)
+                                ->where('info_flag', '!=', 2);
+                    })
+                    ->where('draft_flag', 0)
+                    ->when($last, function ($q) use ($last) {
+                        $q->where('id', '>', $last);
+                    })
+                    ->when($record->created_at, function ($q) use ($record) {
+                        $q->where('created_at', '>=', $record->created_at);
+                    })->when($leavePeriod, function ($query) use ($leavePeriod) {
+                        $query->where(function ($q) use ($leavePeriod) {
+                            $q->whereHas('board_record', function ($q) {
+                                $q->where('private_flag', 1);
+                            })
+                            ->orWhereNotBetween('created_at', [$leavePeriod->leave_start, $leavePeriod->leave_end]);
+                        });
+                    })->count();
+
+                    $record->unread_count = $unread_count;
+                    $record->save(); 
+                    $result_users[] = [
+                        'user' => $user,
+                        'record' => $record
+                    ];
+                }else{
+                    if($record->last_act == null){
+                        $record->unread_count = 1;
+                        $record->save(); 
+                    }
+                }               
+                        
+            }
+        }
+        return response()->json($result_users);
     }
 }

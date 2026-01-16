@@ -40,6 +40,11 @@
       <button
         class="text-sm px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
         :disabled="isReadOnly"
+        @click="copyFirstMonthToAll"
+      >1月を全月にコピー</button>
+      <button
+        class="text-sm px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+        :disabled="isReadOnly"
         @click="clearAll"
       >クリア</button>
       
@@ -151,7 +156,7 @@
           <tr class="border-b [border-bottom-style:solid] border-[var(--normalBorder)]">
             <td class="sticky left-0 sheet-label z-10 px-4 py-2">年間合計 販売管理費計</td>
             <td class="px-3 py-2 text-right text-negative" colspan="12">
-              {{ fmt(annualTotals.expenses) }}
+              {{ fmt(annualTotals.totalExpenses) }}
             </td>
           </tr>
           <tr>
@@ -339,9 +344,12 @@ const annualTotals = computed(() => {
   }
   const sgaId = accountByCode.value.get('6270')?.id
   const profitId = accountByCode.value.get('9130')?.id
+  const bonusId = accountByCode.value.get('9120')?.id
   const expenses = sgaId ? periods.value.reduce((acc, p) => acc + (formulaValues.value[p.period_index]?.[sgaId] ?? 0), 0) : 0
+  const bonuses = bonusId ? periods.value.reduce((acc, p) => acc + (formulaValues.value[p.period_index]?.[bonusId] ?? 0), 0) : 0
+  const totalExpenses = expenses + bonuses
   const profit = profitId ? periods.value.reduce((acc, p) => acc + (formulaValues.value[p.period_index]?.[profitId] ?? 0), 0) : sales - expenses
-  return { sales, expenses, profit }
+  return { sales, totalExpenses, profit }
 })
 
 const accountByCode = computed(() => {
@@ -349,6 +357,8 @@ const accountByCode = computed(() => {
   accounts.value.forEach(a => map.set(a.code, a))
   return map
 })
+
+const bonusRate = computed(() => (props.selectedProjectIsNew ? 0.2 : 0.1))
 
 const formulaValues = computed<Record<number, Record<number, number>>>(() => {
   const map: Record<number, Record<number, number>> = {}
@@ -383,7 +393,14 @@ const evaluateFormulaAccount = (
   }
 
   stack.add(acct.id)
-  const expr = acct.formula || ''
+  let expr = acct.formula || ''
+  if (acct.code === '9120' && !expr.includes('{bonus_rate}')) {
+    const normalized = expr.replace(/\s+/g, '')
+    if (normalized === '[9110]*0.2' || normalized === '[9110]*0.1') {
+      expr = '[9110]*{bonus_rate}'
+    }
+  }
+  expr = expr.replace(/\{bonus_rate\}/g, String(bonusRate.value))
   const tokenRe = /\[([0-9]{4})(\/\*)?\]/g
   let replaced = expr.replace(tokenRe, (_, code: string, isSection: string) => {
     if (isSection) {
@@ -406,7 +423,7 @@ const evaluateFormulaAccount = (
     const num = typeof val === 'number' && Number.isFinite(val) ? val : 0
     memo[key] = num
     stack.delete(acct.id)
-    return num
+    return Math.floor(num)
   } catch {
     stack.delete(acct.id)
     memo[key] = 0
