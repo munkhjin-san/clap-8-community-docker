@@ -990,7 +990,7 @@ class BoardController extends Controller
                     ? url("content_api/profile_icon_migrated/$user->icon_path.webp") 
                     : url("user_default_thumbnail/" . urlencode(mb_substr($user->name, 0, 1)) . "/30/000000");
                 
-                $badge = url('/96x96.png');
+                $badge = url('/apple-touch-icon.png');
                 if(!empty($boardRecord) && $boardRecord->private_flag == 1){
                     $push_title = $user->name;
                     $body = 'メッセージが届きました';
