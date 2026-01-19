@@ -905,7 +905,9 @@ class BoardController extends Controller
             $related_members = boardToUser::where('record_id','=', $request->record_id)->where('deleted_status', '=', 0)->where('user_id', '!=', $auth_user_id)->pluck('user_id');
 
             IncrementUnreadCount::dispatchAfterResponse($request->record_id, $auth_user_id);
-
+            if(!$request->override_user_id){
+                boardToUser::where('record_id', $request->record_id)->where('user_id', $auth_user_id)->update(["last_message" => $chat->id]);
+            }  
             $socket = array();
             array_push($socket, ["event" => "board:{$request->record_id}", "data" => []]);
             array_push($socket, ["event" => 'refresh:badge', "data" => $related_members]);
@@ -1997,13 +1999,24 @@ class BoardController extends Controller
         $message_id = $request->message_id;
         $checkBoard = boardRecord::findOrFail($request->board_id);
       
-        $previousRecord = MessageRecord::where('record_id', $request->board_id)
-        ->where('id', '<', $message_id)
-        ->orderByDesc('id')
-        ->withTrashed()
-        ->first();
-        $val = $previousRecord ? $previousRecord->id : null;   
-        $checkBoard->board_to_users()->where('user_id', $request->user_id)->update(['last_message' => $val]);      
+        DB::transaction(function () use ($checkBoard, $request, $message_id) {
+            $pivot = $checkBoard->board_to_users()
+                ->where('user_id', $request->user_id)
+                ->lockForUpdate()
+                ->first();
+
+            $unread = MessageRecord::where('record_id', $request->board_id)
+                ->where('id', '>=', $message_id)
+                ->withTrashed()
+                ->count();
+
+            $checkBoard->board_to_users()
+                ->where('user_id', $request->user_id)
+                ->update([
+                    'last_message' => $message_id,
+                    'unread_count' => $unread,
+                ]);
+        });      
       
         $related_id = $checkBoard->board_to_users()->pluck('user_id')->toArray();
         $socket = array();
