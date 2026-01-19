@@ -900,11 +900,11 @@ class BoardController extends Controller
                 ];          
                 return response()->json($data);
             }
-            
+            IncrementUnreadCount::dispatchAfterResponse($request->record_id, $auth_user_id);
             $not = $this->mentionAndNotify( $boardRecord, $active_user, $chat);
             $related_members = boardToUser::where('record_id','=', $request->record_id)->where('deleted_status', '=', 0)->where('user_id', '!=', $auth_user_id)->pluck('user_id');
 
-            IncrementUnreadCount::dispatchAfterResponse($request->record_id, $auth_user_id);
+            
             if(!$request->override_user_id){
                 boardToUser::where('record_id', $request->record_id)->where('user_id', $auth_user_id)->update(["last_message" => $chat->id]);
             }  
