@@ -69,7 +69,7 @@ class ProjectPlanFormulaService
                         $bonusRate
                     );
                 }
-                $vals[$key] = (int) round($val, 0, PHP_ROUND_HALF_UP);
+                $vals[$key] = (int) $val;
             }
 
             $sales = $vals['sales'] ?? 0;

@@ -79,7 +79,7 @@ Route::get('/pdf-reader/{path}', [ContentController::class, 'pdf_reader'])
 // Route::get('/create_thumbnails', [AutoJobController::class, 'createThumbnails']);
 // Route::get('/board_files_thumbnail', [AutoJobController::class, 'board_files_thumbnail']);
 // Route::get('/change_shift_status', [AutoJobController::class, 'change_shift_status']);
-Route::get('/board_badge_update_auto', [AutoJobController::class, 'board_badge_update_auto']);
+// Route::get('/board_badge_update_auto', [AutoJobController::class, 'board_badge_update_auto']);
 Route::get('/timecard_update', [AutoJobController::class, 'timecard_update']);
 // temp_routes
 // Route::get('/for_kintone', [ContentController::class, 'for_kintone']);
