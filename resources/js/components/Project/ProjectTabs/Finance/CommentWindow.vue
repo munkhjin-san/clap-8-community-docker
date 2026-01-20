@@ -222,9 +222,9 @@ const onInput = () => {
   pre.setStart(editorEl, 0)
   const textUpToCaret = pre.toString()
 
-  const match = textUpToCaret.match(/(^|\s)([@＠][^\s＠@]*)$/)
+  const match = textUpToCaret.match(/([@＠][^\s@＠]*)$/);
   if (match) {
-    keyCharacters.value = match[2]
+    keyCharacters.value = match[1]
     showMentionBox.value = true
     nextTick(() => {
       const highlight = mentionBox.value?.highlighted

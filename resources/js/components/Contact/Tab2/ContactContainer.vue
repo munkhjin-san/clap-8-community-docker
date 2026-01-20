@@ -21,28 +21,28 @@
             </label>
         </div>
         <div v-if="batchData" class="mb-[20px] ml-[20px] max-w-3xl">
-            <div class="border border-gray-600 bg-[var(--background-color)]/80 rounded-md p-4 shadow-sm">
+            <div class="bg-[var(--background-color)] p-4">
                 <div class="flex items-start justify-between gap-4">
                     <div>
-                        <p class="text-xs text-gray-400">名刺一括処理 #{{ batchData.id }}</p>
-                        <p class="text-base font-semibold text-gray-100">{{ batchStatusLabel }}</p>
-                        <p class="text-xs text-gray-500 mt-1" v-if="batchData.scan_attempts !== undefined">
+                        <p class="text-xs text-[gray]">名刺一括処理 #{{ batchData.id }}</p>
+                        <p class="text-base font-semibold text-[var(--primary-color)]">{{ batchStatusLabel }}</p>
+                        <p class="text-xs text-[gray] mt-1" v-if="batchData.scan_attempts !== undefined">
                             スキャン試行: {{ batchData.scan_attempts }} / 情報収集試行: {{ batchData.enrich_attempts ?? 0 }}
                         </p>
-                        <p class="text-[11px] text-gray-500" v-if="batchData.scan_requested_at">
+                        <p class="text-[11px] text-[gray]" v-if="batchData.scan_requested_at">
                             スキャン開始: {{ formatDate(batchData.scan_requested_at) }}
                         </p>
-                        <p class="text-[11px] text-gray-500" v-if="batchData.enrich_requested_at">
+                        <p class="text-[11px] text-[gray]" v-if="batchData.enrich_requested_at">
                             情報収集開始: {{ formatDate(batchData.enrich_requested_at) }}
                         </p>
                     </div>
                     <div class="text-right text-sm">
-                        <p class="text-gray-300">完了 {{ batchData.counts?.completed ?? 0 }} / {{ batchData.counts?.total ?? 0 }}</p>
+                        <p class="text-[gray]">完了 {{ batchData.counts?.completed ?? 0 }} / {{ batchData.counts?.total ?? 0 }}</p>
                         <p v-if="batchData.error" class="text-xs text-red-400 mt-1 max-w-[220px] truncate">{{ batchData.error }}</p>
                     </div>
                 </div>
                 <ul class="mt-3 space-y-1 max-h-48 overflow-y-auto pr-1">
-                    <li v-for="item in batchData.items" :key="item.id" class="flex justify-between text-sm text-gray-200 gap-4">
+                    <li v-for="item in batchData.items" :key="item.id" class="flex justify-between text-sm text-[gray] gap-4">
                         <span class="truncate">{{ item.original_filename }}</span>
                         <span class="flex items-center gap-2">
                             <span :class="batchItemStatusClass(item.status)">{{ batchItemStatusLabel(item.status) }}</span>
@@ -296,17 +296,17 @@ const batchItemStatusLabel = (status: string) => {
 const batchItemStatusClass = (status: string) => {
     switch (status) {
         case 'completed':
-            return 'text-green-400';
+            return 'text-green-600';
         case 'failed':
-            return 'text-red-400';
+            return 'text-red-500';
         case 'enriching':
-            return 'text-purple-300';
+            return 'text-purple-600';
         case 'scanning':
-            return 'text-blue-300';
+            return 'text-blue-600';
         case 'scanned':
-            return 'text-indigo-300';
+            return 'text-indigo-600';
         default:
-            return 'text-gray-400';
+            return 'text-gray-600';
     }
 };
 

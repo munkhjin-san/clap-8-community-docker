@@ -377,12 +377,10 @@ const transitionDate = computed(() => {
   return dt.isValid ? dt.startOf('day') : null
 })
 const bonusRateForPeriod = (periodIndex: number) => {
-  if (!props.selectedProjectIsNew) return 0.1
   const transition = transitionDate.value
-  if (!transition) return 0.2
+  if (!transition) return 0.1
   const periodStart = periodStartByIndex.value[periodIndex]
-  console.log(periodStart, transition)
-  if (!periodStart) return 0.2
+  if (!periodStart) return 0.1
   return periodStart >= transition ? 0.1 : 0.2
 }
 
