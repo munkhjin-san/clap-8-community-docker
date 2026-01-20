@@ -84,6 +84,7 @@ interface Project {
     unit_id?: 'JPY' | 'COUNT' | 'HOUR' | 'CUSTOM'
     custom_unit_label?: string | null
     actual_statuses?: ProjectActualStatus[]
+    transitioned_at?: string
 }
 export type ProjectActualStatus = {
     status_id: number | null;

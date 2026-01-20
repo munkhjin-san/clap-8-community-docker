@@ -453,6 +453,7 @@ class ProjectController extends Controller
             'has_actual_func',
             'unit_id',
             'custom_unit_label',
+            'transitioned_at',
         ])->toArray();
 
         $filteredParams['has_actual_func'] = array_key_exists('has_actual_func', $params) ? (bool)$params['has_actual_func'] : false;
@@ -4535,7 +4536,7 @@ class ProjectController extends Controller
 
     protected function userCanAccessProject(ProjectRecord $project): bool
     {
-        $user = Auth::user();
+        $user = $this->active_user();
         if (!$user) {
             return false;
         }

@@ -90,6 +90,19 @@
                                         {{ rp.label }}
                                     </label>
                                 </div>
+                                <div class="si-box" v-if="projectParams.is_new">
+                                    <p class="text-[14px]">既存扱い開始日</p>
+                                    <div class="mt-[15px] flex">
+                                        <ShortInput 
+                                            name="transitionDate" 
+                                            :initialValue="projectParams.transitioned_at"
+                                            customClass="date"
+                                            type="date"
+                                            v-model="projectParams.transitioned_at"
+                                        />
+                                    </div>
+                                </div>
+                                
                             </div>
                         </div>
                         <div id="projectCreateAchievements" class="mb-[60px] section-hd">
@@ -666,7 +679,8 @@ const projectParams = reactive<Partial<Project>>(props.editData ? { ...toRaw(pro
     has_goals: false,
     has_actual_func: false,
     unit_id: 'JPY',
-    custom_unit_label: ''
+    custom_unit_label: '',
+    transitioned_at: '',
 })
 const contract_type = ref('outsourcing')
 const contract_role = ref('乙')

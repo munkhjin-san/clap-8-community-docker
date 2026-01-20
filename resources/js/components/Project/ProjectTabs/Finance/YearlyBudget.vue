@@ -209,6 +209,7 @@ import { DateTime } from 'luxon';
 import { reactive, ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
+import { Project } from '@/interface/projectInterface';
 
 type Account = {
   id: number;
@@ -234,6 +235,7 @@ const props = defineProps<{
   selectedProjectName: string
   selectedProjectId: number
   selectedProjectIsNew: boolean
+  selectProject: Project
 }>()
 const generateFiscalPeriods = (startYear: number, startM: number): PeriodRow[] => {
   const out: PeriodRow[] = []
@@ -357,8 +359,32 @@ const accountByCode = computed(() => {
   accounts.value.forEach(a => map.set(a.code, a))
   return map
 })
-
-const bonusRate = computed(() => (props.selectedProjectIsNew ? 0.2 : 0.1))
+const periodStartByIndex = computed<Record<number, DateTime>>(() => {
+  const map: Record<number, DateTime> = {}
+  for (const p of periods.value) {
+    map[p.period_index] = DateTime.fromObject({
+      year: p.calendar_year,
+      month: p.calendar_month,
+      day: 1,
+    }).startOf('day')
+  }
+  return map
+})
+const transitionDate = computed(() => {
+  const raw = props.selectProject?.transitioned_at
+  if (!raw) return null
+  const dt = DateTime.fromISO(raw)
+  return dt.isValid ? dt.startOf('day') : null
+})
+const bonusRateForPeriod = (periodIndex: number) => {
+  if (!props.selectedProjectIsNew) return 0.1
+  const transition = transitionDate.value
+  if (!transition) return 0.2
+  const periodStart = periodStartByIndex.value[periodIndex]
+  console.log(periodStart, transition)
+  if (!periodStart) return 0.2
+  return periodStart >= transition ? 0.1 : 0.2
+}
 
 const formulaValues = computed<Record<number, Record<number, number>>>(() => {
   const map: Record<number, Record<number, number>> = {}
@@ -400,7 +426,7 @@ const evaluateFormulaAccount = (
       expr = '[9110]*{bonus_rate}'
     }
   }
-  expr = expr.replace(/\{bonus_rate\}/g, String(bonusRate.value))
+  expr = expr.replace(/\{bonus_rate\}/g, String(bonusRateForPeriod(periodIndex)))
   const tokenRe = /\[([0-9]{4})(\/\*)?\]/g
   let replaced = expr.replace(tokenRe, (_, code: string, isSection: string) => {
     if (isSection) {
