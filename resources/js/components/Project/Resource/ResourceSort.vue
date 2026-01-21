@@ -6,7 +6,7 @@
             bg-[var(--bg3)] 
             text-[var(--primary-color)] 
             gap-[10px] 
-            text-[12px] 
+            text-[13px] 
             pb-[10px]
             px-[10px]
             top-[25px] 
