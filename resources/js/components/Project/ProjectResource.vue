@@ -11,14 +11,7 @@
                 </div>
             </div>
             <div class="relative h-full">
-              <div class="sticky top-0 bg-[var(--background-color)] z-[7] min-h-[60px] flex justify-between items-center md:flex-nowrap flex-wrap px-5 py-5 md:py-0 md:px-[20px] gap-[10px]">
-                <div class="w-full md:w-[30%]">
-                  <PostSearchBar 
-                    className="newChatMemberSearch" 
-                    :customPlaceHolder="`メンバー・プロジェクト検索`" 
-                    @search-start="(word) => {keywords = word}"
-                  />
-                </div>
+              <div class="sticky top-0 bg-[var(--background-color)] z-[7] min-h-[60px] px-5 py-5 md:py-0 md:px-[20px] gap-[10px] flex">
                 <div class="flex items-center gap-[20px] relative w-full justify-center md:justify-end flex-wrap md:flex-nowrap">
                     <div class="flex items-center">
                         <button @click="shiftRange(-1)" class="flex items-center justify-center h-[30px] w-fit gap-2 min-w-[30px]">
@@ -50,8 +43,43 @@
                 <table>
                   <thead>
                     <tr>
-                      <th :rowspan="2" class="sticky-left first-col top-border">メンバー名</th>
-                      <th :rowspan="2" class="sticky-left second-col top-border">プロジェクト名</th>
+                      <th :rowspan="2" class="sticky-left first-col top-border">
+                        <div class="relative">
+                          <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="toggleFilterMenu('memberFilter')">
+                            メンバー名
+                            <Filter class="filter-icon" size="12"/>
+                          </div>
+                          <Transition name="slidePop">
+                            <ResourceSort 
+                              v-if="menu.parent == 'memberFilter'"
+                              :options="memberOptions"
+                              v-model:selected="selectedMembers"
+                              id="memberFilter"
+                              custom-place-holder="メンバー検索"
+                              :searchable="true"
+                            />
+                          </Transition>
+                        </div>
+                        
+                      </th>
+                      <th :rowspan="2" class="sticky-left second-col top-border">
+                        <div class="relative">
+                          <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="toggleFilterMenu('projectFilter')">
+                            プロジェクト名
+                            <Filter class="filter-icon" size="12"/>
+                          </div>
+                          <Transition name="slidePop">
+                              <ResourceSort
+                                v-if="menu.parent == 'projectFilter'" 
+                                :options="projectOptions"
+                                v-model:selected="selectedProjects"
+                                id="projectFilter"
+                                customPlaceHolder="プロジェクト検索"
+                                :searchable="true" 
+                              />
+                          </Transition>
+                        </div>  
+                      </th>
                       <th 
                           v-for="(p, i) in periods"
                           :key="p.period"
@@ -72,20 +100,18 @@
                         <template v-for="p in periods" :key="p.period">
                             <th data-cell="right-border">
                               <div class="relative">
-                                <div class="cursor-pointer flex items-center gap-[5px] h-p" @click.stop="toggleFilterMenu('empTypeFilter')">
+                                <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="toggleFilterMenu('empTypeFilter')">
                                   雇用形態
                                   <Filter v-if="allowRemainingFilter" class="filter-icon" size="12"/>
                                 </div>
                                 <Transition name="slidePop">
-                                  <div v-if="menu.parent == 'empTypeFilter'" id="empTypeFilter" class="pc shadow-me absolute right-0 bg-[var(--bg3)] text-[var(--primary-color)] flex flex-col gap-[10px] text-[12px] p-[10px] top-0">
-                                      <button class="text-[11px] min-w-[50px] bg-[var(--primary-color)] text-[var(--background-color)] h-[26px] px-[3px]" @click.stop="selectedEmpFilter = [], menu.close()">リセット</button>
-                                      <div v-for="option in empFilterOptions">
-                                          <label class="cursor-pointer select-none whitespace-nowrap flex items-center gap-[5px]">
-                                              <input type="checkbox" class="custom-f-checkbox" name="class-selector"  v-model="selectedEmpFilter" :value="option"/>
-                                              {{ option }}
-                                          </label>
-                                      </div>
-                                  </div>
+                                  <ResourceSort 
+                                    v-if="menu.parent == 'empTypeFilter'"
+                                    id="empTypeFilter"
+                                    :options="empFilterOptions"
+                                    v-model:selected="selectedEmpFilter"
+                                  />
+                                  
                                 </Transition>
                               </div>  
                             </th>
@@ -95,20 +121,17 @@
                             <th data-cell="right-border">数量合計</th>
                             <th>
                               <div class="relative">
-                                <div class="cursor-pointer flex items-center gap-[5px] h-p" @click.stop="toggleFilterMenu('minusPlusFilter')">
+                                <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="toggleFilterMenu('minusPlusFilter')">
                                   数量残り
                                   <Filter v-if="allowRemainingFilter" class="filter-icon" size="12"/>
                                 </div>
                                 <Transition name="slidePop">
-                                  <div v-if="menu.parent == 'minusPlusFilter'" id="minusPlusFilter" class="pc shadow-me absolute right-0 bg-[var(--bg3)] text-[var(--primary-color)] flex flex-col gap-[10px] text-[12px] p-[10px] top-0">
-                                      <button class="text-[11px] min-w-[50px] bg-[var(--primary-color)] text-[var(--background-color)] h-[26px] px-[3px]" @click.stop="selectedFilter = [], menu.close()">リセット</button>
-                                      <div v-for="option in filterOptions">
-                                          <label class="cursor-pointer select-none whitespace-nowrap flex items-center gap-[5px]">
-                                              <input type="checkbox" class="custom-f-checkbox" name="class-selector"  v-model="selectedFilter" :value="option"/>
-                                              {{ option }}
-                                          </label>
-                                      </div>
-                                  </div>
+                                  <ResourceSort 
+                                    v-if="menu.parent == 'minusPlusFilter'"
+                                    id="minusPlusFilter"
+                                    :options="filterOptions"
+                                    v-model:selected="selectedFilter"
+                                  />
                                 </Transition>
                               </div>
                               
@@ -249,17 +272,17 @@ import { useRouter } from 'vue-router';
 import CloseIcon from '../Form/CloseIcon.vue';
 import { useApi } from '@/composables/api';
 import { DateTime, MonthNumbers } from 'luxon';
-import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import PeriodRangePicker from './ProjectTabs/Finance/PeriodRangePicker.vue';
 import Back from '../Icons/Back.vue';
 import { User } from '@/interface/globalInterface';
-import PostSearchBar from '../Post/PostSearchBar.vue';
 import CommentWindow from './Resource/CommentWindow.vue';
 import { useAuthUserStore } from '@/store/auth';
 import CommandButton from '../Global/CommandButton.vue';
 import ResourceEdit from './Resource/ResourceEdit.vue';
 import Filter from '../Icons/Filter.vue';
 import { useMenuStore } from '@/store/menu';
+import ResourceSort from './Resource/ResourceSort.vue';
 type PeriodCell = { year:number; month:number; period:string; fiscalYear:number }
 
 const router = useRouter()
@@ -300,6 +323,8 @@ const filterOptions = ['－', '0', '＋']
 const selectedFilter = ref<string[]>([])
 const selectedEmpFilter = ref<string[]>([])
 const empFilterOptions = ref<string[]>([])
+const selectedProjects = ref<string[]>([])
+const selectedMembers = ref<string[]>([])
 const editQuantity = (data: ResourceValue, member: string, project: string) => {
   editData.value = {
     ...data,
@@ -376,40 +401,56 @@ const resourceRows = computed(() =>
     })),
   }))
 )
+const memberOptions = computed(() => {
+  return resourceRows.value.map((row) => row.member)
+})
+const projectOptions = computed(() => {
+  const projectsSet = new Set<string>()
+  resourceRows.value.forEach((row) => {
+    row.projects.forEach((project) => {
+      projectsSet.add(project.project)
+    })
+  })
+  return Array.from(projectsSet)
+})
 const searchResults = computed(() => {
-  const keyword = keywords.value.trim().toLowerCase()
   let results = resourceRows.value
-  if (keyword) {
-    results = resourceRows.value.reduce((acc, member) => {
-      const memberName = String(member.member ?? '').toLowerCase()
-      if (memberName.includes(keyword)) {
-        acc.push(member)
-        return acc
-      }
-
-      const projects = member.projects.filter((project) =>
-        String(project.project ?? '').toLowerCase().includes(keyword)
-      )
-      if (projects.length) {
-        acc.push({ ...member, projects })
-      }
-      return acc
-    }, [] as typeof resourceRows.value)
-  }
-
-  if (
-    !allowRemainingFilter.value ||
-    (selectedFilter.value.length === 0 && selectedEmpFilter.value.length === 0)
-  ) {
+  const notFilterable = selectedFilter.value.length === 0 &&
+    selectedEmpFilter.value.length === 0 &&
+    selectedProjects.value.length === 0 &&
+    selectedMembers.value.length === 0
+  const memberOrProject = selectedMembers.value.length > 0 || selectedProjects.value.length > 0
+  if ((!allowRemainingFilter.value && !memberOrProject) || notFilterable) {
     return results
   }
 
   const period = periodStartIso.value
-  return results.filter((member) =>
-    matchesRemainingFilter(member.member, member.projects, period) &&
-    matchesEmpTypeFilter(member.member, period)
-  )
+  return results
+    .map((m) => ({
+      ...m,
+      projects:
+        selectedProjects.value.length === 0
+          ? m.projects
+          : m.projects.filter((p) => selectedProjects.value.includes(p.project)),
+    }))
+    .filter((m) =>
+      matchesRemainingFilter(m.member, m.projects, period) &&
+      matchesEmpTypeFilter(m.member, period) &&
+      matchesProjectFilter(m.projects) &&
+      matchesMemberFilter(m.member)
+    )
 })
+const matchesMemberFilter = (member: string) => {
+  const selected = selectedMembers.value
+  if (selected.length === 0) return true
+  return selected.includes(member)
+}
+const matchesProjectFilter = (projects: Array<{project: string}>) => {
+  const selected = selectedProjects.value
+  if (selected.length === 0) return true
+  return projects.some((p) => selected.includes(p.project))
+}
+
 const intervalPayload = computed(() => ({
   startYear: normalizedRange.value.start.year,
   startMonth: normalizedRange.value.start.month as MonthNumbers,
@@ -562,7 +603,8 @@ const shiftRange = (months: number) => {
   applyRange(periodStart.value.plus({ months }), periodEnd.value.plus({ months }))
 }
 const toggleFilterMenu = (val: string) => {
-  if (!allowRemainingFilter.value) return
+  const memberOrProject = val === 'projectFilter' || val === 'memberFilter'
+  if (!allowRemainingFilter.value && !memberOrProject) return
   menu.setMenu({parent: val})
 }
 watch([periodStartIso, periodEndIso], async () => {
@@ -613,10 +655,6 @@ table {
         }
         th:nth-of-type(6n + 6) {
             border-right: 1px solid var(--calendarBorder);
-        }
-        th.sticky-left,
-        th.sticky-right {
-            z-index: 6;
         }
     }
 
@@ -678,12 +716,9 @@ td[data-cell=right-border], th[data-cell=right-border] {
     z-index: 3;
 }
 .filter-icon {
-  opacity: 0;
+  fill: var(--primary-color);
 }
-.h-p:hover .filter-icon {
-    fill: var(--primary-color);
-    opacity: 1;
-}
+
 @media screen and (max-width: 959px) {
   table {
       min-width: 100%;

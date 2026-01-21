@@ -381,7 +381,7 @@ const bonusRateForPeriod = (periodIndex: number) => {
   if (!transition) return 0.1
   const periodStart = periodStartByIndex.value[periodIndex]
   if (!periodStart) return 0.1
-  return periodStart >= transition ? 0.1 : 0.2
+  return periodStart > transition ? 0.1 : 0.2
 }
 
 const formulaValues = computed<Record<number, Record<number, number>>>(() => {
