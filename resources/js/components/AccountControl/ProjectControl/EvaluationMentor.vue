@@ -66,9 +66,9 @@
                         <td>{{ user?.evaluation?.after_salary_rank }}</td>
                         <td>
                             <div>
-                                <div>設定数：{{ user?.outcome_goals?.length || 0 }}</div>
+                                <div>設定数：{{ displayGoals(user).length || 0 }}</div>
                                 <div class="mt-2" v-if="user?.outcome_goals && user.outcome_goals.length">
-                                    <div v-for="goal in user.outcome_goals" :key="goal.id" class="max-w-[220px] relative flex flex-col gap-2 text-[12px] p-2 rounded bg-[var(--bg2)] mb-2">
+                                    <div v-for="goal in displayGoals(user)" :key="goal.id" class="max-w-[220px] relative flex flex-col gap-2 text-[12px] p-2 rounded bg-[var(--bg2)] mb-2">
                                         <router-link target="_blank" class="login-link jump-link" :to="{name: 'goal-more', params: { goalId: goal.id, span: `${goal.year}-${goal.which_half}`, memberId: user.id, projectId: goal.project_id}}" style="flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ goal.title || 'タイトルなし' }}</router-link>
                                         <div class="absolute right-1 top-1 text-[11px] bg-[var(--background-color)] px-2 py-1">{{ overallScore(goal) }}点</div>
                                         <div class="text-[11px]">{{ statusDisplay(goal.status) }}</div>
@@ -273,6 +273,10 @@ const setMentor = (user) => {
     mentorSelectorData.date = selectedDate.value
 
 }
+const displayGoals = (user) => {
+    const goals = user?.outcome_goals || []
+    return goals.filter(goal => goal.status > 2)
+}
 const { ping, toast } = useDialog()
 const generateEvaluationCsv = () => {
     const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `人事考課_${selectedDate.value?.name}`});
@@ -390,11 +394,11 @@ const findTargetUsers = async() => {
             if(creatingGoals.length){
                 u.must_apply = creatingGoals.length
             }
-            const refusedGoals = user?.outcome_goals?.filter(g => g.status === 1 || g.status === 7 ) || []
+            const refusedGoals = user?.outcome_goals?.filter(g => g.status === 1 ) || []
             if(refusedGoals.length){
                 u.refused = refusedGoals.length
             }
-            const applyingGoals = user?.outcome_goals?.filter(g => g.status === 2 || g.status === 8 ) || []
+            const applyingGoals = user?.outcome_goals?.filter(g => g.status === 2 ) || []
             if(applyingGoals.length){
                 u.must_approve = applyingGoals.length
             }
