@@ -1,5 +1,5 @@
 <template>
-    <div class="h-full relative bg-[var(--background-color)]">
+    <div v-if="selectedProject" class="h-full relative bg-[var(--background-color)]">
         <div class="flex justify-between items-center p-4">
             <div class="sub-tab-container">
                 <div @click="router.push({name: 'finance'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name === 'finance'}]">収支確認</div>
@@ -302,12 +302,8 @@
             />
         </Transition>
         <router-view 
-            :select-project="selectedProject" 
             :refresh-key="caseRefreshKey"
             :has-privilage="hasPrivilage"
-            :selectedProjectName="selectedProject.name"
-            :selectedProjectId="selectedProject.id"
-            :selectedProjectIsNew="selectedProject.is_new"
             :year="year"
             :month="month"
         />
@@ -325,20 +321,15 @@ import DeltaNumbers from './Finance/DeltaNumbers.vue';
 import { useApi } from '@/composables/api';
 import { useAuthUserStore } from '@/store/auth';
 import CommentWindow from './Finance/CommentWindow.vue';
-import { User } from '@/interface/globalInterface';
-import { Project } from '@/interface/projectInterface';
 import { useBadgeStore } from '@/store/badge';
-import YearlyBudget from './Finance/YearlyBudget.vue';
-import CaseConfirm from './Finance/CaseConfirm.vue';
 import PeriodRangePicker from './Finance/PeriodRangePicker.vue';
 import { isMobile } from '@/utils/tools';
 import { useTutorialStore } from '@/store/tutorial';
 import { useTour } from '@/composables/useTour';
+import { useProject } from '@/composables/project';
 const auth = useAuthUserStore()
 const props = defineProps<{
     userList: any;
-    mentionableUsers: User[];
-    selectedProject: Project;
     hasPrivilage: boolean
     totalBadge: number;
 }>();
@@ -353,7 +344,7 @@ const route = useRoute()
 const router = useRouter()
 const badge = useBadgeStore()
 const api = useApi()
-
+const { selectedProject } = useProject()
 const parsePeriodParam = (value: unknown): DateTime | null => {
   if (typeof value !== 'string' || !value) return null
   const dt = DateTime.fromISO(`${value}-01`)

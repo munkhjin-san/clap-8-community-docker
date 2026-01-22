@@ -209,6 +209,7 @@ import { DateTime } from 'luxon';
 import { reactive, ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
+import { useProject } from '@/composables/project';
 import { Project } from '@/interface/projectInterface';
 
 type Account = {
@@ -229,13 +230,9 @@ type PeriodRow = {
   calendar_year: number;
   calendar_month: number;
 }
-
+const { selectedProject } = useProject()
 const props = defineProps<{
   year: number
-  selectedProjectName: string
-  selectedProjectId: number
-  selectedProjectIsNew: boolean
-  selectProject: Project
 }>()
 const generateFiscalPeriods = (startYear: number, startM: number): PeriodRow[] => {
   const out: PeriodRow[] = []
@@ -371,7 +368,7 @@ const periodStartByIndex = computed<Record<number, DateTime>>(() => {
   return map
 })
 const transitionDate = computed(() => {
-  const raw = props.selectProject?.transitioned_at
+  const raw = selectedProject.value?.transitioned_at
   if (!raw) return null
   const dt = DateTime.fromISO(raw)
   return dt.isValid ? dt.startOf('day') : null
@@ -472,7 +469,7 @@ const save = async () => {
     toast('確定済みのため編集できません。')
     return
   }
-  const projectId = Number(route.params.projectId || props.selectedProjectId)
+  const projectId = Number(route.params.projectId || selectedProject.value?.id)
   if (!projectId) return
 
   const months: { period_index: number; account_id: number; amount: number }[] = []
@@ -501,7 +498,7 @@ const save = async () => {
 
 const confirmAndLock = async () => {
   if (isReadOnly.value) return
-  const projectId = Number(route.params.projectId || props.selectedProjectId)
+  const projectId = Number(route.params.projectId || selectedProject.value?.id)
   if (!projectId) return
 
   const msg = dirty.value
@@ -530,7 +527,7 @@ const confirmAndLock = async () => {
 }
 
 const unlockPlan = async () => {
-  const projectId = Number(route.params.projectId || props.selectedProjectId)
+  const projectId = Number(route.params.projectId || selectedProject.value?.id)
   if (!projectId) return
 
   const ok = await ask('確定解除しますか？（PMも編集できる状態に戻ります）', {
@@ -557,7 +554,7 @@ const loadScenarios = async (projectId: number) => {
 }
 
 const load = async () => {
-  const projectId = Number(route.params.projectId || props.selectedProjectId)
+  const projectId = Number(route.params.projectId || selectedProject.value?.id)
   if (!projectId) return
 
   isLoading.value = true
@@ -614,7 +611,7 @@ const activeScenarioLabel = computed(() => {
 })
 
 const downloadTemplate = async () => {
-  const projectId = Number(route.params.projectId || props.selectedProjectId)
+  const projectId = Number(route.params.projectId || selectedProject.value?.id)
   if (!projectId) return
   const res = await axios.get(`/projects/${projectId}/plan/template`, {
     params: {
@@ -639,7 +636,7 @@ const uploadTemplate = async (ev: Event) => {
     toast('確定済みのため編集できません。')
     return
   }
-  const projectId = Number(route.params.projectId || props.selectedProjectId)
+  const projectId = Number(route.params.projectId || selectedProject.value?.id)
   if (!projectId) return
   const input = ev.target as HTMLInputElement
   if (!input.files?.length) return
@@ -774,7 +771,7 @@ const copyFirstMonthToAll = () => {
 }
 
 const createScenario = async () => {
-  const projectId = Number(route.params.projectId || props.selectedProjectId)
+  const projectId = Number(route.params.projectId || selectedProject.value?.id)
   if (!projectId) return
 
   const { input, decision } = await askInput('シナリオ名', {

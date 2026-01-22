@@ -70,7 +70,6 @@
         </div>
         <RouterView 
             v-if="selectedProject"
-            :selected-project="selectedProject" 
             :user-list="userList"
             :has-privilage="hasPrivilage"
             :fileAccess="fileAccess"
@@ -89,7 +88,7 @@ import { useTutorialStore } from '@/store/tutorial';
 import { computed, onMounted, provide, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
-    const props = defineProps(['userList'])
+    const props = defineProps(['userList', 'maxInterval', 'projects', 'ownProjectIds'])
     const route = useRoute()
     const router = useRouter()
     const api = useApi()

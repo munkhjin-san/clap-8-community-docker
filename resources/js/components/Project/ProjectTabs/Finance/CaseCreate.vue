@@ -14,7 +14,7 @@
                 <section class="case-create__context">
                     <div>
                         <p class="eyebrow">プロジェクト</p>
-                        <p class="project-name">{{ selectedProject.name }}</p>
+                        <p class="project-name">{{ selectedProject?.name }}</p>
                     </div>
                     <div class="case-create__period">
                         <p class="eyebrow">対象月</p>
@@ -167,9 +167,9 @@ import UserPanel from '@/components/Global/UserPanel.vue';
 import { useAuthUserStore } from '@/store/auth';
 import { useTutorialStore } from '@/store/tutorial';
 import { useTour } from '@/composables/useTour';
+import { useProject } from '@/composables/project';
 
 const props = defineProps<{
-    selectedProject: Project
     projectId: number;
     reportYear: number;
     reportMonth: number;
@@ -188,24 +188,25 @@ const emit = defineEmits<{
     (e: 'close'): void;
     (e: 'saved'): void;
 }>();
+const { selectedProject } = useProject()
 const api = useApi();
 const reportTitle = computed(() => '目標値作成');
-const members = computed(() => [...props.selectedProject.members, ...props.selectedProject.manager]);
+const members = computed(() => [...selectedProject.value?.members ?? [], ...selectedProject.value?.manager ?? []]);
 const viewData = ref<any | null>(null);
 const loading = ref(0);
 const savingType = ref<1 | 2 | null>(null);
 const editingCaseId = ref<number | null>(null);
 const suspendAutoFetch = ref(false);
 const lastFetchKey = ref<string | null>(null);
-const unitCode = computed(() => props.selectedProject?.unit_id ?? 'JPY');
+const unitCode = computed(() => selectedProject.value?.unit_id ?? 'JPY');
 const unitLabel = computed(() => {
     if (unitCode.value === 'COUNT') return '件';
     if (unitCode.value === 'HOUR') return '時間';
-    if (unitCode.value === 'CUSTOM') return props.selectedProject?.custom_unit_label || '単位';
+    if (unitCode.value === 'CUSTOM') return selectedProject.value?.custom_unit_label || '単位';
     return '円';
 });
 const actualStatusOptions = computed(() => {
-    const rows = props.selectedProject.actual_statuses ?? [];
+    const rows = selectedProject.value?.actual_statuses ?? [];
     if (!rows.length) {
         return [
             { value: '実績', label: '実績' },
@@ -218,7 +219,7 @@ const actualStatusOptions = computed(() => {
             return { value: label, label };
         });
 });
-const hasGoals = computed(() => props.selectedProject?.has_goals ?? false);
+const hasGoals = computed(() => selectedProject.value?.has_goals ?? false);
 const auth = useAuthUserStore()
 type Params = {
     client_name: string
@@ -230,7 +231,7 @@ type Params = {
     member: User | null
 }
 const manager = computed(() => {
-    return props.selectedProject.manager?.find(m => m.id === auth.id) || null;
+    return selectedProject.value?.manager?.find(m => m.id === auth.id) || null;
 })
 const defaultPeriod = props.selectedCase?.reportDate ?? DateTime.now().startOf('month').toISODate();
 const params = reactive<Params>({

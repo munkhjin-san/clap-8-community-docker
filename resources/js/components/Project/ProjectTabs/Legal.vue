@@ -207,11 +207,13 @@ import { filesize } from 'filesize'
 import { contractTypeDefaults, contractRoleDefaults } from '@/utils/tools'
 import { useDialog } from '@/composables/dialog'
 import AiLoader from '@/components/Global/AiLoader.vue'
+import { useProject } from '@/composables/project'
 
 const props = defineProps<{
-    selectedProject: Project | null
     hasPrivilage: boolean
 }>()
+
+const { selectedProject } = useProject()
 
 const api = useApi()
 const detailOpen = ref(false)
@@ -229,7 +231,7 @@ const uploadContractType = ref<string>(contractTypeDefaults[0]?.value ?? '')
 const uploadRole = ref('乙')
 
 const contract = computed<ProjectContractResponse | null>(() => {
-    return contractState.value ?? props.selectedProject?.contract ?? null
+    return contractState.value ?? selectedProject.value?.contract ?? null
 })
 const deepResult = ref()
 const deepSummary = computed(() => {
@@ -313,15 +315,15 @@ const statusLabel = computed(() => {
 const previewUrl = computed(() => {
     if (!contract.value) return null
     if (contract.value.file_url) return contract.value.file_url
-    if (contract.value.file_path && props.selectedProject?.id) {
-        return `/projects/${props.selectedProject.id}/contract/file`
+    if (contract.value.file_path && selectedProject.value?.id) {
+        return `/projects/${selectedProject.value.id}/contract/file`
     }
     return null
 })
 
 const downloadUrl = computed(() => {
-    if (!contract.value?.file_path || !props.selectedProject?.id) return null
-    return `/projects/${props.selectedProject.id}/contract/download`
+    if (!contract.value?.file_path || !selectedProject.value?.id) return null
+    return `/projects/${selectedProject.value.id}/contract/download`
 })
 
 const severityLabel = (severity: ContractFindingSeverity) => {
@@ -354,13 +356,13 @@ const downloadContract = () => {
 }
 
 const fetchContract = async (force = false) => {
-    if (!props.selectedProject?.id) return
+    if (!selectedProject.value?.id) return
     if (!force) {
         if (fetchAttempted.value) return
         fetchAttempted.value = true
     }
     try {
-        const data = await api.get(`/projects/${props.selectedProject.id}/contract`, null, { loadingRef: loading, silent: true })
+        const data = await api.get(`/projects/${selectedProject.value.id}/contract`, null, { loadingRef: loading, silent: true })
         contractState.value = data.exists ? data.contract : null
     } catch (error) {
         contractState.value = null
@@ -397,7 +399,7 @@ const save_review = async(contract: ProjectContractResponse) => {
     fetchContract()
 }
 watch(
-    () => props.selectedProject?.id,
+    () => selectedProject.value?.id,
     () => {
         contractState.value = null
         detailOpen.value = false
@@ -406,7 +408,7 @@ watch(
         if (uploadInput.value) {
             uploadInput.value.value = ''
         }
-        if (!props.selectedProject?.contract) {
+        if (!selectedProject.value?.contract) {
             fetchContract()
         }
     },
@@ -432,7 +434,7 @@ watch(
 )
 
 onMounted(() => {
-    if (!props.selectedProject?.contract) {
+    if (!selectedProject.value?.contract) {
         fetchContract()
     }
 })
@@ -472,7 +474,7 @@ const clearUploadFile = () => {
 }
 
 const uploadContract = async () => {
-    if (!props.selectedProject?.id) {
+    if (!selectedProject.value?.id) {
         ping('プロジェクトが見つかりません。')
         return
     }
@@ -492,7 +494,7 @@ const uploadContract = async () => {
         return
     }
 
-    const payload = await api.post(`/projects/${props.selectedProject.id}/contract`, {
+    const payload = await api.post(`/projects/${selectedProject.value.id}/contract`, {
         contract_data: review.json,
         file_path: review.path,
         contract_role: review.role,

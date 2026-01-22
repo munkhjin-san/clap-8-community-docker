@@ -118,13 +118,13 @@ import { useRoute } from 'vue-router';
 import { User } from '@/interface/globalInterface';
 import AddIcon from '../Form/AddIcon.vue';
 import { useApi } from '@/composables/api';
+import { useProject } from '@/composables/project';
 const props = defineProps<{
-    selectedProject?: Project;
     userList: any;
     mode?: string;
 }>();
 
-
+const { selectedProject } = useProject()
 const openModal = ref(false)
 const editData = ref<Asset | null>(null)
 const possibleProjects = ref([])
@@ -193,14 +193,14 @@ onMounted(() => {
 const getAssetUsers = async() => {
 
     const response = await api.get('/get_asset_users', {     
-        project_id: props.selectedProject?.id,
+        project_id: selectedProject.value?.id,
         mode: props.mode,           
     })
     assetUsers.value = response
 }
 const createAble = computed(() => {
     const privilage = props.mode === 'admin' || props.mode === 'partner' 
-    const allMembers = [...props.selectedProject?.members ?? [], ...props.selectedProject?.manager ?? []]
+    const allMembers = [...selectedProject.value?.members ?? [], ...selectedProject.value?.manager ?? []]
     return privilage || allMembers.some(ob => ob.id === auth.activeUser.id)
 })
 

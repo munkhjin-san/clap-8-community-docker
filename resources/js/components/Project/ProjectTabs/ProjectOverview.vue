@@ -94,9 +94,6 @@ import { Project } from '@/interface/projectInterface';
     const editProjects = inject('editProjects') as (project: any) => void
     const deleteProject = inject('deleteProject') as (project: Project | null) => void
     const { selectedProject } = useProject()
-    const dynamicHeight = ref('auto')
-    // const memoBody = useTemplateRef('memoBody')
-    // const memoInnerBody = useTemplateRef('memoInnerBody')
 
 
     const sanitized = (text: string) => {

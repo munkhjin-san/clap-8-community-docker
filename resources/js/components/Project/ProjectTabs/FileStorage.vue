@@ -322,6 +322,7 @@ import Trash from '@/components/Icons/Trash.vue';
 import CloseIcon from '@/components/Form/CloseIcon.vue';
 import { useResponsive } from '@/store/responsive';
 import Back from '@/components/Icons/Back.vue';
+import { useProject } from '@/composables/project';
 type Node = {
     id: string
     type: 'file' | 'folder'
@@ -339,10 +340,9 @@ type Node = {
     acls: {node_id: number, user_id: number}[] | []
 }
 type ViewMode = 'grid' | 'list'
-
+const { selectedProject } = useProject()
 const tsApi = useApi()
 const props = defineProps<{
-    selectedProject?: any | null,
     fileAccess?: boolean,
     parentId?: string | null
     userList: any[]
@@ -415,12 +415,12 @@ const marquee = reactive({
 });
 const dropTarget = ref<string | null>(null)
 const isManager = computed(() => {
-    if (!props.selectedProject) return false
-    return props.selectedProject.manager?.some(manager => manager.id === auth.id) ? true : false
+    if (!selectedProject.value) return false
+    return selectedProject.value.manager?.some(manager => manager.id === auth.id) ? true : false
 })
 const selectableUsers = computed(() => {
-    if (!props.selectedProject) return []
-    return props.selectedProject.manager?.concat(props.selectedProject.members) || []
+    if (!selectedProject.value) return []
+    return selectedProject.value.manager?.concat(selectedProject.value.members) || []
 })
 
 const marqueeStyle = computed(() => {
@@ -1047,9 +1047,19 @@ const handleShareClick = async(n: Node, pub: boolean) => {
     const cur = await sharingApi.get(n.id)
     shareDlg.value.node = n
 
-    const projectMembers = cur.members.length === 0 ? (props.selectedProject.members ?? []) : cur.members
+    const curMembers = (cur as any)?.members ?? []
+    const resolvedMembers: User[] = (Array.isArray(curMembers) && curMembers.length > 0 && typeof curMembers[0] === 'number')
+        ? ((selectableUsers.value || []).filter(u => (curMembers as number[]).includes(u.id)) as User[])
+        : (curMembers as User[])
 
-    shareDlg.value.members = [...new Set(projectMembers)] as User[]
+    const projectMembers: User[] = resolvedMembers.length === 0
+        ? ((selectedProject.value ? selectedProject.value.members : []) as User[])
+        : resolvedMembers
+
+    const uniqById = new Map<number, User>()
+    projectMembers.forEach(m => uniqById.set(m.id, m))
+    shareDlg.value.members = Array.from(uniqById.values())
+
     shareDlg.value.cascade = false
     shareDlg.value.open = true
     shareDlg.value.publicly = n.visibility === 'public'

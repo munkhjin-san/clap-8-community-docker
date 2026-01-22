@@ -84,15 +84,6 @@ export function useProject() {
         } 
         return selectedProject.value?.manager.some((ob: { id: number | null; }) => ob.id === auth.id)
     })
-    watch(
-        [route.params.projectId],
-        (newList) => {
-            console.log('projectList changed:', newList.length);
-            // Force reevaluation of selectedProject
-            console.log('Current selectedProject:', selectedProject.value);
-        },
-        { deep: true }
-    );
     return {
         projectList,
         getProjects,

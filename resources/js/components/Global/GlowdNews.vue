@@ -1,6 +1,6 @@
 <template>
     <div class="g-news-wrap" :style="{ display : visibility}">
-        <img class="gn-banner" v-lazy="{src:'/gn.png'}"/>
+        <img class="gn-banner" v-if="newsItems && newsItems.length" v-lazy="{src:'/gn.png'}"/>
         <div class="swiper-news">
             <div class="swiper-wrapper">
                 <div v-for="item in newsItems" class="swiper-slide news-slider">
