@@ -2394,12 +2394,15 @@ class ProjectController extends Controller
         // Calculate years between startInstance and endInstance
         $startYear = $startInstance->year;
         $endYear = $endInstance->year;
+        $startMonth = $startInstance->month;
+        $endMonth = $endInstance->month;
         $yearlyPlanData = [];
         $month_headers = [];
         $sub_headers = [];
         // Create an array of years
         for ($year = $startYear; $year <= $endYear; $year++) {
-            $file_path = storage_path("app/yearly_plan/{$year}.xlsx");
+            $filePathYear = $endMonth < 3 && $year === $endYear ? $endYear - 1 : $year;
+            $file_path = storage_path("app/yearly_plan/{$filePathYear}.xlsx");
             $file_exists = file_exists($file_path);
             if($file_exists){              
             
