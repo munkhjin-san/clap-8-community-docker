@@ -1,9 +1,9 @@
 <template>
-  <div class="py-0 px-5 space-y-4 text-[var(--primary-color)] h-[calc(100%-120px)] overflow-y-auto">
+  <div class="py-0 px-5 space-y-4 text-[var(--primary-color)] h-[calc(100%-70px)]">
     <!-- Header / Controls -->
-    <div class="bg-[var(--background-color)] p-5 sticky top-0 z-20 flex items-center gap-3 border-solid border border-[var(--normalBorder)] shadow-sm flex-wrap">
+    <div ref="controlRef" class="bg-[var(--background-color)] p-5 sticky top-0 z-20 flex items-center gap-3 border-solid border border-[var(--normalBorder)] shadow-sm flex-wrap">
       <div class="flex flex-col">
-        <h1 class="text-lg font-bold">月別内訳 • プロジェクト収支</h1>
+        <h1 class="text-base font-bold">月別内訳 • プロジェクト収支</h1>
         <div class="text-xs text-[var(--primary-color)] opacity-80">
           FY{{ fiscalYear }} (開始 {{ monthLabel(startMonth) }})
           <!-- FY{{ fiscalYear }} (開始 {{ monthLabel(startMonth) }}) • シナリオ: {{ activeScenarioLabel }} -->
@@ -32,18 +32,18 @@
       >
         <option v-for="m in 12" :key="m" :value="m">{{ monthLabel(m) }}</option>
       </select> -->
-      <button class="text-sm px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition" @click="downloadTemplate">テンプレートDL</button>
-      <label class="text-sm px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition cursor-pointer">
+      <button class="text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition" @click="downloadTemplate">テンプレートDL</button>
+      <label class="text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition cursor-pointer">
         アップロード
         <input type="file" class="hidden" accept=".xlsx,.xls" :disabled="isReadOnly" @change="uploadTemplate" />
       </label>
       <button
-        class="text-sm px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+        class="text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
         :disabled="isReadOnly"
         @click="copyFirstMonthToAll"
       >1月を全月にコピー</button>
       <button
-        class="text-sm px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+        class="text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
         :disabled="isReadOnly"
         @click="clearAll"
       >クリア</button>
@@ -66,17 +66,17 @@
       <div class="flex items-center gap-2 ml-auto">
         <button
           v-if="lockState.is_locked && isHQ"
-          class="ml-auto text-sm px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition"
+          class="ml-auto text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition"
           @click="unlockPlan"
         >確定解除</button>
         <button
           v-if="!lockState.is_locked"
-          class="text-sm px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+          class="text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           :disabled="isReadOnly"
           @click="confirmAndLock"
         >確定</button>
         <button
-          class="text-sm bg-[var(--bg3)] px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+          class="text-xs bg-[var(--bg3)] px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           :disabled="isReadOnly"
           @click="save"
         >保存</button>
@@ -92,9 +92,9 @@
     
 
     <!-- Table -->
-    <div class="bg-[var(--background-color)] overflow-x-auto border border-solid border-[var(--normalBorder)] shadow-sm">
+    <div :style="{ height: `calc(100% - ${(controlRef?.clientHeight ?? 0) + 40}px)` }" :class="['bg-[var(--background-color)] overflow-x-auto border border-solid border-[var(--normalBorder)] shadow-sm']">
       <table class="min-w-[1400px] w-full text-sm text-[var(--primary-color)]">
-        <thead class="bg-[var(--bg3)] border-b [border-bottom-style:solid] border-[var(--normalBorder)]">
+        <thead class="bg-[var(--bg3)] border-b [border-bottom-style:solid] border-[var(--normalBorder)] top-0 sticky z-[11]">
           <tr>
             <th class="sticky left-0 bg-[var(--bg3)] z-10 text-left px-4 py-2 w-32 md:w-52 text-xs">
               科目
@@ -206,7 +206,7 @@ import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 import axios from 'axios'
 import { DateTime } from 'luxon';
-import { reactive, ref, computed, watch, onMounted } from 'vue'
+import { reactive, ref, computed, watch, onMounted, useTemplateRef } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
 import { useProject } from '@/composables/project';
@@ -279,6 +279,7 @@ const lockState = reactive<{
 
 const isHQ = computed(() => Number(auth.activeUser?.id) === 610)
 const isReadOnly = computed(() => lockState.is_locked && !isHQ.value)
+const controlRef = useTemplateRef<HTMLDivElement>('controlRef')
 
 // payload[period_index][account_id] = value
 const payload = reactive<Record<number, Record<number, number | null>>>({})
