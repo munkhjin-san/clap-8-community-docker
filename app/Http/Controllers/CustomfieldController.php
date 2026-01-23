@@ -56,10 +56,16 @@ class CustomfieldController extends Controller{
             'type_id'  => 43,
             'app_name' => 'work',
         ];
+        $params = [];
+        if ($request->has('value')) {
+            $params['value_int'] = (int) $request->value;
+        }
+        if ($request->has('comment')) {
+            $params['value_text'] = $request->comment;
+        }
         $record = CustomFieldDataRecord::updateOrCreate(
             $keys,
-            ['value_int' => (int) $request->value,
-            'value_text' => $request->comment ?? null]
+            $params
         );
         
         $user = $request->user()->fresh()->load([
