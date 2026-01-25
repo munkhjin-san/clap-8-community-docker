@@ -132,6 +132,7 @@ const morningButtons = [
   'へばいぐべし👹',
   'ちぇすとー🌋',
   'いくぜよ🌊',
+  'イーヤーサーサー🌺',
 
   'Let’s go🏃‍➡️',
   'Come on🎾',
@@ -139,11 +140,12 @@ const morningButtons = [
   'Have a nice day🤗',
 
   'お仕事するゾー🍭',
-  'グラウド〜🐴',
+  'グラウド〜✊️',
   '押忍✊️',
   '整いました🧘‍♀️',
   'いくわよ〜🫶',
   'よしこい🍜',
+  'いざ参らん🐴',
 ]
 const emit = defineEmits(['close']);
 interface MessageData {
