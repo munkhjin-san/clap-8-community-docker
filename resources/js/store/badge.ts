@@ -72,7 +72,7 @@ export const useBadgeStore = defineStore('badge', {
                 this.notice = response.data   
             }
         },
-        async getBoardBadge(force = false) {
+        async getBoardBadge(force = false, src?: string){ 
             const now = Date.now()
             if(!force && this.boardBadgeFetchedAt && (now - this.boardBadgeFetchedAt) < BOARD_BADGE_CACHE_MS){
                 return this.boardBadgeRequest ?? Promise.resolve()

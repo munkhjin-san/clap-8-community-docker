@@ -212,7 +212,7 @@ import Character from "@/components/Global/Character.vue";
     const messageBoxBody = useTemplateRef('messageBoxBody')
     const { openedBoard } = useBoardList()
     const { refreshMessages, close, reload, messageLoader, open } = inject(BoardMethodsKey) as BoardMethods 
-    const { copy, remind, check } = inject(MessageMethodsKey) as MessageMethods;
+    const { copy, remind, check, sent } = inject(MessageMethodsKey) as MessageMethods;
     const pushInstantUser = inject('pushInstantUser') as Function
     const itemMenuRef = useTemplateRef('itemMenuRef')
     const longPressDuration = ref(500)
@@ -629,7 +629,8 @@ import Character from "@/components/Global/Character.vue";
         if (draftSending.value) return
         draftSending.value = true
         const data = await api.put('/draft_send', {id: props.message.id, draft_flag: 0})
-        refreshMessages(data, props.message.id)
+        refreshMessages(data.mutated, props.message.id)
+        sent(props.message, data.message.messages.data, data.last_message)
         setTimeout(() => {
             draftSending.value = false
         }, 200)

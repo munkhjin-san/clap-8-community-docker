@@ -273,21 +273,20 @@ class LessonController extends Controller
     }
     public function get_material_list(Request $request) {
         $lessons = LessonMaterial::where('lesson_theme_id', $request->lesson_theme_id)
-                    ->whereHas('answers', function ($q) {
-                        $q->whereHas('user');
-                    })
-                    ->with(['answers.user', 'theme' => function ($q) {
-                        $q->with(['exam.attempts.user']);
-                    }])
-                    ->get();
-        
-        $usersProgress = []; 
+            ->with([
+                'theme.exam.attempts.user',
+                'answers.user',
+            ])
+            ->get();
+
+        $totalBasic = $lessons->where('material_type', '基礎知識')->where('priority', '1')->count();
+        $totalCase  = $lessons->where('material_type', 'ケーススタディ')->count();
+        $usersProgress = [];
 
         foreach ($lessons as $lesson) {
-            $type = $lesson->material_type;
-            $answers = $lesson->answers;
-            foreach ($answers as $answer) {
-                $userId = $answer->user->id;
+            foreach ($lesson->answers as $answer) {
+                $userId = $answer->user_id;
+
                 if (!isset($usersProgress[$userId])) {
                     $usersProgress[$userId] = [
                         'user' => $answer->user,
@@ -298,39 +297,50 @@ class LessonController extends Controller
                         'reason_dnt_und' => '',
                         'survey_completed' => $lesson->theme->isSurveyCompletedBy($userId),
                         'exam' => $lesson->theme->exam?->attempts()->where('user_id', $userId)->latest()->first(),
+
+                        // add totals + counts
+                        'total_basic' => $totalBasic,
+                        'total_case'  => $totalCase,
                     ];
                 }
-                if ($type === '基礎知識') {
+
+                if ($lesson->material_type === '基礎知識') {
                     $usersProgress[$userId]['basic_knowledge_statuses'][] = $answer->status;
                     $usersProgress[$userId]['cant_understand'] = $answer->cant_understand;
                     $usersProgress[$userId]['reason_dnt_und'] = $answer->reason_dnt_und;
-                } elseif ($type === 'ケーススタディ') {
-                    $case_answers = [
+                } elseif ($lesson->material_type === 'ケーススタディ') {
+                    $usersProgress[$userId]['case_study_statuses'][] = $answer->status;
+                    $usersProgress[$userId]['answers'][] = [
                         'title' => $lesson->title,
                         'answer' => $answer->answer
                     ];
-                    $usersProgress[$userId]['case_study_statuses'][] = $answer->status;
-                    $usersProgress[$userId]['answers'][] = $case_answers;
                 }
             }
-            
         }
+
         foreach ($usersProgress as $userId => &$progress) {
-            $progress['basic_knowledge_completed'] = !empty($progress['basic_knowledge_statuses']) &&
-                collect($progress['basic_knowledge_statuses'])->every(function ($status) {
-                    return $status == 2;
-                });
-            $progress['case_study_completed'] = !empty($progress['case_study_statuses']) &&
-                collect($progress['case_study_statuses'])->every(function ($status) {
-                    return $status == 2;
-                });
-            $progress['basic_knowledge_uncompleted'] = !empty($progress['basic_knowledge_statuses']) &&
-                collect($progress['basic_knowledge_statuses'])->some(function ($status) {
-                    return $status == -1;
-                });
+            $answeredBasic = count($progress['basic_knowledge_statuses']);
+            $answeredCase  = count($progress['case_study_statuses']);
+
+            $completedBasic = collect($progress['basic_knowledge_statuses'])->every(fn($s) => $s == 2);
+            $completedCase  = collect($progress['case_study_statuses'])->every(fn($s) => $s == 2);
+
+            // IMPORTANT: if they answered only 2 of 10, they are NOT completed
+            $progress['basic_knowledge_completed'] =
+                $answeredBasic === $progress['total_basic'] && $progress['total_basic'] > 0 && $completedBasic;
+
+            $progress['case_study_completed'] =
+                $answeredCase === $progress['total_case'] && $progress['total_case'] > 0 && $completedCase;
+
+            $progress['basic_knowledge_uncompleted'] =
+                collect($progress['basic_knowledge_statuses'])->contains(fn($s) => $s == -1);
+
+            $progress['basic_progress'] = "{$answeredBasic}/{$progress['total_basic']}";
+            $progress['case_progress']  = "{$answeredCase}/{$progress['total_case']}";
+
             $progress['completed'] = $progress['basic_knowledge_completed'] && $progress['case_study_completed'];
         }
-                                
+                                        
         return response()->json($usersProgress);
     }
 

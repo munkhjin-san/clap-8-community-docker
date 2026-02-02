@@ -71,7 +71,7 @@ import { useDialog } from '@/composables/dialog';
             ping('ファイルを 1 つのみアップロードしてください。')
             return
         }
-        await api.post('/task_approve_request', {
+        await api.put('/task_approve_request', {
             file_ids: uploadedFiles.value ? uploadedFiles.value.map(ob => ob.id) : [],
             comment: comment.value,
             task_id: taskRequest.data.id,

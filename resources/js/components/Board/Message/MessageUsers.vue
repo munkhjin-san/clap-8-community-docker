@@ -31,12 +31,7 @@ import { computed } from 'vue';
 import { useMessageUsers } from '@/store/messageUsers'
 import GanttButton from '@/components/Task/Gantt/GanttButton.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
-import { User } from '@/interface/globalInterface';
     const messageUsers = useMessageUsers()
-    console.log(messageUsers)
-    const userList = computed(() => {
-        return messageUsers.userList
-    })
     const title = computed(() => {
         return messageUsers.title
     })            

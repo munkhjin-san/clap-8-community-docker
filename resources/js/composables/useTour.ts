@@ -21,17 +21,17 @@ function waitForEl(selector: string, timeout = 8000) {
 }
 const tutorialStore = useTutorialStore()
 const instructionMap: Record<string, () => Promise<any>> = {
-    "project.create": () => import("@/instructions/project.create"),
-    "project.create.achievements": () => import("@/instructions/project.create.achievements"),
-    "project.create.achievements.detail": () => import("@/instructions/project.create.achievements.detail"),
-    "project.details": () => import("@/instructions/project.details"),
-    "project.details.finance": () => import("@/instructions/project.details.finance"),
-    "project.details.finance.performance": () => import("@/instructions/project.details.finance.performance"),
-    "project.details.finance.performance.create": () => import("@/instructions/project.details.finance.performance.create"),
-    "project.details.finance.performance.details": () => import("@/instructions/project.details.finance.performance.details"),
-    "timesheet.dailyreport": () => import("@/instructions/timesheet.dailyreport"),
-    "timesheet.dailyreport.create": () => import("@/instructions/timesheet.dailyreport.create"),
-    "timesheet.dailyreport.create.details": () => import("@/instructions/timesheet.dailyreport.create.details")
+    "project.create": () => import("@/instructions/Project/Performance/project.create"),
+    "project.create.achievements": () => import("@/instructions/Project/Performance/project.create.achievements"),
+    "project.create.achievements.detail": () => import("@/instructions/Project/Performance/project.create.achievements.detail"),
+    "project.details": () => import("@/instructions/Project/Performance/project.details"),
+    "project.details.finance": () => import("@/instructions/Project/Performance/project.details.finance"),
+    "project.details.finance.performance": () => import("@/instructions/Project/Performance/project.details.finance.performance"),
+    "project.details.finance.performance.create": () => import("@/instructions/Project/Performance/project.details.finance.performance.create"),
+    "project.details.finance.performance.details": () => import("@/instructions/Project/Performance/project.details.finance.performance.details"),
+    "timesheet.dailyreport": () => import("@/instructions/Project/Performance/timesheet.dailyreport"),
+    "timesheet.dailyreport.create": () => import("@/instructions/Project/Performance/timesheet.dailyreport.create"),
+    "timesheet.dailyreport.create.details": () => import("@/instructions/Project/Performance/timesheet.dailyreport.create.details")
 };
 
 export function useTour() {

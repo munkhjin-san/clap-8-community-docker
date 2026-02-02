@@ -17,14 +17,13 @@
           <span v-if="dirty && !isReadOnly" class="ml-2 text-[var(--alert-color, #ef4444)]">未保存</span>
         </div>
       </div>
-      <!-- <label class="text-sm">会計年度</label>
+      <label class="text-sm">会計年度</label>
       <input
         type="number"
         v-model="fiscalYear"
-        disabled
         class="w-24 px-2 py-1 text-right text-[var(--primary-color)] bg-[var(--background-color)] border border-solid border-[var(--normalBorder)] focus:outline-none focus:border-[var(--hoverBorder)]"
       />
-      <label class="text-sm">開始月</label>
+      <!-- <label class="text-sm">開始月</label>
       <select
         v-model="startMonth"
         disabled
@@ -92,7 +91,7 @@
     
 
     <!-- Table -->
-    <div :style="{ height: `calc(100% - ${(controlRef?.clientHeight ?? 0) + 40}px)` }" :class="['bg-[var(--background-color)] overflow-x-auto border border-solid border-[var(--normalBorder)] shadow-sm']">
+    <div :style="{ height: calcHeight }" :class="['bg-[var(--background-color)] overflow-x-auto border border-solid border-[var(--normalBorder)] shadow-sm']">
       <table class="min-w-[1400px] w-full text-sm text-[var(--primary-color)]">
         <thead class="bg-[var(--bg3)] border-b [border-bottom-style:solid] border-[var(--normalBorder)] top-0 sticky z-[11]">
           <tr>
@@ -206,7 +205,7 @@ import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 import axios from 'axios'
 import { DateTime } from 'luxon';
-import { reactive, ref, computed, watch, onMounted, useTemplateRef } from 'vue'
+import { reactive, ref, computed, watch, onMounted, useTemplateRef, nextTick, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
 import { useProject } from '@/composables/project';
@@ -249,7 +248,7 @@ const route = useRoute()
 const { ask, toast, askInput } = useDialog()
 const auth = useAuthUserStore()
 
-const fiscalYear = ref(props.year || DateTime.now().year)
+const fiscalYear = ref(DateTime.now().year)
 const startMonth = ref(3) // March → February
 
 const planYearId = ref<number | null>(null)
@@ -280,6 +279,15 @@ const lockState = reactive<{
 const isHQ = computed(() => Number(auth.activeUser?.id) === 610)
 const isReadOnly = computed(() => lockState.is_locked && !isHQ.value)
 const controlRef = useTemplateRef<HTMLDivElement>('controlRef')
+const controlRefHeight = ref(0)
+
+
+
+const calcHeight = computed(() => {
+  const h = Number(controlRefHeight.value ?? 0) || 0
+  return `calc(100% - ${h + 40}px)`
+})
+
 
 // payload[period_index][account_id] = value
 const payload = reactive<Record<number, Record<number, number | null>>>({})
@@ -348,7 +356,7 @@ const annualTotals = computed(() => {
   const expenses = sgaId ? periods.value.reduce((acc, p) => acc + (formulaValues.value[p.period_index]?.[sgaId] ?? 0), 0) : 0
   const bonuses = bonusId ? periods.value.reduce((acc, p) => acc + (formulaValues.value[p.period_index]?.[bonusId] ?? 0), 0) : 0
   const totalExpenses = expenses + bonuses
-  const profit = profitId ? periods.value.reduce((acc, p) => acc + (formulaValues.value[p.period_index]?.[profitId] ?? 0), 0) : sales - expenses
+  const profit = sales - totalExpenses
   return { sales, totalExpenses, profit }
 })
 
@@ -422,6 +430,7 @@ const evaluateFormulaAccount = (
       expr = '[9110]*{bonus_rate}'
     }
   }
+  
   expr = expr.replace(/\{bonus_rate\}/g, String(bonusRateForPeriod(periodIndex)))
   const tokenRe = /\[([0-9]{4})(\/\*)?\]/g
   let replaced = expr.replace(tokenRe, (_, code: string, isSection: string) => {
@@ -443,14 +452,24 @@ const evaluateFormulaAccount = (
     const fn = new Function(`return (${replaced});`)
     const val = fn()
     const num = typeof val === 'number' && Number.isFinite(val) ? val : 0
+    
+    if (acct.code === '9120' && num < 0) {
+      stack.delete(acct.id)
+      memo[key] = 0
+      return 0
+    }
     memo[key] = num
     stack.delete(acct.id)
-    return Math.floor(num)
+    return toInt(num)
   } catch {
     stack.delete(acct.id)
     memo[key] = 0
     return 0
   }
+}
+const toInt = (val, fallback = 0) => {
+  const n = Number(val)
+  return Number.isFinite(n) ? Math.trunc(n) : fallback
 }
 
 const clearAll = () => {
@@ -823,7 +842,20 @@ const onAmountInput = (e: Event, periodIndex: number, acctId: string | number) =
 
   payload[periodIndex][acctId] = parseNumber(cleaned)
 }
-onMounted(load)
+onMounted(() => {
+  load()
+  const el = controlRef.value
+  if (!el) return
+
+  const ro = new ResizeObserver(() => {
+    controlRefHeight.value = el.offsetHeight ?? 0
+  })
+
+  ro.observe(el)
+  controlRefHeight.value = el.offsetHeight ?? 0
+
+  onBeforeUnmount(() => ro.disconnect())
+})
 watch(payload, () => {
   if (!initialized.value) return
   if (isLoading.value) return

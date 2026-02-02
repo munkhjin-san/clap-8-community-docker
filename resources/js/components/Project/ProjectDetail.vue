@@ -62,7 +62,7 @@
             </router-link>
         </div>
     </div>
-    <div class="mx-[20px] relative h-[calc(100%-100px)] overflow-hidden">
+    <div class="mx-[20px] relative under960:mx-0 h-[calc(100%-100px)] overflow-hidden bg-[var(--background-color)]">
         <div class="cal-month-loader" style="height: 100%; top: 0;" v-if="initialLoader">
             <div id="loaderMini">
                 <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>

@@ -2,11 +2,11 @@
         
         <div class="goals-wrap">
             <div class="overflow-hidden relative h-full">
-                <div class="goals-inner" style="height: calc(100% - 20px);">
-                    <div v-if="projectGoals.length" class="text-sm border border-solid border-[var(--calendarBorder)] bg-[var(--bg3)] px-3 py-1 mb-4 w-fit ml-auto">
-                        <span>現時点で達成評価点 ： <strong>{{ totalOverallScore(projectGoals) }}</strong>点</span>
+                <div class="goals-inner" style="padding-top: 0;height: calc(100% - 80px);">
+                    <div v-if="projectGoals.length" class="text-sm border border-solid border-[var(--calendarBorder)] bg-[var(--bg3)] px-3 py-1 mb-4 w-fit">
+                        <span class="under960:text-[12px]">現時点で達成評価点 ： <strong>{{ totalOverallScore(projectGoals) }}</strong>点</span>
                     </div>                      
-                        <masonry-wall v-if="projectGoals.length" id="goals-parent" :items="projectGoals" :ssr-columns="1" :column-width="230" :gap="20">
+                        <masonry-wall v-if="projectGoals.length" id="goals-parent" :items="projectGoals" :ssr-columns="1" :column-width="350" :gap="20">
                             <template #default="{ item, index }: { item: ProjectGoal, index: number }">
                                 <div class="goal-detail relative gap-2">
                                     
@@ -306,12 +306,7 @@ provide('refresh', fetchMemberData)
         gap: 20px; */
         height: 100%;
     }
-    .goals-inner {
-        overflow: hidden auto;
-        height: 100%;
-        background: var(--background-color);
-        padding: 0 20px;
-    }
+
     /* .goal-detail{
         background-color: var(--bg3);
         line-height: 1.5;

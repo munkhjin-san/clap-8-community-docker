@@ -5,7 +5,7 @@
                 <div class="p-[30px] bg-[var(--background-color)] flex flex-col gap-[20px] relative">
                     <div class="flex items-center justify-between">
                         <p>期間を選択してください。</p>
-                        <div class="cursor-pointer w-[30px] min-w-[30px] h-[30px] flex items-center justify-center" @click="router.back()">   
+                        <div class="cursor-pointer w-[30px] min-w-[30px] h-[30px] flex items-center justify-center" @click="onClose">   
                             <CloseIcon size="10"/>
                         </div>                        
                     </div>
@@ -24,8 +24,8 @@
                 </div>
             </div>
         </Transition>
-        <div v-if="dateOptions.name" class="absolute right-[20px] top-[15px]">
-            <button @click="picker = true" class="border border-solid border-[var(--formBorder)] px-[8px] py-[5px] cursor-pointer">{{ dateOptions.short_name }}</button>
+        <div v-if="dateOptions.name" class="absolute right-[20px] top-[15px] z-[5]">
+            <button @click="picker = true" class="border border-solid border-[var(--formBorder)] px-[8px] py-[5px] cursor-pointer under960:text-[12px]">{{ dateOptions.short_name }}</button>
         </div>
         <router-view v-slot="{ Component }">
             <component
@@ -90,7 +90,6 @@ const confirmBadges = (option: { year: string, which_half: string}) => {
         {by: 'year', value: option.year}, 
         {by: 'which_half', value: option.which_half}
     ]).length
-    console.log(goalsBadge, issuesBadge)
     return goalsBadge + issuesBadge
 }
 const commentBadges = (option: { year: string, which_half: string}) => {
@@ -100,5 +99,12 @@ const commentBadges = (option: { year: string, which_half: string}) => {
         {by: 'year', value: Number(option.year)}, 
         {by: 'which_half', value: option.which_half}
     ]).length
+}
+const onClose = () => {
+    if (route.params.span) {
+        picker.value = false
+    } else {
+        router.back()
+    }
 }
 </script>

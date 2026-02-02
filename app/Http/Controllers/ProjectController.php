@@ -72,14 +72,7 @@ class ProjectController extends Controller
     protected $boardController;
     protected $sharedService;
 
-    private const CASE_KINDS = ['ACTUAL'];
-    private const DEFAULT_ACTUAL_STATUSES = [
-        ['status_id' => 1, 'label' => '新規契約', 'is_system_default' => true, 'sort_order' => 1],
-        ['status_id' => 2, 'label' => '継続契約', 'is_system_default' => true, 'sort_order' => 2],
-        ['status_id' => 3, 'label' => 'リプレイス・アップグレード',   'is_system_default' => true, 'sort_order' => 3],
-        ['status_id' => 4, 'label' => 'オプション契約', 'is_system_default' => true, 'sort_order' => 4],
-        ['status_id' => 5, 'label' => 'アポイント取得', 'is_system_default' => true, 'sort_order' => 5],
-    ];
+    
     private const SYSTEM_STATUS_LABELS = [
         1 => '新規契約',
         2 => '継続契約',
@@ -1822,13 +1815,20 @@ class ProjectController extends Controller
             if (! $planYear) {
                 return response()->json([]);
             }
+            $transitionDate = $project->transitioned_at
+                ? Carbon::parse($project->transitioned_at)
+                : null;
+
+            $bonus_calc = $transitionDate ? $transitionDate->year === $planYear->fiscal_year : false;
+            
             $out = $this->planFormulaService->buildMonthlyBalance(
                 $project->id,
                 $planYear->id,
                 (int) $planYear->start_month,
                 0,
                 ['sales' => '5050', 't_expense' => '6270', 'profit' => '9130', 'bonus' => '9120'],
-                $project->is_new ? 0.2 : 0.1
+                $bonus_calc,
+                $transitionDate ? $transitionDate->month : null
             );
             return response()->json($out);
         }
@@ -2183,23 +2183,18 @@ class ProjectController extends Controller
         return response()->json($target_assets);
     }
     public function get_partners_tags(Request $request){
-        $partnersQuery = [
-            'app' => 118,
-            'fields' => ['会社名', '$id']
-        ];
         $keyword = $request->key;
         $super = $request->super;
         if($keyword){
-            $partnersQuery['query'] = "会社名 like \"{$keyword}%\"";
+            $query = "会社名 like \"{$keyword}%\"";
         }
         if($super){
-            $partnersQuery['query'] = "order by \$id desc limit 10";
+            $query = "order by \$id desc limit 10";
         }
-        $queryStringPartners = http_build_query($partnersQuery);
-        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryStringPartners";
-        $partnersResponse = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
-        $partnersData = $partnersResponse->json();
-        $partnersRecords = $partnersData['records'] ?? [];
+        $fields = ['会社名', '$id'];
+        
+        $partnersData = $this->api->getRecords(118, $query ?? '', $fields);
+        $partnersRecords = $partnersData ?? [];
         $data = array_map(fn($record) => $record['会社名']['value'] ?? '', $partnersRecords);
         if($keyword){
             if(!in_array($keyword, $data)){
@@ -2242,16 +2237,11 @@ class ProjectController extends Controller
         ]);
         $project = ProjectRecord::findOrFail($request->project_id);
         $project_name = $project->name;
+        
+        $query = "部門 = \"{$project_name}\"";
 
-        $queryParamsDispatch = [
-            'app' => 262,
-            "query" => "部門 = \"{$project_name}\"",
-        ];
-        $queryStringDispatch = http_build_query($queryParamsDispatch);
-        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryStringDispatch";
-        $response = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
-        $responseData = $response->json();
-        $dispatchRecords = $responseData['records'] ?? [];
+        $responseData = $this->api->getRecords(262, $query, []);
+        $dispatchRecords = $responseData ?? [];
         $dispatchClean = array_map(function ($record) {
             $spec = [];
             foreach ($record as $key => $value) {
@@ -2400,6 +2390,7 @@ class ProjectController extends Controller
         $month_headers = [];
         $sub_headers = [];
         // Create an array of years
+        $yearlyOut = [];
         for ($year = $startYear; $year <= $endYear; $year++) {
             $filePathYear = $endMonth < 3 && $year === $endYear ? $endYear - 1 : $year;
             $file_path = storage_path("app/yearly_plan/{$filePathYear}.xlsx");
@@ -2412,14 +2403,45 @@ class ProjectController extends Controller
                 $month_headers = $yearlyPlanData[$year]->shift()->toArray();
                 $sub_headers = $yearlyPlanData[$year]->shift()->toArray();  
             }else{
+                
+                $planYear = ProjectPlanYear::query()
+                ->where('fiscal_year', $filePathYear)
+                ->where('start_month', 3)
+                ->first();
+                if (!$planYear && $filePathYear !== $year) {
+                    $planYear = ProjectPlanYear::query()
+                        ->where('fiscal_year', $year)
+                        ->where('start_month', 3)
+                        ->first();
+                }
+                if (!$planYear) {
+                    $yearlyPlanData[$year] = collect();
+                    $month_headers[$year] = [];
+                    $sub_headers[$year] = [];
+                    continue;
+                }
+                foreach($projects as $project){
+                    $transitionDate = $project->transitioned_at
+                        ? Carbon::parse($project->transitioned_at)
+                        : null;
+
+                    $bonus_calc = $transitionDate ? $transitionDate->year === $planYear->fiscal_year : false;
+                    $yearlyOut[$project->id] = $this->planFormulaService->buildMonthlyBalance(
+                        $project->id,
+                        $planYear->id,
+                        (int) $planYear->start_month,
+                        0,
+                        ['sales' => '5050', 't_expense' => '6270', 'profit' => '9130', 'bonus' => '9120'],
+                        $bonus_calc,
+                        $transitionDate ? $transitionDate->month : null
+                    );
+                }
                 $yearlyPlanData[$year] = collect();
                 $month_headers[$year] = [];
                 $sub_headers[$year] = [];
-
             }
             
         }    
-
         //get yearly plan data        
         
         $plan_res_data = [];
@@ -2543,8 +2565,24 @@ class ProjectController extends Controller
                     $summarizeData['yearly_plan']['sales'] = ($summarizeData['yearly_plan']['sales'] ?? 0) + $totalSales;
                     $summarizeData['yearly_plan']['expense'] = ($summarizeData['yearly_plan']['expense'] ?? 0) + $totalExpense;
                     $accumulatePeriodTotals($periodKey, 'yearly_plan', $planData);
-                }
-                else{
+                } else if (!empty($yearlyOut)) {
+                    $totalSales = $yearlyOut[$id][$month]['sales'] ?? 0;
+                    $totalExpense = $yearlyOut[$id][$month]['expense'] ?? 0;
+                    $planData = [
+                        "sales" => $totalSales,
+                        "expense" => $totalExpense,
+                        "profit" => $yearlyOut[$id][$month]['profit'] ?? 0,
+                        "profit_rate" => $yearlyOut[$id][$month]['profit_rate'] ?? 0,
+                    ];
+                    $plan_res_data[$project_name][$month]['yearly_plan'] = $planData;
+
+                    
+                    $sumData[$project_name]['yearly_plan']['sales'] = ($sumData[$project_name]['yearly_plan']['sales'] ?? 0) + $totalSales;
+                    $sumData[$project_name]['yearly_plan']['expense'] = ($sumData[$project_name]['yearly_plan']['expense'] ?? 0) + $totalExpense;
+                    $summarizeData['yearly_plan']['sales'] = ($summarizeData['yearly_plan']['sales'] ?? 0) + $totalSales;
+                    $summarizeData['yearly_plan']['expense'] = ($summarizeData['yearly_plan']['expense'] ?? 0) + $totalExpense;
+                    $accumulatePeriodTotals($periodKey, 'yearly_plan', $planData);
+                } else {
                     $plan_res_data[$project_name][$month]['yearly_plan']  = $default_data;
                     $accumulatePeriodTotals($periodKey, 'yearly_plan', $default_data);
                 }
@@ -2609,7 +2647,7 @@ class ProjectController extends Controller
                         $plan_res_data[$project_name][$month]['settlement']= [
                             'sales' => $totalSales,
                             'expense' => $totalExpense ?? 0,
-                            'profit' => (float)(float) str_replace(',', '', $settlement_profit_val),
+                            'profit' => (float) str_replace(',', '', $settlement_profit_val),
                             'profit_rate' => (float) str_replace('%', '', $settlement_profit_rate_val),
                             'has_data' => true,
                         ];
@@ -2640,16 +2678,19 @@ class ProjectController extends Controller
             }
         }
         foreach($periodTotals as $key => &$periodTotal){
-            $periodTotal['settlement']['expense'] = (int) round($periodTotal['settlement']['expense'] ?? 0, 0, PHP_ROUND_HALF_UP);
-            $periodTotal['settlement']['profit'] = (int) round($periodTotal['settlement']['profit'] ?? 0, 0, PHP_ROUND_HALF_UP);
             $summarizeData['settlement']['sales'] = ($summarizeData['settlement']['sales'] ?? 0) + $periodTotal['settlement']['sales'];
             $summarizeData['settlement']['expense'] = ($summarizeData['settlement']['expense'] ?? 0) + $periodTotal['settlement']['expense'];
+            $periodTotal['settlement']['expense'] = (int) round($periodTotal['settlement']['expense'] ?? 0, 0, PHP_ROUND_HALF_UP);
+            $periodTotal['settlement']['profit'] = (int) round($periodTotal['settlement']['profit'] ?? 0, 0, PHP_ROUND_HALF_UP);
         }
+        $summarizeData['settlement']['expense'] = (int) round($summarizeData['settlement']['expense'] ?? 0, 0, PHP_ROUND_HALF_UP);
+        
         $final_data = [
             'plan_res_data' => $plan_res_data,
             'sumData' => $sumData,
             'summarizeData' => $summarizeData,
             'periodTotals' => $periodTotals,
+            'test' => $yearlyOut,
         ];
         return response()->json( $final_data);
 
@@ -3476,11 +3517,7 @@ class ProjectController extends Controller
         $attributes = [
             'project_record_id' => $project->id,
             'user_id'           => $user_id,
-            'kind'             => $kind,
-            'stage'            => $stage,
-            'delivery_status'  => $delivery,
             'status'           => $statusLabel,
-            'probability'      => $probability,
             'client_name'      => $data['client_name'] ?? null,
             'case_count'        => $data['case_count'] ?? 0,
             'amount'            => $data['amount'],
@@ -3495,7 +3532,8 @@ class ProjectController extends Controller
                 ->where('project_record_id', $project->id)
                 ->where('status', $statusLabel)
                 ->exists();
-        abort_if($exists, 403, '同一日付・同一区分の報告は1件のみ登録できます。');
+        $formatDate = Carbon::parse($reportDate)->format('Y年n月');
+        abort_if($exists, 403, "選択されたメンバーの目標値は、${formatDate}分がすでに作成されています。");
 
         $case = ProjectCase::create($attributes);
         $case->load('reporter:id,name,icon_path,icon_bg');
@@ -3506,10 +3544,6 @@ class ProjectController extends Controller
                 'project_id'   => $case->project_record_id,
                 'report_date'  => $case->report_date->toDateString(),
                 'status'       => $statusLabel,
-                'kind'         => $case->kind,
-                'stage'        => $case->stage,
-                'delivery_status' => $case->delivery_status,
-                'probability'  => $case->probability,
                 'case_count'   => $case->case_count,
                 'amount'       => $case->amount,
                 'notes'        => $case->notes,
@@ -3559,13 +3593,30 @@ class ProjectController extends Controller
 
         $reportDate = Carbon::parse($data['report_date'])->startOf('month');
 
+        $newUserId = $data['member_id'] ?? $case->user_id;
+
+        $shouldCheck = (
+            (int)$newUserId !== (int)$case->user_id ||
+            Carbon::parse($case->report_date)->startOfMonth()->ne($reportDate) ||
+            (string)$case->status !== (string)$statusLabel
+        );
+
+        if ($shouldCheck) {
+            $exists = ProjectCase::where('report_date', $reportDate)
+                ->where('user_id', $newUserId)
+                ->where('project_record_id', $project->id)
+                ->where('status', $statusLabel)
+                ->where('id', '!=', $case->id)
+                ->exists();
+
+            $formatDate = $reportDate->format('Y年n月');
+            abort_if($exists, 403, "選択されたメンバーの目標値は、{$formatDate}分がすでに作成されています。");
+        }
+
+
         $case->update([
             'user_id'          => $data['member_id'] ?? $case->user_id,
-            'kind'             => $kind,
-            'stage'            => $stage,
-            'delivery_status'  => $delivery,
             'status'           => $statusLabel,
-            'probability'      => $probability,
             'client_name'      => $data['client_name'] ?? null,
             'case_count'       => $data['case_count'] ?? 0,
             'amount'           => $data['amount'],
@@ -3583,10 +3634,6 @@ class ProjectController extends Controller
                 'project_id'   => $case->project_record_id,
                 'report_date'  => optional($case->report_date)?->toDateString(),
                 'status'       => $statusLabel,
-                'kind'         => $case->kind,
-                'stage'        => $case->stage,
-                'delivery_status' => $case->delivery_status,
-                'probability'  => $case->probability,
                 'case_count'   => $case->case_count,
                 'amount'       => $case->amount,
                 'notes'        => $case->notes,

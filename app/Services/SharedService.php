@@ -275,6 +275,7 @@ class SharedService
 
         $holidayNum = match (true) {
             $user_position == 12 => 9,
+            $user_position == 13 => 9,
             $month == 12 => 10,
             $month == 1 => 12,
             $lastDay == 29 => 8.5,

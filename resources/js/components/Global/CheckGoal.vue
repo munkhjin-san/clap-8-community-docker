@@ -13,7 +13,11 @@
                 </div> 
             </div>
             <div v-for="goal in projectGoals" style="position: relative">            
-                <div class="goal-detail cursor-pointer" @click="router.push({name: 'goal-approval', params: { goalId: goal?.id}})" style="position: relative;gap:10px;margin-bottom: 20px;">
+                <div class="goal-detail cursor-pointer" @click="router.push({name: 'goal-approval', params: { projectId: goal?.project_id, goalId: goal?.id}})" style="position: relative;gap:10px;margin-bottom: 20px;">
+                    <div v-if="goal?.project">
+                        <div>該当部門</div>
+                        <div class="kadai-content">{{ goal?.project?.name }}</div>
+                    </div>
                     <div v-if="goal?.title">
                         <div>タイトル</div>
                         <div class="kadai-content">{{ sliceGoal(goal?.title) }}</div>
@@ -36,7 +40,10 @@
                     </div>
                     <div>
                         <div>成果目標ステータス</div>
-                        <div class="kadai-content">{{ statuses[goal?.status] }}</div>
+                        <div class="kadai-content">
+                            <span title="対応必要" v-if="goal?.status === 3 || goal?.status === 4 || (goal?.end_date < now && goal?.status !== 9)" class="w-[10px] h-[10px] bg-[tomato] rounded-full inline-block mx-1"></span>
+                            {{ statuses[goal?.status] }}
+                        </div>
                     </div>
                     <div v-if="goal?.achievement_rate">
                         <div>達成率</div>
@@ -48,7 +55,10 @@
                     </div>
                     <div v-if="goal?.salary_issue">
                         <div>昇給課題ステータス</div>
-                        <div class="kadai-content">{{ salaryIssueStatus[goal?.salary_issue?.status] }}</div>
+                        <div class="kadai-content">
+                            <span title="対応必要" class="w-[10px] h-[10px] bg-[tomato] rounded-full inline-block mx-1"></span>
+                            {{ salaryIssueStatus[goal?.salary_issue?.status] }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -58,11 +68,8 @@
                 <component
                     :is="Component" 
                     :goal="chosenGoal"
-                    :selectedProject="selectedProject"
-                    :isManagerOrMember="isManagerOrMember"
                     :statuses="statuses"
                     :salaryIssueStatus="salaryIssueStatus"
-                    :memberData="memberData"
                 />
             </transition>
             
@@ -71,14 +78,13 @@
 </template>
 <script lang="ts" setup>
 import { useResponsive } from '@/store/responsive';
-import { computed, ref } from 'vue';
-import ProjectGoalMore from '../Project/ProjectGoalMore.vue';
-import { Project, ProjectGoal } from '@/interface/projectInterface';
+import { computed, onMounted, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth';
 import Back from '../Icons/Back.vue';
 import { useRoute, useRouter } from 'vue-router';
-const props = defineProps(['projects'])
-console.log(props.projects)
+import { useProject } from '@/composables/project';
+import { DateTime } from 'luxon';
+const props = defineProps(['users'])
 const auth = useAuthUserStore()
 const statuses = [
     '作成中（本人対応中）', 
@@ -109,6 +115,8 @@ const responsive = useResponsive()
 const router = useRouter()
 const emit = defineEmits(['close'])
 const route = useRoute()
+const now = DateTime.now().toISODate()
+const { setProjectList } = useProject()
 const sliceGoal = (content?: string) => {
     if (!content) return ''
     const truncatedGoal = content.length > 100 
@@ -116,24 +124,20 @@ const sliceGoal = (content?: string) => {
     : content;
     return truncatedGoal
 }
-const isManagerOrMember = computed(() => {
-    return selectedProject.value?.director_id === auth.id ||
-           selectedProject.value?.manager?.some(user => user.id === auth.id)
-})
-const memberData = computed(() => {
-    return props.projects.length && route.params?.userId ? props.projects.find(user => user.id == Number(route.params.userId)) : []
-})
+
 const projectGoals = computed(() => {
-    return memberData.value?.outcome_goals
+    return props.users.map(user => user.outcome_goals.filter((goal: any) => goal.user_id == Number(route.params.userId))).flat()
 })
 
 const chosenGoal = computed(() => {
     return route.params && route.params?.goalId ? projectGoals.value.find(ob => ob.id == Number(route.params.goalId)) : null
 })
-const selectedProject = computed(() => {
-    return chosenGoal.value?.project
+onMounted(() => {
+    const projects = props.users.map(user => user.outcome_goals.map((goal: any) => goal.project)).flat()
+    if (projects.length > 0) {
+        setProjectList(projects)
+    }
 })
-
 </script>
 <style>
 .goal-detail{

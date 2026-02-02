@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\messageRecord;
 use App\Models\messageFile;
 use App\Models\boardToUser;
+use App\Services\MentionAndNotify;
+use App\Jobs\IncrementUnreadCount;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -12,13 +14,16 @@ use Throwable;
 
 class DraftMessageSender
 {
+    public function __construct(private MentionAndNotify $mentioner)
+    {
+    }  
     /**
      * Convert a draft message into a normal message by cloning,
      * moving files, notifying, and updating last_message.
      *
      * Returns the new messageRecord.
      */
-    public function send(messageRecord $draft): messageRecord
+    public function send(messageRecord $draft): array
     {
         // Basic guards
         if ((int)$draft->draft_flag !== 1) {
@@ -84,8 +89,22 @@ class DraftMessageSender
             boardToUser::where('record_id', $new->record_id)
                 ->where('user_id', $new->user_id)
                 ->update(["last_message" => $new->id]);
-
-            return $new;
+            IncrementUnreadCount::dispatch($new->record_id, $new->user_id);
+            $new->board_record->touch();
+            $this->mentioner->mention($new->board_record, $new->user, $new);
+            
+            $related_members = boardToUser::where('record_id', $new->record_id)
+                ->where('deleted_status', 0)
+                ->where('user_id', '!=', $new->user_id)
+                ->pluck('user_id');
+            
+            return [
+                'success' => true,
+                'new' => $new,
+                'record_id' => $new->record_id,
+                'sender_id' => $new->user_id,
+                'related_members' => $related_members,
+            ];
         });
 
         // Perform file moves after commit (outside transaction)

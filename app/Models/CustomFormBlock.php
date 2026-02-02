@@ -13,7 +13,8 @@ class CustomFormBlock extends Model
     protected $guarded = [];
 
     protected $casts = [
-        "is_required" => 'boolean'
+        "is_required" => 'boolean',
+        "depends_on" => 'array',
     ];
     public function elements(){
         return $this->hasMany(CustomFormBlockElement::class);

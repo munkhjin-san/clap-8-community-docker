@@ -32,6 +32,7 @@ use App\Http\Controllers\GoogleController;
 use App\Http\Controllers\CommunityController;
 use App\Http\Controllers\OpenAiController;
 use App\Http\Controllers\ProjectPlanController;
+use App\Http\Controllers\PushController;
 use App\Models\User;
 /*
 |--------------------------------------------------------------------------
@@ -100,6 +101,8 @@ Route::prefix('cdn_external')->group(function () {
     Route::get('{user_id}/{keyword}/{any?}', [ContentController::class, 'fileTransferAllExternal'])->where('any', '.*');
 });
 Route::group(["middleware"=> ["auth", "session.expired"]],function(){
+    Route::post('/push/subscribe', [PushController::class, 'subscribe']);
+    Route::get('/push/test', [PushController::class, 'test']);
 
     Route::get('auth/google/auth', [GoogleController::class, 'redirect'])->name('google.auth');
     Route::get('auth/google/callback', [GoogleController::class, 'callback'])->name('google.callback');
@@ -173,15 +176,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/{any?}', [ContentController::class, 'fileTransferAll'])->where('any', '.*');
     });
     Route::get('/kintone_file', [ContentController::class, 'kintone_file']);
-    Route::post('/auth_check', function (Request $request) {
-        $r = Auth::id() == $request->id;
-        if($r){
-            return response()->json();
-        }else{
-            throw ValidationException::withMessages(['message' => 'ユーザー アカウント認証に失敗しました。ブラウザを更新してください']);
-        }
-        
-    });
+    Route::post('/auth_check', [UserController::class, 'auth_check']);
 
     Route::get('/lesson_files/{path}', [ContentController::class, 'lessonFileTransfer']);
 
@@ -639,6 +634,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/remind_form', [RemindController::class, 'remind_form']);
         Route::get('/remind_asset', [RemindController::class, 'remind_asset']);
         Route::get('/remind_badge', [RemindController::class, 'remind_badge']);
+        Route::get('/remind_summary', [RemindController::class, 'remind_summary']);
         Route::get('/remind_temp_reserved_schedules', [RemindController::class, 'remind_temp_reserved_schedules']);
         Route::get('/remind_departure_report', [RemindController::class, 'remind_departure_report']);
         Route::get('/check_departure_report', [RemindController::class, 'check_departure_report']);
@@ -646,6 +642,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/remind_challenge_progress', [RemindController::class, 'remind_challenge_progress']);
         Route::get('/get_today_readable', [RemindController::class, 'get_today_readable']);
         Route::get('/badge_summary', [RemindController::class, 'badge_summary']);
+        Route::get('/remind_overdue', [RemindController::class, 'remind_overdue']);
 
 
         Route::get('/generate_welcome_message', [AutoJobController::class, 'generate_welcome_message']);
@@ -727,5 +724,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
         Route::get('/goal_issue_comment_badge', [ProjectController::class, 'goal_issue_comment_badge']);
         Route::post('/clear_goal_issue_badge', [ProjectController::class, 'clear_goal_issue_badge']);
+        Route::get('/must_sync_check', [AutoJobController::class, 'must_sync_check']);
 });
      Route::post('/tts_stream', [OpenAiController::class, 'stream_tts']);

@@ -13,8 +13,13 @@
             <div class="text-[16px]">{{ survey.title }}</div>
             <div class="rich-wrapper" v-html="urlCheck(survey.description)"></div>
             <div class="flex flex-col gap-[30px]" :key="forceRefresh">
-                <div v-for="block in survey.blocks">
-                    <SurveyBlock ref="blocks" :block="block" :answer="answer.block_answers.find(a => a.custom_form_block_id == block.id)"/>
+                <div v-for="block in visibleBlocks" :key="block.id">
+                    <SurveyBlock
+                        ref="blocks"
+                        :block="block"
+                        :answer="answer.block_answers.find(a => a.custom_form_block_id == block.id)"
+                        @selection-change="onSelectionChange"
+                    />
                 </div>
                 
             </div>
@@ -91,9 +96,51 @@ const loading = reactive({
     2: ref(false), // 送信
 })
 const forceRefresh = ref(0)
+const selections = reactive<Record<number, { type: 'radio' | 'checkbox'; elementIds: number[] }>>({})
+const onSelectionChange = (payload: { blockId: number; type: 'radio' | 'checkbox'; elementIds: number[] }) => {
+    selections[payload.blockId] = {
+        type: payload.type,
+        elementIds: payload.elementIds,
+    }
+}
+const visibleBlocks = computed(() => {
+    const visible: CustomForm['blocks'] = []
+    const visibleIds = new Set<number>()
+    for (const block of props.survey.blocks) {
+        const rawDependsOn = Array.isArray(block.depends_on) ? block.depends_on : (block.depends_on ? [block.depends_on] : [])
+        if (!rawDependsOn.length) {
+            visible.push(block)
+            visibleIds.add(block.id)
+            continue
+        }
+        const matches = rawDependsOn.some((condition) => {
+            if (!condition?.block_id || !visibleIds.has(condition.block_id)) return false
+            const selection = selections[condition.block_id]
+            if (!selection) return false
+            const expectedIds = Array.isArray(condition.element_ids)
+                ? condition.element_ids.map((id) => Number(id))
+                : []
+            if (!expectedIds.length) return false
+            const conditionType = condition.type === 'checkbox' ? 'checkbox' : 'radio'
+            if (conditionType !== selection.type) return false
+            if (conditionType === 'checkbox') {
+                const matchMode = condition.match === 'all' ? 'all' : 'any'
+                return matchMode === 'all'
+                    ? expectedIds.every((id) => selection.elementIds.includes(id))
+                    : expectedIds.some((id) => selection.elementIds.includes(id))
+            }
+            return selection.elementIds[0] === expectedIds[0]
+        })
+        if (matches) {
+            visible.push(block)
+            visibleIds.add(block.id)
+        }
+    }
+    return visible
+})
 
 const sendSurvey = async(status:number) => {
-    const targets = blocks.value && blocks.value.length ? blocks.value : []
+    const targets = blocks.value && blocks.value.length ? blocks.value.filter(b => b) : []
     let blockValid = true
     
     for(const block of targets){

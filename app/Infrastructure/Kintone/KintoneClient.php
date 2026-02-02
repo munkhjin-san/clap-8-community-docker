@@ -7,49 +7,40 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 class KintoneClient
 {
-    public function __construct(private Client $http) {}
+    private string $authHeader;
+    public function __construct(private Client $http)
+    {
+        $user = config('app.kintone_user_name');
+        $pass = config('app.kintone_password');
+
+        $this->authHeader = base64_encode($user . ':' . $pass);
+    }
 
     public function getRecords(string|int $appId, string $query, array $fields): array
     {
-        $base  = rtrim(config('app.kintone_base_url'), '/');
-        $basic = base64_encode(config('app.kintone_user_name').':'.config('app.kintone_password'));
         $queryString = http_build_query([
             'app'        => $appId,
             'query'      => $query,
             'fields'     => $fields,       // arrays are fine; will become fields[0]=...
         ]);
         try {
-            $resp = $this->http->get("{$base}/records.json?{$queryString}", [
+            $resp = $this->http->get("records.json?{$queryString}", [
                 'headers' => [
-                    'X-Cybozu-Authorization' => $basic,
+                    'X-Cybozu-Authorization' => $this->authHeader,
                     'X-Requested-With'       => 'XMLHttpRequest',
                     'Accept'                 => 'application/json',
                 ],
                 'timeout' => 15,
             ]);
             $data = json_decode((string)$resp->getBody(), true);
-            $records = $data['records'] ?? [];
 
-
-
-            return $records;
+            return $data['records'] ?? [];
         } catch (ClientException $e) {
-            $res  = $e->getResponse();
-            $body = $res ? (string) $res->getBody() : null;
-
-            // This is what you NEED to see
-            dd([
-                'status' => $res?->getStatusCode(),
-                'body'   => $body,
-                'json'   => $body ? json_decode($body, true) : null,
-            ]);
+            throw new \RuntimeException("Kintone API request failed: {$e->getMessage()}", 0, $e);
         }
     }
     public function getRecord(string|int $appId, string|int $recordId, array $fields = []): array
     {
-        $base  = rtrim(config('app.kintone_base_url'), '/');
-        $basic = base64_encode(config('app.kintone_user_name') . ':' . config('app.kintone_password'));
-
         $params = [
             'app' => $appId,
             'id'  => $recordId,
@@ -61,9 +52,9 @@ class KintoneClient
 
         $queryString = http_build_query($params);
 
-        $resp = $this->http->get("{$base}/record.json?{$queryString}", [
+        $resp = $this->http->get("record.json?{$queryString}", [
             'headers' => [
-                'X-Cybozu-Authorization' => $basic,
+                'X-Cybozu-Authorization' => $this->authHeader,
                 'X-Requested-With'       => 'XMLHttpRequest',
                 'Accept'                 => 'application/json',
             ],
@@ -76,9 +67,6 @@ class KintoneClient
     }
     public function putRecord(string|int $appId, string|int $recordId, array $record): array
     {
-        $base  = rtrim(config('app.kintone_base_url'), '/');
-        $basic = base64_encode(config('app.kintone_user_name') . ':' . config('app.kintone_password'));
-
         $payload = [
             'app'    => (string) $appId,
             'id'     => (string) $recordId,
@@ -86,9 +74,9 @@ class KintoneClient
         ];
         
         try {
-            $resp = $this->http->put("{$base}/record.json", [
+            $resp = $this->http->put("record.json", [
                 'headers' => [
-                    'X-Cybozu-Authorization' => $basic,
+                    'X-Cybozu-Authorization' => $this->authHeader,
                     'X-Requested-With'       => 'XMLHttpRequest',
                     'Accept'                 => 'application/json',
                 ],
@@ -99,15 +87,7 @@ class KintoneClient
             return json_decode((string) $resp->getBody(), true) ?? [];
 
         } catch (ClientException $e) {
-            $res  = $e->getResponse();
-            $body = $res ? (string) $res->getBody() : null;
-
-            // This is what you NEED to see
-            dd([
-                'status' => $res?->getStatusCode(),
-                'body'   => $body,
-                'json'   => $body ? json_decode($body, true) : null,
-            ]);
+            throw new \RuntimeException("Kintone API request failed: {$e->getMessage()}", 0, $e);
         }
     }
 }

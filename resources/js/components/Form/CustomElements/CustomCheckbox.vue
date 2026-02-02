@@ -2,7 +2,7 @@
     <div>
         <div>
             <div class="mb-[15px] flex items-center gap-[10px]">
-                <input class="custom-q-input" placeholder="質問" back type="text" v-model="question"/>
+                <input class="custom-q-input" :placeholder="'質問'" back type="text" v-model="question"/>
                 <div class="flex ml-auto">
                     <div class="flex items-center gap-[10px]">
                         <label class="flex items-center gap-[5px] text-[12px] cursor-pointer whitespace-nowrap">
@@ -31,7 +31,7 @@
                                             <input type="checkbox" v-model="answer.has_sub_text"/>
                                             サブテキスト欄
                                         </label>
-                                        <input v-if="answer.has_sub_text" placeholder="プレースホルダー" class="custom-o-input" back type="text" ref="checkboxes" v-model="answer.placeholder"/>                                     
+                                        <input v-if="answer.has_sub_text" placeholder="プレースホルダー" class="custom-o-input" back type="text" ref="checkboxes" v-model="answer.placeholder"/>                                    
                                     </div>                                    
                                 </div>                               
                             </div>  
@@ -43,11 +43,12 @@
                                     <CloseIcon size="8"/>
                                 </div>                                
                             </div>                          
-                        </div>             
+                        </div>        
                     </div>
                 </TransitionGroup>
             </div>
         </div>
+        
     </div>
 </template>
 <script setup lang="ts">
@@ -78,7 +79,7 @@ import AddIcon from '../AddIcon.vue';
             value: '',
             has_sub_text: false,
             has_sub_text_required: false,
-            is_required: false
+            is_required: false,
         }
         elements.splice(index + 1, 0, item)
         

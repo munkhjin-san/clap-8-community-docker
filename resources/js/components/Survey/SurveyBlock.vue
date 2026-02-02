@@ -1,6 +1,7 @@
 <template>
     <div>
-        <div>
+        <div v-if="block.type == 'header'" class="rich-wrapper" v-html="urlCheck(block.question)"></div>
+        <div v-else>
             {{ block.question }} <span :class="['text-[gray] text-[12px] ml-[5px]', {'text-[tomato]' : hasError}]">{{ block.is_required ? '必須' : '' }}</span> 
         </div>
         <div v-if="(block.type == 'radio' || block.type == 'checkbox') && block.elements" class="flex flex-col gap-[15px] mt-[15px]">
@@ -68,13 +69,17 @@
 </template>
 <script setup lang="ts">
 import { CustomFormBlock, SurverBlockElementAnswer, SurveyBlockAnswer } from '@/interface/customFormInterface';
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import 'styles/customForm.css'
 import { useTheme } from '@/store/theme';
 import FileUploader from '../Form/FileUploader.vue';
+import { urlCheck } from '@/utils/tools';
 const props = defineProps<{
     block: CustomFormBlock
     answer?: SurveyBlockAnswer | null
+}>()
+const emit = defineEmits<{
+    selectionChange: [payload: { blockId: number; type: 'radio' | 'checkbox'; elementIds: number[] }]
 }>()
 const simpleTypes = ['multitext', 'singletext', 'date', 'time', 'select']
 const blockData = reactive<SurveyBlockAnswer>({
@@ -118,6 +123,24 @@ onMounted(() => {
     }
 
 })
+watch(
+    radioModel,
+    (value) => {
+        if (props.block.type !== 'radio') return
+        const elementIds = value ? [Number(value)] : []
+        emit('selectionChange', { blockId: props.block.id, type: 'radio', elementIds })
+    },
+    { immediate: true }
+)
+watch(
+    checkboxModel,
+    (value) => {
+        if (props.block.type !== 'checkbox') return
+        const elementIds = value ? value.map(v => Number(v)) : []
+        emit('selectionChange', { blockId: props.block.id, type: 'checkbox', elementIds })
+    },
+    { immediate: true, deep: true }
+)
 const hasCheckError = computed(() => {
     if (!validateOn.value) return false;
     return !simpleTypes.includes(props.block.type) && props.block.is_required ? !checkboxModel.value.length : false

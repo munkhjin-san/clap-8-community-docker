@@ -14,4 +14,9 @@ final class BoardControllerProxy
         $request = new Request($payload);
         return $this->controller->chatAdd($request);
     }
+    public function draftSend(array $payload)
+    {
+        $request = new Request($payload);
+        return $this->controller->draftSend($request);
+    }
 }

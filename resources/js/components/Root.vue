@@ -50,14 +50,13 @@
         <OverRide/>
         <Transition name="footerPop">
             <PWAPrompt 
-                :timeToShow="1" 
                 :isShown="promptShown && isIOS && !isPWA"
                 copy-title="ホーム画面に追加"
                 copy-description="ホーム画面に追加するとメンションなどのプッシュ追徴を受け取ることができます。"
                 copy-subtitle="https://clap-glowd.com"
-                copy-share-step="下の「シェア」ボタンを押してください。"
+                copy-share-step="三点リーダーメニュー「共有」ボタンを押してください。"
                 copy-add-to-home-screen-step="「ホーム画面に追加」ボタンを押してください。"
-                appIconPath="/androidv4/icon192.png"
+                appIconPath="/android-chrome-192x192.png"
                 @close="savePWAStatus"
             />
         </Transition>
@@ -69,7 +68,6 @@
 <script setup>
 import SideMenu from './Global/SideMenu.vue';
 import Footer from './Header/Footer.vue';
-import * as PusherPushNotifications from "@pusher/push-notifications-web";
 import { computed, onBeforeMount, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Dialog from './Global/Dialog.vue';
@@ -87,6 +85,7 @@ import { instance as socket, isSocketReady } from '@/utils/broadcaster'
 import { PWAPrompt } from 'vue-ios-pwa-prompt'
 import { DateTime } from 'luxon';
 import { useDialog } from '@/composables/dialog';
+import { initPush } from '@/utils/push';
     const props = defineProps(['session', 'auth_user', 'initial_date'])
     const route = useRoute()
     const router = useRouter()
@@ -136,7 +135,7 @@ import { useDialog } from '@/composables/dialog';
             return
         }
         badgeRefreshInFlight = true
-        badge.getBoardBadge(true).finally(() => {
+        badge.getBoardBadge(true, 'queueBoardBadgeRefresh').finally(() => {
             lastBadgeRefreshAt = Date.now()
             badgeRefreshInFlight = false
             if(badgeRefreshPending){
@@ -148,8 +147,9 @@ import { useDialog } from '@/composables/dialog';
 
     onMounted(async() => {    
         addEventListener()
-        if(props.auth_user && props.auth_user.id){                  
-            beamsInit()
+        if(props.auth_user && props.auth_user.id){   
+
+            initPush()
         }
         loadBadges().catch(err => {
             console.error('[badges] failed to load', err)
@@ -157,11 +157,14 @@ import { useDialog } from '@/composables/dialog';
         if(route.name === 'board'){
             pushPwaBackGuardState()
         }
+        if (isIOS.value) {
+            savePWAStatus()
+        } 
     })
     async function loadBadges() {
         const jobs = []
 
-        jobs.push(badge.getBoardBadge(true))
+        jobs.push(badge.getBoardBadge(true, 'initialLoad'))
 
         if(!auth.isPartner){
             // jobs.push(badge.getNoticeBadge())
@@ -218,7 +221,7 @@ import { useDialog } from '@/composables/dialog';
         window.addEventListener('click', onClick);
         window.addEventListener('touchstart', onClick);
         window.addEventListener('resize', handleResize);
-        window.addEventListener("blur", handleBlur, false);
+        window.addEventListener("blur", handleBlur, true);
         document.addEventListener('visibilitychange', handleVisibilityChange)
         window.addEventListener('popstate', handlePwaPopState)
         socket.on("post:badge", postHandler)
@@ -228,7 +231,7 @@ import { useDialog } from '@/composables/dialog';
     }
     const removeEventListener = () => {
         window.removeEventListener('resize', handleResize);
-        window.removeEventListener('blur', handleBlur, false)
+        window.removeEventListener('blur', handleBlur, true)
         window.removeEventListener('click', onClick);
         window.removeEventListener('touchstart', onClick);
         document.removeEventListener('visibilitychange', handleVisibilityChange)
@@ -238,9 +241,7 @@ import { useDialog } from '@/composables/dialog';
         socket.off("refresh:task_comment", taskCommentBadgeHandler)
     }
     const taskCommentBadgeHandler = (data) => {
-        console.log('taskCommentBadgeHandler', data)
         if(data && data.length && data[0].members){
-            console.log('iyiyiyiiy', data)
             const related = data[0].members
             if(related.includes(auth.id) || related.includes(auth.activeUser.id)){
                 badge.getTaskCommentBadge()
@@ -342,53 +343,46 @@ import { useDialog } from '@/composables/dialog';
         
 
     }
-    const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible') {
-            handleFocus()
-        } else {
-            console.log('Window lost focus')
-        }
+    const setFocusedState = (v) => {
+        focused.setFocused(v)
+        console.debug("focused =", v, {
+            visibility: document.visibilityState,
+            hasFocus: document.hasFocus?.(),
+        });
     }
+    const handleVisibilityChange = () => {
+        console.log("visibilitychange:", document.visibilityState);
+        if (document.visibilityState === "visible") {
+            // When coming back, treat as focused and run activity check
+            handleFocus();
+        } else {
+            setFocusedState(false);
+        }
+    };
     const handleFocus = () => {
-        console.log('focus getting called')
+        console.log("window focus");
         checkActivity()
-        focused.setFocused(true)
+        setFocusedState(true);
     }
     const handleBlur = () => {
-        focused.setFocused(false)
-    }
-    const beamsInit = async () =>{
-        if (window.Notification.permission === 'granted') return
-        const beamsClient = new PusherPushNotifications.Client({
-            instanceId: import.meta.env.VITE_PUSHER_INSTANCE_ID,
+        console.log("window blur");
+        // Don't instantly trust blur on mobile.
+        // If document is still visible and hasFocus() is true, ignore it.
+        queueMicrotask(() => {
+            const visible = document.visibilityState === "visible";
+            const hasFocus = document.hasFocus ? document.hasFocus() : true;
+
+            if (!visible || !hasFocus) setFocusedState(false);
+            else console.log("blur ignored (still visible + hasFocus)");
         });
-        const beamsTokenProvider = await beamsToken()
-        beamsUser(beamsClient, beamsTokenProvider)
-    }
-    const beamsToken = async() => {
-        return new PusherPushNotifications.TokenProvider({
-            url: "/pusher/beams-auth",
-        });
-    }
-    const beamsUser = (beamsClient, beamsTokenProvider) => {
-        beamsClient.getUserId().then((userId) => {
-            if (userId !== null && userId !== props.auth_user.id.toString()) {
-                return beamsClient.stop();
-            }else{
-                beamsClient.start()
-                .then(() => console.log('Successfully registered and subscribed!'))
-                .then(() => beamsClient.setUserId(props.auth_user.id.toString(), beamsTokenProvider))
-                .catch(console.error);
-            }
-        }).catch(console.error);
-        
-    }
+    };
     const checkActivity = async() => {            
         const before = localStorage.getItem('notification_check')
-        if(!before || DateTime.now().diff(DateTime.fromSQL(before), 'minutes').minutes > 1){
-            authCheck();
-            if(!isSocketReady.value){            
-                await badge.getBoardBadge();
+        // if(!before || DateTime.now().diff(DateTime.fromSQL(before), 'minutes').minutes > 1){
+            const must_sync = await authCheck();
+            console.debug('must_sync', must_sync)
+            if(!isSocketReady.value || must_sync === true){            
+                await badge.getBoardBadge(false, 'checkActivity');
                 const hasNewMessages = badge.totalBoardBadge(auth.activeUser.id)      
                 if(mainRef.value.refreshBoardList){
                     if(hasNewMessages){                        
@@ -399,7 +393,7 @@ import { useDialog } from '@/composables/dialog';
             }         
             const time = DateTime.now().toFormat('yyyy-MM-dd HH:mm:ss')
             localStorage.setItem('notification_check', time)
-        }
+        // }
     }
     const handleResize = () => {
         const w = window.innerWidth;
@@ -438,7 +432,8 @@ import { useDialog } from '@/composables/dialog';
         }
         let answer = ''
         try {
-            await axios.post('/auth_check', {id: auth.id})
+            const { must_sync } = await axios.post('/auth_check', {id: auth.id}).then(res => res.data)
+            return must_sync
         } catch (error) {
             const { response } = error;
             let errorMessage = '';
@@ -492,6 +487,5 @@ import { useDialog } from '@/composables/dialog';
     provide('refreshRemind', refreshRemind)
     provide('refreshMessage', refreshMessage)
     provide('resetInstantUser', resetInstantUser)
-    provide('beamsInit', beamsInit)
 </script>
 

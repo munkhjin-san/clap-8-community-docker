@@ -66,9 +66,9 @@
                         <td>{{ user?.evaluation?.after_salary_rank }}</td>
                         <td>
                             <div>
-                                <div>設定数：{{ displayGoals(user).length || 0 }}</div>
+                                <div>作成済数：{{ safeGoals(user).length || 0 }}</div>
                                 <div class="mt-2" v-if="user?.outcome_goals && user.outcome_goals.length">
-                                    <div v-for="goal in displayGoals(user)" :key="goal.id" class="max-w-[220px] relative flex flex-col gap-2 text-[12px] p-2 rounded bg-[var(--bg2)] mb-2">
+                                    <div v-for="goal in safeGoals(user)" :key="goal.id" class="max-w-[220px] relative flex flex-col gap-2 text-[12px] p-2 rounded bg-[var(--bg2)] mb-2">
                                         <router-link target="_blank" class="login-link jump-link" :to="{name: 'goal-more', params: { goalId: goal.id, span: `${goal.year}-${goal.which_half}`, memberId: user.id, projectId: goal.project_id}}" style="flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ goal.title || 'タイトルなし' }}</router-link>
                                         <div class="absolute right-1 top-1 text-[11px] bg-[var(--background-color)] px-2 py-1">{{ overallScore(goal) }}点</div>
                                         <div class="text-[11px]">{{ statusDisplay(goal.status) }}</div>
@@ -273,7 +273,7 @@ const setMentor = (user) => {
     mentorSelectorData.date = selectedDate.value
 
 }
-const displayGoals = (user) => {
+const safeGoals = (user) => {
     const goals = user?.outcome_goals || []
     return goals.filter(goal => goal.status > 2)
 }
@@ -385,8 +385,8 @@ const findTargetUsers = async() => {
             must_approve: 0,
 
         }
-        const validGoals = user?.outcome_goals?.filter(g => [2,3,4,5,6,7,9].includes(g.status)) || []
-        if(validGoals.length < wantedNumber.value){
+        const safeGoalsList = safeGoals(user)
+        if(safeGoalsList.length < wantedNumber.value){
             if(goalCount < wantedNumber.value){
                 u.must_create = wantedNumber.value - goalCount
             }

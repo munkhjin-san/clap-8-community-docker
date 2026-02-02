@@ -66,5 +66,15 @@ return [
             'legal_deep_review' => env('OPENAI_PROMPT_LEGAL_DEEP_REVIEW_ID') 
         ]
     ],
+    'VAPID' => [
+        'public_key' => env('VAPID_PUBLIC_KEY'),
+        'private_key' => env('VAPID_PRIVATE_KEY'),
+        'subject' => env('VAPID_SUBJECT'),
+    ],
+    'socket' => [
+        'internal_url' => env('VITE_SOCKET_URL'),
+        'internal_token' => env('VITE_SOCKET_TOKEN'),
+    ],
+
 
 ];

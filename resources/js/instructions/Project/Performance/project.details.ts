@@ -5,7 +5,7 @@ export const stepsBuilder = (driver: Driver) => {
             element: '#projectTable',
             popover: {
                 title: 'プロジェクトを選択', 
-                description: 'プロジェクトを選択してください。', 
+                description: '実績管理をONしたプロジェクトを選択してください。', 
                 side: 'top', 
                 align: 'start',
                 showButtons: [],

@@ -26,7 +26,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(SharedService::class, function ($app) {
             return new SharedService();
         });
-        $this->app->singleton(Http::class, fn() => new Http(['timeout' => 15]));
+        $this->app->singleton(Http::class, function() {return new Http(
+            [
+                'base_uri' => rtrim(config('app.kintone_base_url'), '/') . '/',
+                'timeout' => 15
+            ]);
+        });
         $this->app->singleton(KintoneClient::class, fn($app) => new KintoneClient($app->make(Http::class)));
         $this->app->singleton(GoogleSheetsClient::class);
 

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\messageRecord;
 use App\Services\DraftMessageSender;
+use Illuminate\Support\Facades\Http;
 class ProcessMessage implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
@@ -35,12 +36,19 @@ class ProcessMessage implements ShouldQueue
 
         foreach ($messages as $message) {
             try {
-                $new = $sender->send($message);
+                $result = $sender->send($message);
+                $events = [
+                    ["event" => "board:{$result['record_id']}", "data" => []],
+                    ["event" => 'refresh:badge', "data" => $result['related_members']],
+                    ["event" => 'refresh:board', "data" => $result['related_members']],
+                ];
+
                 Log::info('Scheduled draft sent', [
                     'old_id' => $message->id,
-                    'new_id' => $new->id,
-                    'record_id' => $new->record_id,
+                    'new_id' => $result['new']['id'],
+                    'record_id' => $result['record_id'],
                 ]);
+
             } catch (\Throwable $e) {
                 Log::error('Scheduled draft send failed', [
                     'id' => $message->id,

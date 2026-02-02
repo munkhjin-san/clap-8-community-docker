@@ -36,8 +36,9 @@ export interface CustomFormBlock {
     answers?: SurveyBlockAnswer[]
     order_number?: number
     placeholder?: string
+    depends_on?: CustomFormBlockDependsOn[] | null
 }
-export type CustomFormBlockType = 'checkbox' | 'radio' | 'singletext' | 'multitext' | 'date' | 'time' | 'select' | 'file'
+export type CustomFormBlockType = 'checkbox' | 'radio' | 'singletext' | 'multitext' | 'date' | 'time' | 'select' | 'file' | 'header'
 export type CustomFormBlockState = 'control' | 'live'
 
 export interface CustomFormBlockElement {
@@ -50,6 +51,13 @@ export interface CustomFormBlockElement {
     updated_at?: string	
     answers?: SurverBlockElementAnswer[]
     placeholder?: string
+}
+
+export interface CustomFormBlockDependsOn {
+    block_id: number
+    type?: string
+    element_ids?: number[]
+    match?: string
 }
 
 export interface SurveyAnswer{

@@ -30,11 +30,12 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use App\Infrastructure\Kintone\KintoneClient;
 
 class WorkController extends Controller
 {
     protected $sharedService;
-    public function __construct(SharedService $sharedService) {
+    public function __construct(SharedService $sharedService, private readonly KintoneClient $kintone) {
         $this->sharedService = $sharedService;
     }
     private function active_user(){
@@ -1165,7 +1166,6 @@ class WorkController extends Controller
 
         // remove all old ACTUAL records for this timecard
         ProjectCase::where('timecard_record_id', $timecardId)
-            ->where('kind', 'ACTUAL')
             ->delete();
 
         if (!$hasAnyValue) {
@@ -1185,7 +1185,6 @@ class WorkController extends Controller
                 'project_record_id'  => $request->department,
                 'timecard_record_id' => $timecardId,
                 'user_id'            => $request->userId,
-                'kind'               => 'ACTUAL',
                 'status'             => $statusLabel,
                 'amount'             => $value,
                 'report_date'        => $request->day,
@@ -2043,20 +2042,15 @@ class WorkController extends Controller
         ]);
         $user_code = $data['user_code'];
         $mileage = $data['mileage'];
-        $queryParams = [
-            "app" => 777,
-            "query" => "従業員番号 = \"{$user_code}\" and 実燃費 != 0 order by 作成日時 desc limit 1",
-            "fields" => ["従業員番号", "氏名", "ガソリン単価", "実燃費", "作成日時"],
-        ];
         
-        $queryString = http_build_query($queryParams);
-        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryString";
-        $profits = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
-        $responseData = $profits->json();
+        $query = "従業員番号 = \"{$user_code}\" and 実燃費 != 0 order by 作成日時 desc limit 1";
+        $fields = ["従業員番号", "氏名", "ガソリン単価", "実燃費", "作成日時"];
+        
+        $responseData = $this->kintone->getRecords(777, $query, $fields);
         $mileage_data = [];
         $gas_price_per_km = 0;
-        if(array_key_exists('records', $responseData) && $responseData['records'] && count($responseData['records'])) {
-            $record = $responseData['records'][0];
+        if(!empty($responseData)) {
+            $record = $responseData[0];
             $gas_full_price = ($mileage / $record['実燃費']['value']) * $record['ガソリン単価']['value'];
             $mileage_data = [
                 'gas_unit_price'=>$record['ガソリン単価']['value'], 
@@ -2072,17 +2066,7 @@ class WorkController extends Controller
         
         
     }
-    private function kintone_headers() {
-        $user_name = config('app.kintone_user_name');
-        $password = config('app.kintone_password');
-        $string = $user_name. ':'. $password;
-        $x_token = base64_encode($string);
-        $headers = [
-            'Authorization' => 'Basic',
-            'X-Cybozu-Authorization' => $x_token
-        ];
-        return $headers;
-    }
+    
     public function get_remaining_days(Request $request) {
         $data = $request->validate([
             'user_code' => 'required',
@@ -2090,18 +2074,12 @@ class WorkController extends Controller
             'user_code.required' => '関連するレコードが見つかりません。',
         ]);
         $user_code = $data['user_code'];
-        $queryParams = [
-            "app" => 794,
-            "query" => "社員ｺｰﾄﾞ = \"{$user_code}\"",
-            "fields" => ["社員ｺｰﾄﾞ", "氏名", "残日数"],
-        ];
-        $queryString = http_build_query($queryParams);
-        $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryString";
-        $response = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
-        $responseData = $response->json();
+        $query = "社員ｺｰﾄﾞ = \"{$user_code}\"";
+        $fields = ["社員ｺｰﾄﾞ", "氏名", "残日数"];
+        $responseData = $this->kintone->getRecords(794, $query, $fields);
         $remaining_days = [];
-        if(array_key_exists('records', $responseData) && $responseData['records'] && count($responseData['records'])) {
-            $record = $responseData['records'][0];
+        if(!empty($responseData)) {
+            $record = $responseData[0];
             $remaining_days = [
                 'name'=>$record['氏名']['value'], 
                 'user_code'=>$record['社員ｺｰﾄﾞ']['value'],

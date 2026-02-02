@@ -101,7 +101,7 @@
                                         <div class="inner-col"><span class="mobile">販管費</span>{{ amountOfMoneyParser(yearlyPlanData?.[p.period]?.expense ?? NaN) }}</div>
                                     </td>
                                     <td>
-                                        <div class="inner-col"><span class="mobile">利益</span>{{ amountOfMoneyParser(yearlyPlanData?.[p.period]?.profit ?? NaN) }}</div>
+                                        <div class="inner-col"><span class="mobile">利益</span>{{ amountOfMoneyParser(profitCalculate(yearlyPlanData?.[p.period]?.sales, yearlyPlanData?.[p.period]?.expense) ?? NaN) }}</div>
                                     </td>
                                     <td>
                                 <div class="inner-col"><span class="mobile">利益率</span>{{ formatRate(yearlyPlanData?.[p.period]?.profit_rate ?? null) }}</div>
@@ -139,8 +139,8 @@
                                     </td>
                                     <td>
                                         <div class="flex items-center gap-[5px] w-full">
-                                            <div class="inner-col"><span class="mobile">利益</span>{{ amountOfMoneyParser(profitData?.[p.period]?.profit ?? NaN) }}</div>
-                                            <DeltaNumbers type="profit" :actual="profitData?.[p.period]?.profit ?? 0" :planned="yearlyPlanData?.[p.period]?.profit ?? 0"/>
+                                            <div class="inner-col"><span class="mobile">利益</span>{{ amountOfMoneyParser(profitData?.[p.period]?.profit  ?? NaN) }}</div>
+                                            <DeltaNumbers type="profit" :actual="profitData?.[p.period]?.profit ?? 0" :planned="profitCalculate(yearlyPlanData?.[p.period]?.sales, yearlyPlanData?.[p.period]?.expense) ?? 0"/>
                                         </div>
                                     </td>
                                     <td>
@@ -244,51 +244,7 @@
                 </table>
                 
             </div>
-            
-            <!-- <table>
-                <thead>
-                    <tr>
-                        <th class="h-cell"></th>
-                        <th v-for="l in lineOrder" :key="l">{{ lineLabelJa[l] }}</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="group in scenarioRows" :key="group.label">
-                    <td class="h-cell">
-                        <div class="flex flex-col">
-                            <span>{{ group.label }}</span>
-                            <span v-if="group.extras.length" class="text-[10px] text-[var(--primary-color)] opacity-70">
-                                他 {{ group.extras.length }} 指標（ライン外）
-                            </span>
-                        </div>
-                    </td>
-                    <td v-for="l in lineOrder" :key="l">
-                        <template v-if="group.lines[l]">
-                            <div class="flex items-center">
-                                <span>{{ fmt(group.lines[l]!.value, group.lines[l]!.value_type) }}</span>
-                                <span
-                                  v-if="hasSubMetric(group.lines[l]!.sub_metric_value)"
-                                  class="text-[11px] whitespace-nowrap ml-[5px]"
-                                  :style="{ color: subColor(l, group.lines[l]!.sub_metric_value) }"
-                                >
-                                  {{ `${subArrow(group.lines[l]!.sub_metric_value)} ${fmtSubMetric(group.lines[l]!.sub_metric_value, group.lines[l]!.value_type)}` }}
-                                </span>
-                            </div>
-                        </template>
-                        <template v-else>—</template>
-                    </td>
-                    </tr>
-                </tbody>
-            </table>
-            <div v-if="orphanMetrics.length" class="orphan-wrapper">
-                <p class="orphan-title">表示枠に収まらない指標</p>
-                <ul class="orphan-list">
-                    <li v-for="item in orphanMetrics" :key="`orphan-${item.metric.id}-${item.reason}`">
-                        <span class="orphan-label">{{ item.metric.label_ja }}</span>
-                        <span class="orphan-reason">{{ item.reason }}</span>
-                    </li>
-                </ul>
-            </div> -->
+        
             
         </div>   
         <Transition name="smLoad">
@@ -304,7 +260,7 @@
         <router-view 
             :refresh-key="caseRefreshKey"
             :has-privilage="hasPrivilage"
-            :year="year"
+            :year="defaultFiscalYear"
             :month="month"
         />
     </div>
@@ -312,14 +268,13 @@
 <script setup lang="ts">
 import Back from '@/components/Icons/Back.vue';
 import { DateTime, MonthNumbers } from 'luxon';
-import { computed, inject, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { amountOfMoneyParser } from '@/utils/tools';
 import CellLoader from './Finance/CellLoader.vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import DeltaNumbers from './Finance/DeltaNumbers.vue';
 import { useApi } from '@/composables/api';
-import { useAuthUserStore } from '@/store/auth';
 import CommentWindow from './Finance/CommentWindow.vue';
 import { useBadgeStore } from '@/store/badge';
 import PeriodRangePicker from './Finance/PeriodRangePicker.vue';
@@ -327,13 +282,11 @@ import { isMobile } from '@/utils/tools';
 import { useTutorialStore } from '@/store/tutorial';
 import { useTour } from '@/composables/useTour';
 import { useProject } from '@/composables/project';
-const auth = useAuthUserStore()
 const props = defineProps<{
     userList: any;
     hasPrivilage: boolean
     totalBadge: number;
 }>();
-const caseWindow = ref(false)
 const caseRefreshKey = ref(0)
 const commentView = ref(false)
 const selectedCommentPeriod = ref<string | null>(null)
@@ -434,59 +387,7 @@ const month = ref<MonthNumbers>(periodEnd.value.month as MonthNumbers)
 
 
 const commentCount = ref(0)
-const metrics_list = ref<MetricDTO[]>([])
 
-
-
-type Line = 'sales'|'expense'|'profit'|'profit_rate'
-type ValueType = 'currency'|'amount'|'rate'
-type SubMetricDTO = {
-  id: number
-  expression?: string | null
-  expression_normalized?: string | null
-  sort_order?: number | null
-}
-type MetricDTO = {
-  id: number
-  label_ja: string
-  line: Line
-  kind: 'input'|'derived'
-  scenario_label_ja?: string | null
-  value: number | null
-  expression: string | null
-  expression_normalized?: string | null
-  value_type: ValueType
-  sub_metrics?: SubMetricDTO[]
-  sub_metric?: SubMetricDTO | null
-  sub_metric_value?: number | null
-  sort_order?: number | null
-}
-type MetricWithComputed = MetricDTO & {
-  value: number | null | undefined
-  sub_metric_value?: number | null | undefined
-  sub_metric?: SubMetricDTO | null
-}
-type ScenarioExtra = { metric: MetricWithComputed; reason: string }
-type ScenarioRow = { label: string; lines: Partial<Record<Line, MetricWithComputed>>; extras: ScenarioExtra[] }
-const lineOrder: Line[] = ['sales','expense','profit','profit_rate']
-const lineLabelJa: Record<Line,string> = {
-  sales:'売上', expense:'販管費', profit:'利益', profit_rate:'利益率'
-}
-const scenarioPref = [
-  { code: 'annual_budget', label_ja: '年度予算' },
-  { code: 'plan',          label_ja: '損益計画' },
-  { code: 'actual',        label_ja: '実績' },
-  { code: 'forecast',      label_ja: '予測' },
-]
-const extractSubMetric = (metric: MetricDTO): SubMetricDTO | null => {
-  if ((metric as unknown as { sub_metric?: SubMetricDTO | null }).sub_metric) {
-    return (metric as unknown as { sub_metric?: SubMetricDTO | null }).sub_metric ?? null
-  }
-  if (Array.isArray(metric.sub_metrics) && metric.sub_metrics.length) {
-    return metric.sub_metrics[0] ?? null
-  }
-  return null
-}
 interface BalanceColumn {
     sales: number | null;
     expense: number | null;
@@ -507,9 +408,9 @@ const settlementData = ref<BalanceMap<SettlementColumn>>({})
 
 const profitData = ref<BalanceMap<BalanceColumn>>({})
 
-const setTotalFinanceWindow = inject('setTotalFinanceWindow') as (flag: boolean) => void
-
-const normalizedPeriod = computed(() => `${year.value}-${String(month.value).padStart(2, '0')}-01`)
+const profitCalculate = (sales: number | null, expense: number | null) => {
+    return sales && expense ? sales - expense : null
+}
 
 const FISCAL_START_MONTH = 3
 const fiscalStartDate = (fy: number) => DateTime.fromObject({ year: fy, month: FISCAL_START_MONTH, day: 1 }).startOf('month')
@@ -558,11 +459,7 @@ const normalizeSettlementEntry = (raw: any): SettlementColumn => ({
   overhead: toNumeric(raw?.overhead) ?? null,
   row: raw?.row ?? null,
 })
-const activeTab = ref<'check' | 'yearly' | 'monthly' | 'actual' | 'case'>('check')
 
-const changeBetweenTabs = (which: 'check' | 'yearly' | 'monthly' | 'actual' | 'case') => {
-  activeTab.value = which
-}
 const openComment = (period: string) => {
   if (!props.hasPrivilage) return
   selectedCommentPeriod.value = period
@@ -573,12 +470,12 @@ const { startTour } = useTour()
 onMounted(async() => {
     updateRouteQuery()
     refreshFinanceData()
-    // if (tutorialStore.state.active && tutorialStore.state.name.includes('project.details.finance')) {
-    //     setTimeout(() => {
-    //         startTour('project.details.finance.performance', { version: '2025-09' });
-    //     }, 200);
-    //     tutorialStore.setTutorial({ active: true, name: ['project.details.finance.performance'] });
-    // }
+    if (tutorialStore.state.active && tutorialStore.state.name.includes('project.details.finance')) {
+        setTimeout(() => {
+            startTour('project.details.finance.performance', { version: '2025-09' });
+        }, 200);
+        tutorialStore.setTutorial({ active: true, name: ['project.details.finance.performance'] });
+    }
 })
 const pad2 = (n:number) => String(n).padStart(2, '0')
 const monthLabel = (m:number) => ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'][m-1]
@@ -618,114 +515,8 @@ const fiscalYearsInRange = computed(() => {
 const cellloadNum = computed(() => {
     return 4
 })
-const getMetrics = async() => {
-    const data = await api.get(`/project_metrics/${route.params.projectId}/by_period`, {period: normalizedPeriod.value})
-    if (data) {
-    metrics_list.value = data
-}
-  // console.log(grouped.value)
-  // console.log(scenarioOrder.value)
-  // console.log(tableRows.value)
 
-}
-const sortedMetrics = computed<MetricWithComputed[]>(() => {
-  return [...tableRows.value].sort((a, b) => {
-    const labelA = (a.scenario_label_ja ?? '').trim()
-    const labelB = (b.scenario_label_ja ?? '').trim()
-    if (labelA === labelB) {
-      const orderA = a.sort_order ?? 0
-      const orderB = b.sort_order ?? 0
-      if (orderA !== orderB) return orderA - orderB
-      return (a.id ?? 0) - (b.id ?? 0)
-    }
-    if (!labelA) return 1
-    if (!labelB) return -1
-    return labelA.localeCompare(labelB, 'ja')
-  })
-})
-const scenarioAnalysis = computed(() => {
-  const buckets = new Map<string, ScenarioRow>()
-  const unmatched: ScenarioExtra[] = []
 
-  const pushingExtras = (bucket: ScenarioRow | null, metric: MetricWithComputed, reason: string) => {
-    const entry: ScenarioExtra = { metric, reason }
-    if (bucket) bucket.extras.push(entry)
-    unmatched.push(entry)
-  }
-
-  for (const metric of sortedMetrics.value) {
-    const rawLabel = metric.scenario_label_ja?.trim()
-    if (!rawLabel) {
-      pushingExtras(null, metric, 'シナリオ未設定')
-      continue
-    }
-
-    let bucket = buckets.get(rawLabel)
-    if (!bucket) {
-      bucket = { label: rawLabel, lines: {}, extras: [] }
-      buckets.set(rawLabel, bucket)
-    }
-
-    if (metric.line && lineOrder.includes(metric.line)) {
-      const current = bucket.lines[metric.line]
-      if (!current) {
-        bucket.lines[metric.line] = metric
-      } else {
-        const reason = `${rawLabel}: ${lineLabelJa[metric.line]}が複数あります`
-        pushingExtras(bucket, metric, reason)
-      }
-    } else {
-      const reason = `${rawLabel}: ライン未設定`
-      pushingExtras(bucket, metric, reason)
-    }
-  }
-
-  const orderedLabels: string[] = []
-  for (const pref of scenarioPref) {
-    if (buckets.has(pref.label_ja)) orderedLabels.push(pref.label_ja)
-  }
-  const remaining = Array.from(buckets.keys()).filter(label => !orderedLabels.includes(label)).sort((a, b) => a.localeCompare(b, 'ja'))
-  const rows = orderedLabels.concat(remaining).map(label => buckets.get(label)!)
-
-  return { rows, unmatched }
-})
-const scenarioRows = computed(() => scenarioAnalysis.value.rows)
-const orphanMetrics = computed(() => scenarioAnalysis.value.unmatched)
-
-const nfNumber = new Intl.NumberFormat('ja-JP')
-const nfInt    = new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 0 })
-const fmt = (v: number|null|undefined, vt: ValueType) =>
-  v == null || Number.isNaN(v)
-    ? '—'
-    : vt === 'rate'
-      ? `${nfInt.format(Math.round(v))}%`
-      : vt === 'amount'
-        ? `${nfInt.format(Math.round(v))}件`
-        : vt === 'currency'
-          ? `${nfInt.format(Math.round(v))}円`
-          : nfNumber.format(v)
-const fmtSubMetric = (v: number|null|undefined, vt: ValueType) => {
-  if (v == null || Number.isNaN(v) || v === 0) return ''
-  const abs = v
-  if (vt === 'rate') return `${nfInt.format(Math.round(abs))}%`
-  if (vt === 'amount') return `${nfInt.format(Math.round(abs))}件`
-  if (vt === 'currency') return `${nfInt.format(Math.round(abs))}円`
-  return nfNumber.format(abs)
-}
-const subArrow = (v: number | null | undefined) => {
-  if (v == null || Number.isNaN(v) || v === 0) return ''
-  return v > 0 ? '↑' : '↓'
-}
-const subColor = (line: Line, value: number | null | undefined) => {
-  if (value == null || Number.isNaN(value) || value === 0) return ''
-  if (line === 'expense') {
-    return value > 0 ? 'tomato' : 'green'
-  }
-  return value > 0 ? 'green' : 'tomato'
-}
-const hasSubMetric = (value: number | null | undefined) => {
-  return value != null && !Number.isNaN(value) && value !== 0
-}
 const THRESHOLD = 10;
 
 type Key = 'sales' | 'expense' | 'profit';
@@ -793,91 +584,8 @@ const formatRate = (value: number | null | undefined) => {
   if (value == null || Number.isNaN(Number(value))) return '—'
   return `${Number(value).toFixed(2)}%`
 }
-interface EvalOptions { failOnMissing?: boolean }
-const evalExpression = (normalizedExpr: string | null, resolver: (id: number) => number | null, options: EvalOptions = {}) => {
-  if (!normalizedExpr) return null
-  const expr = normalizedExpr.replace(/\{\{m:(\d+)\}\}/g, (_, raw) => `getValue(${Number(raw)})`)
-  try {
-    const fn = Function('getValue', `"use strict";
-      const nullif = (a, b) => (a === b ? null : a);
-      const pct = (num, denom) => denom ? (num / denom) * 100 : 0;
-      const ratio = (num, denom) => denom ? num / denom : 0;
-      return (${expr});`)
-    let missing = false
-    const result = fn((key: number) => {
-      const val = resolver(Number(key))
-      if (val == null || Number.isNaN(val)) {
-        missing = true
-        return 0
-      }
-      return val
-    })
-    if (missing && options.failOnMissing) return null
-    return typeof result === 'number' && Number.isFinite(result) ? result : null
-  } catch (err) {
-    console.warn('bad expr', normalizedExpr, err)
-    return null
-  }
-}
 
-const createValueResolver = () => {
-  const byId = new Map<number, MetricDTO>(metrics_list.value.map(m => [m.id, m]))
-  const cache = new Map<number, number | null>()
-  const resolving = new Set<number>()
-
-  const resolve = (id: number): number | null => {
-    if (cache.has(id)) return cache.get(id) ?? null
-
-    const metric = byId.get(id)
-    if (!metric) {
-      cache.set(id, null)
-      return null
-    }
-
-    if (metric.value != null && !Number.isNaN(Number(metric.value))) {
-      const numeric = Number(metric.value)
-      cache.set(id, numeric)
-      return numeric
-    }
-
-    if (!metric.expression_normalized) {
-      cache.set(id, null)
-      return null
-    }
-
-    if (resolving.has(id)) {
-      console.warn('Metric dependency cycle detected for id', id)
-      cache.set(id, null)
-      return null
-    }
-
-    resolving.add(id)
-    const computed = evalExpression(metric.expression_normalized, resolve)
-    resolving.delete(id)
-    cache.set(id, computed)
-    return computed
-  }
-
-  return resolve
-}
-
-const tableRows = computed(() => {
-  const resolve = createValueResolver()
-  return metrics_list.value.map(m => {
-    const value = resolve(m.id)
-    const sub = extractSubMetric(m)
-    const subExpression = sub?.expression_normalized ?? null
-    const subValue = subExpression ? evalExpression(subExpression, resolve, { failOnMissing: true }) : null
-    return {
-      ...m,
-      value,
-      sub_metric: sub ?? null,
-      sub_metric_value: subValue,
-    }
-  })
-})
-
-const getYearlyPlan = async () => {
+const getYearlyPlan = async (token?: number) => {
     loaderYP.value = true
     try {
         const aggregated: BalanceMap<BalanceColumn> = {}
@@ -888,7 +596,9 @@ const getYearlyPlan = async () => {
                 project_id: route.params.projectId,
                 month: month.value,
                 year: fy
-            }, {silent: true, cancel: true})
+            }, {silent: true})
+
+            if (token != null && token !== refreshToken) return
             const months = fiscalMonthDates(fy)
             const rawEntries = response ?? {}
             months.forEach(dt => {
@@ -896,17 +606,18 @@ const getYearlyPlan = async () => {
                 assignBalance(aggregated, periodKey(dt.year, dt.month), normalizeBalanceEntry(raw ?? {}))
             })
         }))
-
+        if (token != null && token !== refreshToken) return
         yearlyPlanData.value = aggregated
     } catch (error) {
+        if (token != null && token !== refreshToken) return
         console.error('Failed to load yearly plan', error)
         yearlyPlanData.value = {}
     } finally {
-        loaderYP.value = false
+        if (token == null || token === refreshToken) loaderYP.value = false
     }
 }
 
-const getSettlement = async () => {
+const getSettlement = async (token?: number) => {
     loaderSettlement.value = true
     try {
         const aggregated: BalanceMap<SettlementColumn> = {}
@@ -919,7 +630,9 @@ const getSettlement = async () => {
                 start: periodStartIso.value,
                 end: periodEndIso.value,
                 year: fy
-            }, {silent: true, cancel: true})
+            }, {silent: true})
+            if (token != null && token !== refreshToken) return
+
             const months = fiscalMonthDates(fy)
             const rawEntries = response ?? {}
             months.forEach(dt => {
@@ -927,23 +640,29 @@ const getSettlement = async () => {
                 assignBalance(aggregated, periodKey(dt.year, dt.month), normalizeSettlementEntry(raw ?? {}))
             })
         }))
-
+        if (token != null && token !== refreshToken) return
         settlementData.value = aggregated
     } catch (error) {
+        if (token != null && token !== refreshToken) return
         console.error('Failed to load settlement data', error)
         settlementData.value = {}
     } finally {
-        loaderSettlement.value = false
+        if (token == null || token === refreshToken) loaderSettlement.value = false
     }
 }
+let refreshToken = 0
 const refreshFinanceData = async() => {
+    const token = ++refreshToken
+
     await Promise.all([
-        getYearlyPlan(),
-        getProfit(),
-        getSettlement(),
-        getCommentCounts(),
+        getYearlyPlan(token),
+        getProfit(token),
+        getSettlement(token),
+        getCommentCounts(token),
         // getMetrics(),
     ])
+
+    if (token !== refreshToken) return
     scrollIntoCurrent()
 }
 
@@ -966,7 +685,7 @@ const updateRouteQuery = () => {
         },
     })
 }
-const getProfit = async () => {
+const getProfit = async (token?: number) => {
     loaderProfit.value = true
     try {
         const aggregated: BalanceMap<BalanceColumn> = {}
@@ -977,7 +696,8 @@ const getProfit = async () => {
                 project_id: route.params.projectId,
                 month: month.value,
                 year: fy
-            }, {silent: true, cancel: true})
+            }, {silent: true})
+            if (token != null && token !== refreshToken) return
             const months = fiscalMonthDates(fy)
             const rawEntries = response ?? {}
             months.forEach(dt => {
@@ -985,15 +705,18 @@ const getProfit = async () => {
                 assignBalance(aggregated, periodKey(dt.year, dt.month), normalizeBalanceEntry(raw ?? {}))
             })
         }))
-
+        if (token != null && token !== refreshToken) return
         profitData.value = aggregated
     } catch (error) {
+        if (token != null && token !== refreshToken) return
         console.error('Failed to load profit data', error)
         profitData.value = {}
     } finally {
-        loaderProfit.value = false
+        if (token == null || token === refreshToken) loaderProfit.value = false
     }
 }
+let refreshTimer: number | null = null
+
 const applyRange = (start: DateTime, end: DateTime, options: { skipRefresh?: boolean } = {}) => {
     const normalized = normalizeRange(start.startOf('month'), end.startOf('month'))
     periodStart.value = normalized.start
@@ -1001,9 +724,12 @@ const applyRange = (start: DateTime, end: DateTime, options: { skipRefresh?: boo
     year.value = normalized.end.year
     month.value = normalized.end.month as MonthNumbers
     updateRouteQuery()
-    if (!options.skipRefresh) {
+    if (options.skipRefresh) return
+
+    if (refreshTimer) window.clearTimeout(refreshTimer)
+    refreshTimer = window.setTimeout(() => {
         refreshFinanceData()
-    }
+    }, 150)
 }
 
 const handleRangeChange = ({ start, end }: { start: string; end: string }) => {
@@ -1019,12 +745,7 @@ const shiftMonth = (value: number) => {
     const newEnd = periodEnd.value.plus({ months: value })
     applyRange(newStart, newEnd)
 }
-const viewTotalFinance = () => {
-    if(typeof setTotalFinanceWindow === 'function'){
-        setTotalFinanceWindow(true)
-    }
-}
-const getCommentCounts = async() => {
+const getCommentCounts = async(token?: number) => {
     const data = await api.get(`/projects/${route.params.projectId}/finance-comments/monthly-count`, {
         period_start: periodStartIso.value,
         period_end: periodEndIso.value,

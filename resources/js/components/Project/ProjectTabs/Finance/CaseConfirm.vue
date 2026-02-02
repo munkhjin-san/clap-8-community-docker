@@ -4,7 +4,7 @@
       <div class="case-header__project">
         <p class="case-eyebrow">期間</p>
         <p class="case-header__value">
-          {{ selectProject?.date_start && selectProject.date_end ? `${DateTime.fromISO(selectProject.date_start).toLocaleString(DateTime.DATE_SHORT)}  ~  ${DateTime.fromISO(selectProject.date_end).toLocaleString(DateTime.DATE_SHORT)}` : '未設定' }}
+          {{ selectedProject?.date_start && selectedProject.date_end ? `${DateTime.fromISO(selectedProject.date_start).toLocaleString(DateTime.DATE_SHORT)}  ~  ${DateTime.fromISO(selectedProject.date_end).toLocaleString(DateTime.DATE_SHORT)}` : '未設定' }}
         </p>
       </div>
       <div class="case-header__controls">
@@ -284,9 +284,9 @@
       </FloatButton>
       <Teleport to="body">
         <CaseCreate 
-            v-if="caseWindow && selectProject"
-            :project-id="selectProject.id"
-            :selected-project="selectProject"
+            v-if="caseWindow && selectedProject"
+            :project-id="selectedProject.id"
+            :selected-project="selectedProject"
             :report-year="year"
             :report-month="month"
             :has-privilage="hasPrivilage"
@@ -321,6 +321,7 @@ import Back from '@/components/Icons/Back.vue';
 import { useTutorialStore } from '@/store/tutorial';
 import { useTour } from '@/composables/useTour';
 import { useAuthUserStore } from '@/store/auth';
+import { useProject } from '@/composables/project';
 
 const pipelineStatusLabels: string[] = [];
 const fallbackStatus = '未分類';
@@ -345,24 +346,23 @@ type CaseDetailPayload = {
   reportDate: string | null;
   timeline: CaseTimeline;
 };
-
+const { selectedProject } = useProject()
 const props = defineProps<{
-    selectProject: Project;
     hasPrivilage: boolean;
     year: number;
     month: number;
 }>();
-const unitCode = computed(() => props.selectProject?.unit_id ?? 'JPY');
+const unitCode = computed(() => selectedProject.value?.unit_id ?? 'JPY');
 const unitLabel = computed(() => {
   if (unitCode.value === 'COUNT') return '件';
   if (unitCode.value === 'HOUR') return '時間';
-  if (unitCode.value === 'CUSTOM') return props.selectProject?.custom_unit_label || '単位';
+  if (unitCode.value === 'CUSTOM') return selectedProject.value?.custom_unit_label || '単位';
   return '円';
 });
 const caseWindow = ref(false)
 const caseRefreshKey = ref(0)
 const hasForecast = computed(() => false);
-const hasGoals = computed(() => props.selectProject?.has_goals ?? false);
+const hasGoals = computed(() => selectedProject.value?.has_goals ?? false);
 const emit = defineEmits<{
   (e: 'view', val: CaseDetailPayload): void,
 }>()
@@ -419,15 +419,15 @@ const tutorialStore = useTutorialStore()
 const { startTour } = useTour()
 onMounted(() => {
   document.addEventListener('click', handleSettingsClickOutside);
-  // if (tutorialStore.state.active && tutorialStore.state.name.includes('project.details.finance.performance')) {
-  //     if (auth.user?.position_id != null && auth.user.position_id <= 6) {
-  //       setTimeout(() => {
-  //           startTour('project.details.finance.performance.create', { version: '2025-09' });
-  //       }, 200);
-  //       tutorialStore.setTutorial({ active: true, name: ['project.details.finance.performance.create'] });
-  //     }
+  if (tutorialStore.state.active && tutorialStore.state.name.includes('project.details.finance.performance')) {
+      if (auth.user?.position_id != null && auth.user.position_id <= 6) {
+        setTimeout(() => {
+            startTour('project.details.finance.performance.create', { version: '2025-09' });
+        }, 200);
+        tutorialStore.setTutorial({ active: true, name: ['project.details.finance.performance.create'] });
+      }
         
-  // }
+  }
 });
 onBeforeUnmount(() => {
   if (switchTimer) clearTimeout(switchTimer);
@@ -462,7 +462,7 @@ type CaseRecord = {
 const cases = ref<CaseRecord[]>([]);
 const DEFAULT_ACTUAL_STATUS_LABELS = ['実績', '進行中', '完了', 'キャンセル'];
 const actualStatusLabels = computed(() => {
-  const rows = props.selectProject?.actual_statuses ?? [];
+  const rows = selectedProject.value?.actual_statuses ?? [];
   if (rows.length === 0) return DEFAULT_ACTUAL_STATUS_LABELS;
   return [...rows]
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -512,10 +512,10 @@ const statusMetaMap = computed(() => {
 });
 
 const loadCases = async() => {
-  if (!props.selectProject) return;
+  if (!selectedProject.value) return;
   
   const data = await api.get(
-    `/projects/${props.selectProject.id}/cases`,
+    `/projects/${selectedProject.value.id}/cases`,
     { state: 'submitted' },
     { loadingRef: loading },
   );
@@ -523,7 +523,7 @@ const loadCases = async() => {
   
 }
 watch(
-  () => [props.selectProject?.id, caseRefreshKey.value],
+  () => [selectedProject.value?.id, caseRefreshKey.value],
   async ([projectId]) => {
     if (!projectId) {
       cases.value = [];
@@ -1699,17 +1699,12 @@ tr.border-diff-row > td {
   color: #b91c1c;
   font-weight: 600;
 }
-.future-cell {
-  color: #9ca3af;
-  background: rgba(148, 163, 184, 0.12);
-}
+
 .active-period {
   /* background: rgba(239, 68, 68, 0.08); */
   background-color: var(--bg3);
 }
-.empty-period {
-  opacity: 0.55;
-}
+
 .cell-value {
   font-weight: 600;
 }

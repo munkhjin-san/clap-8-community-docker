@@ -135,7 +135,13 @@
                                     </svg>
                                 </div>
                                 <div class="text-[12px]">{{ blockTypes.find( t => t.value == block.type)?.label }}</div>
-                                <div title="複製" @click="duplicate(index, block)" class="h-[30px] w-[30px] cursor-pointer flex items-center justify-center ml-auto">
+                                <div @click="addBranch(block.id)" title="条件分岐" class="h-[30px] w-[30px] cursor-pointer flex items-center justify-center ml-auto">
+                                    <svg class="dot-menu" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:a="http://ns.adobe.com/AdobeSVGViewerExtensions/3.0/" version="1.1" x="0px" y="0px" width="13" viewBox="0 0 30 31" enable-background="new 0 0 30 31" xml:space="preserve">
+                                        <path d="M29.522,19.792c-0.003-0.006-2.136-1.72-3.168-2.552c0.143-1.024,0.146-2.066,0.01-3.091l3.177-2.525  c0.463-0.367,0.602-1.028,0.299-1.557c-0.003-0.006-2.535-4.419-2.539-4.424c-0.297-0.521-0.94-0.758-1.517-0.531  c0,0-2.79,1.088-3.764,1.469c-0.807-0.625-1.698-1.141-2.642-1.532l-0.603-3.993C18.685,0.458,18.168,0,17.546,0  c-0.001,0-5.094,0-5.095,0c-0.604-0.002-1.136,0.441-1.229,1.056L10.62,5.05C9.675,5.441,8.783,5.958,7.976,6.583  c-1.244-0.486-3.77-1.473-3.768-1.471C3.65,4.894,3.004,5.11,2.697,5.644C2.694,5.651,0.163,10.062,0.16,10.07  c-0.293,0.51-0.177,1.171,0.297,1.549c0,0,2.384,1.894,3.183,2.526c-0.136,1.028-0.131,2.073,0.011,3.098  c-1.034,0.832-3.173,2.554-3.17,2.558c-0.441,0.353-0.566,0.983-0.273,1.486l2.571,4.396c0.273,0.481,0.87,0.701,1.399,0.491  c0,0,2.928-1.166,3.829-1.524c0.84,0.651,1.771,1.182,2.759,1.574c0.206,1.29,0.646,4.084,0.653,4.082  c0.08,0.498,0.513,0.877,1.034,0.872l2.061-0.019c0.081,0.021,0.168,0.034,0.261,0.038l2.772,0.02  c0.524,0.004,0.987-0.377,1.072-0.91c0.002-0.007,0.437-2.771,0.641-4.066c0.979-0.391,1.904-0.919,2.739-1.564  c0.912,0.362,3.815,1.512,3.815,1.512c0.519,0.206,1.124,0.008,1.414-0.489c0.005-0.008,2.566-4.399,2.571-4.408  C30.086,20.799,29.978,20.16,29.522,19.792 M25.724,23.68c-1.305-0.503-3.521-1.359-3.528-1.362  c-0.381-0.146-0.827-0.08-1.152,0.211c-0.912,0.814-1.989,1.446-3.15,1.837c-0.379,0.13-0.673,0.462-0.735,0.887  c0,0-0.38,2.607-0.554,3.798l-1.831,0.013c-0.093,0.004-0.182,0.018-0.262,0.037l-1.15-0.011c-0.167-1.165-0.549-3.832-0.549-3.832  c-0.057-0.392-0.33-0.738-0.73-0.868c-1.158-0.397-2.233-1.028-3.144-1.844c-0.3-0.269-0.741-0.362-1.14-0.203  c0,0-2.374,0.914-3.531,1.359c-0.477-0.836-1.053-1.848-1.541-2.706c0.976-0.774,2.952-2.339,2.952-2.339  c0.336-0.268,0.515-0.713,0.422-1.162c-0.236-1.189-0.232-2.427,0.013-3.613c0.085-0.423-0.062-0.88-0.422-1.17  c-0.004-0.003-1.808-1.453-2.9-2.333c0.489-0.841,1.009-1.734,1.504-2.586l3.456,1.356C8.169,9.309,8.662,9.24,9.02,8.923  c0.904-0.799,1.968-1.413,3.11-1.794c0.425-0.143,0.758-0.513,0.83-0.986c0.001,0,0.346-2.267,0.558-3.656h2.958  c0.194,1.272,0.559,3.654,0.559,3.654c0.066,0.445,0.376,0.837,0.832,0.991c1.141,0.379,2.205,0.994,3.106,1.792  c0.337,0.297,0.824,0.399,1.271,0.225c0,0,2.262-0.889,3.453-1.355c0.496,0.853,1.013,1.741,1.502,2.583  c-0.995,0.8-2.894,2.325-2.894,2.325c-0.342,0.272-0.522,0.724-0.429,1.181c0.244,1.188,0.248,2.43,0.01,3.62  c-0.084,0.422,0.065,0.875,0.427,1.16c0,0,1.964,1.557,2.943,2.334C26.768,21.853,26.203,22.842,25.724,23.68"/>
+                                        <path d="M14.999,10.775c-2.687-0.016-4.91,2.228-4.866,4.912c-0.003,2.621,2.255,4.817,4.866,4.735V20.38  c0.611,0.023,1.237-0.078,1.819-0.302c1.177-0.446,2.146-1.382,2.646-2.541C20.849,14.353,18.465,10.771,14.999,10.775   M14.999,18.326v-0.041c-0.685-0.025-1.331-0.328-1.783-0.815c-0.923-0.956-0.907-2.593,0.065-3.5  c1.222-1.207,3.302-0.793,3.98,0.781C17.982,16.378,16.772,18.227,14.999,18.326"/>
+                                    </svg>
+                                </div>
+                                <div title="複製" @click="duplicate(index, block)" class="h-[30px] w-[30px] cursor-pointer flex items-center justify-center">
                                     <svg class="dot-menu" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 17.85612 23.5403">
                                         <path d="M6.60832.8297c-.5011-.05275-.52747-.73846,0-.79121,6.14506-.60659,12.81758,6.06593,10.91868,12.29011-1.5033,4.82637-6.72528,6.40879-11.39341,5.67033,1.55604,1.0022,3.05934,2.05714,4.37802,3.34945,1.18681,1.16044-.63297,2.98022-1.81978,1.81978-2.50549-2.47912-5.3011-4.48352-8.22857-6.40879-.71209-.44835-.58022-1.5033.23736-1.76703,3.34945-1.05495,5.98681-2.9011,8.94066-4.74725.73846-.44835,1.3978.55385.8967,1.16044-1.3978,1.63517-3.24396,2.87473-5.22198,3.85055,3.34945.84396,7.85934.5011,9.6-2.61099C17.73799,7.50223,11.56656,1.40992,6.60832.8297Z"/>
                                     </svg>
@@ -146,6 +152,80 @@
                             </div>
                             
                             <div @click.stop @mousedown.stop class="px-[15px] pb-[15px]">
+                                <div v-if="branches.includes(block.id)" class="mb-[15px] p-[10px] bg-[var(--bg2)] text-[12px] flex flex-col gap-[10px]">
+                                    <div v-if="block.depends_on && block.depends_on.length" class="flex flex-col gap-[10px]">
+                                        <div v-for="(condition, conditionIndex) in block.depends_on" :key="conditionIndex" class="flex flex-col gap-[10px]">
+                                            <div class="flex flex-wrap items-center gap-[10px]">
+                                                <div class="min-w-[70px]">表示条件</div>
+                                                <select
+                                                    class="custom-a-input"
+                                                    style="min-width: 180px;"
+                                                    :value="condition.block_id ?? ''"
+                                                    @change="setConditionParent(block, conditionIndex, ($event.target as HTMLSelectElement).value)"
+                                                >
+                                                    <option value="">常に表示</option>
+                                                    <option
+                                                        v-for="parent in getParents(index)"
+                                                        :key="parent.id"
+                                                        :value="parent.id"
+                                                    >
+                                                        {{ parent.question ? parent.question : '（未入力）' }}
+                                                    </option>
+                                                </select>
+                                                <select
+                                                    v-if="condition.block_id && getParentType(condition.block_id) === 'radio'"
+                                                    class="custom-a-input"
+                                                    style="min-width: 180px;"
+                                                    :value="getConditionSingleElementId(condition) ?? ''"
+                                                    @change="setConditionRadioElement(block, conditionIndex, ($event.target as HTMLSelectElement).value)"
+                                                >
+                                                    <option value="">選択肢を選択</option>
+                                                    <option
+                                                        v-for="element in getBlockElements(condition.block_id)"
+                                                        :key="element.id"
+                                                        :value="element.id"
+                                                    >
+                                                        {{ element.value ? element.value : '（未入力）' }}
+                                                    </option>
+                                                </select>
+                                                <div class="flex ml-auto">
+                                                    <div title="分岐削除" @click="removeCondition(block, conditionIndex)" class="h-[30px] w-[30px] cursor-pointer flex items-center justify-center">
+                                                        <CloseIcon size="8"/>
+                                                    </div>                                
+                                                </div>
+                                            </div>
+                                            <div v-if="condition.block_id && getParentType(condition.block_id) === 'checkbox'" class="flex flex-wrap items-center gap-[10px]">
+                                                <select
+                                                    class="custom-a-input"
+                                                    style="min-width: 120px;"
+                                                    :value="condition.match ?? 'any'"
+                                                    @change="setConditionMatch(block, conditionIndex, ($event.target as HTMLSelectElement).value)"
+                                                >
+                                                    <option value="any">いずれかに一致</option>
+                                                    <option value="all">すべて一致</option>
+                                                </select>
+                                                <div class="flex flex-wrap gap-[10px]">
+                                                    <label v-for="element in getBlockElements(condition.block_id)" :key="element.id" class="flex items-center gap-[5px] cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            :checked="condition.element_ids?.includes(Number(element.id))"
+                                                            @change="toggleConditionElement(block, conditionIndex, Number(element.id))"
+                                                        />
+                                                        <span>{{ element.value ? element.value : '（未入力）' }}</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-[10px]">
+                                        <div title="分岐追加" @click="addCondition(block, index)" class="h-[30px] w-[30px] cursor-pointer flex items-center justify-center">
+                                            <AddIcon size="10"/>
+                                        </div>
+                                    </div>
+                                    <div v-if="!getParents(index).length" class="text-[gray]">
+                                        この質問の前にチェックやラジオ項目がありません
+                                    </div>
+                                </div>
                                 <CustomCheckbox 
                                     v-if="block.type == 'checkbox'" 
                                     :block="block"
@@ -176,6 +256,11 @@
                                     :block="block"
                                     v-model:question="block.question"
                                 />
+                                <CustomHeader
+                                    v-else-if="block.type == 'header'" 
+                                    :block="block"
+                                    v-model:question="block.question"
+                                />                            
                             </div>
                         </div>
                         
@@ -204,7 +289,7 @@
 
 <script setup lang="ts">
 import Modal from '@/components/Global/Modal.vue';
-import { CustomForm, CustomFormBlock, CustomFormBlockType, CustomFormUser } from '@/interface/customFormInterface';
+import { CustomForm, CustomFormBlock, CustomFormBlockDependsOn, CustomFormBlockType, CustomFormUser } from '@/interface/customFormInterface';
 import { computed, nextTick, onMounted, reactive, ref, useTemplateRef } from 'vue';
 import ShortInput from '@/components/Form/ShortInput.vue';
 import CustomCheckbox from '@/components/Form/CustomElements/CustomCheckbox.vue'
@@ -225,6 +310,8 @@ import { useAuthUserStore } from '@/store/auth';
 import 'styles/customForm.css'
 import { useApi } from '@/composables/api';
 import { Board } from '@/interface/globalInterface';
+import CustomHeader from '@/components/Form/CustomElements/CustomHeader.vue';
+import { useDialog } from '@/composables/dialog';
 const props = defineProps<{
     editData: CustomForm | null
     range: 'all' | 'board'
@@ -250,9 +337,11 @@ const blockTypes:{label:string, value: CustomFormBlockType}[] = [
     {label: '日付', value: 'date'},
     {label: '時間', value: 'time'},
     {label: 'ファイル', value: 'file'},
+    {label: '見出しテキスト', value: 'header'}
 ]
 const menu = useMenuStore()
 const blockMenuIndex = ref<number | null>(null)
+const titleRef = useTemplateRef('titleRef')
 const sending = ref(false)
 const params = reactive<CustomForm>({
     id: -1,
@@ -268,9 +357,15 @@ const params = reactive<CustomForm>({
 })
 const sortParent = useTemplateRef('sortParent')
 const api = useApi()
+const branches = ref<number[]>([])
+const { ping } = useDialog()
 onMounted(() => {
     if(props.editData && props.editData?.id){
         Object.assign(params, props.editData)
+        params.blocks.forEach((block) => {
+            normalizeDependsOn(block)
+        })
+        branches.value = params.blocks.filter(b => b.depends_on && b.depends_on.length).map(b => b.id)
     }else{
         params.admins?.push(auth.activeUser as CustomFormUser)
     }
@@ -300,6 +395,7 @@ const addBlock = (type:CustomFormBlockType, index: number) => {
         question: '',
         is_required: false,
         placeholder: '', 
+        depends_on: [],
     }
     if(!params.blocks){
         params.blocks = []
@@ -321,11 +417,17 @@ const removeItem = (id: number) => {
 }
 
 const saveForm = async() => {
+    const valid = await titleRef.value?.validate()
+    if (!valid?.valid) {
+        ping('必須項目を入力してください。')
+        return
+    }
     console.log(params)
     const desc = richEdit.value ? richEdit.value?.editor.getHTML() : null
     params.description = desc
     params.blocks.forEach((block, index) => {
         block.order_number = index + 1
+        normalizeDependsOn(block)
     })
     
     await api.post('/save_custom_form', {
@@ -335,6 +437,117 @@ const saveForm = async() => {
         toast: '保存しました。'
     })
     emit('close', true)
+}
+const getParents = (currentIndex: number) => {
+    return params.blocks.filter((b, index) => index < currentIndex && (b.type === 'radio' || b.type === 'checkbox'))
+}
+const getBlockElements = (blockId: number) => {
+    const parent = params.blocks.find(b => b.id === blockId)
+    return parent ? parent.elements : []
+}
+const getParentType = (blockId: number) => {
+    const parent = params.blocks.find(b => b.id === blockId)
+    return parent?.type === 'checkbox' ? 'checkbox' : 'radio'
+}
+const getConditionSingleElementId = (condition: CustomFormBlockDependsOn) => {
+    return condition?.element_ids?.[0] ?? null
+}
+const addCondition = (block: CustomFormBlock, currentIndex: number) => {
+    const parents = getParents(currentIndex)
+    const parent = parents[0]
+    const parentType = parent?.type === 'checkbox' ? 'checkbox' : 'radio'
+    const elements = parent ? getBlockElements(parent.id) : []
+    const condition = parent ? {
+        block_id: parent.id,
+        type: parentType,
+        element_ids: parentType === 'radio' && elements[0]?.id ? [Number(elements[0].id)] : [],
+        match: parentType === 'checkbox' ? 'any' : undefined,
+    } : null
+    if (!condition) {
+        return
+    }
+    if (!block.depends_on) {
+        block.depends_on = []
+    }
+    block.depends_on.push(condition)
+}
+const removeCondition = (block: CustomFormBlock, conditionIndex: number) => {
+    if (!block.depends_on) return
+    block.depends_on.splice(conditionIndex, 1)
+}
+const setConditionParent = (block: CustomFormBlock, conditionIndex: number, value: string) => {
+    if (!block.depends_on) return
+    const parsed = value ? Number(value) : null
+    if (!parsed) {
+        block.depends_on.splice(conditionIndex, 1)
+        return
+    }
+    const parentType = getParentType(parsed)
+    const elements = getBlockElements(parsed)
+    block.depends_on[conditionIndex] = {
+        block_id: parsed,
+        type: parentType,
+        element_ids: parentType === 'radio' && elements[0]?.id ? [Number(elements[0].id)] : [],
+        match: parentType === 'checkbox' ? 'any' : undefined,
+    }
+}
+const setConditionRadioElement = (block: CustomFormBlock, conditionIndex: number, value: string) => {
+    if (!block.depends_on) return
+    const parsed = value ? Number(value) : null
+    if (!parsed) {
+        block.depends_on[conditionIndex].element_ids = []
+        return
+    }
+    block.depends_on[conditionIndex].element_ids = [parsed]
+}
+const toggleConditionElement = (block: CustomFormBlock, conditionIndex: number, elementId: number) => {
+    if (!block.depends_on) return
+    const condition = block.depends_on[conditionIndex]
+    if (!condition.element_ids) {
+        condition.element_ids = []
+    }
+    const idx = condition.element_ids.indexOf(elementId)
+    if (idx > -1) {
+        condition.element_ids.splice(idx, 1)
+    } else {
+        condition.element_ids.push(elementId)
+    }
+}
+const setConditionMatch = (block: CustomFormBlock, conditionIndex: number, value: string) => {
+    if (!block.depends_on) return
+    block.depends_on[conditionIndex].match = value === 'all' ? 'all' : 'any'
+}
+const normalizeDependsOn = (block: CustomFormBlock) => {
+    const rawDepends = Array.isArray(block.depends_on) ? block.depends_on : (block.depends_on ? [block.depends_on as CustomFormBlockDependsOn] : [])
+    if (!rawDepends.length) {
+        block.depends_on = []
+        return
+    }
+    const normalized = rawDepends.map((condition) => {
+        const blockId = condition.block_id
+        if (!blockId) return null
+        const parentType = getParentType(blockId)
+        const elements = getBlockElements(blockId)
+        let elementIds = Array.isArray(condition.element_ids) ? condition.element_ids : []
+        const validIds = elementIds
+            .map((id) => Number(id))
+            .filter((id) => elements.find((el) => Number(el.id) === id))
+        if (!validIds.length) return null
+        if (parentType === 'radio') {
+            return {
+                block_id: blockId,
+                type: 'radio',
+                element_ids: [validIds[0]],
+            }
+        }
+        return {
+            block_id: blockId,
+            type: 'checkbox',
+            element_ids: validIds,
+            match: condition.match === 'all' ? 'all' : 'any',
+        }
+    }).filter(Boolean)
+    block.depends_on = normalized as CustomFormBlock['depends_on']
 }
 const selectAll = () => {
     if(!props.board) return
@@ -355,5 +568,12 @@ const duplicate = (index: number, block: CustomFormBlock) => {
     }
     params.blocks.splice(index + 1, 0, newBlock)
 }
+const addBranch = (blockId: number) => {
+    const idx = branches.value.indexOf(blockId)
+    if(idx > -1){
+        branches.value.splice(idx, 1)
+    }else{
+        branches.value.push(blockId)
+    }
+}
 </script>
-

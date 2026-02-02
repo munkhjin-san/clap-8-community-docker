@@ -8,6 +8,9 @@
                 ]"/>
             </div>
             <div class="project-detail-header">
+                <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">部門</span> {{ selectedProject?.is_new ? '新規' : '既存' }}</div>
+            </div>
+            <div class="project-detail-header">
                 <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">期間</span> {{ selectedProject?.date_start && selectedProject.date_end ? `${DateTime.fromISO(selectedProject.date_start).toLocaleString(DateTime.DATE_SHORT)}  ~  ${DateTime.fromISO(selectedProject.date_end).toLocaleString(DateTime.DATE_SHORT)}` : '未設定' }}</div>
             </div>
             <div class="project-detail-header">

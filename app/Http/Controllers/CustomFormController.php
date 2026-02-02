@@ -56,16 +56,29 @@ class CustomFormController extends Controller
         $new_form = $form->replicate();
         $new_form->title = $form->title . ' (コピー)';
         $new_form->save();
-        $form->blocks->each(function($block) use($new_form){
+        $block_id_map = [];
+        $element_id_map = [];
+        $new_blocks = [];
+        $form->blocks->each(function($block) use($new_form, &$block_id_map, &$element_id_map, &$new_blocks){
             $new_block = $block->replicate();
             $new_block->custom_form_id = $new_form->id;
+            $new_block->depends_on = null;
             $new_block->save();
-            $block->elements->each(function($element) use($new_block){
+            $block_id_map[$block->id] = $new_block->id;
+            $new_blocks[] = ['model' => $new_block, 'origin' => $block];
+            $block->elements->each(function($element) use($new_block, &$element_id_map){
                 $new_element = $element->replicate();
                 $new_element->custom_form_block_id = $new_block->id;
                 $new_element->save();
+                $element_id_map[$element->id] = $new_element->id;
             });
         });
+        foreach ($new_blocks as $saved) {
+            $mapped = $this->mapDependsOn($saved['origin']->depends_on, $block_id_map, $element_id_map);
+            $saved['model']->update([
+                'depends_on' => $mapped,
+            ]);
+        }
         $now = now();
         $form->users->each(fn($user) => $new_form->users()->attach($user->id, ['authority' => 0, 'created_at' => $now, 'updated_at' => $now]));
 
@@ -130,6 +143,17 @@ class CustomFormController extends Controller
             'blocks.*.elements.*.has_sub_text_required' => 'boolean',
             'blocks.*.elements.*.has_sub_text' => 'boolean',
             'blocks.*.elements.*.placeholder' => 'nullable|string',
+            'blocks.*.depends_on' => 'nullable|array',
+            'blocks.*.depends_on.block_id' => 'nullable|integer',
+            'blocks.*.depends_on.type' => 'nullable|string|in:radio,checkbox',
+            'blocks.*.depends_on.element_ids' => 'nullable|array',
+            'blocks.*.depends_on.element_ids.*' => 'integer',
+            'blocks.*.depends_on.match' => 'nullable|string|in:any,all',
+            'blocks.*.depends_on.*.block_id' => 'nullable|integer',
+            'blocks.*.depends_on.*.type' => 'nullable|string|in:radio,checkbox',
+            'blocks.*.depends_on.*.element_ids' => 'nullable|array',
+            'blocks.*.depends_on.*.element_ids.*' => 'integer',
+            'blocks.*.depends_on.*.match' => 'nullable|string|in:any,all',
         ]);
     
         $form = $this->saveForm( $validated);
@@ -196,6 +220,9 @@ class CustomFormController extends Controller
     private function saveBlocks($form, array $blocks)
     {
         $block_ids = [];
+        $block_id_map = [];
+        $element_id_map = [];
+        $saved_blocks = [];
         foreach ($blocks as $block) {
             $blockModel = $form->blocks()->updateOrCreate(
                 ['id' => $this->sanitizeId(Arr::get($block, 'id'))],
@@ -208,8 +235,21 @@ class CustomFormController extends Controller
                 ]
             );
             $block_ids[] = $blockModel->id;
-            $element_ids = $this->saveElements($blockModel, Arr::get($block, 'elements', []));
+            $original_block_id = Arr::get($block, 'id');
+            if (is_numeric($original_block_id)) {
+                $block_id_map[$original_block_id] = $blockModel->id;
+            }
+            $save_result = $this->saveElements($blockModel, Arr::get($block, 'elements', []), $element_id_map);
+            $element_ids = $save_result['element_ids'];
+            $element_id_map = $save_result['element_id_map'];
             $blockModel->elements()->whereNotIn('id', $element_ids)->delete();
+            $saved_blocks[] = ['model' => $blockModel, 'data' => $block];
+        }
+        foreach ($saved_blocks as $saved) {
+            $mapped = $this->mapDependsOn(Arr::get($saved['data'], 'depends_on'), $block_id_map, $element_id_map);
+            $saved['model']->update([
+                'depends_on' => $mapped,
+            ]);
         }
         return $block_ids;
     }
@@ -217,7 +257,7 @@ class CustomFormController extends Controller
     /**
      * Save the elements for a block.
      */
-    private function saveElements($block, array $elements)
+    private function saveElements($block, array $elements, array $element_id_map = [])
     {
         $element_ids = [];
         foreach ($elements as $element) {
@@ -232,8 +272,70 @@ class CustomFormController extends Controller
                 ]
             );
             $element_ids[] = $el_record->id;
+            $original_element_id = Arr::get($element, 'id');
+            if (is_numeric($original_element_id)) {
+                $element_id_map[$original_element_id] = $el_record->id;
+            }
         }
-        return $element_ids;
+        return [
+            'element_ids' => $element_ids,
+            'element_id_map' => $element_id_map,
+        ];
+    }
+    private function mapDependsOn($depends_on, array $block_id_map, array $element_id_map)
+    {
+        if (!is_array($depends_on)) {
+            return null;
+        }
+        $conditions = $this->normalizeDependsOnConditions($depends_on);
+        $mapped = [];
+        foreach ($conditions as $condition) {
+            $block_id = Arr::get($condition, 'block_id');
+            if (!is_numeric($block_id)) {
+                continue;
+            }
+            $mapped_block_id = $block_id_map[$block_id] ?? $block_id;
+            if (!is_numeric($mapped_block_id)) {
+                continue;
+            }
+            $element_ids = Arr::get($condition, 'element_ids');
+            if (!is_array($element_ids)) {
+                $element_ids = [];
+            }
+            $mapped_element_ids = collect($element_ids)
+                ->filter(fn($id) => is_numeric($id))
+                ->map(fn($id) => $element_id_map[$id] ?? $id)
+                ->filter(fn($id) => is_numeric($id))
+                ->map(fn($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+            if (!count($mapped_element_ids)) {
+                continue;
+            }
+            $type = Arr::get($condition, 'type');
+            $condition_type = in_array($type, ['radio', 'checkbox'], true) ? $type : 'radio';
+            $payload = [
+                'block_id' => (int) $mapped_block_id,
+                'type' => $condition_type,
+                'element_ids' => $mapped_element_ids,
+            ];
+            if ($condition_type === 'checkbox') {
+                $match = Arr::get($condition, 'match');
+                $payload['match'] = in_array($match, ['any', 'all'], true) ? $match : 'any';
+            }
+            $mapped[] = $payload;
+        }
+        return count($mapped) ? $mapped : null;
+    }
+
+    private function normalizeDependsOnConditions(array $depends_on): array
+    {
+        if (!count($depends_on)) {
+            return [];
+        }
+        $is_assoc = array_keys($depends_on) !== range(0, count($depends_on) - 1);
+        return $is_assoc ? [$depends_on] : $depends_on;
     }
     private function sanitizeId($id)
     {
@@ -325,7 +427,7 @@ class CustomFormController extends Controller
                         });
                     })->with('user')->orderBy('created_at', 'desc'); ;                    
                 }]);
-            }]);
+            }])->where('type', '!=', 'header');
         }])->findOrFail($request->custom_form_id);
         
         if($request->sort == 'block'){

@@ -31,6 +31,7 @@
             <div class="project-table" id="projectTable">
                 <div class="project-header-row">
                     <div class="project-cell" style="min-width: 230px;">プロジェクト名</div>
+                    <div class="project-cell whitespace-nowrap">部門</div>
                     <div class="project-cell cursor-pointer relative">
                         <div @click.stop="menu.setMenu({parent: 'projectDateSelect'})" class="flex items-center gap-[5px] whitespace-nowrap">
                             期間
@@ -103,6 +104,9 @@
                                 </div>
                             </div>                           
                         </div>
+                    </div>
+                    <div class="project-cell pc">
+                        {{ project.is_new ? '新規' : '既存' }}
                     </div>
                     <div class="project-cell pc">
                         <div v-if="project?.date_start">{{ DateTime.fromISO(project.date_start).toLocaleString(DateTime.DATE_SHORT) }} ~ {{ DateTime.fromISO(project.date_end).toLocaleString(DateTime.DATE_SHORT) }}</div>

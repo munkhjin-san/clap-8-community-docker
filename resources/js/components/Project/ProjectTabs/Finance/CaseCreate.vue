@@ -13,25 +13,12 @@
             <div class="case-create">
                 <section class="case-create__context">
                     <div>
-                        <p class="eyebrow">プロジェクト</p>
-                        <p class="project-name">{{ selectedProject?.name }}</p>
+                        <p class="mb-3">プロジェクト</p>
+                        <p>{{ selectedProject?.name }}</p>
                     </div>
-                    <div class="case-create__period">
-                        <p class="eyebrow">対象月</p>
-                        <div class="month-switcher">
-                            <button class="ghost-button" type="button" @click="stepPeriod(-1)">
-                                <Back size="12" />
-                            </button>
-                            <select v-model="params.period" id="periodSelection" class="period-select">
-                                <option v-for="month in monthsArray" :key="month" :value="month">
-                                    {{ DateTime.fromISO(month).toFormat('yyyy年M月') }}
-                                </option>
-                            </select>
-                            <button class="ghost-button" type="button" @click="stepPeriod(1)">
-                                <Back size="12" class="rotate-180" />
-                            </button>
-                        </div>
-                        <div v-if="historyChips.length" class="history-chips">
+                    <div class="si-box">
+                        <p class="mb-3">対象月</p>
+                        <div v-if="historyChips.length && viewData" class="history-chips">
                             <button
                                 v-for="chip in historyChips"
                                 :key="chip.value"
@@ -43,6 +30,16 @@
                                 {{ chip.label }}
                             </button>
                         </div>
+                        <div v-if="!viewData" class="month-switcher">
+                            
+                            <select v-model="params.period" id="periodSelection" class="period-select">
+                                <option v-for="month in monthsArray" :key="month" :value="month">
+                                    {{ DateTime.fromISO(month).toFormat('yyyy年M月') }}
+                                </option>
+                            </select>
+                           
+                        </div>
+                        
                     </div>
                 </section>
 
@@ -86,19 +83,7 @@
                             v-model="params.member"
                         />
                     </div>
-                    <!-- <div class="si-box" v-if="params.entry_type === 'actual'">
-                        <p class="mb-2">実績項目</p>
-                        <ItemSelector
-                            :options="actualStatusOptions"
-                            v-model="params.actual_status_label"
-                            place-holder="実績項目"
-                            :multiple="false"
-                            label="label"
-                            :reduce="option => option.value"
-                            :clearable="true"
-                            :closeOnSelect="true"
-                        />
-                    </div> -->
+                    
                     <div class="si-box">
                         <p class="mb-2">区分</p>
                         <div class="kind-toggle">
@@ -110,19 +95,7 @@
                             </button>
                         </div>
                     </div>
-                    <!-- <div class="si-box" v-if="hasGoals">
-                        <p class="mb-2">登録区分</p>
-                        <div class="flex gap-4">
-                            <label class="flex items-center gap-2 text-[13px] cursor-pointer">
-                                <input type="radio" class="custom-f-radio" value="actual" v-model="params.entry_type">
-                                実績
-                            </label>
-                            <label class="flex items-center gap-2 text-[13px] cursor-pointer">
-                                <input type="radio" class="custom-f-radio" value="goal" v-model="params.entry_type">
-                                目標値（ゴール）
-                            </label>
-                        </div>
-                    </div> -->
+                   
                     <div class="si-box" id="resultInput">
                         <ShortInput 
                             v-model="params.amount"
@@ -254,7 +227,7 @@ const caseIdForPeriod = computed<number | null>(() => {
 });
 const monthsArray = computed(() => {
     const interval = Interval.fromDateTimes(
-        DateTime.now().startOf('month').minus({ months: 6 }),
+        DateTime.now().startOf('month').minus({ months: 2 }),
         DateTime.now().endOf('month').plus({ months: 6 })
     );
     const base = interval.isValid
@@ -425,13 +398,6 @@ onMounted(() => {
     display: flex;
     flex-direction: column;
     gap: 16px;
-}
-.case-create__context {
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 16px;
-    background: var(--background-color);
 }
 .case-create__period {
     min-width: 220px;

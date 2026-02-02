@@ -423,7 +423,7 @@
                                                 </td>
                                                 <td>
                                                     <div class="inner-col"><span class="mobile">利益</span>{{
-                                                        amountOfMoneyParser(periodEntry(p.period, 'yearly_plan').profit)
+                                                        amountOfMoneyParser(periodEntry(p.period, 'yearly_plan').sales - periodEntry(p.period, 'yearly_plan').expense)
                                                     }}</div>
                                                 </td>
                                                 <td data-cell="right-border">
@@ -778,8 +778,8 @@ const emptyUnit: UnitData = {
 
 type Key = 'sales' | 'expense' | 'profit';
 const hasSettlementEntry = (unit?: UnitData | null) => unit?.has_data === true
-const settlementValue = (unit: UnitData | undefined, key: Key) => hasSettlementEntry(unit) ? Number(unit?.[key] ?? 0) : NaN
-const settlementProfitValue = (unit: UnitData | undefined) => hasSettlementEntry(unit) ? Number(unit?.profit ?? 0) : NaN
+const settlementValue = (unit: UnitData | undefined, key: Key) => hasSettlementEntry(unit) ? Math.round(Number(unit?.[key] ?? 0)) : NaN
+const settlementProfitValue = (unit: UnitData | undefined) => hasSettlementEntry(unit) ? Math.round(Number(unit?.profit ?? 0)) : NaN
 
 const showAnyArrow = (name: string): boolean => {
   if (!projectHasSettlementData(name)) return false

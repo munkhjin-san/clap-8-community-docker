@@ -28,10 +28,12 @@ use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Pusher\Pusher;
 use App\Services\SharedService;
 use App\Services\DraftMessageSender;
+use App\Services\MentionAndNotify;
 use App\Mail\Confirm;
 use App\Jobs\SendNotification;
 use App\Jobs\SendEmail;
 use App\Jobs\IncrementUnreadCount;
+use Illuminate\Support\Facades\Cache;
 use DB;
 class BoardController extends Controller
 {
@@ -240,6 +242,10 @@ class BoardController extends Controller
         $board_list = (clone $base)
             ->with($with)
             ->cursorPaginate($perPage);
+       
+        $now = time();
+        
+        Cache::store('redis')->forget("must_sync_{$active_user->id}");
 
         return response()->json($board_list);
         
@@ -785,7 +791,7 @@ class BoardController extends Controller
         ]);
     }
 
-    public function chatAdd(Request $request){
+    public function chatAdd(Request $request, MentionAndNotify $mentioner){
 
 
         
@@ -889,6 +895,7 @@ class BoardController extends Controller
                 'override_user' => $request->override_user
             ]));          
             $boardRefresh = $boardRecord->load('last_message');
+            $boardRecord->touch();
             $last_message = $boardRefresh->last_message;
             if ($chat->draft_flag === 1) {
                 $data = [
@@ -901,7 +908,7 @@ class BoardController extends Controller
                 return response()->json($data);
             }
             IncrementUnreadCount::dispatchAfterResponse($request->record_id, $auth_user_id);
-            $not = $this->mentionAndNotify( $boardRecord, $active_user, $chat);
+            $not = $mentioner->mention( $boardRecord, $active_user, $chat);
             $related_members = boardToUser::where('record_id','=', $request->record_id)->where('deleted_status', '=', 0)->where('user_id', '!=', $auth_user_id)->pluck('user_id');
 
             
@@ -923,101 +930,6 @@ class BoardController extends Controller
             ];          
             return response()->json($data);
 
-    }
-    private function mentionAndNotify($boardRecord, $user, $chat) {
-        $boardRecord->touch();
-        if($boardRecord->private_flag == 1){
-            $restoreUsers = boardToUser::where('record_id','=', $boardRecord->id)->where('deleted_status', '=', 1)->get();
-            if(!empty($restoreUsers)){
-                foreach($restoreUsers as $restoreUser){
-                    $restoreUser->deleted_status = 0;
-                    $restoreUser->created_at = now();
-                    $restoreUser->save();
-                }
-                $chat->touch();
-            }
-            
-        }
-        $syntax = '/\[To:(.*?)\:\]/';
-        preg_match_all($syntax, $chat->message, $matches);
-        $mentioned_targets = $matches[1];
-        $mentioned_all = in_array('全員', $mentioned_targets);
-
-        $query = $boardRecord->members()
-        ->whereNot('users.id', Auth::id())
-        ->where('users.on_leave', 0)
-        ->when(!$mentioned_all, function($q) use($mentioned_targets) {
-            $q->whereIn('users.name', $mentioned_targets);
-        });
-        $mentioned_users = $query->get();
-        $notified_users = $query->wherePivot('notification', 1)->get();
-        if(!empty($mentioned_users)){     
-            $emails = collect($mentioned_users)->filter(function($user){
-                return filter_var($user->email, FILTER_VALIDATE_EMAIL);
-            })->pluck('email')->toArray();             
-            $board = $boardRecord;              
-            
-            if(!empty($board) && $board->private_flag == 1){
-                $b_title = $user->name;
-                
-            }else{
-                $b_title = $board->title;
-            }                                    
-            $content = $chat->message_text;
-            $block_flag = false;
-            $blocked_words = ['password', 'PASSWORD', 'PW', 'pw','pass','PASS', 'パスワード','ﾊﾟｽﾜｰﾄﾞ', 'パス', 'ﾊﾟｽ'];
-            foreach($blocked_words as $word){
-                if (str_contains($chat->message_text, $word)) { 
-                    $block_flag = true;
-                }
-            }         
-            
-            $mail_payload = array(
-                "b_title" => $b_title,
-                "content" => $content,
-                "block_flag" => $block_flag,
-                "board_id" => $board->id,
-                "chat_id" => $chat->id,
-                "mails" => $emails,
-            );                
-            SendEmail::dispatchAfterResponse($mail_payload);               
-
-            $notify_ids = $notified_users->pluck('id')->toArray();
-            $members = array_map(function ($userId) {
-                return (string) $userId;
-            }, $notify_ids);
-            if(!empty($members)){
-                $deep_link = url('board/' . $boardRecord->id);
-                $icon = $user->icon_path 
-                    ? url("content_api/profile_icon_migrated/$user->icon_path.webp") 
-                    : url("user_default_thumbnail/" . urlencode(mb_substr($user->name, 0, 1)) . "/30/000000");
-                
-                $badge = url('/apple-touch-icon.png');
-                if(!empty($boardRecord) && $boardRecord->private_flag == 1){
-                    $push_title = $user->name;
-                    $body = 'メッセージが届きました';
-                }else{
-                    $push_title = $boardRecord->title;
-                    $body = $user->name . 'さんからメッセージが届きました';
-                }
-                $payload = [
-                    "body" => $body,
-                    "title" => $push_title,
-                    "link" => $deep_link,
-                    "members" => $members,
-                    "icon" => $icon,
-                    "badge" => $badge,
-                    "user_id" => $user->id,
-                    "user_name" => $user->name,
-                    "message" => $chat->message_text,
-                ];
-                SendNotification::dispatchAfterResponse($payload);
-                return $payload;
-            }
-            return null;
-            
-        }
-        return null;
     }
         
     public function chatDelete(Request $request){
@@ -1051,7 +963,7 @@ class BoardController extends Controller
         
          
     }
-    public function draftSend(Request $request, DraftMessageSender $sender)
+    public function draftSend(Request $request, DraftMessageSender $sender, MentionAndNotify $mentioner)
     {
         $request->validate([
             'id' => 'required|integer',
@@ -1064,11 +976,35 @@ class BoardController extends Controller
             return response()->json(['success' => false, 'message' => 'Not a draft or invalid request'], 422);
         }
 
-        $new = $sender->send($chat_record);
-
-        // Keep your response behavior
-        $mutatedMessage = $this->message_refresh($new);
-        return response()->json($mutatedMessage);
+        $result = $sender->send($chat_record);
+        
+        $messageRecord = $this->get_messages(new Request([
+            'page_index' => 1,
+            'record_id' => $result['record_id'],
+            'message_id' => $result['new']['id'],
+            'override_user' => $request->user ?? null
+        ]));
+        if (!$result['success']) {
+            return response()->json(['success' => false, 'message' => $result['reason']], 422);
+        }
+        $boardRecord = $result['new']['board_record'];
+        $boardRefresh = $boardRecord->load('last_message');
+        $last_message = $boardRefresh->last_message;
+        $socket[] = ["event" => "board:{$result['record_id']}", "data" => []];
+        $socket[] = ["event" => 'refresh:badge', "data" => $result['related_members']];
+        $socket[] = ["event" => 'refresh:board', "data" => $result['related_members']];
+        $mutatedMessage = $this->message_refresh($result['new']);
+        $data = [
+            "success" => true,
+            "u_id" => $result['sender_id'],
+            "data" => $result['new'],
+            "socket" => $socket,
+            "message" => $messageRecord?->original,
+            "mutated" => $mutatedMessage,
+            "last_message" => $last_message,
+        ];
+        
+        return response()->json($data);
     }
     public function set_message_schedule(Request $request) {
         $request->validate([
@@ -1080,6 +1016,7 @@ class BoardController extends Controller
         if (!empty($message)) {
             $message->reserved_at = $request->reserved_at;
             $message->save();
+            $board = boardRecord::find($message->record_id)->touch();
         }
         $mutatedMessage = $this->message_refresh($message);
         return response()->json($mutatedMessage);
@@ -1139,9 +1076,21 @@ class BoardController extends Controller
         $active_user = $this->active_user();
         $auth_user_id = $active_user->id;
 
-        $updateLastMessage = boardToUser::where('record_id', $request->board_id)->where('user_id', $auth_user_id)->update([
-            'unread_count' => 0
-        ]);
+        $row = boardToUser::where('record_id', $request->board_id)
+            ->where('user_id', $auth_user_id)
+            ->firstOrFail();
+
+        $lastMessageId = messageRecord::withTrashed()
+            ->where('record_id', $request->board_id)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->value('id');
+
+        $row->unread_count = 0;
+        $row->last_message = $lastMessageId;
+        $row->save();
+
+        Cache::store('redis')->put("user_stamp_{$active_user->id}", time());
         $res = $this->get_board_badge();
         return $res;     
         

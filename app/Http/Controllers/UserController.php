@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use App\Events\MessageSent;
 use App\Services\SharedService;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Redis;
 class UserController extends Controller{
     protected $sharedService;
     
@@ -446,5 +448,41 @@ class UserController extends Controller{
             'related_projects' => fn($q) => $q->select('project_records.id', 'project_records.name')
         ])->select('id', 'name', 'office_id', 'position_id', 'icon_path', 'icon_bg', 'intro')->findOrFail($request->id);
         return response()->json($user);
+    }
+    private function active_user(){
+        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
+        if($sub){
+            return $sub;
+        }else{
+            return Auth::user();
+        }
+    }
+    public function auth_check(Request $request){
+        $r = Auth::id() == $request->id;
+        if($r){
+            $user = Auth::user();
+            $active_user = $this->active_user();
+            $id = $active_user->id;
+            $flag = Cache::store('redis')->get("must_sync_{$id}");
+            $stamp = Cache::store('redis')->get("user_stamp_{$id}");
+
+            if(!$flag){
+                return response()->json(['must_sync' => false]);
+            }else if($stamp){
+                $now = time();
+                $stamp_int = intval($stamp);
+                $diffInMinute = ($now - $stamp_int) / 60;
+                $must_sync = $diffInMinute > 1 ? true : false;
+                if($must_sync){
+                    Cache::store('redis')->forget("must_sync_{$id}");
+                }
+                return response()->json(['must_sync' => $must_sync]);
+            }else{
+                return response()->json(['must_sync' => false]);
+            }
+
+        }else{
+            throw ValidationException::withMessages(['message' => 'ユーザー アカウント認証に失敗しました。ブラウザを更新してください']);
+        }
     }
 }

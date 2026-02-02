@@ -101,7 +101,7 @@
                                 </label>
                                 <div v-if="openedUsers.includes(`by_user_${answer.user.id}_${index}`)" class="flex flex-col gap-[20px]">
                                     <div v-for="block in answer.data" >
-                                        <div class="text-sm leading-normal">Q{{index + 1}}: {{ block.question }}</div>
+                                        <div class="text-sm leading-normal">{{ block.question }}</div>
                                         <div class="ml-[10px] mt-[10px] leading-normal text-[13px]">
                                             <div v-for="ans in block.answers">
                                                 <div>{{ ans.value }}</div>
@@ -119,7 +119,7 @@
                     <div class="mt-[10px] flex flex-col gap-[30px]">
                         <div class="flex flex-col gap-[10px] p-[20px] bg-[var(--background-color)]" :class="{'!bg-[var(--bg3)]' : mode == 'board'}" v-for="(block, index) in answersByBlock.blocks" >
                             <label class="flex items-center">
-                                <div class="text-sm leading-normal">Q{{index + 1}}: {{ block.question }}</div>
+                                <div class="text-sm leading-normal">{{ block.question }}</div>
                                 <p class="jump-link ml-[15px] text-[13px] whitespace-nowrap">表示・非表示</p>
                                 <input type="checkbox" v-model="openedQuestions" :value="`by_block_${block.id}`" class="hidden"/>
                             </label>
@@ -128,8 +128,14 @@
                                 <div v-if="simpleTypes.includes(block.type)">
                                     <div class="flex flex-col gap-[10px]">
                                         <div v-for="answer in block.answers" class="flex items-center gap-[10px]">
-                                            <div><UserPanel v-if="answer.user" size="25" :user="answer.user" disable-instant with-name/></div>
-                                            <div class="ml-[10px] text-[13px]">{{ answer.text_answer }}</div>
+                                            <div>
+                                                <UserPanel v-if="answer.user" size="25" :user="answer.user" disable-instant with-name>
+                                                    <template v-if="answer.text_answer" #details>
+                                                        <div class="text-[13px] mt-[5px] ml-[10px] color-[gray]">{{ answer.text_answer }}</div>
+                                                    </template>
+                                                </UserPanel>
+                                            </div>
+                                            <!-- <div class="ml-[10px] text-[13px]">{{ answer.text_answer }}</div> -->
                                             <Files v-if="block.type == 'file'" :items="answer.files" :path="'survey_files'"/>
                                         </div>
                                     </div>
@@ -157,16 +163,16 @@
                 <div v-if="tab == 2" class="flex flex-col gap-[20px] my-[20px]">
                     <div v-for="block in chartData" class="p-[20px] bg-[var(--background-color)]">
                         <div class="flex">
-                            <div class="w-[50%] max-w-[300px]">
+                            <div class="w-[50%]">
                                 <div class="mb-[30px] text-[16px]">{{ block.question }}</div>
                                 <Pie :options="options" v-if="block.chartData" :data="block.chartData" />
                             </div>
-                            <div class="flex flex-col gap-[20px] ml-[20px] text-[13px]">
+                            <div class="flex flex-col gap-[20px] ml-[20px] text-sm">
                                 <div v-for="element in block.elements" class="flex gap-[10px] flex-col">
                                     <div>{{ element.value }}</div>
                                     <div class="flex items-center cursor-pointer" v-if="element.answers" @click="setViewUsers({title: element.value, users: element.answers.map( a => a.user) as User[]})">
                                         <div v-for="el_answer in element.answers?.slice(0,3)" class="flex items-center gap-[10px]">
-                                            <UserPanel v-if="el_answer.user" size="15" :user="el_answer.user" disable-instant/>
+                                            <UserPanel v-if="el_answer.user" size="20" :user="el_answer.user" disable-instant/>
                                         </div>
                                         <p class="ml-[3px]" v-if="element.answers && element.answers?.length > 3">{{ `...(${element.answers?.length}人)` }}</p>
                                     </div>
@@ -288,6 +294,8 @@ const adjustByOne = (direction: number) => {
 const setViewUsers = (payload: {title: string, users: User[]}) => {
     viewUsers.value = payload
 }
+const makePieColors = (n: number) =>
+  Array.from({ length: n }, (_, i) => `hsl(${Math.round((360 * i) / n)}, 70%, 55%)`)
 
 const chartData = computed(() => {
     if(!answersByBlock.value) return []
@@ -309,6 +317,7 @@ const chartData = computed(() => {
             numbers.push(element.answers?.length || 0)          
         });
         pieData.datasets[0].data = numbers
+        pieData.datasets[0].backgroundColor = makePieColors(elements.length)
         block.chartData = pieData
         
     })

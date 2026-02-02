@@ -2,12 +2,16 @@
 
 namespace App\Jobs;
 
+use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Cache;
 use App\Models\boardToUser;
 class IncrementUnreadCount implements ShouldQueue
 {
-    use Queueable;
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     /**
      * Create a new job instance.
@@ -22,7 +26,7 @@ class IncrementUnreadCount implements ShouldQueue
      */
     public function handle(): void
     {
-        boardToUser::where('record_id', $this->record_id)
+        $members = boardToUser::where('record_id', $this->record_id)
         ->where('deleted_status', 0)
         ->where('user_id', '!=', $this->auth_user_id)
         ->whereNotNull('unread_count')
@@ -33,7 +37,11 @@ class IncrementUnreadCount implements ShouldQueue
             ->orWhereHas('board', function ($q) {
                 $q->where('private_flag', 1);
             });
-        })
-        ->increment('unread_count', 1);
+        })->get();
+
+        $members->each(function ($member) {
+            $member->increment('unread_count');
+            Cache::store('redis')->put("must_sync_{$member->user_id}", true);
+        });
     }
 }

@@ -13,9 +13,9 @@ class ProjectPlanFormulaService
         int $startMonth,
         int $scenarioKey,
         array $codeMap,
-        ?float $bonusRate = null
+        ?bool $bonus_calc = false,
+        ?int $transitionMonth = null
     ): array {
-        $bonusRate = $bonusRate ?? 0.1;
         $accounts = ProjectAccount::query()
             ->where('project_record_id', $projectId)
             ->where('is_active', 1)
@@ -48,11 +48,16 @@ class ProjectPlanFormulaService
         $out = [];
         $memo = [];
         $startMonth = max(1, min(12, $startMonth));
-
+        
         for ($periodIndex = 1; $periodIndex <= 12; $periodIndex++) {
             $month = (($startMonth - 1 + ($periodIndex - 1)) % 12) + 1;
+            $transitionPeriod = (($transitionMonth - $startMonth + 12) % 12) + 1;
             $vals = [];
-
+            $bonusRate = 0.1;
+            if ($bonus_calc && $periodIndex <= $transitionPeriod) {
+                $bonusRate = 0.2;
+            }
+            
             foreach ($codeMap as $key => $code) {
                 $acct = $accountByCode[$code] ?? null;
                 $val = 0.0;
@@ -69,6 +74,7 @@ class ProjectPlanFormulaService
                         $bonusRate
                     );
                 }
+
                 $vals[$key] = (int) $val;
             }
 
@@ -149,13 +155,17 @@ class ProjectPlanFormulaService
                 $bonusRate
             );
         }, $expr);
-
+        
         $replaced = preg_replace('/\s+/', '', $replaced ?? '');
         $val = $this->safeEval($replaced);
-
+        if ($acct->code === '9120' && $val < 0) {
+            unset($stack[$acct->id]);
+            $memo[$key] = 0;
+            return 0;
+        }
         unset($stack[$acct->id]);
         $memo[$key] = $val;
-
+        
         return $val;
     }
 

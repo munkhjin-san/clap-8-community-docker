@@ -21,7 +21,8 @@
                         <div @click="step = 3" class="suggested-wrap p-setting-item" v-html="'マイサイン'"></div>
                         <div v-if="[540, 608 ,516, 604].includes(auth.activeUser.id)" @click="step = 4" class="suggested-wrap p-setting-item" v-html="'スケジュール設定'"></div>
                         <div @click="step = 5" class="suggested-wrap p-setting-item" v-html="'テーマ設定'"></div>
-                        <div @click="callInit" class="suggested-wrap p-setting-item" v-html="'通知設定(IOS)'"></div>
+                        <div @click="callInit" class="suggested-wrap p-setting-item">通知設定<span class="p-[5px] text-xs bg-[var(--bg2)]">{{ permission }}</span></div>
+                        <div @click="step = 7" class="suggested-wrap p-setting-item">通知設定案内<span class="text-xs text-[gray]">（通知が届かない場合）</span></div>
                         <div v-if="responsive.mobile" @click="step = 6" class="suggested-wrap p-setting-item" v-html="'フッターメニュー表示'"></div>
                         <div @click="logoutConfirm" class="suggested-wrap p-setting-item" v-html="'ログアウト'"></div>
                     </div>
@@ -118,6 +119,12 @@
                         <label style="margin-left:10px;cursor:pointer" for="theme_1">OFF</label>  
                     </div> 
                 </div>
+                <div v-else-if="step==7">
+                    <div @click="guideStep = 1" class="suggested-wrap p-setting-item">PC通知設定案内</div>
+                    <div @click="guideStep = 2" class="suggested-wrap p-setting-item">Android通知設定案内</div>
+                    <div @click="guideStep = 3" class="suggested-wrap p-setting-item">IOS通知設定案内</div>
+                    <NotificationGuide @close="guideStep = 0" :guideStep="guideStep" :guideTitle="guideTitle"/>
+                </div>
                 <!-- </Transition>                     -->
             </div>
         </div>
@@ -137,6 +144,9 @@ import { useTheme } from '@/store/theme'
 import { useResponsive } from '@/store/responsive'
 import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
+import { initPush } from '@/utils/push'
+import Modal from '../Global/Modal.vue'
+import NotificationGuide from './NotificationGuide.vue'
     const auth = useAuthUserStore()
     const responsive = useResponsive()
     const theme = useTheme()
@@ -160,8 +170,8 @@ import { useDialog } from '@/composables/dialog'
     const currentPasswordRef = ref(null)
     const newPasswordConfirmRef = ref(null)
     const newPasswordRef = ref(null)
-    const beamsInit = inject('beamsInit')
     const api = useApi()
+    const guideStep = ref(0)
     const { ask, toast, ping } = useDialog()
     onMounted(() => {
         if(auth.user && auth.user.ical_key){
@@ -172,9 +182,23 @@ import { useDialog } from '@/composables/dialog'
         }
         chosenColor.value = user.value ? user.value.color : (avialableColors ? avialableColors[0].id : '')
     })
-            
-    const callInit = () => {
-        beamsInit()
+    const guideTitle = computed(() => {
+        switch(guideStep.value){
+            case 1:
+                return 'PC通知設定案内'
+            case 2:
+                return 'Android通知設定案内'
+            case 3:
+                return 'IOS通知設定案内'
+            default:
+                return ''
+        }
+    })    
+    const permission = ref(Notification.permission === 'granted' ? '許可済み' : '未許可')
+    const callInit = async() => {
+        const data = await initPush()
+        console.log(data)
+        permission.value = data.ok ? '許可済み' : '未許可'
     }
     const dark = computed({
       get() {

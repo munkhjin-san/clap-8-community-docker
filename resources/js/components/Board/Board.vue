@@ -251,22 +251,29 @@ import { DateTime } from 'luxon'
     const refreshBoardList = () => {
         queueBoardListRefresh()
     }
+    let badgeTimer: number | null = null;
+
+    const scheduleBoardBadgeUpdate = () => {
+        if (badgeTimer) clearTimeout(badgeTimer);
+
+        badgeTimer = setTimeout(() => {
+            const boardId = openedBoard.value?.id;
+            if (!focused.active || !boardId) return;
+
+            const exists = badge.activeUsersBoardBadge?.[boardId];
+            if (exists) badge.updateBoardBadge(boardId);
+        }, 3000);
+    };
+
     watch(() => focused.active, (after) => {
-        if(after){            
-            setTimeout(()=>{
-                if(openedBoard.value && badge.activeUsersBoardBadge && badge.activeUsersBoardBadge[openedBoard.value.id]){
-                    badge.updateBoardBadge(openedBoard.value.id)
-                }
-            },3000)            
-        }
-    })
-    watch(() => badge.activeUsersBoardBadge, (after) => {          
-        setTimeout(() =>{
-            if(focused.active && openedBoard.value && after[openedBoard.value.id]){
-                badge.updateBoardBadge(openedBoard.value.id)
-            }   
-        },3000)                         
-    })
+        if (after) scheduleBoardBadgeUpdate();
+    });
+
+    watch(() => badge.activeUsersBoardBadge, () => {
+        if (focused.active) scheduleBoardBadgeUpdate();
+    }, { deep: true });
+
+
     watch(() => route.params.chatId, (chatId) => {
         if (messageContainerRef.value && (messageContainerRef.value as any).resetUnread) {
             (messageContainerRef.value as any).resetUnread();

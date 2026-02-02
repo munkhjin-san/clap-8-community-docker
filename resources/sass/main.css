@@ -4708,8 +4708,6 @@ input:-webkit-autofill:active {
   gap: 5px;
   margin-left: auto;
   height: 25px;
-  margin-top: -5px;
-  margin-right: -10px;
 }
 
 .bell-icon {
@@ -6393,6 +6391,8 @@ input:autofill {
   position: relative;
   flex-wrap: wrap-reverse;
   margin-bottom: 15px;
+  align-items: center;
+  gap: 10px;
 }
 
 .m-date {
@@ -6619,12 +6619,12 @@ input:autofill {
     gap: 20px; */
   height: 100%;
 }
-
 .goals-inner {
-  overflow: hidden auto;
-  height: 100%;
-  background: var(--background-color);
-  padding: 0 20px;
+    overflow: hidden auto;
+    background: var(--background-color);
+    height: calc(100% - 100px);
+    margin-top: 60px;
+    padding: 20px;
 }
 
 .goal-detail {
@@ -6634,7 +6634,6 @@ input:autofill {
     padding: 10px;
     display: flex;
     flex-direction: column;
-    gap: 30px;
     font-size: 14px;
     border: solid thin var(--calendarBorder);
     border-radius: 10px;
@@ -6731,7 +6730,7 @@ button.shift-button {
   padding: 5px 10px 5px 10px;
   font-size: 12px;
   line-height: 1.5;
-  border-radius: 0px;
+  border-radius: 8px;
   background: var(--primary-button);
   color: #e4e6eb;
 }
@@ -6740,6 +6739,9 @@ button.shift-button {
     max-width: 80%;
     width: fit-content;
     margin: 0 15px;
+}
+.number-chip {
+  font-size: 14px;
 }
 @media screen and (max-width: 959px) {
     .messageBodyWrapper {

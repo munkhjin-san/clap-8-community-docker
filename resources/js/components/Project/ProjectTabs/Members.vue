@@ -6,7 +6,7 @@
         />
     </router-view>
     <div class="h-full relative">
-        <div class="bg-[var(--background-color)] p-[20px] !h-[calc(100%-40px)]">
+        <div class="bg-[var(--background-color)] h-[calc(100%-20px)] pc px-5 mt-5">
             <div class="project-table-container" style="border: none;">
                 <div class="project-table">
                     <div class="project-header-row">
@@ -17,8 +17,9 @@
                         <div class="project-cell cell-width">職務レベル</div>                        
                         <div class="project-cell cell-width">成果目標・昇給課題</div>
                         <div class="project-cell cell-width">人事考課</div>
+                        <div v-if="auth.hasPrivilage" class="project-cell cell-width">適正度</div>
                     </div>
-                    <div class="project-cell-row" v-for="member in [...(selectedProject?.manager || []), ...(selectedProject?.members || [])]">
+                    <div class="project-cell-row" v-for="member in members" :key="member.id">
                         <div class="project-cell cell-width" data-label="メンバー">
                             <div style="position: relative; width: fit-content;">
                                 {{ member.name }}
@@ -51,25 +52,57 @@
                     </div>
                 </div>
             </div>
+            
+        </div>
+        <div class="mobile overflow-y-auto bg-[var(--background-color)] p-5 h-[calc(100%-40px)]">
+            <div class="flex flex-col gap-4">
+                <div v-for="member in members" :key="member.id" class="flex flex-col gap-3 border border-solid border-[var(--calendarBorder)] p-4 rounded">
+                    <UserPanel :user="member" with-name>
+                        <template #details>
+                            <div class="flex items-center gap-2  ml-3 mt-1">
+                                <div class="text-[13px] text-[gray]">{{ member?.positions?.name }}</div>
+                                <span class="bg-[var(--bg2)] text-[11px] px-3 py-1 rounded-xl" v-if="member?.evaluation?.general_position">{{ member.evaluation.general_position }}</span>
+                            </div>                              
+                        </template>
+                    </UserPanel>
+                    <div class="text-xs" v-if="member?.evaluation?.mentor">メンター：{{ member?.evaluation?.mentor?.name }}</div>
+                    <div class="flex items-center justify-between flex-wrap gap-3">
+                        <router-link class="jump-link text-[12px] flex items-center gap-1" :to="{name: 'outcomegoal', params: { projectId: route.params.projectId, memberId: member.id}}">
+                            成果目標・昇給課題
+                            <span 
+                                class="side-notification" 
+                                style="position: unset;width: fit-content;" 
+                                v-if="confirmBadges(member.id) + commentBadges(member.id) > 0"
+                                :class="{
+                                    'side-notification--comment-only': !confirmBadges(member.id) && commentBadges(member.id)
+                                }">
+                                {{ confirmBadges(member.id) + commentBadges(member.id) }}
+                            </span>
+                        </router-link >
+                        <router-link class="jump-link text-[12px]" :to="{name: 'evaluation', params: { projectId: route.params.projectId, memberId: member.id }}">人事考課</router-link >
+                    </div>
+                </div>
+                    
+            </div>
         </div>
     </div>
 
 </template>
 <script setup lang="ts">
+import UserPanel from '@/components/Global/UserPanel.vue';
 import { useProject } from '@/composables/project';
-import { Project } from '@/interface/projectInterface';
+import { useAuthUserStore } from '@/store/auth';
 import { useBadgeStore } from '@/store/badge';
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 
-const props = defineProps<{
-    userList: any;
-}>();
 const badge = useBadgeStore()
 const route = useRoute()
-
+const auth = useAuthUserStore()
 const { memberData, selectedProject } = useProject()
 const projectId = Number(route.params.projectId)
+
+const members = computed(() => [...(selectedProject.value?.manager || []), ...(selectedProject.value?.members || [])])
 const confirmBadges = (memberId: number) => {
     const goalsBadge = badge.goalsBadgeByFilter([{by: 'project_id', value: projectId}, {by: 'user_id', value: memberId}]).length 
     const issuesBadge = badge.salaryIssueByFilter([{by: 'project_id', value: projectId}, {by: 'user_id', value: memberId}]).length
