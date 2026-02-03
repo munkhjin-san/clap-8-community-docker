@@ -9,6 +9,7 @@ use App\Models\SupportMailFormRecord;
 use Illuminate\Http\Request;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\TaskController;
+use App\Services\MentionAndNotify;
 use Carbon\Carbon;
 class ReportService
 {
@@ -34,7 +35,7 @@ class ReportService
             'override_user' => $override_user,
         ];
         $request = new Request($requestData);
-        $chat = $this->boardController->chatAdd($request);
+        $chat = $this->boardController->chatAdd($request, app(MentionAndNotify::class) );
         
         return $chat;
     }
