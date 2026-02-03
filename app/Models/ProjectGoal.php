@@ -29,4 +29,19 @@ class ProjectGoal extends Model
     public function reports() {
         return $this->hasMany(ProjectGoalReport::class)->with(['files']);
     }
+    public function scopeOverdue($q, $now)
+    {
+        return $q->where('status', '!=', 9)
+                ->where('end_date', '<', $now);
+    }
+
+    public function scopeRelevantToViewer($q, $userId)
+    {
+        return $q->where(function ($s) use ($userId) {
+            $s->where('user_id', $userId)
+            ->orWhereHas('project.manager', fn($m) => $m->where('users.id', $userId))
+            ->orWhereHas('salaryIssue', fn($si) => $si->where('mentor_id', $userId));
+        });
+    }
+
 }

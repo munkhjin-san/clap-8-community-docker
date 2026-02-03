@@ -52,13 +52,11 @@ const routes = [
                 path: ':chatId',
                 component: () => import('./components/Board/Message/MessageContainer.vue'),
                 name: 'room',
-                props: true,
                 children: [
                     {
                         path: 'task',
                         component: () => import('./components/Mobile/Task.vue'),
                         name: 'task',
-                        props: true
                     },
                     { path: 'file', name: 'file',  component: () => import('./components/Mobile/File.vue'), },
                     { path: 'board-form', name: 'board-form', component: () => import('./components/Mobile/Form.vue'),}
@@ -70,7 +68,6 @@ const routes = [
         path: '/user/:userId', 
         name: 'user',  
         component: () => import('./components/Profile/UserComponent.vue'),
-        props: true,
         meta: {
             title: 'プロフィール',
         }, 
@@ -80,7 +77,6 @@ const routes = [
                 path: 'personal-info-settings',
                 component: () => import('./components/Profile/UserEditComps/UserInfoEdit.vue'),
                 name: 'personal-info-settings',
-                props: true,
                 meta: {
                     title: 'プロフィール編集',
                 },
@@ -159,26 +155,26 @@ const routes = [
             {
                 path: ':projectId',
                 name: 'projectdetail',
-                props: true,
+                
                 component: () => import('./components/Project/ProjectDetail.vue'),
                 children: [
                     {
                         path:'overview',
                         name:'overview',
-                        props: true,
+                        
                         component: () => import('./components/Project/ProjectTabs/ProjectOverview.vue'),
                         
                     },
                     {
                         path: 'project-members',
                         name: 'project-members',
-                        props: true,
+                        
                         component: () => import('./components/Project/ProjectTabs/Members.vue'),
                         children:[
                             {
                                 path: 'outcomegoal/:memberId',
                                 name: 'outcomegoal',
-                                props: true,
+                                
                                 meta: {
                                     nameJp: '成果目標・昇給課題',
                                     pushTo: 'goal-span'
@@ -189,13 +185,13 @@ const routes = [
                                     {
                                         path: ':span',
                                         name: 'goal-span',
-                                        props: true,
+                                        
                                         component: () => import('./components/Project/ProjectGoalDetail.vue'),
                                         children:[
                                             {
                                                 path: ':goalId',
                                                 name: 'goal-more',
-                                                props: true,
+                                                
                                                 component: () => import('./components/Project/ProjectGoalMore.vue'),
                                             }
                                         ]
@@ -206,7 +202,7 @@ const routes = [
                             {
                                 path: 'evaluation/:memberId',
                                 name: 'evaluation',
-                                props: true,
+                                
                                 meta: {
                                     nameJp: '人事考課',
                                     pushTo: 'evalutation-span'
@@ -226,37 +222,37 @@ const routes = [
                     {
                         path: 'operation',
                         name: 'operation',
-                        props: true,
+                        
                         component: () => import('./components/Project/ProjectTabs/Operation.vue'),
                     },
                     {
                         path: 'contracts',
                         name: 'contracts',
-                        props: true,
+                        
                         component: () => import('./components/Project/ProjectTabs/Contracts.vue'),
                     },
                     {
                         path: 'legal',
                         name: 'legal',
-                        props: true,
+                        
                         component: () => import('./components/Project/ProjectTabs/Legal.vue'),
                     },
                     {
                         path: 'finance',
                         name: 'finance',
-                        props: true,
+                        
                         component: () => import('./components/Project/ProjectTabs/Finance.vue'),
                         children: [
                             {
                                 name: 'plan',
                                 path: 'plan',
-                                props: true,
+                                
                                 component: () => import('./components/Project/ProjectTabs/Finance/YearlyBudget.vue')
                             },
                             {
                                 name: 'result',
                                 path: 'result',
-                                props: true,
+                                
                                 component: () => import('./components/Project/ProjectTabs/Finance/CaseConfirm.vue')
                             }
                         ]
@@ -264,7 +260,7 @@ const routes = [
                     {
                         path: 'dispatch',
                         name: 'dispatch',
-                        props: true,
+                        
                         component: () => import('./components/Project/ProjectTabs/Dispatch.vue'),
                     },
                     {
@@ -273,19 +269,19 @@ const routes = [
                         meta: {
                             title: '物品'
                         },
-                        props: true,
+                        
                         component: () => import('./components/Asset/AssetContainer.vue'),
                     },
                     {
                         path: 'task-calendar',
                         name: 'task-calendar',
-                        props: true,
+                        
                         component: () => import('./components/Project/ProjectTabs/TaskCalendar.vue'),
                     },
                     {
                         path: 'file-storage/:parentId?',
                         name: 'file-storage',
-                        props: true,
+                        
                         component: () => import ('./components/Project/ProjectTabs/FileStorage.vue'),
                     }
                     
@@ -294,13 +290,13 @@ const routes = [
             {
                 path: 'total-finance',
                 name: 'total-finance',
-                props: true,
+                
                 component: () => import('@/components/Project/ProjectTotalFinance.vue'),
             },
             {
                 path: 'resource',
                 name: 'resource',
-                props: true,
+                
                 component: () => import('@/components/Project/ProjectResource.vue'),
             }
             // {
@@ -325,7 +321,7 @@ const routes = [
             //     meta: {
             //         title: '物品'
             //     },
-            //     props: true,
+            //     
             //     component: () => import('./components/Asset/AssetContainer.vue'),
             // }
         ]
@@ -342,7 +338,7 @@ const routes = [
     {
         path: '/timesheet',
         name: 'timesheet',
-        props: true,
+        
         meta: {
             title: 'タイムシート',
         }, 
@@ -356,40 +352,40 @@ const routes = [
         }, 
         component: () => import('./components/AccountControl/AdminControlList.vue'),
         children: [
-            { path: 'account',props: true, name: 'account', component: () => import('./components/AccountControl/AdminAccount.vue') },
-            { path: 'clapcount',props: true, name: 'clapcount', component: () => import('./components/AccountControl/AdminClapCount.vue') },
+            { path: 'account', name: 'account', component: () => import('./components/AccountControl/AdminAccount.vue') },
+            { path: 'clapcount', name: 'clapcount', component: () => import('./components/AccountControl/AdminClapCount.vue') },
             { path: 'glowdnine', props:true, name: 'glowdnine', component: () => import('./components/AccountControl/GlowdNine.vue')},
             { 
                 path: 'learningcontrol',
-                props: true, name: 'learningcontrol', 
+                 name: 'learningcontrol', 
                 component: () => import('./components/AccountControl/LearningControl/LearningControl.vue'), 
                 children: [
                     {
                         path: ':themeId',
                         name: 'themeContainer',
                         component: () => import('./components/AccountControl/LearningControl/ThemeContainer.vue'),
-                        props: true,
+                        
                         children: [
                             {
-                                props: true,
+                                
                                 path: 'content',
                                 name: 'content',
                                 component: () => import('./components/AccountControl/LearningControl/ContentControl.vue')
                             },
                             {
-                                props: true,
+                                
                                 path: 'trainee',
                                 name: 'trainee',
                                 component: () => import('./components/AccountControl/LearningControl/TraineeControl.vue')
                             },
                             {
-                                props: true,
+                                
                                 path: 'assistant',
                                 name: 'assistant',
                                 component: () => import('./components/AccountControl/LearningControl/AssistantControl.vue')
                             },
                             {
-                                props: true,
+                                
                                 path: 'case-study',
                                 name: 'case-study',
                                 component: () => import('./components/AccountControl/LearningControl/CaseStudyControl.vue')
@@ -402,52 +398,52 @@ const routes = [
             },
             { 
                 path: 'workcontrol', 
-                props: true, 
+                 
                 name: 'workcontrol', 
                 component: () => import('./components/AccountControl/WorkControl/AdminWorkControl.vue'),
                 children: [
                     {
                         path: 'workgroup',
                         name: 'workgroup',
-                        props: true,
+                        
                         component: () => import('./components/AccountControl/WorkControl/AdminWorkGroup.vue')
                     },
                     {
                         path: 'attendance',
                         name: 'attendance',
-                        props: true,
+                        
                         component: () => import('./components/AccountControl/WorkControl/AdminWork.vue')
                     },
                     {
                         path: 'paidholiday',
                         name: 'paidholiday',
-                        props: true,
+                        
                         component: () => import('./components/AccountControl/WorkControl/WorkPlannedPaid.vue')
                     }
                 ]
             },
             {
                 path: 'projectcontrol',
-                props: true,
+                
                 name: 'projectcontrol',
                 component: () => import('./components/AccountControl/ProjectControl/ProjectControl.vue'),
                 children: [
                     {
                         path: 'projectlist',
                         name: 'projectlist',
-                        props: true,
+                        
                         component: () => import('./components/AccountControl/ProjectControl/ProjectList.vue')
                     },
                     {
                         path: 'mentorcontrol',
                         name: 'mentorcontrol',
-                        props: true,
+                        
                         component: () => import('./components/AccountControl/ProjectControl/EvaluationMentor.vue')
                     },
                     {
                         path: 'accounts',
                         name: 'accountcontrol',
-                        props: true,
+                        
                         component: () => import('./components/AccountControl/ProjectControl/AccountManager.vue')
                     },
                 ]
@@ -456,13 +452,13 @@ const routes = [
                 path: 'custom-form-control',
                 name: 'custom-form-control',
                 meta: { head: 'アンケート' },
-                props: true,
+                
                 component: () => import('@/components/AccountControl/CustomForm/CustomFormControl.vue'),
                 children: [
                     {
                         path: ':formId',
                         name: 'formDetail',
-                        props: true,
+                        
                         component: () => import('@/components/AccountControl/CustomForm/CustomFormDetail.vue'),
                     }
                 ]
@@ -471,21 +467,21 @@ const routes = [
                 path: 'asset-control',
                 name: 'asset-control',
                 meta: { head: '物品' },
-                props: true,
+                
                 component: () => import('@/components/AccountControl/AssetControl/AssetControl.vue'),
             },
             {
                 path: 'refresh-control',
                 name: 'refresh-control',
                 meta: { head: 'リフレッシュ' },
-                props: true,
+                
                 component: () => import('@/components/AccountControl/RefreshControl/RefreshControl.vue'),
             },
             {
                 path: 'offices',
                 name: 'admin-offices',
                 meta: { head: '営業所管理' },
-                props: true,
+                
                 component: () => import('@/components/AccountControl/Office/AdminOffice.vue'),
             }
         ],
@@ -518,11 +514,11 @@ const routes = [
         }, 
         component: () => import('./components/Support/Support.vue'),
         children: [
-            { path: 'faq',props: true, name: 'faq', component: () => import('./components/Support/Faq.vue') },
-            { path: 'regulations',props: true, name: 'regulations', component: () => import('./components/Support/Regulations/RegulationsContainer.vue') },
-            { path: 'email_consult',props: true, name: 'email_consult', component: () => import('./components/Support/MailConsult.vue') },
-            { path: 'phone_consult',props: true, name: 'phone_consult', component: () => import('./components/Support/PhoneConsult.vue') },
-            { path: 'email_inbox',props: true, name: 'email_inbox', component: () => import('./components/Support/Inbox.vue')}
+            { path: 'faq', name: 'faq', component: () => import('./components/Support/Faq.vue') },
+            { path: 'regulations', name: 'regulations', component: () => import('./components/Support/Regulations/RegulationsContainer.vue') },
+            { path: 'email_consult', name: 'email_consult', component: () => import('./components/Support/MailConsult.vue') },
+            { path: 'phone_consult', name: 'phone_consult', component: () => import('./components/Support/PhoneConsult.vue') },
+            { path: 'email_inbox', name: 'email_inbox', component: () => import('./components/Support/Inbox.vue')}
         ],
     },
     {
@@ -555,7 +551,7 @@ const routes = [
         meta: {
             title: '設定',
         }, 
-        props: true,
+        
         
     },
     {
@@ -624,13 +620,13 @@ const routes = [
                         meta: {
                             nameJp: '基礎知識'
                         },
-                        props: true,
+                        
                         component: () => import('./components/Learning/BasicKnowledge/BasicContainer.vue'),
                         children: [
                             {
                                 path: ':materialId',
                                 name: 'material',
-                                props: true,
+                                
                                 component: () => import('./components/Learning/BasicKnowledge/Section.vue'),
                                 beforeEnter: (to, from, next) => {
                                     axios.get(`/get_material`, {params: {id: to.params.materialId}}).then(
@@ -643,7 +639,7 @@ const routes = [
                                     {
                                         path: 'more',
                                         name: 'more',
-                                        props: true,
+                                        
                                         component: () => import('./components/Learning/BasicKnowledge/SectionMoreDetailed.vue'),
                                         beforeEnter: (to, from, next) => {
                                             axios.get(`/get_support_account`).then(
@@ -658,7 +654,7 @@ const routes = [
                             {
                                 path:'episode',
                                 name:'episode',
-                                props: true,
+                                
                                 meta: {
                                     nameJp: 'エピソード'
                                 },
@@ -667,7 +663,7 @@ const routes = [
                             {
                                 path:'story',
                                 name:'story',
-                                props: true,
+                                
                                 meta: {
                                     nameJp: 'ポートフォリオ内容'
                                 },
@@ -676,7 +672,7 @@ const routes = [
                             {
                                 path:'title',
                                 name:'title',
-                                props: true,
+                                
                                 meta: {
                                     nameJp: 'ポートフォリオタイトル'
                                 },
@@ -685,7 +681,7 @@ const routes = [
                             {
                                 path:'review',
                                 name:'review',
-                                props: true,
+                                
                                 meta: {
                                     nameJp: 'AI分析'
                                 },
@@ -694,7 +690,7 @@ const routes = [
                             {
                                 path:'summary',
                                 name:'summary',
-                                props: true,
+                                
                                 meta: {
                                     nameJp: 'サマリー'
                                 },
@@ -709,7 +705,7 @@ const routes = [
                         meta: {
                             nameJp: 'グループディスカッション'
                         },
-                        props: true,
+                        
                         component: () => import('./components/Learning/Discussion/GroupDiscussion.vue'),
                     },
                     
@@ -719,7 +715,7 @@ const routes = [
                         meta: {
                             nameJp: 'ポートフォリオ一覧'
                         },
-                        props: true,
+                        
                         component: () => import('./components/Learning/BasicKnowledge/PortfolioView.vue')
                     },
                     {
@@ -728,7 +724,7 @@ const routes = [
                         meta: {
                             nameJp: 'ポートフォリオ完成'
                         },
-                        props: true,
+                        
                         component: () => import('./components/Learning/Portfolio/CompletePortfolio.vue')
                     },
                     {
@@ -737,7 +733,7 @@ const routes = [
                         meta: {
                             nameJp: '試験'
                         },
-                        props: true,
+                        
                         component: () => import('./components/Learning/Exam/ExamContainer.vue')
                     },
                     
@@ -803,7 +799,7 @@ const routes = [
                 component: () => import('./components/Global/CheckGoal.vue'),
                 children: [
                     {
-                        path: ':goalId',
+                        path: ':projectId/:goalId',
                         name: 'goal-approval',
                         component: () => import('./components/Project/ProjectGoalMore.vue')
                     }
@@ -837,7 +833,7 @@ const routes = [
         path: '/file-preview/:fileId',
         name: 'file-preview',
         component: () => import('./components/Global/FilePreviewDeeplink.vue'),
-        props: true,
+        
     }
 
     

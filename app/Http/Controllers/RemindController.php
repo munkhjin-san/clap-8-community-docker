@@ -217,7 +217,7 @@ class RemindController extends Controller
         ];
         return response()->json($data);
     }
-    public function remind_unsigned_messages(Request $request){
+    public function remind_unsigned_messages(){
         $active_user = $this->active_user();
         $auth_id = $active_user->id;   
         $list = boardToUser::where('user_id', $auth_id)
@@ -244,7 +244,7 @@ class RemindController extends Controller
        
         return response()->json($data);
     }
-    public function remind_unchecked_messages(Request $request){
+    public function remind_unchecked_messages(){
         $user = $this->active_user();
         $start_point = Carbon::parse('2023-03-13 00:00:00')->format('Y-m-d');
         $list = boardToUser::where('user_id', $user->id)
@@ -273,7 +273,7 @@ class RemindController extends Controller
         ];
         return response()->json($data);
     }
-    public function remind_timesheet(Request $request){
+    public function remind_timesheet(){
         $date = Carbon::now();
         $day = $date->day;
         $year = $date->year;
@@ -417,10 +417,8 @@ class RemindController extends Controller
                 });
         })
         ->orWhereHas('salary_issues', function ($query) {
-            $query->whereHas('project_goal')->where(function ($subQuery) {
-                $subQuery->where('status', 3)
-                    ->orWhere('status', 9);
-            });
+            $query->whereHas('project_goal')->where('status', 3)
+                ->orWhere('status', 9);
         })
         ->with([
             'outcome_goals' => function ($query) {
@@ -434,10 +432,8 @@ class RemindController extends Controller
                     ->with(['salaryIssue', 'project']);
             },
             'salary_issues' => function ($query) {
-                $query->whereHas('project_goal')->where(function ($subQuery) {
-                    $subQuery->where('status', 3)
+                $query->where('status', 3)
                         ->orWhere('status', 9);
-                });
             }
         ])->select('id', 'name', 'icon_path', 'icon_bg')->get();
     }
@@ -565,7 +561,7 @@ class RemindController extends Controller
         ];
         return response()->json($data);
     }
-    public function remind_planned_leave(Request $request){
+    public function remind_planned_leave(){
         $notificationUser = User::select('name', 'id', 'icon_path', 'icon_bg')->findOrFail(610);
         $date = Carbon::now();
         $year = $date->year;
@@ -798,26 +794,94 @@ class RemindController extends Controller
             'order' => 12,
         ]);
     }
-    public function remind_badge(Request $request) {
+    public function remind_overdue() {
+        $active_user = $this->active_user();
+        $userId = $active_user->id;
+        $now = now();
+        $members = User::query()
+            ->where(function ($q) use ($userId, $now) {
+
+                // Self if any relevant overdue OG or overdue SI exists
+                $q->where('id', $userId)
+                ->where(function ($x) use ($userId, $now) {
+                    $x->whereHas('outcome_goals', fn($og) => $og->overdue($now))
+                        ->orWhereHas('outcome_goals.salaryIssue', fn($si) => $si->overdue($now));
+                })
+
+                // Project members I manage: overdue OG or overdue SI in those projects
+                ->orWhereHas('outcome_goals', function ($og) use ($userId, $now) {
+                    $og->whereHas('project.manager', fn($m) => $m->where('users.id', $userId))
+                    ->where(function ($x) use ($now) {
+                        $x->overdue($now)
+                            ->orWhereHas('salaryIssue', fn($si) => $si->overdue($now));
+                    });
+                })
+
+                // Mentees: overdue salaryIssue where I'm mentor
+                ->orWhereHas('outcome_goals.salaryIssue', function ($si) use ($userId, $now) {
+                    $si->overdue($now)->where('mentor_id', $userId);
+                });
+
+            })
+            ->with([
+                'outcome_goals' => function ($og) use ($userId, $now) {
+                    $og->relevantToViewer($userId)
+                    ->where(function ($x) use ($now) {
+                        $x->overdue($now)
+                            ->orWhereHas('salaryIssue', fn($si) => $si->overdue($now));
+                    })
+                    ->with([
+                        'project.manager',
+                        'project.members',
+                        'reports.user',
+                        'salaryIssue' => function ($si) use ($now) {
+                            $si->overdue($now)->with(['reports.user']);
+                        },
+                    ]);
+                },
+            ])
+            ->get();
+
+
+
+        return response()->json([
+            'remind_overdue' => []
+        ]);
+    }
+    private function remindCollect() {
         $responses = [
             'remind_task_untouched'        => $this->remind_task_untouched()->getData(true),
             'remind_task_unfinished'       => $this->remind_task_unfinished()->getData(true),
-            'remind_unsigned_messages'     => $this->remind_unsigned_messages($request)->getData(true),
-            'remind_unchecked_messages'    => $this->remind_unchecked_messages($request)->getData(true),
-            'remind_timesheet'             => $this->remind_timesheet($request)->getData(true),
+            'remind_unsigned_messages'     => $this->remind_unsigned_messages()->getData(true),
+            'remind_unchecked_messages'    => $this->remind_unchecked_messages()->getData(true),
+            'remind_timesheet'             => $this->remind_timesheet()->getData(true),
             'remind_task_not_approved'     => $this->remind_task_not_approved()->getData(true),
             'remind_project_not_approved'  => $this->remind_project_not_approved()->getData(true),
             'remind_reminded_messages'     => $this->remind_reminded_messages()->getData(true),
-            'remind_planned_leave'         => $this->remind_planned_leave($request)->getData(true),
+            'remind_planned_leave'         => $this->remind_planned_leave()->getData(true),
             'remind_form'                  => $this->remind_form()->getData(true),
             'remind_asset'                 => $this->remind_asset()->getData(true),
             'remind_temp_reserved_schedules'=> $this->remind_temp_reserved_schedules()->getData(true),
             'remind_departure_report'      => $this->remind_departure_report(true)->getData(true),
             'remind_challenge'             => $this->remind_challenge_progress()->getData(true),
+            'remind_overdue'               => $this->remind_overdue()->getData(true)
         ];
+        return $responses;
+    }
+    public function remind_summary(Request $request) {
+        $collected = $this->remindCollect();
+        $combinedData = array_map(
+            fn($response, $index) => array_merge($response, ['order' => $index]),
+            $collected,
+            array_keys($collected)
+        );
+        return response()->json($combinedData);
+    }
+    public function remind_badge(Request $request) {
+        $collected = $this->remindCollect();
         $count = 0;
         $counts = [];
-        foreach ($responses as $key => $response) {
+        foreach ($collected as $key => $response) {
             if ($key === 'challenge') {
                 $count += !empty($response['is_halfway']) ? 1 : 0;
                 continue;

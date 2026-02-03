@@ -41,4 +41,9 @@ class SalaryIssue extends Model
     public function reports() {
         return $this->hasMany(SalaryIssueReport::class)->with(['user', 'files']);
     }
+    public function scopeOverdue($q, $now)
+    {
+        return $q->where('status', '<', 9);
+    }
+
 }

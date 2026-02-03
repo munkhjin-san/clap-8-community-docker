@@ -135,23 +135,24 @@
                         <div style="display: grid; gap: 20px;">
                             <div style="display:flex;gap:35px;position:relative">
                                 <div style="display:flex;gap: 10px">
-                                    <UserPanel :disableInstant="true" size="30" :user="item.user" imgClass="userNormalIcon"/>
-                                    <div >
-                                        <p style="margin-top: 5px">{{ item.user?.name }}</p>
-                                        <div style="display:flex;flex-direction: column;gap:5px;margin-top: 10px;">
-                                            <div class="number-chip" v-if="item.timecard">日報申請 : <strong style="color:var(--primary-color)">{{ item.timecard }}件</strong></div>
-                                            <div class="number-chip" v-if="item.overtime">残業申請 : <strong style="color:var(--primary-color)">{{ item.overtime }}件</strong></div>
-                                            <template v-if="item.shift && item.shift.length">
-                                                <div v-for="(shift) in item.shift" class="number-chip">
-                                                    勤怠予定申請 : {{ shift.month }}月分<strong style="color:var(--primary-color)">{{shift.count}}件</strong>
-                                                </div>
+                                    <UserPanel :disableInstant="true" size="30" with-name :user="item.user" imgClass="userNormalIcon">
+                                        <template #details>
+                                            <div style="display:flex;flex-direction: column;gap:5px;margin-top: 5px;margin-left:10px;">
+                                                <div class="number-chip" v-if="item.timecard">日報申請 : <strong style="color:var(--primary-color)">{{ item.timecard }}件</strong></div>
+                                                <div class="number-chip" v-if="item.overtime">残業申請 : <strong style="color:var(--primary-color)">{{ item.overtime }}件</strong></div>
+                                                <template v-if="item.shift && item.shift.length">
+                                                    <div v-for="(shift) in item.shift" class="number-chip">
+                                                        勤怠予定申請 : {{ shift.month }}月分<strong style="color:var(--primary-color)">{{shift.count}}件</strong>
+                                                    </div>
+                                                    
+                                                </template>
+                                            </div>
+                                        </template>
                                                 
-                                            </template>
-                                        </div>
-                                    </div>                                        
+                                    </UserPanel>
                                 </div>                                  
                                 
-                                <div style="margin-left: auto">                                        
+                                <div style="margin-left: auto; align-self: center;">                                        
                                     <button class="shift-button" @click="router.push({name: 'timesheet', query: {user_id: item.user.id}})" style="white-space: nowrap;">対応</button>
                                 </div>
                             </div>
@@ -220,17 +221,17 @@
                         <div style="display: grid; gap: 20px;">
                             <div style="display:flex;gap:35px;position:relative">
                                 <div style="display:flex;gap: 10px">
-                                    <UserPanel :disableInstant="true" size="30" :user="user" imgClass="userNormalIcon"/>
-                                    <div >
-                                        <p style="margin-top: 5px">{{ user?.name }}</p>
-                                        <div style="display:flex;flex-direction: column;gap:5px;margin-top: 10px;">
-                                            <div class="number-chip" v-if="getGoals(user.outcome_goals).length">成果目標 : <strong style="color:var(--primary-color)">{{ getGoals(user.outcome_goals).length }}件</strong></div>
-                                            <div class="number-chip" v-if="user.salary_issues?.length">昇給課題 : <strong style="color:var(--primary-color)">{{ user.salary_issues.length }}件</strong></div>
-                                        </div>
-                                    </div>                                        
+                                    <UserPanel :disableInstant="true" with-name size="30" :user="user" imgClass="userNormalIcon">
+                                        <template #details>
+                                            <div style="display:flex;flex-direction: column;gap:5px;margin-top: 5px;margin-left:10px;">
+                                                <div class="number-chip" v-if="getGoals(user.outcome_goals).length">成果目標 : <strong style="color:var(--primary-color)">{{ getGoals(user.outcome_goals).length }}件</strong></div>
+                                                <div class="number-chip" v-if="user.salary_issues?.length">昇給課題 : <strong style="color:var(--primary-color)">{{ user.salary_issues.length }}件</strong></div>
+                                            </div>
+                                        </template>
+                                    </UserPanel>                                       
                                 </div>                                  
                                 
-                                <div style="margin-left: auto">                                        
+                                <div style="margin-left: auto; align-self: center;">                                        
                                     <button class="shift-button" @click="router.push({name: 'project-approval', params: { userId: user?.id}})" style="white-space: nowrap;">対応</button>
                                 </div>
                             </div>
@@ -241,7 +242,47 @@
                     <transition name="modalFade">
                         <component
                             :is="Component" 
-                            :projects="data.remind_project_not_approved"
+                            :users="data.remind_project_not_approved"
+                        />
+                    </transition>                    
+                </router-view>
+            </div>
+            <div v-if="data.remind_overdue?.length" class="remind-section">
+                <RemindHeader
+                    class="remind-header"
+                    :offset="offset"
+                    title="プロジェクト成果目標限切れ" 
+                    :length="data.remind_overdue?.length" 
+                    :expanded="expanded.remind_overdue"
+                    @expand="expanded.remind_overdue = !expanded.remind_overdue"
+                />
+                <div v-if="expanded.remind_overdue" class="remind-content shift-submitted-masonry-inner mx-[20px]" style="display:flex; flex-direction: column; gap: 20px; width: fit-content;height: fit-content;">
+                    <div v-for="user in data.remind_overdue">
+                        <div style="display: grid; gap: 20px;">
+                            <div style="display:flex;gap:35px;position:relative">
+                                <div style="display:flex;gap: 10px">
+                                    <UserPanel :disableInstant="true" size="30" with-name :user="user" imgClass="userNormalIcon">
+                                        <template #details>
+                                            <div style="display:flex;flex-direction: column;gap:5px;margin-top: 5px;margin-left:10px;">
+                                                <div class="number-chip" v-if="getGoals(user.outcome_goals).length">成果目標 : <strong style="color:var(--primary-color)">{{ getGoals(user.outcome_goals).length }}件</strong></div>
+                                                <div class="number-chip" v-if="salaryIssueCount(user.outcome_goals)">昇給課題 : <strong style="color:var(--primary-color)">{{ salaryIssueCount(user.outcome_goals) }}件</strong></div>
+                                            </div>
+                                        </template>
+                                    </UserPanel>                                       
+                                </div>                                  
+                                
+                                <div style="margin-left: auto; align-self: center;">                                        
+                                    <button class="shift-button" @click="router.push({name: 'project-approval', params: { userId: user?.id}})" style="white-space: nowrap;">対応</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <router-view v-slot="{ Component }" v-if="route.fullPath.includes('project-approval')">
+                    <transition name="modalFade">
+                        <component
+                            :is="Component" 
+                            :users="data.remind_overdue"
                         />
                     </transition>                    
                 </router-view>
@@ -427,7 +468,8 @@ const expanded = ref({
     remind_schedules: true,
     remind_temp_reserved_schedules: true,
     remind_departure_report: true,
-    remind_challenge_progress: true
+    remind_challenge_progress: true,
+    remind_overdue: true,
 })
 
 const api = useApi()
@@ -443,44 +485,27 @@ const handleScroll = () => {
 const getGoals = (outcome_goals) => {
     if (auth.id == 631) {
         return outcome_goals.filter(goal => goal.status == 3)
+    } else if (outcome_goals.some(goal => goal.status !== 9)) {
+        return outcome_goals.filter(goal => goal.status !== 9)
     } else {
         return []
     }
 }
+const salaryIssueCount = (outcome_goals) => {
+    return outcome_goals.reduce(
+        (count, goal) => count + (goal.salary_issue ? 1 : 0),
+        0
+    );
+};
 
 
 
 
 
 
-const getData = async (path:string) => {
-    const data = await api.get(path);
-    return data;
-}
-const getRemindTotalData = async () => {
-    
-    const responses = await Promise.all([
-        getData('/remind_unsigned_messages'),
-        getData('/remind_unchecked_messages'),
-        getData('/remind_task_not_approved'),
-        getData('/remind_project_not_approved'),
-        getData('/remind_timesheet'),
-        getData('/remind_planned_leave'),
-        getData('/remind_reminded_messages'),
-        getData('/remind_task_untouched'),
-        getData('/remind_task_unfinished'),
-        getData('/remind_form'),
-        getData('/remind_asset'),
-        getData('/remind_temp_reserved_schedules'),
-        getData('/remind_challenge_progress'),
-        auth.id && [833,832].includes(auth.id) ? getData('/remind_departure_report') : Promise.resolve([]),
-
-    ]);
-
-    combinedData.value = responses.map((response, index) => ({
-        ...response,
-        order: index
-    }));
+const getData = async () => {
+    const data = await api.get('/remind_summary');
+    combinedData.value = data
     initialLoader.value = false
     const savedOrder = localStorage.getItem('savedSortOrder') ? JSON.parse(localStorage.getItem('savedSortOrder')!) : null;
     if (savedOrder) {
@@ -489,8 +514,8 @@ const getRemindTotalData = async () => {
         }
         reorderDataBySavedOrder(savedOrder);
     }
-    
-};
+}
+
 const hasNoRemindData = computed(() => {
   return combinedData.value.every(item => {
     return Object.entries(item).every(([key, value]) => {
@@ -524,13 +549,17 @@ const reorderDataBySavedOrder = (savedOrder) => {
     combinedData.value = reorderedData;
 };
 
-const refreshData = async (dataType) => {
+const refreshData = async (dataType: string) => {
     try {
-        let response = await getData(`/${dataType}`);        
+        
+        let response = await api.get(`/${dataType}`);        
 
         const index = combinedData.value.findIndex(item => item.hasOwnProperty(dataType));
         if (index !== -1) {
             combinedData.value[index] = { ...response, order: combinedData.value[index].order };
+        }
+        if (dataType === 'remind_task_untouched') {
+            refreshData('remind_task_unfinished')   
         }
     } catch (e) {
         ping(e.response?.data.message || e?.message || 'エラーが発生しました。');
@@ -548,11 +577,12 @@ useSortable(sortParent, combinedData.value, {
     }
 });
 onMounted(() => {
-    getRemindTotalData()
+    getData()
 })
 defineExpose({
     refreshData
 })
 
 provide('getAssets', () => refreshData('remind_asset'))
+provide('refresh', () => refreshData('remind_overdue'))
 </script>
