@@ -429,7 +429,14 @@ class RemindController extends Controller
                                 ->orWhere('status', 9);
                         });
                     })
-                    ->with(['salaryIssue', 'project']);
+                    ->with([
+                        'project.manager',
+                        'project.members',
+                        'reports.user',
+                        'salaryIssue' => function ($si) {
+                            $si->with(['reports.user']);
+                        },
+                    ]);
             },
             'salary_issues' => function ($query) {
                 $query->where('status', 3)
@@ -845,7 +852,7 @@ class RemindController extends Controller
 
 
         return response()->json([
-            'remind_overdue' => []
+            'remind_overdue' => $members
         ]);
     }
     private function remindCollect() {
