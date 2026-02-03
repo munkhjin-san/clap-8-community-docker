@@ -12,7 +12,7 @@
                 </div>
                 <div>
                     <div v-if="UserAllData && auth.user && UserAllData !== null" class="row justify-content-center user-icon-content">  
-                        <div class="user-three-menu">
+                        <div v-if="UserAllData.id == auth.id" class="user-three-menu">
                             <ItemMenu :items="[
                                 {title: 'プロフィール編集', action:() => router.push({name: 'personal-info-settings'})},
                             ]"/>
