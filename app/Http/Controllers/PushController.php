@@ -33,7 +33,7 @@ class PushController extends Controller
 
         // Compute the server's current VAPID public hash (same hash method as client)
         // If you don’t want to compute server-side, you can store it in config/env instead.
-        $serverVapidPublic = trim((string) config('services.vapid.public_key')); // adjust to your config
+        $serverVapidPublic = trim((string) config('services.VAPID.public_key')); // adjust to your config
         $serverVapidHash = $serverVapidPublic
             ? base64_encode(hash('sha256', $serverVapidPublic, true))
             : null;
