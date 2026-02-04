@@ -78,6 +78,14 @@
                 />
             </div>
             <div class="si-box">
+                <p>成果目標設定可能数</p>
+                <div>
+                    <input type="range" v-model="monthly_goal_slot" min="0" max="6" step="1" class="range-input !w-auto mt-4"/>
+                    <span class="ml-2">{{ monthly_goal_slot }}件</span>
+                </div>
+                
+            </div>
+            <div class="si-box">
                 <LoaderButton @triggered="saveGrade" content="保存"/>
             </div>
         </template>
@@ -103,6 +111,7 @@ const emit = defineEmits(['close'])
 const current_salary = ref(props.editData?.current_salary_rank ?? '')
 const after_salary = ref(props.editData?.after_salary_rank ?? '')
 const general_position = ref(props.editData?.general_position ?? '')
+const monthly_goal_slot = ref(props.editData?.monthly_goal_slot ?? 6)
 const grade = ref(props.editData?.grade ?? '')
 const refresh = inject('refresh') as Function
 const api = useApi()
@@ -118,6 +127,7 @@ const saveGrade = async() => {
             after_salary_rank: after_salary.value,
             grade: grade.value,
             general_position: general_position.value,
+            monthly_goal_slot: monthly_goal_slot.value
         }
         
     }

@@ -10,6 +10,7 @@ use App\Jobs\ProcessMessage;
 use App\Models\messageRecord;
 use App\Jobs\RemoveTempSchedule;
 use App\Jobs\CreateDepartureAlert;
+use App\Jobs\CheckUserEvaluation;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
@@ -40,6 +41,7 @@ class Kernel extends ConsoleKernel
 
         // $schedule->job(new GenerateWelcomeMessage())->cron('0 * * * *');
         $schedule->job(new RemoveTempSchedule())->cron('15 9 * * *');
+        $schedule->job(new CheckUserEvaluation())->dailyAt('01:00');
 
         $schedule->command('posts:close-expired')->dailyAt('02:00');
         $schedule->command('alerts:variance --period='.now()->toDateString())->monthlyOn(20, '18:00');

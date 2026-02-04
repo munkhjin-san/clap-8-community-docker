@@ -6,9 +6,8 @@
                     <div v-if="projectGoals.length" class="text-sm border border-solid border-[var(--calendarBorder)] bg-[var(--bg3)] px-3 py-1 mb-4 w-fit">
                         <span class="under960:text-[12px]">現時点で達成評価点 ： <strong>{{ totalOverallScore(projectGoals) }}</strong>点</span>
                     </div>                      
-                        <masonry-wall v-if="projectGoals.length" id="goals-parent" :items="projectGoals" :ssr-columns="1" :column-width="350" :gap="20">
-                            <template #default="{ item, index }: { item: ProjectGoal, index: number }">
-                                <div class="goal-detail relative gap-2">
+                        <div v-if="projectGoals.length" id="goals-parent" class="grid grid-cols-[repeat(auto-fill,minmax(350px,1fr))] gap-5">
+                            <div v-for="(item, index) in projectGoals" :key="item.id" class="goal-detail relative gap-2">
                                     
                                     <div class="flex justify-between align-top mb-1">
                                         <UserPanel v-if="memberData" :user="memberData" size="25" with-name/>                                        
@@ -72,8 +71,7 @@
                                     </div>                                   
                                                             
                                 </div>
-                            </template>
-                        </masonry-wall>                      
+                        </div>                      
                         
                     
                             

@@ -66,7 +66,10 @@
                         <td>{{ user?.evaluation?.after_salary_rank }}</td>
                         <td>
                             <div>
-                                <div>作成済数：{{ safeGoals(user).length || 0 }}</div>
+                                <div class="flex flex-wrap items-center justify-between gap-3">
+                                    <span>作成済数：{{ safeGoals(user).length || 0 }}</span>
+                                    <span>設定可能数：{{ user?.evaluation?.monthly_goal_slot || 0 }}</span>
+                                </div>
                                 <div class="mt-2" v-if="user?.outcome_goals && user.outcome_goals.length">
                                     <div v-for="goal in safeGoals(user)" :key="goal.id" class="max-w-[220px] relative flex flex-col gap-2 text-[12px] p-2 rounded bg-[var(--bg2)] mb-2">
                                         <router-link target="_blank" class="login-link jump-link" :to="{name: 'goal-more', params: { goalId: goal.id, span: `${goal.year}-${goal.which_half}`, memberId: user.id, projectId: goal.project_id}}" style="flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ goal.title || 'タイトルなし' }}</router-link>
@@ -77,7 +80,7 @@
                                 </div>
                             </div>
                         </td>
-                        <td>{{ totalOverallScore(user.outcome_goals) }}/{{ user.outcome_goals.length * 100 }}</td>
+                        <td>{{ totalOverallScore(user.outcome_goals) }}/{{ (user?.evaluation?.monthly_goal_slot || 0 ) * 100 }}</td>
                         <td>
                             <div style="display: flex; gap: 10px;">
                                 <CommandButton 

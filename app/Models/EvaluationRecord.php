@@ -13,6 +13,10 @@ class EvaluationRecord extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'temp_flag' => 'boolean',
+    ];
+
     public function checklist(){
         return $this->hasMany(EvaluationSkill::class, 'evaluation_record_id', 'id');
     }
