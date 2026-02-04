@@ -18,6 +18,7 @@ class MentionAndNotify
 {
     public function mention(boardRecord $boardRecord, User $user, messageRecord $chat)
     {
+        $boardRecord->touch();
         if($boardRecord->private_flag == 1){
             $restoreUsers = boardToUser::where('record_id','=', $boardRecord->id)->where('deleted_status', '=', 1)->get();
             if(!empty($restoreUsers)){

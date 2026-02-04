@@ -630,7 +630,7 @@ import Character from "@/components/Global/Character.vue";
         draftSending.value = true
         const data = await api.put('/draft_send', {id: props.message.id, draft_flag: 0})
         refreshMessages(data.mutated, props.message.id)
-        sent(props.message, data.message.messages.data, data.last_message)
+        sent(data.mutated, data.message.messages.data, data.last_message)
         setTimeout(() => {
             draftSending.value = false
         }, 200)

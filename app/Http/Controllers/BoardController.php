@@ -895,7 +895,6 @@ class BoardController extends Controller
                 'override_user' => $request->override_user
             ]));          
             $boardRefresh = $boardRecord->load('last_message');
-            $boardRecord->touch();
             $last_message = $boardRefresh->last_message;
             if ($chat->draft_flag === 1) {
                 $data = [

@@ -553,7 +553,7 @@ import { DateTime } from 'luxon'
             }
         })
         const targetBoard = allBoardList.value.find( ob => ob.id == item.record_id)
-        if(targetBoard){
+        if(targetBoard && item.draft_flag == 0){
             const stamp = list.length ? list[0].created_at : DateTime.now().toISO()
             targetBoard.last_message = last_message
             targetBoard.updated_at = stamp
