@@ -28,7 +28,7 @@ class CheckUserEvaluation implements ShouldQueue
         ->where('partner_flag', 0)
         ->whereNotNull('user_code')
         ->where('hide_flag', 0)
-        ->where('position_id', '>', 6)
+        ->where('position_id', '>', 5)
         ->where('position_id', '<', 13)
         ->select('id', 'name', 'position_id', 'icon_path', 'icon_bg', 'user_code', 'general_position')
         ->get();
