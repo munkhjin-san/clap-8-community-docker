@@ -105,7 +105,7 @@
                                 <PeriodRangePicker
                                     :start="periodStartIso"
                                     :end="periodEndIso"
-                                    :max-months="12"
+                                    :max-months="MAX_RANGE_MONTHS"
                                     :total-badge="thisMonthCount"
                                     :period-badge="selectedBadge.period_counts"
                                     @change="handleRangeChange"
@@ -118,6 +118,18 @@
                                 </div>
                                 
                             </div>
+                            <div v-if="tab === 'table'" class="flex items-center gap-2 text-xs flex-wrap md:justify-end justify-center w-full">
+                                <button
+                                    type="button"
+                                    class="px-2 py-1 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition"
+                                    @click="toggleYearlyComparison"
+                                >
+                                    {{ totalGrouping === 'fiscal' ? '月次表示' : '年度比較' }}
+                                </button>
+                                <span v-if="totalGrouping === 'fiscal'" class="opacity-70">
+                                    比較: FY{{ activeFiscalYears[0] }} / FY{{ activeFiscalYears[1] }} / FY{{ activeFiscalYears[2] }}
+                                </span>
+                            </div>
 
                             </div>
                         
@@ -127,7 +139,8 @@
                                     <tr>
                                         <th :rowspan="2" class="sticky-left first-col top-border">プロジェクト名</th>
                                         <th :rowspan="2" class="sticky-left second-col top-border">区分</th>
-                                        <th 
+                                        <th
+                                            v-if="totalGrouping !== 'fiscal'"
                                             v-for="(p, i) in periods"
                                             :key="p.period"
                                             colspan="4"
@@ -141,18 +154,37 @@
                                                 <span>{{ p.year }}年{{ p.month }}月</span>
                                             </div>
                                         </th>
-                                        <th v-if="showTotals" colspan="4" class="totals-head top-border !text-center" data-cell="right-border">集計</th>
+                                        <template v-if="totalGrouping === 'fiscal'">
+                                            <th
+                                                v-for="(fy, i) in activeFiscalYears"
+                                                :key="`fy-head-${fy}`"
+                                                colspan="4"
+                                                :data-cell="i === activeFiscalYears.length - 1 ? 'right-border' : null"
+                                                class="totals-head top-border !text-center"
+                                            >
+                                                FY{{ fy }}
+                                            </th>
+                                        </template>
+                                        <th v-else-if="showTotals" colspan="4" class="totals-head top-border !text-center" data-cell="right-border">集計</th>
                                         <th v-if="showComment" :rowspan="2" class="sticky-right comment-cell top-border">コメント</th>
                                     </tr>
                                     <tr>
-                                        <template v-for="p in periods" :key="p.period">
+                                        <template v-for="p in periods" :key="p.period" v-if="totalGrouping !== 'fiscal'">
                                             
                                             <th>売上</th>
                                             <th>販管費</th>
                                             <th>利益</th>
                                             <th>利益率</th>
                                         </template>
-                                        <template v-if="showTotals || isMobile()">
+                                        <template v-if="totalGrouping === 'fiscal'">
+                                            <template v-for="fy in activeFiscalYears" :key="`fy-head-values-${fy}`">
+                                                <th class="totals-head">売上</th>
+                                                <th class="totals-head">販管費</th>
+                                                <th class="totals-head">利益</th>
+                                                <th class="totals-head">利益率</th>
+                                            </template>
+                                        </template>
+                                        <template v-else-if="showTotals || isMobile()">
                                             <th class="totals-head">売上</th>
                                             <th class="totals-head">販管費</th>
                                             <th class="totals-head">利益</th>
@@ -173,27 +205,51 @@
                                             <td class="sub-name sticky-left second-col">
                                                 <span>年度予算</span>
                                             </td>
-                                            <template v-for="p in periods" :key="p.period" v-if="!isMobile()">
+                                            <template v-for="p in periods" :key="p.period" v-if="!isMobile() && totalGrouping !== 'fiscal'">
                                                 
                                                 <td>
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
-                                                        amountOfMoneyParser(proj.data?.[p.month]?.yearly_plan.sales) }}</div>
+                                                        amountOfMoneyParser(proj.data?.[p.period]?.yearly_plan.sales) }}</div>
                                                 </td>
                                                 <td>
                                                     <div class="inner-col"><span class="mobile">販管費</span>{{
-                                                        amountOfMoneyParser(proj.data?.[p.month]?.yearly_plan.expense) }}</div>
+                                                        amountOfMoneyParser(proj.data?.[p.period]?.yearly_plan.expense) }}</div>
                                                 </td>
                                                 <td>
                                                     <div class="inner-col"><span class="mobile">利益</span>{{
-                                                        amountOfMoneyParser(proj.data?.[p.month]?.yearly_plan.sales -
-                                                        proj.data?.[p.month]?.yearly_plan.expense) }}</div>
+                                                        amountOfMoneyParser(proj.data?.[p.period]?.yearly_plan.sales -
+                                                        proj.data?.[p.period]?.yearly_plan.expense) }}</div>
                                                     </td>
                                                 <td data-cell="right-border">
                                                     <div class="inner-col"><span class="mobile">利益率</span>{{
-                                                        percentizer(proj.data?.[p.month]?.yearly_plan).display }}</div>
+                                                        percentizer(proj.data?.[p.period]?.yearly_plan).display }}</div>
                                                 </td>
                                             </template>
-                                            <template v-if="showTotals || isMobile()">
+                                            <template v-if="totalGrouping === 'fiscal'">
+                                                <template v-for="fy in activeFiscalYears" :key="`total-yearly-${proj.name}-${fy}`">
+                                                    <td>
+                                                        <div class="inner-col"><span class="mobile">売上</span>{{
+                                                            amountOfMoneyParser(fiscalTotalEntry(proj.name, 'yearly_plan', fy).sales)
+                                                        }}</div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                            amountOfMoneyParser(fiscalTotalEntry(proj.name, 'yearly_plan', fy).expense)
+                                                        }}</div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="inner-col"><span class="mobile">利益</span>{{
+                                                            amountOfMoneyParser(fiscalTotalEntry(proj.name, 'yearly_plan', fy).profit)
+                                                        }}</div>
+                                                    </td>
+                                                    <td data-cell="right-border">
+                                                        <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                            percentizer(fiscalTotalEntry(proj.name, 'yearly_plan', fy)).display
+                                                        }}</div>
+                                                    </td>
+                                                </template>
+                                            </template>
+                                            <template v-else-if="showTotals || isMobile()">
                                                 <td>
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
                                                         amountOfMoneyParser(totalEntry(proj.name, 'yearly_plan').sales)
@@ -223,44 +279,96 @@
                                             <td class="sub-name sticky-left second-col">
                                                 <span>損益計画</span>
                                             </td>
-                                            <template v-for="p in periods" :key="p.period" v-if="!isMobile()">
+                                            <template v-for="p in periods" :key="p.period" v-if="!isMobile() && totalGrouping !== 'fiscal'">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
-                                                            amountOfMoneyParser(proj.data?.[p.month]?.profit.sales) }}</div>
-                                                        <DeltaNumbers type="sales" :planned="proj.data?.[p.month]?.yearly_plan.sales"
-                                                            :actual="proj.data?.[p.month]?.profit.sales" />
+                                                            amountOfMoneyParser(proj.data?.[p.period]?.profit.sales) }}</div>
+                                                        <DeltaNumbers type="sales" :planned="proj.data?.[p.period]?.yearly_plan.sales"
+                                                            :actual="proj.data?.[p.period]?.profit.sales" />
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">販管費</span>{{
-                                                            amountOfMoneyParser(proj.data?.[p.month]?.profit.expense) }}</div>
-                                                        <DeltaNumbers type="expense" :planned="proj.data?.[p.month]?.yearly_plan.expense"
-                                                            :actual="proj.data?.[p.month]?.profit.expense" />
+                                                            amountOfMoneyParser(proj.data?.[p.period]?.profit.expense) }}</div>
+                                                        <DeltaNumbers type="expense" :planned="proj.data?.[p.period]?.yearly_plan.expense"
+                                                            :actual="proj.data?.[p.period]?.profit.expense" />
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益</span>{{
-                                                            amountOfMoneyParser(proj.data?.[p.month]?.profit.profit) }}
+                                                            amountOfMoneyParser(proj.data?.[p.period]?.profit.profit) }}
                                                         </div>
                                                         <DeltaNumbers type="profit"
-                                                            :planned="proj.data?.[p.month]?.yearly_plan.sales - proj.data?.[p.month]?.yearly_plan.expense"
-                                                            :actual="proj.data?.[p.month]?.profit.profit" />
+                                                            :planned="proj.data?.[p.period]?.yearly_plan.sales - proj.data?.[p.period]?.yearly_plan.expense"
+                                                            :actual="proj.data?.[p.period]?.profit.profit" />
                                                     </div>
                                                 </td>
                                                 <td data-cell="right-border">
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益率</span>{{
-                                                            percentizer(proj.data?.[p.month]?.profit).display }}</div>
+                                                            percentizer(proj.data?.[p.period]?.profit).display }}</div>
                                                         <DeltaNumbers type="profit_rate"
-                                                            :planned="percentizer(proj.data?.[p.month]?.yearly_plan).value"
-                                                            :actual="percentizer(proj.data?.[p.month]?.profit).value" />
+                                                            :planned="percentizer(proj.data?.[p.period]?.yearly_plan).value"
+                                                            :actual="percentizer(proj.data?.[p.period]?.profit).value" />
                                                     </div>
                                                 </td>
                                             </template>
-                                            <template v-if="showTotals || isMobile()">
+                                            <template v-if="totalGrouping === 'fiscal'">
+                                                <template v-for="fy in activeFiscalYears" :key="`total-profit-${proj.name}-${fy}`">
+                                                    <td>
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">売上</span>{{
+                                                                amountOfMoneyParser(fiscalTotalEntry(proj.name, 'profit', fy).sales)
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="sales"
+                                                                :planned="fiscalTotalEntry(proj.name, 'yearly_plan', fy).sales"
+                                                                :actual="fiscalTotalEntry(proj.name, 'profit', fy).sales"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                                amountOfMoneyParser(fiscalTotalEntry(proj.name, 'profit', fy).expense)
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="expense"
+                                                                :planned="fiscalTotalEntry(proj.name, 'yearly_plan', fy).expense"
+                                                                :actual="fiscalTotalEntry(proj.name, 'profit', fy).expense"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">利益</span>{{
+                                                                amountOfMoneyParser(fiscalTotalEntry(proj.name, 'profit', fy).profit)
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="profit"
+                                                                :planned="fiscalTotalEntry(proj.name, 'yearly_plan', fy).profit"
+                                                                :actual="fiscalTotalEntry(proj.name, 'profit', fy).profit"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td data-cell="right-border">
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                                percentizer(fiscalTotalEntry(proj.name, 'profit', fy)).display
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="profit_rate"
+                                                                :planned="percentizer(fiscalTotalEntry(proj.name, 'yearly_plan', fy)).value"
+                                                                :actual="percentizer(fiscalTotalEntry(proj.name, 'profit', fy)).value"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                </template>
+                                            </template>
+                                            <template v-else-if="showTotals || isMobile()">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -313,44 +421,96 @@
                                                 </div>
                                                 実績
                                             </td>
-                                            <template v-for="p in periods" :key="p.period" v-if="!isMobile()">
+                                            <template v-for="p in periods" :key="p.period" v-if="!isMobile() && totalGrouping !== 'fiscal'">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
-                                                            amountOfMoneyParser(settlementValue(proj.data?.[p.month]?.settlement, 'sales')) }}</div>
-                                                        <DeltaNumbers type="sales" :planned="proj.data?.[p.month]?.profit.sales"
-                                                            :actual="settlementValue(proj.data?.[p.month]?.settlement, 'sales')" />
+                                                            amountOfMoneyParser(settlementValue(proj.data?.[p.period]?.settlement, 'sales')) }}</div>
+                                                        <DeltaNumbers type="sales" :planned="proj.data?.[p.period]?.profit.sales"
+                                                            :actual="settlementValue(proj.data?.[p.period]?.settlement, 'sales')" />
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">販管費</span>{{
-                                                            amountOfMoneyParser(settlementValue(proj.data?.[p.month]?.settlement, 'expense')) }}</div>
-                                                        <DeltaNumbers type="expense" :planned="proj.data?.[p.month]?.profit.expense"
-                                                            :actual="settlementValue(proj.data?.[p.month]?.settlement, 'expense')" />
+                                                            amountOfMoneyParser(settlementValue(proj.data?.[p.period]?.settlement, 'expense')) }}</div>
+                                                        <DeltaNumbers type="expense" :planned="proj.data?.[p.period]?.profit.expense"
+                                                            :actual="settlementValue(proj.data?.[p.period]?.settlement, 'expense')" />
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益</span>{{
-                                                            amountOfMoneyParser(settlementProfitValue(proj.data?.[p.month]?.settlement)) }}</div>
+                                                            amountOfMoneyParser(settlementProfitValue(proj.data?.[p.period]?.settlement)) }}</div>
                                                         <DeltaNumbers type="profit"
-                                                            :planned="proj.data?.[p.month]?.profit.profit"
-                                                            :actual="settlementProfitValue(proj.data?.[p.month]?.settlement)" />
+                                                            :planned="proj.data?.[p.period]?.profit.profit"
+                                                            :actual="settlementProfitValue(proj.data?.[p.period]?.settlement)" />
                                                     </div>
                                                 </td>
                                                 <td data-cell="right-border">
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益率</span>{{
-                                                            percentizer(proj.data?.[p.month]?.settlement).display }}</div>
+                                                            percentizer(proj.data?.[p.period]?.settlement).display }}</div>
                                                         <DeltaNumbers type="profit_rate"
-                                                            :planned="percentizer(proj.data?.[p.month]?.profit).value"
-                                                            :actual="percentizer(proj.data?.[p.month]?.settlement).value" />
+                                                            :planned="percentizer(proj.data?.[p.period]?.profit).value"
+                                                            :actual="percentizer(proj.data?.[p.period]?.settlement).value" />
                                                     </div>
                                                 </td>
                                             </template>
                                             
-                                            <template v-if="showTotals || isMobile()">
+                                            <template v-if="totalGrouping === 'fiscal'">
+                                                <template v-for="fy in activeFiscalYears" :key="`total-settlement-${proj.name}-${fy}`">
+                                                    <td>
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">売上</span>{{
+                                                                amountOfMoneyParser(settlementValue(fiscalTotalEntry(proj.name, 'settlement', fy), 'sales'))
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="sales"
+                                                                :planned="fiscalTotalEntry(proj.name, 'profit', fy).sales"
+                                                                :actual="settlementValue(fiscalTotalEntry(proj.name, 'settlement', fy), 'sales')"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                                amountOfMoneyParser(settlementValue(fiscalTotalEntry(proj.name, 'settlement', fy), 'expense'))
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="expense"
+                                                                :planned="fiscalTotalEntry(proj.name, 'profit', fy).expense"
+                                                                :actual="settlementValue(fiscalTotalEntry(proj.name, 'settlement', fy), 'expense')"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">利益</span>{{
+                                                                amountOfMoneyParser(settlementProfitValue(fiscalTotalEntry(proj.name, 'settlement', fy)))
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="profit"
+                                                                :planned="fiscalTotalEntry(proj.name, 'profit', fy).profit"
+                                                                :actual="settlementProfitValue(fiscalTotalEntry(proj.name, 'settlement', fy))"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td data-cell="right-border">
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                                percentizer(fiscalTotalEntry(proj.name, 'settlement', fy)).display
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="profit_rate"
+                                                                :planned="percentizer(fiscalTotalEntry(proj.name, 'profit', fy)).value"
+                                                                :actual="percentizer(fiscalTotalEntry(proj.name, 'settlement', fy)).value"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                </template>
+                                            </template>
+                                            <template v-else-if="showTotals || isMobile()">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -410,7 +570,7 @@
                                             <td class="sub-name sticky-left second-col">
                                                 <span>年度予算</span>
                                             </td>
-                                            <template v-for="p in periods" :key="`summary-yearly-${p.period}`" v-if="!isMobile()">
+                                            <template v-for="p in periods" :key="`summary-yearly-${p.period}`" v-if="!isMobile() && totalGrouping !== 'fiscal'">
                                                 <td>
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
                                                         amountOfMoneyParser(periodEntry(p.period, 'yearly_plan').sales)
@@ -432,7 +592,31 @@
                                                     }}</div>
                                                 </td>
                                             </template>
-                                            <template v-if="showTotals || isMobile()">
+                                            <template v-if="totalGrouping === 'fiscal'">
+                                                <template v-for="fy in activeFiscalYears" :key="`summary-total-yearly-${fy}`">
+                                                    <td>
+                                                        <div class="inner-col"><span class="mobile">売上</span>{{
+                                                            amountOfMoneyParser(fiscalSummaryEntry('yearly_plan', fy).sales)
+                                                        }}</div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                            amountOfMoneyParser(fiscalSummaryEntry('yearly_plan', fy).expense)
+                                                        }}</div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="inner-col"><span class="mobile">利益</span>{{
+                                                            amountOfMoneyParser(fiscalSummaryEntry('yearly_plan', fy).profit)
+                                                        }}</div>
+                                                    </td>
+                                                    <td data-cell="right-border">
+                                                        <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                            percentizer(fiscalSummaryEntry('yearly_plan', fy)).display
+                                                        }}</div>
+                                                    </td>
+                                                </template>
+                                            </template>
+                                            <template v-else-if="showTotals || isMobile()">
                                                 <td>
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
                                                         amountOfMoneyParser(totalSummaryEntry('yearly_plan').sales)
@@ -461,7 +645,7 @@
                                             <td class="sub-name sticky-left second-col">
                                                 <span>損益計画</span>
                                             </td>
-                                            <template v-for="p in periods" :key="`summary-profit-${p.period}`" v-if="!isMobile()">
+                                            <template v-for="p in periods" :key="`summary-profit-${p.period}`" v-if="!isMobile() && totalGrouping !== 'fiscal'">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -503,7 +687,59 @@
                                                     </div>
                                                 </td>
                                             </template>
-                                            <template v-if="showTotals || isMobile()">
+                                            <template v-if="totalGrouping === 'fiscal'">
+                                                <template v-for="fy in activeFiscalYears" :key="`summary-total-profit-${fy}`">
+                                                    <td>
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">売上</span>{{
+                                                                amountOfMoneyParser(fiscalSummaryEntry('profit', fy).sales)
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="sales"
+                                                                :planned="fiscalSummaryEntry('yearly_plan', fy).sales"
+                                                                :actual="fiscalSummaryEntry('profit', fy).sales"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                                amountOfMoneyParser(fiscalSummaryEntry('profit', fy).expense)
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="expense"
+                                                                :planned="fiscalSummaryEntry('yearly_plan', fy).expense"
+                                                                :actual="fiscalSummaryEntry('profit', fy).expense"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">利益</span>{{
+                                                                amountOfMoneyParser(fiscalSummaryEntry('profit', fy).profit)
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="profit"
+                                                                :planned="fiscalSummaryEntry('yearly_plan', fy).profit"
+                                                                :actual="fiscalSummaryEntry('profit', fy).profit"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td data-cell="right-border">
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                                percentizer(fiscalSummaryEntry('profit', fy)).display
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="profit_rate"
+                                                                :planned="percentizer(fiscalSummaryEntry('yearly_plan', fy)).value"
+                                                                :actual="percentizer(fiscalSummaryEntry('profit', fy)).value"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                </template>
+                                            </template>
+                                            <template v-else-if="showTotals || isMobile()">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -551,7 +787,7 @@
                                             <td class="sub-name sticky-left second-col">
                                                 <span>実績</span>
                                             </td>
-                                            <template v-for="p in periods" :key="`summary-settlement-${p.period}`" v-if="!isMobile()">
+                                            <template v-for="p in periods" :key="`summary-settlement-${p.period}`" v-if="!isMobile() && totalGrouping !== 'fiscal'">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -593,7 +829,59 @@
                                                     </div>
                                                 </td>
                                             </template>
-                                            <template v-if="showTotals || isMobile()">
+                                            <template v-if="totalGrouping === 'fiscal'">
+                                                <template v-for="fy in activeFiscalYears" :key="`summary-total-settlement-${fy}`">
+                                                    <td>
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">売上</span>{{
+                                                                amountOfMoneyParser(settlementValue(fiscalSummaryEntry('settlement', fy), 'sales'))
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="sales"
+                                                                :planned="fiscalSummaryEntry('profit', fy).sales"
+                                                                :actual="settlementValue(fiscalSummaryEntry('settlement', fy), 'sales')"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                                amountOfMoneyParser(settlementValue(fiscalSummaryEntry('settlement', fy), 'expense'))
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="expense"
+                                                                :planned="fiscalSummaryEntry('profit', fy).expense"
+                                                                :actual="settlementValue(fiscalSummaryEntry('settlement', fy), 'expense')"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">利益</span>{{
+                                                                amountOfMoneyParser(settlementProfitValue(fiscalSummaryEntry('settlement', fy)))
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="profit"
+                                                                :planned="fiscalSummaryEntry('profit', fy).profit"
+                                                                :actual="settlementProfitValue(fiscalSummaryEntry('settlement', fy))"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td data-cell="right-border">
+                                                        <div class="flex items-center gap-[5px]">
+                                                            <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                                percentizer(fiscalSummaryEntry('settlement', fy)).display
+                                                            }}</div>
+                                                            <DeltaNumbers
+                                                                type="profit_rate"
+                                                                :planned="percentizer(fiscalSummaryEntry('profit', fy)).value"
+                                                                :actual="percentizer(fiscalSummaryEntry('settlement', fy)).value"
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                </template>
+                                            </template>
+                                            <template v-else-if="showTotals || isMobile()">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -910,6 +1198,18 @@ const intervalPayload = computed(() => ({
 const periods = computed<PeriodCell[]>(() =>
   generatePeriodRange(normalizedRange.value.start, normalizedRange.value.end)
 )
+const totalGrouping = ref<'range' | 'fiscal'>('range')
+const activeFiscalYear = computed(() =>
+    fiscalYearFrom(normalizedRange.value.end.year, normalizedRange.value.end.month)
+)
+const activeFiscalYears = computed<number[]>(() => ([
+    activeFiscalYear.value - 1,
+    activeFiscalYear.value,
+    activeFiscalYear.value + 1,
+]))
+const toggleYearlyComparison = () => {
+    totalGrouping.value = totalGrouping.value === 'fiscal' ? 'range' : 'fiscal'
+}
 
 const rangeEnd = computed(() => normalizedRange.value.end)
 
@@ -990,6 +1290,22 @@ const totalEntry = (projectName: string, scenario: ScenarioKey): UnitData =>
     normalizeUnitData(financeData.value?.[projectName]?.[scenario])
 const totalSummaryEntry = (scenario: ScenarioKey): UnitData =>
     normalizeUnitData(summarizeData.value?.[scenario])
+const comparisonProjectTotals = ref<Record<string, Record<number, Record<ScenarioKey, UnitData>>>>({})
+const comparisonSummaryTotals = ref<Record<number, Record<ScenarioKey, UnitData>>>({})
+const selectedProjectNames = computed(() =>
+    props.projects
+        .filter(project => selectedProjects.value.includes(project.id))
+        .map(project => project.name)
+)
+const normalizeScenarioTotals = (value: any): Record<ScenarioKey, UnitData> => ({
+    yearly_plan: normalizeUnitData(value?.yearly_plan),
+    profit: normalizeUnitData(value?.profit),
+    settlement: normalizeUnitData(value?.settlement),
+})
+const fiscalTotalEntry = (projectName: string, scenario: ScenarioKey, fiscalYear: number): UnitData =>
+    comparisonProjectTotals.value?.[projectName]?.[fiscalYear]?.[scenario] ?? emptyUnit
+const fiscalSummaryEntry = (scenario: ScenarioKey, fiscalYear: number): UnitData =>
+    comparisonSummaryTotals.value?.[fiscalYear]?.[scenario] ?? emptyUnit
 const commentCount = ref<Record<number, number>>({})
 const api = useApi()
 
@@ -1007,7 +1323,7 @@ const monthCount = computed(() => Math.round(normalizedRange.value.end.diff(norm
 const sortMode = ref<'name' | 'manager'>('name')
 
 const showTotals = computed(() => monthCount.value > 1)
-const showComment = computed(() => hasPrivilage.value && monthCount.value === 1)
+const showComment = computed(() => hasPrivilage.value && monthCount.value === 1 && totalGrouping.value !== 'fiscal')
 const managers = computed(() => {
     const allManagers = props.projects.map(project => project.manager)
     const flatUsers = allManagers.flat()
@@ -1089,6 +1405,8 @@ const resetFinanceSummaries = () => {
     variance.value = {}
     badgeLoader.value = 0
     commentCount.value = {}
+    comparisonProjectTotals.value = {}
+    comparisonSummaryTotals.value = {}
 }
 
 const fetchTotalFinance = async (token: number) => {
@@ -1133,6 +1451,40 @@ const fetchCommentCounts = async (token: number) => {
     }
 }
 
+const fiscalInterval = (fiscalYear: number) => ({
+    startYear: fiscalYear,
+    startMonth: 3,
+    endYear: fiscalYear + 1,
+    endMonth: 2,
+})
+
+const fetchYearlyComparisonTotals = async (token: number) => {
+    if (totalGrouping.value !== 'fiscal' || !selectedProjects.value.length) {
+        comparisonProjectTotals.value = {}
+        comparisonSummaryTotals.value = {}
+        return
+    }
+    const years = activeFiscalYears.value
+    const projectsByYear: Record<string, Record<number, Record<ScenarioKey, UnitData>>> = {}
+    const summaryByYear: Record<number, Record<ScenarioKey, UnitData>> = {}
+    await Promise.all(years.map(async (fy) => {
+        const data = await api.get('/get_total_finance', {
+            projects: selectedProjects.value,
+            interval: fiscalInterval(fy),
+        })
+        if (token !== activeFetchToken) return
+        const sumData = data?.sumData ?? {}
+        selectedProjectNames.value.forEach((name) => {
+            projectsByYear[name] ||= {}
+            projectsByYear[name][fy] = normalizeScenarioTotals(sumData?.[name])
+        })
+        summaryByYear[fy] = normalizeScenarioTotals(data?.summarizeData)
+    }))
+    if (token !== activeFetchToken) return
+    comparisonProjectTotals.value = projectsByYear
+    comparisonSummaryTotals.value = summaryByYear
+}
+
 const refreshTotalFinance = async () => {
     const token = ++activeFetchToken
     // if (!selectedProjects.value.length) {
@@ -1144,6 +1496,7 @@ const refreshTotalFinance = async () => {
     badgeLoader.value = 0
     try {
         await fetchTotalFinance(token)
+        await fetchYearlyComparisonTotals(token)
         fetchTotalFinanceBadge(token)
         fetchCommentCounts(token)
         scrollIntoCurrent()
@@ -1160,6 +1513,9 @@ watch(selectedProjects, (projects) => {
 }, { deep: true })
 
 watch([periodStartIso, periodEndIso], () => {
+    refreshTotalFinance()
+})
+watch(totalGrouping, () => {
     refreshTotalFinance()
 })
 
@@ -1272,7 +1628,7 @@ td[data-cell=right-border], th[data-cell=right-border] {
 }
 .finance-table-scroll {
     overflow: auto;
-    height: calc(100% - 120px);
+    height: calc(100% - 154px);
 }
 
 .sticky-left {

@@ -13,10 +13,42 @@ class PushController extends Controller
     public function subscribe(Request $request)
     {
         $user = $request->user();
-        $sub = $request->all();
 
-        if (empty($sub['endpoint']) || empty($sub['keys']['p256dh']) || empty($sub['keys']['auth'])) {
+        // Support both:
+        // 1) old format: {endpoint, keys:{p256dh,auth}}
+        // 2) new format: {subscription:{...}, vapid_public_hash, origin}
+        $payload = $request->all();
+        $sub = $payload['subscription'] ?? $payload;
+
+        if (
+            empty($sub['endpoint']) ||
+            empty($sub['keys']['p256dh']) ||
+            empty($sub['keys']['auth'])
+        ) {
             return response()->json(['message' => 'Invalid subscription'], 422);
+        }
+
+        $clientVapidHash = $payload['vapid_public_hash'] ?? null;
+        $clientOrigin = $payload['origin'] ?? $request->getSchemeAndHttpHost();
+
+        // Compute the server's current VAPID public hash (same hash method as client)
+        // If you don’t want to compute server-side, you can store it in config/env instead.
+        $serverVapidPublic = trim((string) config('services.vapid.public_key')); // adjust to your config
+        $serverVapidHash = $serverVapidPublic
+            ? base64_encode(hash('sha256', $serverVapidPublic, true))
+            : null;
+
+        // If client sent a hash and it doesn't match current server VAPID, tell client to resubscribe
+        if ($clientVapidHash && $serverVapidHash && !hash_equals($serverVapidHash, $clientVapidHash)) {
+            // Optionally also mark existing record invalid to stop sends
+            PushSubscription::where('endpoint', $sub['endpoint'])
+                ->update(['invalid_at' => now()]);
+
+            return response()->json([
+                'ok' => false,
+                'needs_resubscribe' => true,
+                'reason' => 'vapid_mismatch',
+            ], 200);
         }
 
         PushSubscription::updateOrCreate(
@@ -25,11 +57,15 @@ class PushController extends Controller
                 'user_id' => $user->id,
                 'p256dh' => $sub['keys']['p256dh'],
                 'auth' => $sub['keys']['auth'],
+                'vapid_public_hash' => $clientVapidHash,
+                'origin' => $clientOrigin,
+                'invalid_at' => null,
             ]
         );
 
         return response()->json(['ok' => true]);
     }
+
 
     public function test(Request $request)
     {

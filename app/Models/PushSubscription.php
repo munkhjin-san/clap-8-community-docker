@@ -12,5 +12,8 @@ class PushSubscription extends Model
         'endpoint',
         'p256dh',
         'auth',
+        'vapid_public_hash',
+        'origin',
+        'invalid_at'
     ];
 }

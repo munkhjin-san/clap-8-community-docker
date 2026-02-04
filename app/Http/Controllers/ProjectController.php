@@ -2327,15 +2327,14 @@ class ProjectController extends Controller
 
         $startInstance = Carbon::createFromDate($interval['startYear'], $interval['startMonth'], 1);
         $endInstance = Carbon::createFromDate($interval['endYear'], $interval['endMonth'], 1);
-        $durationByMonth = (int) $startInstance->diffInMonths($endInstance, );
-        
-        if($durationByMonth < 0){
+        if ($endInstance->lt($startInstance)) {
             return response()->json([
                 'error' => true,
                 'message' => '開始日付は終了日付より前で設定してください。',
             ], 422);
         }
-        if($durationByMonth > 12){
+        $monthsInRange = (int) $startInstance->diffInMonths($endInstance) + 1;
+        if($monthsInRange > 12){
             return response()->json([
                 'error' => true,
                 'message' => '最大12ヶ月まで選択できます。',
@@ -2557,7 +2556,7 @@ class ProjectController extends Controller
                         "profit" => round((float) $projectsData[$profit_index], 0, PHP_ROUND_HALF_UP),
                         "profit_rate" => (float) $projectsData[$profit_rate_index],
                     ];
-                    $plan_res_data[$project_name][$month]['yearly_plan'] = $planData;
+                    $plan_res_data[$project_name][$periodKey]['yearly_plan'] = $planData;
 
                     
                     $sumData[$project_name]['yearly_plan']['sales'] = ($sumData[$project_name]['yearly_plan']['sales'] ?? 0) + $totalSales;
@@ -2574,7 +2573,7 @@ class ProjectController extends Controller
                         "profit" => $yearlyOut[$id][$month]['profit'] ?? 0,
                         "profit_rate" => $yearlyOut[$id][$month]['profit_rate'] ?? 0,
                     ];
-                    $plan_res_data[$project_name][$month]['yearly_plan'] = $planData;
+                    $plan_res_data[$project_name][$periodKey]['yearly_plan'] = $planData;
 
                     
                     $sumData[$project_name]['yearly_plan']['sales'] = ($sumData[$project_name]['yearly_plan']['sales'] ?? 0) + $totalSales;
@@ -2583,7 +2582,7 @@ class ProjectController extends Controller
                     $summarizeData['yearly_plan']['expense'] = ($summarizeData['yearly_plan']['expense'] ?? 0) + $totalExpense;
                     $accumulatePeriodTotals($periodKey, 'yearly_plan', $planData);
                 } else {
-                    $plan_res_data[$project_name][$month]['yearly_plan']  = $default_data;
+                    $plan_res_data[$project_name][$periodKey]['yearly_plan']  = $default_data;
                     $accumulatePeriodTotals($periodKey, 'yearly_plan', $default_data);
                 }
 
@@ -2607,7 +2606,7 @@ class ProjectController extends Controller
                         "profit" => round((float)(float) $profitData['利益'], 0, PHP_ROUND_HALF_UP),
                         "profit_rate" => (float) $profitData['利益率'],
                     ];
-                    $plan_res_data[$project_name][$month]['profit'] = $profitData;
+                    $plan_res_data[$project_name][$periodKey]['profit'] = $profitData;
                     $sumData[$project_name]['profit']['sales'] = ($sumData[$project_name]['profit']['sales'] ?? 0) + $totalSales;
                     $sumData[$project_name]['profit']['expense'] = ($sumData[$project_name]['profit']['expense'] ?? 0) + $totalExpense;
                     $sumData[$project_name]['profit']['profit'] = ($sumData[$project_name]['profit']['profit'] ?? 0) + $profitData['profit'];
@@ -2617,7 +2616,7 @@ class ProjectController extends Controller
                     $accumulatePeriodTotals($periodKey, 'profit', $profitData);
                 }
                 else{
-                    $plan_res_data[$project_name][$month]['profit'] = $default_data;
+                    $plan_res_data[$project_name][$periodKey]['profit'] = $default_data;
                     $accumulatePeriodTotals($periodKey, 'profit', $default_data);
                 }        
                 
@@ -2644,7 +2643,7 @@ class ProjectController extends Controller
                         $settlement_profit_rate_val = $settlementOfProject[$settlement_profit_rate_index] ?? 0; 
                         $totalSales = round((float) str_replace(',', '', $settlement_sales_val), 0, PHP_ROUND_HALF_UP);
                         $totalExpense = (float) str_replace(',', '', $settlement_expense_val) + (float) str_replace(',', '', $settlement_additional_expense_val);
-                        $plan_res_data[$project_name][$month]['settlement']= [
+                        $plan_res_data[$project_name][$periodKey]['settlement']= [
                             'sales' => $totalSales,
                             'expense' => $totalExpense ?? 0,
                             'profit' => (float) str_replace(',', '', $settlement_profit_val),
@@ -2656,16 +2655,16 @@ class ProjectController extends Controller
                         $sumData[$project_name]['settlement']['profit'] = ($sumData[$project_name]['settlement']['profit'] ?? 0) + round((float)(float) str_replace(',', '', $settlement_profit_val), 0, PHP_ROUND_HALF_UP);
                         // $summarizeData['settlement']['sales'] = ($summarizeData['settlement']['sales'] ?? 0) + $totalSales;
                         // $summarizeData['settlement']['expense'] = ($summarizeData['settlement']['expense'] ?? 0) + $totalExpense;
-                        $accumulatePeriodTotals($periodKey, 'settlement', $plan_res_data[$project_name][$month]['settlement']);
+                        $accumulatePeriodTotals($periodKey, 'settlement', $plan_res_data[$project_name][$periodKey]['settlement']);
                  
                     }else{
-                        $plan_res_data[$project_name][$month]['settlement'] = $default_settlement_data;
+                        $plan_res_data[$project_name][$periodKey]['settlement'] = $default_settlement_data;
                         $accumulatePeriodTotals($periodKey, 'settlement', $default_settlement_data);
                     }                    
                     
 
                 }else{
-                    $plan_res_data[$project_name][$month]['settlement'] = $default_settlement_data;
+                    $plan_res_data[$project_name][$periodKey]['settlement'] = $default_settlement_data;
                     $accumulatePeriodTotals($periodKey, 'settlement', $default_settlement_data);
                 }
                 $sumData[$project_name]['settlement']['id'] = $id; 
