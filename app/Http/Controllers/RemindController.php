@@ -142,7 +142,7 @@ class RemindController extends Controller
                                 'shiftOverTimeRequest' => $shift_overtime_requests->where('overtime_day', $date)->first()
                             ];
 
-                        }else if($timecard->status_flag == 0){
+                        }else if($timecard->status_flag == 0 || $timecard->status_flag == 10){
                             $dateExplode = explode("-",$date);
                             $timecardNotSubmittedList[] = [
                                 'year' => (int) $dateExplode[0],
