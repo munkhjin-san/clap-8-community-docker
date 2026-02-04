@@ -138,7 +138,46 @@
                                 <thead>
                                     <tr>
                                         <th :rowspan="2" class="sticky-left first-col top-border">プロジェクト名</th>
-                                        <th :rowspan="2" class="sticky-left second-col top-border">区分</th>
+                                        <th :rowspan="2" class="sticky-left second-col top-border">
+                                            <div class="relative">
+                                                <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="menu.setMenu({parent: 'scenarioFilter'})">
+                                                    区分
+                                                    <Filter style="fill: var(--primary-color);" size="12"/>
+                                                </div>
+                                                <Transition name="slidePop">
+                                                    <div 
+                                                        v-if="menu.parent == 'scenarioFilter'"
+                                                        id="scenarioFilter"
+                                                        class="pc 
+                                                        shadow-me 
+                                                        absolute  
+                                                        bg-[var(--bg3)] 
+                                                        text-[var(--primary-color)] 
+                                                        gap-[10px] 
+                                                        text-[13px] 
+                                                        pb-[10px]
+                                                        px-[10px]
+                                                        top-[25px] 
+                                                        max-h-[50vh] 
+                                                        overflow-auto
+                                                        flex
+                                                        flex-col"
+                                                    >         
+                                                        <div class="pt-[10px]">
+                                                            <CommandButton :buttons="[{title: 'リセット', action: () => {selectedOption = []; menu.close()}}]"/>
+                                                        </div>
+                                                        <div class="flex flex-col gap-[10px]" v-if="scenarioOptions.length">
+                                                            <div v-for="option in scenarioOptions">
+                                                                <label class="cursor-pointer select-none whitespace-nowrap flex items-center gap-[5px]">
+                                                                    <input type="checkbox" class="custom-f-checkbox" name="class-selector"  v-model="selectedOption" :value="option.value"/>
+                                                                    {{ option.label }}
+                                                                </label>
+                                                            </div>
+                                                        </div>                   
+                                                    </div>
+                                                </Transition>
+                                            </div>  
+                                        </th>
                                         <th
                                             v-if="totalGrouping !== 'fiscal'"
                                             v-for="(p, i) in periods"
@@ -195,8 +234,12 @@
                                 <!-- <tbody> -->
                                     
                                     <tbody v-for="proj in sortedProjects">
-                                        <tr :key="`${proj.name}-yearly`">
-                                            <td class="p-name sticky-left first-col" :rowspan="3">
+                                        <tr v-if="show('yearly_plan')" :key="`${proj.name}-yearly`">
+                                            <td
+                                                v-if="firstVisibleScenario === 'yearly_plan'"
+                                                class="p-name sticky-left first-col"
+                                                :rowspan="visibleScenarioCount"
+                                            >
                                                 <div>{{ proj.name }}</div>
                                                 <div v-if="managerNameFor(proj.name)" class="manager-note">
                                                     {{ managerNameFor(proj.name) }}
@@ -274,7 +317,17 @@
                                             
                                             <td v-if="showComment" class="sticky-right comment-cell"></td>
                                         </tr>
-                                        <tr :key="`${proj.name}-plan`">
+                                        <tr v-if="show('profit')" :key="`${proj.name}-plan`">
+                                            <td
+                                                v-if="firstVisibleScenario === 'profit'"
+                                                class="p-name sticky-left first-col"
+                                                :rowspan="visibleScenarioCount"
+                                            >
+                                                <div>{{ proj.name }}</div>
+                                                <div v-if="managerNameFor(proj.name)" class="manager-note">
+                                                    {{ managerNameFor(proj.name) }}
+                                                </div>
+                                            </td>
 
                                             <td class="sub-name sticky-left second-col">
                                                 <span>損益計画</span>
@@ -284,7 +337,7 @@
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
                                                             amountOfMoneyParser(proj.data?.[p.period]?.profit.sales) }}</div>
-                                                        <DeltaNumbers type="sales" :planned="proj.data?.[p.period]?.yearly_plan.sales"
+                                                        <DeltaNumbers v-if="deltaShown" type="sales" :planned="proj.data?.[p.period]?.yearly_plan.sales"
                                                             :actual="proj.data?.[p.period]?.profit.sales" />
                                                     </div>
                                                 </td>
@@ -292,7 +345,7 @@
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">販管費</span>{{
                                                             amountOfMoneyParser(proj.data?.[p.period]?.profit.expense) }}</div>
-                                                        <DeltaNumbers type="expense" :planned="proj.data?.[p.period]?.yearly_plan.expense"
+                                                        <DeltaNumbers v-if="deltaShown" type="expense" :planned="proj.data?.[p.period]?.yearly_plan.expense"
                                                             :actual="proj.data?.[p.period]?.profit.expense" />
                                                     </div>
                                                 </td>
@@ -301,7 +354,7 @@
                                                         <div class="inner-col"><span class="mobile">利益</span>{{
                                                             amountOfMoneyParser(proj.data?.[p.period]?.profit.profit) }}
                                                         </div>
-                                                        <DeltaNumbers type="profit"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit"
                                                             :planned="proj.data?.[p.period]?.yearly_plan.sales - proj.data?.[p.period]?.yearly_plan.expense"
                                                             :actual="proj.data?.[p.period]?.profit.profit" />
                                                     </div>
@@ -310,7 +363,7 @@
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益率</span>{{
                                                             percentizer(proj.data?.[p.period]?.profit).display }}</div>
-                                                        <DeltaNumbers type="profit_rate"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit_rate"
                                                             :planned="percentizer(proj.data?.[p.period]?.yearly_plan).value"
                                                             :actual="percentizer(proj.data?.[p.period]?.profit).value" />
                                                     </div>
@@ -324,6 +377,7 @@
                                                                 amountOfMoneyParser(fiscalTotalEntry(proj.name, 'profit', fy).sales)
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="sales"
                                                                 :planned="fiscalTotalEntry(proj.name, 'yearly_plan', fy).sales"
                                                                 :actual="fiscalTotalEntry(proj.name, 'profit', fy).sales"
@@ -336,6 +390,7 @@
                                                                 amountOfMoneyParser(fiscalTotalEntry(proj.name, 'profit', fy).expense)
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="expense"
                                                                 :planned="fiscalTotalEntry(proj.name, 'yearly_plan', fy).expense"
                                                                 :actual="fiscalTotalEntry(proj.name, 'profit', fy).expense"
@@ -348,6 +403,7 @@
                                                                 amountOfMoneyParser(fiscalTotalEntry(proj.name, 'profit', fy).profit)
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="profit"
                                                                 :planned="fiscalTotalEntry(proj.name, 'yearly_plan', fy).profit"
                                                                 :actual="fiscalTotalEntry(proj.name, 'profit', fy).profit"
@@ -360,6 +416,7 @@
                                                                 percentizer(fiscalTotalEntry(proj.name, 'profit', fy)).display
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="profit_rate"
                                                                 :planned="percentizer(fiscalTotalEntry(proj.name, 'yearly_plan', fy)).value"
                                                                 :actual="percentizer(fiscalTotalEntry(proj.name, 'profit', fy)).value"
@@ -374,7 +431,7 @@
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
                                                             amountOfMoneyParser(totalEntry(proj.name, 'profit').sales)
                                                         }}</div>
-                                                        <DeltaNumbers type="sales"
+                                                        <DeltaNumbers v-if="deltaShown" type="sales"
                                                             :planned="totalEntry(proj.name, 'yearly_plan').sales"
                                                             :actual="totalEntry(proj.name, 'profit').sales" />
                                                     </div>
@@ -384,7 +441,7 @@
                                                         <div class="inner-col"><span class="mobile">販管費</span>{{
                                                             amountOfMoneyParser(totalEntry(proj.name, 'profit').expense)
                                                         }}</div>
-                                                        <DeltaNumbers type="expense"
+                                                        <DeltaNumbers v-if="deltaShown" type="expense"
                                                             :planned="totalEntry(proj.name, 'yearly_plan').expense"
                                                             :actual="totalEntry(proj.name, 'profit').expense" />
                                                     </div>
@@ -394,7 +451,7 @@
                                                         <div class="inner-col"><span class="mobile">利益</span>{{
                                                             amountOfMoneyParser(totalEntry(proj.name, 'profit').profit)
                                                         }}</div>
-                                                        <DeltaNumbers type="profit"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit"
                                                             :planned="totalEntry(proj.name, 'yearly_plan').sales - totalEntry(proj.name, 'yearly_plan').expense"
                                                             :actual="totalEntry(proj.name, 'profit').profit" />
                                                     </div>
@@ -403,7 +460,7 @@
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益率</span>{{
                                                             percentizer(totalEntry(proj.name, 'profit')).display }}</div>
-                                                        <DeltaNumbers type="profit_rate"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit_rate"
                                                             :planned="percentizer(totalEntry(proj.name, 'yearly_plan')).value"
                                                             :actual="percentizer(totalEntry(proj.name, 'profit')).value" />
                                                     </div>
@@ -412,7 +469,17 @@
                                             
                                             <td v-if="showComment" class="sticky-right comment-cell"></td>
                                         </tr>
-                                        <tr :key="`${proj.name}-settlement`">
+                                        <tr v-if="show('settlement')" :key="`${proj.name}-settlement`">
+                                            <td
+                                                v-if="firstVisibleScenario === 'settlement'"
+                                                class="p-name sticky-left first-col"
+                                                :rowspan="visibleScenarioCount"
+                                            >
+                                                <div>{{ proj.name }}</div>
+                                                <div v-if="managerNameFor(proj.name)" class="manager-note">
+                                                    {{ managerNameFor(proj.name) }}
+                                                </div>
+                                            </td>
                                             <td class="sub-name sticky-left second-col flex gap-1 items-center flex-center-col">
                                                 <div v-if="showAnyArrow(proj.name as string)" class="flex" title="計画との差が大きい月です">
                                                     <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
@@ -426,7 +493,7 @@
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
                                                             amountOfMoneyParser(settlementValue(proj.data?.[p.period]?.settlement, 'sales')) }}</div>
-                                                        <DeltaNumbers type="sales" :planned="proj.data?.[p.period]?.profit.sales"
+                                                        <DeltaNumbers v-if="deltaShown" type="sales" :planned="proj.data?.[p.period]?.profit.sales"
                                                             :actual="settlementValue(proj.data?.[p.period]?.settlement, 'sales')" />
                                                     </div>
                                                 </td>
@@ -434,7 +501,7 @@
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">販管費</span>{{
                                                             amountOfMoneyParser(settlementValue(proj.data?.[p.period]?.settlement, 'expense')) }}</div>
-                                                        <DeltaNumbers type="expense" :planned="proj.data?.[p.period]?.profit.expense"
+                                                        <DeltaNumbers v-if="deltaShown" type="expense" :planned="proj.data?.[p.period]?.profit.expense"
                                                             :actual="settlementValue(proj.data?.[p.period]?.settlement, 'expense')" />
                                                     </div>
                                                 </td>
@@ -442,7 +509,7 @@
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益</span>{{
                                                             amountOfMoneyParser(settlementProfitValue(proj.data?.[p.period]?.settlement)) }}</div>
-                                                        <DeltaNumbers type="profit"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit"
                                                             :planned="proj.data?.[p.period]?.profit.profit"
                                                             :actual="settlementProfitValue(proj.data?.[p.period]?.settlement)" />
                                                     </div>
@@ -451,7 +518,7 @@
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益率</span>{{
                                                             percentizer(proj.data?.[p.period]?.settlement).display }}</div>
-                                                        <DeltaNumbers type="profit_rate"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit_rate"
                                                             :planned="percentizer(proj.data?.[p.period]?.profit).value"
                                                             :actual="percentizer(proj.data?.[p.period]?.settlement).value" />
                                                     </div>
@@ -466,6 +533,7 @@
                                                                 amountOfMoneyParser(settlementValue(fiscalTotalEntry(proj.name, 'settlement', fy), 'sales'))
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="sales"
                                                                 :planned="fiscalTotalEntry(proj.name, 'profit', fy).sales"
                                                                 :actual="settlementValue(fiscalTotalEntry(proj.name, 'settlement', fy), 'sales')"
@@ -478,6 +546,7 @@
                                                                 amountOfMoneyParser(settlementValue(fiscalTotalEntry(proj.name, 'settlement', fy), 'expense'))
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="expense"
                                                                 :planned="fiscalTotalEntry(proj.name, 'profit', fy).expense"
                                                                 :actual="settlementValue(fiscalTotalEntry(proj.name, 'settlement', fy), 'expense')"
@@ -490,6 +559,7 @@
                                                                 amountOfMoneyParser(settlementProfitValue(fiscalTotalEntry(proj.name, 'settlement', fy)))
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="profit"
                                                                 :planned="fiscalTotalEntry(proj.name, 'profit', fy).profit"
                                                                 :actual="settlementProfitValue(fiscalTotalEntry(proj.name, 'settlement', fy))"
@@ -502,6 +572,7 @@
                                                                 percentizer(fiscalTotalEntry(proj.name, 'settlement', fy)).display
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="profit_rate"
                                                                 :planned="percentizer(fiscalTotalEntry(proj.name, 'profit', fy)).value"
                                                                 :actual="percentizer(fiscalTotalEntry(proj.name, 'settlement', fy)).value"
@@ -516,7 +587,7 @@
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
                                                             amountOfMoneyParser(settlementValue(totalEntry(proj.name, 'settlement'), 'sales'))
                                                         }}</div>
-                                                        <DeltaNumbers type="sales" :planned="totalEntry(proj.name, 'profit').sales"
+                                                        <DeltaNumbers v-if="deltaShown" type="sales" :planned="totalEntry(proj.name, 'profit').sales"
                                                             :actual="settlementValue(totalEntry(proj.name, 'settlement'), 'sales')" />
                                                     </div>
                                                 </td>
@@ -525,7 +596,7 @@
                                                         <div class="inner-col"><span class="mobile">販管費</span>{{
                                                             amountOfMoneyParser(settlementValue(totalEntry(proj.name, 'settlement'), 'expense'))
                                                         }}</div>
-                                                        <DeltaNumbers type="expense" :planned="totalEntry(proj.name, 'profit').expense"
+                                                        <DeltaNumbers v-if="deltaShown" type="expense" :planned="totalEntry(proj.name, 'profit').expense"
                                                             :actual="settlementValue(totalEntry(proj.name, 'settlement'), 'expense')" />
                                                     </div>
                                                 </td>
@@ -534,7 +605,7 @@
                                                         <div class="inner-col"><span class="mobile">利益</span>{{
                                                             amountOfMoneyParser(settlementProfitValue(totalEntry(proj.name, 'settlement')))
                                                         }}</div>
-                                                        <DeltaNumbers type="profit"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit"
                                                             :planned="totalEntry(proj.name, 'profit').profit"
                                                             :actual="settlementProfitValue(totalEntry(proj.name, 'settlement'))" />
                                                     </div>
@@ -543,7 +614,7 @@
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">利益率</span>{{
                                                             percentizer(totalEntry(proj.name, 'settlement')).display }}</div>
-                                                        <DeltaNumbers type="profit_rate"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit_rate"
                                                             :planned="percentizer(totalEntry(proj.name, 'profit')).value"
                                                             :actual="percentizer(totalEntry(proj.name, 'settlement')).value" />
                                                     </div>
@@ -565,8 +636,12 @@
                                         </tr>
                                     </tbody>
                                     <tbody v-if="hasPeriodTotals">
-                                        <tr class="summary-row">
-                                            <td class="p-name sticky-left first-col" :rowspan="3">集計</td>
+                                        <tr v-if="show('yearly_plan')" class="summary-row">
+                                            <td
+                                                v-if="firstVisibleScenario === 'yearly_plan'"
+                                                class="p-name sticky-left first-col"
+                                                :rowspan="visibleScenarioCount"
+                                            >集計</td>
                                             <td class="sub-name sticky-left second-col">
                                                 <span>年度予算</span>
                                             </td>
@@ -641,7 +716,12 @@
 
                                             <td v-if="showComment" class="sticky-right comment-cell"></td>
                                         </tr>
-                                        <tr class="summary-row">
+                                        <tr v-if="show('profit')" class="summary-row">
+                                            <td
+                                                v-if="firstVisibleScenario === 'profit'"
+                                                class="p-name sticky-left first-col"
+                                                :rowspan="visibleScenarioCount"
+                                            >集計</td>
                                             <td class="sub-name sticky-left second-col">
                                                 <span>損益計画</span>
                                             </td>
@@ -651,7 +731,7 @@
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
                                                             amountOfMoneyParser(periodEntry(p.period, 'profit').sales)
                                                         }}</div>
-                                                        <DeltaNumbers type="sales"
+                                                        <DeltaNumbers v-if="deltaShown" type="sales"
                                                             :planned="periodEntry(p.period, 'yearly_plan').sales"
                                                             :actual="periodEntry(p.period, 'profit').sales" />
                                                     </div>
@@ -661,7 +741,7 @@
                                                         <div class="inner-col"><span class="mobile">販管費</span>{{
                                                             amountOfMoneyParser(periodEntry(p.period, 'profit').expense)
                                                         }}</div>
-                                                        <DeltaNumbers type="expense"
+                                                        <DeltaNumbers v-if="deltaShown" type="expense"
                                                             :planned="periodEntry(p.period, 'yearly_plan').expense"
                                                             :actual="periodEntry(p.period, 'profit').expense" />
                                                     </div>
@@ -671,7 +751,7 @@
                                                         <div class="inner-col"><span class="mobile">利益</span>{{
                                                             amountOfMoneyParser(periodEntry(p.period, 'profit').profit)
                                                         }}</div>
-                                                        <DeltaNumbers type="profit"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit"
                                                             :planned="periodEntry(p.period, 'yearly_plan').sales - periodEntry(p.period, 'yearly_plan').expense"
                                                             :actual="periodEntry(p.period, 'profit').profit" />
                                                     </div>
@@ -681,7 +761,7 @@
                                                         <div class="inner-col"><span class="mobile">利益率</span>{{
                                                             percentizer(periodEntry(p.period, 'profit')).display
                                                         }}</div>
-                                                        <DeltaNumbers type="profit_rate"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit_rate"
                                                             :planned="percentizer(periodEntry(p.period, 'yearly_plan')).value"
                                                             :actual="percentizer(periodEntry(p.period, 'profit')).value" />
                                                     </div>
@@ -695,6 +775,7 @@
                                                                 amountOfMoneyParser(fiscalSummaryEntry('profit', fy).sales)
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="sales"
                                                                 :planned="fiscalSummaryEntry('yearly_plan', fy).sales"
                                                                 :actual="fiscalSummaryEntry('profit', fy).sales"
@@ -707,6 +788,7 @@
                                                                 amountOfMoneyParser(fiscalSummaryEntry('profit', fy).expense)
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="expense"
                                                                 :planned="fiscalSummaryEntry('yearly_plan', fy).expense"
                                                                 :actual="fiscalSummaryEntry('profit', fy).expense"
@@ -719,6 +801,7 @@
                                                                 amountOfMoneyParser(fiscalSummaryEntry('profit', fy).profit)
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="profit"
                                                                 :planned="fiscalSummaryEntry('yearly_plan', fy).profit"
                                                                 :actual="fiscalSummaryEntry('profit', fy).profit"
@@ -731,6 +814,7 @@
                                                                 percentizer(fiscalSummaryEntry('profit', fy)).display
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="profit_rate"
                                                                 :planned="percentizer(fiscalSummaryEntry('yearly_plan', fy)).value"
                                                                 :actual="percentizer(fiscalSummaryEntry('profit', fy)).value"
@@ -745,7 +829,7 @@
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
                                                             amountOfMoneyParser(totalSummaryEntry('profit').sales)
                                                         }}</div>
-                                                        <DeltaNumbers type="sales"
+                                                        <DeltaNumbers v-if="deltaShown" type="sales"
                                                             :planned="totalSummaryEntry('yearly_plan').sales"
                                                             :actual="totalSummaryEntry('profit').sales" />
                                                     </div>
@@ -755,7 +839,7 @@
                                                         <div class="inner-col"><span class="mobile">販管費</span>{{
                                                             amountOfMoneyParser(totalSummaryEntry('profit').expense)
                                                         }}</div>
-                                                        <DeltaNumbers type="expense"
+                                                        <DeltaNumbers v-if="deltaShown" type="expense"
                                                             :planned="totalSummaryEntry('yearly_plan').expense"
                                                             :actual="totalSummaryEntry('profit').expense" />
                                                     </div>
@@ -765,7 +849,7 @@
                                                         <div class="inner-col"><span class="mobile">利益</span>{{
                                                             amountOfMoneyParser(totalSummaryEntry('profit').profit)
                                                         }}</div>
-                                                        <DeltaNumbers type="profit"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit"
                                                             :planned="totalSummaryEntry('yearly_plan').sales - totalSummaryEntry('yearly_plan').expense"
                                                             :actual="totalSummaryEntry('profit').profit" />
                                                     </div>
@@ -775,7 +859,7 @@
                                                         <div class="inner-col"><span class="mobile">利益率</span>{{
                                                             percentizer(totalSummaryEntry('profit')).display
                                                         }}</div>
-                                                        <DeltaNumbers type="profit_rate"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit_rate"
                                                             :planned="percentizer(totalSummaryEntry('yearly_plan')).value"
                                                             :actual="percentizer(totalSummaryEntry('profit')).value" />
                                                     </div>
@@ -783,7 +867,12 @@
                                             </template>
                                             <td v-if="showComment" class="sticky-right comment-cell"></td>
                                         </tr>
-                                        <tr class="summary-row">
+                                        <tr v-if="show('settlement')" class="summary-row">
+                                            <td
+                                                v-if="firstVisibleScenario === 'settlement'"
+                                                class="p-name sticky-left first-col"
+                                                :rowspan="visibleScenarioCount"
+                                            >集計</td>
                                             <td class="sub-name sticky-left second-col">
                                                 <span>実績</span>
                                             </td>
@@ -793,7 +882,7 @@
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
                                                             amountOfMoneyParser(settlementValue(periodEntry(p.period, 'settlement'), 'sales'))
                                                         }}</div>
-                                                        <DeltaNumbers type="sales"
+                                                        <DeltaNumbers v-if="deltaShown" type="sales"
                                                             :planned="periodEntry(p.period, 'profit').sales"
                                                             :actual="settlementValue(periodEntry(p.period, 'settlement'), 'sales')" />
                                                     </div>
@@ -803,7 +892,7 @@
                                                         <div class="inner-col"><span class="mobile">販管費</span>{{
                                                             amountOfMoneyParser(settlementValue(periodEntry(p.period, 'settlement'), 'expense'))
                                                         }}</div>
-                                                        <DeltaNumbers type="expense"
+                                                        <DeltaNumbers v-if="deltaShown" type="expense"
                                                             :planned="periodEntry(p.period, 'profit').expense"
                                                             :actual="settlementValue(periodEntry(p.period, 'settlement'), 'expense')" />
                                                     </div>
@@ -813,7 +902,7 @@
                                                         <div class="inner-col"><span class="mobile">利益</span>{{
                                                             amountOfMoneyParser(settlementProfitValue(periodEntry(p.period, 'settlement')))
                                                         }}</div>
-                                                        <DeltaNumbers type="profit"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit"
                                                             :planned="periodEntry(p.period, 'profit').profit"
                                                             :actual="settlementProfitValue(periodEntry(p.period, 'settlement'))" />
                                                     </div>
@@ -823,7 +912,7 @@
                                                         <div class="inner-col"><span class="mobile">利益率</span>{{
                                                             percentizer(periodEntry(p.period, 'settlement')).display
                                                         }}</div>
-                                                        <DeltaNumbers type="profit_rate"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit_rate"
                                                             :planned="percentizer(periodEntry(p.period, 'profit')).value"
                                                             :actual="percentizer(periodEntry(p.period, 'settlement')).value" />
                                                     </div>
@@ -837,6 +926,7 @@
                                                                 amountOfMoneyParser(settlementValue(fiscalSummaryEntry('settlement', fy), 'sales'))
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="sales"
                                                                 :planned="fiscalSummaryEntry('profit', fy).sales"
                                                                 :actual="settlementValue(fiscalSummaryEntry('settlement', fy), 'sales')"
@@ -849,6 +939,7 @@
                                                                 amountOfMoneyParser(settlementValue(fiscalSummaryEntry('settlement', fy), 'expense'))
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="expense"
                                                                 :planned="fiscalSummaryEntry('profit', fy).expense"
                                                                 :actual="settlementValue(fiscalSummaryEntry('settlement', fy), 'expense')"
@@ -861,6 +952,7 @@
                                                                 amountOfMoneyParser(settlementProfitValue(fiscalSummaryEntry('settlement', fy)))
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="profit"
                                                                 :planned="fiscalSummaryEntry('profit', fy).profit"
                                                                 :actual="settlementProfitValue(fiscalSummaryEntry('settlement', fy))"
@@ -873,6 +965,7 @@
                                                                 percentizer(fiscalSummaryEntry('settlement', fy)).display
                                                             }}</div>
                                                             <DeltaNumbers
+                                                                v-if="deltaShown"
                                                                 type="profit_rate"
                                                                 :planned="percentizer(fiscalSummaryEntry('profit', fy)).value"
                                                                 :actual="percentizer(fiscalSummaryEntry('settlement', fy)).value"
@@ -887,7 +980,7 @@
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
                                                             amountOfMoneyParser(settlementValue(totalSummaryEntry('settlement'), 'sales'))
                                                         }}</div>
-                                                        <DeltaNumbers type="sales"
+                                                        <DeltaNumbers v-if="deltaShown" type="sales"
                                                             :planned="totalSummaryEntry('profit').sales"
                                                             :actual="settlementValue(totalSummaryEntry('settlement'), 'sales')" />
                                                     </div>
@@ -897,7 +990,7 @@
                                                         <div class="inner-col"><span class="mobile">販管費</span>{{
                                                             amountOfMoneyParser(settlementValue(totalSummaryEntry('settlement'), 'expense'))
                                                         }}</div>
-                                                        <DeltaNumbers type="expense"
+                                                        <DeltaNumbers v-if="deltaShown" type="expense"
                                                             :planned="totalSummaryEntry('profit').expense"
                                                             :actual="settlementValue(totalSummaryEntry('settlement'), 'expense')" />
                                                     </div>
@@ -907,7 +1000,7 @@
                                                         <div class="inner-col"><span class="mobile">利益</span>{{
                                                             amountOfMoneyParser(settlementProfitValue(totalSummaryEntry('settlement')))
                                                         }}</div>
-                                                        <DeltaNumbers type="profit"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit"
                                                             :planned="totalSummaryEntry('profit').profit"
                                                             :actual="settlementProfitValue(totalSummaryEntry('settlement'))" />
                                                     </div>
@@ -917,7 +1010,7 @@
                                                         <div class="inner-col"><span class="mobile">利益率</span>{{
                                                             percentizer(totalSummaryEntry('settlement')).display
                                                         }}</div>
-                                                        <DeltaNumbers type="profit_rate"
+                                                        <DeltaNumbers v-if="deltaShown" type="profit_rate"
                                                             :planned="percentizer(totalSummaryEntry('profit')).value"
                                                             :actual="percentizer(totalSummaryEntry('settlement')).value" />
                                                     </div>
@@ -1010,6 +1103,8 @@ import { useBadgeStore } from '@/store/badge';
 import { useAuthUserStore } from '@/store/auth';
 import PeriodRangePicker from './ProjectTabs/Finance/PeriodRangePicker.vue';
 import { isMobile } from '@/utils/tools';
+import Filter from '../Icons/Filter.vue';
+import CommandButton from '../Global/CommandButton.vue';
 const router = useRouter()
 const props = defineProps<{
     projects: Project[]
@@ -1039,6 +1134,25 @@ const generatePeriodRange = (start: DateTime, end: DateTime): PeriodCell[] => {
   return out
 }
 
+const scenarioOptions: Array<{ label: string; value: 'yearly_plan' | 'profit' | 'settlement' }> = [
+    {label: '年度予算', value: 'yearly_plan'},
+    {label: '損益計画', value: 'profit'},
+    {label: '実績', value: 'settlement'}
+]
+const selectedOption = ref<Array<'yearly_plan' | 'profit' | 'settlement'>>([])
+const show = (k: 'yearly_plan' | 'profit' | 'settlement') => {
+  const opts = selectedOption.value;
+  return opts.length === 0 || opts.includes(k);
+};
+const visibleScenarioCount = computed(() =>
+    scenarioOptions.filter(option => show(option.value)).length
+)
+const firstVisibleScenario = computed<'yearly_plan' | 'profit' | 'settlement'>(() => {
+    if (show('yearly_plan')) return 'yearly_plan'
+    if (show('profit')) return 'profit'
+    return 'settlement'
+})
+const deltaShown = computed(() => selectedOption.value.length === 0)
 
 const selectedId = ref<number | null>(null)
 interface UnitData {
