@@ -313,7 +313,9 @@ class RemindController extends Controller
                             'time_card_records' => function ($q) use($year, $month, $workGroupIds, $prev_month, $prev_month_start) {
                                 $q->where('day', '>=', $prev_month_start)
                                     ->where('status_flag', 1)
-                                    ->whereIn('work_group_id', $workGroupIds);
+                                    ->whereIn('work_group_id', $workGroupIds)
+                                    ->selectRaw('MONTH(day) as month, COUNT(*) as count, user_id')
+                                    ->groupByRaw('MONTH(day), user_id');
                             },
                             'shift_overtime' => function ($q) use($year, $month) {
                                 $q->where('status', 1)
@@ -332,7 +334,7 @@ class RemindController extends Controller
                             }
                         ])->select('id', 'name', 'icon_path', 'icon_bg')->get();
         foreach($user_list as $user){
-            $timeCardsCount = $user->time_card_records->count();
+            $timeCardsCount = $user->time_card_records;
             $overtimeRequests = $user->shift_overtime->count();
             $shiftCount = $user->shift_records;
             
@@ -342,7 +344,7 @@ class RemindController extends Controller
                 "overtime" => $overtimeRequests,
                 "shift" => $shiftCount,
             ];
-            if($timeCardsCount || $overtimeRequests || $shiftCount->count()){                    
+            if($timeCardsCount->count() || $overtimeRequests || $shiftCount->count()){                    
                 $list[] = $d;
             }
         }
@@ -852,7 +854,7 @@ class RemindController extends Controller
 
 
         return response()->json([
-            'remind_overdue' => $members
+            'remind_overdue' => []
         ]);
     }
     private function remindCollect() {

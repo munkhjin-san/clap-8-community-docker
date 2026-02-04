@@ -138,7 +138,12 @@
                                     <UserPanel :disableInstant="true" size="30" with-name :user="item.user" imgClass="userNormalIcon">
                                         <template #details>
                                             <div style="display:flex;flex-direction: column;gap:5px;margin-top: 5px;margin-left:10px;">
-                                                <div class="number-chip" v-if="item.timecard">日報申請 : <strong style="color:var(--primary-color)">{{ item.timecard }}件</strong></div>
+                                                <template v-if="item.timecard && item.timecard.length">
+                                                    <div v-for="(timecard) in item.timecard" class="number-chip">
+                                                        日報申請 : {{ timecard.month }}月分<strong style="color:var(--primary-color)">{{timecard.count}}件</strong>
+                                                    </div>
+                                                </template>
+                                                <!-- <div class="number-chip" v-if="item.timecard">日報申請 : <strong style="color:var(--primary-color)">{{ item.timecard }}件</strong></div> -->
                                                 <div class="number-chip" v-if="item.overtime">残業申請 : <strong style="color:var(--primary-color)">{{ item.overtime }}件</strong></div>
                                                 <template v-if="item.shift && item.shift.length">
                                                     <div v-for="(shift) in item.shift" class="number-chip">

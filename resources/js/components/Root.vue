@@ -221,7 +221,7 @@ import { initPush } from '@/utils/push';
         window.addEventListener('click', onClick);
         window.addEventListener('touchstart', onClick);
         window.addEventListener('resize', handleResize);
-        window.addEventListener("blur", handleBlur, true);
+        // window.addEventListener("blur", handleBlur, true);
         document.addEventListener('visibilitychange', handleVisibilityChange)
         window.addEventListener('popstate', handlePwaPopState)
         socket.on("post:badge", postHandler)
@@ -231,7 +231,7 @@ import { initPush } from '@/utils/push';
     }
     const removeEventListener = () => {
         window.removeEventListener('resize', handleResize);
-        window.removeEventListener('blur', handleBlur, true)
+        // window.removeEventListener('blur', handleBlur, true)
         window.removeEventListener('click', onClick);
         window.removeEventListener('touchstart', onClick);
         document.removeEventListener('visibilitychange', handleVisibilityChange)
@@ -351,7 +351,6 @@ import { initPush } from '@/utils/push';
         });
     }
     const handleVisibilityChange = () => {
-        console.log("visibilitychange:", document.visibilityState);
         if (document.visibilityState === "visible") {
             // When coming back, treat as focused and run activity check
             handleFocus();
@@ -360,22 +359,20 @@ import { initPush } from '@/utils/push';
         }
     };
     const handleFocus = () => {
-        console.log("window focus");
         checkActivity()
         setFocusedState(true);
     }
-    const handleBlur = () => {
-        console.log("window blur");
-        // Don't instantly trust blur on mobile.
-        // If document is still visible and hasFocus() is true, ignore it.
-        queueMicrotask(() => {
-            const visible = document.visibilityState === "visible";
-            const hasFocus = document.hasFocus ? document.hasFocus() : true;
+    // const handleBlur = () => {
+    //     // Don't instantly trust blur on mobile.
+    //     // If document is still visible and hasFocus() is true, ignore it.
+    //     queueMicrotask(() => {
+    //         const visible = document.visibilityState === "visible";
+    //         const hasFocus = document.hasFocus ? document.hasFocus() : true;
 
-            if (!visible || !hasFocus) setFocusedState(false);
-            else console.log("blur ignored (still visible + hasFocus)");
-        });
-    };
+    //         if (!visible || !hasFocus) setFocusedState(false);
+    //         else console.log("blur ignored (still visible + hasFocus)");
+    //     });
+    // };
     const checkActivity = async() => {            
         const before = localStorage.getItem('notification_check')
         // if(!before || DateTime.now().diff(DateTime.fromSQL(before), 'minutes').minutes > 1){
