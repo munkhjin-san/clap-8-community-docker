@@ -15,8 +15,8 @@ class FinanceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'projects'                  => 'required|array',
-            'projects.*'                => 'integer|exists:project_records,id',
+            // 'projects'                  => 'required|array',
+            // 'projects.*'                => 'integer|exists:project_records,id',
             'interval'                  => 'required|array',
             'interval.startYear'        => 'required|integer',
             'interval.startMonth'       => 'required|integer|between:1,12',
