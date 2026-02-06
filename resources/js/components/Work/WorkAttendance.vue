@@ -370,10 +370,11 @@ import Modal from '../Global/Modal.vue';
     const attendanceConfirm = async() => {
         if(disableButton.value) return
         let yearMonth = dateInstance.value.toFormat('yyyy-MM')
+        const workTime = attendanceData.value.user.position_id !== 15 ? attendanceData.value.should_work : attendanceData.value.planned_work
         const params = {
             date_year_month: yearMonth,
             user: attendanceData.value.user,
-            shift_working_hours: attendanceData.value.should_work,
+            shift_working_hours: workTime,
             shift_working_days: attendanceData.value.shift_count,
             worked_days: attendanceData.value.workedday_count,
             holiday_worked_days: attendanceData.value.holiday_count,
