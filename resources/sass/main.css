@@ -6743,7 +6743,7 @@ button.shift-button {
   padding: 5px 10px 5px 10px;
   font-size: 12px;
   line-height: 1.5;
-  border-radius: 8px;
+  border-radius: 0px;
   background: var(--primary-button);
   color: #e4e6eb;
 }

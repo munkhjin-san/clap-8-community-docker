@@ -384,6 +384,11 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/save_member_assign_data', [ProjectController::class, 'save_member_assign_data']);
         Route::get('/user_related_goal_member_data', [ProjectController::class, 'user_related_goal_member_data']);
         
+        Route::patch('/project_change_status', [ProjectController::class, 'project_change_status']);
+        Route::patch('/project_checkitem_update', [ProjectController::class, 'project_checkitem_update']);
+        Route::post('/project_checkitem_comment_add', [ProjectController::class, 'project_checkitem_comment_add']);
+        Route::post('/project_refresh', [ProjectController::class, 'project_refresh']);
+
         Route::get('/get_work_data', [WorkController::class, 'getWorkData']);
         Route::get('/get_shift_data', [WorkController::class, 'get_shift_data']);
         Route::get('/get_shift_data_table', [WorkController::class, 'get_shift_data_table']);
@@ -547,20 +552,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_salary_issue_badge', [ProjectController::class, 'get_salary_issue_badge']);
 
         Route::get('/get_contracts', [ProjectController::class, 'get_contracts']);
-        Route::post('/download_yearly_template', [ProjectController::class, 'download_yearly_template']);
-        Route::post('/upload_yearly_budget', [ProjectController::class, 'upload_yearly_budget']);
 
-        Route::get('/project_metrics', [ProjectController::class, 'project_metrics']);
-        Route::post('/project_metrics', [ProjectController::class, 'metric_store']);
-        Route::put('/project_metrics/{metric}', [ProjectController::class, 'metric_update']);
-        Route::delete('/project_metrics/{metric}', [ProjectController::class, 'metric_delete']);
-        Route::post('metrics/validate-expression', [ProjectController::class, 'validateExpression']);
-        Route::put('/project_metrics/{metric}/active', [ProjectController::class, 'metric_toggle']);
-        Route::post('/project_metrics/{project}/yearly_budget', [ProjectController::class, 'yearly_budget_store']);
-        Route::get('/project_metrics/{project}/by_period', [ProjectController::class, 'project_metrics_for_period']);
-        Route::get('/project_metrics/{project}/with_values', [ProjectController::class, 'project_metrics_with_values']);
-        Route::post('/project_metrics/{project}/values', [ProjectController::class, 'metric_values_store']);
-        Route::get('/project_metrics/{project}/sales_expenses', [ProjectController::class, 'project_sales_expenses']);
         Route::get('/project_actual_status_suggestions', [ProjectController::class, 'project_actual_status_suggestions']);
         Route::post('/get_resources_kintone', [ProjectController::class, 'get_resources_kintone']);
         Route::post('/update_resource_kintone', [ProjectController::class, 'update_resource_kintone']);
@@ -653,6 +645,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_today_readable', [RemindController::class, 'get_today_readable']);
         Route::get('/badge_summary', [RemindController::class, 'badge_summary']);
         Route::get('/remind_overdue', [RemindController::class, 'remind_overdue']);
+        Route::get('/remind_goal_slot', [RemindController::class, 'remind_goal_slot']);
 
 
         Route::get('/generate_welcome_message', [AutoJobController::class, 'generate_welcome_message']);

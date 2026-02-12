@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Carbon\Carbon;
 
 class ProjectGoal extends Model
 {
@@ -52,6 +53,23 @@ class ProjectGoal extends Model
     }
     public function user(){
         return $this->belongsTo(User::class);
+    }
+    public function scopeInAllowedHalves($q, array $periods)
+    {
+        return $q->where(function ($w) use ($periods) {
+            foreach ($periods as $i => $p) {
+                $method = $i === 0 ? 'where' : 'orWhere';
+                $w->{$method}(fn($z) => $z->where('year', $p['year'])->where('which_half', $p['which_half']));
+            }
+        });
+    }
+
+    protected $appends = ['due_plus_7'];
+
+    public function getDuePlus7Attribute()
+    {
+        if (!$this->end_date) return null;
+        return Carbon::parse($this->end_date)->addDays(7)->toDateString();
     }
 
 }

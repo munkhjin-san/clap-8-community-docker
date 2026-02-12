@@ -1,6 +1,7 @@
 import { User } from "@/interface/globalInterface";
 import { Project } from "@/interface/projectInterface";
 import { useAuthUserStore } from "@/store/auth";
+import { detailedDateOptions } from "@/utils/tools";
 import axios from "axios";
 import { DateTime } from "luxon";
 import { computed, ref, watch } from "vue";
@@ -56,6 +57,14 @@ export function useProject() {
         const project = projects.find((proj) => proj.id === Number(projectId));
         return project ?? null;
     });
+    const updateProject = async (fields: any[]) => {
+        const projectId = Number(route.params.projectId)
+        const { data } = await axios.post('/project_refresh', { id: projectId, fields })
+
+        const i = list.value.findIndex(p => p.id === data.id)
+        if (i !== -1) list.value[i] = { ...list.value[i], ...data.patch }
+    }
+
 
     const usersProjects = computed(():Project[] => {
         return projectList.value.filter(project => {
@@ -100,6 +109,13 @@ export function useProject() {
         if (!projectId) return;
         getProjects(undefined, undefined, Number(projectId));        
     }
+    const selectedDate = computed(() => {
+        const options = detailedDateOptions()
+        const span = route.params.span as string
+        const [year, which_half] = span.split('-')
+        const goalDate = options.find(option => option.year === year && option.which_half === which_half)
+        return goalDate
+    })
     return {
         projectList,
         getProjects,
@@ -109,7 +125,9 @@ export function useProject() {
         usersProjects,
         memberData,
         isManagerOrMember,
-        isManager
+        isManager,
+        selectedDate,
+        updateProject
         
     };
 }

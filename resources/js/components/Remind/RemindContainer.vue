@@ -256,8 +256,8 @@
                 <RemindHeader
                     class="remind-header"
                     :offset="offset"
-                    title="プロジェクト成果目標限切れ" 
-                    :length="data.remind_overdue?.length" 
+                    title="成果目標期間超過" 
+                    :badge="data.overdue_grace_count > 0"
                     :expanded="expanded.remind_overdue"
                     @expand="expanded.remind_overdue = !expanded.remind_overdue"
                 />
@@ -395,6 +395,37 @@
                     </div>
                 </div>
             </div>
+            <div v-if="data.remind_goal_slot?.length">
+                <RemindHeader 
+                    :offset="offset"
+                    title="成果目標数不足"
+                    :expanded="expanded.remind_goal_slot"
+                    @expand="expanded.remind_goal_slot = !expanded.remind_goal_slot"
+                />
+                <div v-if="expanded.remind_goal_slot" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
+                    <div v-for="item in data.remind_goal_slot" class="p-[15px] bg-[var(--background-color)]">
+                        <div class="flex flex-col gap-[15px] text-[13px]">
+                            <UserPanel v-if="item.user" disable-instant with-name size="30" :user="item.user"/>
+                            <div class="text-[gray]">{{ `${item.year}${item.half == 'first' ? '上期' : '下期'}` }}</div>
+                            <div>{{ `成果目標が不足 : ${item?.needs}件`  }}</div>
+                            <CommandButton 
+                                :buttons="[
+                                    {title: '対応', action: () => goalCreation(item.user.id, `${item.year}-${item.half}`)}
+                                ]"
+                            />
+                        </div>
+                    </div>
+                </div>
+                <router-view v-slot="{ Component }" v-if="route.fullPath.includes('goal-creation')">
+                    <transition name="modalFade">
+                        <component
+                            :is="Component"
+                            @close="router.back()"
+                            @refresh="refreshData('remind_goal_slot')" 
+                        />
+                    </transition>                    
+                </router-view>
+            </div>
         </div>
         
         <div v-if="hasNoRemindData" class="no-comment-text">現在リマインドはありません。</div>
@@ -427,6 +458,7 @@ import { useDialog } from '@/composables/dialog';
 import ConfirmSchedule from './ConfirmSchedule.vue';
 import { DateTime } from 'luxon';
 import PostIcon from '../Post/PostIcon.vue';
+import { useProject } from '@/composables/project';
 const auth = useAuthUserStore()
 const initialLoader = ref(true)
 const combinedData = ref<{ [key: string]: any }[]>([])
@@ -452,8 +484,9 @@ const expanded = ref({
     remind_departure_report: true,
     remind_challenge_progress: true,
     remind_overdue: true,
+    remind_goal_slot: true
 })
-
+const { getProjects } = useProject()
 const api = useApi()
 const offset = ref(0)
 const prevScrollPosition = ref(0)
@@ -514,7 +547,10 @@ const hasNoRemindData = computed(() => {
     });
   });
 });
-
+const goalCreation = async(memberId: number, span: string) => {
+    router.push({name: 'goal-creation', params: {memberId: memberId, span: span}})
+    await getProjects()
+}
 const saveSortOrder = () => {
     const order = combinedData.value.map((item, index) => ({
         name: Object.keys(item).find(key => key !== 'order') || '',
@@ -566,5 +602,6 @@ defineExpose({
 })
 
 provide('getAssets', () => refreshData('remind_asset'))
-provide('refresh', () => refreshData('remind_overdue'))
+provide('fetchMemberData', () => refreshData('remind_overdue'))
+provide('refreshGoalSlot', () => refreshData('remind_goal_slot'))
 </script>

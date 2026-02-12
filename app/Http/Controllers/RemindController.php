@@ -21,6 +21,7 @@ use App\Models\PostRecord;
 use App\Models\CustomfieldRead;
 use App\Models\customFieldDataRecord;
 use App\Services\BadgeService;
+use App\Models\ProjectGoal;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -764,11 +765,11 @@ class RemindController extends Controller
     public function remind_challenge_progress()
     {
         $now = now();
-
+        $active_user = $this->active_user();
         $challenge = PostRecord::query()
             ->where('app_type', 2)
             ->where('status_flag', 0)
-            ->where('user_id', Auth::id())
+            ->where('user_id', $active_user->id)
             ->whereNotNull('date_start')
             ->whereNotNull('date_end')
             ->where('date_start', '<=', $now)
@@ -779,7 +780,6 @@ class RemindController extends Controller
         if (!$challenge) {
             return response()->json([
                 'remind_challenge' => [],
-                'order' => 12,
             ]);
         }
 
@@ -790,11 +790,10 @@ class RemindController extends Controller
         $total   = max(1, $start->diffInSeconds($end));
         $pct     = (int) round(($elapsed / $total) * 100);
         $pct     = max(0, min(100, $pct));
-
+        
         if ($pct < 50) {
             return response()->json([
                 'remind_challenge' => [],
-                'order'            => 12,
             ]);
         }
         return response()->json([
@@ -805,66 +804,117 @@ class RemindController extends Controller
                 'date_start'  => $challenge->date_start,
                 'date_end'    => $challenge->date_end,
                 'percent'     => $pct,
-                'is_halfway'  => true, // since pct >= 50
+                'is_halfway'  => true,
             ]],
-            'order' => 12,
         ]);
     }
-    public function remind_overdue() {
+    public function remind_overdue()
+    {
         $active_user = $this->active_user();
         $userId = $active_user->id;
-        $now = now();
+        $now = Carbon::now();
+
+        $fiscalYear = $now->month >= 4 ? $now->year : $now->year - 1;
+
+        $firstStart = Carbon::create($fiscalYear, 4, 1)->startOfDay();
+        $firstEnd   = Carbon::create($fiscalYear, 9, 30)->endOfDay();
+
+        $current_half = $now->between($firstStart, $firstEnd) ? 'first' : 'second';
+        $previous_half = $current_half === 'first' ? 'second' : 'first';
+
+        $allowedPeriods = [
+            ['year' => $fiscalYear, 'which_half' => $current_half],
+            ['year' => $fiscalYear, 'which_half' => $previous_half],
+        ];
+
         $members = User::query()
-            ->where(function ($q) use ($userId, $now) {
-
-                // Self if any relevant overdue OG or overdue SI exists
+            ->where(function ($q) use ($userId, $now, $allowedPeriods) {
                 $q->where('id', $userId)
-                ->where(function ($x) use ($userId, $now) {
-                    $x->whereHas('outcome_goals', fn($og) => $og->overdue($now))
-                        ->orWhereHas('outcome_goals.salaryIssue', fn($si) => $si->overdue($now));
-                })
-
-                // Project members I manage: overdue OG or overdue SI in those projects
-                ->orWhereHas('outcome_goals', function ($og) use ($userId, $now) {
+                ->whereHas('outcome_goals', fn($og) => $og->inAllowedHalves($allowedPeriods)->overdue($now))
+                ->orWhereHas('outcome_goals', function ($og) use ($userId, $now, $allowedPeriods) {
                     $og->whereHas('project.manager', fn($m) => $m->where('users.id', $userId))
-                    ->where(function ($x) use ($now) {
-                        $x->overdue($now)
-                            ->orWhereHas('salaryIssue', fn($si) => $si->overdue($now));
-                    });
-                })
-
-                // Mentees: overdue salaryIssue where I'm mentor
-                ->orWhereHas('outcome_goals.salaryIssue', function ($si) use ($userId, $now) {
-                    $si->overdue($now)->where('mentor_id', $userId);
+                        ->inAllowedHalves($allowedPeriods)
+                        ->overdue($now);
                 });
-
             })
             ->select(['id', 'name', 'icon_path', 'icon_bg'])
             ->with([
-                'outcome_goals' => function ($og) use ($userId, $now) {
+                'outcome_goals' => function ($og) use ($userId, $now, $allowedPeriods) {
                     $og->relevantToViewer($userId)
-                    ->where(function ($x) use ($now) {
-                        $x->overdue($now)
-                            ->orWhereHas('salaryIssue', fn($si) => $si->overdue($now));
-                    })
-                    ->with([
-                        'project.manager',
-                        'project.members',
-                        'reports.user',
-                        'salaryIssue' => function ($si) use ($now) {
-                            $si->overdue($now)->with(['reports.user']);
-                        },
-                    ]);
+                    ->inAllowedHalves($allowedPeriods)
+                    ->overdue($now)
+                    ->with(['project.manager', 'project.members', 'reports.user']);
                 },
             ])
             ->get();
 
-
+        // Add computed flag per member
+        $members->each(function ($member) use ($now) {
+            $member->has_overdue_grace = $member->outcome_goals->contains(function ($goal) use ($now) {
+                if (empty($goal->end_date)) return false;
+                return $now->gt(Carbon::parse($goal->end_date)->endOfDay()->addDays(7));
+            });
+        });
 
         return response()->json([
-            'remind_overdue' => $members
+            'remind_overdue' => $members,
+            'overdue_grace_count' => $members->where('has_overdue_grace', true)->count(),
         ]);
     }
+
+    public function remind_goal_slot()
+    {
+        $active_user = $this->active_user();
+        $userId = $active_user->id;
+        $now = Carbon::now();
+
+        // Fiscal year starts April 1
+        $fiscalYear = $now->month >= 4 ? $now->year : $now->year - 1;
+
+        $firstStart = Carbon::create($fiscalYear, 4, 1)->startOfDay();
+        $firstEnd   = Carbon::create($fiscalYear, 9, 30)->endOfDay();
+        $secondEnd  = Carbon::create($fiscalYear + 1, 3, 31)->endOfDay();
+
+        $isFirstHalf  = $now->between($firstStart, $firstEnd);
+        $current_half = $isFirstHalf ? 'first' : 'second';
+        $halfEnd      = $isFirstHalf ? $firstEnd : $secondEnd;
+
+        // months left in this half, inclusive (Feb..Mar = 2)
+        $monthsRemaining = $now->copy()->startOfMonth()
+            ->diffInMonths($halfEnd->copy()->startOfMonth()) + 1;
+
+        $evaluation = EvaluationRecord::where('user_id', $userId)
+            ->where('year', $fiscalYear)
+            ->where('which_half', $current_half)
+            ->first();
+
+        // total slots required for the half
+        $monthsTotal = (int) ($evaluation?->monthly_goal_slot ?? 0);
+
+        if ($monthsTotal <= 0) {
+            return response()->json(['remind_goal_slot' => []]);
+        }
+
+        // how many goals should exist by now
+        $should_have = max(0, $monthsTotal - $monthsRemaining);
+
+        $goals = ProjectGoal::where('user_id', $userId)
+            ->where('year', $fiscalYear)
+            ->where('which_half', $current_half)
+            ->count();
+
+        $needs = max(0, $should_have - $goals);
+
+        return response()->json([
+            'remind_goal_slot' => $needs > 0 ? [[
+                'user' => $active_user,
+                'needs' => $needs,
+                'year' => $fiscalYear,
+                'half' => $current_half,
+            ]] : []
+        ]);
+    }
+
     private function remindCollect() {
         $user = $this->active_user();
         $remindedMessages = $this->reminderMessageService->getReminderMessagesForUser($user, ['all']);
@@ -887,7 +937,8 @@ class RemindController extends Controller
             'remind_temp_reserved_schedules'=> $this->remind_temp_reserved_schedules()->getData(true),
             'remind_departure_report'      => $this->remind_departure_report(true)->getData(true),
             'remind_challenge'             => $this->remind_challenge_progress()->getData(true),
-            'remind_overdue'               => $this->remind_overdue()->getData(true)
+            'remind_overdue'               => $this->remind_overdue()->getData(true),
+            'remind_goal_slot'             => $this->remind_goal_slot()->getData(true)
         ];
         $merged = array_merge($remindedMessages, $remindedTasks, $remindForm, $remindOverdueGoals);
         $totalMerged = array_merge($responses, $merged);
@@ -908,16 +959,25 @@ class RemindController extends Controller
         $collected = $this->remindCollect();
         $count = 0;
         $counts = [];
+        $now = Carbon::now();
         foreach ($collected as $key => $response) {
-            if ($key === 'challenge') {
-                $count += !empty($response['is_halfway']) ? 1 : 0;
+            
+            if ($key === 'remind_reminded_messages') {
+                $counts[$key] = count($response[$key]);
+                continue;
+            } 
+            if ($key === 'remind_overdue') {
+                $members = $response['remind_overdue'] ?? [];
+                $counts['remind_overdue_grace'] = (int)($response['overdue_grace_count'] ?? 0);
+                $count += count($members);
                 continue;
             }
-            if ($key === 'remind_reminded_messages') {
-                $counts[$key] = count($response);
-            } else {
-                $count += count($response);
+            if ($key === 'remind_task_unfinished') {
+                $counts[$key] = count($response[$key]);
             }
+          
+            $count += count($response[$key]);
+            
         }
         $counts['total'] = $count;
     

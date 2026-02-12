@@ -956,7 +956,7 @@ class CalendarController extends Controller
                 [ 'label' => 'Zoom3', 'value' => 2, 'selected' => false ]
             ],
             'qualified_car' => [
-                [ 'label' => '福岡582く5617 ホンダライフ', 'value' => 0, 'selected' => false ],
+                // [ 'label' => '福岡582く5617 ホンダライフ', 'value' => 0, 'selected' => false ],
                 [ 'label' => '福岡582え8686 ダイハツミラ', 'value' => 1, 'selected' => false ],
                 [ 'label' => '福岡580と5654 オッティ', 'value' => 2, 'selected' => false ],
                 [ 'label' => '福岡480わ3206 クリッパー', 'value' => 3, 'selected' => false ],
@@ -968,7 +968,7 @@ class CalendarController extends Controller
                 [ 'label' => '大阪581わ707（ﾚﾝﾀｶｰ）', 'value' => 9, 'selected' => false ],
                 [ 'label' => '仙台580ひ6191', 'value' => 10, 'selected' => false ],
                 [ 'label' => '福岡582そ1234', 'value' => 11, 'selected' => false ],
-                [ 'label' => '福岡582そ8143', 'value' => 12, 'selected' => false ],
+                [ 'label' => '鹿児島582そ8143', 'value' => 12, 'selected' => false ],
             ]
         ];
         if( $type == 'all' ){
@@ -1212,11 +1212,11 @@ class CalendarController extends Controller
 
         $content = <<<EOD
         BEGIN:VCALENDAR
-        PRODID:-//" . $user->email . "//MISO 1.0//EN
+        PRODID:-//" . $user->email . "//GLOWD 1.0//EN
         VERSION:2.0
         CALSCALE:GREGORIAN
         METHOD:PUBLISH
-        X-WR-CALNAME:MISO:スケジュール
+        X-WR-CALNAME:GLOWD:スケジュール
         X-WR-TIMEZONE:Asia/Tokyo
         BEGIN:VTIMEZONE
         TZID:Asia/Tokyo

@@ -6,7 +6,7 @@
         <template #content>
             <AiLoader v-if="aiLoading" message="成果目標をAIで自動生成中です。<br>この処理には数分かかる場合があります。"/>
             <div>
-                期間: {{ selectedDate.name }}
+                期間: {{ selectedDate?.name }}
             </div>
             <div class="si-box">
                 <p :class="['form-title-small', 'form-title-active', 'mb-[20px]' ]">該当部門選択（必須）</p>
@@ -212,7 +212,6 @@ const emit = defineEmits([
 ])
 
 const props = defineProps<{
-    selectedDate: any
     editGoalData: ProjectGoal | null
 }>()
 
@@ -239,7 +238,8 @@ const startDateRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const endDateRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const stakeholderNameRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const { getProjects } = useProject()
-const refresh = inject('refresh') as Function
+const fetchMemberData = inject('fetchMemberData') as Function
+const refreshGoalSlot = inject('refreshGoalSlot') as Function
 const badge = useBadgeStore()
 const route = useRoute()
 const evaluationData = ref<EvaluationRecord | null>(null)
@@ -254,7 +254,7 @@ const keys = reactive({
     miso: 0
 })
 const release = ref(props.editGoalData && props.editGoalData.id ? true : false)
-const { selectedProject, usersProjects } = useProject()
+const { selectedProject, usersProjects, selectedDate } = useProject()
 
 const targetProject = ref<Project | null>(selectedProject.value || null)
 
@@ -468,7 +468,6 @@ const saveOutcomeGoal = async(status: number) => {
     const params = {
         
         id: props.editGoalData?.id ?? null,
-        date: props.selectedDate.evaluationDate,
         steps: goalParams.steps,
         params: {
             project_id: targetProject.value?.id,
@@ -493,7 +492,10 @@ const saveOutcomeGoal = async(status: number) => {
         toast: info_message
     })
     emit('close')
-    refresh()
+    fetchMemberData()
+    if (typeof refreshGoalSlot === 'function') {
+        refreshGoalSlot()
+    }
     getProjects()
     badge.getMembersGoalsBadge()
 

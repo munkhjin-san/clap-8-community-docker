@@ -1,12 +1,20 @@
 <template>
-    <div class="h-full relative overflow-y-auto"> 
-        <div class="project-detail flex flex-col gap-[15px]">
+    <div class="h-full relative overflow-y-auto" ref="scrollContainer"> 
+        <div v-if="!checkTab" class="project-detail flex flex-col gap-[15px]">
             <div v-if="hasPrivilage" class="absolute top-[20px] right-[20px]">
-                <ItemMenu :items="[
-                    {title: '編集する', action: () => editProjects(selectedProject)},
-                    {title: '削除する', action: () => deleteProject(selectedProject)}
-                ]"/>
+                <div class="flex gap-5">
+                    <button 
+                        v-if="selectedProject && ['director_approved', 'running', 'returned'].includes(selectedProject.status)"
+                        class="bg-[var(--primary-button)] text-white p-1 text-xs"
+                        @click="checkTab = true"
+                    >チェック項目</button>
+                    <ItemMenu :items="[
+                        {title: '編集する', action: () => editProjects(selectedProject)},
+                        {title: '削除する', action: () => deleteProject(selectedProject)}
+                    ]"/>
+                </div>
             </div>
+        
             <div class="project-detail-header">
                 <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">部門</span> {{ selectedProject?.is_new ? '新規' : '既存' }}</div>
             </div>
@@ -78,9 +86,20 @@
             <div class="project-detail-header">
                 <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">オペレーション</span></div> 
                 <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.operation ?? '')"></div>
-            </div>                        
+            </div> 
+            <div v-if="isDirector && selectedProject?.status == 'pending_director'" class="flex gap-4 py-4">
+                <button @click="statusChange('director_approved')" class="bg-[var(--primary-button)] text-white p-1">
+                    承認する
+                </button>
+                <button @click="statusChange('returned')" class="bg-[var(--primary-button)] text-white p-1">
+                    差し戻し
+                </button>
+            </div>                       
         </div>
-   
+        <CheckList 
+            v-else
+            @close="checkTab = false"
+        />
     </div>
 </template>
 <script setup lang="ts">
@@ -93,11 +112,15 @@ import { useProject } from '@/composables/project';
 import ProjectServiceCategories from 'assets/ProjectServiceCategories.json'
 import CommandButton from '@/components/Global/CommandButton.vue';
 import { Project } from '@/interface/projectInterface';
+import { useAuthUserStore } from '@/store/auth';
+import { useApi } from '@/composables/api';
+import CheckList from './CheckList.vue';
+import { useRoute } from 'vue-router';
     const props = defineProps(['userList', 'hasPrivilage'])
     const editProjects = inject('editProjects') as (project: any) => void
     const deleteProject = inject('deleteProject') as (project: Project | null) => void
-    const { selectedProject } = useProject()
-
+    const { selectedProject, refreshProject } = useProject()
+    const checkTab = ref(false)
 
     const sanitized = (text: string) => {
         const clean = text ?? ''
@@ -110,12 +133,27 @@ import { Project } from '@/interface/projectInterface';
     const isExpanded = ref(false);
     const isTruncated = ref(false);
     const excerptHtml = ref('');
-    
+    const auth = useAuthUserStore()
+    const isDirector = computed(() => auth.activeUser.position_id < 6)
+    const route = useRoute()
+    const scrollRef = useTemplateRef('scrollContainer')
     onMounted(() => {
         // if(memoBody.value && memoBody.value?.clientHeight > 42){
         //     dynamicHeight.value = '42px'
         // }
-              
+        if (route.query.check) {
+            checkTab.value = String(route.query.check) === 'true'
+            const container = scrollRef.value
+            if (container) {
+                setTimeout(() => {
+                    container.scrollTo({
+                        top: container.scrollHeight,
+                        behavior: 'smooth'
+                    }); 
+                }, 100);
+                
+            }
+        }   
     })
     const displayHtml = computed(() => isExpanded.value ? fullHtml.value : excerptHtml.value);
     const toggleFull = () => { isExpanded.value = !isExpanded.value; };
@@ -215,6 +253,18 @@ import { Project } from '@/interface/projectInterface';
         isExpanded.value = false;
     }, { immediate: true });
 
+    const api = useApi()
+    type ProjectStatus = 'director_approved' | 'returned'
+
+    const statusChange = async(status: ProjectStatus) => {
+        await api.patch('/project_change_status', {
+            status: status,
+            id: selectedProject.value?.id
+        }, {
+            toast: '変更しました'
+        })
+        refreshProject([{name: 'status'}])
+    }
 </script>
 <style scoped>
     @media screen and (max-width: 959px) {

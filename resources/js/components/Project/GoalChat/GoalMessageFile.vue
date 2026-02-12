@@ -8,7 +8,7 @@
                             style="max-width:100%;margin:auto;max-height:100%;" 
                             v-if="file.mime_type == 'image'"
                             class="list-image-mobile" 
-                            :src="`/cdn/project_goal_report_files/${file.id}_${file.user_id}.${file.extension}`" 
+                            :src="`/cdn/${filePath}/${file.id}_${file.user_id}.${file.extension}`" 
                             loading="lazy"
                         />
                     </div>
@@ -39,6 +39,7 @@ import { MenuList, MessageFile } from "@/interface/globalInterface";
     const menu = useMenuStore()
     const props = defineProps<{
         list: MessageFile[]
+        filePath: string
     }>()
     const filePreview = useFilePreview()
     const file_index = ref(0)
@@ -56,7 +57,7 @@ import { MenuList, MessageFile } from "@/interface/globalInterface";
         let src:string, name:string;
         const path = `${file.id}_${file.user_id}.${file.extension}`
         name = file.name
-        src = `/cdn/project_goal_report_files/${path}`;
+        src = `/cdn/${props.filePath}/${path}`;
         const link = document.createElement('a');
         link.href = src;
         link.download = '';
@@ -74,8 +75,8 @@ import { MenuList, MessageFile } from "@/interface/globalInterface";
         let file_list = [file]
         const files = file_list.map(fileData => ({
             ...fileData,
-            file_path: `/cdn/project_goal_report_files/${fileData.id}_${fileData.user_id}.${fileData.extension}`,
-            doc_path:  `/cdn/project_goal_report_files/${fileData.id}_${fileData.user_id}.${fileData.extension}`
+            file_path: `/cdn/${props.filePath}/${fileData.id}_${fileData.user_id}.${fileData.extension}`,
+            doc_path:  `/cdn/${props.filePath}/${fileData.id}_${fileData.user_id}.${fileData.extension}`
         }));
 
         let target_data = file

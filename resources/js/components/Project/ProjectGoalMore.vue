@@ -163,7 +163,13 @@
                         <div v-if="goal?.stakeholder_point" class="mt-[10px]">{{ scoreMap[goal.stakeholder_point] }}</div>
                         <div class="kadai-content">{{ goal?.stakeholder_review }}</div>
                     </div>
-                    <MessageArea which="goal" :item="goal" :key="`message-area-goal-${goal.id}`" @refresh="() => refresh()"/>
+                    <MessageArea 
+                        which="goal" 
+                        :item="goal" 
+                        :key="`message-area-goal-${goal.id}`"
+                        :passing-data="passingData"
+                        @refresh="() => refresh()"
+                    />
                         
                     <div style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <!-- <LoaderButton v-if="reviewReport" @click="projectGoalReportCreate = goal" style="margin: 0;" :content="'進捗報告'"/> -->
@@ -283,7 +289,13 @@
                         <div class="kadai-content">{{ salaryIssueRecord.result }}</div>                        
                         <Files style="margin-top: 15px;" v-if="salaryIssueRecord?.files?.length" :items="salaryIssueRecord?.files" :path="'project_files'"/>
                     </div>
-                    <MessageArea which="salary_issue" :item="salaryIssueRecord" :key="`message-area-goal-${goal.id}`" @refresh="() => refresh()"/>
+                    <MessageArea 
+                        which="salary_issue" 
+                        :item="salaryIssueRecord" 
+                        :key="`message-area-goal-${goal.id}`" 
+                        :passing-data="passingData"
+                        @refresh="() => refresh()"
+                    />
                     <div v-if="salaryIssueRecord.status < 2 && (auth.id === memberData?.id || evaluationData?.mentor_id === auth.id)" style="display: flex; gap: 20px;margin-bottom: 10px;">
                         <LoaderButton style="margin: 0;" @click="editIssue(goal.salary_issue)" :content="'変更'"/>
                         <LoaderButton style="margin: 0;" @click="deleteIssue(goal.salary_issue)" :content="'削除'"/>
@@ -431,7 +443,7 @@ const salaryIssue = ref(false)
 const selectedTheme = ref(null)
 const editData = ref({})
 const reviewing = ref(false)
-const refresh = inject('refresh') as Function
+const refresh = inject('fetchMemberData') as Function
 const refreshRemind = inject('refreshRemind') as Function
 const issueReport = ref(null)
 const { memberData, isManagerOrMember, selectedProject } = useProject()
@@ -451,6 +463,11 @@ const scoreMap = {
     4: '好転傾向',
     5: '明確に好転'
 } 
+const passingData = {
+    path: '/project_goal_comment_create',
+    title: '進捗報告・メッセージ',
+    file_path: 'project_goal_report_files'
+}
 onMounted(() => {
     setTimeout(() => {
         badge.clearGoalIssue({column: 'project_goal_id', value: props.goal?.id})

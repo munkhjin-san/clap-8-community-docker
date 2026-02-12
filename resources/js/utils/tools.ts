@@ -206,6 +206,18 @@ const contractRoleDefaults = [
 ]
 const isMobile = () => window.matchMedia('(max-width: 768px)').matches
 
+export const PROJECT_STATUS_LABEL: Record<string, string> = {
+  draft: '下書き',
+  pending_director: '承認申請中',
+  director_approved: '役員承認済（準備中）',
+  running: '進行中',
+  suspended: '一時停止',
+  completed: '完了',
+  cancelled: '中止',
+  returned: '差し戻し',
+  rejected: '却下',
+}
+
 export { 
     debounce, 
     mentionFormatter, 
@@ -230,5 +242,5 @@ export {
     isTodayDone,
     contractTypeDefaults,
     contractRoleDefaults,
-    isMobile
+    isMobile,
 }

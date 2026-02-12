@@ -38,6 +38,7 @@
                             </div>
                         </th>
                         <th>合計評価点</th>
+                        <th>限切れ警告</th>
                         <th>アクション</th>
                     </tr>
                 </thead>
@@ -81,6 +82,7 @@
                             </div>
                         </td>
                         <td>{{ totalOverallScore(user.outcome_goals) }}/{{ (user?.evaluation?.monthly_goal_slot || 0 ) * 100 }}</td>
+                        <td><span style="position: static; width: fit-content;" :class="[{'side-notification' : user?.evaluation?.alert_streak >= 2}]">{{ user?.evaluation?.alert_streak }}</span></td>
                         <td>
                             <div style="display: flex; gap: 10px;">
                                 <CommandButton 
@@ -458,6 +460,7 @@ const copy = () => {
         padding: 8px;
         text-align: left;
         font-size: 13px;
+        white-space: nowrap;
     }
     thead {
         background-color: var(--background-color);

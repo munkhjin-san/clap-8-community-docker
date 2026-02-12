@@ -834,7 +834,8 @@ class WorkController extends Controller
         $auth_user_id = $user->id;
         $ids = [608, 610];
         if($auth_user_id == 608 || $auth_user_id == 610){
-            $work_group_users = ProjectRecord::whereHas('members')
+            $work_group_users = ProjectRecord::where('status', 'running')
+                ->whereHas('members')
                 ->with(['members' => function($q) use($ids) {
                 $q->whereNotIn('users.id', $ids)
                     ->where('users.partner_flag', 0)
@@ -853,25 +854,34 @@ class WorkController extends Controller
             }])->with('manager', 'director')
             ->get();
         }else{
-            $work_group_users = ProjectRecord::whereHas('members', function($q) use($auth_user_id) {
-                                $q->whereIn('users.id', [$auth_user_id]);
-                            })->orWhereHas('manager', function($q) use($auth_user_id) {
-                                $q->whereIn('users.id', [$auth_user_id]);
-                            })->orWhere('director_id', $auth_user_id)->with(['members' => function($q) use($ids) {
-                                $q->whereNotIn('users.id', $ids)
-                                    ->where('users.partner_flag', 0)
-                                    ->where('users.retire', 0)
-                                    ->select([
-                                        'users.id as id', 
-                                        'users.name',
-                                        'users.icon_path', 
-                                        'users.icon_bg',
-                                        'users.name_kana', 
-                                        'users.work_authority', 
-                                        'users.position_id',
-                                        'users.on_leave'
-                                    ]);
-                            }])->with('manager', 'director')
+            $work_group_users = ProjectRecord::query()
+                            ->where('status', 'running')
+                            ->where(function ($q) use ($auth_user_id) {
+                                $q->whereHas('members', function($q) use($auth_user_id) {
+                                    $q->whereIn('users.id', [$auth_user_id]);
+                                })->orWhereHas('manager', function($q) use($auth_user_id) {
+                                    $q->whereIn('users.id', [$auth_user_id]);
+                                })->orWhere('director_id', $auth_user_id);
+                            })
+                            ->with([
+                                'members' => function($q) use($ids) {
+                                    $q->whereNotIn('users.id', $ids)
+                                        ->where('users.partner_flag', 0)
+                                        ->where('users.retire', 0)
+                                        ->select([
+                                            'users.id as id', 
+                                            'users.name',
+                                            'users.icon_path', 
+                                            'users.icon_bg',
+                                            'users.name_kana', 
+                                            'users.work_authority', 
+                                            'users.position_id',
+                                            'users.on_leave'
+                                        ]);
+                                },
+                                'manager',
+                                'director',
+                            ])
                             ->get();
         }   
         

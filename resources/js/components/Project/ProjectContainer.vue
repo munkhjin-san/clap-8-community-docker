@@ -33,6 +33,32 @@
                     <div class="project-cell" style="min-width: 230px;">プロジェクト名</div>
                     <div class="project-cell whitespace-nowrap">部門</div>
                     <div class="project-cell cursor-pointer relative">
+                        <div @click.stop="menu.setMenu({ parent: 'projectStatusSort' })" class="flex items-center gap-[5px] whitespace-nowrap">
+                            ステータス
+                            <Back class="rotate-[270deg]" size="10"/>
+                        </div>
+                        <Transition name="slidePop">
+                            <div 
+                                v-if="menu.parent == 'projectStatusSort'"
+                                id="projectStatusSort"
+                                class="workMemberSelector p-[10px]"
+                            >
+                                <div class="mb-[10px]">
+                                    <CommandButton :buttons="[{title: 'リセット', action: () => {selectedStatuses = []; menu.close()}}]"/>
+                                </div>         
+                                <div class="flex flex-col gap-[10px]" v-if="PROJECT_STATUS_LABEL">
+                                    <div v-for="(option, index) in PROJECT_STATUS_LABEL">
+                                        <label class="cursor-pointer select-none whitespace-nowrap flex items-center gap-[5px]">
+                                            <input type="checkbox" class="custom-f-checkbox rounded-[3px]" name="class-selector"  v-model="selectedStatuses" :value="index"/>
+                                            {{ option }}
+                                        </label>
+                                    </div>
+                                </div>                  
+                            </div>
+                        </Transition>
+                        
+                    </div>
+                    <div class="project-cell cursor-pointer relative">
                         <div @click.stop="menu.setMenu({parent: 'projectDateSelect'})" class="flex items-center gap-[5px] whitespace-nowrap">
                             期間
                             <Back class="rotate-[270deg]" size="10"/>
@@ -51,6 +77,7 @@
                             />
                         </Transition>
                     </div>
+                    
                     <div class="project-cell">サービスカテゴリ</div>
                     <div class="project-cell">顧客企業</div>
                     <div class="project-cell">業種区分</div>
@@ -91,7 +118,7 @@
                                 custom-place-holder="メンバー検索"
                             />
                         </Transition>                        
-                    </div>                    
+                    </div>                  
                 </div>
                 <div @click="jumpToProject(project)" class="project-cell-row" :class="[{'selected-project-cell' : Number(route.params.projectId) == project.id}]" v-for="project in sortedProjects">
                     <div class="project-cell project-title-cell">                        
@@ -108,6 +135,9 @@
                     <div class="project-cell pc">
                         {{ project.is_new ? '新規' : '既存' }}
                     </div>
+                    <div class="project-cell">
+                        {{ PROJECT_STATUS_LABEL[project.status] ?? '不明' }}
+                    </div> 
                     <div class="project-cell pc">
                         <div v-if="project?.date_start">{{ DateTime.fromISO(project.date_start).toLocaleString(DateTime.DATE_SHORT) }} ~ {{ DateTime.fromISO(project.date_end).toLocaleString(DateTime.DATE_SHORT) }}</div>
                     </div>
@@ -149,9 +179,10 @@
                             <div class="flex" @click.stop="viewUsers(project.members)">
                                 <UserPanel v-for="member in project.members.slice(0, 5)" :disable-instant="true" imgClass="u_icon_20" :user="member" size="20"/>
                             </div>
-                            <span class="my-[auto] ml-[5px] text-[12px] cursor-pointer whitespace-nowrap" v-if="project.members.length > 10">...({{project.members.length}})</span>
+                            <span class="my-[auto] ml-[5px] text-[12px] cursor-pointer whitespace-nowrap" v-if="project.members.length > 5">...({{project.members.length}})</span>
                         </div>                        
-                    </div>                    
+                    </div>                  
+
                 </div>                
             </div>
             <Transition name="lessonShift">
@@ -186,15 +217,6 @@
                 :edit-data="editData"
             />
         </Transition>
-        <!-- <Transition name="modalFade">
-            <ProjectTotalFinance 
-                v-if="totalFinanceWindow"
-                :projects="projectList.filter(pr => pr.name !== '役員')"
-                :ownProjectIds="ownProjectIds"
-                @close="totalFinanceWindow = false"
-            />
-        </Transition> -->
-
     </div>
     
 </template>
@@ -217,7 +239,6 @@ import { ComponentExposed } from 'vue-component-type-helpers'
 import ProjectCreate from '../AccountControl/ProjectControl/ProjectCreate.vue';
 import FloatButton from '../Global/FloatButton.vue';
 import ProjectMemberSort from './ProjectMemberSort.vue';
-import ProjectTotalFinance from './ProjectTotalFinance.vue';
 import { useProject } from '@/composables/project';
 import Back from '../Icons/Back.vue';
 import AddIcon from '../Form/AddIcon.vue';
@@ -226,6 +247,9 @@ import ProjectDateSort from './ProjectDateSort.vue';
 import { useDialog } from '@/composables/dialog';
 import { useTour } from '@/composables/useTour';
 import { useTutorialStore } from '@/store/tutorial';
+import { PROJECT_STATUS_LABEL } from '@/utils/tools';
+import ResourceSort from './Resource/ResourceSort.vue';
+import CommandButton from '../Global/CommandButton.vue';
 const keywords = ref('')
 const initialLoader = ref(true)
 const menu = useMenuStore()
@@ -239,6 +263,7 @@ const editData = ref(null)
 const createWindow = ref(false)
 const selectedManagers = ref<number[]>([])
 const selectedMembers = ref<number[]>([])
+const selectedStatuses = ref<string[]>([])
 const badge = useBadgeStore()
 const taskComponent = useTemplateRef<ComponentExposed<typeof TaskComponent>>('taskComponent')
 const totalFinanceWindow = ref(false)
@@ -317,7 +342,13 @@ const sortedProjects = computed(() => {
         }
         return true;
     });
-    return hitMembers    
+    const hitStatuses = hitMembers.filter(project => {
+        if (selectedStatuses.value.length) {
+            return selectedStatuses.value.includes(project.status)
+        }
+        return true
+    }) 
+    return hitStatuses    
 })
 const getSelectableUsers = async() => {
 

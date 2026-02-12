@@ -57,9 +57,9 @@ interface Project {
     kpi: string;
     budget: string;
     stakeholder: string;
-    status: number;
     members: ProjectMember[];
     manager: ProjectMember[];
+    status: string;
     mission: string;
     innovation: string;
     operation: string;
@@ -89,6 +89,18 @@ interface Project {
     actual_statuses?: ProjectActualStatus[]
     transitioned_at?: string
     member_roles?: MemberRole[]
+    checkitems: ProjectCheckItems[]
+    reports: ProjectGoalReport[]
+}
+export type ProjectCheckItems = {
+    id: number
+    project_record_id: number
+    category: string
+    label: string
+    status: string
+    sort_order: number
+    checked_by: number | null
+    checked_at: string | null
 }
 export type ProjectActualStatus = {
     status_id: number | null;

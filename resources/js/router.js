@@ -810,6 +810,11 @@ const routes = [
                 path: 'evaluation-approval/:memberId/:span',
                 name: 'evaluation-approval',
                 component: () => import('./components/Global/CheckEvaluation.vue'),
+            },
+            {
+                path: 'goal-creation/:memberId/:span',
+                name: 'goal-creation',
+                component: () => import('./components/Project/ProjectGoalCreation.vue')
             }
         ]
     },
@@ -877,15 +882,15 @@ router.beforeEach((to, from) => {
         navigator.virtualKeyboard.overlaysContent = false;                  
     }
 })
-router.afterEach(() => {
+router.afterEach((to, from) => {
     const responsive = useResponsive()
     const sideMenuView = useSideMenuView()
     if(responsive.mobile){
         sideMenuView.setSideMenuView(false)
     }    
-    cleanUp()
+    cleanUp(to, from)
   });
-  function cleanUp(){
+  function cleanUp(to, from){
     const messageUsers = useMessageUsers()
     const filePreview = useFilePreview()
     const projectUsers = useProjectUsers()
@@ -908,7 +913,9 @@ router.afterEach(() => {
         index: 0,
         message: null
     })
-    setNextCursor(null)    
+    if(!['board', 'room'].includes(from.name)){
+        setNextCursor(null)  
+    }    
   }
   router.onError((error, to) => {
     if (error.message.includes('Failed to fetch dynamically imported module') || error.message.includes("Importing a module script failed")) {

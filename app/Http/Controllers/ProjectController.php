@@ -17,13 +17,7 @@ use App\Models\taskRecord;
 use App\Models\User;
 use App\Models\ProjectFinanceComment;
 use App\Models\ProjectFinanceLastRead;
-use App\Models\ProjectMetric;
 use App\Models\ProjectCase;
-use App\Models\ProjectMetricFormula;
-use App\Models\ProjectMetricValue;
-use App\Models\ProjectMetricSubMetric;
-use App\Models\ProjectExpense;
-use App\Models\ProjectSale;
 use App\Models\messageFile;
 use App\Models\ProjectMemberReportNotification;
 use App\Models\ProjectContract;
@@ -31,6 +25,8 @@ use App\Models\ProjectResourceComment;
 use App\Models\ProjectPlanYear;
 use App\Models\ProjectMemberRole;
 use App\Models\CustomForm;
+use App\Models\ProjectCheckitems;
+use App\Services\MentionAndNotify;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ProjectMention;
 use App\Jobs\SendGoalIssueMentionMail;
@@ -53,8 +49,6 @@ use App\Services\ProjectPlanFormulaService;
 use App\Imports\EvaluationImport;
 use App\Exports\YearlyBudgetTemplate;
 use App\Imports\YearlyBudgetImport;
-use App\Http\Requests\StoreMetricRequest;
-use App\Http\Requests\UpdateMetricRequest;
 use App\Infrastructure\Kintone\KintoneClient;
 use App\Infrastructure\Sheets\GoogleSheetsClient;
 use Illuminate\Database\Eloquent\Collection;
@@ -144,6 +138,15 @@ class ProjectController extends Controller
         ->when($id, function ($q) use ($id) {
             $q->where('id', $id);
         })
+        ->where(function ($q) use ($user) {
+            $q->where('status', '!=', 'draft')
+                ->orWhere(function ($q) use ($user) {
+                    $q->where('status', 'draft')
+                        ->whereHas('manager', function ($m) use ($user) {
+                            $m->where('users.id', $user->id);
+                        });
+                });
+        })
         ->with([
             'director:id,name,icon_path,icon_bg',
             'manager' => $usersLoader(true),
@@ -151,22 +154,20 @@ class ProjectController extends Controller
             'director',
             'contract',
             'memberRoles',
+            'checkitems',
+            'reports.user',
+            'reports.files'
         ])
         ->get();
-        $projects = $projects->map(function (ProjectRecord $project) {
-            $project->loadMemberRoles();
-            $project->actual_statuses = $project->actual_statuses ?? [];
-            $project->has_goals = $project->has_goals ?? false;
-            $project->unit_id = $project->unit_id ?? 'JPY';
-            $project->has_actual_func = $project->has_actual_func ?? false;
-            $project->custom_unit_label = $project->custom_unit_label ?? null;
-            return $project;
-        });
+       
         $sortedProjects = $projects->sortByDesc(function ($project) {
             $isMember = in_array(Auth::id(), $project->members->pluck('id')->toArray());
             $isManager = in_array(Auth::id(), $project->manager->pluck('id')->toArray());
             $isDirector = $project->director && $project->director->id == Auth::id();
-            if ($isMember) {
+            $isDraft = $project->status == 'draft';
+            if ($isDraft) {
+                return 4;
+            } elseif ($isMember) {
                 return 3;
             } elseif ($isManager) {
                 return 2;
@@ -539,6 +540,7 @@ class ProjectController extends Controller
             'unit_id',
             'custom_unit_label',
             'transitioned_at',
+            'status'
         ])->toArray();
 
         $filteredParams['has_actual_func'] = array_key_exists('has_actual_func', $params) ? (bool)$params['has_actual_func'] : false;
@@ -594,6 +596,236 @@ class ProjectController extends Controller
         
         return response()->json($project);
     }
+    public function project_change_status(Request $request) {
+        $request->validate([
+            'id'     => ['required', 'integer'],
+            'status' => ['required', Rule::in(['director_approved', 'returned', 'running'])],
+        ]);
+
+        $project = ProjectRecord::findOrFail($request->id);
+        $project->update(['status' => $request->status]);
+        if ($request->status === 'director_approved') {
+            $this->ensureProjectCheckitems($project->id);
+        }
+
+        return response()->json($project->fresh());
+    }
+    public function project_checkitem_update(Request $request) {
+        $data = $request->validate([
+            'id' => ['required', 'integer'],
+            'project_id' => ['required', 'integer'],
+            'status' => ['required', Rule::in(['pending', 'done', 'na'])],
+        ]);
+
+        $user = $this->active_user();
+        abort_if((int)$user->id !== 610, 403, '権限がありません。');
+
+        $item = ProjectCheckitems::where('project_record_id', $data['project_id'])
+            ->where('id', $data['id'])
+            ->firstOrFail();
+
+        $checkedBy = null;
+        $checkedAt = null;
+        if ($data['status'] !== 'pending') {
+            $checkedBy = $user->id;
+            $checkedAt = now();
+        }
+
+        $item->update([
+            'status' => $data['status'],
+            'checked_by' => $checkedBy,
+            'checked_at' => $checkedAt,
+        ]);
+
+        return response()->json($item->fresh());
+    }
+
+    private function ensureProjectCheckitems(int $projectId): void
+    {
+        $exists = DB::table('project_checkitems')
+            ->where('project_record_id', $projectId)
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        $groups = [
+            '人事' => [
+                '雇用契約書',
+                '辞令',
+                '入社手続き',
+                '転籍手続き',
+                '登録社員手続き',
+                '車両使用誓約書',
+                '免許証情報',
+            ],
+            '法務' => [
+                'クライアント契約',
+                '派遣契約',
+                'パートナー契約',
+                '派遣契約',
+            ],
+            '会計' => [
+                '年間計画（損益アプリ）への反映',
+                '利益が確保できているか',
+                'ETCカード・ガソリンカード',
+                '損益計画に物品費用が反映がされているか',
+            ],
+            '担当範囲不明' => [
+                'プロジェクトアプリの入力が済んでいるか',
+                '研修（情報管理研修、安全衛生研修など）済みか',
+            ],
+            'MISO' => [
+                '基本情報',
+                '概要',
+                'MISO',
+            ],
+            'リスク分析' => [
+                '入社時研修',
+                '情報管理研修など',
+                '車両研修',
+            ],
+        ];
+
+        $now = now();
+        $rows = [];
+        $sort = 1;
+        foreach ($groups as $category => $labels) {
+            foreach ($labels as $label) {
+                $label = trim($label);
+                if ($label === '') {
+                    continue;
+                }
+                $rows[] = [
+                    'project_record_id' => $projectId,
+                    'category' => $category,
+                    'label' => $label,
+                    'status' => 'pending',
+                    'sort_order' => $sort++,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            }
+        }
+
+        if (count($rows)) {
+            DB::table('project_checkitems')->insert($rows);
+        }
+    }
+    public function project_checkitem_comment_add(Request $request, MentionAndNotify $mentioner) {
+        $data = $request->validate([
+            'record_id' => 'required',
+            'content' => 'required|string',
+        ]);
+        $user = $this->active_user();
+
+        $record = ProjectRecord::findOrFail($request->record_id);
+        $report = $record->reports()->create([
+            'content' => $request->content,
+            'user_id' => $user->id,
+        ]);
+
+        if($request->attached_temp_files){ 
+            foreach($request->attached_temp_files as $item){      
+                $file = messageFile::findOrFail($item['id']);
+                $file->update(['project_checkitem_report_id' => $report->id]);
+                $path = "project_checkitem_report_files";
+                File::isDirectory(storage_path("app/{$path}")) or File::makeDirectory(storage_path("app/{$path}"), 0755, true, true);         
+                $srcPath = "{$file->id}.{$file->extension}";
+                $destPath = "{$file->id}_{$file->user_id}.{$file->extension}";
+                $temp_path = storage_path("app/temp_upload/{$srcPath}");
+                Storage::disk('local')->move("temp_upload/{$file->id}.{$file->extension}", "{$path}/{$destPath}");                
+            }
+        }
+        
+        $syntax = '/\[To:(.*?)\:\]/';
+        preg_match_all($syntax, $report->content, $matches);
+        $mentioned_targets = $matches[1];
+        $user_ids = User::whereNot('id', Auth::id())
+        ->whereNotNull('email')
+        ->where('retire', 0)
+        ->where('on_leave', 0)
+        ->whereIn('name', $mentioned_targets)
+        ->pluck('id')->toArray();
+
+        $link = url("project/$record->id/overview?check=true");
+        $mentioner->notify($user_ids, $record->name, 'メッセージが届きました', $link, $user);
+
+        return response()->json(['id' => $report->id], 201);
+    }
+    public function project_refresh(Request $request)
+    {
+        $data = $request->validate([
+            'id' => ['required','integer'],
+            'fields' => ['required','array'],
+            'fields.*.name' => ['required','string'],
+            'fields.*.include' => ['sometimes','array'],
+            'fields.*.include.*' => ['string'],
+        ]);
+
+        $project = ProjectRecord::findOrFail($data['id']);
+
+        // Server truth: what each "name" means
+        $map = [
+            'status' => ['type' => 'column'],
+            'name' => ['type' => 'column'],
+            'priority' => ['type' => 'column'],
+
+            'reports' => [
+                'type' => 'relation',
+                'allowed_includes' => ['user', 'files'],
+                'load' => fn ($includes) => array_map(fn($i) => "reports.$i", $includes),
+                'value' => fn ($p) => $p->reports,
+            ],
+        ];
+
+        $patch = [];
+        $relationsToLoad = [];
+
+        foreach ($data['fields'] as $reqField) {
+            $name = $reqField['name'];
+
+            if (!isset($map[$name])) continue; // ignore unknowns
+
+            $def = $map[$name];
+
+            if ($def['type'] === 'column') {
+                $patch[$name] = $project->{$name};
+                continue;
+            }
+
+            if ($def['type'] === 'relation') {
+                $includes = $reqField['include'] ?? [];
+                $includes = array_values(array_intersect($includes, $def['allowed_includes']));
+
+                // always load base relation
+                $relationsToLoad[] = $name;
+
+                // optionally load nested includes
+                $relationsToLoad = array_merge($relationsToLoad, ($def['load'])($includes));
+            }
+        }
+
+        if (!empty($relationsToLoad)) {
+            $project->load(array_values(array_unique($relationsToLoad)));
+        }
+
+        // Fill relation patches after load
+        foreach ($data['fields'] as $reqField) {
+            $name = $reqField['name'];
+            if (!isset($map[$name])) continue;
+            if (($map[$name]['type'] ?? null) === 'relation') {
+                $patch[$name] = ($map[$name]['value'])($project);
+            }
+        }
+
+        return response()->json([
+            'id' => $project->id,
+            'patch' => $patch,
+        ]);
+    }
+
 
     public function show_contract(ProjectRecord $project)
     {
@@ -3446,96 +3678,7 @@ class ProjectController extends Controller
         return response()->json($counts);
     }
 
-    // #Metrics
-
-    public function project_metrics(Request $req)
-    {
-        $metrics = ProjectMetric::query()
-            ->when($req->boolean('active'), fn($query) => $query->where('is_active', 1))
-            ->with([
-                'formula:id,project_metric_id,expression',
-                'subMetrics:id,project_metric_id,expression,sort_order',
-            ])
-            ->orderBy('sort_order')
-            ->orderBy('id')
-            ->get();
-
-        $labelMap = $metrics->pluck('label_ja', 'id')->all();
-
-        return $metrics->map(function (ProjectMetric $metric) use ($labelMap) {
-            return [
-                'id'               => $metric->id,
-                'label_ja'         => $metric->label_ja,
-                'kind'             => $metric->kind,
-                'value_type'       => $metric->value_type,
-                'line'             => $metric->line,
-                'is_active'        => (bool) $metric->is_active,
-                'sort_order'       => $metric->sort_order,
-                'scenario_label_ja'=> $metric->scenario_label_ja,
-                'expression'       => $this->denormalizeExpression($metric->formula?->expression, $labelMap),
-                'expression_normalized' => $metric->formula?->expression,
-                'sub_metrics'      => $metric->subMetrics
-                    ->sortBy('sort_order')
-                    ->map(fn($sub) => [
-                        'id'         => $sub->id,
-                        'expression' => $this->denormalizeExpression($sub->expression, $labelMap),
-                        'expression_normalized' => $sub->expression,
-                        'sort_order' => $sub->sort_order,
-                    ])->values(),
-            ];
-        });
-    }
-    public function project_sales_expenses(ProjectRecord $project, Request $req) {
-        $data = $req->validate([
-            'start' => ['required', 'date_format:Y-m-d'],
-            'end'   => ['required', 'date_format:Y-m-d'],
-        ]);
-        
-        $start = Carbon::parse($data['start'])->startOfMonth();
-        $end = Carbon::parse($data['end'])->startOfMonth();
-
-        $expenses = ProjectExpense::query()
-            ->where('project_record_id', $project->id)
-            ->whereBetween('period', [$start, $end])
-            ->orderBy('period')
-            ->get();
-
-        $sales = ProjectSale::query()
-            ->where('project_record_id', $project->id)
-            ->whereBetween('period', [$start, $end])
-            ->orderBy('period')
-            ->get();
-        
-        $expMap = $expenses->keyBy(fn ($r) => Carbon::parse($r->period)->startOfMonth()->toDateString());
-        $salMap = $sales->keyBy(fn ($r) => Carbon::parse($r->period)->startOfMonth()->toDateString());
-
-        $periods = CarbonPeriod::create($start, '1 month', $end);
-        $out = [];
-
-        foreach ($periods as $p) {
-            $ymd = $p->toDateString();
-
-            $e = $expMap->get($ymd);
-            $s = $salMap->get($ymd);
-
-            $out[$ymd] = [
-                // sales side
-                'internal_sales' => $s?->internal_sales,
-                'sales'          => $s?->sales,
-
-                // expense side
-                'bonus'          => $e?->bonus,
-                'indirect'       => $e?->indirect,
-                'internal_orders'=> $e?->internal_orders,
-                'outsourcing'    => $e?->outsourcing,
-                'salaries'       => $e?->salaries,
-                'sga_other'      => $e?->sga_other,
-            ];
-        }
-
-        return response()->json($out);
     
-    }
     public function project_cases(ProjectRecord $project, Request $req)
     {
         $user = $this->active_user();
@@ -3855,404 +3998,6 @@ class ProjectController extends Controller
         return response()->json(['suggestions' => $unique]);
     }
 
-    public function project_metrics_with_values(ProjectRecord $project, Request $req) {
-        $data = $req->validate([
-            'start' => ['required', 'date_format:Y-m-d'],
-            'end'   => ['required', 'date_format:Y-m-d'],
-            'active'=> ['sometimes', 'boolean'],
-        ]);
-        $metrics = ProjectMetric::query()
-            ->when($req->boolean('active'), fn($q) => $q->where('is_active', 1))
-            ->with([
-                'formula:id,project_metric_id,expression',
-                'subMetrics:id,project_metric_id,expression,sort_order',
-                'values' => fn($q) => $q
-                    ->where('project_record_id', $project->id)
-                    ->whereBetween('period', [$data['start'], $data['end']])
-                    ->orderBy('period'),
-            ])
-            ->orderBy('id')
-            ->get();
-
-        $labelMap = $metrics->pluck('label_ja', 'id')->all();
-
-        return $metrics->map(function (ProjectMetric $metric) use ($labelMap) {
-            $vals = [];
-            foreach ($metric->values as $v) {
-                $vals[$v->period->format('Y-m-d')] = $v->value;
-            }
-            return [
-                'id'                => $metric->id,
-                'label_ja'          => $metric->label_ja,
-                'kind'              => $metric->kind,
-                'value_type'        => $metric->value_type,
-                'line'              => $metric->line,
-                'is_active'         => (bool) $metric->is_active,
-                'sort_order'        => $metric->sort_order,
-                'scenario_label_ja' => $metric->scenario_label_ja,
-                'expression'        => $this->denormalizeExpression($metric->formula?->expression, $labelMap),
-                'expression_normalized' => $metric->formula?->expression,
-                'sub_metrics'       => $metric->subMetrics
-                    ->sortBy('sort_order')
-                    ->map(fn($sub) => [
-                        'id'         => $sub->id,
-                        'expression' => $this->denormalizeExpression($sub->expression, $labelMap),
-                        'expression_normalized' => $sub->expression,
-                        'sort_order' => $sub->sort_order,
-                    ])->values(),
-                'values'            => $vals,
-            ];
-        });
-    }
-    public function project_metrics_for_period(ProjectRecord $project, Request $req) {
-        $period = $req->validate(['period' => ['required', 'date_format:Y-m-d']])['period'];
-
-        $metrics = ProjectMetric::with([
-            'formula:id,project_metric_id,expression',
-            'subMetrics:id,project_metric_id,expression,sort_order',
-            'values' => fn($q) => $q
-                ->where('project_record_id', $project->id)
-                ->where('period', $period),
-        ])->orderBy('sort_order')->orderBy('id')->get();
-
-        $labelMap = $metrics->pluck('label_ja', 'id')->all();
-
-        return $metrics->map(fn(ProjectMetric $metric) => [
-            'id'               => $metric->id,
-            'label_ja'         => $metric->label_ja,
-            'kind'             => $metric->kind,
-            'value_type'       => $metric->value_type,
-            'line'             => $metric->line,
-            'is_active'        => (bool) $metric->is_active,
-            'sort_order'       => $metric->sort_order,
-            'scenario_label_ja'=> $metric->scenario_label_ja,
-            'expression'       => $this->denormalizeExpression($metric->formula?->expression, $labelMap),
-            'expression_normalized' => $metric->formula?->expression,
-            'sub_metrics'      => $metric->subMetrics
-                ->sortBy('sort_order')
-                ->map(fn($sub) => [
-                    'id'         => $sub->id,
-                    'expression' => $this->denormalizeExpression($sub->expression, $labelMap),
-                    'expression_normalized' => $sub->expression,
-                    'sort_order' => $sub->sort_order,
-                ])->values(),
-            'value'            => optional($metric->values->first())->value,
-        ]);
-    }
-    public function metric_store(StoreMetricRequest $req)
-    {
-        $data = $req->validated();
-
-        $metric = ProjectMetric::create([
-            'label_ja'         => $data['label_ja'],
-            'kind'             => $data['kind'],
-            'value_type'       => $data['value_type'],
-            'line'             => $data['line'] ?? null,
-            'is_active'        => $data['is_active'] ?? true,
-            'sort_order'       => $data['sort_order'] ?? 0,
-            'scenario_label_ja'=> $data['scenario_label_ja'] ?? null,
-        ]);
-
-        if ($metric->kind === 'derived') {
-            $normalized = $this->normalizeExpression($data['expression'] ?? '', [$metric->id => $metric->label_ja]);
-            $this->assertValidExpression($normalized['tokens'], $normalized['metric_ids'], $metric->id);
-
-            $metric->formula()->create([
-                'expression' => $normalized['expression'],
-                'version'    => 1,
-            ]);
-        }
-
-        $this->syncSubMetrics($metric, $data['sub_metrics'] ?? []);
-
-        return response()->json(['id' => $metric->id], 201);
-    }
-
-    public function metric_update(UpdateMetricRequest $req, ProjectMetric $metric)
-    {
-        $data = $req->validated();
-
-        $metric->update([
-            'label_ja'         => $data['label_ja'],
-            'kind'             => $data['kind'],
-            'value_type'       => $data['value_type'],
-            'line'             => $data['line'] ?? null,
-            'is_active'        => $data['is_active'] ?? $metric->is_active,
-            'sort_order'       => $data['sort_order'] ?? $metric->sort_order,
-            'scenario_label_ja'=> $data['scenario_label_ja'] ?? null,
-        ]);
-
-        if ($metric->kind === 'derived') {
-            $normalized = $this->normalizeExpression($data['expression'] ?? '', [$metric->id => $metric->label_ja]);
-            $this->assertValidExpression($normalized['tokens'], $normalized['metric_ids'], $metric->id);
-
-            $metric->formula()->updateOrCreate(
-                [],
-                ['expression' => $normalized['expression'], 'version' => 1]
-            );
-        } else {
-            $metric->formula()?->delete();
-        }
-
-        $this->syncSubMetrics($metric, $data['sub_metrics'] ?? []);
-
-        return response()->json(['status' => 'ok']);
-    }
-    public function validateExpression(Request $req)
-    {
-        $data = $req->validate([
-            'expression'        => ['required','string'],
-            'target_metric_id'  => ['sometimes','nullable','integer','exists:project_metrics,id'],
-            'target_label_ja'   => ['sometimes','nullable','string'],
-        ]);
-
-        $targetId = $data['target_metric_id'] ?? null;
-        if (! $targetId && ! empty($data['target_label_ja'])) {
-            $targetId = ProjectMetric::where('label_ja', $data['target_label_ja'])->value('id');
-        }
-
-        $extraLabels = [];
-        if ($targetId) {
-            $label = ProjectMetric::where('id', $targetId)->value('label_ja');
-            if ($label) {
-                $extraLabels[$targetId] = $label;
-            }
-        }
-
-        $normalized = $this->normalizeExpression($data['expression'], $extraLabels);
-        $this->assertValidExpression($normalized['tokens'], $normalized['metric_ids'], $targetId);
-
-        return response()->json([
-            'ok'         => true,
-            'normalized' => $this->denormalizeExpression($normalized['expression'], $this->metricLabelMap($extraLabels)),
-        ]);
-    }
-    protected function metricLabelMap(array $extra = []): array
-    {
-        return array_replace(ProjectMetric::pluck('label_ja', 'id')->all(), $extra);
-    }
-
-    protected function denormalizeExpression(?string $expression, array $labelMap): ?string
-    {
-        if (! $expression) {
-            return null;
-        }
-
-        $rendered = preg_replace_callback('/\{\{m:(\d+)\}\}/u', function (array $match) use ($labelMap) {
-            $metricId = (int) $match[1];
-            return $labelMap[$metricId] ?? "[未定義:{$metricId}]";
-        }, $expression);
-
-        return preg_replace('/\s+/', ' ', trim($rendered));
-    }
-
-    protected function normalizeExpression(string $expression, array $extraLabels = []): array
-    {
-        $normalized = preg_replace('/\s+/', ' ', trim($expression));
-        if ($normalized === '') {
-            return ['expression' => '', 'tokens' => [], 'metric_ids' => []];
-        }
-
-        $labelMap = array_filter($this->metricLabelMap($extraLabels), fn($label) => filled($label));
-        if (empty($labelMap)) {
-            abort(422, '参照できるメトリックがありません。');
-        }
-
-        $replacements = [];
-        foreach ($labelMap as $id => $label) {
-            $replacements[$label] = "{{m:{$id}}}";
-        }
-
-        uksort($replacements, fn($a, $b) => mb_strlen($b) <=> mb_strlen($a));
-
-        foreach ($replacements as $label => $placeholder) {
-            $pattern = '/' . preg_quote($label, '/') . '/u';
-            $normalized = preg_replace($pattern, ' ' . $placeholder . ' ', $normalized);
-        }
-
-        $normalized = preg_replace('/\s+/', ' ', trim($normalized));
-
-        preg_match_all('~\{\{m:\d+\}\}|\d+(?:\.\d+)?|[+\-*\/()]|[A-Za-z_][A-Za-z0-9_]*~u', $normalized, $matches);
-        $tokens = $matches[0] ?? [];
-
-        $unused = trim(preg_replace('~\{\{m:\d+\}\}|\d+(?:\.\d+)?|[+\-*\/()]|[A-Za-z_][A-Za-z0-9_]*~u', ' ', $normalized));
-        
-        if ($unused !== '') {
-            abort(422, '不明な語句が式に含まれています: ' . $unused);
-        }
-
-        $metricIds = [];
-        foreach ($tokens as $token) {
-            if (preg_match('~\{\{m:(\d+)\}\}~', $token, $m)) {
-                $metricIds[] = (int) $m[1];
-            }
-        }
-
-        return [
-            'expression'  => $normalized,
-            'tokens'      => $tokens,
-            'metric_ids'  => array_values(array_unique($metricIds)),
-        ];
-    }
-
-    protected function assertValidExpression(array $tokens, array $metricIds, ?int $targetMetricId = null): void
-    {
-        if (empty($tokens)) {
-            abort(422, '式を入力してください。');
-        }
-
-        $funcs = ['nullif','pct','ratio'];
-        $paren = 0;
-        $prevType = null;
-        $prevToken = null;
-
-        foreach ($tokens as $index => $token) {
-            $type = null;
-            $metricId = null;
-           
-            if (preg_match('/\{\{m:(\d+)\}\}/', $token, $m)) {
-                $type = 'metric';
-                $metricId = (int) $m[1];
-            } elseif (in_array($token, ['+','-','*','/'], true)) {
-                $type = 'op';
-            } elseif ($token === '(') {
-                $type = 'lpar';
-            } elseif ($token === ')') {
-                $type = 'rpar';
-            } elseif (is_numeric($token)) {
-                $type = 'num';
-            } elseif (in_array(strtolower($token), $funcs, true)) {
-                $type = 'func';
-            } else {
-                abort(422, '使用できないトークンです: ' . $token);
-            }
-            
-            if ($type === 'func') {
-                $next = $tokens[$index + 1] ?? null;
-                if ($next !== '(') {
-                    abort(422, '関数は直後に"("が必要です: ' . $token);
-                }
-            }
-
-            if ($type === 'metric' && $metricId && ! ProjectMetric::where('id', $metricId)->exists()) {
-                abort(422, '存在しないメトリックが参照されています。');
-            }
-
-            if ($type === 'lpar') {
-                $paren++;
-            } elseif ($type === 'rpar') {
-                $paren--;
-                if ($paren < 0) {
-                    abort(422, '括弧の対応が正しくありません。');
-                }
-            }
-
-            if (in_array($type, ['metric','num','func'], true) && in_array($prevType, ['metric','num','rpar'], true)) {
-                abort(422, '演算子が不足しています。');
-            }
-
-            if ($type === 'lpar' && in_array($prevType, ['metric','num','rpar'], true)) {
-                abort(422, '"(" の前に演算子を挿入してください。');
-            }
-
-            if ($type === 'op' && ($prevType === null || in_array($prevType, ['op','lpar'], true))) {
-                abort(422, '演算子の位置が不正です。');
-            }
-
-            if ($type === 'rpar' && in_array($prevType, ['op','lpar'], true)) {
-                abort(422, '閉じ括弧の前に値が必要です。');
-            }
-
-            $prevType = $type;
-            $prevToken = $token;
-        }
-
-        if ($paren !== 0) {
-            abort(422, '括弧の数が一致しません。');
-        }
-
-        if (in_array($prevType, ['op','lpar'], true)) {
-            abort(422, '式の末尾に演算子または"("は使用できません。');
-        }
-
-        // if ($targetMetricId && in_array($targetMetricId, $metricIds, true)) {
-        //     abort(422, '自分自身を参照する式は登録できません。');
-        // }
-
-        if ($targetMetricId) {
-            foreach ($metricIds as $id) {
-                if ($this->dependsOnMetric($id, $targetMetricId, [$targetMetricId => true])) {
-                    abort(422, '循環参照が検出されました。');
-                }
-            }
-        }
-    }
-
-    protected function dependsOnMetric(int $startId, int $needleId, array $seen = []): bool
-    {
-        if (isset($seen[$startId])) {
-            return false;
-        }
-
-        $seen[$startId] = true;
-
-        $expression = ProjectMetric::find($startId)?->formula?->expression;
-        if (! $expression) {
-            return false;
-        }
-
-        preg_match_all('/\{\{m:(\d+)\}\}/', $expression, $matches);
-        $dependencies = array_unique(array_map('intval', $matches[1] ?? []));
-
-        foreach ($dependencies as $dependencyId) {
-            if ($dependencyId === $needleId) {
-                return true;
-            }
-
-            if ($this->dependsOnMetric($dependencyId, $needleId, $seen)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    protected function syncSubMetrics(ProjectMetric $metric, array $subMetrics): void
-    {
-        if (empty($subMetrics)) {
-            $metric->subMetrics()->delete();
-            return;
-        }
-
-        $keptIds = [];
-        foreach ($subMetrics as $index => $sub) {
-            if (! isset($sub['expression'])) {
-                continue;
-            }
-
-            $normalized = $this->normalizeExpression($sub['expression'], [$metric->id => $metric->label_ja]);
-            $this->assertValidExpression($normalized['tokens'], $normalized['metric_ids'], $metric->id);
-
-            $payload = [
-                'expression' => $normalized['expression'],
-                'sort_order' => $sub['sort_order'] ?? $index,
-            ];
-
-            if (! empty($sub['id'])) {
-                $metric->subMetrics()->where('id', $sub['id'])->update($payload);
-                $keptIds[] = $sub['id'];
-            } else {
-                $new = $metric->subMetrics()->create($payload);
-                $keptIds[] = $new->id;
-            }
-        }
-
-        if (! empty($keptIds)) {
-            $metric->subMetrics()->whereNotIn('id', $keptIds)->delete();
-        } else {
-            $metric->subMetrics()->delete();
-        }
-    }
 
     protected function resolveScenarioLabel(string $value): string
     {
@@ -4265,182 +4010,7 @@ class ProjectController extends Controller
         return $map[$value] ?? $value;
     }
 
-    public function metric_delete(int $id) {
-        $exists = ProjectMetric::where('id', $id)->exists();
-        if (! $exists) {
-            abort(404, 'メトリックが見つかりません');
-        }
-
-        ProjectMetric::destroy($id);
-
-        return response()->json(['status' => 'ok']);
-    }
-    public function metric_toggle(Request $req, int $id) {
-        $data = $req->validate([
-            'is_active'  => 'required',
-        ]);
-
-        $metric = ProjectMetric::findOrFail($id);
-        $metric->update(['is_active' => $data['is_active']]);
-        
-        return response()->json(['status' => 'ok']);
-    }
-
-    public function metric_values_store(ProjectRecord $project, Request $req)
-    {
-        $data = $req->validate([
-            'period'            => ['required','date_format:Y-m-d'],
-            'values'            => ['required','array','min:1'],
-            'values.*.label_ja' => ['required','string'],
-            'values.*.value'    => ['nullable','numeric'],
-        ]);
-
-        $period = Carbon::parse($data['period'])->startOfMonth()->toDateString();
-
-        $labels = collect($data['values'])->pluck('label_ja')->filter()->unique()->values();
-        if ($labels->isEmpty()) {
-            abort(422, 'メトリックが指定されていません。');
-        }
-
-        $metricMap = ProjectMetric::whereIn('label_ja', $labels)->pluck('id', 'label_ja');
-        $missing = $labels->diff($metricMap->keys());
-        if ($missing->isNotEmpty()) {
-            abort(422, '未登録のメトリックがあります: '. $missing->join(', '));
-        }
-
-        $now = now();
-        $rows = [];
-        foreach ($data['values'] as $entry) {
-            $label = $entry['label_ja'];
-            if (! $metricMap->has($label)) {
-                continue;
-            }
-
-            $rows[] = [
-                'project_record_id' => $project->id,
-                'project_metric_id' => $metricMap[$label],
-                'period'            => $period,
-                'value'             => $entry['value'],
-                'source'            => 'manual',
-                'created_at'        => $now,
-                'updated_at'        => $now,
-            ];
-        }
-
-        if ($rows) {
-            ProjectMetricValue::upsert(
-                $rows,
-                ['project_record_id', 'project_metric_id', 'period'],
-                ['value','source','updated_at']
-            );
-        }
-
-        return response()->json(['status' => 'ok']);
-    }
-    public function yearly_budget_store(ProjectRecord $project, Request $req) {
-        $data = $req->validate([
-            'scenario_code'          => ['required','string'],                 // e.g. 'annual_budget'
-            'scenario_label_ja'      => ['sometimes','string'],
-            'project_record_id'      => ['required','integer','in:'.$project->id],
-            'months'                 => ['required','array','min:1'],
-
-            'months.*.period'        => ['required','date_format:Y-m-d'],      // 'YYYY-MM-01'
-            'months.*.sales'         => ['required','array'],
-            'months.*.sales.sales'           => ['nullable','numeric'],
-            'months.*.sales.internal_sales'  => ['nullable','numeric'],
-
-            'months.*.expenses'      => ['required','array'],
-            'months.*.expenses.salaries'        => ['nullable','numeric'],
-            'months.*.expenses.outsourcing'     => ['nullable','numeric'],
-            'months.*.expenses.internal_orders' => ['nullable','numeric'],
-            'months.*.expenses.sga_other'       => ['nullable','numeric'],
-            'months.*.expenses.indirect'        => ['nullable','numeric'],
-            'months.*.expenses.bonus'           => ['nullable','numeric'],
-        ]);
-
-        $scenarioLabel = $data['scenario_label_ja'] ?? $this->resolveScenarioLabel($data['scenario_code']);
-
-        $metricIds = ProjectMetric::query()
-            ->where('scenario_label_ja', $scenarioLabel)
-            ->whereIn('line', ['sales','expense'])
-            ->pluck('id', 'line');
-
-        DB::transaction(function () use ($project, $data, $metricIds) {
-            $now = now();
-            $mvRows = [];
-
-            foreach ($data['months'] as $m) {
-                $period = Carbon::parse($m['period'])->startOfMonth()->toDateString();
-
-                ProjectSale::updateOrCreate(
-                    ['project_record_id' => $project->id, 'period' => $period],
-                    [
-                        'sales'          => $m['sales']['sales']          ?? 0,
-                        'internal_sales' => $m['sales']['internal_sales'] ?? 0,
-                    ]
-                );
-
-                ProjectExpense::updateOrCreate(
-                    ['project_record_id' => $project->id, 'period' => $period],
-                    [
-                        'salaries'        => $m['expenses']['salaries']        ?? 0,
-                        'outsourcing'     => $m['expenses']['outsourcing']     ?? 0,
-                        'internal_orders' => $m['expenses']['internal_orders'] ?? 0,
-                        'sga_other'       => $m['expenses']['sga_other']       ?? 0,
-                        'indirect'        => $m['expenses']['indirect']        ?? 0,
-                        'bonus'           => $m['expenses']['bonus']           ?? 0,
-                    ]
-                );
-
-                // 2) Compute totals (use payload; if you want canonical truth, re-read from DB here)
-                $totalSales =
-                    ($m['sales']['sales']          ?? 0) +
-                    ($m['sales']['internal_sales'] ?? 0);
-
-                $totalExpenses =
-                    ($m['expenses']['salaries']        ?? 0) +
-                    ($m['expenses']['outsourcing']     ?? 0) +
-                    ($m['expenses']['internal_orders'] ?? 0) +
-                    ($m['expenses']['sga_other']       ?? 0) +
-                    ($m['expenses']['indirect']        ?? 0) +
-                    ($m['expenses']['bonus']           ?? 0);
-
-                // 3) Upsert ONLY the total metrics (if they exist)
-                if ($metricIds->has('sales')) {
-                    $mvRows[] = [
-                        'project_record_id' => $project->id,
-                        'project_metric_id' => $metricIds['sales'],
-                        'period'            => $period,
-                        'value'             => $totalSales,
-                        'source'            => 'manual',
-                        'created_at'        => $now,
-                        'updated_at'        => $now,
-                    ];
-                }
-                if ($metricIds->has('expense')) {
-                    $mvRows[] = [
-                        'project_record_id' => $project->id,
-                        'project_metric_id' => $metricIds['expense'],
-                        'period'            => $period,
-                        'value'             => $totalExpenses,
-                        'source'            => 'manual',
-                        'created_at'        => $now,
-                        'updated_at'        => $now,
-                    ];
-                }
-            }
-
-            if ($mvRows) {
-                ProjectMetricValue::upsert(
-                    $mvRows,
-                    ['project_record_id','project_metric_id','period'],
-                    ['value','source','updated_at']
-                );
-            }
-        });
-
-        return response()->json(['ok' => true]);
-    }
+   
 
     public function download_yearly_template(Request $req) {
         $data = $req->validate([

@@ -1,7 +1,7 @@
 <template>
     <div>
         <div>
-            <p class="text-[13px] font-semibold mb-[10px]">進捗報告・メッセージ</p>
+            <p class="text-[13px] font-semibold mb-[10px]">{{ passingData?.title }}</p>
             <div ref="messageContainer" class="max-h-[50vh] overflow-auto bg-[var(--bg2)] px-[20px] py-[40px]">
                 <div v-if="commentText" class="p-[15px] bg-[var(--message-background)] max-w-[80%] w-fit min-w-[40%] mb-[50px]">
                     <div class="text-[14px] text-[gray] mb-[20px]">過去のコメント</div>
@@ -16,6 +16,7 @@
                         v-for="(report, mIndex) in item.reports"
                         :key="mIndex"
                         :report="report"
+                        :filePath="passingData?.file_path"
                     />
                 </TransitionGroup>         
                 <div class="p-[15px] text-[gray] justify-center" v-if="!item.reports.length">現在メッセージはありません</div>                       
@@ -166,10 +167,16 @@ import AiCorrection from '../Global/AiCorrection.vue';
 import AiIcon from '../Icons/AiIcon.vue';
 import GoalMessageItem from './GoalChat/GoalMessageItem.vue';
 import FileIcon from '../Board/Mixed/FileIcon.vue';
-
+type PassingData = {
+    path: string
+    title: string
+    file_path: string
+}
 const props = defineProps<{
-    item: ProjectGoal | SalaryIssue
+    item: ProjectGoal | SalaryIssue | any
     which?: 'goal' | 'salary_issue'
+    passingData: PassingData
+    title?: string
 }>()
 
 const emit = defineEmits<{
@@ -400,7 +407,7 @@ const commentSendConfirm = async(num) => {
     if(!text.trim().length || sending.value) return
     sending.value = true
 
-    const data = await api.post('/project_goal_comment_create', {
+    const data = await api.post(`${props.passingData?.path}`, {
         record_id: props.item.id,
         which: props.which,
         content: text,

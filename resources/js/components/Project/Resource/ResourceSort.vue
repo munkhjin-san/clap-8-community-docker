@@ -29,7 +29,7 @@
             <div class="flex flex-col gap-[10px]" v-if="filtered.length">
                 <div v-for="option in filtered">
                     <label class="cursor-pointer select-none whitespace-nowrap flex items-center gap-[5px]">
-                        <input type="checkbox" class="custom-f-checkbox" name="class-selector"  v-model="selected" :value="option"/>
+                        <input type="checkbox" class="custom-f-checkbox rounded-[3px]" name="class-selector"  v-model="selected" :value="option"/>
                         {{ option }}
                     </label>
                 </div>

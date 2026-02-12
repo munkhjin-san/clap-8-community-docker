@@ -55,6 +55,14 @@ class ProjectRecord extends Model
     {
         return $this->hasMany(ProjectMemberRole::class, 'project_record_id');
     }
+    public function checkitems()
+    {
+        return $this->hasMany(ProjectCheckitems::class);
+    }
+    public function reports()
+    {
+        return $this->hasMany(ProjectCheckitemsReport::class);
+    }
     protected $guarded = [];
 
     protected $casts = [

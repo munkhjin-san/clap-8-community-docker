@@ -203,6 +203,9 @@ class User extends Authenticatable
     public function evaluation(){
         return $this->hasOne(EvaluationRecord::class);
     }
+    public function evaluations(){
+        return $this->hasMany(EvaluationRecord::class);
+    } 
     public function outcome_goals(){
         return $this->hasMany(ProjectGoal::class);
     }

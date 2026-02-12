@@ -6,7 +6,7 @@
         </div>
         <div class="whitespace-break-spaces leading-normal mt-[15px]" v-html="mentionFormatter(report.content, true)"></div>
         <div>
-            <GoalMessageFile v-if="report.files && report.files.length" :list="report.files"/>
+            <GoalMessageFile v-if="report.files && report.files.length" :filePath="filePath" :list="report.files"/>
         </div>
     </div>    
 </template>
@@ -19,6 +19,7 @@ import GoalMessageFile from './GoalMessageFile.vue';
 
 const props = defineProps<{
     report: ProjectGoalReport
+    filePath: string
 }>();
 const auth = useAuthUserStore()
 </script>

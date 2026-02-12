@@ -46,6 +46,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('posts:close-expired')->dailyAt('02:00');
         $schedule->command('alerts:variance --period='.now()->toDateString())->monthlyOn(20, '18:00');
         $schedule->command('logs:prune-activity-logs')->quarterly();
+        $schedule->command('goals:check-alert-streak')->dailyAt('02:00');
     }
 
     /**

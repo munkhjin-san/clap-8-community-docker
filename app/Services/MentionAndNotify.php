@@ -81,11 +81,7 @@ class MentionAndNotify
             }, $notify_ids);
             if(!empty($members)){
                 $deep_link = url('board/' . $boardRecord->id);
-                $icon = $user->icon_path 
-                    ? url("content_api/profile_icon_migrated/$user->icon_path.webp") 
-                    : url("user_default_thumbnail/" . urlencode(mb_substr($user->name, 0, 1)) . "/30/000000");
-                
-                $badge = url('/notification-favicon.png');
+               
                 if(!empty($boardRecord) && $boardRecord->private_flag == 1){
                     $push_title = $user->name;
                     $body = 'メッセージが届きました';
@@ -93,23 +89,30 @@ class MentionAndNotify
                     $push_title = $boardRecord->title;
                     $body = $user->name . 'さんからメッセージが届きました';
                 }
-                $payload = [
-                    "body" => $body,
-                    "title" => $push_title,
-                    "link" => $deep_link,
-                    "members" => $members,
-                    "icon" => $icon,
-                    "badge" => $badge,
-                    "user_id" => $user->id,
-                    "user_name" => $user->name,
-                    "message" => $chat->message_text,
-                ];
-                SendNotification::dispatchAfterResponse($payload);
-                return $payload;
+                $this->notify($members, $push_title, $body, $deep_link, $user);
             }
             return null;
             
         }
         return null;
+    }
+    public function notify(array $notify_ids, string $push_title, string $body, string $link, User $user) {
+        $icon = $user->icon_path 
+            ? url("content_api/profile_icon_migrated/$user->icon_path.webp") 
+            : url("user_default_thumbnail/" . urlencode(mb_substr($user->name, 0, 1)) . "/30/000000");
+        
+        $badge = url('/notification-favicon.png');
+        $payload = [
+            "body" => $body,
+            "title" => $push_title,
+            "link" => $link,
+            "members" => $notify_ids,
+            "icon" => $icon,
+            "badge" => $badge,
+            "user_id" => $user->id,
+            "user_name" => $user->name,
+        ];
+        SendNotification::dispatchAfterResponse($payload);
+        return $payload;
     }
 }

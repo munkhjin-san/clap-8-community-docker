@@ -587,10 +587,12 @@
                             />
                         </div>
                     </div>
-                    <div class="si-box">
-                        <LoaderButton @triggered="createProject" id="projectCreateButton" :loading="loading" content="保存する"/>
-                    </div>
+                    
                 </div>
+                    <div class="si-box flex gap-[30px] justify-center" id="projectCreateButton">
+                        <LoaderButton @triggered="createProject('draft')" :loading="isLoading('draft')" content="下書き保存" style="margin:0;"/>
+                        <LoaderButton @triggered="createProject('pending_director')" :loading="isLoading('pending_director')" content="申請する" style="margin:0;"/>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -629,11 +631,13 @@ import { contractTypeDefaults, contractRoleDefaults } from '@/utils/tools';
 import { useTour } from '@/composables/useTour';
 import { useTutorialStore } from '@/store/tutorial';
 
+type ProjectStatus = 'draft' | 'pending_director'
+
 const emit = defineEmits(['close', 'getProjects'])
 const props = defineProps(['userList', 'editData'])
 const api = useApi()
 const {ask, ping, toast } = useDialog()
-const loading = ref(false)
+const loadingStatus = ref<ProjectStatus | null>(null)
 const taskCreating = ref(false)
 const misoCreating = ref(false)
 const contractReviewing = ref(false)
@@ -1016,11 +1020,12 @@ const statusPayload = computed(() => {
             sort_order: order++,
         }))
 })
-const buildParams = () => ({
+const buildParams = (status: ProjectStatus) => ({
     id: props.editData?.id,
     params: {
         ...projectParams,
         actual_statuses: statusPayload.value,
+        status: status,
     },
     tasks: generatedTasks.value ?? [],
     contract_data: contractPayload.value?.data,
@@ -1029,8 +1034,10 @@ const buildParams = () => ({
     contract_type: contractPayload.value?.type
 
 })
-const createProject = async() => {
-    
+const isLoading = (s: ProjectStatus) => loadingStatus.value === s
+const createProject = async(status: ProjectStatus) => {
+    if (loadingStatus.value) return
+
     const validate = await validation()
     const managerValidate = await managerValidation()
 
@@ -1045,8 +1052,8 @@ const createProject = async() => {
         ping('メンバーと管理者に同じユーザーが含まれています。')
         return
     }
-    const params = buildParams()
-    loading.value = true
+    const params = buildParams(status)
+    loadingStatus.value = status
     const data = await api.post('/create_project', params, {
         toast: '保存しました。',
     })
@@ -1054,7 +1061,7 @@ const createProject = async() => {
         emit('close')
         emit('getProjects')
     }
-    loading.value = false
+    loadingStatus.value = null
 }
 const generateTasks = async() => {
 
