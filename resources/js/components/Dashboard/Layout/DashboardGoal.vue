@@ -17,6 +17,7 @@
                     <v-expansion-panel hide-actions static :tile="true" class="rm-p" v-for="(goal) in goals" :key="goal.id">       
                         <v-expansion-panel-title>
                             <template v-slot:default="{ expanded }">
+                                <PanelTitle :expanded="expanded">
                                 <div class="flex items-center px-2 text-[13px] leading-normal overflow-hidden whitespace-nowrap">
                                     <div class="mr-1 ml-[-5px]" v-if="goal.status === 9">
                                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" viewBox="0 0 38 32" style="fill: rgb(100, 188, 68);; margin-left: 4px;">
@@ -36,11 +37,13 @@
                                         </span>   
                                     </div>
                                 </div>
-                                
+                                </PanelTitle>
                             </template>
                         </v-expansion-panel-title>
                         <v-expansion-panel-text>
-                            <MonthlyGoalItemCompact :goal="goal"/>
+                            <PanelData>
+                                <MonthlyGoalItemCompact :goal="goal"/>
+                            </PanelData>
                         </v-expansion-panel-text>
                     </v-expansion-panel>
                 </v-expansion-panels>
@@ -94,6 +97,8 @@ import { ProjectGoal } from '@/interface/projectInterface';
 import MonthlyGoalContainer from '@/components/Project/MonthlyGoal/MonthlyGoalContainer.vue';
 import GoalUserPicker from '@/components/Project/MonthlyGoal/GoalUserPicker.vue';
 import MonthlyGoalItemCompact from '@/components/Project/MonthlyGoal/MonthlyGoalItemCompact.vue';
+import PanelTitle from './PanelTitle.vue';
+import PanelData from './PanelData.vue';
 
 const props = defineProps<{
     data: {
@@ -176,7 +181,6 @@ const goalIsOverWeek = (goal: ProjectGoal) => {
     const now = DateTime.local();
     const deadline = DateTime.fromISO(goal.end_date);
     const diffInDays = now.diff(deadline, 'days').days;
-    console.log('diffInDays', diffInDays)
     return diffInDays > 7 && diffInDays >= 0;
 }
 defineExpose({

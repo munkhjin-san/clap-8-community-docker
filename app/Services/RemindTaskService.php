@@ -10,9 +10,9 @@ use Illuminate\Support\Collection;
 
 class RemindTaskService
 {
-    public const BUCKET_UNTOUCHED = 'untouched';
-    public const BUCKET_UNFINISHED  = 'unfinished';
-    public const BUCKET_NOT_APPROVED  = 'not_approved';
+    public const BUCKET_UNTOUCHED = 'untouchedTasks';
+    public const BUCKET_UNFINISHED  = 'unfinishedTasks';
+    public const BUCKET_NOT_APPROVED  = 'pendingApprovalTasks';
 
     /**
      * @param array<string> $need  allowed: untouched, unfinished, not_approved, all
@@ -80,13 +80,13 @@ class RemindTaskService
         // Return only what was requested (or all if asked)
         $out = [];
         if (in_array(self::BUCKET_UNTOUCHED, $need, true)) {
-            $out['remind_untouched_tasks'] = $mapIdsToModels($bucketIds[self::BUCKET_UNTOUCHED]);
+            $out['untouchedTasks'] = $mapIdsToModels($bucketIds[self::BUCKET_UNTOUCHED]);
         }
         if (in_array(self::BUCKET_UNFINISHED, $need, true)) {
-            $out['remind_unfinished_tasks']  = $mapIdsToModels($bucketIds[self::BUCKET_UNFINISHED]);
+            $out['unfinishedTasks']  = $mapIdsToModels($bucketIds[self::BUCKET_UNFINISHED]);
         }
         if (in_array(self::BUCKET_NOT_APPROVED, $need, true)) {
-            $out['remind_not_approved_tasks']  = $mapIdsToModels($bucketIds[self::BUCKET_NOT_APPROVED]);
+            $out['pendingApprovalTasks']  = $mapIdsToModels($bucketIds[self::BUCKET_NOT_APPROVED]);
         }
 
         return $out;
@@ -119,9 +119,9 @@ class RemindTaskService
     private function formatEmpty(array $need): array
     {
         $out = [];
-        if (in_array(self::BUCKET_UNTOUCHED, $need, true)) $out['remind_untouched_tasks'] = collect();
-        if (in_array(self::BUCKET_UNFINISHED, $need, true))  $out['remind_unfinished_tasks']  = collect();
-        if (in_array(self::BUCKET_NOT_APPROVED, $need, true))  $out['remind_not_approved_tasks']  = collect();
+        if (in_array(self::BUCKET_UNTOUCHED, $need, true)) $out['untouchedTasks'] = collect();
+        if (in_array(self::BUCKET_UNFINISHED, $need, true))  $out['unfinishedTasks']  = collect();
+        if (in_array(self::BUCKET_NOT_APPROVED, $need, true))  $out['pendingApprovalTasks']  = collect();
         return $out;
     }
 }

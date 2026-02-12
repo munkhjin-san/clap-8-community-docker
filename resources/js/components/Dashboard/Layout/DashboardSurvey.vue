@@ -12,17 +12,17 @@
                 <v-expansion-panel selected-class="selected-panel-item" hide-actions static :tile="true" class="rm-p" v-for="(form, index) in data.data" :key="index">
                     <v-expansion-panel-title>
                         <template v-slot:default="{ expanded }">
-                            <div class="px-3 text-[13px] overflow-hidden whitespace-nowrap text-ellipsis">{{ form.title }}</div>
+                            <PanelTitle :expanded="expanded">{{ form.title }}</PanelTitle>
                         </template>
                     </v-expansion-panel-title>
                     <v-expansion-panel-text>
-                        <div class="mt-2">
+                        <PanelData>
                             <CommandButton 
                                 :buttons="[
                                     {title: '回答', action: () => router.push(`/survey/${form.id}`)},
                                 ]"
                             />
-                        </div>
+                        </PanelData>
                     </v-expansion-panel-text>
                 </v-expansion-panel>
             </v-expansion-panels>
@@ -37,6 +37,8 @@ import BaseLayout from './BaseLayout.vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import { useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
+import PanelTitle from './PanelTitle.vue';
+import PanelData from './PanelData.vue';
 
 const props = defineProps<{
     data: {

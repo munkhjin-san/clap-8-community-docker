@@ -68,9 +68,28 @@
                 ref="cardLayouts"
                 @resize="(type) => resize(type)"
             />
+            <DashboardChallenge
+                v-else-if="!initialLoader && card.layout === 'challenge'"
+                v-show="card.data.length > 0"
+                class="dashboard-card-item"
+                :class="[card.col, 'min-w-0 w-full']"
+                :fullscreen="route.params.type === card.type"
+                @toggle="toggle"
+                :data="card"
+                ref="cardLayouts"
+                @resize="(type) => resize(type)"
+            />
         </template>
 
     </div>
+    <FloatButton :hide-on="sortParent" title="データを更新" @action="refreshAll" class="fixed" v-if="!route.params.type">
+        <template #icon>
+            <svg v-if="!initialLoader" xmlns="http://www.w3.org/2000/svg" width="406.7002" height="448.97456" viewBox="0 0 406.7002 448.97456">
+                <path d="M269.42244,400.48149c89.40405-38.52608,127.74738-143.45953,84.52156-230.37382-4.00132-8.04547-.26147-17.82743,7.09537-22.04708,7.4958-4.29935,18.71269-3.19281,23.2254,5.40907,20.95447,39.94219,27.1756,85.82814,18.89384,129.76056-19.02756,100.93584-110.71041,171.77738-212.55189,165.33852C89.88917,442.20092,8.2668,362.26379.5443,261.0774c-2.28189-29.8992,2.63636-63.24923,14.27731-91.50091,25.44743-61.75894,78.66763-107.53931,144.41752-122.44033l-19.58257-16.43668c-7.42992-6.23632-8.21032-17.1677-2.31285-24.29177,6.18069-7.46619,16.86033-8.68422,24.91843-2.18939l51.8508,41.79173c6.84966,5.52083,8.93392,15.44934,4.04718,22.84488l-36.39742,55.08348c-5.60688,8.48539-17.40599,9.55259-24.3728,4.29712-8.40154-6.33776-9.11161-16.578-3.67234-25.07838l13.93379-21.77543c-31.98287,6.59331-59.7407,22.17515-82.69216,44.87814-41.19269,40.74673-58.67726,98.6188-45.74298,156.9487,11.22378,50.61602,47.48919,95.46628,97.6474,117.14014,41.87034,18.09258,90.2506,18.36429,132.55882.13279Z"/>
+            </svg>
+            <div v-else class="spinner-nano"></div>
+        </template>
+    </FloatButton>
 </div>
 </template>
 <script lang="ts" setup>
@@ -78,7 +97,6 @@ import { useAuthUserStore } from '@/store/auth';
 import { nextTick, onMounted, provide, Ref, ref, useTemplateRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useResizeObserver } from '@vueuse/core';
-import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import { Message, Task, UserWithGoals } from '@/interface/globalInterface';
 import { useSortable } from '@vueuse/integrations/useSortable.mjs';
@@ -89,13 +107,20 @@ import { CustomForm } from '@/interface/customFormInterface';
 import DashboardSurvey from './Layout/DashboardSurvey.vue';
 import DashboardGoal from './Layout/DashboardGoal.vue';
 import HamBurger from '../Global/HamBurger.vue';
+import { useDashboardStore } from '@/store/dashboard';
+import { useDashboardPrefsStore } from '@/store/dashboardPrefs';
+import { Post } from '@/interface/postInterface';
+import DashboardChallenge from './Layout/DashboardChallenge.vue';
+import FloatButton from '../Global/FloatButton.vue';
 
 const auth = useAuthUserStore()
 const initialLoader = ref(true)
 const cardLayouts = useTemplateRef('cardLayouts')
 const mParent = useTemplateRef('mParent')
 const route = useRoute()
-
+const dashboardStore = useDashboardStore()
+const { collection } = dashboardStore
+const { getBatchDashboardData } = dashboardStore
 type SkeletonCard = {
     id: string
     col: string
@@ -142,92 +167,18 @@ type DashboardOverdueGoalCard = {
     data: UserWithGoals[]
 }
 
-type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard
-
-const DASHBOARD_CARDS_ORDER_STORAGE_KEY = 'dashboardCardsOrder:v1'
-const DASHBOARD_CARDS_LAYOUT_STORAGE_KEY = 'dashboardCardsLayout:v1'
-const DASHBOARD_CARDS_HEIGHTS_STORAGE_KEY = 'dashboardCardsHeights:v1'
-
-const isValidColSpan = (value: unknown): value is string =>
-    typeof value === 'string' && /^col-span-[1-4]$/.test(value)
-
-const getStoredDashboardCardsOrder = (): string[] | null => {
-    if (typeof localStorage === 'undefined') return null
-    try {
-        const raw = localStorage.getItem(DASHBOARD_CARDS_ORDER_STORAGE_KEY)
-        if (!raw) return null
-        const parsed = JSON.parse(raw)
-        if (!Array.isArray(parsed)) return null
-        const order = parsed.filter((v) => typeof v === 'string') as string[]
-        return order.length > 0 ? order : null
-    } catch {
-        return null
-    }
+type DashboardChallengeCard = {
+    title: string
+    type: 'challenge'
+    layout: 'challenge'
+    col: string
+    order?: number
+    data: Post[]
 }
 
-const getStoredDashboardCardsLayout = (): Record<string, string> | null => {
-    if (typeof localStorage === 'undefined') return null
-    try {
-        const raw = localStorage.getItem(DASHBOARD_CARDS_LAYOUT_STORAGE_KEY)
-        if (!raw) return null
-        const parsed = JSON.parse(raw)
-        if (!parsed || typeof parsed !== 'object') return null
+type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard
 
-        const layout: Record<string, string> = {}
-        for (const [type, col] of Object.entries(parsed as Record<string, unknown>)) {
-            if (typeof type === 'string' && isValidColSpan(col)) layout[type] = col
-        }
-        return Object.keys(layout).length > 0 ? layout : null
-    } catch {
-        return null
-    }
-}
-
-const getStoredDashboardCardsHeights = (): Record<string, number> | null => {
-    if (typeof localStorage === 'undefined') return null
-    try {
-        const raw = localStorage.getItem(DASHBOARD_CARDS_HEIGHTS_STORAGE_KEY)
-        if (!raw) return null
-        const parsed = JSON.parse(raw)
-        if (!parsed || typeof parsed !== 'object') return null
-
-        const heights: Record<string, number> = {}
-        for (const [type, value] of Object.entries(parsed as Record<string, unknown>)) {
-            const num = typeof value === 'number' ? value : Number(value)
-            if (typeof type === 'string' && Number.isFinite(num) && num > 0) heights[type] = Math.round(num)
-        }
-        return Object.keys(heights).length > 0 ? heights : null
-    } catch {
-        return null
-    }
-}
-
-const applyDashboardCardsOrder = (cards: DashboardCard[], order: string[] | null): DashboardCard[] => {
-    if (!order || order.length === 0) return cards
-
-    const byType = new Map<string, DashboardCard>()
-    for (const card of cards) byType.set(card.type, card)
-
-    const ordered: DashboardCard[] = []
-    for (const type of order) {
-        const card = byType.get(type)
-        if (card) ordered.push(card)
-    }
-
-    for (const card of cards) {
-        if (!order.includes(card.type)) ordered.push(card)
-    }
-
-    return ordered
-}
-
-const applyDashboardCardsLayout = (cards: DashboardCard[], layout: Record<string, string> | null) => {
-    if (!layout) return
-    for (const card of cards) {
-        const col = layout[card.type]
-        if (isValidColSpan(col)) card.col = col
-    }
-}
+const prefsStore = useDashboardPrefsStore()
 
 const defaultDashboardCards: DashboardCard[] = [
     {
@@ -293,32 +244,53 @@ const defaultDashboardCards: DashboardCard[] = [
         col: 'col-span-1',
         order: undefined,
         data: [] as UserWithGoals[],
+    },
+    {
+        title: 'チャレンジ',
+        type: 'challenge',
+        layout: 'challenge',
+        col: 'col-span-1',
+        order: undefined,
+        data: [] as Post[],
     }
 ]
 
-applyDashboardCardsLayout(defaultDashboardCards, getStoredDashboardCardsLayout())
+type DashboardStoreCollection = typeof collection
+type DashboardStoreKey = keyof DashboardStoreCollection
 
-const dashboardCards = ref<DashboardCard[]>(applyDashboardCardsOrder(defaultDashboardCards, getStoredDashboardCardsOrder()))
-
-const dashboardCardHeights = ref<Record<string, number>>(getStoredDashboardCardsHeights() ?? {})
-
-let saveHeightsTimer: number | null = null
-const scheduleSaveDashboardCardsHeights = () => {
-    if (typeof localStorage === 'undefined') return
-    if (saveHeightsTimer !== null) window.clearTimeout(saveHeightsTimer)
-    saveHeightsTimer = window.setTimeout(() => {
-        try {
-            localStorage.setItem(DASHBOARD_CARDS_HEIGHTS_STORAGE_KEY, JSON.stringify(dashboardCardHeights.value))
-        } catch {
-            // ignore localStorage quota/security errors
-        }
-        saveHeightsTimer = null
-    }, 150)
+const CARD_DATA_KEY_BY_TYPE: Record<string, DashboardStoreKey> = {
+    remind_reminded_messages: 'remindedMessages',
+    remind_unchecked_messages: 'mustCheckMessages',
+    remind_unsigned_messages: 'mustSignMessages',
+    remind_unfinished_tasks: 'unfinishedTasks',
+    remind_untouched_tasks: 'untouchedTasks',
+    remind_not_approved_tasks: 'pendingApprovalTasks',
+    remind_form: 'forms',
+    // backend provides overdueGoals inside overdueGraveCount payload
+    remind_overdue: 'overdueGoals',
+    challenge: 'challenges',
 }
+
+const CARD_REFRESH_KEYS_BY_TYPE: Record<string, DashboardStoreKey[]> = {
+    remind_reminded_messages: ['remindedMessages'],
+    remind_unchecked_messages: ['mustCheckMessages'],
+    remind_unsigned_messages: ['mustSignMessages'],
+    remind_unfinished_tasks: ['unfinishedTasks', 'untouchedTasks'],
+    remind_untouched_tasks: ['untouchedTasks'],
+    remind_not_approved_tasks: ['pendingApprovalTasks'],
+    remind_form: ['forms'],
+    // refresh count payload; store will unpack overdueGoals
+    remind_overdue: ['overdueGraveCount'],
+    challenge: ['challenges'],
+}
+
+prefsStore.applyLayoutToCards(defaultDashboardCards)
+
+const dashboardCards = ref<DashboardCard[]>(prefsStore.applyOrderToCards(defaultDashboardCards))
 
 const buildSkeletonCards = () => {
     skeletonCards.value = dashboardCards.value.map((card) => {
-        const height = dashboardCardHeights.value[card.type] ?? randomInt(140, 320)
+        const height = prefsStore.heights[card.type] ?? randomInt(140, 320)
         return {
             id: `sk-${card.type}`,
             col: card.col,
@@ -329,38 +301,18 @@ const buildSkeletonCards = () => {
 
 buildSkeletonCards()
 
-const saveDashboardCardsOrder = () => {
-    if (typeof localStorage === 'undefined') return
-    try {
-        const order = dashboardCards.value.map((c) => c.type)
-        localStorage.setItem(DASHBOARD_CARDS_ORDER_STORAGE_KEY, JSON.stringify(order))
-    } catch {
-        // ignore localStorage quota/security errors
+const syncDashboardCardsFromStore = () => {
+    for (const card of dashboardCards.value) {
+        const dataKey = CARD_DATA_KEY_BY_TYPE[card.type]
+        if (!dataKey) continue
+        const payload = (collection as any)[dataKey]
+        card.data = (Array.isArray(payload) ? payload : []) as any
     }
 }
 
 watch(
     () => dashboardCards.value.map((c) => c.type).join('|'),
-    () => saveDashboardCardsOrder(),
-    { flush: 'post' },
-)
-
-const saveDashboardCardsLayout = () => {
-    if (typeof localStorage === 'undefined') return
-    try {
-        const layout: Record<string, string> = {}
-        for (const card of dashboardCards.value) {
-            if (isValidColSpan(card.col)) layout[card.type] = card.col
-        }
-        localStorage.setItem(DASHBOARD_CARDS_LAYOUT_STORAGE_KEY, JSON.stringify(layout))
-    } catch {
-        // ignore localStorage quota/security errors
-    }
-}
-
-watch(
-    () => dashboardCards.value.map((c) => `${c.type}:${c.col}`).join('|'),
-    () => saveDashboardCardsLayout(),
+    () => prefsStore.setOrder(dashboardCards.value.map((c) => c.type)),
     { flush: 'post' },
 )
 
@@ -379,9 +331,7 @@ const setupDashboardCardHeightObservers = () => {
             const entry = entries[0]
             const h = Math.round(entry?.contentRect?.height ?? 0)
             if (h <= 0) return
-            if (dashboardCardHeights.value[type] === h) return
-            dashboardCardHeights.value = { ...dashboardCardHeights.value, [type]: h }
-            scheduleSaveDashboardCardsHeights()
+            prefsStore.setHeight(type, h)
         })
         heightObservers.set(type, stop)
     }
@@ -406,8 +356,6 @@ const router = useRouter()
 const { ping } = useDialog()
 const sortParent = useTemplateRef('sortParent')
 
-
-const api = useApi()
 const offset = ref(0)
 const prevScrollPosition = ref(0)
 const prevScrollTime = ref<number>(typeof performance !== 'undefined' ? performance.now() : Date.now())
@@ -467,46 +415,22 @@ const handleScroll = () => {
     prevScrollTime.value = now
 }
 
-
-const getData = async () => {
-    const data = await api.get('/remind_summary');
-    for (const card of dashboardCards.value) {
-        const payload = data?.[card.type]      
-        card.data = (Array.isArray(payload) ? payload : [])         
-    }
-}
-
-
-
 const refreshData = async (dataType: string) => {
     try {
-        const response = await api.get(`/${dataType}`);
-        const card = dashboardCards.value.find((c) => c.type === dataType)
-        if (card) {
-            const payload = response?.[dataType]
-            if (card.layout === 'message') {
-                card.data = (Array.isArray(payload) ? payload : []) as Message[]
-            } else if(card.layout === 'task') {
-                card.data = (Array.isArray(payload) ? payload : []) as Task[]
-            } else if(card.layout === 'monthly_goals') {
-                card.data = (Array.isArray(payload) ? payload : []) as UserWithGoals[]
-            } else {
-                card.data = (Array.isArray(payload) ? payload : []) as any[]
-            }
-        }
-        if (dataType === 'remind_unfinished_tasks') {
-            refreshData('remind_untouched_tasks')   
-        }
+        const keys = CARD_REFRESH_KEYS_BY_TYPE[dataType]
+        if (!keys || keys.length === 0) return
+        await getBatchDashboardData(keys as unknown as string[])
+        syncDashboardCardsFromStore()
     } catch (e) {
-        ping(e.response?.data.message || e?.message || 'エラーが発生しました。');
+        ping((e as any)?.response?.data?.message || (e as any)?.message || 'エラーが発生しました。');
     }
 };
 
 
 const removeRemindMessage = (id: number) => {
-    const card = dashboardCards.value.find(c => c.type === 'remind_reminded_messages')
-    if (!card) return
-    card.data = (card.data as Message[]).filter((message: { id: number | string | null }) => Number(message.id) !== id)
+    const current = collection.remindedMessages
+    collection.remindedMessages = current.filter((message: { id: number | string | null }) => Number(message.id) !== id)
+    syncDashboardCardsFromStore()
 };
 
 const resize = async(type: string) => {
@@ -527,8 +451,7 @@ const resize = async(type: string) => {
     // mutate class
     layout.col = `col-span-${nextSpan}`
     await nextTick()
-
-    saveDashboardCardsLayout()
+    prefsStore.setColSpan(type, layout.col)
 
     // LAST
     const last = el.getBoundingClientRect()
@@ -585,17 +508,36 @@ const toggle = async (el: HTMLElement | null, type: string) => {
         { duration: 150, easing: 'cubic-bezier(.2,.8,.2,1)' }
     )
 }
+
 onMounted(async () => {
+    init()
+})
+
+const init = async() => {
     try {
-        await getData()
+        await getBatchDashboardData([
+            'remindedMessages',
+            'mustCheckMessages',
+            'mustSignMessages',
+            'unfinishedTasks',
+            'untouchedTasks',
+            'pendingApprovalTasks',
+            'forms',
+            'overdueGraveCount',
+            'challenges',
+        ])
+        syncDashboardCardsFromStore()
     } finally {
         initialLoader.value = false
     }
 
     await nextTick()
     setupDashboardCardHeightObservers()
-})
-
+}
+const refreshAll = async () => {
+    initialLoader.value = true
+    await init()
+}
 watch(
     () => initialLoader.value,
     async (loading) => {
@@ -604,6 +546,12 @@ watch(
         setupDashboardCardHeightObservers()
     },
     { immediate: true },
+)
+
+watch(
+    () => dashboardStore.collection,
+    () => syncDashboardCardsFromStore(),
+    { deep: true },
 )
 defineExpose({
     refreshData

@@ -9,9 +9,9 @@ use Illuminate\Support\Collection;
 
 class ReminderMessageService
 {
-    public const BUCKET_UNCHECKED = 'unchecked';
-    public const BUCKET_UNSIGNED  = 'unsigned';
-    public const BUCKET_REMINDED  = 'reminded';
+    public const BUCKET_UNCHECKED = 'mustCheckMessages';
+    public const BUCKET_UNSIGNED  = 'mustSignMessages';
+    public const BUCKET_REMINDED  = 'remindedMessages';
 
     /**
      * @param array<string> $need  allowed: unchecked, unsigned, reminded, all
@@ -96,13 +96,13 @@ class ReminderMessageService
         // Return only what was requested (or all if asked)
         $out = [];
         if (in_array(self::BUCKET_UNCHECKED, $need, true)) {
-            $out['remind_unchecked_messages'] = $mapIdsToModels($bucketIds[self::BUCKET_UNCHECKED]);
+            $out['mustCheckMessages'] = $mapIdsToModels($bucketIds[self::BUCKET_UNCHECKED]);
         }
         if (in_array(self::BUCKET_UNSIGNED, $need, true)) {
-            $out['remind_unsigned_messages']  = $mapIdsToModels($bucketIds[self::BUCKET_UNSIGNED]);
+            $out['mustSignMessages']  = $mapIdsToModels($bucketIds[self::BUCKET_UNSIGNED]);
         }
         if (in_array(self::BUCKET_REMINDED, $need, true)) {
-            $out['remind_reminded_messages']  = $mapIdsToModels($bucketIds[self::BUCKET_REMINDED]);
+            $out['remindedMessages']  = $mapIdsToModels($bucketIds[self::BUCKET_REMINDED]);
         }
 
         return $out;
@@ -143,9 +143,9 @@ class ReminderMessageService
     private function formatEmpty(array $need): array
     {
         $out = [];
-        if (in_array(self::BUCKET_UNCHECKED, $need, true)) $out['remind_unchecked_messages'] = collect();
-        if (in_array(self::BUCKET_UNSIGNED, $need, true))  $out['remind_unsigned_messages']  = collect();
-        if (in_array(self::BUCKET_REMINDED, $need, true))  $out['remind_reminded_messages']  = collect();
+        if (in_array(self::BUCKET_UNCHECKED, $need, true)) $out['mustCheckMessages'] = collect();
+        if (in_array(self::BUCKET_UNSIGNED, $need, true))  $out['mustSignMessages']  = collect();
+        if (in_array(self::BUCKET_REMINDED, $need, true))  $out['remindedMessages']  = collect();
         return $out;
     }
 }

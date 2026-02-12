@@ -766,47 +766,38 @@ class RemindController extends Controller
     {
         $now = now();
         $active_user = $this->active_user();
-        $challenge = PostRecord::query()
+        $challenges = PostRecord::query()
             ->where('app_type', 2)
             ->where('status_flag', 0)
-            ->where('user_id', $active_user->id)
+            ->whereHas('to_users', function ($q) use ($active_user) {
+                $q->where('users.id', $active_user->id);
+            })
             ->whereNotNull('date_start')
             ->whereNotNull('date_end')
             ->where('date_start', '<=', $now)
             ->where('date_end', '>=', $now)    // active window
             ->orderByDesc('date_start')
-            ->first();
+            ->get();
 
-        if (!$challenge) {
-            return response()->json([
-                'remind_challenge' => [],
-            ]);
+        if (!$challenges->count()) {
+            return [];
         }
+        $data = $challenges->map(function ($challenge) use ($now) {
+            $start = Carbon::parse($challenge->date_start);
+            $end   = Carbon::parse($challenge->date_end);
 
-        $start = \Carbon\Carbon::parse($challenge->date_start);
-        $end   = \Carbon\Carbon::parse($challenge->date_end);
-
-        $elapsed = $start->diffInSeconds($now);
-        $total   = max(1, $start->diffInSeconds($end));
-        $pct     = (int) round(($elapsed / $total) * 100);
-        $pct     = max(0, min(100, $pct));
-        
-        if ($pct < 50) {
-            return response()->json([
-                'remind_challenge' => [],
-            ]);
-        }
+            $elapsed = $start->diffInSeconds($now);
+            $total   = max(1, $start->diffInSeconds($end));
+            $pct     = (int) round(($elapsed / $total) * 100);
+            $pct     = max(0, min(100, $pct));
+            if ($pct < 50) {
+                return null; // skip if less than 50%
+            }
+            return $challenge;
+        })->filter()->values();
         return response()->json([
-            'remind_challenge' => [[
-                'id'          => $challenge->id,
-                'title'       => $challenge->title,
-                'content_goal'=> $challenge->content_goal,
-                'date_start'  => $challenge->date_start,
-                'date_end'    => $challenge->date_end,
-                'percent'     => $pct,
-                'is_halfway'  => true,
-            ]],
-        ]);
+            'remind_challenge_progress' => $data
+        ]); 
     }
     public function remind_overdue()
     {
@@ -985,14 +976,20 @@ class RemindController extends Controller
                 // $counts['remind_overdue_grace'] = (int)($response['overdue_grace_count'] ?? 0);
                 
                 $count += count($members);
-                continue;
+                // continue;
             }
             if ($key === 'remind_task_unfinished') {
                 $counts[$key] = count($response);
             }
-            if( is_array($response)){
-                $count += count($response);
-            }
+            // if( is_array($response)){
+            //     // dd($key, count($response));
+            //     // if($key == 'remind_unchecked_messages'){
+            //     //     dd($key, count($response));
+            //     // }
+            //     // $count += count($response);
+            // }
+
+            
             if( $key === 'overdue_grace_count') {
                 $counts['remind_overdue_grace'] =  $response ?? 0;
             }

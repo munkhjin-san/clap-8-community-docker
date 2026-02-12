@@ -11,7 +11,7 @@
             <v-expansion-panel hide-actions static :tile="true" class="rm-p" v-for="(message, index) in data.data" :key="index">
                 <v-expansion-panel-title>
                     <template v-slot:default="{ expanded }">
-                        <div class="px-4 flex items-center w-[calc(100%-32px)]">
+                        <PanelTitle :expanded="expanded">
                             <UserPanel disable-instant :user="message.user" :with-name="true" />
                             <span v-if="!expanded"> : </span>
                             <div v-if="!expanded" class="text-[14px] flex-1 ml-2 whitespace-nowrap overflow-hidden text-ellipsis leading-normal" v-html="mentionFormatter(message.message)"></div>
@@ -30,20 +30,22 @@
                                 </v-btn>
                             </div>
 
-                        </div>
+                        </PanelTitle>
 
                     </template>
 
                 </v-expansion-panel-title>
                 <v-expansion-panel-text>
-                    <MessageItemInner
-                        :message-menu-items="[]"
-                        :share-menu-items="[]"
-                        :message="message"
-                        :compact="true"
-                        mode="remind"
-                        @remindRequest="remindRequest(message)"
-                    />
+                    <PanelData class="px-4 py-4 pt-0">
+                        <MessageItemInner
+                            :message-menu-items="[]"
+                            :share-menu-items="[]"
+                            :message="message"
+                            :compact="true"
+                            mode="remind"
+                            @remindRequest="remindRequest(message)"
+                        />
+                    </PanelData>
                 </v-expansion-panel-text>
             </v-expansion-panel>
         </v-expansion-panels>
@@ -72,6 +74,8 @@ import { useDialog } from '@/composables/dialog';
 import { useBadgeStore } from '@/store/badge';
 import MessageItemInner from '@/components/Board/Message/MessageItemInner.vue';
 import BaseLayout from './BaseLayout.vue';
+import PanelTitle from './PanelTitle.vue';
+import PanelData from './PanelData.vue';
 
 const props = defineProps<{
     data: {
