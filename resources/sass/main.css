@@ -4818,13 +4818,16 @@ input:-webkit-autofill:active {
 }
 .compactMessage .mobileMessageBody{
     margin: 0;
+    padding: 0;
 }
 .compactMessage .messageBodyWrapper{
     max-width: none;
     margin: 0;
+    width: 100%;
 }
 .compactMessage{
     padding: 0;
+    width: 100%;
 }
 .selfMessage {
   align-items: center;

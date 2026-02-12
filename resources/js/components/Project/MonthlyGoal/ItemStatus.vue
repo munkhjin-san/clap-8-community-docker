@@ -1,5 +1,5 @@
 <template>
-    <div class="kadai-content bg-[var(--bg3)] text-[12px] px-2 w-fit" >
+    <div class="kadai-content bg-[var(--bg3)] text-[12px] px-2 w-fit text-[var(--primary-color)]" >
         <div @click="showStatusLog = !showStatusLog" class="flex items-center gap-1 cursor-pointer">
             <p v-if="type == 'project_goal'">{{ goalStatus(status) }}</p>
             <p v-else-if="type == 'salary_issue'">{{ salaryIssueStatus(status) }}</p>

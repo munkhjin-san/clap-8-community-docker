@@ -32,7 +32,7 @@
                 :fullscreen="route.params.type === card.type"
                 :data="card"
                 ref="cardLayouts"
-                @remove="removeRemindMessage"
+                @refreshData="refreshData"
                 @toggle="toggle"
                 @resize="(type) => resize(type)"
             />
@@ -424,13 +424,6 @@ const refreshData = async (dataType: string) => {
     } catch (e) {
         ping((e as any)?.response?.data?.message || (e as any)?.message || 'エラーが発生しました。');
     }
-};
-
-
-const removeRemindMessage = (id: number) => {
-    const current = collection.remindedMessages
-    collection.remindedMessages = current.filter((message: { id: number | string | null }) => Number(message.id) !== id)
-    syncDashboardCardsFromStore()
 };
 
 const resize = async(type: string) => {

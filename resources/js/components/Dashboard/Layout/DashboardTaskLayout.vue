@@ -7,24 +7,25 @@
         @toggle="(el, title) =>emit('toggle', el, data.type)" 
         @resize="emit('resize', data.type)"
     >
-             <v-expansion-panels v-if="!fullscreen">
-                <v-expansion-panel hide-actions static :tile="true" class="rm-p" v-for="(task, index) in data.data" :key="index">
-                    <v-expansion-panel-title class="task-panel">
-                        <template v-slot:default="{ expanded }">
-                            <ListBox :item="task" boxClass="w-full h-full" :isBoard="false" mode="minimal"/>
-                        </template>
-                    </v-expansion-panel-title>
-                    <v-expansion-panel-text>
-                        <ListBox :item="task" boxClass="" :isBoard="false"/>
-                    </v-expansion-panel-text>
-                </v-expansion-panel>
-            </v-expansion-panels>
-
-            <div v-if="fullscreen" class="px-4">
-                <div v-for="task in data.data" :key="task.id" class="py-2 text-[14px] border-b border-[var(--border-color)] last:border-b-0">
+    <div v-if="!fullscreen" class="mx-3 mb-3">   
+        <v-expansion-panels>
+            <v-expansion-panel hide-actions static :tile="true" class="rm-p" v-for="(task, index) in data.data" :key="index">
+                <v-expansion-panel-title class="task-panel">
+                    <template v-slot:default="{ expanded }">
+                        <ListBox :item="task" boxClass="w-full h-full" :isBoard="false" mode="minimal"/>
+                    </template>
+                </v-expansion-panel-title>
+                <v-expansion-panel-text>
                     <ListBox :item="task" boxClass="" :isBoard="false"/>
-                </div>
+                </v-expansion-panel-text>
+            </v-expansion-panel>
+        </v-expansion-panels>
+    </div> 
+        <div v-if="fullscreen" class="px-4">
+            <div v-for="task in data.data" :key="task.id" class="py-2 text-[14px] border-b border-[var(--border-color)] last:border-b-0">
+                <ListBox :item="task" boxClass="" :isBoard="false"/>
             </div>
+        </div>
     </BaseLayout>
 </template>
 
