@@ -17,19 +17,17 @@
                     <v-expansion-panel hide-actions static :tile="true" class="rm-p" v-for="(goal) in goals" :key="goal.id">       
                         <v-expansion-panel-title>
                             <template v-slot:default="{ expanded }">
-                                <div class="flex items-center px-2 text-[13px] overflow-hidden whitespace-nowrap">
-                                    <div v-if="goal.status === 9">
+                                <div class="flex items-center px-2 text-[13px] leading-normal overflow-hidden whitespace-nowrap">
+                                    <div class="mr-1 ml-[-5px]" v-if="goal.status === 9">
                                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" viewBox="0 0 38 32" style="fill: rgb(100, 188, 68);; margin-left: 4px;">
                                             <path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path>
                                         </svg>
                                     </div>
-                                    <div class="mr-1 w-3 border border-solid border-[tomato] rounded-full flex items-center justify-center h-3 min-w-3" v-if="goalIsOverdue(goal)">                                        
-                                        <svg class="rotate-180" fill="tomato" xmlns="http://www.w3.org/2000/svg" height="10" viewBox="0 0 2.29471 9.22201">
-                                            <path d="M.25164,3.86176c-.1465,1.1415-.078,2.29-.0625,3.4365l.083,1.1445c.152,1.034,1.617,1.044,1.774,0,.093-.7615.0965-1.5255.1025-2.29.014-.765.022-1.529-.082-2.291-.167-1.041-1.642-1.052-1.815,0M.07964,1.57926c.0575.1515.139.2825.2325.4055.2365.1855.531.317.8425.3135.624.0105,1.1675-.545,1.139-1.1655-.0075-.3215-.154-.609-.3645-.8405C.97614-.48674-.33786.41126.07964,1.57926"/>
-                                        </svg>
+                                    <div v-if="goalIsOverWeek(goal)" class="mr-1">
+                                        <span style="position: unset;" :class="['side-notification !w-2 !min-w-2 !h-2', 'custom-heartbeat',  ]"></span>  
                                     </div>
                                     <div class="overflow-hidden whitespace-nowrap text-ellipsis">{{ goal.title }}</div>
-                                    <div class="flex items-center gap-1">
+                                    <div class="flex items-center gap-1 ml-2">
                                         <span class="side-notification" style="position: unset;width:15px;z-index: 1;" v-if="badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length">
                                             {{ badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length }}
                                         </span>
@@ -171,6 +169,15 @@ const goalIsOverdue = (goal: ProjectGoal) => {
     const now = DateTime.local();
     const deadline = DateTime.fromISO(goal.end_date);
     return now > deadline;
+}
+
+const goalIsOverWeek = (goal: ProjectGoal) => {
+    if(goal.status === 9) return false
+    const now = DateTime.local();
+    const deadline = DateTime.fromISO(goal.end_date);
+    const diffInDays = now.diff(deadline, 'days').days;
+    console.log('diffInDays', diffInDays)
+    return diffInDays > 7 && diffInDays >= 0;
 }
 defineExpose({
     cardType: props.data.type,

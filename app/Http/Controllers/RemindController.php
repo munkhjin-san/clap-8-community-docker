@@ -922,28 +922,42 @@ class RemindController extends Controller
         $remindForm = $this->remind_form()->getData(true);
         $remindOverdueGoals = $this->remind_overdue()->getData(true);
         
-        $responses = [
-            // 'remind_task_untouched'        => $this->remind_task_untouched()->getData(true),
-            // 'remind_task_unfinished'       => $this->remind_task_unfinished()->getData(true),
-            // 'remind_unsigned_messages'     => $this->remind_unsigned_messages()->getData(true),
-            // 'remind_unchecked_messages'    => $this->remind_unchecked_messages()->getData(true),
-            'remind_timesheet'             => $this->remind_timesheet()->getData(true),
-            // 'remind_task_not_approved'     => $this->remind_task_not_approved()->getData(true),
-            'remind_project_not_approved'  => $this->remind_project_not_approved()->getData(true),
-            // 'remind_reminded_messages'     => $this->remind_reminded_messages()->getData(true),
-            'remind_planned_leave'         => $this->remind_planned_leave()->getData(true),
-            // 'remind_form'                  => $this->remind_form()->getData(true),
-            'remind_asset'                 => $this->remind_asset()->getData(true),
-            'remind_temp_reserved_schedules'=> $this->remind_temp_reserved_schedules()->getData(true),
-            'remind_departure_report'      => $this->remind_departure_report(true)->getData(true),
-            'remind_challenge'             => $this->remind_challenge_progress()->getData(true),
-            'remind_overdue'               => $this->remind_overdue()->getData(true),
-            'remind_goal_slot'             => $this->remind_goal_slot()->getData(true)
-        ];
-        $merged = array_merge($remindedMessages, $remindedTasks, $remindForm, $remindOverdueGoals);
-        $totalMerged = array_merge($responses, $merged);
+        // $responses = [
+        //     // 'remind_task_untouched'        => $this->remind_task_untouched()->getData(true),
+        //     // 'remind_task_unfinished'       => $this->remind_task_unfinished()->getData(true),
+        //     // 'remind_unsigned_messages'     => $this->remind_unsigned_messages()->getData(true),
+        //     // 'remind_unchecked_messages'    => $this->remind_unchecked_messages()->getData(true),
+        //     'remind_timesheet'             => $this->remind_timesheet()->getData(true),
+        //     // 'remind_task_not_approved'     => $this->remind_task_not_approved()->getData(true),
+        //     'remind_project_not_approved'  => $this->remind_project_not_approved()->getData(true),
+        //     // 'remind_reminded_messages'     => $this->remind_reminded_messages()->getData(true),
+        //     'remind_planned_leave'         => $this->remind_planned_leave()->getData(true),
+        //     // 'remind_form'                  => $this->remind_form()->getData(true),
+        //     'remind_asset'                 => $this->remind_asset()->getData(true),
+        //     'remind_temp_reserved_schedules'=> $this->remind_temp_reserved_schedules()->getData(true),
+        //     'remind_departure_report'      => $this->remind_departure_report(true)->getData(true),
+        //     'remind_challenge'             => $this->remind_challenge_progress()->getData(true),
+        //     'remind_overdue'               => $this->remind_overdue()->getData(true),
+        //     'remind_goal_slot'             => $this->remind_goal_slot()->getData(true)
+        // ];
+        $merged = array_merge(
+            $remindedMessages, 
+            $remindedTasks, 
+            $remindForm, 
+            $remindOverdueGoals,
+            $this->remind_timesheet()->getData(true),
+            $this->remind_project_not_approved()->getData(true),
+            $this->remind_planned_leave()->getData(true),
+            $this->remind_asset()->getData(true),   
+            $this->remind_temp_reserved_schedules()->getData(true),
+            $this->remind_departure_report(true)->getData(true),
+            $this->remind_challenge_progress()->getData(true),
+            $this->remind_overdue()->getData(true),
+            $this->remind_goal_slot()->getData(true)
+        );
+       
         // return $responses;
-        return $totalMerged;
+        return $merged;
     }
     public function remind_summary(Request $request) {
         $collected = $this->remindCollect();
@@ -961,22 +975,30 @@ class RemindController extends Controller
         $counts = [];
         $now = Carbon::now();
         foreach ($collected as $key => $response) {
-            
+           
             if ($key === 'remind_reminded_messages') {
-                $counts[$key] = count($response[$key]);
+                $counts[$key] = count($response);
                 continue;
             } 
             if ($key === 'remind_overdue') {
                 $members = $response['remind_overdue'] ?? [];
-                $counts['remind_overdue_grace'] = (int)($response['overdue_grace_count'] ?? 0);
+                // $counts['remind_overdue_grace'] = (int)($response['overdue_grace_count'] ?? 0);
+                
                 $count += count($members);
                 continue;
             }
             if ($key === 'remind_task_unfinished') {
-                $counts[$key] = count($response[$key]);
+                $counts[$key] = count($response);
             }
+            if( is_array($response)){
+                $count += count($response);
+            }
+            if( $key === 'overdue_grace_count') {
+                $counts['remind_overdue_grace'] =  $response ?? 0;
+            }
+            
           
-            $count += count($response[$key]);
+            
             
         }
         $counts['total'] = $count;
