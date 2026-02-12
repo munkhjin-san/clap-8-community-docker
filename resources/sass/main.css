@@ -4812,7 +4812,20 @@ input:-webkit-autofill:active {
   display: flex;
   transition: margin-bottom 0.1s linear;
 }
-
+.compactMessage .m-date{
+    position: unset;
+    margin-left: auto;
+}
+.compactMessage .mobileMessageBody{
+    margin: 0;
+}
+.compactMessage .messageBodyWrapper{
+    max-width: none;
+    margin: 0;
+}
+.compactMessage{
+    padding: 0;
+}
 .selfMessage {
   align-items: center;
   flex-direction: row-reverse;

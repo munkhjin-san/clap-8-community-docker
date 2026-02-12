@@ -46,7 +46,7 @@ const progressData = ref(toRef(props.progress))
 
 const saving = ref(false)
 
-const refresh = inject('refresh') as Function
+// const refresh = inject('refresh') as Function
 
 const api = useApi()
 
@@ -67,8 +67,8 @@ const save = async() => {
         loadingRef: saving
     })
     menu.close()
-    if(typeof refresh === 'function') {
-        refresh()
-    }
+    // if(typeof refresh === 'function') {
+    //     refresh()
+    // }
 }
 </script>

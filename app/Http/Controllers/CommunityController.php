@@ -5,9 +5,21 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\officeRecord;
 use App\Models\User;
+use App\Models\ProjectRecord;
+use App\Models\EvaluationRecord;
+use Illuminate\Support\Facades\Auth;
 
 class CommunityController extends Controller
 {
+
+    private function active_user(){
+        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
+        if($sub){
+            return $sub;
+        }else{
+            return Auth::user();
+        }
+    }
     public function get_office_list(Request $request)
     {
         $offices = officeRecord::with('employees')->orderBy('created_at', 'desc')->get();
@@ -55,5 +67,73 @@ class CommunityController extends Controller
         ]);
         $delete = officeRecord::findOrFail($request->id)->delete();
         return response()->json($delete);
+    }
+    public function community_members_tree(Request $request)
+    {
+        $user = $this->active_user();
+
+        $userQuery = User::query()->where('retire', 0)
+        ->where('partner_flag', 0)
+        ->whereNotIn('position_id',[13,14,15] )
+        ->where('hide_flag', 0);
+
+        switch ($request->by) {
+            case 1:
+
+                return response()->json([[
+                    "id" => 1,
+                    "name" => "全員",
+                    "members" => $userQuery->get(),
+                ]]);
+            case 2:
+                $projects = ProjectRecord::with('members:id')
+                ->whereHas('manager', fn ($q) => $q->where('users.id', $user->id))   
+                ->whereHas('members', fn ($q) => $q->where('retire', 0)
+                    ->where('partner_flag', 0)
+                    ->whereNotIn('position_id',[13,14,15] )
+                    ->where('hide_flag', 0)
+                )
+                ->get();
+
+                // $memberIds = $projects->flatMap->members->pluck('id')->unique()->values()->all();
+                // $members = $userQuery->whereIn('id', $memberIds)->get();
+                $data = $projects->map( function ($project) {
+                    return [
+                        "id" => $project->id,
+                        "name" => $project->name,
+                        "members" => $project->members()
+                            ->where('retire', 0)
+                            ->where('partner_flag', 0)
+                            ->whereNotIn('position_id',[13,14,15] )
+                            ->where('hide_flag', 0)
+                            ->get(),
+                    ];
+                })->all();
+                
+                return response()->json($data);
+            case 3:
+                $year = $request->year;
+                $which_half = $request->which_half;
+                $evaluationRecords = EvaluationRecord::where('year', $year)
+                    ->where('which_half', $which_half)
+                    ->where('mentor_id', $user->id)
+                    ->whereNotNull('user_id')
+                    ->pluck('user_id')
+                    ->unique()
+                    ->values()
+
+                    ->all();
+                $mentees = $userQuery->whereIn('id', $evaluationRecords)->get();
+                return response()->json([[
+                    "id" => 3,
+                    "name" => "メンティー",
+                    "members" => $mentees,
+                ]]); 
+            
+
+        }
+
+
+        return response()->json([]);
     }
 }

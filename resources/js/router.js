@@ -155,26 +155,38 @@ const routes = [
             {
                 path: ':projectId',
                 name: 'projectdetail',
-                
                 component: () => import('./components/Project/ProjectDetail.vue'),
                 children: [
                     {
                         path:'overview',
                         name:'overview',
-                        
                         component: () => import('./components/Project/ProjectTabs/ProjectOverview.vue'),
                         
                     },
                     {
                         path: 'project-members',
                         name: 'project-members',
-                        
-                        component: () => import('./components/Project/ProjectTabs/Members.vue'),
+                        component: () => import('./components/Project/ProjectTabs/MemberRoot.vue'),
+                        redirect: { name: 'project-member-list' },
                         children:[
+                            {
+                                path: 'list',
+                                name: 'project-member-list',
+                                component: () => import('./components/Project/ProjectTabs/MembersList.vue'),
+                            },
+                            {
+                                path: 'role',
+                                name: 'project-member-role',
+                                component: () => import('./components/Project/ProjectTabs/Members/MemberRole.vue'),
+                            },
+                            {
+                                path: 'assign',
+                                name: 'project-member-assign',
+                                component: () => import('./components/Project/ProjectTabs/Members/Assign.vue'),
+                            },
                             {
                                 path: 'outcomegoal/:memberId',
                                 name: 'outcomegoal',
-                                
                                 meta: {
                                     nameJp: '成果目標・昇給課題',
                                     pushTo: 'goal-span'
@@ -183,18 +195,16 @@ const routes = [
                                 component: () => import('./components/Project/PersonnelEvaluation/EvaluationSpan.vue'),
                                 children: [
                                     {
-                                        path: ':span',
+                                        path: ':span/:goalId?',
                                         name: 'goal-span',
-                                        
-                                        component: () => import('./components/Project/ProjectGoalDetail.vue'),
-                                        children:[
-                                            {
-                                                path: ':goalId',
-                                                name: 'goal-more',
-                                                
-                                                component: () => import('./components/Project/ProjectGoalMore.vue'),
-                                            }
-                                        ]
+                                        component: () => import('./components/Project/MonthlyGoal/MonthlyGoalContainer.vue'),
+                                        // children:[
+                                        //     {
+                                        //         path: ':goalId',
+                                        //         name: 'goal-more',
+                                        //         component: () => import('./components/Project/ProjectGoalMore.vue'),
+                                        //     }
+                                        // ]
         
                                     }
                                 ]
@@ -202,7 +212,6 @@ const routes = [
                             {
                                 path: 'evaluation/:memberId',
                                 name: 'evaluation',
-                                
                                 meta: {
                                     nameJp: '人事考課',
                                     pushTo: 'evalutation-span'
@@ -212,47 +221,45 @@ const routes = [
                                     {
                                         name: 'evalutation-span',
                                         path: ':span',
-                                        component: () => import('./components/Project/PersonnelEvaluation/EvaluationDetail.vue'),
-                                         
+                                        component: () => import('./components/Project/PersonnelEvaluation/EvaluationDetail.vue'),                                         
                                     }
                                 ]
                             },
+                            {
+                                path: 'asignment/:memberId',
+                                name: 'asignment',
+                                component: () => import('./components/Project/ProjectMemberAsignment.vue'),
+                            }
                         ]
                     },
                     {
                         path: 'operation',
                         name: 'operation',
-                        
                         component: () => import('./components/Project/ProjectTabs/Operation.vue'),
                     },
                     {
                         path: 'contracts',
                         name: 'contracts',
-                        
                         component: () => import('./components/Project/ProjectTabs/Contracts.vue'),
                     },
                     {
                         path: 'legal',
                         name: 'legal',
-                        
                         component: () => import('./components/Project/ProjectTabs/Legal.vue'),
                     },
                     {
                         path: 'finance',
                         name: 'finance',
-                        
                         component: () => import('./components/Project/ProjectTabs/Finance.vue'),
                         children: [
                             {
                                 name: 'plan',
                                 path: 'plan',
-                                
                                 component: () => import('./components/Project/ProjectTabs/Finance/YearlyBudget.vue')
                             },
                             {
                                 name: 'result',
                                 path: 'result',
-                                
                                 component: () => import('./components/Project/ProjectTabs/Finance/CaseConfirm.vue')
                             }
                         ]
@@ -260,7 +267,6 @@ const routes = [
                     {
                         path: 'dispatch',
                         name: 'dispatch',
-                        
                         component: () => import('./components/Project/ProjectTabs/Dispatch.vue'),
                     },
                     {
@@ -269,19 +275,16 @@ const routes = [
                         meta: {
                             title: '物品'
                         },
-                        
                         component: () => import('./components/Asset/AssetContainer.vue'),
                     },
                     {
                         path: 'task-calendar',
                         name: 'task-calendar',
-                        
                         component: () => import('./components/Project/ProjectTabs/TaskCalendar.vue'),
                     },
                     {
                         path: 'file-storage/:parentId?',
                         name: 'file-storage',
-                        
                         component: () => import ('./components/Project/ProjectTabs/FileStorage.vue'),
                     }
                     
@@ -290,13 +293,11 @@ const routes = [
             {
                 path: 'total-finance',
                 name: 'total-finance',
-                
                 component: () => import('@/components/Project/ProjectTotalFinance.vue'),
             },
             {
                 path: 'resource',
                 name: 'resource',
-                
                 component: () => import('@/components/Project/ProjectResource.vue'),
             }
             // {
@@ -833,7 +834,15 @@ const routes = [
         path: '/file-preview/:fileId',
         name: 'file-preview',
         component: () => import('./components/Global/FilePreviewDeeplink.vue'),
-        
+        props: true,
+    },
+    {
+        path: '/dashboard/:type?/:itemId?',
+        name: 'dashboard',
+        component: () => import('./components/Dashboard/DashboardContainer.vue'),
+        meta: {
+            title: 'ダッシュボード',
+        }, 
     }
 
     

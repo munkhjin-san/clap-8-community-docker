@@ -8,7 +8,7 @@
                     
                     <div @click="viewTaskUsers" class="flex w-fit">
                         <div v-for="user in taskUsers.slice(0, 3)" style="position:relative;">
-                            <div v-if="user" :title="user.name" class="column-01">
+                            <div v-if="user" :title="user.name?.toString()" class="column-01">
                                 <UserPanel size="15" :disableInstant="true" :user="user" imgClass="u_icon_15"/>   
                                 <div title="タスクが完了しました" v-if="user.pivot.progress_flag > 0" class="completed-badge-large completed-badge-medium" :style="{background: taskStatusBackgrounds[user.pivot.progress_flag]}"></div>                         
                             </div>

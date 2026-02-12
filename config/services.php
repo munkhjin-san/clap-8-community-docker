@@ -60,6 +60,7 @@ return [
             'project_goal_generation' => env('OPENAI_PROMPT_PROJECT_GOAL_GENERATION_ID', ''),
             'project_salary_issue_generation' => env('OPENAI_PROMPT_PROJECT_SALARY_ISSUE_GENERATION_ID', ''),
             'project_salary_issue_guideline_generation' => env('OPENAI_PROMPT_PROJECT_SALARY_ISSUE_GUIDELINE_GENERATION_ID', ''),
+            'project_member_assign_evaluation' => env('OPENAI_PROMPT_PROJECT_MEMBER_ASSIGN_EVALUATION', ''),
             'project_risk_assessment_generation' => env('OPENAI_PROMPT_PROJECT_RISK_ASSESSMENT_GENERATION_ID', ''),
             'lesson_portfolio_review' => env('OPENAI_PROMPT_LESSON_PORTFOLIO_REVIEW_ID', ''),
             'legal_quick_review' => env('OPENAI_PROMPT_LEGAL_QUICK_REVIEW_ID'),

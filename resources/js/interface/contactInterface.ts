@@ -43,11 +43,7 @@ export interface ContactType{
     id: number | null
     title: string
 }
-export interface Collaborator {
-    id: number;
-    name: string;
-    icon_bg: string;
-    icon_path: string;
+export interface Collaborator extends User{
     pivot: CollaboratorPivot;
 }
 interface CollaboratorPivot {

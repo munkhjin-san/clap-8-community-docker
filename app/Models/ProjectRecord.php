@@ -14,11 +14,20 @@ class ProjectRecord extends Model
     use SoftDeletes;
 
     public function members(){
-        return $this->belongsToMany(User::class, 'project_members', 'project_id', 'user_id')->wherePivot('authority', 0)->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.user_code', 'users.work_authority', 'users.position_id', 'users.icon_bg', 'users.general_position', 'users.work_type', 'users.work_time_day'])->withPivot(['authority', 'id'])->with(['positions:id,name']);
+        return $this->belongsToMany(User::class, 'project_members', 'project_id', 'user_id')
+        ->using(ProjectMember::class)
+        ->wherePivot('authority', 0)
+        ->withPivot(['project_member_role_id', 'authority', 'assign_data', 'overall_assign_score'])
+        ->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.user_code', 'users.work_authority', 'users.position_id', 'users.icon_bg', 'users.general_position', 'users.work_type', 'users.work_time_day'])->withPivot(['authority', 'id', 'compatibility_number', 'review'])->with(['positions:id,name']);
     }
 
     public function manager(){
-        return $this->belongsToMany(User::class, 'project_members', 'project_id', 'user_id')->wherePivot('authority', 1)->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.user_code', 'users.work_authority', 'users.position_id', 'users.icon_bg', 'users.general_position', 'users.work_type', 'users.work_time_day'])->withPivot(['authority', 'id'])->with('positions');
+        // return $this->belongsToMany(User::class, 'project_members', 'project_id', 'user_id')->wherePivot('authority', 1)->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.user_code', 'users.work_authority', 'users.position_id', 'users.icon_bg', 'users.general_position', 'users.work_type', 'users.work_time_day'])->withPivot(['authority', 'id', 'compatibility_number', 'review'])->with('positions');
+        return $this->belongsToMany(User::class, 'project_members', 'project_id', 'user_id')
+        ->using(ProjectMember::class)
+        ->wherePivot('authority', 1)
+        ->withPivot(['project_member_role_id', 'authority', 'assign_data', 'overall_assign_score'])
+        ->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.user_code', 'users.work_authority', 'users.position_id', 'users.icon_bg', 'users.general_position', 'users.work_type', 'users.work_time_day'])->withPivot(['authority', 'id', 'compatibility_number', 'review'])->with(['positions:id,name']);
     }
 
     public function director(){
@@ -40,6 +49,11 @@ class ProjectRecord extends Model
     public function contract()
     {
         return $this->hasOne(ProjectContract::class);
+    }
+
+    public function memberRoles()
+    {
+        return $this->hasMany(ProjectMemberRole::class, 'project_record_id');
     }
     protected $guarded = [];
 
@@ -69,9 +83,32 @@ class ProjectRecord extends Model
     public function scopeOverlapping(Builder $q, Carbon $start, Carbon $end): Builder
     {
         return $q->whereDate('date_start', '<=', $end)
-                 ->where(function ($q) use ($start) {
-                     $q->whereNull('date_end')
-                       ->orWhereDate('date_end', '>=', $start);
-                 });
+                ->where(function ($q) use ($start) {
+                    $q->whereNull('date_end')
+                    ->orWhereDate('date_end', '>=', $start);
+                });
+    }
+    public function loadMemberRoles(): void
+    {
+        // Ensure members are loaded (or load them)
+        $this->loadMissing('members');
+        $this->loadMissing('manager');
+
+        $allMembers = $this->members->merge($this->manager);
+
+        $roleIds = $allMembers
+            ->pluck('pivot.project_member_role_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($roleIds->isEmpty()) return;
+
+        $roles = ProjectMemberRole::whereIn('id', $roleIds)->get()->keyBy('id');
+
+        foreach ($allMembers as $user) {
+            $roleId = $user->pivot->project_member_role_id;
+            $user->pivot->setRelation('roleRecord', $roleId ? ($roles[$roleId] ?? null) : null);
+        }
     }
 }

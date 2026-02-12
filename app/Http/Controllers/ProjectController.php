@@ -29,7 +29,8 @@ use App\Models\ProjectMemberReportNotification;
 use App\Models\ProjectContract;
 use App\Models\ProjectResourceComment;
 use App\Models\ProjectPlanYear;
-
+use App\Models\ProjectMemberRole;
+use App\Models\CustomForm;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ProjectMention;
 use App\Jobs\SendGoalIssueMentionMail;
@@ -45,6 +46,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\BoardController;
+use App\Http\Controllers\OpenAiController;
 use App\Services\SharedService;
 use App\Services\VarianceService;
 use App\Services\ProjectPlanFormulaService;
@@ -71,6 +73,7 @@ class ProjectController extends Controller
     //
     protected $boardController;
     protected $sharedService;
+    protected $openAiController;
 
     
     private const SYSTEM_STATUS_LABELS = [
@@ -83,12 +86,14 @@ class ProjectController extends Controller
     public function __construct(
         BoardController $boardController, 
         SharedService $sharedService, 
+        OpenAiController $openAiController,
         private KintoneClient $api,
         private GoogleSheetsClient $client,
         private ProjectPlanFormulaService $planFormulaService
     ){
         $this->boardController = $boardController;
         $this->sharedService = $sharedService;
+        $this->openAiController = $openAiController;
     } 
     private function active_user(){
         $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
@@ -98,6 +103,7 @@ class ProjectController extends Controller
             return Auth::user();
         }
     }
+
     public function get_projects(Request $request) {
         $data = $request->validate([
             'start' => ['nullable', 'date_format:Y-m-d'],
@@ -105,17 +111,15 @@ class ProjectController extends Controller
             'year'        => ['nullable','integer'],
             'which_half'  => ['nullable','string'],
         ]);
+        $id = $request['id'] ?? null;
         $year = $data['year'] ?? null;
         $which_half = $data['which_half'] ?? null;
         $usersLoader = function (bool $withEval = false) use ($year, $which_half) {
             return function ($q) use ($withEval, $year, $which_half) {
                 $q->select('users.id','users.name','users.icon_path','users.icon_bg', 'users.position_id')
                 ->where('retire', 0);
-
                 if ($withEval && $year && $which_half) {
-                    $q->with(['evaluation' => fn($e) => $e->where('year', $year)
-                                                        ->where('which_half', $which_half)
-                                                        ->with('mentor')]);
+                    $q->with(['evaluation' => fn($e) => $e->where('year', $year)->where('which_half', $which_half)->with('mentor')]);
                 }
             };
         };
@@ -137,15 +141,20 @@ class ProjectController extends Controller
                 $q->where('users.id', $user->id);
             });
         })
+        ->when($id, function ($q) use ($id) {
+            $q->where('id', $id);
+        })
         ->with([
             'director:id,name,icon_path,icon_bg',
             'manager' => $usersLoader(true),
             'members' => $usersLoader(true),
             'director',
-            'contract'
+            'contract',
+            'memberRoles',
         ])
         ->get();
         $projects = $projects->map(function (ProjectRecord $project) {
+            $project->loadMemberRoles();
             $project->actual_statuses = $project->actual_statuses ?? [];
             $project->has_goals = $project->has_goals ?? false;
             $project->unit_id = $project->unit_id ?? 'JPY';
@@ -206,6 +215,7 @@ class ProjectController extends Controller
         return response()->json($projects);
     }
     public function get_outcome_goals(Request $request) {
+        $user = $this->active_user();
         $request->validate([
             'year' => 'required',
             'user_id' => 'required',
@@ -215,18 +225,35 @@ class ProjectController extends Controller
         $which_half = $request->which_half;
         $user_id = $request->user_id;
         $project_goals = ProjectGoal::where('year', $year)
-                                    ->where('which_half', $which_half)
-                                    ->where('user_id', $user_id)
-                                    ->with(['project', 'files', 'steps', 'reports' => function ($q) {
-                                        $q->with('user');
-                                    }])
-                                    ->with(['salaryIssue' => function ($q) {
-                                        $q->with(['files', 'actions', 'reports']);
-                                    }])
-                                    ->get();
+            ->where('which_half', $which_half)
+            ->where('user_id', $user_id)
+            ->with([
+                'project' => function ($q, ) use ($user) {
+                    $q->select('id', 'name')
+                    ->withExists([
+                        'manager as is_manager' => fn ($q) => $q->where('users.id', $user->id),
+                    ])
+                    ->withExists([
+                        'members as is_member' => fn ($q) => $q->where('users.id', $user->id),
+                    ]);
+                },    
+                'statusLogs' => function ($q) {
+                    $q->with('user');
+                },
+                'files', 
+                'steps', 
+                'reports' => fn($q) => $q->with('user'),
+                'user' => fn($q) => $q->select('id', 'name', 'icon_path', 'icon_bg', 'position_id'),
+            ])
+            ->with(['salaryIssue' => function ($q) {
+                $q->with(['files', 'actions', 'reports', 'statusLogs' => function ($q) {
+                    $q->with('user');
+                },]);
+            }])
+            ->get();
         $evalutaionRecord = EvaluationRecord::where('year', $year)
-                                    ->where('which_half', $which_half)
-                                    ->where('user_id', $user_id)->with('mentor')->first();
+            ->where('which_half', $which_half)
+            ->where('user_id', $user_id)->with('mentor')->first();
         $data = [
             'achievement_total' => $project_goals->sum('achievement_rate'),
             'project_goals' => $project_goals,
@@ -361,7 +388,17 @@ class ProjectController extends Controller
             'id' => 'required',
         ]);
         $goal_report = ProjectGoal::findOrFail($request->id);
+        $previous_status = $goal_report->status;
+        $next_status = $request->params['status'] ?? $previous_status;
         $goal_report->update($request->params);
+        if($next_status && $next_status !== $previous_status){
+            $goal_report->statusLogs()->create([
+                'before_number' => $previous_status,
+                'after_number' => $next_status,
+                'user_id' => $this->active_user()->id,
+                'type' => 'project_goal',
+            ]);
+        }
         $goal_report->files()->sync($request->file_ids);
         return response()->json($goal_report);
     }
@@ -423,6 +460,61 @@ class ProjectController extends Controller
             'mentors' => $mentors,
         ];
         return response()->json($data);
+    }
+    public function users_with_goals(Request $request) {
+        $user = $this->active_user();
+        $position_id = $user->position_id;
+        // if(!$position_id){
+        //     return response()->json([]);
+        // }
+        $only_self = $position_id > 6 && !in_array($user->id, [608, 610]);
+        $limited_members = $position_id == 6 && !in_array($user->id, [608, 610]);
+        $memberIds = [];
+        if($limited_members){
+            $projects = ProjectRecord::with('members:id')
+            ->whereHas('manager', fn ($q) => $q->where('users.id', $user->id))   
+            ->get();
+
+            $memberIds = $projects->flatMap->members->pluck('id')->unique()->values()->all();
+        }
+        
+        $userList = User::where('retire', 0)
+        ->where('partner_flag', 0)
+        ->whereNotIn('position_id',[13,14,15] )
+        ->where('hide_flag', 0)
+        ->when($only_self, function ($q) use ($user) {
+            $q->where('id', $user->id);
+        })
+        ->when($limited_members, fn ($q) => $q->whereIn('id', $memberIds))
+        ->select('id', 'name', 'icon_path', 'icon_bg')
+        ->get();
+        $self = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'icon_path' => $user->icon_path,
+            'icon_bg' => $user->icon_bg,
+        ];
+        $userList = $userList->prepend($self);
+        // $userList = $userList->merge([
+        //     'id' => $user->id,
+        //     'name' => $user->name,
+        //     'icon_path' => $user->icon_path,
+        //     'icon_bg' => $user->icon_bg,
+        // ]);
+
+        return response()->json($userList);
+    }
+    public function check_goal_create_permission(Request $request){
+        $request->validate([
+            'user_id' => 'required'
+        ]);
+        $active_user = $this->active_user();
+        $managerId = $active_user->id;
+        
+        $checkProject = ProjectRecord::whereHas('manager', fn ($q) => $q->where('users.id', $managerId))
+            ->whereHas('members', fn ($q) => $q->where('users.id', $request->user_id))
+            ->exists();
+        return response()->json($checkProject);
     }
     public function create_project(Request $request) {
         $id = $request->id ?? null;
@@ -815,13 +907,17 @@ class ProjectController extends Controller
                 $skill = collect($job->children ?? [])->where('title', $levelName[2])->first();
                 $baseSkills = $skill->children ?? [];
             }
-
-
-
         }
+
+        $projects_participated = $projects = ProjectRecord::whereHas('members', fn($q) => $q->where('users.id', $user_id))
+        ->OrWhereHas('members', fn($q) => $q->where('users.id', $user_id))
+        ->select('id', 'name', 'overview', 'mission', 'strategy_miso', 'innovation', 'operation', 'date_start', 'date_end')
+        ->get();
+
         $response = [
             'evaluation' => $evalutaionRecord,
             'base_skills' => $baseSkills,
+            'projects' => $projects_participated,
         ];
         return response()->json($response);
     }
@@ -842,8 +938,16 @@ class ProjectController extends Controller
         $id = $request->id;
         $status = $request->status;
         $comment = $request->comment;
+        
         $issue = SalaryIssue::findOrFail($id);
+        $status_before = $issue->status;
         $issue->update(['status' => $status]);
+        $issue->statusLogs()->create([
+            'before_number' => $status_before,
+            'after_number' => $status,
+            'user_id' => $user->id,
+            'type' => 'salary_issue',
+        ]);
         if($comment) {
             $current_comment = $issue->comment ?? '';
             $approver = $user->name;
@@ -883,7 +987,14 @@ class ProjectController extends Controller
         $status = $request->status;
         $comment = $request->comment;
         $goal = ProjectGoal::findOrFail($id);
+        $status_before = $goal->status;
         $goal->update(['status' => $status]);
+        $goal->statusLogs()->create([
+            'before_number' => $status_before,
+            'after_number' => $status,
+            'user_id' => $user->id,
+            'type' => 'project_goal',
+        ]);
         if($comment) {
             $current_comment = $goal->comment ?? '';
             $approver = $user->name;
@@ -924,6 +1035,7 @@ class ProjectController extends Controller
         ->get();
         $s = $projects->map(fn($project) => [
             "project_id" => $project->id,
+            "project_name" => $project->name,
             "members" => $project->members->pluck('id')->toArray(),
             "type" => "manager"
         ])->toArray();
@@ -934,6 +1046,7 @@ class ProjectController extends Controller
         ->get();
         $s = $projects->map(fn($project) => [
             "project_id" => $project->id,
+            "project_name" => $project->name,
             "members" => [$user->id],
             "type" => "member"
         ])->toArray();
@@ -4882,6 +4995,372 @@ class ProjectController extends Controller
 
         return response()->json($updated);
     }
-    
+    public function project_create_member_role(Request $request){
+        $request->validate([
+            'project_id' => 'required|integer',
+        ]);
+        $active_user = $this->active_user();
+        $project = ProjectRecord::findOrFail($request->project_id);
+        $data = $request->data;
+        $id = $data['id'] ?? null;
+        $role = $project->memberRoles()->updateOrCreate(
+            ['id' => $id],
+            [
+                'title' => $data['title'] ?? null,
+                'description' => $data['description'] ?? null,
+                'user_id' => $active_user->id,
+                'member_limit' => $data['member_limit'] ?? null,
+                'work_conditions' => $data['work_conditions'] ?? null,
+            ]
+        );
+        return response()->json($role->fresh());
+    }
+
+    public function project_delete_member_role(Request $request){
+        $request->validate([
+            'id' => 'required|integer',
+        ]);
+
+        $role = ProjectMemberRole::findOrFail($request->id);
+        $role->delete();
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    public function update_project_member_role(Request $request): JsonResponse
+    {
+        $request->validate([
+            'project_id' => 'required|integer|exists:project_records,id',
+            'user_id' => 'required|integer|exists:users,id',
+            'role_id' => 'nullable|integer|exists:project_member_roles,id',
+        ]);
+
+        $updated = ProjectMember::where('project_id', $request->project_id)
+            ->where('user_id', $request->user_id)
+            ->update(['project_member_role_id' => $request->role_id]);
+
+        if (!$updated) {
+            return response()->json(['error' => 'Member not found in project'], 404);
+        }
+
+        return response()->json(['status' => 'ok']);
+    }
+    private function user_incident_history($user_id){
+        $incident_history = <<<EOD
+        以下は、過去36ヶ月間のインシデント履歴です。
+        EOD;
+
+        $date = Carbon::now()->subMonths(36)->toDateString();
+        $user = User::findOrFail($user_id);
+        $user_name = $user->name;
+        $user_name_without_space = str_replace(' ', '', $user_name);
+        $query = "当事者 = \"{$user_name_without_space}\" and 作成日時 >= \"{$date}\"";
+        $fields = ["区分", "概要及び時系列", "詳細メモ", "文字列__複数行__2", "懲罰区分"];
+        $recs = $this->api->getRecords(33, $query, $fields);
+        if($recs && count($recs) > 0){
+            $incident_history .= "\n\n";
+            foreach($recs as $index => $rec){
+                $incident_history .= "\n---------インシデント" . ($index + 1) . "-------------\n";
+                $incident_type = $rec['区分']['value'] ?? '';
+                $incident_summary = $rec['概要及び時系列']['value'] ?? '';
+                $incident_details = $rec['詳細メモ']['value'] ?? '';
+                $incident_instruction = $rec['文字列__複数行__2']['value'] ?? '';
+
+                $incident_punishment = $rec['懲罰区分']['value'] ?? '';
+                $incident_history .= "【区分】{$incident_type}\n【概要及び時系列】{$incident_summary}\n【詳細】{$incident_details}\n 【指導内容】{$incident_instruction}【懲罰区分】{$incident_punishment}\n\n";
+            }
+        } else {
+            $incident_history .= "\n過去36ヶ月間に懲罰・処分歴はありません。\n\n";
+        }
+        return $incident_history;
+    }
+    private function user_monthly_goals_history($user_id){
+        $monthly_goals_history = <<<EOD
+        以下は、過去12ヶ月間の月次目標履歴です。
+        EOD;
+
+        $date = Carbon::now()->subMonths(12)->toDateString();
+        $user = User::findOrFail($user_id);
+
+        $goals = ProjectGoal::where('user_id', $user_id)
+            ->where('created_at', '>=', $date)
+            ->orderBy('year', 'desc')
+            ->orderBy('which_half', 'desc')
+            ->where('status', '>', 8)
+            ->get();
+        if($goals && count($goals) > 0){
+            $monthly_goals_history .= "\n\n";
+            foreach($goals as $index => $goal){
+                // dd($goal);
+                $goal_data = "\n----------月次目標" . ($index + 1) . "-------------\n";
+                $goal_data .= $goal->title ? "【目標タイトル】" . $goal->title . "\n" : '';
+                $goal_data .= $goal->outcome_goal ? "【目標内容】" . $goal->outcome_goal . "\n" : '';
+                $goal_data .= $goal->achievement_rate ? "【達成率】" . $goal->achievement_rate . "%\n" : '';
+                $goal_data .= $goal->expected_effect ? "【期待効果】" . $goal->expected_effect . "\n" : '';
+                $goal_data .= $goal->kgi ? "【KGI】" . $goal->kgi . "\n" : '' . "【達成率】" . $goal->achievement_rate . "%\n";
+                if($goal->steps && count($goal->steps) > 0){
+                    $goal_data .= "【KPI】\n";
+                    foreach($goal->steps as $step_index => $step){
+                        $goal_data .= " ・" . $step->content . "【達成率】" . $step->progress . "%\n";
+                    }
+                }
+                $monthly_goals_history .= $goal_data . "\n";
+
+            }
+        } else {
+            $monthly_goals_history .= "\n過去12ヶ月間に月次目標の記録はありません。\n\n";
+        }
+        return $monthly_goals_history;
+        
+    }
+    private function user_work_condition($user_id){
+        $condition_data = <<<EOD
+        以下は、最新の勤務状況の詳細です。
+        EOD;
+        $survey = CustomForm::with(['blocks' => function($q) use($user_id)  {
+            $q->with(['answers' => function($q)use($user_id)  {
+                $q->where('user_id', $user_id)->with('files');                    
+            }])->with(['elements' => function($q) use($user_id) {
+                $q->with(['answers' => function($q)use($user_id)  {
+                    $q->where('user_id', $user_id);  
+                }]);
+            }]);
+        }])
+        ->find(75);
+        if($survey){
+            if($survey->blocks && count($survey->blocks) > 0){
+                foreach($survey->blocks as $block_index => $block){
+                    $condition_data .= "【{$block->question}】 : ";
+                    $answer = $block->answers->first();
+                    if($answer){
+                        $condition_data .= $answer->text_answer;
+                    }
+                    $elements = $block->elements;
+                    if($elements && count($elements) > 0){
+                        foreach($elements as $element_index => $element){
+                            if($element->answers && count($element->answers) > 0){
+                                $element_answer = $element->answers->first();
+                                $condition_data .= "{$element->value} ";
+                                if($element_answer->sub_text){
+                                    $condition_data .= $element_answer->sub_text;
+                                }
+                                
+                            }
+                        }
+                    }
+                    $condition_data .= "\n";
+                }
+            }
+        }
+
+        return $condition_data;
+
+    }
+    private function evaluation_details($user_id){
+        $evaluation_data = <<<EOD
+        以下は、最新の人事考課の詳細です。
+        EOD;
+        $today = Carbon::now(); 
+        $whichHalf = ($today->month >= 3 && $today->month <= 9) ? 'first' : 'second';
+        $fiscalYear = ($today->month >= 3) ? $today->year : $today->year - 1;
+        $evaluation = EvaluationRecord::where('user_id', $user_id)
+        ->where('year', $fiscalYear)
+        ->where('which_half', $whichHalf)
+        ->with(['checklist'])
+        ->first();
+        // dd($evaluation);
+        if($evaluation){
+            $evaluation_data .= $evaluation->current_level ? "【現在の職能レベル】" . $evaluation->current_level . "\n" : '';
+            if($evaluation->checklist && count($evaluation->checklist) > 0){
+                $evaluation_data .= "【保留職能能力】\n";
+                foreach($evaluation->checklist as $item){
+                    $evaluation_data .= " ・" . $item->content . "\n";
+                }
+            }
+        } else {
+            $evaluation_data .= "人事考課はありません。\n";
+        }
+        return $evaluation_data;
+    }
+    public function evaluate_member(Request $request){
+        $data = $request->validate([
+            'project_id' => 'required|integer|exists:project_records,id',
+            'user_id' => 'required|integer|exists:users,id',
+            'role_id' => 'required|integer'
+        ]);
+
+        $user = User::findOrFail($data['user_id']);
+
+        $project = ProjectRecord::findOrFail($data['project_id']);
+        $role = ProjectMemberRole::findOrFail($data['role_id']);
+        
+        $user_code = $user->user_code;
+
+        $condition = $this->user_work_condition($data['user_id']);
+
+        $incident_history = $this->user_incident_history($data['user_id']);
+        $evaluation_details = $this->evaluation_details($data['user_id']);
+
+        $monthly_goals_history = $this->user_monthly_goals_history($data['user_id']);
+        $work_conditions = $role->work_conditions;
+        $string_work_condition = implode(", ", $work_conditions);
+
+        $prompt = <<<EOD
+        氏名: {$user->name}
+        アサイン先プロジェクト: {$project->name}
+        プロジェクトのミッション: {$project->mission}
+        プロジェクトのイノーベーション: {$project->innovation}
+        プロジェクトのストラテジー: {$project->strategy_miso}
+        プロジェクトのオペレーション: {$project->operation}
+
+        アサイン先役割: {$role->title}
+        アサイン先役割業務詳細: {$role->description}
+        アサイン先役割の業務遂行条件: {$string_work_condition}
+        個別配慮事項: {$condition}
+        過去36ヶ月間のインシデント履歴:
+        {$incident_history}
+        過去12ヶ月間の月次目標履歴:
+        {$monthly_goals_history}
+        最新の人事考課の詳細:
+        {$evaluation_details}
+        EOD;
+        
+        $result = $this->openAiController->non_stream_prompt(new Request([
+            'message' => $prompt,
+            'config_key' => 'project_member_assign_evaluation'
+        ]));
+
+        $data = $result->getData();
+
+        
+
+        
+
+        return response()->json($data);
+    }
+    public function save_member_assign_data(Request $request){
+        $request->validate([
+            'project_id' => 'required|integer|exists:project_records,id',
+            'user_id' => 'required|integer|exists:users,id',
+        ]);
+
+        $projectMember = ProjectMember::where('project_id', $request->project_id)
+            ->where('user_id', $request->user_id)
+            ->first();
+        if(!$projectMember){
+            return response()->json(['error' => 'プロジェクトメンバーが見つかりません。'], 404);
+        }
+        $data = $request->validate([
+            'assign_data' => 'required',
+        ]);
+        $overall_score = $data['assign_data']['overall']['score'] ?? null;
+        $projectMember->update([
+            'assign_data' => $request->assign_data,
+            'overall_assign_score' => $overall_score,
+        ]);
+        return response()->json(['status' => 'ok']);
+    }
+    public function user_managing_projects(Request $request){
+        $user = $this->active_user();
+        $managing_projects = ProjectRecord::whereHas('manager', fn ($q) => $q->where('users.id', $user->id))
+            ->whereHas('members', fn ($q) => $q->where('users.retire', 0)
+                ->where('users.partner_flag', 0)
+                ->whereNotIn('users.position_id',[13,14,15] )
+                ->where('users.hide_flag', 0)
+            )
+            ->select('id', 'name')
+            ->with(['members' => function($q) {
+                $q->where('users.retire', 0)
+                ->where('users.partner_flag', 0)
+                ->whereNotIn('users.position_id',[13,14,15] )
+                ->where('users.hide_flag', 0)
+                ->select('users.id', 'users.name', 'users.position_id', 'users.icon_path', 'users.icon_bg');
+            }])
+            ->get();
+        return response()->json($managing_projects);
+    }
+    public function mentees (Request $request){
+        $user = $this->active_user();
+        $year = $request->year;
+        $which_half = $request->which_half;
+        $evaluationRecords = EvaluationRecord::where('year', $year)
+            ->where('which_half', $which_half)
+            ->where('mentor_id', $user->id)
+            ->whereNotNull('user_id')
+            ->pluck('user_id')
+            ->unique()
+            ->values()
+            ->all();
+        $mentees =  User::where('retire', 0)
+        ->where('partner_flag', 0)
+        ->whereNotIn('position_id',[13,14,15] )
+        ->where('hide_flag', 0)
+        ->whereIn('id', $evaluationRecords)
+        ->select('id', 'name', 'position_id', 'icon_path', 'icon_bg')
+        ->get();
+        return response()->json($mentees);
+    }
+    public function project_managers(Request $request){
+        $users = User::where('retire', 0)
+        ->where('partner_flag', 0)
+        ->where('position_id', 6)
+        ->where('hide_flag', 0)
+        ->select('id', 'name', 'position_id', 'icon_path', 'icon_bg')
+        ->get();
+        return response()->json($users);
+    }
+
+    public function user_related_goal_member_data(Request $request){
+        $user = $this->active_user();
+        $data = [];
+        $year = $request->year;
+        $which_half = $request->which_half;
+        $by = $request->by ?? [];
+        $usersQuery = User::query()->where('retire', 0)
+        ->where('partner_flag', 0)
+        ->where('hide_flag', 0)
+        ->whereNotIn('position_id',[13,14,15]);
+        if(in_array('pms', $by)){
+            $pms = $usersQuery->clone()->where('position_id', 6)->select('id', 'name', 'position_id', 'icon_path', 'icon_bg')->get();
+            $data['pms'] = $pms;
+        }
+        if(in_array('mentees', $by)){
+            $evaluationRecords = EvaluationRecord::where('year', $year)
+            ->where('which_half', $which_half)
+            ->where('mentor_id', $user->id)
+            ->whereNotNull('user_id')
+            ->pluck('user_id')
+            ->unique()
+            ->values()
+            ->all();
+            $mentees = $usersQuery->clone()->whereIn('id', $evaluationRecords)
+            ->select('id', 'name', 'position_id', 'icon_path', 'icon_bg')
+            ->get();
+            $data['mentees'] = $mentees;
+        }
+        if(in_array('all', $by)){
+            $all_members = $usersQuery->clone()->select('id', 'name', 'position_id', 'icon_path', 'icon_bg')->get();
+            $data['all'] = $all_members;
+        }
+        if(in_array('project_members', $by)){
+            $managing_projects = ProjectRecord::whereHas('manager', fn ($q) => $q->where('users.id', $user->id))
+            ->whereHas('members', fn ($q) => $q->where('users.retire', 0)
+                ->where('users.partner_flag', 0)
+                ->whereNotIn('users.position_id',[13,14,15] )
+                ->where('users.hide_flag', 0)
+            )
+            ->select('id', 'name')
+            ->with(['members' => function($q) {
+                $q->where('users.retire', 0)
+                ->where('users.partner_flag', 0)
+                ->whereNotIn('users.position_id',[13,14,15] )
+                ->where('users.hide_flag', 0)
+                ->select('users.id', 'users.name', 'users.position_id', 'users.icon_path', 'users.icon_bg');
+            }])
+            ->get();
+            $data['project_members'] = $managing_projects;
+        }
+        return response()->json($data);
+    }
 }
 

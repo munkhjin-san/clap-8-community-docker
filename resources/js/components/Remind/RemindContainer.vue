@@ -303,28 +303,6 @@
                 <div v-if="expanded.remind_form" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
                     <div v-for="form in data.remind_form" class="relative bg-[var(--background-color)] cursor-pointer p-[20px] ">
                         <div class="w-full">{{ form.title }}</div>
-                        <!-- <div class="mt-[20px] w-fit">
-                            <div @click.stop="surveyUsers.setSurveyUsers({title: 'フォーム管理者', active: true, users: form.admins || []})" class="flex text-[12px] items-center leading-normal">
-                                <div>管理者 : </div>
-                                <div class="flex ml-[5px]">
-                                    <UserPanel v-for="admin in form.admins?.slice(0, 3)" :user="admin" size="15" disable-instant/>
-                                    <p class="ml-[3px] mt-[3px]" v-if="form.admins && form.admins?.length > 3">{{ `...(${form.admins?.length}人)` }}</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="mt-[10px] w-fit">
-                            <div @click.stop="surveyUsers.setSurveyUsers({title: 'フォーム対象者', active: true, users: form.users || []})" class="flex text-[12px] items-center leading-normal">
-                                <div>対象者 : </div>
-                                <div class="flex ml-[5px] items-center">
-                                    <div v-for="user in form.users?.slice(0, 3)" class="relative h-fit">
-                                        <UserPanel :user="user" size="15" disable-instant/>
-                                        <div v-if="user.is_answered" title="回答済み" class="completed-badge-large completed-badge-medium" style="background: green;"></div>
-                                    </div>                                
-                                    <p class="ml-[3px] mt-[3px]" v-if="form.users && form.users?.length > 3">{{ `...(${form.users?.length}人)` }}</p>
-                                </div>
-                            </div>
-                        </div> -->
                         <div class="mt-[10px]">
                             <CommandButton 
                                 :buttons="[
@@ -441,7 +419,6 @@ import WorkMessage from '../Work/WorkMessage.vue';
 import { useSortable, moveArrayElement } from '@vueuse/integrations/useSortable.mjs';
 import RemindHeader from './RemindHeader.vue';
 import CommandButton from '../Global/CommandButton.vue';
-import { useSurveyUsers } from '@/store/surveyUsers';
 import { useResponsive } from '@/store/responsive';
 import HamBurger from '../Global/HamBurger.vue';
 import AssetMovement from '../Asset/AssetMovement.vue';

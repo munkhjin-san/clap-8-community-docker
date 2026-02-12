@@ -1,6 +1,6 @@
 
 import { User } from "./globalInterface"
-import { File } from "./trayInterface"
+import { FileRecord } from "./trayInterface"
 
 export interface CustomForm {
     id: number	
@@ -81,7 +81,7 @@ export interface SurveyBlockAnswer{
     element_answers: SurverBlockElementAnswer[]
     custom_form_block_id?: number
     user?: User
-    files: File[]
+    files: FileRecord[]
 }
 
 export interface SurverBlockElementAnswer{

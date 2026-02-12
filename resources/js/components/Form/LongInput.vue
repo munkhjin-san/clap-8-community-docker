@@ -5,54 +5,69 @@
                 :style="{width: `${width - 30}px`, maxWidth:`${width - 30}px`}"
                 @input="validate(true, $event)"
                 v-model="value" 
-                :name="name" 
+                :name="inputName" 
                 :class="['g-text-long', customClass, {'date-color' : theme.dark }]"                 
             ></textarea>
             <label v-if="placeHolder" :class="['form-plc', {centerLabel: !modelValue}]">{{placeHolder}}</label> 
 
         </div>
         <p v-if="error" class="i-error">{{ error }}</p>
-        {{ size }}
     </div> 
 </template>
   
-<script setup>
+<script setup lang="ts">
     import { validator } from '@/validation/validator'
-    import { onMounted, ref } from 'vue';
+    import { computed, onMounted, ref, useTemplateRef } from 'vue';
     import { useTheme } from '@/store/theme';
-    import { useElementSize } from '@vueuse/core'
-    const growRef = ref(null)
-    const {width} = useElementSize(growRef)
+    import {  useElementSize } from '@vueuse/core'
+    const growRef = useTemplateRef('growRef')
+    const { width } = useElementSize(growRef)
     const theme = useTheme()
     const error = ref('')
     const trigger = ref(false)
-    
-    const props = defineProps({
-        name: String,
-        placeHolder: String, 
-        rules: String,
-        customClass: String,
-        modelValue: String,
-        initialValue: String
+    const props = withDefaults(defineProps<{
+        name?: string
+        placeHolder?: string
+        rules?: string
+        customClass?: string
+        initialValue?: string
+    }>(), {
+        name: '',
+        placeHolder: '',
+        rules: '',
+        customClass: '',
+        initialValue: ''
     })
-    const value = defineModel()
+    const inputName = computed(() => props.name ? props.name : `long-input-${Math.random().toString(36).substring(2, 15)}`)
+    const value = defineModel<any>()
     onMounted(() => {
         updateTarget()
     })
     const updateTarget = () => {
         if(props.initialValue){
             value.value = props.initialValue
-        }        
+        }    
+        if(!growRef.value) return   
         growRef.value.dataset.replicatedValue = value.value || props.initialValue
     }
-    const validate = async(passive, event) => {
-        if(event){
-            event.target.parentNode.dataset.replicatedValue = event.target.value
+    const validate = async(passive?: boolean, event?: Event) => {
+        if(event && growRef.value){
+            const target = event.target as HTMLTextAreaElement
+            growRef.value.dataset.replicatedValue = target.value
         }
-
-        if(passive && !trigger.value) return
+        if(passive && !trigger.value) {
+            return {valid: true}
+        }       
+        if(!props.rules) {
+            return {valid: true}
+        }         
         const { isValid, errorMessage }= await validator(props.rules, value.value)
-        error.value = errorMessage
+        if(errorMessage){
+            error.value = errorMessage
+        }else {
+            error.value = ''
+        }
+        
         trigger.value = true
         return {valid: isValid}
     }    

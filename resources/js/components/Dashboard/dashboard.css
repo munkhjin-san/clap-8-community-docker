@@ -1,0 +1,88 @@
+.v-expansion-panel-title {
+    padding: 0 !important;
+    color: var(--primary-color) !important;
+}
+
+.v-expansion-panel-title:hover {
+    background-color: var(--bg3) !important;
+}
+
+.v-expansion-panel-title:hover>.v-expansion-panel-title__overlay {
+    opacity: 0 !important;
+}
+
+.t-button:hover>.v-btn__overlay {
+    opacity: 0.2 !important;
+}
+
+.t-button {
+    width: 30px !important;
+    min-width: 30px !important;
+    padding: 0 !important;
+    opacity: 1 !important;
+}
+
+.panel.fullscreen {
+    position: absolute;
+    inset: 20px;
+    width: calc(100% - 40px);
+    height: calc(100% - 40px);
+    z-index: 5;
+    overflow: auto;
+    overflow-x: hidden;
+}
+
+.panel {
+    border: solid thin var(--bg3);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: rgba(0, 0, 0, 0.04) 0px 3px 5px;
+    background: var(--background-color);
+    color: var(--primary-color);
+}
+.v-application {
+    --v-border-color: red !important;
+}
+.v-expansion-panel-text__wrapper {
+    padding: 0 !important;
+}
+.v-expansion-panel__shadow{
+    display: none !important;
+}
+.v-expansion-panel-title__overlay{
+    display: none !important;
+}
+.task-panel{
+    height: 30px !important;
+    min-height: 30px !important;
+}
+
+.selected-panel-item{
+    background: red;
+}
+.v-expansion-panel{
+    background: var(--background-color) !important;
+}
+
+@media screen and (max-width: 959px) {
+    .hidescroll{
+        overflow: hidden !important;
+    }
+    .panel.fullscreen {
+        position: fixed;
+        inset: 0;
+        width: calc(100%);
+        height: calc(100% );
+        border: none;
+    }
+    .dashboard-card-item{
+        grid-column: span 1 / span 1 !important;
+    }
+}
+@media screen and (max-width: 350px) {
+    .dropDownSelector{
+        font-size: 12px;
+    }
+}

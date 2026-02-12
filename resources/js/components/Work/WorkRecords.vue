@@ -7,12 +7,12 @@
         <VDataTableVirtual
             :headers="headers"
             :items="records"
-            height="100%"
             :loading="loading == 0"
             :hide-no-data="true"
             item-value="name"
             id="dt-responsive-table"
             class="p-datatable-table"
+            item-height="41"
             dense
             disable-sort
         >
@@ -31,7 +31,6 @@
                     @procedureStart="procedureStart"
                     :holidays="holidays"
                     :wrapper="wrapper"
-                    @workRecordRowCreated="workRecordRowCreated"
                 />                
             </template>
             <template v-slot:body.append>

@@ -49,8 +49,8 @@
 </template>
 <script setup lang="ts">
 import { useResponsive } from '@/store/responsive';
-import Step2 from './SalaryIssue/Step2.vue';
-import Step3 from './SalaryIssue/Step3.vue';
+import Step2 from './MonthlyGoal/SalaryIssue/Step2.vue';
+import Step3 from './MonthlyGoal/SalaryIssue/Step3.vue';
 import { onMounted, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth';
 import { useApi } from '@/composables/api';

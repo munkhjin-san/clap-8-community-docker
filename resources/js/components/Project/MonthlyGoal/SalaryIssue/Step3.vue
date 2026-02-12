@@ -1,7 +1,7 @@
 <template>
     <div class="mt-[20px] relative">
-        <Transition name="modalFade">
-            <div class="absolute bg-[var(--background-color)] w-full h-full top-0 left-0 flex items-cemter justify-center z-[6]" v-if="initialLoader">
+        <Transition v-if="initialLoader" name="modalFade">
+            <div v-if="initialLoader" class="absolute bg-[var(--background-color)] w-full h-full top-0 left-0 flex items-center justify-center z-[6]">
                 <div id="loaderMini">
                     <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
                 </div>
@@ -15,7 +15,7 @@
         </Transition>       
         
         <div v-if="selectedTheme">
-            <div @click="emit('next', 1), emit('goback')" class="undo-kadai">
+            <div @click=" emit('goback')" class="undo-kadai">
                 <svg fill="var(--primary-color)" version="1.1" height="10" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
                     <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
                 </svg>
@@ -119,18 +119,6 @@
                         </div>
                     </div>
                 </div>
-                <!-- <div class="si-box" style="background: var(--background-color);">
-                    <LongInput
-                        :initialValue="content"   
-                        ref="kadaiContent"
-                        :placeHolder="`昇給課題内容・詳細`"
-                        name="kadaiContent"
-                        rules="required"
-                        label="タイトル"
-                        v-model="content"
-                        :key="keys.content"
-                    />
-                </div> -->
 
 
                 
@@ -145,32 +133,29 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { ref, inject, onMounted, useTemplateRef } from 'vue';
+import { ref, onMounted, useTemplateRef } from 'vue';
 import ShortInput from '@/components/Form/ShortInput.vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import { useBadgeStore } from '@/store/badge';
-import { useProject } from '@/composables/project';
-import { useRoute } from 'vue-router';
 import { EvaluationRecord, EvaluationSkill } from '@/interface/evaluationInterface';
 import AiLoader from '@/components/Global/AiLoader.vue';
 import AiIcon from '@/components/Icons/AiIcon.vue';
 import { Theme } from '@/interface/lessonInterface';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
-const emit = defineEmits([
-    'close', 
-    'next',
-    'goback'
-])
-const props = defineProps([
-    'getIssues', 
-    'editData', 
-    'selectedTheme',
-    'chosenGoal',
-    'selectedDate',
-    'evaluation'
-])
+import { ProjectGoal, SalaryIssue } from '@/interface/projectInterface';
+const emit = defineEmits<{
+    close: [flag: boolean],
+    goback: []
+}>()
+const props = defineProps<{
+    getIssues: Function,
+    editData: SalaryIssue | null, 
+    selectedTheme: any,
+    chosenGoal: ProjectGoal,
+    selectedDate: any,
+}>()
 
 const reviewLoading = ref(false)
 const title = ref(props.editData?.title ?? '')
@@ -181,12 +166,10 @@ const evaluationData = ref<EvaluationRecord | null>(null)
 const aiLoading = ref(false)
 const resourceLoading = ref(false)
 const baseSkills = ref<string[]>([])
-const { memberData } = useProject()
 const actions = ref(props.editData?.actions ?? [])
 const saving = ref(false)
 const attaching = ref(false)
 const badge = useBadgeStore()
-const refresh = inject('refresh') as Function
 const kadaiContent = ref<InstanceType<typeof LongInput> | null>(null)
 const kadaiTitle = ref<InstanceType<typeof ShortInput> | null>(null)
 const kadaiGoal = ref<InstanceType<typeof LongInput> | null>(null)
@@ -210,7 +193,6 @@ const keys = ref({
     content: 0,
     content_goal: 0
 })
-const route = useRoute()
 const api = useApi()
 const { ask, ping, toast } = useDialog()
 onMounted(() => {
@@ -220,19 +202,17 @@ onMounted(() => {
 const getEvaluationData = async() => {
 
     initialLoader.value = true
-    const span = route.params.span as string
-    const [year, which_half] = span.split('-')
     const response = await api.post('/get_evaluation_data', {
-        user_id: memberData.value?.id,
-        year: year,
-        which_half: which_half  
+        user_id: props.chosenGoal.user_id,
+        year: props.selectedDate.year,
+        which_half: props.selectedDate.which_half,  
     })
     evaluationData.value = response && response.evaluation ? response.evaluation : null
     baseSkills.value = response && response.base_skills ? response.base_skills  : []
 
     const themeResponse = await api.get('/get_theme_data', {        
         theme: props.selectedTheme.title,
-        user_id: memberData.value?.id        
+        user_id: props.chosenGoal.user_id        
     })
     learningThemeData.value = themeResponse.themeData  
 
@@ -359,10 +339,9 @@ const saveTemplate = async(_action, status) => {
         review: null,
         ability: content_goal.value,
         theme: props.selectedTheme.title_full,
-        date: props.selectedDate.evaluationDate,
         status: status,
-        user_id: memberData.value?.id,
-        mentor_id: props.evaluation?.mentor_id,
+        user_id: props.chosenGoal.user_id,
+        mentor_id: evaluationData.value?.mentor_id,
         actions: actions.value.map((item, index) => {
             return {
                 content: item.content,
@@ -375,8 +354,8 @@ const saveTemplate = async(_action, status) => {
         toast: status == 2 ? '申請しました。' : '保存しました。'
     })
     title.value = content.value = content_goal.value = ''
-    refresh()
-    emit('close')
+
+    emit('close', true)
 
     badge.getSalaryIssueBadge()
     saving.value = false

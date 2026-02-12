@@ -25,14 +25,21 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Collection;
+use App\Services\ReminderMessageService;
+use App\Services\RemindTaskService;
+use App\Http\Controllers\ProjectController;
 
 class RemindController extends Controller
 {
-    protected $badgeService;
+
     public function __construct(
-        BadgeService $badgeService, 
+        protected BadgeService $badgeService,
+        protected ReminderMessageService $reminderMessageService,
+        protected RemindTaskService $remindTaskService,
+        protected ProjectController $projectController    
     ){
-        $this->badgeService = $badgeService;
+
     } 
     private function active_user(){
         $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
@@ -832,6 +839,7 @@ class RemindController extends Controller
                 });
 
             })
+            ->select(['id', 'name', 'icon_path', 'icon_bg'])
             ->with([
                 'outcome_goals' => function ($og) use ($userId, $now) {
                     $og->relevantToViewer($userId)
@@ -854,31 +862,41 @@ class RemindController extends Controller
 
 
         return response()->json([
-            'remind_overdue' => []
+            'remind_overdue' => $members
         ]);
     }
     private function remindCollect() {
+        $user = $this->active_user();
+        $remindedMessages = $this->reminderMessageService->getReminderMessagesForUser($user, ['all']);
+        $remindedTasks = $this->remindTaskService->getReminderTaskForUser($user, ['all']);
+        $remindForm = $this->remind_form()->getData(true);
+        $remindOverdueGoals = $this->remind_overdue()->getData(true);
+        
         $responses = [
-            'remind_task_untouched'        => $this->remind_task_untouched()->getData(true),
-            'remind_task_unfinished'       => $this->remind_task_unfinished()->getData(true),
-            'remind_unsigned_messages'     => $this->remind_unsigned_messages()->getData(true),
-            'remind_unchecked_messages'    => $this->remind_unchecked_messages()->getData(true),
+            // 'remind_task_untouched'        => $this->remind_task_untouched()->getData(true),
+            // 'remind_task_unfinished'       => $this->remind_task_unfinished()->getData(true),
+            // 'remind_unsigned_messages'     => $this->remind_unsigned_messages()->getData(true),
+            // 'remind_unchecked_messages'    => $this->remind_unchecked_messages()->getData(true),
             'remind_timesheet'             => $this->remind_timesheet()->getData(true),
-            'remind_task_not_approved'     => $this->remind_task_not_approved()->getData(true),
+            // 'remind_task_not_approved'     => $this->remind_task_not_approved()->getData(true),
             'remind_project_not_approved'  => $this->remind_project_not_approved()->getData(true),
-            'remind_reminded_messages'     => $this->remind_reminded_messages()->getData(true),
+            // 'remind_reminded_messages'     => $this->remind_reminded_messages()->getData(true),
             'remind_planned_leave'         => $this->remind_planned_leave()->getData(true),
-            'remind_form'                  => $this->remind_form()->getData(true),
+            // 'remind_form'                  => $this->remind_form()->getData(true),
             'remind_asset'                 => $this->remind_asset()->getData(true),
             'remind_temp_reserved_schedules'=> $this->remind_temp_reserved_schedules()->getData(true),
             'remind_departure_report'      => $this->remind_departure_report(true)->getData(true),
             'remind_challenge'             => $this->remind_challenge_progress()->getData(true),
             'remind_overdue'               => $this->remind_overdue()->getData(true)
         ];
-        return $responses;
+        $merged = array_merge($remindedMessages, $remindedTasks, $remindForm, $remindOverdueGoals);
+        $totalMerged = array_merge($responses, $merged);
+        // return $responses;
+        return $totalMerged;
     }
     public function remind_summary(Request $request) {
         $collected = $this->remindCollect();
+        return response()->json($collected);
         $combinedData = array_map(
             fn($response, $index) => array_merge($response, ['order' => $index]),
             $collected,
@@ -896,9 +914,9 @@ class RemindController extends Controller
                 continue;
             }
             if ($key === 'remind_reminded_messages') {
-                $counts[$key] = count($response[$key]);
+                $counts[$key] = count($response);
             } else {
-                $count += count($response[$key]);
+                $count += count($response);
             }
         }
         $counts['total'] = $count;
@@ -926,6 +944,39 @@ class RemindController extends Controller
             'has_unread' => $hasUnread,
             'latest_id'  => $latestId,
         ]);
+    }
+    public function near_deadline_goals(){
+        $user = $this->active_user();
+        $today = Carbon::now()->format('Y-m-d');
+        $year_ago = Carbon::now()->subYear()->format('Y-m-d');
+        $base = $user->outcome_goals()->query()
+                    ->whereIn('status', [0,1,5,6,8])
+                    ->whereNotNull('start_date')
+                    ->whereNotNull('end_date')
+                    // ->where('end_date', '>=', $today)
+                    ->whereBetween('start_date', [$year_ago, $today]);
+                    // ->get();
+
+
+        $nearGoals = $base->where('end_date', '>=', $today)->get();
+
+        $overDeadlineGoals = $base->where('end_date', '<', $today)->get();
+
+        
+        $goalsElapsed80ofDuration = $nearGoals->filter(function ($goal) use ($today) {
+            $start = Carbon::parse($goal->start_date);
+            $end = Carbon::parse($goal->end_date);
+            $elapsed = $start->diffInSeconds(Carbon::parse($today));
+            $total = max(1, $start->diffInSeconds($end));
+            $pct = ($elapsed / $total) * 100;
+            return $pct >= 80;
+        })->values();
+        return response()->json([    
+            'near_deadline_goals' => $goalsElapsed80ofDuration,
+            'over_deadline_goals' => $overDeadlineGoals,
+        ]);
+        
+
     }
     public function badge_summary()
     {

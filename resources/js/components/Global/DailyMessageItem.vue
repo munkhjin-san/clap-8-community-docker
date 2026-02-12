@@ -139,7 +139,7 @@ const fastPreCheckEmote = (num) => {
                 ...comment.value,
                 emoted_users: [{
                     ...auth.activeUser as User,
-                    pivot: {emote_id: num   }
+                    pivot: {emote_id: num, message_id: comment.value.id, user_id: auth.activeUser.id }
                 },...comment.value.emoted_users]
             }]
         })

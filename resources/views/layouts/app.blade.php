@@ -91,7 +91,6 @@
     --complete: #9effb4
 }
 
-// If the app is in dark mode, update the variables
 .dark-mode {
     --primary-color: #e4e6eb;
     --background-color: #323232;

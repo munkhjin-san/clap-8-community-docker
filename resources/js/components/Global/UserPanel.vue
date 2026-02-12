@@ -30,7 +30,7 @@ import { TaskUser, User } from '@/interface/globalInterface'
 import { useTheme } from '@/store/theme';
 import { Collaborator } from '@/interface/contactInterface';
     const props = defineProps<{
-        user: User | TaskUser | Collaborator
+        user: User 
         imgClass?: string
         imgStyle?: string
         size?: string | number

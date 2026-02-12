@@ -1,9 +1,7 @@
 <template>
-
-
     <div :class="boxClass">
-        <div class="flex justify-between">            
-            <div :id="'task_box_' + item.id" class="task-box-inner" :style="{backgroundColor: taskColor.mycolor, color: taskColor.color, position: 'relative', cursor: 'pointer', width: '-webkit-fill-available'}">
+        <div class="flex justify-between h-full">            
+            <div v-if="!mode || mode !== 'minimal'" :id="'task_box_' + item.id" class="task-box-inner" :style="{backgroundColor: taskColor.mycolor, color: taskColor.color, position: 'relative', cursor: 'pointer', width: '-webkit-fill-available'}">
                 <div :class="[{'justify-between' : isBoard, 'gap-[10px]' : !isBoard},'flex', 'items-center', 'w-full', 'relative']" :style="{ marginTop: responsive.mobile ? '0' : '5px'}">
                     <div class="flex items-center gap-[10px] text-sm overflow-hidden" @click.stop="router.push(`/project/${item.project_record_id}/task-calendar`)" v-if="item.project">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="min-w-[20px]" :fill="taskColor.mycolor === myColor ? '#000' : 'var(--primary-color)'" height="23" width="20" viewBox="0 0 45 32">
@@ -22,7 +20,7 @@
                     </svg>
                     <div @click="viewTaskUsers" class="flex w-fit">
                         <div v-for="user in taskUsers.slice(0, 3)" style="position:relative;">
-                            <div v-if="user" :title="user.name" class="column-01">
+                            <div v-if="user" :title="user.name?.toString()" class="column-01">
                                 <UserPanel size="15" :disableInstant="true" :user="user" imgClass="u_icon_15"/>   
                                 <div title="タスクが完了しました" v-if="user.pivot.progress_flag > 0" class="completed-badge-large completed-badge-medium" :style="{background: taskStatusBackgrounds[user.pivot.progress_flag]}"></div>                         
                             </div>
@@ -56,7 +54,7 @@
                 </div>
                 <div @click="viewSupervisors" v-if="!canModify && supervisors.length" style="display:flex;width: fit-content; margin-top: 15px;align-items: center">
                     <div v-for="user in supervisors.slice(0, 3)" style="position:relative;">
-                        <div v-if="user" :title="user.name" class="column-01">
+                        <div v-if="user" :title="user.name?.toString()" class="column-01">
                             <UserPanel size="15" :disableInstant="true" :user="user" imgClass="u_icon_15"/>                            
                         </div>
                         <div class="column-01" v-else>
@@ -78,13 +76,14 @@
                 <div v-else-if="isTask && completeButtonFilter" style="display:flex;align-items: center;margin-top: 15px;position:relative;white-space: nowrap;flex-wrap: wrap;gap: 10px;">
     
                     <GanttButton v-if="isExecutor" :status="isExecutor.pivot.progress_flag" :loading="updating.status" viewType="button" @action="(flag) => completeTaskBefore(flag)"/>
-                    <!-- <CommandButton
-                        v-if="isExpired"
-                        :buttons="[
-                            {title: '延長', action:() => extendTask()}
-                        ]"
-                    /> -->
                 </div>
+            </div>
+            <div 
+                :style="{backgroundColor: taskColor.mycolor, color: taskColor.color}" 
+                v-if="mode == 'minimal'"
+                class="flex items-center w-full h-full text-[12px]"
+            >
+                <div class="pl-3 overflow-hidden whitespace-nowrap overflow-ellipsis leading-normal" v-html="truncatedRemarks"></div>
             </div>
         </div>
         <Transition name="modalFade">
@@ -132,7 +131,8 @@ import { useDialog } from '@/composables/dialog';
     const props = defineProps<{
         item: Task
         boxClass: string;
-        isBoard: boolean
+        isBoard: boolean;
+        mode?: 'compact' | 'minimal' | 'normal';
     }>()
 
     const updating = reactive({

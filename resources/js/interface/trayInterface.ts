@@ -1,4 +1,4 @@
-export interface File {
+export interface FileRecord {
     id: number | null
     message_id: number | null
     original_file_id: number | null

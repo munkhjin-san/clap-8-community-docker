@@ -10,6 +10,7 @@
         }"
         :class="[{'pop-cal-card' : expanded}]">
             <GoogleEventCard
+                :day="day.full"
                 :record="record"
                 :expanded="expanded"    
                 :unique-id="unique"

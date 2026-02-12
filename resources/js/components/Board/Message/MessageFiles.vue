@@ -60,7 +60,7 @@ import { MenuList, Message, MessageFile } from "@/interface/globalInterface";
     const props = defineProps<{
         list: MessageFile[]
         message: Message
-        mIndex?: number | undefined
+        mIndex?: number | string
         unchecked?: boolean | undefined
     }>()
     const fileMenuLayer = ref(0)

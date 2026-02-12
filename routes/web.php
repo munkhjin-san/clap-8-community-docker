@@ -33,6 +33,7 @@ use App\Http\Controllers\CommunityController;
 use App\Http\Controllers\OpenAiController;
 use App\Http\Controllers\ProjectPlanController;
 use App\Http\Controllers\PushController;
+use App\Http\Controllers\DashboardController;
 use App\Models\User;
 /*
 |--------------------------------------------------------------------------
@@ -165,7 +166,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         'asset-partner',
         'survey-answers',
         'file-preview',
-        'help'
+        'help',
+        'dashboard',
     ])->where('any', '.*')->name('board');
 
     Route::get('/board_default_thumbnail/{name}/{size}/{color?}', [ContentController::class, 'board_default_thumbnail']);
@@ -375,7 +377,13 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::put('/resource_comment_update', [ProjectController::class, 'resource_comment_update']);
         Route::delete('/resource_comment_delete', [ProjectController::class, 'resource_comment_delete']);
         Route::post('/get_resource_comment_counts', [ProjectController::class, 'get_resource_comment_counts']);
-
+        Route::post('/project_create_member_role', [ProjectController::class, 'project_create_member_role']);
+        Route::delete('/project_delete_member_role', [ProjectController::class, 'project_delete_member_role']);
+        Route::post('/update_project_member_role', [ProjectController::class, 'update_project_member_role']);
+        Route::post('/evaluate_member', [ProjectController::class, 'evaluate_member']);
+        Route::post('/save_member_assign_data', [ProjectController::class, 'save_member_assign_data']);
+        Route::get('/user_related_goal_member_data', [ProjectController::class, 'user_related_goal_member_data']);
+        
         Route::get('/get_work_data', [WorkController::class, 'getWorkData']);
         Route::get('/get_shift_data', [WorkController::class, 'get_shift_data']);
         Route::get('/get_shift_data_table', [WorkController::class, 'get_shift_data_table']);
@@ -488,6 +496,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::put('/update_project_progress', [ProjectController::class, 'update_project_progress']);
         Route::put('/apply_kadai', [ProjectController::class, 'apply_kadai']);
         Route::post('/get_selectable_users', [ProjectController::class, 'get_selectable_users']);
+        Route::post('/users_with_goals', [ProjectController::class, 'users_with_goals']);
+        Route::get('/check_goal_create_permission', [ProjectController::class, 'check_goal_create_permission']);
         Route::post('/get_previous_evaluation', [ProjectController::class, 'get_previous_evaluation']);
         Route::post('/create_project', [ProjectController::class, 'create_project']);
         Route::get('/get_salary_options', [ProjectController::class, 'get_salary_options']);
@@ -725,5 +735,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/goal_issue_comment_badge', [ProjectController::class, 'goal_issue_comment_badge']);
         Route::post('/clear_goal_issue_badge', [ProjectController::class, 'clear_goal_issue_badge']);
         Route::get('/must_sync_check', [AutoJobController::class, 'must_sync_check']);
+
+        Route::get('/dashboard_data', [DashboardController::class, 'dashboard_data']);
+        Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
 });
      Route::post('/tts_stream', [OpenAiController::class, 'stream_tts']);

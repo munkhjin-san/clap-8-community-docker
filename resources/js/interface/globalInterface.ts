@@ -1,6 +1,5 @@
 import { Portfolio } from "./lessonInterface"
-import { Evaluation, Project } from "./projectInterface"
-import { File } from "./trayInterface";
+import { Evaluation, Project, ProjectGoal } from "./projectInterface"
 import { CustomFieldData } from "./workInterface";
 
 export type Dialog = {
@@ -58,7 +57,12 @@ export interface Tag {
 export interface EmoteUser extends User {
     pivot: {
         emote_id: number;
+        message_id: number;
+        user_id: number;
     }
+}
+export interface UserWithGoals extends User {
+    outcome_goals: ProjectGoal[]
 }
 export interface DailyMessageUser extends User {
     custom_field_data_records: CustomFieldData[]
@@ -99,6 +103,14 @@ export interface User {
     on_leave?: number;
     evaluation: Evaluation
     general_position: string
+    partner_flag?: number;
+    project_settings?: ProjectSetting[]
+}
+export interface ProjectSetting {
+    color: string;
+    id: number;
+    project_id: number;
+    user_id: number;
 }
 export interface Details{
     recommend: string;
@@ -174,7 +186,7 @@ export interface Message {
     created_at: string;
     deleted_at: string | null;
     user: User;
-    message_files?: MessageFile[] | null;
+    message_files: MessageFile[];
     message_reply: Message | null;
     message_quot: Message | null;
     message_forward: Message | null;
@@ -188,6 +200,9 @@ export interface Message {
     u_id?: string | null;
     sharing_files?: SharingFile[];
     draft_flag?: number;
+    actual_sender: User | null;
+    reserved_at: string | null;
+    emoted_users: EmoteUser[];
 }
 export interface MessageFile {
     id: number;
@@ -260,12 +275,8 @@ export interface TaskComment{
     user: User
     created_at: string
 }
-export interface TaskUser {
-    id: number,
-    name: string,
-    icon_path: string,
+export interface TaskUser extends User {
     pivot: TaskUserPivot,
-    icon_bg: string | null
 }
 export interface TaskUserPivot {
     id: number;
@@ -418,4 +429,12 @@ export interface DecisionOption {
 }
 export interface AskOptions {
     answers: DecisionOption[]
+}
+export interface StatusLog {
+    before_number: number | null;
+    after_number: number | null;
+    before_text: string | null;
+    after_text: string | null;
+    created_at: string;
+    user: User;
 }

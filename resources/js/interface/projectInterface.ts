@@ -1,5 +1,7 @@
 import { DateTimeUnit, Interval } from "luxon";
-import { MessageFile, Task, User } from "./globalInterface";
+import { CommonFile, MessageFile, StatusLog, Task, User } from "./globalInterface";
+import { AssignmentFitEvaluationResponse } from "./assign";
+import { FileRecord } from "./trayInterface";
 
 export type ContractFindingSeverity = 'high' | 'medium' | 'low' | 'unknown'
 
@@ -34,7 +36,16 @@ export interface ProjectContractResponse {
     contract_type: string;
     active: boolean;
 }
-
+export interface ProjectMember extends User {
+    pivot: {
+        authority: number;
+        compatibility_number: number | null;
+        review: string | null;
+        role_record?: MemberRole | null
+        assign_data?: AssignmentFitEvaluationResponse | null
+        overall_assign_score?: number | null
+    }
+}
 interface Project {
     id: number;
     name: string;
@@ -47,16 +58,8 @@ interface Project {
     budget: string;
     stakeholder: string;
     status: number;
-    members: (User & {
-        pivot: {
-            authority: number;
-        }
-    })[];
-    manager: (User & {
-        pivot: {
-            authority: number;
-        }
-    })[];
+    members: ProjectMember[];
+    manager: ProjectMember[];
     mission: string;
     innovation: string;
     operation: string;
@@ -85,6 +88,7 @@ interface Project {
     custom_unit_label?: string | null
     actual_statuses?: ProjectActualStatus[]
     transitioned_at?: string
+    member_roles?: MemberRole[]
 }
 export type ProjectActualStatus = {
     status_id: number | null;
@@ -108,6 +112,10 @@ interface VirtualSpan {
     selectedWeek: number| null
     selectedIndex: number| null
 }
+export interface ProjectOfGoal extends Project {
+    is_member: boolean;
+    is_manager: boolean;
+}
 interface ProjectGoal {
     id: number;
     project_id: number;
@@ -127,9 +135,9 @@ interface ProjectGoal {
     achievement_rate: number;
     report: string;
     result: string;
-    project: Project;
+    project: ProjectOfGoal;
     comment: string | null;
-    salary_issue: SalaryIssue;
+    salary_issue: SalaryIssue | null;
     evaluation: Evaluation;
     custom_instruction: string;
     private_memo: string;
@@ -140,12 +148,17 @@ interface ProjectGoal {
     stakeholder_name: string | null;
     stakeholder_point: number | null;
     stakeholder_review: string | null;
+    files?: FileRecord[];
+    year: number;
+    which_half: string
+    user: User;
+    status_logs?: StatusLog[];
 }
 interface ProjectGoalReport {
     content: string;
     user: User;
     created_at: string;
-    files: MessageFile[]
+    files: FileRecord[]
 }
 interface ProjectGoalStep {
     id?: number; 
@@ -166,6 +179,16 @@ interface SalaryIssue {
     status: number;
     result: string;
     reports: ProjectGoalReport[]
+    actions: SalaryIssueAction[]
+    comment: string | null;
+    files?: FileRecord[];
+    status_logs?: StatusLog[];
+}
+interface SalaryIssueAction {
+    content: string;
+    learning_content: string;
+    learning_title: string;
+    status: number;
 }
 interface Evaluation {
     id: number;
@@ -226,7 +249,24 @@ interface QuickEditText {
     id: number | null, 
     editable: boolean
 }
+export interface MemberRole {
+    id: number;
+    project_record_id: number;
+    user_id: number;
+    title: string | null;
+    description: string | null;
+    comment: string | null;
+    risk: string | null;
+    risk_management: string | null;
+    member_limit: number | null;
 
+    created_at?: string;
+    updated_at?: string;
+    deleted_at?: string | null;
+    work_conditions: string[]
+
+    user?: User;
+}
 interface SubTaskPreData {
     mainTaskId: number | null,
     subTaskData: Partial<Task>

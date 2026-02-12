@@ -14,6 +14,7 @@
                 <TransitionGroup name="goal-comment" class="flex flex-col gap-[50px]" tag="div" v-if="item.reports && item.reports.length">
                     <GoalMessageItem
                         v-for="(report, mIndex) in item.reports"
+                        :key="mIndex"
                         :report="report"
                     />
                 </TransitionGroup>         

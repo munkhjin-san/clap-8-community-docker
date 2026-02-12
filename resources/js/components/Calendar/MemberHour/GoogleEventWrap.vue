@@ -20,6 +20,7 @@
         
     >
         <GoogleEventCard
+            :day="record.start_date"
             :record="record"
             :expanded="expanded"
             :unique-id="unique"

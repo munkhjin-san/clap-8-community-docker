@@ -26,9 +26,6 @@
             <DateTimeSelect v-if="messageSchedule.active"/>
         </Transition>
         <Transition name="modalFade">
-            <SurveyUsers v-if="surveyUsers.active"/>
-        </Transition>
-        <Transition name="modalFade">
             <EmoteUsers v-if="emoteUsers.length"/>
         </Transition>
         <WeatherPopup v-if="weatherModal" @close="weatherModal = false"/>
@@ -57,8 +54,6 @@ import { useTaskRequest } from '@/store/taskRequest'
 // import DateTimeSelect from '../Global/DateTimeSelect.vue'
 import { useProjectUsers } from '@/store/projectUsers'
 import { useMessageSchedule } from '@/store/messageSchedule'
-// import SurveyUsers from '../Survey/SurveyUsers.vue'
-import { useSurveyUsers } from '@/store/surveyUsers'
 // import WeatherPopup from '../Global/WeatherPopup.vue'
 import { isTodayDone } from '@/utils/tools'
 import { useModal } from '@/composables/modal'
@@ -66,7 +61,6 @@ import { useModal } from '@/composables/modal'
 const TaskUsers = defineAsyncComponent(() => import('../Board/Tray/Task/TaskUsers.vue'))
 const ProjectUsers = defineAsyncComponent(() => import('../AccountControl/ProjectControl/ProjectUsers.vue'))
 const DateTimeSelect = defineAsyncComponent(() => import('../Global/DateTimeSelect.vue'))
-const SurveyUsers = defineAsyncComponent(() => import('../Survey/SurveyUsers.vue'))
 const WeatherPopup = defineAsyncComponent(() => import('../Global/WeatherPopup.vue'))
 const EmoteUsers = defineAsyncComponent(() => import('../Global/EmoteUsers.vue'))
 const MessageUsers = defineAsyncComponent(() => import('../Board/Message/MessageUsers.vue'))
@@ -76,7 +70,6 @@ const TaskRequest = defineAsyncComponent(() => import('../Board/Tray/Task/TaskRe
     const sharingData = useSharingDataStore()
     const messageUsers = useMessageUsers()
     const taskUsers = useTaskUsers()
-    const surveyUsers = useSurveyUsers()
     const projectUsers = useProjectUsers()
     const taskRequest = useTaskRequest()
     const route = useRoute()

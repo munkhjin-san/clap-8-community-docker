@@ -250,4 +250,8 @@ class User extends Authenticatable
     {
         return $this->hasMany(PushSubscription::class, 'user_id', 'id');
     }
+    public function projectMemberRoles()
+    {
+        return $this->hasMany(ProjectMemberRole::class, 'user_id', 'id');
+    }
 }

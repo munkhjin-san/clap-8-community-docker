@@ -20,14 +20,14 @@
 <script setup lang="ts">
 import { onMounted, ref, defineAsyncComponent, onUnmounted } from 'vue'
 import 'pdfjs-viewer-element'
-import { useAuthUserStore } from '../../../../store/auth'
-import { File } from '../../../../interface/trayInterface';
+import { useAuthUserStore } from '@/store/auth'
+import { FileRecord } from '@/interface/trayInterface'
     const auth = useAuthUserStore()
     
     const SignAction = defineAsyncComponent(() => import('./SignAction.vue'))
     const props = defineProps<{
         source: string, 
-        file: File, 
+        file: FileRecord, 
     }>()
     const emit = defineEmits(['refresh'])
     const viewerCssTheme = ref('DARK')

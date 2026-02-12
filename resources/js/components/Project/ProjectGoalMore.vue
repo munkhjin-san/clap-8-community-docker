@@ -403,7 +403,7 @@ import LoaderButton from '../Global/LoaderButton.vue';
 import ProjectGoalResult from './ProjectGoalResult.vue';
 import ProjectSalaryIssueCreation from './ProjectSalaryIssueCreation.vue';
 import Files from '../Global/Files.vue';
-import Report from './SalaryIssue/Report.vue';
+import Report from './MonthlyGoal/SalaryIssue/Report.vue';
 import { ProjectGoal, SalaryIssue } from '@/interface/projectInterface';
 import { useBadgeStore } from '@/store/badge'
 import { useRouter } from 'vue-router';

@@ -26,6 +26,13 @@ class SalaryIssue extends Model
     public function actions(){
         return $this->hasMany(SalaryIssueAction::class, 'salary_issue_id', 'id');
     }
+
+    public function statusLogs()
+    {
+        return $this->hasMany(StatusLog::class, 'record_id', 'id')
+            ->where('type', 'salary_issue')->orderBy('created_at', 'desc');
+    }
+
     public function evaluation()
     {
         return $this->hasOneThrough(

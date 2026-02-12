@@ -21,6 +21,8 @@ export interface EvaluationRecord {
     outcome_goals: ProjectGoal[]
     mentor: User
     user: User
+    temp_flag: boolean
+    monthly_goal_slot: number
 }
 
 export interface EvaluationSkill {

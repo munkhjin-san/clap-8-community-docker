@@ -214,7 +214,7 @@ import { useRoute, useRouter } from 'vue-router';
 </script>
 <style scoped>
     .tab{
-        padding: 0 20px;
+        padding: 0 10px;
         cursor: pointer;
         height: 40px;
     }

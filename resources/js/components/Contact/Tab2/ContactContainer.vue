@@ -126,7 +126,7 @@ import { useResponsive } from '@/store/responsive';
 import FloatButton from '@/components/Global/FloatButton.vue';
 import ContactCreate from './ContactCreate.vue';
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
-import { BatchPayload, ContactBatchSummary, ContactRecord, ContactType, DuplicateSummary } from '@/interface/contactInterface';
+import { BatchPayload, Collaborator, ContactBatchSummary, ContactRecord, ContactType, DuplicateSummary } from '@/interface/contactInterface';
 import GridLayout from './Grid/GridLayout.vue';
 import TableLayout from './Table/TableLayout.vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -244,18 +244,16 @@ const handleMemoSave = async (memoValue: string) => {
                     existingCollaborator.pivot.role = memoRole;
                     existingCollaborator.pivot.updated_at = new Date().toISOString();
                 } else if (auth.user && auth.user.id) {
-                    target.collaborators.push({
-                        id: auth.user.id,
-                        name: auth.name,
-                        icon_bg: auth.user.icon_bg ?? '',
-                        icon_path: auth.user.icon_path ?? '',
+                    const collaborator: Collaborator = {
+                        ...auth.user,
                         pivot: {
                             role: memoRole,
                             private_memo: memoDraft.value,
                             created_at: new Date().toISOString(),
                             updated_at: new Date().toISOString(),
                         },
-                    });
+                    }
+                    target.collaborators.push(collaborator);
                 }
             }
         }

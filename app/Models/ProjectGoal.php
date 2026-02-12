@@ -29,6 +29,13 @@ class ProjectGoal extends Model
     public function reports() {
         return $this->hasMany(ProjectGoalReport::class)->with(['files']);
     }
+
+    public function statusLogs()
+    {
+        return $this->hasMany(StatusLog::class, 'record_id', 'id')
+            ->where('type', 'project_goal')->orderBy('created_at', 'desc');
+    }
+
     public function scopeOverdue($q, $now)
     {
         return $q->where('status', '!=', 9)
@@ -42,6 +49,9 @@ class ProjectGoal extends Model
             ->orWhereHas('project.manager', fn($m) => $m->where('users.id', $userId))
             ->orWhereHas('salaryIssue', fn($si) => $si->where('mentor_id', $userId));
         });
+    }
+    public function user(){
+        return $this->belongsTo(User::class);
     }
 
 }

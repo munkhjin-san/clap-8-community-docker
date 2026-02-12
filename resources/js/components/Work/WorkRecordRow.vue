@@ -144,7 +144,7 @@
     </tr>
 </template>
 <script setup>
-import { computed, inject, ref, useTemplateRef } from 'vue';
+import { computed, inject, onMounted, ref, useTemplateRef } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { useMenuStore } from "@/store/menu";
 import CommandButton from '../Global/CommandButton.vue';
@@ -171,7 +171,9 @@ const props = defineProps({
     wrapper: {type: HTMLDivElement}
 })
 const emit = defineEmits(['callModal', 'procedureStart'])
-
+onMounted(() => {
+    console.log('WorkRecordRow mounted')
+})
 const commentBox = ref(null)
 const costBox = ref(null)
 const vehicleBox = useTemplateRef('vehicleBox')
