@@ -109,10 +109,127 @@
         </Transition>
     </div>           
         
+        <div class="goals-wrap">
+            <div class="overflow-hidden relative h-full">
+                <div ref="goalInnerRef" class="goals-inner" style="padding-top: 0;height: calc(100% - 80px);">
+                    <div v-if="projectGoals.length" class="text-sm border border-solid border-[var(--calendarBorder)] bg-[var(--bg3)] px-3 py-1 mb-4 w-fit">
+                        <span class="under960:text-[12px]">現時点で達成評価点 ： <strong>{{ totalOverallScore(projectGoals) }}</strong>点</span>
+                    </div>                      
+                        <div v-if="projectGoals.length" id="goals-parent" class="grid gap-5 grid-cols-[repeat(auto-fill,minmax(clamp(0px,100%,350px),1fr))]">
+                            <div v-for="(item, index) in projectGoals" :key="item.id" class="goal-detail relative gap-2">
+                                    
+                                    <div class="flex justify-between align-top mb-1">
+                                        <UserPanel v-if="memberData" :user="memberData" size="25" with-name/>                                        
+                                        <ItemMenu 
+                                            v-if="memberData && (auth.id === memberData.id || isManagerOrMember || auth.activeUser.id === 610 || auth.activeUser.id === 608) && item?.status < 2"
+                                            :items="[
+                                                {title: '編集する', action: () => editGoal(item)},
+                                                {title: '削除する', action: () => deleteGoal(item)}
+                                            ]"
+                                        /> 
+                                        <ItemMenu 
+                                            v-else-if="memberData && auth.id === memberData.id && item?.status >= 2 && item?.status < 7 && item?.status != 4" 
+                                            :items="[{title: '変更申請', action: () => applyEdit(item)}]"
+                                        /> 
+                                    </div> 
+                                    <div v-if="item?.title" class="kadai-content line-clamp-2"><strong>{{ item?.title }}</strong></div>
+                                    <div v-if="item?.outcome_goal" class="kadai-content line-clamp-2"><strong>{{ item?.outcome_goal }}</strong></div>
+                                    <div class="kadai-content flex items-center bg-[var(--bg3)] text-[12px] px-1 w-fit" :style="{color: badge.goalsBadgeByFilter([{by: 'id', value: item.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length ? 'tomato' : 'var(--primary-color)'}">{{ statuses[item?.status] }}
+                                        <span class="side-notification" style="position: unset;width:15px" v-if="badge.goalsBadgeByFilter([{by: 'id', value: item.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length">{{ badge.goalsBadgeByFilter([{by: 'id', value: item.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length }}</span>
+                                    </div>
+                                    <div class="flex justify-between">                                        
+                                        <div class="kadai-content text-[12px] text-[gray]">{{ `${DateTime.fromISO(item.start_date).toLocaleString()} ~ ${DateTime.fromISO(item.end_date).toLocaleString()}` }}</div>
+                                    </div>
+                                    <div v-if="item?.project" class="kadai-content flex items-center bg-[var(--bg3)] w-fit py-1 px-3 text-[12px]">
+                                        <svg class="side-app-icon" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 32" style="height: 15px; overflow: visible;">
+                                            <path d="M32.084 18.983c0.433 0.409 0.938 0.722 1.492 0.95 0.433 0.18 1.191 0.265 1.732 0.265 0.553 0 1.191-0.096 1.72-0.277 0.553-0.192 1.059-0.529 1.492-0.938s0.782-0.914 1.023-1.456c0.241-0.553 0.373-1.155 0.373-1.756 0.024-1.203-0.457-2.43-1.323-3.284-0.433-0.433-0.938-0.782-1.504-1.011-0.565-0.241-1.179-0.361-1.78-0.361s-1.215 0.12-1.78 0.361c-0.565 0.241-1.083 0.577-1.504 1.011-0.854 0.866-1.347 2.081-1.323 3.284-0.012 1.203 0.517 2.394 1.383 3.212zM33.829 14.28c0.397-0.385 0.926-0.601 1.48-0.601s1.083 0.217 1.48 0.601c0.397 0.385 0.638 0.914 0.65 1.48s-0.18 1.131-0.577 1.552c-0.385 0.433-1.071 0.686-1.564 0.698-0.481 0.012-1.155-0.289-1.54-0.71-0.192-0.217-0.349-0.457-0.445-0.722s-0.144-0.541-0.132-0.83c0-0.553 0.253-1.083 0.65-1.468zM35.308 23.471c1.107 0 2.262 0.289 3.164 0.902 0.926 0.626 1.78 1.684 2.202 2.37 0.325 0.517 0.866 0.77 1.395 0.553 0.517-0.204 0.686-0.83 0.553-1.371-0.12-0.541-0.577-1.395-1.059-2.045-0.505-0.662-1.167-1.323-2.25-1.949-1.215-0.71-2.454-1.035-4.018-1.035s-2.803 0.325-4.018 1.035c-1.083 0.626-1.744 1.287-2.25 1.949-0.493 0.65-0.938 1.504-1.059 2.045s0.048 1.167 0.553 1.371c0.541 0.217 1.083-0.036 1.395-0.553 0.421-0.686 1.275-1.756 2.201-2.37s2.081-0.902 3.188-0.902z"></path><path d="M43.898 29.931c-1.768-0.18-3.537-0.253-5.305-0.301-0.89-0.024-1.78-0.024-2.671-0.036l-13.353-0.12-10.683-0.048h-8.782c-0.337 0-0.602-0.265-0.602-0.602 0.012-1.889-0.096-7.122-0.144-10.298-0.060-3.188-0.144-7.916-0.204-10.43-0.072-2.514-0.084-5.029-0.325-7.531-0.024-0.301-0.277-0.541-0.589-0.553-0.325-0.012-0.602 0.253-0.638 0.577-0.265 2.49-0.265 4.992-0.337 7.507-0.060 2.514-0.204 8.469-0.241 11.116-0.036 2.635-0.024 8.974 0.060 11.489 0 0-0.096-3.176 0 0.036 0.024 0.686 0.577 1.215 1.263 1.227 1.78 0.012 3.429 0.012 5.209 0.012h5.341l10.683-0.048 13.353-0.12c0.89-0.012 1.78-0.012 2.671-0.036 1.78-0.048 3.561-0.12 5.341-0.301 0.373-0.036 0.662-0.337 0.686-0.722 0-0.433-0.325-0.77-0.734-0.818z"></path><path d="M6.953 20.547l0.926-1.095 0.938-1.119c0.614-0.758 1.239-1.504 1.853-2.262s1.227-1.504 1.829-2.274c0.313-0.385 0.626-0.782 0.926-1.167 0.072-0.096 0.217-0.096 0.301-0.012l4.439 4.451c0.445 0.421 1.155 0.409 1.588-0.036l0.048-0.060c1.023-1.083 2.033-2.201 3.020-3.308 0.986-1.119 1.961-2.25 2.923-3.392 0.77-0.914 2.37-2.875 3.056-3.717 0.096-0.108 0.277-0.036 0.265 0.108-0.060 0.517-0.144 1.299-0.18 1.72-0.060 0.662-0.156 1.323-0.060 2.021 0.024 0.168 0.144 0.313 0.325 0.361 0.204 0.048 0.397-0.072 0.493-0.253 0.301-0.614 0.421-1.263 0.577-1.901 0.156-0.65 0.301-1.299 0.445-1.949s0.289-1.299 0.421-1.961c0.072-0.325 0.313-1.227 0.385-1.997s-0.361-1.167-0.95-1.059c-0.589 0.108-1.54 0.505-2.165 0.734l-1.877 0.722-1.865 0.734c-0.614 0.265-1.516 0.65-1.72 0.794s-0.313 0.385-0.253 0.589c0.060 0.205 0.217 0.385 0.577 0.349 0.361-0.048 1.191-0.241 1.829-0.409l1.72-0.469c0.144-0.036 0.253 0.132 0.156 0.241-0.734 0.818-2.406 2.719-3.188 3.633-0.962 1.143-1.925 2.286-2.863 3.441-0.614 0.746-1.215 1.504-1.817 2.262-0.12 0.156-0.349 0.168-0.493 0.036l-4.391-4.211c-0.048-0.036-0.084-0.072-0.144-0.108-0.469-0.313-1.095-0.18-1.432 0.277-0.577 0.77-1.143 1.54-1.708 2.322-0.577 0.782-1.143 1.576-1.708 2.358-0.565 0.794-1.131 1.588-1.684 2.382l-0.83 1.203-0.818 1.203c-0.217 0.313-0.144 0.758 0.205 0.974 0.277 0.18 0.674 0.108 0.902-0.156z"></path>
+                                        </svg>
+                                        {{ item?.project?.name }}                                
+                                    </div> 
+                                    <div class="flex items-center">
+                                        <div class="flex gap-[20px] kadai-content" v-if="item.steps && item.steps.length">                               
+                                            <div>{{ `${overallScore(item)}点` }}</div>
+                                        </div>
+                                        <div v-else-if="item?.achievement_rate !== null" class="kadai-content">{{ item?.achievement_rate }}%</div>   
+                                        <div class="flex items-center ml-3">
+                                            <svg fill="var(--primary-color)" class="h-[15px]" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 32"><path d="M10.788 8.109c1.574-0.063 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.345 0.021-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.896 0.010-0.459 0.386-0.823 0.834-0.844zM10.788 13.050c1.574-0.052 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.356 0.010-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.907 0.021-0.438 0.396-0.803 0.844-0.823zM10.788 17.991c0.74-0.052 1.491-0.083 2.231-0.104l1.115-0.031c0.375-0.010 0.74-0.010 1.115-0.010 0.74 0 1.491 0.010 2.231 0.042 0.75 0.031 1.491 0.063 2.231 0.136 0.459 0.052 0.803 0.459 0.75 0.928-0.042 0.407-0.365 0.709-0.75 0.75-0.75 0.073-1.491 0.115-2.231 0.136-0.75 0.031-1.491 0.042-2.231 0.042-0.375 0-0.74 0-1.115-0.010l-1.115-0.031c-0.74-0.021-1.491-0.052-2.231-0.104-0.479-0.042-0.844-0.459-0.803-0.938 0.031-0.427 0.375-0.771 0.803-0.803z"></path><path d="M39.432 11.393c-0.188-1.063-0.521-2.116-0.99-3.106-0.479-0.99-1.105-1.897-1.835-2.71s-1.564-1.511-2.45-2.106c-0.886-0.594-1.835-1.084-2.794-1.501-1.939-0.813-3.95-1.313-5.973-1.605s-4.055-0.396-6.066-0.365c-2.022 0.042-4.055 0.219-6.066 0.605-2.012 0.396-4.013 1.001-5.889 1.949-0.938 0.479-1.845 1.042-2.679 1.699-0.834 0.667-1.616 1.428-2.272 2.293-0.667 0.855-1.209 1.824-1.605 2.835-0.396 1.021-0.636 2.095-0.74 3.169-0.052 0.532-0.052 1.084-0.042 1.605 0.010 0.532 0.052 1.053 0.125 1.584 0.146 1.053 0.417 2.116 0.844 3.117s1.011 1.939 1.72 2.762c0.709 0.823 1.532 1.532 2.418 2.126 1.772 1.188 3.44 1.824 5.41 2.356 1.803 0.49 3.867 0.782 5.681 0.876 0.146 0.010 0.281 0.073 0.386 0.177 0.459 0.5 0.938 1.074 1.449 1.511 0.667 0.584 1.407 1.126 2.178 1.584 0.761 0.448 1.564 0.803 2.387 1.115 0.865 0.313 2.21 0.605 2.929 0.657 0.698 0.052 0.782-0.479 0.563-0.938-0.229-0.469-0.281-0.552-0.375-0.761s-0.188-0.417-0.271-0.625-0.344-0.844-0.49-1.261c-0.115-0.344-0.292-0.938-0.386-1.407-0.031-0.167 0.083-0.323 0.25-0.344 1.626-0.229 3.242-0.552 4.847-1.032 0.98-0.292 1.939-0.657 2.877-1.094s1.855-0.98 2.7-1.626c0.844-0.646 1.626-1.418 2.272-2.293 0.323-0.438 0.615-0.907 0.865-1.397s0.459-0.99 0.636-1.511c0.344-1.032 0.532-2.106 0.594-3.169 0.021-1.032-0.021-2.106-0.208-3.169zM37.347 14.478c-0.031 0.896-0.167 1.782-0.427 2.616-0.125 0.417-0.292 0.823-0.479 1.22s-0.407 0.771-0.657 1.126c-0.5 0.719-1.115 1.365-1.814 1.928-1.397 1.126-3.106 1.928-4.899 2.522-0.896 0.302-1.814 0.542-2.752 0.75-0.928 0.208-1.876 0.375-2.835 0.511h-0.031c-0.396 0.063-0.709 0.396-0.719 0.813-0.010 0.594 0.083 1.126 0.208 1.626s0.292 0.969 0.469 1.438c0.146 0.375 0.292 0.698 0.542 1.105 0.042 0.073-0.021 0.146-0.104 0.125-1.167-0.365-2.304-0.907-3.461-1.845-1.23-0.99-1.762-1.584-2.814-2.835-0.146-0.177-0.365-0.302-0.615-0.323h-0.031c-1.908-0.188-3.805-0.479-5.629-0.98-1.814-0.5-3.565-1.199-5.055-2.22-0.74-0.511-1.407-1.105-1.97-1.772-0.563-0.678-1.022-1.418-1.355-2.231s-0.552-1.678-0.657-2.564-0.125-1.824-0.031-2.689c0.104-0.876 0.313-1.73 0.646-2.543 0.334-0.803 0.771-1.564 1.324-2.251 1.115-1.386 2.595-2.481 4.232-3.273 0.823-0.396 1.678-0.74 2.564-1.022s1.793-0.511 2.71-0.678c1.845-0.354 3.742-0.511 5.639-0.532 1.907-0.010 3.815 0.073 5.67 0.344 1.866 0.271 3.69 0.709 5.378 1.418 1.689 0.698 3.242 1.668 4.44 2.95 0.594 0.636 1.105 1.355 1.491 2.126s0.667 1.605 0.834 2.481c0.167 0.855 0.219 1.751 0.188 2.658z"></path></svg>
+                                            <div class="ml-1">{{ item?.reports?.length }}</div>
+                                            <div v-if="badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: item.id}]).length" class="side-notification bg-[orange] ml-1" style="position: unset;">
+                                                {{ badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: item.id}]).length }}
+                                            </div>   
+                                        </div>    
+                                        <div class="ml-auto">
+                                            <router-link :to="{name: 'goal-more', params: { goalId: item?.id}}">詳細</router-link>
+                                        </div>
+                                                            
+                                    
+                                    </div>
+                                    
+                                    <div v-if="item?.salary_issue" class="mt-[5px]">
+                                        <div class="post-separetor"><div>昇給課題</div></div>
+                                        <div class="mb-[10px]">
+                                            
+                                            <div class="kadai-content">{{ item?.salary_issue?.title }}</div>
+                                        </div>
+                                        <div>
+                                            <div class="kadai-content flex items-center bg-[var(--bg3)] text-[12px] px-1 w-fit" :style="{color: badge.salaryIssueByFilter([{by: 'goal_id', value: item.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length ? 'tomato' : 'var(--primary-color)'}">{{ salaryIssueStatus[item?.salary_issue?.status] }}
+                                                <span class="side-notification" style="position: unset;width:15px" v-if="badge.salaryIssueByFilter([{by: 'goal_id', value: item.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length">{{ badge.salaryIssueByFilter([{by: 'goal_id', value: item.id}, {by: 'project_id', value: Number(route.params.projectId)}]).length }}</span>
+                                            </div>
+                                        </div>
+                                        <div v-if="badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: item.salary_issue.id}]).length" class="mt-[10px] text-[#F28C28]">未読メッセージ{{ badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: item.salary_issue.id}]).length }}件</div>  
+                                    </div>                                   
+                                                            
+                                </div>
+                        </div>                      
+                        
+                    
+                            
+                    
+                    <div v-else class="no-comment-text">
+                        現在レコードはありません。
+                    </div>
+                </div>
+                <FloatButton 
+                    v-if="memberData && ((auth.id === memberData.id) || isManager)"
+                    title="新規作成"
+                    id="boardCreate"
+                    :hideOn="goalInnerRef"
+                    @action="createOutcomeGoal = true"
+                >
+                    <template #icon>
+                        <AddIcon />
+                    </template>
+                </FloatButton>
+               
+                    
+            </div>
+            
+            <router-view v-slot="{ Component }">
+                <component
+                    :is="Component" 
+                    :goal="chosenGoal"
+                    :themeRecords="themeRecords"
+                    :selectedDate="selectedDate"
+                    :statuses="statuses"
+                    :salaryIssueStatus="salaryIssueStatus"
+                    :evaluationData="evaluationData"
+                />                    
+            </router-view>
+            <Transition name="modalFade">
+                <ProjectGoalCreation 
+                    v-if="createOutcomeGoal"
+                    :selectedDate="selectedDate"
+                    :editGoalData="editGoalData"
+                    @close="createOutcomeGoal = false, editGoalData = null"
+                />
+            </Transition>
+        </div>
+            
+        
 </template>
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router';
-import { computed, ref, onMounted, inject, watch, provide } from 'vue';
+import { computed, ref, onMounted, inject, watch, provide, useTemplateRef } from 'vue';
 import ItemMenu from '../Global/ItemMenu.vue';
 import { useAuthUserStore } from '@/store/auth';
 import ProjectGoalCreation from './ProjectGoalCreation.vue';
@@ -124,6 +241,8 @@ import { useProject } from '@/composables/project';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
 import UserPanel from '../Global/UserPanel.vue';
+import AddIcon from '../Form/AddIcon.vue';
+import FloatButton from '../Global/FloatButton.vue';
 
 interface Theme {
     issues: any;
@@ -145,6 +264,7 @@ const evaluationData = ref<EvaluationRecord | null>(null)
 const badge = useBadgeStore()
 const achievement_total = ref(0)
 const { memberData, isManagerOrMember, isManager } = useProject()
+const goalInnerRef = useTemplateRef('goalInnerRef')
 const api = useApi()
 const statuses = [
     '作成中（本人対応中）', 
@@ -274,7 +394,7 @@ const totalOverallScore = (goals: ProjectGoal[]) => {
         return acc + overallScore(goal)
     }, 0)
 }
-provide('refresh', fetchMemberData)
+provide('fetchMemberData', fetchMemberData)
 </script>
 <style>
     .kadaiSwitch{

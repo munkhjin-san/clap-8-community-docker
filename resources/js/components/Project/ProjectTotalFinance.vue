@@ -15,7 +15,7 @@
                     <LoaderButton :loading="false" content="プロジェクト選択" style="margin: 0;"
                         @click.stop="menu.setMenu({ parent: 'mb-p-select' })" />
                 </div>
-                <div class="projectModalSideMenu" id="mb-p-select"
+                <div class="mobile projectModalSideMenu" id="mb-p-select"
                     :style="{ opacity: responsive.mobile && loader ? '0' : '1' }"
                     v-if="(menu.parent == 'mb-p-select' || !responsive.mobile)">
                     <div class="sub-tab-container sticky top-0 z-[5] bg-[var(--background-color)]">
@@ -25,23 +25,11 @@
                             :class="['sub-tab-item !bg-inherit', { 'selected-sub-tab': leftTab == 'manager' }]">管理者別</button>
                     </div>
                     <div v-if="leftTab == 'project'" class="project-selector-left">
-                        <label class="flex items-center gap-[15px] text-[14px] cursor-pointer" title="全て選択">
-                            <input type="checkbox" name="project-selector"
-                                @change="selectAllProjects" :checked="selectedProjects.length === projects.length">
-                            <span class="text-[13px] overflow-hidden whitespace-nowrap text-ellipsis">全て選択</span>
-                        </label>
                         <label v-for="project in projects" :title="project.name"
                             class="flex items-center gap-[15px] text-[14px] cursor-pointer">
                             <input type="checkbox" name="project-selector" :value="project.id"
                                 v-model="selectedProjects">
                             <span class="text-[13px] overflow-hidden whitespace-nowrap text-ellipsis">{{ project.name }}</span>
-                            
-                            <BadgeLoader v-if="badgeLoader == 0" />
-                            <div v-else-if="showAnyArrow(project.name)" class="flex" title="対応が必要です。">
-                                <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
-                                    <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>
-                                </svg>
-                            </div>
                         </label>
                     </div>
                     <div v-if="leftTab == 'manager'" class="project-selector-left">
@@ -49,22 +37,8 @@
                             <label class="flex items-center gap-[15px] text-[14px] cursor-pointer">
                                 <input type="checkbox" name="project-selector-by-manager"
                                     v-model="selectedManagers" :value="manager.id">
-                                <UserPanel :user="manager" size="30" with-name disable-instant />
+                                {{ manager.name }}
                             </label>
-                            <div v-if="selectedManagers.includes(manager.id)" class="project-selector-left">
-                                <label class="flex items-center gap-[15px] text-[14px] cursor-pointer">
-                                    <input type="checkbox" name="project-selector"
-                                        @change="toggleByManager($event, manager)" :checked="isChecked(manager)">
-                                    <span>全て選択</span>
-                                </label>
-                                <label v-for="project in managersProjects(manager)"
-                                    class="flex items-center gap-[15px] text-[14px] cursor-pointer">
-                                    <input type="checkbox" name="project-selector"
-                                        :value="project.id" v-model="selectedProjects">
-                                    <span>{{ project.name }}</span>
-                                </label>
-
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -95,6 +69,18 @@
                                 </select>
                             </div>
                             <div class="flex items-center gap-[20px] relative w-full justify-center md:justify-end flex-wrap md:flex-nowrap">
+                                <div v-if="tab === 'table'" class="flex items-center gap-2 text-xs flex-wrap md:justify-end justify-center">
+                                    <button
+                                        type="button"
+                                        class="px-2 py-1 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition"
+                                        @click="toggleYearlyComparison"
+                                    >
+                                        {{ totalGrouping === 'fiscal' ? '月次表示' : '年度比較' }}
+                                    </button>
+                                    <span v-if="totalGrouping === 'fiscal'" class="opacity-70">
+                                        比較: FY{{ activeFiscalYears[0] }} / FY{{ activeFiscalYears[1] }} / FY{{ activeFiscalYears[2] }}
+                                    </span>
+                                </div>
                                 <div class="flex items-center">
                                     <span v-if="previousMonthCount" class="side-notification side-notification--comment-only" style="position: static">{{ previousMonthCount }}</span>
                                     <button @click="shiftRange(-1)" class="flex items-center justify-center h-[30px] w-fit gap-2 min-w-[30px]">
@@ -118,27 +104,53 @@
                                 </div>
                                 
                             </div>
-                            <div v-if="tab === 'table'" class="flex items-center gap-2 text-xs flex-wrap md:justify-end justify-center w-full">
-                                <button
-                                    type="button"
-                                    class="px-2 py-1 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition"
-                                    @click="toggleYearlyComparison"
-                                >
-                                    {{ totalGrouping === 'fiscal' ? '月次表示' : '年度比較' }}
-                                </button>
-                                <span v-if="totalGrouping === 'fiscal'" class="opacity-70">
-                                    比較: FY{{ activeFiscalYears[0] }} / FY{{ activeFiscalYears[1] }} / FY{{ activeFiscalYears[2] }}
-                                </span>
-                            </div>
+                            
 
                             </div>
                         
-                        <div class="finance-table-scroll mx-5" v-if="tab == 'table'">
+                        <div class="finance-table-scroll" v-if="tab == 'table'">
                             <table>
                                 <thead>
                                     <tr>
-                                        <th :rowspan="2" class="sticky-left first-col top-border">プロジェクト名</th>
+                                        <th :rowspan="2" class="sticky-left first-col top-border">
+                                            <div class="relative">
+                                                <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="menu.setMenu({parent: 'projectFilter'})">
+                                                    プロジェクト名
+                                                    <Filter style="fill: var(--primary-color);" size="12"/>
+                                                </div>
+                                                <Transition name="slidePop">
+                                                    <FilterById 
+                                                        v-if="menu.parent == 'projectFilter'"
+                                                        id="projectFilter"
+                                                        :options="projects" 
+                                                        :searchable="true"
+                                                        v-model:selected="selectedProjects"
+                                                        custom-place-holder="プロジェクト検索"
+                                                        style="top: 25px;"
+                                                    />
+                                                </Transition>
+                                            </div>
+                                        </th>
                                         <th :rowspan="2" class="sticky-left second-col top-border">
+                                            <div class="relative">
+                                                <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="menu.setMenu({parent: 'managerFilter'})">
+                                                    PM名
+                                                    <Filter style="fill: var(--primary-color);" size="12"/>
+                                                </div>
+                                                <Transition name="slidePop">
+                                                    <FilterById 
+                                                        v-if="menu.parent == 'managerFilter'"
+                                                        id="managerFilter"
+                                                        :options="managers" 
+                                                        :searchable="true"
+                                                        v-model:selected="selectedManagers"
+                                                        custom-place-holder="PM検索"
+                                                        style="top: 25px; right: auto;"
+                                                    />
+                                                </Transition>
+                                            </div> 
+                                        </th>
+                                        <th :rowspan="2" class="sticky-left third-col top-border">
                                             <div class="relative">
                                                 <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="menu.setMenu({parent: 'scenarioFilter'})">
                                                     区分
@@ -241,11 +253,18 @@
                                                 :rowspan="visibleScenarioCount"
                                             >
                                                 <div>{{ proj.name }}</div>
-                                                <div v-if="managerNameFor(proj.name)" class="manager-note">
+                                                
+                                            </td>
+                                            <td
+                                                v-if="firstVisibleScenario === 'yearly_plan'"
+                                                class="m-name sticky-left second-col"
+                                                :rowspan="visibleScenarioCount"
+                                            >
+                                                <div v-if="managerNameFor(proj.name)">
                                                     {{ managerNameFor(proj.name) }}
                                                 </div>
                                             </td>
-                                            <td class="sub-name sticky-left second-col">
+                                            <td class="sub-name sticky-left third-col">
                                                 <span>年度予算</span>
                                             </td>
                                             <template v-for="p in periods" :key="p.period" v-if="!isMobile() && totalGrouping !== 'fiscal'">
@@ -324,12 +343,17 @@
                                                 :rowspan="visibleScenarioCount"
                                             >
                                                 <div>{{ proj.name }}</div>
-                                                <div v-if="managerNameFor(proj.name)" class="manager-note">
+                                            </td>
+                                            <td
+                                                v-if="firstVisibleScenario === 'profit'"
+                                                class="m-name sticky-left first-col"
+                                                :rowspan="visibleScenarioCount"
+                                            >
+                                                <div v-if="managerNameFor(proj.name)">
                                                     {{ managerNameFor(proj.name) }}
                                                 </div>
                                             </td>
-
-                                            <td class="sub-name sticky-left second-col">
+                                            <td class="sub-name sticky-left third-col">
                                                 <span>損益計画</span>
                                             </td>
                                             <template v-for="p in periods" :key="p.period" v-if="!isMobile() && totalGrouping !== 'fiscal'">
@@ -476,11 +500,17 @@
                                                 :rowspan="visibleScenarioCount"
                                             >
                                                 <div>{{ proj.name }}</div>
-                                                <div v-if="managerNameFor(proj.name)" class="manager-note">
+                                            </td>
+                                            <td
+                                                v-if="firstVisibleScenario === 'settlement'"
+                                                class="m-name sticky-left second-col"
+                                                :rowspan="visibleScenarioCount"
+                                            >
+                                                <div v-if="managerNameFor(proj.name)">
                                                     {{ managerNameFor(proj.name) }}
                                                 </div>
                                             </td>
-                                            <td class="sub-name sticky-left second-col flex gap-1 items-center flex-center-col">
+                                            <td class="sub-name sticky-left third-col flex gap-1 items-center flex-center-col">
                                                 <div v-if="showAnyArrow(proj.name as string)" class="flex" title="計画との差が大きい月です">
                                                     <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
                                                         <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>
@@ -642,7 +672,10 @@
                                                 class="p-name sticky-left first-col"
                                                 :rowspan="visibleScenarioCount"
                                             >集計</td>
-                                            <td class="sub-name sticky-left second-col">
+                                            <td class="m-name sticky-left second-col" v-if="firstVisibleScenario === 'yearly_plan'" 
+                                                :rowspan="visibleScenarioCount"
+                                            >—</td>
+                                            <td class="sub-name sticky-left third-col">
                                                 <span>年度予算</span>
                                             </td>
                                             <template v-for="p in periods" :key="`summary-yearly-${p.period}`" v-if="!isMobile() && totalGrouping !== 'fiscal'">
@@ -722,7 +755,10 @@
                                                 class="p-name sticky-left first-col"
                                                 :rowspan="visibleScenarioCount"
                                             >集計</td>
-                                            <td class="sub-name sticky-left second-col">
+                                            <td class="m-name sticky-left second-col" v-if="firstVisibleScenario === 'profit'" 
+                                                :rowspan="visibleScenarioCount"
+                                            >—</td>
+                                            <td class="sub-name sticky-left third-col">
                                                 <span>損益計画</span>
                                             </td>
                                             <template v-for="p in periods" :key="`summary-profit-${p.period}`" v-if="!isMobile() && totalGrouping !== 'fiscal'">
@@ -873,7 +909,10 @@
                                                 class="p-name sticky-left first-col"
                                                 :rowspan="visibleScenarioCount"
                                             >集計</td>
-                                            <td class="sub-name sticky-left second-col">
+                                            <td class="m-name sticky-left second-col" v-if="firstVisibleScenario === 'settlement'" 
+                                                :rowspan="visibleScenarioCount"
+                                            >—</td>
+                                            <td class="sub-name sticky-left third-col">
                                                 <span>実績</span>
                                             </td>
                                             <template v-for="p in periods" :key="`summary-settlement-${p.period}`" v-if="!isMobile() && totalGrouping !== 'fiscal'">
@@ -1105,6 +1144,8 @@ import PeriodRangePicker from './ProjectTabs/Finance/PeriodRangePicker.vue';
 import { isMobile } from '@/utils/tools';
 import Filter from '../Icons/Filter.vue';
 import CommandButton from '../Global/CommandButton.vue';
+import ProjectMemberSort from './ProjectMemberSort.vue';
+import FilterById from '../Global/FilterById.vue';
 const router = useRouter()
 const props = defineProps<{
     projects: Project[]
@@ -1406,10 +1447,15 @@ const totalSummaryEntry = (scenario: ScenarioKey): UnitData =>
     normalizeUnitData(summarizeData.value?.[scenario])
 const comparisonProjectTotals = ref<Record<string, Record<number, Record<ScenarioKey, UnitData>>>>({})
 const comparisonSummaryTotals = ref<Record<number, Record<ScenarioKey, UnitData>>>({})
-const selectedProjectNames = computed(() =>
-    props.projects
+const selectedProjectNames = computed(() => {
+    if (selectedProjects.value.length) {
+       return props.projects
         .filter(project => selectedProjects.value.includes(project.id))
         .map(project => project.name)
+    }
+    return props.projects.map(p => p.name)
+}
+    
 )
 const normalizeScenarioTotals = (value: any): Record<ScenarioKey, UnitData> => ({
     yearly_plan: normalizeUnitData(value?.yearly_plan),
@@ -1424,7 +1470,7 @@ const commentCount = ref<Record<number, number>>({})
 const api = useApi()
 
 onMounted(() => {
-    selectedProjects.value = route.params.projectId ? [Number(route.params.projectId)] : props.ownProjectIds && props.ownProjectIds.length ? props.ownProjectIds : []
+    selectedProjects.value = props.ownProjectIds && props.ownProjectIds.length ? props.ownProjectIds : []
 })
 const possibleTypes = [{ value: 'sales', label: '売上' }, { value: 'expense', label: '販管費' }, { value: 'profit', label: '利益' }]
 const possibleScenarios = [{ value: 'yearly_plan', label: '年度予算' }, { value: 'profit', label: '損益計画' }, { value: 'settlement', label: '実績' }]
@@ -1573,7 +1619,7 @@ const fiscalInterval = (fiscalYear: number) => ({
 })
 
 const fetchYearlyComparisonTotals = async (token: number) => {
-    if (totalGrouping.value !== 'fiscal' || !selectedProjects.value.length) {
+    if (totalGrouping.value !== 'fiscal') {
         comparisonProjectTotals.value = {}
         comparisonSummaryTotals.value = {}
         return
@@ -1633,6 +1679,25 @@ watch(totalGrouping, () => {
     refreshTotalFinance()
 })
 
+watch(
+  [() => props.projects, () => selectedManagers.value],
+  ([projects, managers]) => {
+    if (!projects || projects.length === 0) return; // wait until loaded
+
+    if (managers.length) {
+      const set = new Set(managers);
+      selectedProjects.value = projects
+        .filter(p => Array.isArray(p.manager) && p.manager.some(m => set.has(m.id)))
+        .map(p => p.id);
+    } else {
+      selectedProjects.value = []
+    }
+
+    refreshTotalFinance();
+  },
+  { deep: true, immediate: true }
+);
+
 const badge = useBadgeStore()
 const financeTotalBadge = (name: string) => {
     const findProject = props.projects.find(p => p.name === name)
@@ -1685,7 +1750,8 @@ const selectedBadge = computed(() => {
 table {
     box-sizing: border-box !important;
     --first-col-width: 150px;
-    --second-col-width: 75px;
+    --second-col-width: 150px;
+    --third-col-width: 75px;
     width: max-content;
     min-width: 100%;
     border-collapse: separate;
@@ -1710,6 +1776,12 @@ table {
         th.sticky-left,
         th.sticky-right {
             z-index: 6;
+        }
+        th.sticky-left:first-of-type{
+            z-index: 8;
+        }
+        th.sticky-left:nth-of-type(2n + 2){
+            z-index: 7;
         }
     }
 
@@ -1742,7 +1814,7 @@ td[data-cell=right-border], th[data-cell=right-border] {
 }
 .finance-table-scroll {
     overflow: auto;
-    height: calc(100% - 154px);
+    height: calc(100% - 115px);
 }
 
 .sticky-left {
@@ -1766,7 +1838,12 @@ td[data-cell=right-border], th[data-cell=right-border] {
     border-right: solid thin var(--calendarBorder);
     z-index: 3;
 }
-
+.third-col {
+    left: calc(var(--second-col-width) + var(--first-col-width) + 43px);
+    min-width: var(--third-col-width);
+    border-right: solid thin var(--calendarBorder);
+    z-index: 3;
+}
 .sticky-right {
     // position: sticky;
     // right: 0;
@@ -1797,9 +1874,14 @@ td[data-cell=right-border], th[data-cell=right-border] {
     border-left: solid thin var(--calendarBorder);
     white-space: break-spaces;
 }
-
-.sub-name {
+.m-name {
     min-width: var(--second-col-width);
+    max-width: var(--second-col-width);
+    border-right: solid thin var(--calendarBorder);
+    white-space: break-spaces;
+}
+.sub-name {
+    min-width: var(--third-col-width);
 }
 .manager-note {
     font-size: 11px;
@@ -1853,6 +1935,12 @@ td[data-cell=right-border], th[data-cell=right-border] {
         background-color: var(--bg3);
     }
     .p-name {
+        max-width: 100%;
+        min-width: auto;
+        text-align: center;
+        background: var(--bg3);
+    }
+    .m-name {
         max-width: 100%;
         min-width: auto;
         text-align: center;

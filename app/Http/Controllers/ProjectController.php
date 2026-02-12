@@ -1939,7 +1939,7 @@ class ProjectController extends Controller
                 $planYear->id,
                 (int) $planYear->start_month,
                 0,
-                ['sales' => '5050', 't_expense' => '6270', 'profit' => '9130', 'bonus' => '9120'],
+                ['sales' => '4020', 't_expense' => '6270', 'profit' => '9130', 'bonus' => '9120'],
                 $bonus_calc,
                 $transitionDate ? $transitionDate->month : null
             );
@@ -2453,8 +2453,11 @@ class ProjectController extends Controller
                 'message' => '最大12ヶ月まで選択できます。',
             ], 422);
         }        
-        
-        $projects = ProjectRecord::whereIn('id', $project_ids)->get();
+        if (empty($project_ids)) {
+            $projects = ProjectRecord::all();
+        } else {
+            $projects = ProjectRecord::whereIn('id', $project_ids)->get();
+        }
         $project_names = $projects->pluck('name', 'id')->toArray();   
 
         $project_names_str = implode('","', $project_names); 
@@ -2543,7 +2546,7 @@ class ProjectController extends Controller
                         $planYear->id,
                         (int) $planYear->start_month,
                         0,
-                        ['sales' => '5050', 't_expense' => '6270', 'profit' => '9130', 'bonus' => '9120'],
+                        ['sales' => '4020', 't_expense' => '6270', 'profit' => '9130', 'bonus' => '9120'],
                         $bonus_calc,
                         $transitionDate ? $transitionDate->month : null
                     );
@@ -3213,12 +3216,14 @@ class ProjectController extends Controller
             ->map(fn ($v) => (int) $v)
             ->unique()
             ->values();
-        if ($ids->isEmpty()) {
-            return response()->json((object)[]);
-        }
-         $countsByName = DB::table('project_finance_comments as c')
+        // if ($ids->isEmpty()) {
+        //     return response()->json((object)[]);
+        // }
+        $countsByName = DB::table('project_finance_comments as c')
             ->join('project_records as pr', 'pr.id', '=', 'c.project_record_id')
-            ->whereIn('c.project_record_id', $ids)
+            ->when(!$ids->isEmpty(), function ($query) use ($ids) {
+                $query->whereIn('c.project_record_id', $ids);
+            })
             ->whereNull('c.deleted_at')
             ->when(isset($data['period']), function ($query) use ($data) {
                 $query->where('c.period', $data['period']);

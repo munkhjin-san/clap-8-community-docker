@@ -1081,9 +1081,8 @@ class BoardController extends Controller
 
         $lastMessageId = messageRecord::withTrashed()
             ->where('record_id', $request->board_id)
-            ->orderByDesc('created_at')
-            ->orderByDesc('id')
-            ->value('id');
+            ->max('id');
+
 
         $row->unread_count = 0;
         $row->last_message = $lastMessageId;
