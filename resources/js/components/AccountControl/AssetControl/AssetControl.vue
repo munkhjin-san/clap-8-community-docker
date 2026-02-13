@@ -7,7 +7,7 @@
             <div class="w-full h-[calc(100%-105px)] overflow-auto">            
                 <table class="asset-table" style="margin:0 20px; width: calc(100% - 40px);">
                     <AssetTableHeader 
-                        :columns="['GL番号', '品名', '型番', '使用プロジェクト', '使用者', '分類', '価値', 'ステータス', '保管場所']"
+                        :columns="['GL番号', '品名', '型番', '使用者', 'ステータス', '保管場所']"
                         :projects="possibleProjects" 
                         :users="possibleMembers"
                         :offices="possibleOffices"
@@ -27,19 +27,14 @@
                                 <td class="max-w-[150px] overflow-hidden text-ellipsis">{{ asset.item_name }}</td>
                                 <td class="max-w-[150px] overflow-hidden text-ellipsis">{{ asset.model_number }}</td>
                                 <td>
-                                    <div class="leading-normal" v-if="asset.current_project">
-                                        <p>{{ asset.current_project.name }}</p>
-                                    </div>                            
-                                </td>
-                                <td>
+                                    
                                     <div v-if="asset.current_user">
                                         <div class="leading-normal">
                                             <p>{{ asset.current_user.name }}</p>
                                         </div>
                                     </div>
+                                    <div v-else-if="asset.external_user">{{ asset.external_user }}</div>
                                 </td>
-                                <td>{{ AssetClass.find(ob => ob.value === asset.classification)?.label }}</td>
-                                <td>{{ asset.value }}</td>
                                 <td>{{ asset.requests.length ? '移動中' : AssetStatus.find(ob => ob.value === asset.status)?.label }}</td>
                                 <td>
                                     <div class="leading-normal">
@@ -112,7 +107,7 @@
 </template>
 <script setup lang="ts">
 import { Asset } from '@/interface/assetInterface';
-import { onMounted, reactive, ref, watch } from 'vue';
+import { onMounted, provide, reactive, ref, watch } from 'vue';
 import AssetClass from 'assets/AssetClass.json'
 import AssetStatus from 'assets/AssetStatus.json'
 import AssetDetail from '@/components/Asset/AssetDetail.vue';
@@ -240,6 +235,7 @@ const exportCSV = async() => {
     }, 100);
 
 }
+provide('getAssets', () => getAdminAssetList(assetsData.value.current_page))
 watch(searchQuery, () => {
     getAdminAssetList()
 }, { deep: true })

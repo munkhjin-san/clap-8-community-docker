@@ -53,68 +53,6 @@ class DashboardController extends Controller
                 $responseCollection[$dataKey] = $this->$methodName();
             }
         }
-
-        // if(empty($requestedData) || in_array('pending_evaluations', $requestedData)){
-        //     $responseCollection['pending_evaluations'] = $this->pendingEvaluations();
-        // }
-        // if(empty($requestedData) || in_array('overdueGraveCount', $requestedData)){
-        //     $responseCollection['overdueGraveCount'] = $this->overdueGraveCount()['overdueGraveCount'];
-        // }
-        // if(empty($requestedData) || in_array('assets', $requestedData)){
-        //     $responseCollection['assets'] = $this->assets();
-        // }
-        // if(empty($requestedData) || in_array('challenges', $requestedData)){
-        //     $responseCollection['challenges'] = $this->challenges();
-        // }
-        // if(empty($requestedData) || in_array('departuresReportUsers', $requestedData)){
-        //     $responseCollection['departuresReportUsers'] = $this->departuresReportUsers(true);
-        // }
-        // if(empty($requestedData) || in_array('forms', $requestedData)){
-        //     $responseCollection['forms'] = $this->forms();
-        // }
-        // if(empty($requestedData) || in_array('requiredGoalData', $requestedData)){
-        //     $responseCollection['requiredGoalData'] = $this->requiredGoalData();
-        // }
-        // if(empty($requestedData) || in_array('overdueGoals', $requestedData)){
-        //     $responseCollection['overdueGoals'] = $this->overdueGraveCount()['overdueGoals'];
-        // }
-        // if(empty($requestedData) || in_array('pendingPlannedLeaves', $requestedData)){
-        //     $responseCollection['pendingPlannedLeaves'] = $this->pendingPlannedLeaves();
-        // }
-        // if(empty($requestedData) || in_array('pendingGoalsUserForHR', $requestedData)){
-        //     $responseCollection['pendingGoalsUserForHR'] = $this->pendingGoalsUserForHR();
-        // }
-        // if(empty($requestedData) || in_array('tempSchedules', $requestedData)){
-        //     $responseCollection['tempSchedules'] = $this->tempSchedules();
-        // }
-        // if(empty($requestedData) || in_array('pendingDailyReports', $requestedData)){
-        //     $responseCollection['pendingDailyReports'] = $this->pendingDailyReports();
-        // }
-
-
-        // if(empty($requestedData)){
-        //     $tasks = $this->remindTaskService->getReminderTaskForUser($user, ['all']);
-        //     $responseCollection = array_merge($responseCollection, $tasks);
-        //     $messages = $this->reminderMessageService->getReminderMessagesForUser($user, ['all']);
-        //     $responseCollection = array_merge($responseCollection, $messages);
-        // }
-        
-        // $taskRelatedData = ['pendingApprovalTasks', 'unfinishedTasks', 'untouchedTasks'];
-        // foreach($taskRelatedData as $taskKey){
-        //     if(in_array($taskKey, $requestedData)){
-        //         $tasks = $this->remindTaskService->getReminderTaskForUser($user, [$taskKey]);
-        //         $responseCollection = array_merge($responseCollection, $tasks);
-        //     }
-        // }
-        // $messageRelatedData = ['mustCheckMessages', 'mustSignMessages', 'remindedMessages'];
-        // foreach($messageRelatedData as $messageKey){
-        //     if(in_array($messageKey, $requestedData)){
-        //         $messages = $this->reminderMessageService->getReminderMessagesForUser($user, [$messageKey]);
-        //         $responseCollection = array_merge($responseCollection, $messages);
-        //     }
-        // }
-
-
         return response()->json($responseCollection);
     }
     public function mustCheckMessages(){
@@ -501,20 +439,8 @@ class DashboardController extends Controller
     }
     public function assets(){
         $active_user = $this->active_user();
-
-        $target_assets = AssetRecord::where(function ($query) use ($active_user) {
-            $query->whereHas('requests', function ($query) use ($active_user) {
-                $query->where('status', 1)->where('to_user', $active_user->id)
-                ->whereHas('steps', function($query){
-                    $query->where('value', 2)->whereNull('approved_by');
-                });
-            });
-        })
-        ->with(['requests' => function($q){
-            $q->with(['send_user', 'recieve_user', 'steps' => function($q){
-                $q->where('value', 2)->with('approver');
-            }]);
-        }])->get();
+        $target_assets = AssetRecord::where('user_id', $active_user->id)
+        ->get();
         return $target_assets;
     }
     public function pendingPlannedLeaves(){

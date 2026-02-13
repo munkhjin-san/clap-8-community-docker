@@ -291,6 +291,7 @@ const updateAsset = async(params) => {
     if(loading.value) return
     loading.value = true
     await api.post('/asset_approve', params)
+    toast('更新しました。')
     getAssets()
     badge.getAssetBadge()
     loading.value = false

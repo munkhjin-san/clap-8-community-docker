@@ -15,9 +15,11 @@
                 <div v-for="assetRequest in asset.request_logs" :key="assetRequest.id" class="flex flex-col">
                     <div class="mt-[10px]">ステータス : {{ assetRequest.status == 2 ? '完了' : '差し戻し' }}</div>
                     <div class="flex items-center gap-[10px] my-[10px]">
-                        <UserPanel v-if="assetRequest.send_user" :user="assetRequest.send_user" size="20" with-name/>
+                       <UserPanel v-if="assetRequest.send_user" :user="assetRequest.send_user" size="20" with-name disable-instant/>
+                        <div v-if="assetRequest.from_external_user">{{ assetRequest.from_external_user }}</div>
                         <div>➞</div>
-                        <UserPanel v-if="assetRequest.recieve_user" :user="assetRequest.recieve_user" size="20" with-name/>
+                        <UserPanel v-if="assetRequest.recieve_user" :user="assetRequest.recieve_user" size="20" with-name disable-instant/>
+                        <div v-if="assetRequest.to_external_user">{{ assetRequest.to_external_user }}</div>
                     </div>
                     <div v-for="item in assetRequest.steps">
                         <div>            
@@ -60,12 +62,12 @@
                             <div v-else-if="item.value == 4">
                                 <div class="flex items-center py-[5px]">
                                     <div class="text-[12px] text-[gray]">【{{ customParser(item.created_at).toFormat('yyyy/M/d HH:mm') }}】</div>
-                                    <div>移動完了申請 : {{ item?.creator?.name }}</div>
+                                    <div>移動申請者 : {{ item?.creator?.name }}</div>
                                 </div>
                                 <div v-if="item.approver">
                                     <div class="flex items-center py-[5px]">
                                         <div class="text-[12px] text-[gray]">【{{ customParser(item.approved_at).toFormat('yyyy/M/d HH:mm') }}】</div>
-                                        <div>経営管理本部承認済み : {{ item?.approver?.name }}</div>
+                                        <div>経営管理本部承認者 : {{ item?.approver?.name }}</div>
                                     </div>
                                 </div>
                             </div>                            
@@ -93,26 +95,41 @@
                 <p>{{ moveTarget.title}}</p>
             </template>
             <template #content>
-                <div class="si-box">
+                <!-- <div class="si-box">
                     <MemberSelector 
                         place-holder="移動先メンバー"
                         :options="possibleMembers.filter(member => member.id != asset.current_user?.id)"
                         :multiple="false"
                         v-model="reciever"
                     />
-                </div>
-                <div class="si-box" v-if="reciever && reciever.id" :key="reciever.id">
-                    <ItemSelector
-                        :path="`get_possible_projects_by_user?user_id=${reciever.id}`"
-                        :clearable="true"
-                        label="name"
-                        :reduce="option => option.id"
-                        :closeOnSelect=true
+                </div> -->
+                <div class="si-box">
+                    <div class="flex gap-1 text-sm mb-3">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input v-model="isExternal" type="radio" name="external-member" class="custom-f-radio" :value="false"/>
+                            社内メンバー
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input v-model="isExternal" type="radio" name="external-member" class="custom-f-radio" :value="true"/>
+                            社外メンバー
+                        </label>
+                    </div>
+                    <MemberSelector 
+                        v-if="!isExternal"
+                        place-holder="移動先メンバー"
+                        v-model="reciever"
                         :multiple="false"
-                        place-holder="移動先プロジェクト"
+                        :options="possibleMembers.filter(member => member.id != asset.current_user?.id)"
                         rules="required"
-                        ref="projectSelectorRef"
-                        v-model="selectedProject"
+                        ref="memberSelectRef"
+                    />
+                    <ShortInput
+                        v-else
+                        name="externalUser"
+                        :place-holder="'社外メンバー名を入力'"
+                        rules="required"
+                        v-model="externalUser"
+                        ref="externalUserNameRef"
                     />
                 </div>
                 <div class="si-box">
@@ -174,7 +191,7 @@
 import { Asset } from '@/interface/assetInterface';
 import { useAuthUserStore } from '@/store/auth';
 import CommandButton from '../Global/CommandButton.vue';
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, useTemplateRef, watch } from 'vue';
 import Modal from '../Global/Modal.vue';
 import MemberSelector from '../Form/MemberSelector.vue';
 import { User } from '@/interface/globalInterface';
@@ -186,6 +203,7 @@ import UserPanel from '../Global/UserPanel.vue';
 import ItemSelector from '../Form/ItemSelector.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import ShortInput from '../Form/ShortInput.vue';
 
 const auth = useAuthUserStore()
 const props = defineProps<{
@@ -206,6 +224,11 @@ const asset_files = ref<any[]>([])
 const notBroken = ref(false)
 const loading = ref(false)
 const selectedProject = ref<number | null>(null)
+const isExternal = ref(false)
+const externalUser = ref('')
+const externalUserNameRef = useTemplateRef('externalUserNameRef')
+const memberSelectRef = useTemplateRef('memberSelectRef')
+const { ping } = useDialog()
 const moveTarget = reactive({
     title: '',
     active: false
@@ -231,11 +254,13 @@ const hasMovePrivilege = computed(() => {
 })
 const applyReturnRequest = async() => {
 
+
     loading.value = true
     const data = {
         asset_id: props.asset.id,
         file_ids: asset_files.value.map(file => file.id),
-        not_broken: notBroken.value
+        not_broken: notBroken.value,
+        external_user: isExternal.value ? externalUser.value : null,
     }
     const res = await api.post('/asset_return_request', data, {
         ask: '物品を返却しますか？',
@@ -249,25 +274,27 @@ const applyReturnRequest = async() => {
 
 }
 const applyRequest = async() => {
-
-    let confirmed = true
-    if(props.asset.current_project){
-        const anwser = await ask('この物品はプロジェクトに紐づいています。移動しますか？<br>※PMの承認が必要です。')
-        if(!anwser.value){
-            confirmed = false
+    if(isExternal.value){
+        const valid = await externalUserNameRef.value?.validate()
+        if(!valid?.valid){
+            ping('社外メンバー名を入力してください。')
+            return
+        }
+    }else {
+        const valid = await memberSelectRef.value?.validate()
+        if(!valid?.valid){
+            ping('移動先メンバーを選択してください。')
+            return
         }
     }
 
-    if(!confirmed){
-        return
-    }
     loading.value = true
     const data = {
         asset_id: props.asset.id,
-        to_user: reciever.value?.id,
+        to_user: isExternal.value ? null : reciever.value?.id,
         file_ids: asset_files.value.map(file => file.id),
         not_broken: notBroken.value,
-        to_project: selectedProject.value
+        to_external_user: isExternal.value ? externalUser.value : null,
     }
 
     const res = await api.post('/asset_move_request', data, {

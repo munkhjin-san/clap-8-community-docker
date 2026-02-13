@@ -1,15 +1,14 @@
 <template>
-    <div class="bg-[var(--background-color)] h-full relative">
-        <div class="h-full overflow-y-auto">
+    <div class="bg-[var(--background-color)] relative">
+        <div class="">
             <div class="min-h-[calc(100%-50px)]">
                 <table class="asset-table mx-[20px] mt-[20px] w-[calc(100%-40px)]">
                     <AssetTableHeader 
-                        :columns="['GL番号', '品名', '型番', '使用者', '分類', '価値', 'ステータス']"
+                        :columns="['GL番号', '品名', '型番', '使用者', 'ステータス']"
                         :projects="[]" 
                         :users="assetUsers"
                         :offices="[]"
                         v-model:user_id="searchQuery.user_id"
-                        v-model:project_id="searchQuery.project_id"
                         v-model:classification="searchQuery.classification"
                         v-model:status="searchQuery.status"
                         v-model:office_id="searchQuery.office_id"
@@ -20,7 +19,7 @@
                     <tbody v-if="assetsData && assetsData.data">
                         <template v-if="assetsData.data.length">                    
                             <template v-for="asset in assetsData.data">
-                                <tr>
+                                <tr @click.stop="toggleAssetDetail(asset.id)" class="data-row cursor-pointer" :class="{ expanded: (asset?.requests?.length ?? 0) > 0 || selectedAssetIds.includes(asset.id) }">
                                     <td><div class="inner-col"><span class="mobile">GL番号</span>{{ `GL${padNumber(asset.id)}` }}</div></td>
                                     <td class="max-w-[150px] overflow-hidden text-ellipsis"><div class="inner-col"><span class="mobile">品名</span>{{ asset.item_name }}</div></td>
                                     <td class="max-w-[150px] overflow-hidden text-ellipsis"><div class="inner-col"><span class="mobile">型番</span>{{ asset.model_number }}</div></td>
@@ -33,34 +32,42 @@
                                             </div>
                                         </div>
                                     </td>
-                                    <td><div class="inner-col"><span class="mobile">分類</span>{{ AssetClass.find(ob => ob.value === asset.classification)?.label }}</div></td>
-                                    <td><div class="inner-col"><span class="mobile">価値</span>{{ asset.value }}</div></td>
                                     <td><div class="inner-col"><span class="mobile">ステータス</span>{{ asset.requests.length ? '移動中' : AssetStatus.find(ob => ob.value === asset.status)?.label }}</div></td>
-                                    <td>
-                                        <label class="cursor-pointer select-none jump-link">
-                                            <input type="checkbox" v-model="selectedAssetIds" :value="asset.id" class="hidden"/>
-                                            詳細
-                                        </label>
-                                        
+                                    <td class="">
+                                        <button
+                                            type="button"
+                                            class="row-toggle"
+                                            :aria-expanded="isExpanded(asset)"
+                                            aria-label="詳細を開閉"
+                                            @click.stop="toggleAssetDetail(asset.id)"
+                                        >
+                                            <span class="toggle-icon" :class="{ open: isExpanded(asset) }">
+                                                <Back size="10" fill="var(--primary-color)" />
+                                            </span>
+                                        </button>
                                     </td>
                                 </tr>
-                                <tr class="additional-row" v-if="asset?.requests && asset.requests.length || selectedAssetIds.includes(asset.id)">
-                                    <td colspan="9">
-                                        <div v-if="asset?.requests && asset.requests.length" class="bg-[var(--bg3)]">
-                                            <AssetMovement 
-                                                :asset="asset" 
-                                                :assetRequest="assetRequest"
-                                                v-for="assetRequest in asset.requests
-                                            "/>
-                                        </div>
-                                        <div v-if="selectedAssetIds.includes(asset.id)">
-                                            <AssetDetail 
-                                                :asset="asset" 
-                                                :possibleMembers="possibleMembers" 
-                                                :possibleProjects="possibleProjects"
-                                                @reload="getAssets(assetsData.current_page)"
-                                            />
-                                        </div>
+                                <tr class="detail-row" v-if="asset?.requests && asset.requests.length || selectedAssetIds.includes(asset.id)">
+                                    <td colspan="6" class="detail-cell" :class="{ open: isExpanded(asset) }">
+                                        <Transition name="asset-accordion">
+                                            <div v-show="isExpanded(asset)" class="asset-accordion-body">
+                                                <div v-if="asset?.requests && asset.requests.length" class="bg-[var(--bg3)]">
+                                                    <AssetMovement 
+                                                        :asset="asset" 
+                                                        :assetRequest="assetRequest"
+                                                        v-for="assetRequest in asset.requests
+                                                    "/>
+                                                </div>
+                                                <div v-if="selectedAssetIds.includes(asset.id)">
+                                                    <AssetDetail 
+                                                        :asset="asset" 
+                                                        :possibleMembers="possibleMembers" 
+                                                        :possibleProjects="possibleProjects"
+                                                        @reload="getAssets(assetsData.current_page)"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </Transition>
                                     </td>
 
                                 </tr>
@@ -68,13 +75,13 @@
                         </template>
                         <template v-else-if="fetchCount > 0">
                             <tr>
-                                <td colspan="9" class="!text-center">データがありません</td>
+                                <td colspan="6" class="!text-center">データがありません</td>
                             </tr>
                         </template>
                     </tbody>
                 </table>
             </div>
-            <div>
+            <div class="mt-3">
                 <PostSearchPager 
                     style="margin: 0;"
                     :possiblePage="assetsData.last_page" 
@@ -109,14 +116,13 @@ import AssetCreate from './AssetCreate.vue';
 import AssetDetail from './AssetDetail.vue';
 import AssetMovement from './AssetMovement.vue';
 import PostSearchPager from '../Post/PostSearchPager.vue';
-import { Project } from '@/interface/projectInterface';
-import AssetClass from 'assets/AssetClass.json'
 import AssetStatus from 'assets/AssetStatus.json'
 import { useAuthUserStore } from '@/store/auth';
 import AssetTableHeader from '../AccountControl/AssetControl/AssetTableHeader.vue';
 import { useRoute } from 'vue-router';
 import { User } from '@/interface/globalInterface';
 import AddIcon from '../Form/AddIcon.vue';
+import Back from '../Icons/Back.vue';
 import { useApi } from '@/composables/api';
 import { useProject } from '@/composables/project';
 const props = defineProps<{
@@ -140,8 +146,7 @@ const searchQuery = reactive({
     classification: <number[]>[],
     status: <number[]>[],
     office_id: <number[]>[],
-    user_id: <number[]>[],
-    project_id: <number[]>[Number(route.params.projectId)],
+    user_id: <number[]>[auth.activeUser.id],
     gl_number: '',
 })
 
@@ -233,6 +238,18 @@ const padNumber = (num: number | null) => {
     return num?.toString().padStart(5, "0")
 }
 
+const isExpanded = (asset: Asset) => {
+    return (asset?.requests?.length ?? 0) > 0 || selectedAssetIds.value.includes(asset.id)
+}
+
+const toggleAssetDetail = (assetId: number) => {
+    if (selectedAssetIds.value.includes(assetId)) {
+        selectedAssetIds.value = selectedAssetIds.value.filter(id => id !== assetId)
+        return
+    }
+    selectedAssetIds.value = [...selectedAssetIds.value, assetId]
+}
+
 
 const closeModal = (flag: boolean) => {
     openModal.value = false
@@ -251,16 +268,107 @@ provide('getAssets', () => getAssets(assetsData.value.current_page))
     .asset-table{
         background-color: var(--background-color);
         width: 100%;
-        border-collapse: separate; 
+        border-collapse: collapse;
         border-spacing: 0;
+        table-layout: fixed;
         color: var(--primary-color);
     }
     .asset-table td{
         padding: 10px;
         font-size: 13px;
         border-bottom: solid thin var(--calendarBorder);
+        vertical-align: middle;
         // border-bottom: 1px solid rgb(102, 102, 102);
         //border-right: 1px solid rgb(102, 102, 102);
+    }
+
+    // .asset-table tbody td{
+    //     overflow: hidden;
+    // }
+
+    .asset-table thead td{
+        padding: 16px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        background: var(--bg3);
+        color: var(--primary-color);
+        border-bottom: 1px solid var(--calendarBorder);
+        overflow: visible;
+    }
+
+    .data-row{
+        cursor: default;
+    }
+
+    .data-row:hover{
+        background: var(--bg3);
+    }
+
+    .data-row.expanded{
+        background: var(--selected-background);
+    }
+
+    .data-row.expanded td{
+        border-bottom: none;
+    }
+
+    .td-center{
+        text-align: center;
+        vertical-align: middle;
+    }
+
+    .row-toggle{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: inherit;
+    }
+
+    .row-toggle:hover{
+        background: var(--bg3);
+    }
+
+    .toggle-icon{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transform: rotate(-90deg);
+        transition: transform 0.18s ease;
+    }
+
+    .toggle-icon.open{
+        transform: rotate(90deg);
+    }
+
+    .detail-cell{
+        padding: 0;
+        background: var(--selected-background);
+        border-bottom: 1px solid var(--calendarBorder);
+    }
+
+    .asset-accordion-body{
+        padding: 12px;
+    }
+
+    .asset-table .asset-accordion-enter-active,
+    .asset-table .asset-accordion-leave-active{
+        transition: max-height 0.25s ease, opacity 0.2s ease;
+        overflow: hidden;
+    }
+
+    .asset-table .asset-accordion-enter-from,
+    .asset-table .asset-accordion-leave-to{
+        max-height: 0;
+        opacity: 0;
+    }
+
+    .asset-table .asset-accordion-enter-to,
+    .asset-table .asset-accordion-leave-from{
+        max-height: 1200px;
+        opacity: 1;
     }
     // table td:first-child {
     //     border-left: 1px solid rgb(102, 102, 102);
@@ -306,6 +414,10 @@ provide('getAssets', () => getAssets(assetsData.value.current_page))
         width: 100%;
     }
     .additional-row{
+        margin-top: -21px;
+    }
+
+    .detail-row{
         margin-top: -21px;
     }
     .inner-col{

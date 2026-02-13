@@ -42,12 +42,13 @@
 import LoaderButton from '../Global/LoaderButton.vue';
 import FileUploader from '../Form/FileUploader.vue';
 import LongInput from '../Form/LongInput.vue';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { customParser } from '@/utils/tools';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
 import { Post } from '@/interface/postInterface';
 import { useBadgeStore } from '@/store/badge';
+import { useRoute } from 'vue-router';
     const props = defineProps<{
         record: Post
     }>()
@@ -57,6 +58,15 @@ import { useBadgeStore } from '@/store/badge';
     const resultMessage = ref(props.record.result ? props.record.result : '')
     const processing = ref(false)
     const api = useApi()
+    const route = useRoute()
+    onMounted(() => {
+        if(route.query.status){
+            const statusParam = parseInt(route.query.status as string)
+            if(!isNaN(statusParam)){
+                selected.value = statusParam
+            }
+        }
+    })
     const statuses = computed(() => {           
         return [
             { id: 0, state : DateTime.now() <= customParser(props.record.date_end) ? 'チャージ受付中' : '結果待ち' },

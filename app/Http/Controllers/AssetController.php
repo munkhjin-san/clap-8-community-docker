@@ -69,7 +69,7 @@ class AssetController extends Controller
             $params['created_by'] = $this->active_user()->id;
         }
         $asset = AssetRecord::updateOrCreate(["id" => $id], $params);
-        AssetType::firstOrCreate(['value' => $params['item_name']])->increment('used_count');
+        // AssetType::firstOrCreate(['value' => $params['item_name']])->increment('used_count');
 
         return response()->json($asset);
     }
@@ -193,50 +193,53 @@ class AssetController extends Controller
         $files = $request->file_ids ?? [];
         $active_user = $this->active_user();
         $assetRecord = AssetRecord::findOrFail($request->asset_id);
-        $to_project = $request->to_project ?? null;
+        // $to_project = $request->to_project ?? null;
         $moveRequest = $assetRecord->requests()->create([
-            'from_user' => $assetRecord->user_id,
-            'from_project' => $assetRecord->project_id,
-            'to_user' => $request->to_user,
+            'from_user' => $assetRecord->user_id ?? null,
+            'from_project' => $assetRecord->project_id ?? null,
+            'to_user' => $request->to_user ?? null,
             'not_broken' => $request->not_broken,
-            'to_project' => $to_project
+            'from_external_user' => $assetRecord->external_user ?? null,
+            'to_external_user' => $request->to_external_user ?? null,
+
+            // 'to_project' => $to_project
         ]);
         
         $moveRequest->files()->sync($files);
 
 
-        $step1 = $moveRequest->steps()->create([
-            'created_by' => $active_user->id,
-            'value' => 1
-        ]);
+        // $step1 = $moveRequest->steps()->create([
+        //     'created_by' => $active_user->id,
+        //     'value' => 1
+        // ]);
 
-        $fromProject = ProjectRecord::find($assetRecord->project_id);
-        $active_user_is_manager = $fromProject->manager()->where('users.id', $active_user->id)->exists();
-        if($active_user_is_manager){
-            $step1->update([
-                'approved_by' => $active_user->id,
-                'approved_at' => now()
-            ]);
-        }
+        // $fromProject = ProjectRecord::find($assetRecord->project_id);
+        // $active_user_is_manager = $fromProject->manager()->where('users.id', $active_user->id)->exists();
+        // if($active_user_is_manager){
+        //     $step1->update([
+        //         'approved_by' => $active_user->id,
+        //         'approved_at' => now()
+        //     ]);
+        // }
 
-        $step2 = $moveRequest->steps()->create([
-            'created_by' => $active_user->id,
-            'value' => 2
-        ]);
-        if($to_project){
-            $toProject = ProjectRecord::find($to_project);
-            $step3 = $moveRequest->steps()->create([
-                'created_by' => $active_user->id,
-                'value' => 3
-            ]);
-            $active_user_is_manager_of_target = $toProject->manager()->where('users.id', $active_user->id)->exists();
-            if($active_user_is_manager_of_target){
-                $step3->update([
-                    'approved_by' => $active_user->id,
-                    'approved_at' => now()
-                ]);
-            }
-        }
+        // $step2 = $moveRequest->steps()->create([
+        //     'created_by' => $active_user->id,
+        //     'value' => 2
+        // ]);
+        // if($to_project){
+        //     $toProject = ProjectRecord::find($to_project);
+        //     $step3 = $moveRequest->steps()->create([
+        //         'created_by' => $active_user->id,
+        //         'value' => 3
+        //     ]);
+        //     $active_user_is_manager_of_target = $toProject->manager()->where('users.id', $active_user->id)->exists();
+        //     if($active_user_is_manager_of_target){
+        //         $step3->update([
+        //             'approved_by' => $active_user->id,
+        //             'approved_at' => now()
+        //         ]);
+        //     }
+        // }
         $step4 = $moveRequest->steps()->create([
             'created_by' => $active_user->id,
             'value' => 4
@@ -287,8 +290,9 @@ class AssetController extends Controller
                 'status' => 3
             ]);
             $asset_request->asset->update([
-                'user_id' => $asset_request->from_user,
-                'project_id' => $asset_request->from_project
+                'user_id' => $asset_request->from_user ?? null,
+                // 'project_id' => $asset_request->from_project
+                'external_user' => $asset_request->from_external_user ?? null
             ]);
 
             return response()->json($asset_step);                
@@ -303,31 +307,31 @@ class AssetController extends Controller
         // }
         
 
-        if($asset_step->value == 2){
-            $project_id = $request->project_id ?? null;            
-            $next_step_number = 4;
-            if($project_id){
-                $asset_request->asset->update([
-                    'project_id' => $project_id
-                ]);
-                $asset_request->update([
-                    'to_project' => $project_id
-                ]);
-                $next_step_number = 3;
-            }
-            $asset_request->asset->update([
-                'user_id' => $asset_request->to_user
-            ]);
-            $has_next_step = $asset_request->steps()->where('value', 3)->exists();
-            if(!$has_next_step){
-                $asset_request->steps()->create([
-                    'created_by' => $this->active_user()->id,
-                    'value' => $next_step_number
-                ]);
-            }            
-            return response()->json($asset_step);
+        // if($asset_step->value == 2){
+        //     $project_id = $request->project_id ?? null;            
+        //     $next_step_number = 4;
+        //     if($project_id){
+        //         $asset_request->asset->update([
+        //             'project_id' => $project_id
+        //         ]);
+        //         $asset_request->update([
+        //             'to_project' => $project_id
+        //         ]);
+        //         $next_step_number = 3;
+        //     }
+        //     $asset_request->asset->update([
+        //         'user_id' => $asset_request->to_user
+        //     ]);
+        //     $has_next_step = $asset_request->steps()->where('value', 3)->exists();
+        //     if(!$has_next_step){
+        //         $asset_request->steps()->create([
+        //             'created_by' => $this->active_user()->id,
+        //             'value' => $next_step_number
+        //         ]);
+        //     }            
+        //     return response()->json($asset_step);
 
-        }
+        // }
         // if($asset_step->value == 3){
             
         //     $asset_request->steps()->create([
@@ -337,6 +341,10 @@ class AssetController extends Controller
         //     return response()->json($asset_step);
         // }
         if($asset_step->value == 4){
+            $asset_request->asset->update([
+                'user_id' => $asset_request->to_user ?? null,
+                'external_user' => $asset_request->to_external_user ?? null,
+            ]);
             $asset_request->update([
                 'status' => 2
             ]);
@@ -349,6 +357,7 @@ class AssetController extends Controller
             $asset_request->asset->update([
                 'user_id' => null,
                 'project_id' => null,
+                'external_user' => null,
                 'status' => 2,
                 'office_id' => $request->office_id ?? null
             ]);
@@ -422,28 +431,26 @@ class AssetController extends Controller
     public function get_asset_users(Request $request) 
     {
         
-        
+        $user = $this->active_user();
         $mode = $request->mode ?? 'normal';
-        if($mode !== 'partner'){
-            $request->validate([
-                'project_id' => 'required|integer',
-            ]);
-        }
-        $projectId = $request->project_id;
+
+
         if($mode == 'partner'){
             return response()->json([Auth::user()->only('id', 'name', 'icon_path', 'icon_bg')]);
         }
         
         $users = User::where('deleted_flag', 0)
-            ->whereHas('assets', function ($query) use ($projectId) {
-                $query->where('project_id', $projectId);
-            })
-            ->orWhereHas('related_projects', function ($query) use ($projectId) {
-                $query->where('project_records.id', $projectId);
-            })
+            ->where('id', '>', 105)
             ->where('retire', 0)
             ->select('id', 'name', 'icon_path', 'icon_bg')
             ->get();
+
+        // add active user to the top of the list
+        $active_user_data = $user->only('id', 'name', 'icon_path', 'icon_bg');
+        $users = $users->filter(function($u) use ($user){
+            return $u->id != $user->id;
+        });
+        $users->prepend($active_user_data);
         return response()->json($users);
     }
 

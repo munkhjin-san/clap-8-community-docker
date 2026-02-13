@@ -210,6 +210,7 @@ import Character from "@/components/Global/Character.vue";
         shareMenuItems: MenuList[]
         editing?: boolean
         mode?: string
+        reacting?: boolean
     }>()
 
     const emit = defineEmits<{
@@ -219,7 +220,6 @@ import Character from "@/components/Global/Character.vue";
         reactOrCheck: [message: Message]
         
     }>()
-    const reacting = ref(false)
     const showDate = ref(false)
     const messageBoxBody = useTemplateRef('messageBoxBody')
     const pushInstantUser = inject('pushInstantUser') as Function
@@ -302,10 +302,10 @@ import Character from "@/components/Global/Character.vue";
         }
     })
     const emoteButtonView = computed(() => {
-        return !(props.message.user_id == auth.activeUser.id && !props.message.emoted_users?.length) && (props.mode !== 'remind')
+        return !(props.message.user_id == auth.activeUser.id && !props.message.emoted_users?.length)
     })
     const reactButtonView = computed(() => {
-        return !(props.message.user_id == auth.activeUser.id && !props.message.reacted_users?.length) && (props.mode !== 'remind')
+        return !(props.message.user_id == auth.activeUser.id && !props.message.reacted_users?.length)
     })
     const showItemMenu = (event: Event) => {
         if(itemMenuRef.value){

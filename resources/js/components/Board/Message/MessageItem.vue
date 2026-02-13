@@ -11,6 +11,7 @@
         :messageListType="messageListType"
         :draftSending="draftSending"
         :editing="editing"
+        :reacting="reacting"
         @sendEmote="num => sendEmote(num)"
         @draftSend="draftSend"
         @remind="message => remind(message)"

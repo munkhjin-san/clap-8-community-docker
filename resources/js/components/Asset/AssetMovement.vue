@@ -4,8 +4,10 @@
         <div v-if="assetRequest" class="mb-[10px]">
             <div class="flex items-center gap-[10px]">
                 <UserPanel v-if="assetRequest.send_user" :user="assetRequest.send_user" size="20" with-name disable-instant/>
+                <div v-if="assetRequest.from_external_user">{{ assetRequest.from_external_user }}</div>
                 <div>➞</div>
                 <UserPanel v-if="assetRequest.recieve_user" :user="assetRequest.recieve_user" size="20" with-name disable-instant/>
+                <div v-if="assetRequest.to_external_user">{{ assetRequest.to_external_user }}</div>
             </div>
         </div>
         <div v-if="assetRequest && assetRequest.files && assetRequest.files.length > 0" class="flex flex-col mb-[20px]">

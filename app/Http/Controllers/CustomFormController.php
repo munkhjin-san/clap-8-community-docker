@@ -489,27 +489,43 @@ class CustomFormController extends Controller
     }
     public function get_my_surveys(Request $request) {
         $active_user = $this->active_user();
-        $surveys = CustomForm::whereHas('users', function($query) use($active_user) {
-            $query->where('users.id', $active_user->id);
-        })->orWhereHas('survey_answers', function($query) use($active_user) {
-            $query->where('user_id', $active_user->id);
-        })
-        ->with(['blocks' => function($q) use($active_user)  {
-            $q->with(['answers' => function($q)use($active_user)  {
-                $q->where('user_id', $active_user->id)->with('files');                    
-            }])->with(['elements' => function($q) use($active_user) {
+        $per_page = (int) $request->input('per_page', 10);
+        $per_page = max(1, min($per_page, 50));
+        $keyword = trim((string) $request->input('keyword', ''));
+
+        $surveys = CustomForm::query()
+            ->where(function($q) use($active_user) {
+                $q->whereHas('users', function($query) use($active_user) {
+                    $query->where('users.id', $active_user->id);
+                })->orWhereHas('survey_answers', function($query) use($active_user) {
+                    $query->where('user_id', $active_user->id);
+                });
+            })
+            ->when($keyword !== '', function($q) use($keyword) {
+                $like = '%' . $keyword . '%';
+                $q->where(function($qq) use($like) {
+                    $qq->where('title', 'like', $like)
+                        ->orWhere('description', 'like', $like);
+                });
+            })
+            ->with(['blocks' => function($q) use($active_user)  {
                 $q->with(['answers' => function($q)use($active_user)  {
-                    $q->where('user_id', $active_user->id);  
+                    $q->where('user_id', $active_user->id)->with('files');
+                }])->with(['elements' => function($q) use($active_user) {
+                    $q->with(['answers' => function($q)use($active_user)  {
+                        $q->where('user_id', $active_user->id);
+                    }]);
                 }]);
-            }]);
-        }])
-        ->with(['survey_answers' => function($q) use($active_user) {
-            $q->where('user_id', $active_user->id)->with(['block_answers' => function($q) use($active_user) {
-                $q->where('user_id', $active_user->id)->with(['element_answers' => function($q) use($active_user) {
-                    $q->where('user_id', $active_user->id);
-                }])->with('files');
-            }]);
-        }])->orderBy('created_at', 'desc')->get();
+            }])
+            ->with(['survey_answers' => function($q) use($active_user) {
+                $q->where('user_id', $active_user->id)->with(['block_answers' => function($q) use($active_user) {
+                    $q->where('user_id', $active_user->id)->with(['element_answers' => function($q) use($active_user) {
+                        $q->where('user_id', $active_user->id);
+                    }])->with('files');
+                }])->with('user');
+            }])
+            ->orderBy('created_at', 'desc')
+            ->paginate($per_page);
 
         return response()->json($surveys);
     }

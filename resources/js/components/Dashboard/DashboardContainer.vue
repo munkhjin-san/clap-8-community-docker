@@ -49,7 +49,6 @@
             />
             <DashboardSurvey
                 v-else-if="!initialLoader && card.layout === 'survey'"
-                v-show="card.data.length > 0"
                 class="dashboard-card-item"
                 :class="[card.col, 'min-w-0 w-full']"
                 :fullscreen="route.params.type === card.type"
@@ -71,6 +70,16 @@
             <DashboardChallenge
                 v-else-if="!initialLoader && card.layout === 'challenge'"
                 v-show="card.data.length > 0"
+                class="dashboard-card-item"
+                :class="[card.col, 'min-w-0 w-full']"
+                :fullscreen="route.params.type === card.type"
+                @toggle="toggle"
+                :data="card"
+                ref="cardLayouts"
+                @resize="(type) => resize(type)"
+            />
+            <DashboardAsset
+                v-else-if="!initialLoader && card.layout === 'assets'"
                 class="dashboard-card-item"
                 :class="[card.col, 'min-w-0 w-full']"
                 :fullscreen="route.params.type === card.type"
@@ -112,6 +121,7 @@ import { useDashboardPrefsStore } from '@/store/dashboardPrefs';
 import { Post } from '@/interface/postInterface';
 import DashboardChallenge from './Layout/DashboardChallenge.vue';
 import FloatButton from '../Global/FloatButton.vue';
+import DashboardAsset from './Layout/DashboardAsset.vue';
 
 const auth = useAuthUserStore()
 const initialLoader = ref(true)
@@ -131,127 +141,149 @@ const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max 
 
 const skeletonCards = ref<SkeletonCard[]>([])
 
-type DashboardMessageCard = {
+type CardBase = {
     title: string
     type: string
-    layout: 'message'
     col: string
     order?: number
+    canResize?: boolean
+    canFullscreen?: boolean
+}
+
+type DashboardMessageCard = CardBase & {
+    layout: 'message'
     data: Message[]
 }
 
-type DashboardTaskCard = {
-    title: string
-    type: string
+type DashboardTaskCard = CardBase & {
     layout: 'task'
-    col: string
-    order?: number
     data: Task[]
 }
 
-type DashboardSurveyCard = {
-    title: string
-    type: string
+type DashboardSurveyCard = CardBase & {
     layout: 'survey'
-    col: string
-    order?: number
     data: any[]
 }
 
-type DashboardOverdueGoalCard = {
-    title: string
-    type: 'remind_overdue'
+type DashboardOverdueGoalCard = CardBase & {
     layout: 'monthly_goals'
-    col: string
-    order?: number
     data: UserWithGoals[]
 }
 
-type DashboardChallengeCard = {
-    title: string
-    type: 'challenge'
+type DashboardChallengeCard = CardBase & {
     layout: 'challenge'
-    col: string
-    order?: number
     data: Post[]
 }
 
-type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard
+type DashboardAssetCard = CardBase & {
+    layout: 'assets'
+    data: any[]
+}
+
+type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard | DashboardAssetCard
 
 const prefsStore = useDashboardPrefsStore()
 
 const defaultDashboardCards: DashboardCard[] = [
     {
         title: 'リマインドメッセージ',
-        type: 'remind_reminded_messages',
+        type: 'remindedMessages',
         layout: 'message',
         col: 'col-span-2',
         order: undefined,
         data: [] as Message[],
+        canFullscreen: true,
+        canResize: true,
     },
     {
-        title: '未確認メッセージ',
-        type: 'remind_unchecked_messages',
+        title: '確認依頼',
+        type: 'mustCheckMessages',
         layout: 'message',
         col: 'col-span-1',
         order: undefined,
         data: [] as Message[],
+        canFullscreen: true,
+        canResize: true,
     },
     {
-        title: '未署名メッセージ',
-        type: 'remind_unsigned_messages',
+        title: 'サイン依頼',
+        type: 'mustSignMessages',
         layout: 'message',
         col: 'col-span-1',
         order: undefined,
         data: [] as Message[],
+        canFullscreen: true,
+        canResize: true,
     },
     {
-        title: '未着手タスク',
-        type: 'remind_unfinished_tasks',
+        title: '未対応タスク',
+        type: 'unfinishedTasks',
         layout: 'task',
         col: 'col-span-1',
         order: undefined,
         data: [] as Task[],
+        canFullscreen: true,
+        canResize: true,
     },
     {
         title: '未完了タスク',
-        type: 'remind_untouched_tasks',
+        type: 'untouchedTasks',
         layout: 'task',
         col: 'col-span-1',
         order: undefined,
         data: [] as Task[],
+        canFullscreen: true,
+        canResize: true,
     },
     {
-        title: '未承認資産',
-        type: 'remind_not_approved_tasks',
+        title: '承認待ちタスク',
+        type: 'pendingApprovalTasks',
         layout: 'task',
         col: 'col-span-1',
         order: undefined,
         data: [] as Task[],
+        canFullscreen: true,
+        canResize: true,
     },
     {
-        title: '未回答フォーム',
-        type: 'remind_form',
+        title: 'フォーム',
+        type: 'forms',
         layout: 'survey',
         col: 'col-span-1',
         order: undefined,
         data: [] as CustomForm[],
+        canFullscreen: true,
+        canResize: true,
     },
     {
         title: '期限切れ目標',
-        type: 'remind_overdue',
+        type: 'overdueGoals',
         layout: 'monthly_goals',
         col: 'col-span-1',
         order: undefined,
         data: [] as UserWithGoals[],
+        canFullscreen: true,
+        canResize: true,
     },
     {
         title: 'チャレンジ',
-        type: 'challenge',
+        type: 'challenges',
         layout: 'challenge',
         col: 'col-span-1',
         order: undefined,
         data: [] as Post[],
+        canFullscreen: false,
+        canResize: true,
+    },
+    {
+        title: '物品',
+        type: 'assets',
+        layout: 'assets',
+        col: 'col-span-1',
+        order: undefined,
+        data: [] as any[],
+        canFullscreen: true,
+        canResize: true,
     }
 ]
 
@@ -259,29 +291,29 @@ type DashboardStoreCollection = typeof collection
 type DashboardStoreKey = keyof DashboardStoreCollection
 
 const CARD_DATA_KEY_BY_TYPE: Record<string, DashboardStoreKey> = {
-    remind_reminded_messages: 'remindedMessages',
-    remind_unchecked_messages: 'mustCheckMessages',
-    remind_unsigned_messages: 'mustSignMessages',
-    remind_unfinished_tasks: 'unfinishedTasks',
-    remind_untouched_tasks: 'untouchedTasks',
-    remind_not_approved_tasks: 'pendingApprovalTasks',
-    remind_form: 'forms',
-    // backend provides overdueGoals inside overdueGraveCount payload
-    remind_overdue: 'overdueGoals',
-    challenge: 'challenges',
+    remindedMessages: 'remindedMessages',
+    mustCheckMessages: 'mustCheckMessages',
+    mustSignMessages: 'mustSignMessages',
+    unfinishedTasks: 'unfinishedTasks',
+    untouchedTasks: 'untouchedTasks',
+    pendingApprovalTasks: 'pendingApprovalTasks',
+    forms: 'forms',
+    overdueGoals: 'overdueGoals',
+    challenges: 'challenges',
+    assets: 'assets',
 }
 
 const CARD_REFRESH_KEYS_BY_TYPE: Record<string, DashboardStoreKey[]> = {
-    remind_reminded_messages: ['remindedMessages'],
-    remind_unchecked_messages: ['mustCheckMessages'],
-    remind_unsigned_messages: ['mustSignMessages'],
-    remind_unfinished_tasks: ['unfinishedTasks', 'untouchedTasks'],
-    remind_untouched_tasks: ['untouchedTasks'],
-    remind_not_approved_tasks: ['pendingApprovalTasks'],
-    remind_form: ['forms'],
-    // refresh count payload; store will unpack overdueGoals
-    remind_overdue: ['overdueGraveCount'],
-    challenge: ['challenges'],
+    remindedMessages: ['remindedMessages'],
+    mustCheckMessages: ['mustCheckMessages'],
+    mustSignMessages: ['mustSignMessages'],
+    unfinishedTasks: ['unfinishedTasks', 'untouchedTasks'],
+    untouchedTasks: ['untouchedTasks'],
+    pendingApprovalTasks: ['pendingApprovalTasks'],
+    forms: ['forms'],
+    overdueGoals: ['overdueGoals'],
+    challenges: ['challenges'],
+    assets: ['assets'],
 }
 
 prefsStore.applyLayoutToCards(defaultDashboardCards)
@@ -416,8 +448,10 @@ const handleScroll = () => {
 }
 
 const refreshData = async (dataType: string) => {
+    console.log('refreshData', dataType)
     try {
         const keys = CARD_REFRESH_KEYS_BY_TYPE[dataType]
+        console.log('keys to refresh', keys)
         if (!keys || keys.length === 0) return
         await getBatchDashboardData(keys as unknown as string[])
         syncDashboardCardsFromStore()
@@ -518,6 +552,7 @@ const init = async() => {
             'forms',
             'overdueGraveCount',
             'challenges',
+            'assets'
         ])
         syncDashboardCardsFromStore()
     } finally {
@@ -550,6 +585,6 @@ defineExpose({
     refreshData
 })
 
-provide('getAssets', () => refreshData('remind_not_approved_tasks'))
-provide('refresh', () => refreshData('remind_overdue'))
+provide('getAssets', () => refreshData('pending_approval_tasks'))
+provide('refresh', () => refreshData('overdue_goals'))
 </script>

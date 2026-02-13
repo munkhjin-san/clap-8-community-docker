@@ -36,7 +36,7 @@
             </div>
             <div class="flex items-center gap-4 flex-1 flex-wrap justify-end">            
                 <PostDate :record="record" dateClass="dateText"/> 
-                <div @click="updateStatus" v-if="record.app_type == 2" class="text-sm whitespace-nowrap cursor-pointer">
+                <div @click="updateStatus()" v-if="record.app_type == 2" class="text-sm whitespace-nowrap cursor-pointer">
                     <span v-once v-if="badge.post.changed_ids && badge.post.changed_ids.includes(record.id)" title="ステータスが更新されました" class="w-[10px] h-[10px] bg-[tomato] rounded-full inline-block mx-1"></span>
                     {{ status }}
                 </div>
@@ -254,6 +254,11 @@ import { useBadgeStore } from '@/store/badge';
             const id = parseInt(queryId)
             if(id == props.record.id){
                 isExpanded.value = true
+                if(props.record.app_type == 2 && isOwner.value && route.query.status){
+                    updateStatus()
+
+                }
+
             }           
         }  
     })  
@@ -279,7 +284,7 @@ import { useBadgeStore } from '@/store/badge';
         if (props.record.app_type !== 2) {
             items.push({ title: `${appName}を編集する`, action: () => emit('editRecord', props.record) })
         } else {
-            items.push({ title: 'ステータスを変更する', action: updateStatus })
+            items.push({ title: 'ステータスを変更・進捗入力', action: updateStatus })
         }
 
         return items

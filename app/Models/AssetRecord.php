@@ -42,4 +42,9 @@ class AssetRecord extends Model
     {
         return $this->hasMany(AssetRequest::class)->where('status', '>', 1);
     }
+
+    public function confirm_logs()
+    {
+        return $this->hasMany(AssetConfirmLog::class, 'asset_record_id');
+    }
 }
