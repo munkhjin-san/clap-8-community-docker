@@ -1,13 +1,13 @@
 <template>
     <div class="bg-[var(--background-color)] relative">
         <div class="">
+            <div class="flex justify-end my-[20px] mr-[20px]">
+                <LoaderButton content="CSV出力" style="margin: 0" :loading="exporting" @triggered="exportCSV"/>
+            </div>
             <div class="min-h-[calc(100%-50px)]">
-                <table class="asset-table mx-[20px] mt-[20px] w-[calc(100%-40px)]">
+                <table class="asset-table mx-4 w-[calc(100%-40px)]">
                     <AssetTableHeader 
-                        :columns="['GL番号', '品名', '型番', '使用者', 'ステータス']"
-                        :projects="[]" 
-                        :users="assetUsers"
-                        :offices="[]"
+                        :offices="allOffices"
                         v-model:user_id="searchQuery.user_id"
                         v-model:classification="searchQuery.classification"
                         v-model:status="searchQuery.status"
@@ -15,6 +15,7 @@
                         v-model:item_name="searchQuery.item_name"
                         v-model:model_number="searchQuery.model_number"
                         v-model:gl_number="searchQuery.gl_number"
+                        v-model:confirm_status="searchQuery.confirm_status"
                     />
                     <tbody v-if="assetsData && assetsData.data">
                         <template v-if="assetsData.data.length">                    
@@ -25,14 +26,27 @@
                                     <td class="max-w-[150px] overflow-hidden text-ellipsis"><div class="inner-col"><span class="mobile">型番</span>{{ asset.model_number }}</div></td>
                                     <td>
                                         <div class="inner-col"><span class="mobile">使用者</span>
+                                            
+                                            <div class="mb-2" v-if="asset.external_user">
+                                                <span>{{ asset?.external_user }}</span>
+                                            </div>
                                             <div v-if="asset.current_user">
                                                 <div class="leading-normal">
-                                                    <p>{{ asset.current_user.name }}</p>
+                                                    <span v-if="asset.external_user">責任者：</span>
+                                                    <span>{{ asset.current_user.name }}</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </td>
                                     <td><div class="inner-col"><span class="mobile">ステータス</span>{{ asset.requests.length ? '移動中' : AssetStatus.find(ob => ob.value === asset.status)?.label }}</div></td>
+                                    <td>
+                                        <div class="leading-normal">
+                                            <span>{{ asset?.current_office?.name }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {{ asset.confirm_logs.find(log => new Date(log.created_at).getFullYear() === new Date().getFullYear()) ? '確認済み' : '未確認' }}
+                                    </td>
                                     <td class="">
                                         <button
                                             type="button"
@@ -48,22 +62,27 @@
                                     </td>
                                 </tr>
                                 <tr class="detail-row" v-if="asset?.requests && asset.requests.length || selectedAssetIds.includes(asset.id)">
-                                    <td colspan="6" class="detail-cell" :class="{ open: isExpanded(asset) }">
+                                    <td colspan="8" class="detail-cell" :class="{ open: isExpanded(asset) }">
                                         <Transition name="asset-accordion">
                                             <div v-show="isExpanded(asset)" class="asset-accordion-body">
-                                                <div v-if="asset?.requests && asset.requests.length" class="bg-[var(--bg3)]">
+                                                <div v-if="asset?.requests && asset.requests.length" class="bg-[var(--background-color)] w-fit rounded mb-4">
                                                     <AssetMovement 
+                                                        v-for="assetRequest in asset.requests"
                                                         :asset="asset" 
                                                         :assetRequest="assetRequest"
-                                                        v-for="assetRequest in asset.requests
-                                                    "/>
+                                                        @reload="getAssets(assetsData.current_page)"                                                       
+                                                        
+                                                    />
                                                 </div>
                                                 <div v-if="selectedAssetIds.includes(asset.id)">
                                                     <AssetDetail 
                                                         :asset="asset" 
-                                                        :possibleMembers="possibleMembers" 
-                                                        :possibleProjects="possibleProjects"
+                                                        :tagOptions="tagOptions"
                                                         @reload="getAssets(assetsData.current_page)"
+                                                        @edit="(data) => { 
+                                                            editData = data
+                                                            openModal = true
+                                                        }"
                                                     />
                                                 </div>
                                             </div>
@@ -91,26 +110,28 @@
             </div>
         </div>
 
-        <FloatButton v-if="createAble" type="plus" @action="openModal = true">
+        <FloatButton class="fixed" type="plus" @action="openModal = true">
             <template #icon>
                 <AddIcon size="15" fill="black"/>
             </template>
         </FloatButton>  
-        <Transition name="modalFade">
-            <AssetCreate 
-                v-if="openModal" 
-                :edit-data="editData"
-                :all-members="possibleMembers"
-                :all-projects="possibleProjects"
-                :mode="mode"
-                @close="closeModal"
-            />
-        </Transition>
+        <Teleport to="body">
+            <Transition name="modalFade">                
+                <AssetCreate 
+                    v-if="openModal" 
+                    :edit-data="editData"
+                    :all-projects="possibleProjects"
+                    :tagOptions="tagOptions"
+                    :offices="allOffices"
+                    @close="closeModal"
+                />
+            </Transition>
+        </Teleport>
     </div>
 </template>
 <script lang="ts" setup>
-import {  computed, inject, onMounted, provide, reactive, ref, watch } from 'vue';
-import { Asset,  } from '@/interface/assetInterface';
+import { onMounted, provide, reactive, ref, watch } from 'vue';
+import { Asset } from '@/interface/assetInterface';
 import FloatButton from '../Global/FloatButton.vue';
 import AssetCreate from './AssetCreate.vue';
 import AssetDetail from './AssetDetail.vue';
@@ -118,36 +139,30 @@ import AssetMovement from './AssetMovement.vue';
 import PostSearchPager from '../Post/PostSearchPager.vue';
 import AssetStatus from 'assets/AssetStatus.json'
 import { useAuthUserStore } from '@/store/auth';
-import AssetTableHeader from '../AccountControl/AssetControl/AssetTableHeader.vue';
-import { useRoute } from 'vue-router';
-import { User } from '@/interface/globalInterface';
+import AssetTableHeader from './AssetTableHeader.vue';
+import { Office, User } from '@/interface/globalInterface';
 import AddIcon from '../Form/AddIcon.vue';
 import Back from '../Icons/Back.vue';
 import { useApi } from '@/composables/api';
-import { useProject } from '@/composables/project';
-const props = defineProps<{
-    userList: any;
-    mode?: string;
-}>();
+import LoaderButton from '../Global/LoaderButton.vue';
+import { DateTime } from 'luxon';
+import { useAsset } from '@/composables/asset';
 
-const { selectedProject } = useProject()
+
 const openModal = ref(false)
 const editData = ref<Asset | null>(null)
 const possibleProjects = ref([])
-const possibleMembers = ref([])
-const userQuery = ref<number[]>([]) 
-const classQuery = ref<number[]>([])
-const statusQuery = ref<number[]>([])
+
 const auth = useAuthUserStore()
-const route = useRoute()
 const searchQuery = reactive({
     item_name: '',
     model_number: '',
     classification: <number[]>[],
     status: <number[]>[],
     office_id: <number[]>[],
-    user_id: <number[]>[auth.activeUser.id],
+    user_id: <number[]>(auth.isAdmin ? [] : [auth.activeUser.id]),
     gl_number: '',
+    confirm_status: <string[]>[]
 })
 
 const assetsData = ref<{
@@ -173,67 +188,76 @@ const api = useApi()
 const fetchCount = ref(0)
 
 const selectedAssetIds = ref<number[]>([])
-const setLoader = inject('setLoader') as (flag: boolean) => void
-const assetUsers = ref<User[]>([])
+const exporting = ref(false)
+const { userList, fetchAssetUsers } = useAsset()
 
+const tagOptions = ref<{title: string, requiredData: string}[]>([
+    {title: "ノートPC", requiredData: "メーカー・OS・バージョン"},
+    {title: "デスクトップ", requiredData: "メーカー・OS・バージョン"},
+    {title: "業務端末（本体）", requiredData: "メーカー"},
+    {title: "SIM", requiredData: "電話番号"},
+    {title: "事務所キー", requiredData: "キー番号"},
+    {title: "ロッカーキー", requiredData: "キー番号"},
+    {title: "ETCカード", requiredData: "カード番号"},
+    {title: "ガソリンカード", requiredData: "カード番号・TFC番号"},
+    {title: "レンタカーカード", requiredData: "カード番号"},
+    {title: "ICカード", requiredData: "カード番号"},
+    {title: "Times Business Card", requiredData: "カード番号"}
+])
+const allOffices = ref<Office[]>([])
 
-watch([userQuery, classQuery, statusQuery], () => {
-    getAssets()
-})
 onMounted(() => {
-    //check setLoader is function and injected properly
 
-
-    if (typeof setLoader === 'function') {
-        setLoader(true);
-    } 
     getAssets()
-    getPossibleMembers()
-    getPossibleProjects()
-    getAssetUsers()
-
+    fetchAssetUsers([])
+    getOffices()
 
 
 })
-const getAssetUsers = async() => {
+const exportCSV = async() => {
 
-    const response = await api.get('/get_asset_users', {     
-        project_id: selectedProject.value?.id,
-        mode: props.mode,           
+    exporting.value = true
+    const data = await api.get('/export_asset_csv', {
+        ...searchQuery,
+        mode: 'export',
+    },{},
+    {
+        responseType: 'blob'
     })
-    assetUsers.value = response
-}
-const createAble = computed(() => {
-    const privilage = props.mode === 'admin' || props.mode === 'partner' 
-    const allMembers = [...selectedProject.value?.members ?? [], ...selectedProject.value?.manager ?? []]
-    return privilage || allMembers.some(ob => ob.id === auth.activeUser.id)
-})
+    
+    if(data){
+        const url = window.URL.createObjectURL(new Blob([data]))
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `物品${DateTime.now().toLocaleString(DateTime.DATETIME_SHORT)}.xlsx`) 
+        document.body.appendChild(link)
+        link.click()
+        
+    }
+    setTimeout(() => {
+        exporting.value = false
+    }, 100);
 
+}
+const getOffices = async() => {
+    const data = await api.get('/get_office_list')
+    allOffices.value = data
+}  
 const getAssets = async(page?:number) => {
     const pageIndex = page ?? assetsData.value.current_page
-
         
     const response = await api.get(`/get_assets?page=${pageIndex}`, {        
-        ...searchQuery,
-        mode: props.mode,       
+        ...searchQuery     
     })
     assetsData.value = response
     fetchCount.value++
-    if (typeof setLoader === 'function') {
-        setLoader(false)
-    }
-
 }
-const getPossibleMembers = async() => { 
-    const response = await api.get('/get_possible_members')
-    possibleMembers.value = response
-}
-const getPossibleProjects = async() => {
+// const getPossibleProjects = async() => {
 
-    const response = await api.get('/get_possible_projects')
-    possibleProjects.value = response
+//     const response = await api.get('/get_possible_projects')
+//     possibleProjects.value = response
 
-}
+// }
 const padNumber = (num: number | null) => {
     return num?.toString().padStart(5, "0")
 }
@@ -253,6 +277,7 @@ const toggleAssetDetail = (assetId: number) => {
 
 const closeModal = (flag: boolean) => {
     openModal.value = false
+    editData.value = null
     if(flag) getAssets()
 }
 watch(searchQuery, () => {

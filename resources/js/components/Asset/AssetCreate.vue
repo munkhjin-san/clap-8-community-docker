@@ -34,17 +34,12 @@
                     :options="tagOptions.map(tag => tag.title)"
                 />  
             </div>
-            <div class="si-box">
-                <LongInput 
-                    name="specs"
-                    :place-holder="detailPlaceHolder"
-                    v-model="specs"
-                />
-            </div>
+
             <div class="si-box">
                 <ShortInput 
+                    v-if="item_name"
                     name="modelNumber"
-                    :place-holder="numberRequiredNames.includes(item_name) ? `${item_name}番号` : `型番号`"
+                    :place-holder="detailPlaceHolder"
                     rules="required"
                     custom-class="full"
                     ref="modelNumberRef"
@@ -52,20 +47,13 @@
                     v-model="model_number"
                 />
             </div>
-            <!-- <div class="si-box">
-                <ItemSelector 
-                    place-holder="使用プロジェクト"
-                    v-model="projects"
-                    :clearable="true"
-                    label="name"
-                    :closeOnSelect="true"
-                    :reduce="option => option.id"
-                    :options="allProjects"
-                    :multiple="false"
-                    rules="required"
-                    ref="projectSelectRef"
+            <div class="si-box">
+                <LongInput 
+                    name="specs"
+                    :place-holder="'スペックや特徴など、詳細を入力してください。'"
+                    v-model="specs"
                 />
-            </div> -->
+            </div>
             
             <div class="si-box">
                 <div class="flex gap-1 text-sm mb-3">
@@ -78,23 +66,24 @@
                         社外メンバー
                     </label>
                 </div>
+                <div v-if="isExternal" class="mb-3">                
+                    <ShortInput                         
+                        name="externalUser"
+                        :place-holder="'社外使用者名'"
+                        rules="required"
+                        v-model="externalUser"
+                        ref="externalUserNameRef"
+                    />
+                </div>
                 <MemberSelector 
-                    v-if="!isExternal"
-                    place-holder="使用者"
+                    :place-holder="isExternal ? '責任者' : '使用者'"
                     v-model="selectedUser"
                     :multiple="false"
                     :options="choosAbleMembers"
                     rules="required"
                     ref="memberSelectRef"
                 />
-                <ShortInput 
-                    v-else
-                    name="externalUser"
-                    :place-holder="'社外使用者名'"
-                    rules="required"
-                    v-model="externalUser"
-                    ref="externalUserNameRef"
-                />
+                
             </div>
             <!-- <div class="si-box">
                 <ShortInput 
@@ -110,13 +99,28 @@
                 </select>
             </div>
             <p class="mt-[10px] text-[12px] leading-normal text-[gray]">消耗品（取得価格が10万円未満の物品）<br>資産(取得価格が10万円以上の物品)<br>重要資産(カード類、鍵)</p> -->
+            
+            <div class="si-box">
+                <ItemSelector
+                    place-holder="使用場所"
+                    v-model="officeId"
+                    :clearable="true"
+                    label="name"
+                    :closeOnSelect="true"
+                    :reduce="option => option.id"
+                    :options="offices"
+                    :multiple="false"
+                    rules="required"
+                    ref="officeSelectRef"
+                />
+            </div>
             <div class="si-box">
                 <p class="mb-[10px]">ステータス</p>
-                <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="status">
+                <select class="dropDownSelector taskDateTimePicker !w-fit" style="max-width: 100%;" v-model="status">
                     <option v-for="(status, index) in AssetStatus" :value="status.value">{{ status.label }}</option>
                 </select>
             </div>
-            <div class="si-box" v-if="auth.activeUser.id === 610 || auth.activeUser.id === 608">
+            <div class="si-box" v-if="auth.isAdmin">
                 <LoaderButton content="作成する" :loading="loading" @triggered="createAsset"/>
             </div>
             <div class="si-box" v-else>
@@ -130,7 +134,7 @@ import MemberSelector from '@/components/Form/MemberSelector.vue';
 import ShortInput from '@/components/Form/ShortInput.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import Modal from '@/components/Global/Modal.vue';
-import { User } from '@/interface/globalInterface';
+import { Office, User } from '@/interface/globalInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { ref, useTemplateRef, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
@@ -139,15 +143,18 @@ import LongInput from '../Form/LongInput.vue';
 import AssetTypePicker from './AssetTypePicker.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import { Asset } from '@/interface/assetInterface';
+import ItemSelector from '../Form/ItemSelector.vue';
+import { useAsset } from '@/composables/asset';
 const emit = defineEmits<{
     close:[flag: boolean]
 }>()
-const props = defineProps([
-    'editData',
-    'allMembers',
-    'allProjects',
-    'mode'
-])
+
+const props = defineProps<{
+    editData: Asset | null,
+    tagOptions: {title: string, requiredData: string}[]
+    offices: Office[]
+}>()
 const route = useRoute()
 const auth = useAuthUserStore()
 const gl_exists = ref(0)
@@ -159,22 +166,10 @@ const numberRequiredNames = [
     'レンタカーカード',
     'セキュリティカード',
 ]
-const tagOptions = ref<{title: string, requiredData: string}[]>([
-    {title: "ノートPC", requiredData: "メーカー・OS・バージョン"},
-    {title: "デスクトップ", requiredData: "メーカー・OS・バージョン"},
-    {title: "業務端末（本体）", requiredData: "メーカー"},
-    {title: "SIM", requiredData: "電話番号"},
-    {title: "事務所キー", requiredData: "キー番号"},
-    {title: "ロッカーキー", requiredData: "キー番号"},
-    {title: "ETCカード", requiredData: "カード番号"},
-    {title: "ガソリンカード", requiredData: "カード番号・TFC番号"},
-    {title: "レンタカーカード", requiredData: "カード番号"},
-    {title: "ICカード", requiredData: "カード番号"},
-    {title: "Times Business Card", requiredData: "カード番号"}
-])
+
 
 const detailPlaceHolder = computed(() => {
-    const foundTag = tagOptions.value.find(tag => tag.title === item_name.value)
+    const foundTag = props.tagOptions.find(tag => tag.title === item_name.value)
     return foundTag ? foundTag.requiredData : '詳細（スペックなど）'
 })
 const gl_number = ref('')
@@ -193,9 +188,10 @@ const selectedUser = ref<User | null>(props.editData?.current_user ? props.editD
 const modelNumberRef = useTemplateRef('modelNumberRef')
 const itemNameRef = useTemplateRef('itemNameRef')
 const externalUserNameRef = useTemplateRef('externalUserNameRef')
-
+const officeId = ref(props.editData?.office_id ?? null)
 const api = useApi()
-const { ping } = useDialog()
+const { ping, ask } = useDialog()
+const { userList } = useAsset()
 onMounted(() => {
     // if (!props.editData) {
     //     projects.value = route.params.projectId ? Number(route.params.projectId) : null
@@ -203,7 +199,9 @@ onMounted(() => {
     if(props.editData) {
         gl_number.value = padNumber(props.editData?.id)?.toString() ?? ''
     }
+
 })
+ 
 const padNumber = (num: number | null) => {
     return num?.toString().padStart(5, "0")
 }
@@ -227,6 +225,11 @@ const createAsset = async() => {
         ping('必須項目を入力してください。')
         return
     }
+    if(!auth.isAdmin){
+        const confirmed = await ask('物品の作成を申請しますか？申請後は編集できません。')
+        if(!confirmed.value) return
+    }
+    
     const params = {
         id: convertToHalfWidth(gl_number.value),
         params : {
@@ -235,10 +238,10 @@ const createAsset = async() => {
             classification: classification.value,
             value: value.value,
             status: status.value,
-            // project_id: projects.value ?? null,
-            user_id: isExternal.value ? null : selectedUser.value?.id ?? null,
+            user_id: selectedUser.value?.id,
             specs: specs.value,
             external_user: isExternal.value ? externalUser.value : null,
+            office_id: officeId.value ?? null,
 
         }
     }
@@ -248,7 +251,7 @@ const createAsset = async() => {
 }
 
 const choosAbleMembers = computed(() => {
-    return props.allMembers
+    return userList.value
 });
 
 const convertToHalfWidth = (num: string) => {

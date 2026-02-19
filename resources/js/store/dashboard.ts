@@ -14,7 +14,10 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
     const collection = ref({
         pendingEvaluations: [] as Evaluation[],
         overdueGraveCount: 0,
-        assets: [] as Asset[],
+        assets: {
+            in_use: [] as Asset[],
+            waiting_approval: [] as Asset[],
+        },
         challenges: [] as Post[],
         departuresReportUsers: [] as User[],
         forms: [] as CustomForm[],

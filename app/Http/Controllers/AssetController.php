@@ -68,10 +68,35 @@ class AssetController extends Controller
         if($id == null){
             $params['created_by'] = $this->active_user()->id;
         }
-        $asset = AssetRecord::updateOrCreate(["id" => $id], $params);
-        // AssetType::firstOrCreate(['value' => $params['item_name']])->increment('used_count');
+        $asset = AssetRecord::findOrNew($id);
 
-        return response()->json($asset);
+        $owner_changed = ($asset->user_id ?? null) !== ($params['user_id'] ?? null)
+              || ($asset->external_user ?? null) !== ($params['external_user'] ?? null);
+
+        if($owner_changed){
+            $moveRequest = $asset->requests()->create([
+                'from_user' => $asset->user_id ?? null,
+                'to_user' => $params['user_id'] ?? null,
+                'from_external_user' => $asset->external_user ?? null,
+                'to_external_user' => $params['external_user'] ?? null,
+                'status' => 2,
+            ]);
+            $moveRequest->steps()->create([
+                'created_by' => Auth::id(),
+                'value' => 4,
+                'approved_by' => Auth::id(),
+                'approved_at' => now()
+            ]);
+        }
+        
+        $update = $asset->fill($params)->save();
+
+        // $asset = AssetRecord::firstOr
+        // $asset = AssetRecord::updateOrCreate(["id" => $id], $params);
+        // AssetType::firstOrCreate(['value' => $params['item_name']])->increment('used_count');
+        
+
+        return response()->json($update);
     }
     public function admin_asset_list(Request $request) 
     {
@@ -100,6 +125,7 @@ class AssetController extends Controller
     public function get_assets(Request $request) 
     {
 
+        $user = $this->active_user();
         $mode = $request->mode ?? 'normal';
         $projectId = $request->project_id ? [$request->project_id] : [];
         $memberId = $request->user_id ? $request->user_id : [];
@@ -144,6 +170,19 @@ class AssetController extends Controller
         if (!empty($status)) {
             $assets->whereIn('status', $status);
         }
+        if (!empty($request->confirm_status)) {
+            if (in_array('confirmed', $request->confirm_status) && !in_array('unconfirmed', $request->confirm_status)) {
+                $assets->whereHas('confirm_logs', fn($q) => $q->whereYear('created_at', now()->year));
+            } elseif (!in_array('confirmed', $request->confirm_status) && in_array('unconfirmed', $request->confirm_status)) {
+                $assets->whereDoesntHave('confirm_logs', fn($q) => $q->whereYear('created_at', now()->year));
+            }
+        }
+
+        $prioritizeRequests = ($user->id == 610 || $user->id == 608);
+        if ($prioritizeRequests) {
+            // Put assets that have related requests on top.
+            $assets->withCount('requests');
+        }
         
         $assets->with([
             'current_user',
@@ -153,16 +192,26 @@ class AssetController extends Controller
             'requests' => function ($query) {
                 $query->with(['recieve_user', 'send_user', 'files', 'steps' => function ($query) {
                     $query->with(['approver', 'creator'])->orderBy('value', 'desc');
-                }]);
+                }])->orderBy('created_at', 'desc');
             },
             'request_logs' => function ($query) {
                 $query->with(['recieve_user', 'send_user', 'files', 'steps' => function ($query) {
                     $query->with(['approver', 'creator']);
-                }]);
+                }])->orderBy('created_at', 'desc');
             },
-            'current_office'
+            'current_office',
+            'confirm_logs' => function ($query) {
+                $query->with(['user', 'files'])->orderBy('created_at', 'desc');
+            }
         ]);
-        $data = $assets->orderBy('created_at', 'desc');
+
+        if ($prioritizeRequests) {
+            $data = $assets
+                ->orderByRaw('CASE WHEN requests_count > 0 THEN 1 ELSE 0 END DESC')
+                ->orderBy('created_at', 'desc');
+        } else {
+            $data = $assets->orderBy('created_at', 'desc');
+        }
 
         if($mode == 'export'){
             $data = $data->get();
@@ -345,8 +394,21 @@ class AssetController extends Controller
                 'user_id' => $asset_request->to_user ?? null,
                 'external_user' => $asset_request->to_external_user ?? null,
             ]);
+            $current_memo = $asset_request->memo ?? '';
+            if($request->memo){
+                $username = Auth::user()->name;
+                $new_memo = $current_memo ? $current_memo . "\n" : "";
+                $new_memo .= "【" . now()->format('Y-m-d H:i') . "】" . $username . ": " . $request->memo;
+                $asset_request->update([
+                    'memo' => $new_memo
+                ]);
+            }
             $asset_request->update([
                 'status' => 2
+            ]);
+            $asset_step->update([
+                'approved_by' => Auth::id(),
+                'approved_at' => now()
             ]);
             return response()->json($asset_step);
         }
@@ -410,19 +472,24 @@ class AssetController extends Controller
             5 => "移動" ,
             6 => "故障" 
         ];
-        $rawData = collect($assets)->map(function ($asset) use ($classification, $statuses) {
+        $currentYear = now()->year;
+        $rawData = collect($assets)->map(function ($asset) use ($classification, $statuses, $currentYear) {
             
             $gl_number = 'GL' . str_pad($asset->id, 5, '0', STR_PAD_LEFT);
+            
+            // Filter confirm_logs for current year from already loaded relationship
+            $confirmedThisYear = collect($asset->confirm_logs ?? [])->filter(function ($log) use ($currentYear) {
+                return date('Y', strtotime($log->created_at)) == $currentYear;
+            })->count() > 0;
+            
             return [
                 "GL番号" => $gl_number,
                 "品名" => $asset->item_name,
-                "型番" => $asset->model_number,
-                "使用プロジェクト" => $asset->current_project?->name,
+                "詳細" => $asset->model_number,
                 "使用者" => $asset->current_user?->name,
-                "分類" => $classification[$asset->classification] ?? null,
-                "価値" => $asset->value,
                 "ステータス" => $statuses[$asset->status] ?? null,
-                "保管場所" => $asset->current_office?->name,
+                "使用場所" => $asset->current_office?->name,
+                "確認状況" => $confirmedThisYear ? '確認済み' : '未確認',
             ];
         })->toArray();
         return Excel::download(new AssetData($rawData), 'user_data.xlsx');
@@ -433,13 +500,16 @@ class AssetController extends Controller
         
         $user = $this->active_user();
         $mode = $request->mode ?? 'normal';
-
+        $exclude = $request->exclude ?? [];
 
         if($mode == 'partner'){
             return response()->json([Auth::user()->only('id', 'name', 'icon_path', 'icon_bg')]);
         }
         
         $users = User::where('deleted_flag', 0)
+            ->when(!empty($exclude), function ($query) use ($exclude) {
+                $query->whereNotIn('id', $exclude);
+            })
             ->where('id', '>', 105)
             ->where('retire', 0)
             ->select('id', 'name', 'icon_path', 'icon_bg')
@@ -447,11 +517,86 @@ class AssetController extends Controller
 
         // add active user to the top of the list
         $active_user_data = $user->only('id', 'name', 'icon_path', 'icon_bg');
-        $users = $users->filter(function($u) use ($user){
-            return $u->id != $user->id;
-        });
-        $users->prepend($active_user_data);
+        if(!in_array($user->id, $exclude)){
+            $users = $users->filter(function($u) use ($user){
+                return $u->id != $user->id;
+            });
+            $users->prepend($active_user_data);
+        }
+
         return response()->json($users);
+    }
+    public function asset_decision(Request $request){
+        $request->validate([
+            'asset_request_id' => 'required|integer',
+            'status' => 'required|integer'
+        ]);
+        $asset_request = AssetRequest::findOrFail($request->asset_request_id);
+        $returnStep = $asset_request->steps()->where('value', 7)->first();
+        $asset_request->update([
+            'status' => $request->status,
+            'memo' => $request->memo ?? null
+        ]);
+        if($returnStep){
+            if($request->status == 2){
+                $asset_request->asset->update([
+                    'user_id' => null,
+                    'project_id' => null,
+                    'external_user' => null,
+                    'status' => 2,
+                    'office_id' => $request->office_id ?? null
+                ]);
+            }
+            $returnStep->update([
+                'approved_by' => Auth::id(),
+                'approved_at' => now()
+            ]);
+            return response()->json($asset_request);
+        }
+        $moveRequest = $asset_request->steps()->where('value', 4)->first();
+        if($moveRequest){
+            if($request->status ==2){
+                $asset_request->asset->update([
+                    'user_id' => $asset_request->to_user ?? null,
+                    'external_user' => $asset_request->to_external_user ?? null,
+                ]);
+                if($request->to_user){
+                    $asset_request->update([
+                        'to_user' => $request->to_user
+                    ]);
+                }
+                
+            }
+            
+            $moveRequest->update([
+                'approved_by' => Auth::id(),
+                'approved_at' => now()
+            ]);
+            return response()->json($asset_request);
+        }
+
+
+    }
+    public function confirm_asset(Request $request) 
+    {
+        $user = $this->active_user();
+        $request->validate([
+            'asset_id' => 'required',
+        ]);
+        $asset = AssetRecord::findOrFail($request->asset_id);
+
+        $log = $asset->confirm_logs()->create([
+            'user_id' => $user->id,
+            'memo' => $request->content ?? null
+        ]);
+        $files = $request->file_list ?? [];
+        $file_ids = collect($files)->pluck('id')->toArray();
+        // dd($file_ids);
+        $log->files()->sync($file_ids);
+
+
+
+        return response()->json(['message' => 'Successfully confirmed']);
     }
 
 }

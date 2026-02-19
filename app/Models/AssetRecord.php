@@ -26,12 +26,7 @@ class AssetRecord extends Model
     public function requests()
     {
         return $this->hasMany(AssetRequest::class)->where(function($q){
-            $q->where('status', 1)
-              ->orWhere(function($q){
-                    $q->whereHas('steps', function($q){
-                        $q->whereNull('approved_by');
-                    });
-              });
+            $q->where('status', 1);
         });
     }
     public function all_requests()
@@ -45,6 +40,6 @@ class AssetRecord extends Model
 
     public function confirm_logs()
     {
-        return $this->hasMany(AssetConfirmLog::class, 'asset_record_id');
+        return $this->hasMany(AssetConfirmLog::class, 'asset_record_id')->with(['files', 'user']);
     }
 }

@@ -2,7 +2,7 @@
     <div>
         <div ref="parent" class="panel" :class="{ fullscreen }">
             <div class="flex items-center justify-between px-3 panel-header">
-                <div class="flex items-center overflow-x-hidden min-w-0">
+                <div class="flex items-center overflow-x-hidden min-w-0 h-full">
                     <slot name="icon"></slot>
                     <p class="text-[14px] overflow-hidden whitespace-nowrap text-ellipsis">
                         {{ `${title} `}}

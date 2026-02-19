@@ -12,7 +12,6 @@
                     <div class="admin-tab-item" @click="router.push({name: 'learningcontrol'})" :class="{'selected-tab' : route.path.includes('learningcontrol')}">研修</div>
                     <div class="admin-tab-item" @click="router.push({name: 'projectlist'})" :class="{'selected-tab' : route.path.includes('projectcontrol')}">プロジェクト</div>
                     <div class="admin-tab-item" @click="router.push({name: 'glowdnine'})" :class="{'selected-tab' : route.name == 'glowdnine'}">グラウドナイン</div>
-                    <div class="admin-tab-item" @click="router.push({name: 'asset-control'})" :class="{'selected-tab' : route.name == 'asset-control'}">物品</div>
                     <div class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
                     <div class="admin-tab-item" @click="router.push({name: 'refresh-control'})" :class="{'selected-tab' : route.name == 'refresh-control'}">リフレッシュ</div>
                     <div class="admin-tab-item" @click="router.push({name: 'admin-offices'})" :class="{'selected-tab' : route.name == 'admin-offices'}">営業所</div>

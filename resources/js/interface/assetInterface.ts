@@ -1,4 +1,4 @@
-import { CommonFile, User } from "./globalInterface"
+import { CommonFile, Office, User } from "./globalInterface"
 import { Project } from "./projectInterface"
 
 export interface Asset {
@@ -18,6 +18,9 @@ export interface Asset {
     external_user: string | null
     created_at: string
     updated_at: string
+    confirm_logs: AssetConfirmLog[]
+    office_id: number | null
+    office: Office | null
 }
 
 export interface AssetUser {
@@ -46,6 +49,7 @@ export interface AssetRequest {
     to_project: number | null
     from_external_user: string | null
     to_external_user: string | null
+    memo: string | null
 }
 
 export interface AssetRequestStep {
@@ -61,4 +65,14 @@ export interface AssetRequestStep {
 interface AssetOffice {
     id: number;
     name: string;
+}
+
+export interface AssetConfirmLog {
+    id: number;
+    asset_record_id: number;
+    user: User | null;
+    memo: string | null;
+    files: CommonFile[];
+    created_at: string;
+    updated_at: string;
 }

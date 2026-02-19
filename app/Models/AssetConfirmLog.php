@@ -18,7 +18,7 @@ class AssetConfirmLog extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'user_id')->select('id', 'name', 'icon_path', 'icon_bg');
     }
 
     public function files()

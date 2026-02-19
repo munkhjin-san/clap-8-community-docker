@@ -670,6 +670,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/asset_move_request', [AssetController::class, 'asset_move_request']);
         Route::post('/asset_approve', [AssetController::class, 'asset_approve']);
         Route::get('/export_asset_csv', [AssetController::class, 'export_asset_csv']);
+        Route::post('/confirm_asset', [AssetController::class, 'confirm_asset']);
+        Route::post('/asset_decision', [AssetController::class, 'asset_decision']);
 
         Route::post('/get_asset_types', [AssetController::class, 'get_asset_types']);
         Route::get('/get_asset_badge', [ProjectController::class, 'get_asset_badge']);

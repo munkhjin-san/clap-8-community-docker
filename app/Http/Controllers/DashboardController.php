@@ -440,8 +440,25 @@ class DashboardController extends Controller
     public function assets(){
         $active_user = $this->active_user();
         $target_assets = AssetRecord::where('user_id', $active_user->id)
+        ->with(['confirm_logs' => fn($q) => $q->whereYear('created_at', now()->year) ])
+        ->orderBy('created_at', 'desc')
         ->get();
-        return $target_assets;
+        $waiting_approval = [];
+        if($active_user->id === 610 || $active_user->id === 608){
+            $waiting_approval = AssetRecord::whereHas('requests')->with(
+                [
+                    'requests' => function ($query) {
+                        $query->with(['recieve_user', 'send_user', 'files', 'steps' => function ($query) {
+                            $query->with(['approver', 'creator'])->orderBy('value', 'desc');
+                        }])->orderBy('created_at', 'desc');
+                    }
+                ]
+            )->get();
+        }
+        return [
+            "in_use" => $target_assets,
+            "waiting_approval" => $waiting_approval
+        ];
     }
     public function pendingPlannedLeaves(){
         $notificationUser = User::select('name', 'id', 'icon_path', 'icon_bg')->findOrFail(610);

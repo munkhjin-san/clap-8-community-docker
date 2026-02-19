@@ -1,7 +1,7 @@
 <template>
 <thead ref="assetHeader">
     <tr>
-        <td v-if="columns.includes('GL番号')" class="relative">
+        <td class="relative">
             <div class="relative">
                 <div class="cursor-pointer flex items-center gap-[5px] h-p" @click.stop="menu.setMenu({parent: 'idPick'})">                                        
                     GL番号
@@ -16,7 +16,7 @@
                 </div>
             </Transition>
         </td>
-        <td v-if="columns.includes('品名')" class="relative">
+        <td class="relative">
             <div class="relative">
                 <div class="cursor-pointer flex items-center gap-[5px] h-p" @click.stop="menu.setMenu({parent: 'namePick'})">                                        
                     物品名
@@ -30,7 +30,7 @@
                 </div>
             </Transition>
         </td>
-        <td v-if="columns.includes('型番')" class="relative">
+        <td class="relative">
             <div class="relative">
                 <div class="cursor-pointer flex items-center gap-[5px] h-p" @click.stop="menu.setMenu({parent: 'modelPick'})">                                        
                     型番
@@ -44,12 +44,12 @@
                 </div>
             </Transition>
         </td>
-        <td v-if="columns.includes('使用者')" class="relative">
+        <td class="relative">
             <div class="relative">
                 <div class="cursor-pointer flex items-center gap-[5px] h-p" @click.stop="menu.setMenu({parent: 'assetUsersPick'})">                                        
                     使用者
                     <Filter class="filter-icon" size="12"/>
-                </div>                
+                </div>           
                 <div v-if="userQuery.length">
                     <div class="flex mt-2 items-center flex-wrap">
                         <UserPanel :user="user" disable-instant size="15" v-for="user in selectedUsers.slice(0, 5)"/>
@@ -62,38 +62,24 @@
                     v-if="menu.parent == 'assetUsersPick'" 
                     id="assetUsersPick" 
                     :style="{'top': `${(assetHeader?.clientHeight ?? 30) - 4}px`}"
-                    :members="users" 
+                    :members="userList" 
                     v-model:selected-users="userQuery"
                     custom-place-holder="使用者検索"
                 />
             </Transition>
         </td>
-        <td v-if="columns.includes('分類')" class="relative">
-            <div class="relative">
-                <div class="cursor-pointer flex items-center gap-[5px] h-p" @click.stop="menu.setMenu({parent: 'classPick'})">                                        
-                    分類
-                    <Filter class="filter-icon" size="12"/>
-                </div>                
-            </div>
-            <Transition name="slidePop">
-                <div v-if="menu.parent == 'classPick'" id="classPick" class="shadow-me absolute left-0 bg-[var(--bg3)] text-[var(--primary-color)] flex flex-col gap-[10px] text-[12px] p-[10px]" :style="{'top': `${(assetHeader?.clientHeight ?? 30) - 4}px`}">
-                    <button class="text-[11px] min-w-[50px] bg-[var(--primary-color)] text-[var(--background-color)] h-[26px] px-[3px]" @click.stop="classQuery = [], menu.close()">リセット</button>
-                    <div v-for="classification in AssetClass">
-                        <label class="cursor-pointer select-none whitespace-nowrap flex items-center gap-[5px]">
-                            <input type="checkbox" class="custom-f-checkbox" name="class-selector"  v-model="classQuery" :value="classification.value"/>
-                            {{ classification.label }}
-                        </label>
-                    </div>
-                </div>
-            </Transition>
-        </td>
-        <td v-if="columns.includes('価値')" class="relative">価値</td>
-        <td v-if="columns.includes('ステータス')" class="relative">
+        <td class="relative">
             <div class="relative">
                 <div class="cursor-pointer flex items-center gap-[5px] h-p" @click.stop="menu.setMenu({parent: 'statusPick'})">                                        
                     ステータス
-                    <Filter class="filter-icon" size="12"/>
-                </div>                
+                    <Filter class="filter-icon" size="12"/>                    
+                </div>    
+                <div v-if="statusQuery.length">
+                    <div class="mt-2 text-[12px] text-[gray] italic">
+                        {{ statusQuery.map(status => AssetStatus.find(s => s.value == status)?.label).join('、') }}
+                    </div>
+                </div> 
+                           
             </div>
             <Transition name="slidePop">
                 <div v-if="menu.parent == 'statusPick'" id="statusPick" class="shadow-me absolute left-0 bg-[var(--bg3)] text-[var(--primary-color)] flex flex-col gap-[10px] text-[11px] p-[10px]" :style="{'top': `${(assetHeader?.clientHeight ?? 30) - 4}px`}">
@@ -107,24 +93,53 @@
                 </div>
             </Transition>
         </td>
-        <td v-if="columns.includes('保管場所')" class="relative">
+        <td class="relative">
             <div class="relative">
                 <div class="cursor-pointer flex items-center gap-[5px] h-p" @click.stop="menu.setMenu({parent: 'officePick'})">                                        
-                    保管場所
+                    使用場所
                     <Filter class="filter-icon" size="12"/>
                 </div>
-                <Transition name="slidePop">
-                    <div v-if="menu.parent == 'officePick'" id="officePick" class="shadow-me absolute left-0 bg-[var(--bg3)] text-[var(--primary-color)] flex flex-col gap-[10px] text-[11px] p-[10px]" :style="{'top': `${(assetHeader?.clientHeight ?? 30) - 4}px`}">
-                        <button class="text-[11px] min-w-[50px] bg-[var(--primary-color)] text-[var(--background-color)] h-[26px] px-[3px]" @click.stop="officeQuery = [], menu.close()">リセット</button>
-                        <div v-for="officeData in offices">
-                            <label class="cursor-pointer select-none whitespace-nowrap flex items-center gap-[5px]">
-                                <input type="checkbox" class="custom-f-checkbox" name="office-selector" v-model="officeQuery" :value="officeData.id"/>
-                                {{ officeData.name }}
-                            </label>
-                        </div>
+                <div v-if="officeQuery.length">
+                    <div class="mt-2 text-[12px] text-[gray] italic">
+                        {{ officeQuery.map(officeId => offices.find(o => o.id === officeId)?.name).join('、') }}
                     </div>
-                </Transition>
+                </div>                
             </div>
+            <Transition name="slidePop">
+                <div v-if="menu.parent == 'officePick'" id="officePick" class="shadow-me absolute left-0 bg-[var(--bg3)] text-[var(--primary-color)] flex flex-col gap-[10px] text-[11px] p-[10px]" :style="{'top': `${(assetHeader?.clientHeight ?? 30) - 4}px`}">
+                    <button class="text-[11px] min-w-[50px] bg-[var(--primary-color)] text-[var(--background-color)] h-[26px] px-[3px]" @click.stop="officeQuery = [], menu.close()">リセット</button>
+                    <div v-for="officeData in offices">
+                        <label class="cursor-pointer select-none whitespace-nowrap flex items-center gap-[5px]">
+                            <input type="checkbox" class="custom-f-checkbox" name="office-selector" v-model="officeQuery" :value="officeData.id"/>
+                            {{ officeData.name }}
+                        </label>
+                    </div>
+                </div>
+            </Transition>
+        </td>
+        <td class="relative">
+            <div class="relative">
+                <div class="cursor-pointer flex items-center gap-[5px] h-p" @click.stop="menu.setMenu({parent: 'confirmPick'})">                                        
+                    確認状況
+                    <Filter class="filter-icon" size="12"/>
+                </div>   
+                <div v-if="confirmQuery.length">
+                    <div class="mt-2 text-[12px] text-[gray] italic">
+                        {{ confirmQuery.map(status => status === 'confirmed' ? '確認済み' : '未確認').join('、') }}
+                    </div>
+                </div>             
+            </div>
+            <Transition name="slidePop">
+                <div v-if="menu.parent == 'confirmPick'" id="confirmPick" class="shadow-me absolute left-0 bg-[var(--bg3)] text-[var(--primary-color)] flex flex-col gap-[10px] text-[11px] p-[10px]" :style="{'top': `${(assetHeader?.clientHeight ?? 30) - 4}px`}">
+                    <button class="text-[11px] min-w-[50px] bg-[var(--primary-color)] text-[var(--background-color)] h-[26px] px-[3px]" @click.stop="confirmQuery = [], menu.close()">リセット</button>
+                    <div v-for="statusData in [{ id: 'confirmed', name: '確認済み' }, { id: 'unconfirmed', name: '未確認' }]">
+                        <label class="cursor-pointer select-none whitespace-nowrap flex items-center gap-[5px]">
+                            <input type="checkbox" class="custom-f-checkbox" name="confirm-selector" v-model="confirmQuery" :value="statusData.id"/>
+                            {{ statusData.name }}
+                        </label>
+                    </div>
+                </div>
+            </Transition>
         </td>
         <td class="relative">詳細</td>
     </tr>
@@ -141,12 +156,9 @@ import AssetStatus from 'assets/AssetStatus.json'
 import Filter from '@/components/Icons/Filter.vue';
 import 'styles/customForm.css'
 import UserPanel from '@/components/Global/UserPanel.vue';
-import CommandButton from '@/components/Global/CommandButton.vue';
+import { useAsset } from '@/composables/asset';
 const props = defineProps<{
-    projects: Project[]
-    users: User[]
     offices: Office[]
-    columns: string[]
 }>()
 
 const menu = useMenuStore()
@@ -159,10 +171,12 @@ const officeQuery = defineModel<number[]>('office_id', {required: true})
 const modelQuery = defineModel<string>('model_number', {required: true})
 const nameQuery = defineModel<string>('item_name', {required: true})
 const idQuery = defineModel<string>('gl_number', {required: true})
+const confirmQuery = defineModel<string[]>('confirm_status', {required: true})
 const projectNameSearch = ref('')
+const { userList } = useAsset()
 
 const selectedUsers = computed(() => {
-    return props.users.filter(user =>  userQuery.value.includes(user.id))
+    return userList.value.filter(user =>  userQuery.value.includes(user.id))
 })
 </script>
 <style scoped>
@@ -170,7 +184,7 @@ const selectedUsers = computed(() => {
         background: var(--bg3);
         color: var(--primary-color);
         position: sticky;
-        top: 0px;
+        top: 40px;
         z-index: 1;
     }
     td {

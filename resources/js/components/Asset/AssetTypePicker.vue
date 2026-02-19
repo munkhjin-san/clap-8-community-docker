@@ -50,14 +50,14 @@ import { validator } from '@/validation/validator';
 import { useApi } from '@/composables/api';
     const props = defineProps<{
         placeHolder?: string
-        modelValue: string[]
+        modelValue: string
         rules?: string
         options: string[]
     }>()
 
     const error = ref('')
     const trigger = ref(false)
-    const selectedTag = defineModel<string[]>()
+    const selectedTag = defineModel<string>()
     const tagSelectorRef = ref<HTMLElement | null>(null)
     const searching = ref(false)
     // onMounted(() => {

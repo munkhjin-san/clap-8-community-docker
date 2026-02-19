@@ -464,13 +464,13 @@ const routes = [
                     }
                 ]
             },
-            {
-                path: 'asset-control',
-                name: 'asset-control',
-                meta: { head: '物品' },
+            // {
+            //     path: 'asset-control',
+            //     name: 'asset-control',
+            //     meta: { head: '物品' },
                 
-                component: () => import('@/components/AccountControl/AssetControl/AssetControl.vue'),
-            },
+            //     component: () => import('@/components/AccountControl/AssetControl/AssetControl.vue'),
+            // },
             {
                 path: 'refresh-control',
                 name: 'refresh-control',

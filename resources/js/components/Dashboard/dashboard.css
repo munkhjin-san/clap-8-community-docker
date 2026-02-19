@@ -37,7 +37,6 @@
     border-radius: 8px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
     box-shadow: rgba(0, 0, 0, 0.04) 0px 3px 5px;
     background: var(--background-color);
     color: var(--primary-color);

@@ -87,6 +87,7 @@
                 :data="card"
                 ref="cardLayouts"
                 @resize="(type) => resize(type)"
+                @refreshData="refreshData"
             />
         </template>
 
@@ -122,6 +123,7 @@ import { Post } from '@/interface/postInterface';
 import DashboardChallenge from './Layout/DashboardChallenge.vue';
 import FloatButton from '../Global/FloatButton.vue';
 import DashboardAsset from './Layout/DashboardAsset.vue';
+import { Asset } from '@/interface/assetInterface';
 
 const auth = useAuthUserStore()
 const initialLoader = ref(true)
@@ -177,7 +179,10 @@ type DashboardChallengeCard = CardBase & {
 
 type DashboardAssetCard = CardBase & {
     layout: 'assets'
-    data: any[]
+    data: {
+        in_use: Asset[]
+        waiting_approval?: Asset[]
+    }
 }
 
 type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard | DashboardAssetCard
@@ -281,7 +286,9 @@ const defaultDashboardCards: DashboardCard[] = [
         layout: 'assets',
         col: 'col-span-1',
         order: undefined,
-        data: [] as any[],
+        data: {
+            in_use: [] as Asset[]
+        },
         canFullscreen: true,
         canResize: true,
     }
@@ -338,7 +345,7 @@ const syncDashboardCardsFromStore = () => {
         const dataKey = CARD_DATA_KEY_BY_TYPE[card.type]
         if (!dataKey) continue
         const payload = (collection as any)[dataKey]
-        card.data = (Array.isArray(payload) ? payload : []) as any
+        card.data = payload as any
     }
 }
 
