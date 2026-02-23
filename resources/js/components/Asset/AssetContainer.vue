@@ -1,7 +1,7 @@
 <template>
     <div class="bg-[var(--background-color)] relative">
         <div class="">
-            <div class="flex justify-end my-[20px] mr-[20px]">
+            <div v-if="auth.isAdmin" class="flex justify-end my-[20px] mr-[20px]">
                 <LoaderButton content="CSV出力" style="margin: 0" :loading="exporting" @triggered="exportCSV"/>
             </div>
             <div class="min-h-[calc(100%-50px)]">
@@ -47,7 +47,7 @@
                                     <td>
                                         {{ asset.confirm_logs.find(log => new Date(log.created_at).getFullYear() === new Date().getFullYear()) ? '確認済み' : '未確認' }}
                                     </td>
-                                    <td class="">
+                                    <td class="text-center">
                                         <button
                                             type="button"
                                             class="row-toggle"

@@ -60,6 +60,10 @@ export const useAuthUserStore = defineStore('authUser', () => {
 
     const isBoss = computed(() => activeUser.value && activeUser.value.position_id && activeUser.value.position_id < 6)
 
+    const isPM = computed(() => activeUser.value && activeUser.value.position_id == 6)
+
+    const isMentor = computed(() => activeUser.value && (activeUser.value.general_position && activeUser.value.general_position !== '一般社員') || isBoss.value)
+
     return {
         name,
         id,
@@ -74,6 +78,8 @@ export const useAuthUserStore = defineStore('authUser', () => {
         activeUser,
         hasPrivilage,
         isAdmin,
-        isBoss
+        isBoss,
+        isPM,
+        isMentor
     }
 })

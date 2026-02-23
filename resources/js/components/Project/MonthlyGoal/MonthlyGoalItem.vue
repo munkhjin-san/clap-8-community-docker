@@ -97,7 +97,7 @@
             </div>    
             <div class="ml-auto">
                 <router-link v-if="route.path.startsWith('/project')" :to="{name: 'goal-span', params: { goalId: item?.id, projectId: item.project_id, memberId: item.user_id, span: `${item.year}-${item.which_half}`}}">詳細</router-link>
-                <router-link v-if="route.path.startsWith('/dashboard')" :to="{name: 'dashboard', params: { type: 'remind_overdue', itemId: item?.id }}">詳細</router-link>
+                <router-link v-if="route.path.startsWith('/dashboard')" :to="{name: 'dashboard', params: { type: 'overdueGoals', itemId: item?.id }}">詳細</router-link>
                 
             </div>
                                 

@@ -207,55 +207,13 @@ class DashboardController extends Controller
         ];
     }
 
-    public function requiredGoalData()
-    {
-        $active_user = $this->active_user();
-        $userId = $active_user->id;
-        $now = Carbon::now();
 
-        // Fiscal year starts April 1
-        $fiscalYear = $now->month >= 4 ? $now->year : $now->year - 1;
-
-        $firstStart = Carbon::create($fiscalYear, 4, 1)->startOfDay();
-        $firstEnd   = Carbon::create($fiscalYear, 9, 30)->endOfDay();
-        $secondEnd  = Carbon::create($fiscalYear + 1, 3, 31)->endOfDay();
-
-        $isFirstHalf  = $now->between($firstStart, $firstEnd);
-        $current_half = $isFirstHalf ? 'first' : 'second';
-        $halfEnd      = $isFirstHalf ? $firstEnd : $secondEnd;
-
-        // months left in this half, inclusive (Feb..Mar = 2)
-        $monthsRemaining = $now->copy()->startOfMonth()
-            ->diffInMonths($halfEnd->copy()->startOfMonth()) + 1;
-
-        $evaluation = EvaluationRecord::where('user_id', $userId)
-            ->where('year', $fiscalYear)
-            ->where('which_half', $current_half)
-            ->first();
-
-        // total slots required for the half
-        $monthsTotal = (int) ($evaluation?->monthly_goal_slot ?? 0);
-
-        if ($monthsTotal <= 0) {
-            return response()->json([]);
-        }
-
-        // how many goals should exist by now
-        $should_have = max(0, $monthsTotal - $monthsRemaining);
-
-        $goals = ProjectGoal::where('user_id', $userId)
-            ->where('year', $fiscalYear)
-            ->where('which_half', $current_half)
-            ->count();
-
-        $needs = max(0, $should_have - $goals);
-
+    public function timesheet() {
+        $pendingTimesheets = $this->pendingDailyReports();
+        $departuresReportUsers = $this->departuresReportUsers();
         return [
-                'user' => $active_user,
-                'needs' => $needs,
-                'year' => $fiscalYear,
-                'half' => $current_half,
-            
+            "pendingTimesheets" => $pendingTimesheets,
+            "departuresReportUsers" => $departuresReportUsers
         ];
     }
     public function pendingDailyReports(){
@@ -333,38 +291,14 @@ class DashboardController extends Controller
                 $list[] = $d;
             }
         }
-        $data = [
-            "remind_timesheet" => $list
-        ];
-        return response()->json($data);
+        // $data = [
+        //     "remind_timesheet" => $list
+        // ];
+        // return response()->json($data);
+        return $list;
     }
-    public function remind_task_not_approved(){
-        $active_user = $this->active_user();
-        $tasks = taskRecord::where('comp_flag', 0)
-                            ->whereHas('supervisors', function ($q) use($active_user) {
-                                $q->where('users.id', $active_user->id)
-                                    ->where('supervisor', 1);
-                            })
-                            ->whereHas('executors', function ($q) {
-                                $q->where('status_flag', 1);
-                            })
-                            ->with([
-                                'executors' => function ($q) {
-                                    $q->where('status_flag', 1);
-                                },
-                                'supervisors' => function ($q) use($active_user) {
-                                    $q->where('users.id', $active_user->id)
-                                        ->where('supervisor', 1);
-                                },
-                                'files', 'board.board_to_users', 'project'
-                            ])
-                            ->get();
-        $data = [
-            "remind_task_not_approved" => $tasks
-        ];
-        return response()->json($data);
-    }
-    public function tempSchedules(){
+
+    public function schedules(){
         $active_user = $this->active_user();
         $userId = $active_user->id;
         $records = CalendarRecord::where('temp_flag', 1)->where('date_start', '>=', Carbon::today()->startOfMonth())
@@ -380,7 +314,9 @@ class DashboardController extends Controller
                 'calendar_view_users',
     
             ])->get();
-        return $records;       
+        return [
+            "temp_schedules" => $records
+        ];    
         
     }
     public function challenges()
@@ -519,12 +455,14 @@ class DashboardController extends Controller
         // return response()->json($data);
     }
 
-    private function pendingEvaluations(){
+    private function personnelEvaluation(){
         $evaluations = EvaluationRecord::where('status', 2)
             ->where('created_at', '>', Carbon::now()->subMonths(3))
             ->with('user.positions', 'checklist', 'candidate', 'mentor')
             ->get();
-        return $evaluations;
+        return [
+            'pendingEvaluations' => $evaluations
+        ];
     }
     private function getAdminMembers() {
         return User::whereHas('outcome_goals', function ($query) {

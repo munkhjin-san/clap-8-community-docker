@@ -12,7 +12,6 @@ interface State {
     }
     task: number[]
     notice: number
-    remind: any,
     members_goals: any[]
     managers_goals: any[]
     salary_issue: any[]
@@ -39,7 +38,6 @@ export const useBadgeStore = defineStore('badge', {
         },
         task: [],
         notice: 0,
-        remind: {},
         members_goals: [],
         managers_goals: [],
         salary_issue: [],
@@ -96,10 +94,10 @@ export const useBadgeStore = defineStore('badge', {
             const data = await axios.get('/task_badge').then(response => response.data)       
             this.task = data    
         },
-        async getRemindBadge() {
-            const data = await axios.get('/remind_badge').then(response => response.data)
-            this.remind = data
-        },
+        // async getRemindBadge() {
+        //     const data = await axios.get('/remind_badge').then(response => response.data)
+        //     this.remind = data
+        // },
         async getMembersGoalsBadge(){
             const data = await axios.get('/get_members_goals_badge').then(response => response.data)
             this.members_goals = data

@@ -141,7 +141,7 @@
                 </div>
             </Transition>
         </td>
-        <td class="relative">詳細</td>
+        <td class="relative text-center">詳細</td>
     </tr>
 </thead>
 </template>
@@ -184,7 +184,7 @@ const selectedUsers = computed(() => {
         background: var(--bg3);
         color: var(--primary-color);
         position: sticky;
-        top: 40px;
+        top: 50px;
         z-index: 1;
     }
     td {

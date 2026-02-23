@@ -215,6 +215,62 @@ class ProjectController extends Controller
         }
         return response()->json($projects);
     }
+    public function requiredGoalData()
+    {
+        $active_user = $this->active_user();
+        $userId = $active_user->id;
+        $now = Carbon::now();
+
+        // Fiscal year starts April 1
+        $fiscalYear = $now->month >= 4 ? $now->year : $now->year - 1;
+
+        $firstStart = Carbon::create($fiscalYear, 4, 1)->startOfDay();
+        $firstEnd   = Carbon::create($fiscalYear, 9, 30)->endOfDay();
+        $secondEnd  = Carbon::create($fiscalYear + 1, 3, 31)->endOfDay();
+
+        $isFirstHalf  = $now->between($firstStart, $firstEnd);
+        $current_half = $isFirstHalf ? 'first' : 'second';
+        $halfEnd      = $isFirstHalf ? $firstEnd : $secondEnd;
+
+        // months left in this half, inclusive (Feb..Mar = 2)
+        $monthsRemaining = $now->copy()->startOfMonth()
+            ->diffInMonths($halfEnd->copy()->startOfMonth()) + 1;
+
+            // dd($monthsRemaining);
+
+        $evaluation = EvaluationRecord::where('user_id', $userId)
+            ->where('year', $fiscalYear)
+            ->where('which_half', $current_half)
+            ->first();
+
+        // total slots required for the half
+        $monthsTotal = (int) ($evaluation?->monthly_goal_slot ?? 0);
+
+        $data = [
+            'user' => $active_user->only('id', 'name', 'icon_path', 'icon_bg', 'position_id'),
+            'needs' => 0,
+            'year' => $fiscalYear,
+            'half' => $current_half,
+        ];
+
+        if ($monthsTotal <= 0) {
+            return response()->json($data);
+        }
+
+        // how many goals should exist by now
+        $should_have = max(0, $monthsTotal - $monthsRemaining);
+
+        $goals = ProjectGoal::where('user_id', $userId)
+            ->where('year', $fiscalYear)
+            ->where('which_half', $current_half)
+            ->count();
+
+        $needs = max(0, $should_have - $goals);
+
+        $data['needs'] = $needs;
+
+        return $data;
+    }
     public function get_outcome_goals(Request $request) {
         $user = $this->active_user();
         $request->validate([
@@ -224,45 +280,133 @@ class ProjectController extends Controller
         ]);
         $year = $request->year;
         $which_half = $request->which_half;
-        $user_id = $request->user_id;
-        $project_goals = ProjectGoal::where('year', $year)
+        $target_user_id = $request->user_id;
+
+        $project_managers = ProjectMember::where('authority', 1)->whereHas('project')->pluck('user_id')->unique()->toArray();
+        $is_pm = in_array($user->id, $project_managers);
+
+        $is_boss = $user->position_id && $user->position_id < 6;
+
+        $is_mentor = ($user->general_position && $user->general_position !== '一般職') || $is_boss;
+
+        $is_admin = in_array($user->id, [608, 610]);
+
+        $members_goals = [];
+
+        $managers_goals = [];
+
+        $mentor_approval_needed_goals_with_salary_issue = [];
+
+        $admin_approval_needed_goals_with_salary_issue = [];
+
+        $admin_approval_needed_goals = [];
+
+        $goal_required_data = $this->requiredGoalData();
+
+        if($is_mentor){
+            $mentor_approval_needed_goals_with_salary_issue = User::whereNot('id', $user->id)
+            ->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
+            ->withCount(['outcome_goals' => function ($q) use ($user) {
+                $q->whereHas('salaryIssue', function ($q) use ($user){                
+                    $q->whereIn('status', [2, 7])->whereHas('evaluation', function ($subQuery) use ($user) {
+                        $subQuery->where('mentor_id', $user->id);
+                    });
+                });
+            }])
+            ->whereHas('outcome_goals', function ($q) use ($user) {
+                $q->whereHas('salaryIssue', function ($q) use ($user){                
+                    $q->whereIn('status', [2, 7])->whereHas('evaluation', function ($subQuery) use ($user) {
+                        $subQuery->where('mentor_id', $user->id);
+                    });
+                });
+            })->get();
+        }
+        if($is_admin){
+            $admin_approval_needed_goals_with_salary_issue = User::select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
+            ->withCount(['outcome_goals' => function ($q) use ($user) {
+                $q->whereHas('salaryIssue', function ($q) use ($user){                
+                    $q->whereIn('status', [3, 4, 9]);
+                });
+            }])
+            ->whereHas('outcome_goals', function ($q) use ($user) {
+                $q->whereHas('salaryIssue', function ($q) use ($user){                
+                    $q->whereIn('status', [3, 4, 9]);
+                });
+            })->get();
+
+            $admin_approval_needed_goals = User::select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
+            ->withCount(['outcome_goals' => function ($q) use ($user) {
+                $q->whereIn('status', [3, 4]);
+            }])
+            ->whereHas('outcome_goals', function ($q) use ($user) {
+                $q->whereIn('status', [3, 4]);
+            })->get();
+        }
+
+        if($is_pm){
+            $members_goals = User::whereNot('id', $user->id)->whereHas('outcome_goals', function ($q) use ($user) {
+                $q->whereIn('status', [2, 7])
+                ->whereHas('project', function ($projectQuery) use ($user) {
+                    $projectQuery->whereHas('manager', function ($directorQuery) use ($user) {
+                        $directorQuery->where('users.id', $user->id);
+                    });
+                });
+            })->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')->withCount(['outcome_goals' => function ($q) {
+                $q->whereIn('status', [2, 7]);
+            }])->get();
+        }
+        if($is_boss){
+            
+            $managers_goals = User::whereNot('id', $user->id)
+            ->whereIn('id', $project_managers)
+            ->whereHas('outcome_goals', function ($q) use ($user) {
+                $q->whereIn('status', [2, 7]);
+                
+            })->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')->withCount(['outcome_goals' => function ($q) {
+                $q->whereIn('status', [2, 7]);
+            }])->get();
+        }
+
+        $project_goals = $this->goalLoader($user->id, $target_user_id, $year, $which_half);
+        $my_goals = $target_user_id == $user->id ? $project_goals : $this->goalLoader($user->id, $user->id, $year, $which_half);
+
+        $evalutaionRecord = EvaluationRecord::where('year', $year)
             ->where('which_half', $which_half)
-            ->where('user_id', $user_id)
+            ->where('user_id', $target_user_id)->with('mentor')->first();
+
+
+        $data = [
+            'achievement_total' => $project_goals->sum('achievement_rate'),
+            'project_goals' => $project_goals,
+            'evaluation' => $evalutaionRecord,
+            'members_goals' => $members_goals,
+            'my_goals' => $my_goals,
+            'managers_goals' => $managers_goals,
+            'mentor_approval_needed_goals_with_salary_issue' => $mentor_approval_needed_goals_with_salary_issue,
+            'admin_approval_needed_goals_with_salary_issue' => $admin_approval_needed_goals_with_salary_issue,
+            'admin_approval_needed_goals' => $admin_approval_needed_goals,
+            'goal_required_data' => $goal_required_data,
+        ];
+        return response()->json($data);       
+        
+    }
+    private function goalLoader($self_id, $target_user_id, $year, $which_half){
+        return ProjectGoal::where('year', $year)
+            ->where('which_half', $which_half)
+            ->where('user_id', $target_user_id)
             ->with([
-                'project' => function ($q, ) use ($user) {
+                'project' => fn($q) => 
                     $q->select('id', 'name')
-                    ->withExists([
-                        'manager as is_manager' => fn ($q) => $q->where('users.id', $user->id),
-                    ])
-                    ->withExists([
-                        'members as is_member' => fn ($q) => $q->where('users.id', $user->id),
-                    ]);
-                },    
-                'statusLogs' => function ($q) {
-                    $q->with('user');
-                },
+                    ->withExists(['manager as is_manager' => fn ($q) => $q->where('users.id', $self_id)])
+                    ->withExists(['members as is_member' => fn ($q) => $q->where('users.id', $self_id)]),    
+                'statusLogs' => fn($q) => $q->with('user'),
                 'files', 
                 'steps', 
                 'reports' => fn($q) => $q->with('user'),
                 'user' => fn($q) => $q->select('id', 'name', 'icon_path', 'icon_bg', 'position_id'),
             ])
-            ->with(['salaryIssue' => function ($q) {
-                $q->with(['files', 'actions', 'reports', 'statusLogs' => function ($q) {
-                    $q->with('user');
-                },]);
-            }])
+            ->with(['salaryIssue' => fn ($q) => $q->with(['files', 'actions', 'reports', 'statusLogs' => fn ($q) => $q->with('user')])])
             ->get();
-        $evalutaionRecord = EvaluationRecord::where('year', $year)
-            ->where('which_half', $which_half)
-            ->where('user_id', $user_id)->with('mentor')->first();
-        $data = [
-            'achievement_total' => $project_goals->sum('achievement_rate'),
-            'project_goals' => $project_goals,
-            'evaluation' => $evalutaionRecord,
-        ];
-        return response()->json($data);
-        
-        
     }
     public function get_member($projectId, $memberId)
     {
@@ -4835,9 +4979,8 @@ class ProjectController extends Controller
         ]);
         return response()->json(['status' => 'ok']);
     }
-    public function user_managing_projects(Request $request){
-        $user = $this->active_user();
-        $managing_projects = ProjectRecord::whereHas('manager', fn ($q) => $q->where('users.id', $user->id))
+    private function user_managing_projects($user_id){
+        $managing_projects = ProjectRecord::whereHas('manager', fn ($q) => $q->where('users.id', $user_id))
             ->whereHas('members', fn ($q) => $q->where('users.retire', 0)
                 ->where('users.partner_flag', 0)
                 ->whereNotIn('users.position_id',[13,14,15] )
@@ -4852,7 +4995,7 @@ class ProjectController extends Controller
                 ->select('users.id', 'users.name', 'users.position_id', 'users.icon_path', 'users.icon_bg');
             }])
             ->get();
-        return response()->json($managing_projects);
+        return $managing_projects;
     }
     public function mentees (Request $request){
         $user = $this->active_user();

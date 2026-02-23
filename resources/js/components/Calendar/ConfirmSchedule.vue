@@ -1,17 +1,22 @@
 <template>
-<div class="p-[10px] text-[12px]" :style="{ background: background, color: color,}">
-    <div class="flex items-center mb-[10px]">
-        <UserPanel :disableInstant="true" v-for="user in record.calendar_users.slice(0, 3)" :user="user" imgStyle="pointer-events: none" imgClass="userSmallIcon" size="15"/>
-        <span style="line-height: 15px;" v-if="record.calendar_users?.length > 3">...({{ record.calendar_users.length }})</span>
+<div class="text-[12px] flex flex-col w-full" :style="{ background: background, color: color,}">
+    <div v-if="mode == 'compact'" class="overflow-hidden text-ellipsis whitespace-nowrap leading-normal px-2 py-2">
+        <span class="bg-[tomato] text-[white] px-[5px] pb-[1px] rounded-md mr-[3px] text-[10px]">仮</span>
+        <span class="ml-1">{{ record?.title  }}</span>
     </div>
-    <div class="overflow-hidden break-words leading-normal">{{ record?.title }}</div>
-    <div class="cal-card-item leading-normal my-[10px] flex gap-[10px] items-center" v-html="timeDetailed"></div> 
-    <div class="flex gap-[10px]"></div>
-    <div class="flex gap-[10px]">
-        <CommandButton  :buttons="[
-            {title: '確定', action: () => confirmTemp(record.id, 1)},
-            {title: 'キャンセル', action: () => confirmTemp(record.id, 0)}
-        ]"/>
+    <div v-if="mode == 'detailed'" class="px-2 pb-2 pt-1">
+        <div class="flex items-center mb-[10px]">
+            <UserPanel :disableInstant="true" v-for="user in record.calendar_users.slice(0, 3)" :user="user" imgStyle="pointer-events: none" imgClass="userSmallIcon" size="15"/>
+            <span style="line-height: 15px;" v-if="record.calendar_users?.length > 3">...({{ record.calendar_users.length }})</span>
+        </div>
+        <div class="cal-card-item text-[11px] text-[gray] leading-normal my-[10px] flex gap-[10px] items-center" v-html="timeDetailed"></div> 
+        <div class="flex gap-[10px]"></div>
+        <div class="flex gap-[10px]">
+            <CommandButton  :buttons="[
+                {title: '確定', action: () => confirmTemp(record.id, 1)},
+                {title: 'キャンセル', action: () => confirmTemp(record.id, 0)}
+            ]"/>
+        </div>
     </div>
 
 </div>
@@ -30,6 +35,7 @@ import colors from 'assets/colors.json'
 
 const props = defineProps<{
     record: CalendarRecord
+    mode: 'compact' | 'detailed'
 }>()
 
 const emit = defineEmits<{

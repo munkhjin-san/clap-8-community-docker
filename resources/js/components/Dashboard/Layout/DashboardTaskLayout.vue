@@ -20,11 +20,11 @@
             <v-expansion-panel hide-actions static :tile="true" class="rm-p" v-for="(task, index) in data.data" :key="index">
                 <v-expansion-panel-title class="task-panel">
                     <template v-slot:default="{ expanded }">
-                        <ListBox :item="task" boxClass="w-full h-full" :isBoard="false" mode="minimal"/>
+                        <ListBox @getBoardTasks=" emit('refreshData', data.type)" :item="task" boxClass="w-full h-full" :isBoard="false" mode="minimal"/>
                     </template>
                 </v-expansion-panel-title>
                 <v-expansion-panel-text>
-                    <ListBox :item="task" boxClass="" :isBoard="false"/>
+                    <ListBox @getBoardTasks=" emit('refreshData', data.type)" :item="task" boxClass="" :isBoard="false"/>
                 </v-expansion-panel-text>
             </v-expansion-panel>
         </v-expansion-panels>
@@ -36,7 +36,7 @@
         </div>
     </BaseLayout>
 </template>
-
+ 
 <script setup lang="ts">
 import { Task } from '@/interface/globalInterface'
 import { useTemplateRef } from 'vue'
@@ -58,6 +58,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     resize: [type: string]
     toggle: [el: HTMLElement | null, title: string]
+    refreshData: [key: string]
 }>()
   
 

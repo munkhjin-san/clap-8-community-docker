@@ -24,12 +24,16 @@
 
 .panel.fullscreen {
     position: absolute;
-    inset: 20px;
+    /* inset: 20px;
     width: calc(100% - 40px);
-    height: calc(100% - 40px);
+    height: calc(100% - 40px); */
+    inset: 0;
+    width: 100%;
+    height: 100%;
     z-index: 5;
     overflow: auto;
     overflow-x: hidden;
+    overscroll-behavior: contain; /* stops scroll chaining */
 }
 
 .panel {
@@ -64,12 +68,19 @@
 .v-expansion-panel{
     background: var(--background-color) !important;
 }
+.full-wrapper{
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
 
 @media screen and (max-width: 959px) {
     .hidescroll{
         overflow: hidden !important;
     }
-    .panel.fullscreen {
+
+    .full-wrapper {
         position: fixed;
         inset: 0;
         width: calc(100%);

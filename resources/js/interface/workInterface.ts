@@ -91,6 +91,7 @@ export type Shift = {
     shift_day: Date | string
     overtime_request: any
     status_flag: number
+    departure_report: string | null
 }
 export type TimeCard = {
     id: number | null

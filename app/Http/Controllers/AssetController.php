@@ -476,20 +476,22 @@ class AssetController extends Controller
         $rawData = collect($assets)->map(function ($asset) use ($classification, $statuses, $currentYear) {
             
             $gl_number = 'GL' . str_pad($asset->id, 5, '0', STR_PAD_LEFT);
-            
-            // Filter confirm_logs for current year from already loaded relationship
+            $confirmCondition = '';
             $confirmedThisYear = collect($asset->confirm_logs ?? [])->filter(function ($log) use ($currentYear) {
                 return date('Y', strtotime($log->created_at)) == $currentYear;
-            })->count() > 0;
+            });
             
             return [
                 "GL番号" => $gl_number,
                 "品名" => $asset->item_name,
                 "詳細" => $asset->model_number,
-                "使用者" => $asset->current_user?->name,
+                "使用者" => $asset->external_user ?? $asset->current_user?->name,
+                "責任者" => $asset->current_user?->name,
                 "ステータス" => $statuses[$asset->status] ?? null,
                 "使用場所" => $asset->current_office?->name,
-                "確認状況" => $confirmedThisYear ? '確認済み' : '未確認',
+                "確認状況" => $confirmedThisYear->isEmpty() ? "未確認" : "確認済み",
+                "確認者" => $confirmedThisYear->first()?->user?->name ?? null,
+                "確認日時" => $confirmedThisYear->first() ? date('Y-m-d H:i', strtotime($confirmedThisYear->first()->created_at)) : null,
             ];
         })->toArray();
         return Excel::download(new AssetData($rawData), 'user_data.xlsx');

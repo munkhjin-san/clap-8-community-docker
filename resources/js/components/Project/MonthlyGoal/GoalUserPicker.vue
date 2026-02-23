@@ -106,12 +106,14 @@ onMounted(() => {
         tabs.value.push({ name: 'pms', label: 'PM' });
         tabs.value.push({ name: 'project_members', label: 'プロジェクトメンバー' });
         tabs.value.push({ name: 'mentees', label: 'メンティー' });
-        tabs.value.push({ name: 'all', label: '全員' });
     }else if(auth.user.position_id == 6){
         tabs.value.push({ name: 'project_members', label: 'プロジェクトメンバー' });
     }
     if(auth.activeUser.general_position !== '一般職' && !auth.isBoss){
         tabs.value.push({ name: 'mentees', label: 'メンティー' });
+    }
+    if(auth.isBoss || auth.isAdmin){
+        tabs.value.push({ name: 'all', label: '全員' });
     }
     if(tabs.value.length === 1){
         selectedTab.value = 'self';        

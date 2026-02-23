@@ -1,43 +1,47 @@
 import { Asset } from "@/interface/assetInterface";
 import { CalendarRecord } from "@/interface/calendarInterface";
 import { CustomForm } from "@/interface/customFormInterface";
-import { Message, Task, User, UserWithGoals } from "@/interface/globalInterface";
+import { UserWithShift } from "@/interface/dashboard";
+import { Message, Task, User } from "@/interface/globalInterface";
 import { Post } from "@/interface/postInterface";
 import { Evaluation } from "@/interface/projectInterface";
 import { WorkItem } from "@/interface/workInterface";
 import axios from "axios";
 import { DateTime } from "luxon";
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 export const useDashboardStore = defineStore('dashboardStore', () => {
     const collection = ref({
         pendingEvaluations: [] as Evaluation[],
-        overdueGraveCount: 0,
         assets: {
             in_use: [] as Asset[],
             waiting_approval: [] as Asset[],
         },
+        overdueGoals: [] as any[], //data ignored just for layout purposes
         challenges: [] as Post[],
-        departuresReportUsers: [] as User[],
         forms: [] as CustomForm[],
-        requiredGoalData: {
-            user: {} as User,
-            needs: 0 as number,
-            year: 0 as number,
-            half: '' as string,
-        },
+        
         pendingApprovalTasks: [] as Task[],
-        overdueGoals: [] as UserWithGoals[],
         pendingPlannedLeaves: [] as WorkItem[],
         pendingGoalsUserForHR: [] as User[],
         remindedMessages: [] as Message[],
-        tempSchedules: [] as CalendarRecord[],
+        schedules: {
+            temp_schedules: [] as CalendarRecord[],
+        },
         pendingDailyReports: [] as any[],
         mustCheckMessages: [] as Message[],
         mustSignMessages: [] as Message[],
         unfinishedTasks: [] as Task[],
-        untouchedTasks: [] as Task[],        
+        untouchedTasks: [] as Task[],      
+        personnelEvaluation: {
+            pendingEvaluations: [] as any[],
+        },  
+        timesheet: {
+            pendingTimesheets: [] as any[],
+            departuresReportUsers: [] as UserWithShift[]
+
+        }
     })
     const lastUpdated = ref<DateTime | null>(null);
 
@@ -76,8 +80,28 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         }
     }
 
+    const badgeCount = computed(() => {
+        const thisMonth = DateTime.now().month
+        const ASSET_CONFIRM_DEADLINE_MONTH = 4
+        const departuresCount = collection.value.timesheet.departuresReportUsers.filter(user => user.shift_records.some(shift => !shift.departure_report)).length
+        const inconfirmedAssets = thisMonth >= ASSET_CONFIRM_DEADLINE_MONTH ? collection.value.assets.in_use.filter(asset => !asset.confirm_logs.length).length : 0
+        const total = departuresCount + 
+        inconfirmedAssets + collection.value.assets.waiting_approval.length + 
+        collection.value.challenges.length + collection.value.forms.length + 
+        collection.value.pendingApprovalTasks.length + collection.value.pendingPlannedLeaves.length +
+        collection.value.pendingGoalsUserForHR.length + 
+        collection.value.schedules.temp_schedules.length + collection.value.pendingDailyReports.length +
+        collection.value.mustCheckMessages.length + collection.value.mustSignMessages.length + 
+        collection.value.unfinishedTasks.length + collection.value.untouchedTasks.length +
+        collection.value.personnelEvaluation.pendingEvaluations.length + 
+        collection.value.timesheet.pendingTimesheets.length
+        console.log('total', total)
+        return total
+    })
+
     return {
         collection,
         getBatchDashboardData,
+        badgeCount
     }
 });

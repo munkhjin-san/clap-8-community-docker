@@ -114,14 +114,14 @@
                         ]" />
 
                         <CommandButton v-if="auth.activeUser.id && computedMemberData && [610, 608, 631 ].includes(auth.activeUser.id) && evaluationData.status == 2" :buttons="[
-                            {title:'承認する', action: () => updateStatus(3)},
+                            {title:'承認する', action: () => updateStatus(3, '承認')},
                         ]" />
                         <CommandButton v-if="auth.activeUser.id && computedMemberData && [610, 608, 631 ].includes(auth.activeUser.id) && (evaluationData.status == 2 || evaluationData.status == 3)" :buttons="[
-                            {title:'差し戻し', action: () => updateStatus(1)},
+                            {title:'差し戻し', action: () => updateStatus(1, '差し戻し')},
                         ]" />
 
                         <CommandButton v-if="auth.activeUser.id && computedMemberData && [610, 608, 631, evaluationData?.mentor?.id ].includes(auth.activeUser.id) && evaluationData.status == 1" :buttons="[
-                            {title:'申請する', action: () => updateStatus(2)},
+                            {title:'申請する', action: () => updateStatus(2, '申請')},
                         ]" />
                     </div>
 
@@ -152,11 +152,14 @@ import { EvaluationRecord } from '@/interface/evaluationInterface';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import { useProject } from '@/composables/project';
 import { useApi } from '@/composables/api';
+import { useDialog } from '@/composables/dialog';
 const props = defineProps([
     'date',
     'memberDataRemind'
 ])
-
+const emit = defineEmits([
+    'reload'
+])  
 const statuses = [
     {id: 0, name: '未開始', success: '作成しました'},
     {id: 1, name: '作成中', success: '保存しました。'},
@@ -182,6 +185,8 @@ onMounted(async () => {
 
 })
 
+const { ping, ask, toast } = useDialog()
+
 const currentPosition = computed(() => {
     return positions.find(ob => ob.name === evaluationData.value?.general_position)
 })
@@ -199,7 +204,10 @@ const reload = async () => {
 const computedMemberData = computed(() => {
     return props.memberDataRemind || memberData.value
 })
-const updateStatus = async (status: number) => {
+const updateStatus = async (status: number, message: string) => {
+    const question = `${message}してもよろしいですか？`
+    const confirm = await ask(question)
+    if (!confirm.value) return
 
     await api.post('/set_increase_request', {
         attributes:{
@@ -211,11 +219,13 @@ const updateStatus = async (status: number) => {
     }, {
         toast: statuses[status].success,
     })
+    
+    emit('reload')
     await getEvaluations()
 
 }
 const getEvaluations = async () => {
-    const span = route.params.span as string
+    const span = `${props.date.year}-${props.date.which_half}` || route.params.span as string
     if (computedMemberData.value && span) {
 
         const params = {

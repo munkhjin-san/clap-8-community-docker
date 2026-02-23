@@ -62,7 +62,7 @@ export interface EmoteUser extends User {
     }
 }
 export interface UserWithGoals extends User {
-    outcome_goals: ProjectGoal[]
+    outcome_goals_count: number;
 }
 export interface DailyMessageUser extends User {
     custom_field_data_records: CustomFieldData[]

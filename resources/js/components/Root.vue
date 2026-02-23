@@ -5,7 +5,7 @@
             <div class="overlay" style="z-index:100" v-if="switchLoader"></div>
         </Transition>
         <InstantProfile :key="instantUser.cY + instantUser.cX" :data="instantUser" v-if="instantUser.id || instantUser.name" @resetInstantUser="resetInstantUser"/>  
-        <div style="width: 100%;height:calc(100% - 45px);display: flex; flex:1">
+        <div id="docParent" style="width: 100%;height:calc(100% - 45px);display: flex; flex:1">
             <Transition name="modalFade">
                 <div @click="sideMenuView.setSideMenuView(false)" v-if="sideMenuView.active" class="overlay mobile" style="z-index: 26;"></div>
             </Transition>

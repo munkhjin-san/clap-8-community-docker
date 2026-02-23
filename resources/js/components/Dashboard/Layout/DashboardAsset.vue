@@ -34,7 +34,20 @@
                         </v-expansion-panel-title>
                         <v-expansion-panel-text>
                             <PanelData>
-                                
+                                <div v-if="asset.confirm_logs.length">
+                                    <p class="text-sm text-[var(--primary-color)] mb-2">今年の確認履歴</p>
+                                    <div class="flex flex-col gap-2">
+                                        <div v-for="log in asset.confirm_logs" :key="log.id" class="flex flex-col gap-2 text-[12px]">
+                                            <UserPanel v-if="log.user" :user="log.user" size="20" with-name disable-instant/>
+                                            <div class="text-[11px] text-[gray]">{{ DateTime.fromISO(log.created_at).toLocaleString(DateTime.DATETIME_MED) }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div v-else>
+                                    <div class="text-sm text-[gray] mb-3 text-center">
+                                        物品の確認がまだ行われていません。
+                                    </div>
+                                </div>
                             </PanelData>
                         </v-expansion-panel-text>
                     </v-expansion-panel>
@@ -87,22 +100,6 @@
             </div>
         </div>
         <div v-if="fullscreen">
-            <!-- <div class="p-4" v-if="data.data.length">
-                
-                
-            </div>
-            <div v-else>
-                <div class="text-center text-sm text-[gray] py-3">
-                    使用中の物品はありません。
-                </div>
-            </div>
-            <div>
-                <button @click="viewHistory = !viewHistory" class="text-sm jump-link ml-4 mb-2">
-                    {{ viewHistory ? '使用中の物品の履歴を非表示にする' : '使用中の物品の履歴を表示する' }}
-                </button>
-            </div> -->
-
-
             <AssetContainer :user-list="[]"/>
         </div>
     </BaseLayout>
@@ -151,7 +148,7 @@ const parent = useTemplateRef('parent')
 const auth = useAuthUserStore()
 const loadCount = ref(0)
 const viewHistory = ref(false)
-const ASSET_CONFIRM_DEADLINE_MONTH = 1
+const ASSET_CONFIRM_DEADLINE_MONTH = 4
 const currentMonth = DateTime.now().month
 onMounted(() => {
     if(route.params.type === props.data.type) {

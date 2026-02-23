@@ -1,10 +1,11 @@
 <template>
     <div 
-        :title="title ? title : '新規作成'" 
-        :id="id ?? 'boardCreate'" 
+        ref="parent"
+        :title="title" 
+        :id="id" 
         :class="[{'float-b': !plain}, {'inverse-float': inverse}, {'hiddenButton' : createHidden}]" 
         @click="emit('action')" 
-        :style="{bottom: order ? `${(order * 20) + ((order - 1) * 35)}px` : '20px'}"
+        :style="{ bottom: `${((order * 20) + ((order - 1) * 35)) + footerOffset}px` }"
     >
         <slot name="icon">
 
@@ -14,21 +15,28 @@
 
 
 <script setup lang="ts">
-import { onUnmounted, onMounted, shallowRef } from 'vue';
-
-    const props = defineProps<{
+import { onUnmounted, onMounted, shallowRef, ref } from 'vue';
+    const props = withDefaults(defineProps<{
         hideOn?: string | HTMLElement | null;
         title?: string;
         order?: number;
         inverse?: boolean;
         plain?: boolean;
         id?: string;
-    }>()
+    }>(), {
+        inverse: false,
+        plain: false,
+        order: 1,
+        title: '新規作成',
+        id: 'boardCreate'
+    })
     const emit = defineEmits<{
         action: []
     }>()
+    const footerOffset = shallowRef(0)
     const scrollPosition = shallowRef(0)
     const createHidden = shallowRef(false)
+    const parent = ref<HTMLElement | null>(null)
     onMounted(() => {
         setTimeout(() => {
             if(props.hideOn){
@@ -36,6 +44,11 @@ import { onUnmounted, onMounted, shallowRef } from 'vue';
                 parent?.addEventListener('scroll', scrollListen)
             }
         }, 100);
+        const footer = document.getElementById('boardFooterMobile')
+        const positionData = getComputedStyle(parent.value ?? document.body).position
+        if(footer && positionData == 'fixed'){
+            footerOffset.value = footer.offsetHeight
+        }
         
     })
     onUnmounted(() => {
@@ -43,6 +56,7 @@ import { onUnmounted, onMounted, shallowRef } from 'vue';
             const parent = typeof props.hideOn === 'string'  ? document.getElementById(props.hideOn) : props.hideOn instanceof HTMLElement ? props.hideOn : null
             parent?.removeEventListener('scroll', scrollListen)
         }
+
     })
 
     const scrollListen = (event:Event) => {

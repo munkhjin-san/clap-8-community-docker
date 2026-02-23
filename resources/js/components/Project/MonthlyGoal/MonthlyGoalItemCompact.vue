@@ -10,7 +10,7 @@
             </div>
         </div>       
         <div class="mt-2">        
-            <router-link class="jump-link text-[12px]" :to="{name: 'dashboard', params: { type: 'remind_overdue', itemId: goal.id}}">{{ '詳細'}}</router-link>
+            <router-link class="jump-link text-[12px]" :to="{name: 'dashboard', params: { type: 'overdueGoals', itemId: goal.id}}">{{ '詳細'}}</router-link>
         </div>
     </div>
 </template>

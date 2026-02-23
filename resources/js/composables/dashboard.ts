@@ -1,11 +1,27 @@
 import { Evaluation, ProjectGoal, ProjectGoalStep } from "@/interface/projectInterface";
 import { computed, ref } from "vue";
 import { useApi } from "./api";
+import { User, UserWithGoals } from "@/interface/globalInterface";
 
 const goals = ref<ProjectGoal[]>([])
+
+const pendingMembers = ref<UserWithGoals[]>([])
 const evaluationData = ref<Evaluation | null>(null)
+const myGoals = ref<ProjectGoal[]>([]) 
+const managersGoals = ref<UserWithGoals[]>([])
+
+const adminApprovalNeededGoalsWithSalaryIssue = ref<UserWithGoals[]>([])
+const mentorApprovalNeededGoalsWithSalaryIssue = ref<UserWithGoals[]>([])
+const adminApprovalNeededGoals = ref<UserWithGoals[]>([])
 const loading = ref(false)
 const totalScore = ref(0)
+const requiredGoalData = ref({
+    user: {} as User,
+    needs: 0 as number,
+    year: 0 as number,
+    half: '' as string,
+})
+
 const goalStatusList = [
     '作成中（本人対応中）', 
     '目標を差戻中（本人対応中）', 
@@ -136,6 +152,18 @@ export function useGoal() {
         evaluationData.value = data.evaluation ?? null
         totalScore.value = data.achievement_total ?? 0
         loading.value = false
+        pendingMembers.value = data.members_goals ?? []
+        myGoals.value = data.my_goals ?? [] 
+        managersGoals.value = data.managers_goals ?? []
+        adminApprovalNeededGoalsWithSalaryIssue.value = data.admin_approval_needed_goals_with_salary_issue ?? []
+        mentorApprovalNeededGoalsWithSalaryIssue.value = data.mentor_approval_needed_goals_with_salary_issue ?? []
+        adminApprovalNeededGoals.value = data.admin_approval_needed_goals ?? []
+        requiredGoalData.value = data.required_goal_data ?? {
+            user: {} as User,
+            needs: 0 as number,
+            year: 0 as number,
+            half: '' as string,
+        }
     }
     const goalStatus = (status: number) => {
         return status >= 0 && status < goalStatusList.length ? goalStatusList[status] : '不明'
@@ -162,11 +190,21 @@ export function useGoal() {
         return Math.round(sum / 2)
     }
     const totalOverallScore = computed(() => {
-    if (!goals.value.length) return 0
+        if (!goals.value.length) return 0
 
         return goals.value.reduce((acc, goal) => {
             return acc + overallScore(goal)
         }, 0)
+    })
+
+    const pulseBadgeCount = computed(() => {
+        const today = new Date()
+        const overdueGoals = myGoals.value.filter(goal => {
+            return goal.status !== 9 && goal.end_date && new Date(goal.end_date) < today
+        })
+
+        const needed = requiredGoalData.value.needs || 0
+        return overdueGoals.length + needed
     })
     return {
         goals,
@@ -180,6 +218,14 @@ export function useGoal() {
         totalScore,
         overallScore,
         totalOverallScore,
-        issueThemes
+        issueThemes,
+        pendingMembers,
+        myGoals,
+        managersGoals,
+        adminApprovalNeededGoalsWithSalaryIssue,
+        mentorApprovalNeededGoalsWithSalaryIssue,
+        adminApprovalNeededGoals,
+        pulseBadgeCount,
+        requiredGoalData,
     }
 }

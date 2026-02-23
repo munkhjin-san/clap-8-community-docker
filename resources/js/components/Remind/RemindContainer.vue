@@ -341,12 +341,12 @@
                     @expand="expanded.remind_temp_reserved_schedules = !expanded.remind_temp_reserved_schedules"
                 />
                 <div v-if="expanded.remind_temp_reserved_schedules" class="grid md:grid-cols-4 gap-5 mx-[20px] overflow-hidden">
-                    <ConfirmSchedule 
+                    <!-- <ConfirmSchedule 
                         v-for="item in data.remind_temp_reserved_schedules" 
                         :key="item.id"
                         :record="item"
                         @refresh="refreshData('remind_temp_reserved_schedules')"
-                    />
+                    /> -->
                 </div>
             </div>
 
@@ -455,7 +455,7 @@ import HamBurger from '../Global/HamBurger.vue';
 import AssetMovement from '../Asset/AssetMovement.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
-import ConfirmSchedule from './ConfirmSchedule.vue';
+import ConfirmSchedule from '../Calendar/ConfirmSchedule.vue';
 import { DateTime } from 'luxon';
 import PostIcon from '../Post/PostIcon.vue';
 import { useProject } from '@/composables/project';

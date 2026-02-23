@@ -1,7 +1,7 @@
 <template>
     <BaseLayout 
         :title="`成果目標（${selectedDate.short_name}）`" 
-        :count="goals.length" 
+        :count="0" 
         :fullscreen="fullscreen" 
         :type="data.type"
         :can-resize="data.canResize"
@@ -20,40 +20,61 @@
             </div>
             <div>
                 <div v-if="!fullscreen" class="mx-3 mb-3">
-                    <v-expansion-panels v-if="goals.length">
-                        <v-expansion-panel hide-actions static :tile="true" class="rm-p" v-for="(goal) in goals" :key="goal.id">       
-                            <v-expansion-panel-title>
-                                <template v-slot:default="{ expanded }">
-                                    <PanelTitle :expanded="expanded">
-                                    <div class="flex items-center h-full text-[13px] leading-normal overflow-hidden whitespace-nowrap">
-                                        <div class="mr-1 ml-[-5px]" v-if="goal.status === 9">
-                                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" viewBox="0 0 38 32" style="fill: rgb(100, 188, 68);; margin-left: 4px;">
-                                                <path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path>
-                                            </svg>
-                                        </div>
-                                        <div v-if="goalIsOverWeek(goal)" class="mx-1">
-                                            <span style="position: unset;" :class="['side-notification !w-2 !min-w-2 !h-2', 'custom-heartbeat',  ]"></span>  
-                                        </div>
-                                        <div class="overflow-hidden whitespace-nowrap text-ellipsis">{{ goal.title || goal.outcome_goal }}</div>
-                                        <div class="flex items-center gap-1 ml-2">
-                                            <span class="side-notification" style="position: unset;width:15px;z-index: 1;" v-if="badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length">
-                                                {{ badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length }}
-                                            </span>
-                                            <span v-if="badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length" class="side-notification bg-[orange] ml-1" style="position: unset;z-index: 1;">
-                                                {{ badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length }}
-                                            </span>   
-                                        </div>
+                    <div v-for="item in approvaNeeded" class="mb-4">
+                        <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis">
+                            <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 py-0.5">{{ item.chip }}</span>
+                            {{ item.title }} ({{ item.users.length }})
+                        </p>
+                        <div class="grid" :class="`grid-cols-${data.col.split('-')[2]}`" >
+                            <div class="p-2 cursor-pointer hover:bg-[var(--bg3)] rounded flex items-center text-[13px] overflow-hidden" v-for="member in item.users" :key="member.id">
+                                <UserPanel size="25" :user="member" disable-instant/>
+                                <div class="ml-2 flex w-full">
+                                    <div class="flex gap-1">
+                                        <span class="">{{ member.name }}</span>
+                                        <span class="ml-1 text-[12px] text-[gray] whitespace-nowrap">({{ member.outcome_goals_count }}件)</span>
                                     </div>
-                                    </PanelTitle>
-                                </template>
-                            </v-expansion-panel-title>
-                            <v-expansion-panel-text>
-                                <PanelData>
-                                    <MonthlyGoalItemCompact :goal="goal"/>
-                                </PanelData>
-                            </v-expansion-panel-text>
-                        </v-expansion-panel>
-                    </v-expansion-panels>
+                                    <div class="jump-link ml-auto whitespace-nowrap" @click="{selectedUser = member; emit('toggle', parentElement, data.type)}">対応</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div v-if="myGoals.length">
+                        <p v-if="approvaNeeded.length" class="text-sm mb-2">自分の目標 ({{ myGoals.length }})</p>
+                        <v-expansion-panels>
+                            <v-expansion-panel hide-actions static :tile="true" class="rm-p" v-for="(goal) in myGoals" :key="goal.id">       
+                                <v-expansion-panel-title>
+                                    <template v-slot:default="{ expanded }">
+                                        <PanelTitle :expanded="expanded">
+                                        <div class="flex items-center h-full text-[13px] leading-normal overflow-hidden whitespace-nowrap">
+                                            <div class="mr-1 ml-[-5px]" v-if="goal.status === 9">
+                                                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" viewBox="0 0 38 32" style="fill: rgb(100, 188, 68);; margin-left: 4px;">
+                                                    <path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path>
+                                                </svg>
+                                            </div>
+                                            <div v-if="goalIsOverWeek(goal)" class="mx-1">
+                                                <span style="position: unset;" :class="['side-notification !w-2 !min-w-2 !h-2', 'custom-heartbeat',  ]"></span>  
+                                            </div>
+                                            <div class="overflow-hidden whitespace-nowrap text-ellipsis">{{ goal.title || goal.outcome_goal }}</div>
+                                            <div class="flex items-center gap-1 ml-2">
+                                                <span class="side-notification" style="position: unset;width:15px;z-index: 1;" v-if="badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length">
+                                                    {{ badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length }}
+                                                </span>
+                                                <span v-if="badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length" class="side-notification bg-[orange] ml-1" style="position: unset;z-index: 1;">
+                                                    {{ badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length }}
+                                                </span>   
+                                            </div>
+                                        </div>
+                                        </PanelTitle>
+                                    </template>
+                                </v-expansion-panel-title>
+                                <v-expansion-panel-text>
+                                    <PanelData>
+                                        <MonthlyGoalItemCompact :goal="goal"/>
+                                    </PanelData>
+                                </v-expansion-panel-text>
+                            </v-expansion-panel>
+                        </v-expansion-panels>
+                    </div>
                     <div v-else class="text-center text-sm text-[gray] py-3">
                         成果目標が設定されていません。
                     </div>
@@ -107,15 +128,17 @@ import GoalUserPicker from '@/components/Project/MonthlyGoal/GoalUserPicker.vue'
 import MonthlyGoalItemCompact from '@/components/Project/MonthlyGoal/MonthlyGoalItemCompact.vue';
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
+import UserPanel from '@/components/Global/UserPanel.vue';
 
 const props = defineProps<{
     data: {
         title: string,
-        data: UserWithGoals[],
+        data: any[],
         order?: number,
         type: string
         canResize?: boolean
         canFullscreen?: boolean
+        col: string
     },
     fullscreen: boolean
 }>()
@@ -127,9 +150,8 @@ const emit = defineEmits<{
 
 const badge = useBadgeStore()
 
-const { goals, getGoals, loading, goalStatus, salaryIssueStatus } = useGoal()
+const { goals, getGoals, loading, pendingMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals } = useGoal()
 const auth = useAuthUserStore()
-const selectedUserId = ref<number>(0)
 const selectedUser = ref<User | null>(auth.user)
 
 const targetDates = detailedDateOptions()
@@ -152,40 +174,51 @@ onMounted(() => {
     getGoals(selectedUser.value?.id ?? 0 ,year, span)
 })
 
-const myGoals = computed(() => props.data.data.find( user => user.id === auth.id )?.outcome_goals ?? [])
-const kpiCalculation = (steps: any) => {
-    if(steps && steps.length){
-        const totalProgress = steps.reduce((acc: number, step: any) => {
-            return acc + step.progress
-        }, 0)
-        
-        const maxProgress = steps.length * 100
-        return Math.round((totalProgress / maxProgress) * 100)
+const approvaNeeded = computed(() => {
+    const items:{
+        chip: string,
+        title: string,
+        users: UserWithGoals[]
+    }[] = []
+    if(pendingMembers.value.length){
+        items.push({
+            chip: 'PM',
+            title: '承認漏れ【メンバー】',
+            users: pendingMembers.value
+        })
     }
-    return 0
-}
-const overallScore = (goal: ProjectGoal) => {
-    if(!goal.steps || goal.steps.length === 0) return goal.achievement_rate
-    const kpi = kpiCalculation(goal.steps)
-    const kgi = goal.achievement_rate
-    const sum = kpi + kgi
-    return Math.round(sum / 2)
-}
-const totalOverallScore = (goals: ProjectGoal[]) => {
-    if (!goals.length) return 0
+    if(managersGoals.value.length){
+        items.push({
+            chip: '役員',
+            title: '承認漏れ【PM】',
+            users: managersGoals.value
+        })
+    }
+    if(mentorApprovalNeededGoalsWithSalaryIssue.value.length){
+        items.push({
+            chip: 'メンター',
+            title: '承認漏れ【メンティー】',
+            users: mentorApprovalNeededGoalsWithSalaryIssue.value
+        })
+    }
+    if(adminApprovalNeededGoalsWithSalaryIssue.value.length){
+        items.push({
+            chip: '人事',
+            title: '承認漏れ【昇給課題】',
+            users: adminApprovalNeededGoalsWithSalaryIssue.value    
+        })
+    }
+    if(adminApprovalNeededGoals.value.length){
+        items.push({
+            chip: '人事',
+            title: '承認漏れ【成果目標】',
+            users: adminApprovalNeededGoals.value    
+        })
+    }
 
-    return goals.reduce((acc, goal) => {
-        return acc + overallScore(goal)
-    }, 0)
-}
+    return items
 
-const goalIsOverdue = (goal: ProjectGoal) => {
-    if(goal.status === 9) return false
-    const now = DateTime.local();
-    const deadline = DateTime.fromISO(goal.end_date);
-    return now > deadline;
-}
-
+})
 const goalIsOverWeek = (goal: ProjectGoal) => {
     if(goal.status === 9) return false
     const now = DateTime.local();
