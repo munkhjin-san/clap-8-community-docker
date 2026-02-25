@@ -14,8 +14,10 @@ use App\Models\SalaryIssue;
 use App\Models\AssetRecord;
 use App\Models\customFieldDataRecord;
 use App\Models\CustomfieldRead;
+use App\Models\ProjectRecordReadState;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Carbon\Carbon;
 
 final class BadgeService
@@ -407,4 +409,83 @@ final class BadgeService
             'latest_id'  => $latestId,
         ];
     }
+    public function commentBadgeMap(User $user): array
+    {
+        $map = [];
+
+        foreach ($this->financeComment($user)['projects'] as $p) {
+            $map[$p['project_id']] = true;
+        }
+
+        foreach ($this->taskComment($user) as $t) {
+            if ($t['comments'] > 0) {
+                $map[$t['project_id']] = true;
+            }
+        }
+
+        foreach ($this->goalIssueComment($user) as $g) {
+            $map[$g->project_id] = true;
+        }
+        foreach ($this->getProjectUnreadCount($user)['records'] as $r) {
+            if ($r['unread_count'] > 0) {
+                $map[$r['project_record_id']] = true;
+            }
+        }
+        return $map;
+    }
+    public function confirmBadgeMap(User $user): array {
+        $map = [];
+
+        foreach ($this->membersGoals($user) as $g) {
+            $map[$g->project_id] = true;
+        }
+
+        foreach ($this->managersGoals($user) as $g) {
+            $map[$g->project_id] = true;
+        }
+
+        return $map;
+    }
+    /**
+     * Get unread report counts per visible record + a grand total for the given user.
+     *
+     * @param  Authenticatable  $user
+     * @return array{ records: array<array{project_record_id: int, unread_count: int}>, total: int }
+     */
+    public function getProjectUnreadCount(Authenticatable $user): array
+    {
+        $isPrivileged = $user->position_id < 6
+            || $user->id === 610
+            || $user->id === 608;
+        
+        $visibleRecords = $isPrivileged
+            ? ProjectRecord::select('id')
+            : ProjectRecord::select('id')
+                ->whereHas('manager', fn($q) => $q->whereKey($user->id));
+        
+        $counts = DB::table('project_records as pr')
+            ->where('status', '!=', 'draft')
+            ->whereIn('pr.id', $visibleRecords)
+            ->leftJoin('project_record_read_states as rs', function ($join) use ($user) {
+                $join->on('rs.project_record_id', '=', 'pr.id')
+                     ->where('rs.user_id', '=', $user->id);
+            })
+            ->leftJoin('project_checkitems_reports as r', function ($join) use ($user) {
+                $join->on('r.project_record_id', '=', 'pr.id')
+                     ->where('r.user_id', '!=', $user->id);
+            })
+            ->whereRaw('r.created_at > COALESCE(rs.last_seen_at, "1970-01-01 00:00:00")')
+            ->selectRaw('pr.id as project_record_id, COUNT(DISTINCT r.id) as unread_count')
+            ->groupBy('pr.id')
+            ->get();
+        
+        return [
+            'records' => $counts->map(fn($row) => [
+                'project_record_id' => $row->project_record_id,
+                'unread_count'      => (int) $row->unread_count,
+            ])->values()->all(),
+            'total' => (int) $counts->sum('unread_count'),
+        ];
+    }
+
 }

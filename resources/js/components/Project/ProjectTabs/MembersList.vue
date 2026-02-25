@@ -36,11 +36,16 @@
                                 <span 
                                     class="side-notification" 
                                     style="position: unset;width: fit-content;" 
-                                    v-if="confirmBadges(member.id) + commentBadges(member.id) > 0"
-                                    :class="{
-                                        'side-notification--comment-only': !confirmBadges(member.id) && commentBadges(member.id)
-                                    }">
-                                    {{ confirmBadges(member.id) + commentBadges(member.id) }}
+                                    v-if="confirmBadges(member.id) > 0"
+                                >
+                                    {{ confirmBadges(member.id) }}
+                                </span>
+                                <span 
+                                    class="side-notification side-notification--comment-only" 
+                                    style="position: unset;width: fit-content;" 
+                                    v-if="commentBadges(member.id) > 0"
+                                >
+                                    {{ commentBadges(member.id) }}
                                 </span>
                             </div>
                         </div>
@@ -76,11 +81,16 @@
                             <span 
                                 class="side-notification" 
                                 style="position: unset;width: fit-content;" 
-                                v-if="confirmBadges(member.id) + commentBadges(member.id) > 0"
-                                :class="{
-                                    'side-notification--comment-only': !confirmBadges(member.id) && commentBadges(member.id)
-                                }">
-                                {{ confirmBadges(member.id) + commentBadges(member.id) }}
+                                v-if="confirmBadges(member.id) > 0"
+                            >
+                                {{ confirmBadges(member.id) }}
+                            </span>
+                            <span 
+                                class="side-notification side-notification--comment-only" 
+                                style="position: unset;width: fit-content;" 
+                                v-if="commentBadges(member.id) > 0"
+                             >
+                                {{ commentBadges(member.id) }}
                             </span>
                         </router-link >
                         <router-link class="jump-link text-[12px]" :to="{name: 'evaluation', params: { projectId: route.params.projectId, memberId: member.id }}">人事考課</router-link >

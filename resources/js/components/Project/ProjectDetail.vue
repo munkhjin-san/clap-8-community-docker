@@ -23,6 +23,13 @@
                 <div class="tab-name">{{ tab.name }}</div>
                 <div class="flex items-center gap-1">
                     <span 
+                        title="コメントバッジ"
+                        class="side-notification" 
+                        style="position: unset;width: 15px;z-index: 1;background-color:#F28C28;" 
+                        v-if="tab.path == 'overview'&& projectReportBadge"
+                    >{{ projectReportBadge }}
+                    </span>
+                    <span 
                         title="確認バッジ"
                         class="side-notification" 
                         style="position: unset;width: 15px;z-index: 1;" 
@@ -145,6 +152,9 @@ import { useRoute, useRouter } from 'vue-router';
     })
     const financeCommentBadge = computed(() => {
         return badge.financeCommentBadgeByFilter({by: 'project_id', value: Number(route.params.projectId)})?.total_unread ?? 0
+    })
+    const projectReportBadge = computed(() => {
+        return badge.projectReportMap[Number(route.params.projectId)] ?? 0
     })
     const hasPrivilage = computed(() => {
         return (selectedProject.value?.manager?.some(manager => manager.id === auth.id) || (auth.user?.position_id && auth.user?.position_id < 6) || auth.activeUser.id == 610 || auth.activeUser.id == 608) ? true : false

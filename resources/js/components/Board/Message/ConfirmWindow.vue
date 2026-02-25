@@ -45,8 +45,47 @@
                 </div>
 
             </div>
+            <div class="relative">
+                <span id="userSelectError" v-if="required" class="valid-error">必須です</span>
+            </div>
+            <div class="mt-5" v-if="requestType == 'confirm'">
+                <div>
+                    <div class="switchLabel">
+                        <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">期日指定</p>
+                    </div>
+                    <div class="selectSwitchArea" style="display: flex;width: 100%;margin-top:10px;">    
+                        <input v-model="hasDeadline" type="checkbox" id="hasDeadline">
+                        <label for="hasDeadline" style="min-width: 80px;" class="cursor-pointer"><span></span>
+                            <div class="switch-toggle"></div>
+                        </label>
+                        
+                    </div>  
+                </div>
+                
+                
+            </div>
+            <div v-if="hasDeadline" class="mt-5">
+                <p style="font-size: 14px;">期日</p>
+                <div style="display:flex;margin-top: 10px;position: relative;width:100%;gap: 10px;">                    
+                    <ShortInput 
+                        name="recordDateStart" 
+                        customClass="date"
+                        ref="recordDateStart"
+                        type="date"
+                        v-model="checkRequestDl"
+                    />   
+                    <select 
+                        class="dropDownSelector cursor-pointer"
+                        :class="[{'date-color' : theme.dark }]" 
+                        name="scheduleHour" 
+                        v-model="selectedTime"
+                        style="min-height: 40px; font-size: 14px; border: solid 1px var(--primary-color);"
+                    >
+                        <option :value="option" v-for="option in availableHours" v-html="`${option}時`"></option>
+                    </select>                  
+                </div> 
+            </div>
             <div style="position: relative;display: flex;flex-direction: column;">
-                <span id="userSelectError" style="position: absolute;left: 0;top: 10px;" v-if="required" class="valid-error">必須です</span>
                 <LoaderButton style="margin: 30px auto 20px auto;" @triggered="checkRequest" :content="'送信する'" :loading="processing"/>
             </div>
       
@@ -63,6 +102,9 @@ import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
 import { useBoardList } from '@/composables/board';
+import { DateTime } from 'luxon';
+import ShortInput from '@/components/Form/ShortInput.vue';
+import { useTheme } from '@/store/theme';
     const auth = useAuthUserStore()
     const props = defineProps(['message', 'requestType', 'file'])
     const emit = defineEmits(['close'])
@@ -70,8 +112,13 @@ import { useBoardList } from '@/composables/board';
     const prepare = ref(0)
     const { openedBoard } = useBoardList()
     const selectedMembers = ref<number[]>([])
+    const checkRequestDl = ref<string>(DateTime.now().plus({day: 1}).toISODate())
+    const hasDeadline = ref(false)
     const {refreshMessages} = inject(BoardMethodsKey) as BoardMethods
     const required = ref(false)
+    const theme = useTheme()
+    const selectedTime = ref(DateTime.now().plus({hours: 1}).hour)
+    const availableHours = Array.from({ length: 24 }, (_, index) => index + 1);
     const api = useApi()
     const { ask, ping } = useDialog()
     const prepareTypes = [
@@ -109,12 +156,14 @@ import { useBoardList } from '@/composables/board';
             users: selectedMembers.value,
             type: props.requestType
         }
+        const checkParam = hasDeadline.value ? DateTime.fromISO(checkRequestDl.value).set({hour: selectedTime.value, minute: 0, second: 0}).toFormat('yyyy-MM-dd HH:mm:ss') : null
         if(props.file){
             params['msg_file_id'] = props.file.id
             params['prepare'] = prepare.value
             params['board_id'] = openedBoard.value?.id
             params['msg_id'] = props.message.id
         }else{
+            params['check_request_deadline'] = checkParam
             params['msg_id'] = props.message.id
         }
 

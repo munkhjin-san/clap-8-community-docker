@@ -60,7 +60,7 @@
                     v-model="blockData.files"
                     path="/survey_files"
                     :customClass="['custom-a-input', {'invalid-file-input': hasError}]"
-                    customStyle="width: 50%"
+                    customStyle="width: 50%; border: 1px solid var(--formBorder);"
                 />
             </div>
         </div>

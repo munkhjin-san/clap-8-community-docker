@@ -28,6 +28,7 @@ export interface ProjectContractResponse {
     response_hash?: string | null;
     file_path?: string | null;
     file_url?: string | null;
+    download_url?: string | null;
     file_size?: number | null;
     size?: number | null;
     created_at?: string;
@@ -81,6 +82,7 @@ interface Project {
     description: string
     private_memo: string
     contract?: ProjectContractResponse | null
+    contracts?: ProjectContractResponse[]
     is_new: boolean
     has_goals?: boolean
     has_actual_func: boolean
@@ -89,10 +91,14 @@ interface Project {
     actual_statuses?: ProjectActualStatus[]
     transitioned_at?: string
     member_roles?: MemberRole[]
-    checkitems: ProjectCheckItems[]
+    checkitems: ProjectCheckItem[]
     reports: ProjectGoalReport[]
+    has_confirm_badge?: boolean
+    has_comment_badge?: boolean
+    contract_started_at: string
+    specs?: ProjectSpecs | null
 }
-export type ProjectCheckItems = {
+export type ProjectCheckItem = {
     id: number
     project_record_id: number
     category: string
@@ -108,6 +114,14 @@ export type ProjectActualStatus = {
     sort_order?: number;
     is_system_default?: boolean;
     custom_label?: string;
+}
+type ProjectSpecs = {
+    id: number | null;
+    project_id: number | null;
+    spec_data: any;
+    created_by: number;
+    updated_by: number;
+    files: CommonFile[]
 }
 interface ProjectCondition {
     project_record_id: number;

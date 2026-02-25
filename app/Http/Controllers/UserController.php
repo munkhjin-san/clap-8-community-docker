@@ -463,9 +463,9 @@ class UserController extends Controller{
             $user = Auth::user();
             $active_user = $this->active_user();
             $id = $active_user->id;
-            $flag = Cache::store('redis')->get("must_sync_{$id}");
-            $stamp = Cache::store('redis')->get("user_stamp_{$id}");
-
+            // $flag = Cache::store('redis')->get("must_sync_{$id}");
+            // $stamp = Cache::store('redis')->get("user_stamp_{$id}");
+            return response()->json(['must_sync' => true]);
             if(!$flag){
                 return response()->json(['must_sync' => false]);
             }else if($stamp){
@@ -474,7 +474,7 @@ class UserController extends Controller{
                 $diffInMinute = ($now - $stamp_int) / 60;
                 $must_sync = $diffInMinute > 1 ? true : false;
                 if($must_sync){
-                    Cache::store('redis')->forget("must_sync_{$id}");
+                    // Cache::store('redis')->forget("must_sync_{$id}");
                 }
                 return response()->json(['must_sync' => $must_sync]);
             }else{

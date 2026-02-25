@@ -5,7 +5,39 @@
         </div>
         <div v-else class="legal-tab__body">
             <AiLoader v-if="aiLoading" message="徹底的な検査中です。<br>この処理には数分かかる場合があります。"/>
-            
+
+            <section v-if="contracts.length" class="legal-files">
+                <div class="legal-files__head">
+                    <p class="legal-files__title">契約レビュー履歴</p>
+                    <button type="button" class="legal-files__add" @click="openRenewal">＋ ファイル追加</button>
+                </div>
+                <div class="legal-files__list">
+                    <button
+                        v-for="item in contracts"
+                        :key="item.id"
+                        type="button"
+                        class="legal-files__item"
+                        :class="{ 'legal-files__item--active': contract?.id === item.id }"
+                        @click="selectContract(item.id)"
+                    >
+                        <div class="legal-files__item-icon">
+                            <FileIcon :ext="extensionFromPath(item.file_path)" />
+                        </div>
+                        <div class="legal-files__item-main">
+                            <p class="legal-files__item-name" :title="nameFromPath(item.file_path)">
+                                {{ nameFromPath(item.file_path) }}
+                            </p>
+                            <p class="legal-files__item-meta">
+                                {{ contractTypeLabel(item.contract_type) }}・{{ item.role }}・{{ formatDate(item.updated_at || item.created_at || '') }}
+                            </p>
+                        </div>
+                        <span :class="['legal-summary__badge', `legal-summary__badge--${summaryFromContract(item).overallRisk}`]">
+                            {{ severityLabel(summaryFromContract(item).overallRisk) }}
+                        </span>
+                    </button>
+                </div>
+            </section>
+
             <section v-if="contract" class="legal-summary">
                 <div class="legal-summary__file">
                     <div class="legal-summary__icon">
@@ -40,11 +72,11 @@
                     </div>
                 </div>
                 <div class="legal-summary__actions">
-                    <LoaderButton 
+                    <LoaderButton
                         class="legal-summary__button"
-                        :content="renewalOpen ? '閉じる' : '契約書を更新'"
+                        :content="detailOpen ? '閉じる' : '詳細を見る'"
                         :loading="false"
-                        @triggered="toggleRenewal"
+                        @triggered="toggleDetail"
                     />
                     <LoaderButton
                         v-if="downloadUrl"
@@ -55,31 +87,35 @@
                     />
                     <LoaderButton
                         class="legal-summary__button"
-                        :content="detailOpen ? '閉じる' : '詳細を見る'"
+                        :content="renewalOpen ? '追加パネルを閉じる' : 'ファイル追加'"
                         :loading="false"
-                        @triggered="toggleDetail"
+                        @triggered="toggleRenewal"
+                    />
+                    <LoaderButton
+                        class="legal-summary__button"
+                        content="削除"
+                        :loading="false"
+                        @triggered="removeContract"
                     />
                 </div>
             </section>
 
-            <!-- <section v-else-if="loading" class="legal-tab__empty">
-                <p class="text-[gray]">レビュー情報を読み込んでいます…</p>
-            </section> -->
-
-            <!-- <section v-else class="legal-tab__empty">
+            <section v-else class="legal-tab__empty">
                 <p class="text-[gray]">レビュー済みの契約書がまだ登録されていません。</p>
                 <p class="legal-tab__hint">
-                    AIレビューを実行すると、ここに結果が表示されます。
+                    1回のレビューで1ファイルを処理します。まずファイルを追加してください。
                 </p>
-            </section> -->
-            <transition v-if="renewalOpen || !contract" name="slide-fade">
+                <LoaderButton class="legal-summary__button" content="ファイル追加" :loading="false" @triggered="openRenewal" />
+            </section>
+
+            <transition v-if="renewalOpen" name="slide-fade">
                 <section class="legal-upload-panel">
                     <div class="legal-upload-panel__head">
                         <div>
-                            <p class="legal-upload-panel__title">契約書を更新</p>
-                            <p class="legal-upload-panel__caption">新しいファイルをアップロードすると現在のレビュー結果が上書きされます。</p>
+                            <p class="legal-upload-panel__title">契約書を追加</p>
+                            <p class="legal-upload-panel__caption">1回のレビューで1ファイルのみ処理します。追加したファイルは履歴として保存されます。</p>
                         </div>
-                        <p class="legal-upload-panel__badge">最新のみ保持</p>
+                        <p class="legal-upload-panel__badge">複数登録</p>
                     </div>
                     <div class="legal-upload-panel__form">
                         <div class="legal-upload-panel__field">
@@ -158,7 +194,7 @@
                     <div class="legal-upload-panel__actions">
                         <LoaderButton
                             class="legal-summary__button"
-                            content="AIレビュー & 更新"
+                            content="AIレビュー & 追加"
                             :loading="uploadLoading"
                             @triggered="uploadContract"
                         />
@@ -178,9 +214,6 @@
                         </div>
                         <div v-else class="legal-detail__preview-empty">
                             <p>プレビューを表示できません。</p>
-                            <p class="legal-tab__hint">
-                                バックエンドで <code>GET /projects/{{ selectedProject?.id }}/contract/file</code> の実装が必要です。
-                            </p>
                         </div>
                     </div>
                     <div class="legal-detail__findings">
@@ -202,7 +235,7 @@ import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
 import LoaderButton from '@/components/Global/LoaderButton.vue'
 import ContractFindings from '@/components/Project/Legal/ContractFindings.vue'
 import { useApi } from '@/composables/api'
-import { Project, ProjectContractResponse, ContractFindingSeverity } from '@/interface/projectInterface'
+import { ProjectContractResponse, ContractFindingSeverity } from '@/interface/projectInterface'
 import { filesize } from 'filesize'
 import { contractTypeDefaults, contractRoleDefaults } from '@/utils/tools'
 import { useDialog } from '@/composables/dialog'
@@ -218,28 +251,53 @@ const { selectedProject } = useProject()
 const api = useApi()
 const detailOpen = ref(false)
 const loading = ref(false)
-const contractState = ref<ProjectContractResponse | null>(null)
+const contractsState = ref<ProjectContractResponse[]>([])
+const selectedContractId = ref<number | null>(null)
 const fetchAttempted = ref(false)
 const aiLoading = ref(false)
 const saveLoading = ref(false)
 const uploadLoading = ref(false)
 const renewalOpen = ref(false)
-const { ping } = useDialog()
+const { ping, ask } = useDialog()
 const uploadInput = ref<HTMLInputElement | null>(null)
 const uploadFile = ref<File | null>(null)
 const uploadContractType = ref<string>(contractTypeDefaults[0]?.value ?? '')
 const uploadRole = ref('乙')
 
+const contracts = computed<ProjectContractResponse[]>(() => {
+    if (fetchAttempted.value) {
+        return contractsState.value
+    }
+    if (contractsState.value.length) {
+        return contractsState.value
+    }
+    if (Array.isArray(selectedProject.value?.contracts) && selectedProject.value?.contracts?.length) {
+        return selectedProject.value.contracts
+    }
+    if (selectedProject.value?.contract) {
+        return [selectedProject.value.contract]
+    }
+    return []
+})
+
 const contract = computed<ProjectContractResponse | null>(() => {
-    return contractState.value ?? selectedProject.value?.contract ?? null
+    if (!contracts.value.length) return null
+    if (selectedContractId.value) {
+        const current = contracts.value.find(item => item.id === selectedContractId.value)
+        if (current) return current
+    }
+    return contracts.value[0]
 })
 const deepResult = ref()
-const deepSummary = computed(() => {
-    if (!deepResult.value) {
-        return null
+const parseSummary = (target: { result_json?: any; overall_risk?: ContractFindingSeverity } | null) => {
+    if (!target) {
+        return {
+            overallRisk: 'unknown' as ContractFindingSeverity,
+            findings: [],
+        }
     }
-    const raw = deepResult.value.json ?? {}
-    const overall = (raw.overall_risk ?? 'unknown') as ContractFindingSeverity
+    const raw = target.result_json ?? {}
+    const overall = (raw.overall_risk ?? target.overall_risk ?? 'unknown') as ContractFindingSeverity
     const findings = Array.isArray(raw.findings) ? raw.findings : []
 
     return {
@@ -252,37 +310,31 @@ const deepSummary = computed(() => {
             suggestion: item.suggestion ?? item.remedy ?? '',
             category: item.category,
             score: item.score,
-            quote: item.quote,
-            negotiation_tip: item.negotiation_tip
+            quote: item.quote ?? '',
+            negotiation_tip: item.negotiation_tip ?? ''
         })),
     }
+}
+const deepSummary = computed(() => {
+    if (!deepResult.value?.json) {
+        return null
+    }
+    return parseSummary({ result_json: deepResult.value.json })
 })
 const summary = computed(() => {
-    if (!contract.value) {
-        return {
-            overallRisk: 'unknown' as ContractFindingSeverity,
-            findings: [],
-        }
-    }
-    const raw = contract.value.result_json ?? (contract.value as any).json ?? {}
-    const overall = (raw.overall_risk ?? contract.value.overall_risk ?? 'unknown') as ContractFindingSeverity
-    const findings = Array.isArray(raw.findings) ? raw.findings : []
-
-    return {
-        overallRisk: overall || 'unknown',
-        findings: findings.map((item: any) => ({
-            section: item.section,
-            issue: item.issue ?? item.title ?? '',
-            severity: (item.severity ?? 'unknown') as ContractFindingSeverity,
-            rationale: item.rationale ?? item.reason ?? '',
-            suggestion: item.suggestion ?? item.remedy ?? '',
-            category: item.category ?? '',
-            score: item.score ?? '',
-            quote: item.quote ?? '',
-            negotiation_tip: item.negotiation_tip ?? '',
-        })),
-    }
+    return parseSummary(contract.value)
 })
+
+const nameFromPath = (path?: string | null) => {
+    if (!path) return 'レビュー結果'
+    const segments = path.split('/')
+    return segments[segments.length - 1]
+}
+
+const extensionFromPath = (path?: string | null) => {
+    const name = nameFromPath(path)
+    return name.includes('.') ? name.split('.').pop()?.toString().toLowerCase() || 'file' : 'file'
+}
 
 const fileMeta = computed(() => {
     if (!contract.value?.file_path) {
@@ -292,9 +344,8 @@ const fileMeta = computed(() => {
             sizeLabel: '',
         }
     }
-    const segments = contract.value.file_path.split('/')
-    const name = segments[segments.length - 1]
-    const extension = name.includes('.') ? name.split('.').pop() : 'file'
+    const name = nameFromPath(contract.value.file_path)
+    const extension = extensionFromPath(contract.value.file_path)
     const size = contract.value.file_size ?? contract.value.size ?? null
     return {
         name,
@@ -316,14 +367,16 @@ const previewUrl = computed(() => {
     if (!contract.value) return null
     if (contract.value.file_url) return contract.value.file_url
     if (contract.value.file_path && selectedProject.value?.id) {
-        return `/projects/${selectedProject.value.id}/contract/file`
+        return `/projects/${selectedProject.value.id}/contract/file?contract_id=${contract.value.id}`
     }
     return null
 })
 
 const downloadUrl = computed(() => {
-    if (!contract.value?.file_path || !selectedProject.value?.id) return null
-    return `/projects/${selectedProject.value.id}/contract/download`
+    if (!contract.value || !selectedProject.value?.id) return null
+    if (contract.value.download_url) return contract.value.download_url
+    if (!contract.value.file_path) return null
+    return `/projects/${selectedProject.value.id}/contract/download?contract_id=${contract.value.id}`
 })
 
 const severityLabel = (severity: ContractFindingSeverity) => {
@@ -340,7 +393,9 @@ const severityLabel = (severity: ContractFindingSeverity) => {
 }
 
 const formatDate = (value: string) => {
-    return DateTime.fromISO(value).toFormat('yyyy年MM月dd日 HH:mm')
+    if (!value) return '日時未設定'
+    const dt = DateTime.fromISO(value)
+    return dt.isValid ? dt.toFormat('yyyy年MM月dd日 HH:mm') : '日時未設定'
 }
 
 const toggleDetail = () => {
@@ -349,10 +404,22 @@ const toggleDetail = () => {
 const toggleRenewal = () => {
     renewalOpen.value = !renewalOpen.value
 }
+const openRenewal = () => {
+    renewalOpen.value = true
+}
 const downloadContract = () => {
     if (downloadUrl.value) {
         window.open(downloadUrl.value, '_blank', 'noopener')
     }
+}
+
+const selectContract = (id: number) => {
+    selectedContractId.value = id
+    deepResult.value = null
+}
+
+const summaryFromContract = (item: ProjectContractResponse) => {
+    return parseSummary(item)
 }
 
 const fetchContract = async (force = false) => {
@@ -363,17 +430,31 @@ const fetchContract = async (force = false) => {
     }
     try {
         const data = await api.get(`/projects/${selectedProject.value.id}/contract`, null, { loadingRef: loading, silent: true })
-        contractState.value = data.exists ? data.contract : null
+        const list = Array.isArray(data?.contracts)
+            ? data.contracts
+            : (data?.contract ? [data.contract] : [])
+        contractsState.value = list
+
+        if (!list.length) {
+            selectedContractId.value = null
+            detailOpen.value = false
+            return
+        }
+
+        if (!selectedContractId.value || !list.some((item: ProjectContractResponse) => item.id === selectedContractId.value)) {
+            selectedContractId.value = list[0].id
+        }
     } catch (error) {
-        contractState.value = null
+        contractsState.value = []
+        selectedContractId.value = null
     }
 }
 const contractTypeLabel = (value: string) => {
     return contractTypeDefaults.find(r => r.value === value)?.label ?? '—'
 }
-const getContractBlob = async()=> {
+const getContractBlob = async () => {
   if (!previewUrl.value) throw new Error('No preview URL')
-  const res = await fetch(previewUrl.value, { credentials: 'include' }) // send session cookie
+  const res = await fetch(previewUrl.value, { credentials: 'include' })
   if (!res.ok) throw new Error('Failed to fetch contract')
   return await res.blob()
 }
@@ -396,21 +477,41 @@ const ai_review = async(contract: ProjectContractResponse) => {
 const save_review = async(contract: ProjectContractResponse) => {
     if (!deepSummary.value) { ping('保存するレビューはありません'); return }
     await api.post('/save_review', {id: contract.id, summary: deepSummary.value}, {toast: '保存しました。', loadingRef: saveLoading})
-    fetchContract()
+    fetchContract(true)
+}
+
+const removeContract = async () => {
+    if (!selectedProject.value?.id || !contract.value) return
+    const answer = await ask('選択中の契約レビューを削除します。よろしいですか？')
+    if (!answer.value) return
+
+    const deletingId = contract.value.id
+    const response = await api.del(`/projects/${selectedProject.value.id}/contract/${deletingId}`, null, {
+        toast: '契約レビューを削除しました。'
+    })
+    if (!response) return
+
+    if (selectedContractId.value === deletingId) {
+        selectedContractId.value = null
+        detailOpen.value = false
+        deepResult.value = null
+    }
+    fetchContract(true)
 }
 watch(
     () => selectedProject.value?.id,
     () => {
-        contractState.value = null
+        contractsState.value = []
+        selectedContractId.value = null
         detailOpen.value = false
+        renewalOpen.value = false
+        deepResult.value = null
         fetchAttempted.value = false
         uploadFile.value = null
         if (uploadInput.value) {
             uploadInput.value.value = ''
         }
-        if (!selectedProject.value?.contract) {
-            fetchContract()
-        }
+        fetchContract()
     },
     { immediate: true }
 )
@@ -433,10 +534,22 @@ watch(
     { immediate: true }
 )
 
+watch(
+    () => contracts.value,
+    (list) => {
+        if (!list.length) {
+            selectedContractId.value = null
+            return
+        }
+        if (!selectedContractId.value || !list.some(item => item.id === selectedContractId.value)) {
+            selectedContractId.value = list[0].id
+        }
+    },
+    { immediate: true }
+)
+
 onMounted(() => {
-    if (!selectedProject.value?.contract) {
-        fetchContract()
-    }
+    fetchContract()
 })
 
 const uploadFileMeta = computed(() => {
@@ -499,11 +612,12 @@ const uploadContract = async () => {
         file_path: review.path,
         contract_role: review.role,
         contract_type: review.type,
-    }, { loadingRef: uploadLoading, toast: '契約書を更新しました。' })
+    }, { loadingRef: uploadLoading, toast: '契約書を追加しました。' })
 
     if (payload) {
-        contractState.value = payload
+        selectedContractId.value = payload.id ?? null
         clearUploadFile()
+        renewalOpen.value = false
         deepResult.value = null
         fetchContract(true)
     }
@@ -524,6 +638,92 @@ const uploadContract = async () => {
     padding: 24px;
     height: 100%;
     box-sizing: border-box !important;
+}
+
+.legal-files {
+    border: 1px solid var(--calendarBorder);
+    background: var(--background-color);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.legal-files__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
+.legal-files__title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.legal-files__add {
+    border: 1px solid var(--calendarBorder);
+    background: transparent;
+    color: var(--primary-color);
+    font-size: 12px;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+.legal-files__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 240px;
+    overflow: auto;
+}
+
+.legal-files__item {
+    border: 1px solid var(--calendarBorder);
+    background: var(--bg3);
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.legal-files__item--active {
+    border-color: var(--primary-color);
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.legal-files__item-icon {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.legal-files__item-main {
+    min-width: 0;
+    flex: 1;
+}
+
+.legal-files__item-name {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--primary-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.legal-files__item-meta {
+    margin: 2px 0 0;
+    font-size: 11px;
+    color: var(--font-color, #666);
 }
 
 .legal-summary {
@@ -637,6 +837,7 @@ const uploadContract = async () => {
 .legal-summary__actions {
     display: flex;
     gap: 12px;
+    flex-wrap: wrap;
 }
 
 .legal-summary__button {

@@ -181,7 +181,7 @@
                                                         <div class="flex flex-col gap-[10px]" v-if="scenarioOptions.length">
                                                             <div v-for="option in scenarioOptions">
                                                                 <label class="cursor-pointer select-none whitespace-nowrap flex items-center gap-[5px]">
-                                                                    <input type="checkbox" class="custom-f-checkbox" name="class-selector"  v-model="selectedOption" :value="option.value"/>
+                                                                    <input type="checkbox" class="custom-f-checkbox rounded-[3px]" name="class-selector"  v-model="selectedOption" :value="option.value"/>
                                                                     {{ option.label }}
                                                                 </label>
                                                             </div>
@@ -1678,25 +1678,33 @@ watch([periodStartIso, periodEndIso], () => {
 watch(totalGrouping, () => {
     refreshTotalFinance()
 })
-
-watch(
-  [() => props.projects, () => selectedManagers.value],
-  ([projects, managers]) => {
-    if (!projects || projects.length === 0) return; // wait until loaded
-
+watch(selectedManagers, (managers) => {
     if (managers.length) {
-      const set = new Set(managers);
-      selectedProjects.value = projects
-        .filter(p => Array.isArray(p.manager) && p.manager.some(m => set.has(m.id)))
+        const set = new Set(managers)
+        selectedProjects.value = props.projects.filter(p => Array.isArray(p.manager) && p.manager.some(m => set.has(m.id)))
         .map(p => p.id);
     } else {
-      selectedProjects.value = []
+        selectedProjects.value = []
     }
+})
+// watch(
+//   [() => props.projects, () => selectedManagers.value],
+//   ([projects, managers]) => {
+//     if (!projects || projects.length === 0) return; // wait until loaded
+//     console.log('hoho')
+//     if (managers.length) {
+//       const set = new Set(managers);
+//       selectedProjects.value = projects
+//         .filter(p => Array.isArray(p.manager) && p.manager.some(m => set.has(m.id)))
+//         .map(p => p.id);
+//     } else {
+//       selectedProjects.value = []
+//     }
 
-    refreshTotalFinance();
-  },
-  { deep: true, immediate: true }
-);
+//     refreshTotalFinance();
+//   },
+//   { deep: true, immediate: true }
+// );
 
 const badge = useBadgeStore()
 const financeTotalBadge = (name: string) => {

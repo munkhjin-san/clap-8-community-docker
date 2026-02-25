@@ -375,7 +375,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
     // };
     const checkActivity = async() => {            
         const before = localStorage.getItem('notification_check')
-        // if(!before || DateTime.now().diff(DateTime.fromSQL(before), 'minutes').minutes > 1){
+        if(!before || DateTime.now().diff(DateTime.fromSQL(before), 'minutes').minutes > 1){
             const must_sync = await authCheck();
             console.debug('must_sync', must_sync)
             if(!isSocketReady.value || must_sync === true){            
@@ -390,7 +390,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
             }         
             const time = DateTime.now().toFormat('yyyy-MM-dd HH:mm:ss')
             localStorage.setItem('notification_check', time)
-        // }
+        }
     }
     const handleResize = () => {
         const w = window.innerWidth;

@@ -307,7 +307,7 @@ const parsePeriodParam = (value: unknown): DateTime | null => {
 const initialEnd =
   parsePeriodParam(route.query.period_end) ??
   parsePeriodParam(route.query.period) ??
-  DateTime.now().startOf('month')
+  DateTime.now().minus({ months: 1 }).startOf('month')
 
 const defaultFiscalYear = initialEnd.year
 const parsedStart = parsePeriodParam(route.query.period_start)

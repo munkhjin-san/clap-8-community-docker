@@ -35,10 +35,10 @@
                     <PostIcon which="5" size="20"/>
                     グラリンピック
                 </div> -->
-                <!-- <div @click="app_type = 6" :class="['pt-selector', { ptSelected: app_type == 6}]">
+                <div @click="app_type = 6" :class="['pt-selector', { ptSelected: app_type == 6}]">
                     <PostIcon which="6" size="20"/>
                     リフレッシュ
-                </div> -->
+                </div>
             </div>
              <div class="si-box" v-if="app_type == 2">
                 <div class="switchLabel">

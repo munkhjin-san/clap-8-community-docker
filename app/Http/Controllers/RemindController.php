@@ -942,7 +942,7 @@ class RemindController extends Controller
             $this->remind_asset()->getData(true),   
             $this->remind_temp_reserved_schedules()->getData(true),
             $this->remind_departure_report(true)->getData(true),
-            $this->remind_challenge_progress()->getData(true),
+            $this->remind_challenge_progress(),
             $this->remind_overdue()->getData(true),
             $this->remind_goal_slot()->getData(true)
         );
@@ -962,45 +962,33 @@ class RemindController extends Controller
     }
     public function remind_badge(Request $request) {
         $collected = $this->remindCollect();
+        
         $count = 0;
         $counts = [];
         $now = Carbon::now();
+        $test = [];
         foreach ($collected as $key => $response) {
            
-            if ($key === 'remind_reminded_messages') {
+            if ($key === 'remindedMessages'){
                 $counts[$key] = count($response);
                 continue;
-            } 
-            if ($key === 'remind_overdue') {
-                $members = $response['remind_overdue'] ?? [];
-                // $counts['remind_overdue_grace'] = (int)($response['overdue_grace_count'] ?? 0);
-                
-                $count += count($members);
-                // continue;
             }
-            if ($key === 'remind_task_unfinished') {
-                $counts[$key] = count($response);
-            }
-            // if( is_array($response)){
-            //     // dd($key, count($response));
-            //     // if($key == 'remind_unchecked_messages'){
-            //     //     dd($key, count($response));
-            //     // }
-            //     // $count += count($response);
-            // }
 
             
             if( $key === 'overdue_grace_count') {
                 $counts['remind_overdue_grace'] =  $response ?? 0;
+            }else 
+            if (!empty($response)) {
+                $test[$key] = count($response);
+                $count += count($response);
             }
             
-          
             
             
         }
         $counts['total'] = $count;
     
-        return response()->json($counts);
+        return response()->json($test);
     }
     public function get_today_readable(){
         $active = $this->active_user();
@@ -1082,6 +1070,7 @@ class RemindController extends Controller
                 'goal_issue_comment' => $this->badgeService->goalIssueComment($user),
                 'contact_comment' => $this->badgeService->contactComment($user),
                 'today_readable' => $this->badgeService->todayReadable($user),
+                'project_report' => $this->badgeService->getProjectUnreadCount($user)
             ];
         });
         return response()->json($data);

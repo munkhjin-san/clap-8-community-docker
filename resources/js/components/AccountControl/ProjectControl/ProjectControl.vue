@@ -5,6 +5,7 @@
                 <div @click="router.push({name: 'projectlist'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'projectlist'}]">プロジェクト一覧</div>
                 <div @click="router.push({name: 'mentorcontrol'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'mentorcontrol'}]">人事考課管理</div>
                 <div @click="router.push({name: 'accountcontrol'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'accountcontrol'}]">科目管理</div>
+                <div @click="router.push({name: 'checkitems'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'checkitems'}]">チェック項目</div>
                 <!-- <div @click="router.push({name: 'targetperiod'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'targetperiod'}]">評価指標期間管理</div> -->
             </div>  
             <PostSearchBar 
@@ -32,6 +33,7 @@ import { User } from '@/interface/globalInterface';
 import { detailedDateOptions } from '@/utils/tools';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
+import { useProject } from '@/composables/project';
 const keywords = ref('')
 const router = useRouter()
 const route = useRoute()
@@ -53,7 +55,7 @@ const placeholders: Record<string, string> = {
 const customPlaceHolder = computed(() => {
   return placeholders[route.name as string] ?? '検索'
 })
-
+const { getProjects } = useProject()
 onMounted(() => {
     const options = detailedDateOptions()
     const today = DateTime.now()
@@ -64,6 +66,7 @@ onMounted(() => {
     if (foundOption) {
         selectedDate.value = foundOption
     }
+    getProjects()
 })
 const getSelectableUsers = async() => {
 

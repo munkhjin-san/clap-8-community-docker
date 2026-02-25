@@ -151,6 +151,7 @@ export interface Office {
     post_code_1: string | null;
     post_code_2: string | null;
     employees: User[];
+    layout: string | null;
 }
 export interface Facility {
     id: number;
@@ -203,6 +204,7 @@ export interface Message {
     actual_sender: User | null;
     reserved_at: string | null;
     emoted_users: EmoteUser[];
+    check_request_deadline?: string;
 }
 export interface MessageFile {
     id: number;

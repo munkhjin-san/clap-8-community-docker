@@ -219,7 +219,11 @@ const reviewing = ref(false)
 const api = useApi()
 const selectedGoalStatus = ref<number | null>(props.goal?.status ?? null)
 const selectedSalaryIssueStatus = ref<number | null>(props.goal?.salary_issue?.status ?? null)
-
+const passingData = {
+    path: '/project_goal_comment_create',
+    title: '進捗報告・メッセージ',
+    file_path: 'project_goal_report_files'
+}
 
 const badge = useBadgeStore()
 const router = useRouter()   
@@ -230,11 +234,7 @@ const scoreMap = {
     4: '好転傾向',
     5: '明確に好転'
 } 
-const passingData = {
-    path: '/project_goal_comment_create',
-    title: '進捗報告・メッセージ',
-    file_path: 'project_goal_report_files'
-}
+
 onMounted(async () => {
     setTimeout(() => {
         badge.clearGoalIssue({column: 'project_goal_id', value: props.goal?.id})

@@ -10,6 +10,7 @@ use App\Models\EvaluationRecord;
 use App\Models\ProjectCondition;
 use App\Models\ProjectMember;
 use App\Models\ProjectRecord;
+use App\Models\ProjectSpec;
 use App\Models\ProjectSetIncrease;
 use App\Models\SalaryIssue;
 use App\Models\ProjectGoal;
@@ -26,6 +27,7 @@ use App\Models\ProjectPlanYear;
 use App\Models\ProjectMemberRole;
 use App\Models\CustomForm;
 use App\Models\ProjectCheckitems;
+use App\Models\ProjectRecordReadState;
 use App\Services\MentionAndNotify;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ProjectMention;
@@ -45,6 +47,7 @@ use App\Http\Controllers\BoardController;
 use App\Http\Controllers\OpenAiController;
 use App\Services\SharedService;
 use App\Services\VarianceService;
+use App\Services\BadgeService;
 use App\Services\ProjectPlanFormulaService;
 use App\Imports\EvaluationImport;
 use App\Exports\YearlyBudgetTemplate;
@@ -83,7 +86,8 @@ class ProjectController extends Controller
         OpenAiController $openAiController,
         private KintoneClient $api,
         private GoogleSheetsClient $client,
-        private ProjectPlanFormulaService $planFormulaService
+        private ProjectPlanFormulaService $planFormulaService,
+        protected BadgeService $badgeService,
     ){
         $this->boardController = $boardController;
         $this->sharedService = $sharedService;
@@ -129,6 +133,8 @@ class ProjectController extends Controller
         }
         $user = $this->active_user();
         $position_id = $user->position_id;
+        $confirmBadgeMap = $this->badgeService->confirmBadgeMap($user);
+        $commentBadgeMap = $this->badgeService->commentBadgeMap($user);
         $projects = $query
         ->when($position_id == 15, function ($q) use($user) {
             $q->whereHas('members', function ($q) use($user) {
@@ -153,13 +159,18 @@ class ProjectController extends Controller
             'members' => $usersLoader(true),
             'director',
             'contract',
+            'specs.files',
             'memberRoles',
             'checkitems',
             'reports.user',
             'reports.files'
         ])
         ->get();
-       
+        $projects->each(function ($p) use ($confirmBadgeMap, $commentBadgeMap) {
+            $p->has_confirm_badge = isset($confirmBadgeMap[$p->id]);
+            $p->has_comment_badge = isset($commentBadgeMap[$p->id]);
+        });
+
         $sortedProjects = $projects->sortByDesc(function ($project) {
             $isMember = in_array(Auth::id(), $project->members->pluck('id')->toArray());
             $isManager = in_array(Auth::id(), $project->manager->pluck('id')->toArray());
@@ -767,6 +778,7 @@ class ProjectController extends Controller
             'unit_id',
             'custom_unit_label',
             'transitioned_at',
+            'contract_started_at',
             'status'
         ])->toArray();
 
@@ -785,7 +797,23 @@ class ProjectController extends Controller
         if(count($tasks)) {
             $this->create_generated_project_tasks($tasks, $project->id);
         }
-
+        $specs = $request->input('specs');
+        if ($specs !== null) {
+            $spec = ProjectSpec::firstOrNew(['project_id' => $project->id]);
+            if (!$spec->exists) {
+                $spec->created_by = Auth::id();
+            }
+            
+            $spec->spec_data = $specs;
+            $spec->updated_by = Auth::id();
+            
+            $spec->save();
+            $files = Arr::get($specs, 'supplies_and_billing.reference_file_ids', []);
+            if (is_array($files)) {
+                $spec->files()->sync($files);
+            }
+        }
+        
         $raw = $request->input('contract_data');
         if (is_string($raw)) {
             $contract = json_decode($raw, true);
@@ -805,23 +833,31 @@ class ProjectController extends Controller
 
         $responseHash = hash('sha256', json_encode($contract, JSON_UNESCAPED_UNICODE));
 
-        $projectContract = ProjectContract::updateOrCreate(
-            [
-                'project_record_id' => $project->id,
-                'review_type'       => 'quick',    // ここをキーにして「1案件1件」にする
-            ],
-            [
-                'overall_risk'      => $overall,
-                'findings_count'    => $findCount,
-                'result_json'       => $contract,
-                'response_hash'     => $responseHash,
-                'file_path'         => $request->input('contract_file_path'),
-                'role'              => $request->input('contract_role'),
-                'contract_type'     => $request->input('contract_type'),
-            ]
-        );
+        $nextVersion = ((int) ProjectContract::where('project_record_id', $project->id)->max('version')) + 1;
+
+        ProjectContract::create([
+            'project_record_id' => $project->id,
+            'review_type'       => 'quick',
+            'overall_risk'      => $overall,
+            'findings_count'    => $findCount,
+            'result_json'       => $contract,
+            'response_hash'     => $responseHash,
+            'file_path'         => $request->input('contract_file_path'),
+            'role'              => $request->input('contract_role'),
+            'contract_type'     => $request->input('contract_type'),
+            'version'           => $nextVersion,
+            'active'            => true,
+        ]);
         
         return response()->json($project);
+    }
+    public function check_item_categories() {
+        $categories = ProjectCheckItems::query()
+            ->distinct()
+            ->pluck('category')
+            ->values()
+            ->toArray();
+        return response()->json($categories);
     }
     public function project_change_status(Request $request) {
         $request->validate([
@@ -831,9 +867,6 @@ class ProjectController extends Controller
 
         $project = ProjectRecord::findOrFail($request->id);
         $project->update(['status' => $request->status]);
-        if ($request->status === 'director_approved') {
-            $this->ensureProjectCheckitems($project->id);
-        }
 
         return response()->json($project->fresh());
     }
@@ -866,9 +899,34 @@ class ProjectController extends Controller
 
         return response()->json($item->fresh());
     }
+    public function create_update_checkitem(Request $request) {
+        $request->validate([
+            'id'     => ['sometimes'],
+            'projectId' => ['required'], 
+            'category' => ['required'],
+            'label' => ['required']
+        ]);
 
-    private function ensureProjectCheckitems(int $projectId): void
+
+        $id = $request->id ?? null;
+        $record = ProjectCheckItems::updateOrCreate(
+            ['id' => $id],
+            [
+                'project_record_id' => $request->projectId,
+                'category' => $request->category,
+                'label' => $request->label
+            ]
+        );
+        return response()->json($record);
+
+    }
+    public function delete_checkitem(ProjectCheckItems $checkitem) {
+        $checkitem->delete();
+        return response()->json(['status' => 'ok']);
+    }
+    public function ensureProjectCheckitems(Request $request)
     {
+        $projectId = $request->id;
         $exists = DB::table('project_checkitems')
             ->where('project_record_id', $projectId)
             ->exists();
@@ -884,6 +942,9 @@ class ProjectController extends Controller
                 '入社手続き',
                 '転籍手続き',
                 '登録社員手続き',
+                '各種研修の周知',
+                '各種研修実施確認',
+                'アカウント作成',
                 '車両使用誓約書',
                 '免許証情報',
             ],
@@ -894,14 +955,14 @@ class ProjectController extends Controller
                 '派遣契約',
             ],
             '会計' => [
-                '年間計画（損益アプリ）への反映',
-                '利益が確保できているか',
-                'ETCカード・ガソリンカード',
+                '年間収支が正しく入力されているか',
                 '損益計画に物品費用が反映がされているか',
+                '損益に交通費含まれているか（ETCカード・ガソリンカード）',
             ],
             '担当範囲不明' => [
                 'プロジェクトアプリの入力が済んでいるか',
-                '研修（情報管理研修、安全衛生研修など）済みか',
+                '見積書や根拠資料の添付があるか',
+                '購入・物品登録・送付',
             ],
             'MISO' => [
                 '基本情報',
@@ -939,6 +1000,7 @@ class ProjectController extends Controller
         if (count($rows)) {
             DB::table('project_checkitems')->insert($rows);
         }
+        return response()->json($rows);
     }
     public function project_checkitem_comment_add(Request $request, MentionAndNotify $mentioner) {
         $data = $request->validate([
@@ -1058,34 +1120,31 @@ class ProjectController extends Controller
     {
         $this->ensureProjectAccess($project);
 
-        $contract = $this->resolveProjectContract($project);
-        if (!$contract) {
+        $contracts = $project->contracts()->latest('updated_at')->get();
+        if ($contracts->isEmpty()) {
             return response()->json([
                 'exists' => false,
                 'contract' => null,
+                'contracts' => [],
             ]);
         }
 
-        $filePath = $contract->file_path;
-        $disk = Storage::disk('local');
-        $fileExists = $filePath && $disk->exists($filePath);
-
-        $payload = $contract->toArray();
-        $payload['file_size'] = $fileExists ? $disk->size($filePath) : null;
-        $payload['file_url'] = $fileExists ? route('projects.contract.preview', $project) : null;
-        $payload['download_url'] = $fileExists ? route('projects.contract.download', $project) : null;
+        $payloads = $contracts
+            ->map(fn (ProjectContract $contract) => $this->projectContractPayload($project, $contract))
+            ->values();
 
         return response()->json([
             'exists' => true,
-            'contract' => $payload,
+            'contract' => $payloads->first(),
+            'contracts' => $payloads,
         ]);
     }
 
-    public function preview_contract(ProjectRecord $project)
+    public function preview_contract(Request $request, ProjectRecord $project)
     {
         $this->ensureProjectAccess($project);
 
-        $contract = $this->resolveProjectContract($project);
+        $contract = $this->resolveProjectContract($project, $request->integer('contract_id'));
         abort_unless($contract, 404, '契約書が見つかりません。');
 
         $filePath = $contract->file_path;
@@ -1102,11 +1161,11 @@ class ProjectController extends Controller
         ]);
     }
 
-    public function download_contract(ProjectRecord $project)
+    public function download_contract(Request $request, ProjectRecord $project)
     {
         $this->ensureProjectAccess($project);
 
-        $contract = $this->resolveProjectContract($project);
+        $contract = $this->resolveProjectContract($project, $request->integer('contract_id'));
         abort_unless($contract, 404, '契約書が見つかりません。');
 
         $filePath = $contract->file_path;
@@ -1127,6 +1186,7 @@ class ProjectController extends Controller
             'file_path'       => ['required', 'string'],
             'contract_role'   => ['required', 'string'],
             'contract_type'   => ['required', 'string'],
+            'review_type'     => ['nullable', Rule::in(['quick', 'deep'])],
         ]);
 
         $disk = Storage::disk('local');
@@ -1138,16 +1198,11 @@ class ProjectController extends Controller
         $findCount = is_array($findings) ? count($findings) : 0;
         $responseHash = hash('sha256', json_encode($contractPayload, JSON_UNESCAPED_UNICODE));
 
-        $current = $this->resolveProjectContract($project);
-        $version = $current ? ($current->version + 1) : 1;
-
-        if ($current && $current->file_path !== $data['file_path'] && $disk->exists($current->file_path)) {
-            $disk->delete($current->file_path);
-        }
+        $version = ((int) $project->contracts()->max('version')) + 1;
 
         $payload = [
             'project_record_id' => $project->id,
-            'review_type'       => 'quick',
+            'review_type'       => $data['review_type'] ?? 'quick',
             'overall_risk'      => $overall,
             'findings_count'    => $findCount,
             'result_json'       => $contractPayload,
@@ -1159,12 +1214,24 @@ class ProjectController extends Controller
             'active'            => true,
         ];
 
-        $record = ProjectContract::updateOrCreate(
-            ['project_record_id' => $project->id],
-            $payload
-        );
+        $record = ProjectContract::create($payload);
 
-        return response()->json($record->fresh());
+        return response()->json($this->projectContractPayload($project, $record->fresh()));
+    }
+
+    public function delete_contract(ProjectRecord $project, ProjectContract $contract)
+    {
+        $this->ensureProjectAccess($project);
+        abort_unless((int) $contract->project_record_id === (int) $project->id, 404, '契約書が見つかりません。');
+
+        $disk = Storage::disk('local');
+        if ($contract->file_path && $disk->exists($contract->file_path)) {
+            $disk->delete($contract->file_path);
+        }
+
+        $contract->delete();
+
+        return response()->json(['status' => 'ok']);
     }
 
     public function get_salary_options() {
@@ -2131,6 +2198,66 @@ class ProjectController extends Controller
         }        
 
     }
+    private function upsertManualRecord(ProjectRecord $project, string $title, ?string $recordId = null): array
+    {
+        $data = ['app' => 1181];
+
+        if ($recordId) {
+            $data['id'] = $recordId;
+            $data['record'] = [
+                'タイトル' => [
+                    'value' => $title,
+                ],
+            ];
+        } else {
+            $data['record'] = [
+                'タイトル' => [
+                    'value' => $title,
+                ],
+                '部門' => [
+                    'value' => $project->name,
+                ],
+            ];
+        }
+
+        $queryParams = [
+            'app' => '1181',
+        ];
+        if ($recordId) {
+            $queryParams['id'] = $recordId;
+        }
+        $queryString = http_build_query($queryParams);
+        $url = "https://glowd-hldgs.cybozu.com/k/v1/record.json?$queryString";
+        $method = $recordId ? 'put' : 'post';
+        $response = Http::withHeaders($this->kintone_headers())->$method($url, $data);
+        $responseData = $response->json();
+
+        if ($response->successful() && filled($responseData['revision'] ?? null)) {
+            return $responseData;
+        }
+
+        throw ValidationException::withMessages([
+            'message' => $responseData['message'] ?? 'エラーが発生しました。',
+        ]);
+    }
+    private function deleteManualRecordById(string $recordId): array
+    {
+        $data = [
+            'app' => '1181',
+            'ids' => [$recordId],
+        ];
+        $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json';
+        $response = Http::withHeaders($this->kintone_headers())->delete($url, $data);
+        $responseData = $response->json();
+
+        if ($response->successful() && isset($responseData['revisions'])) {
+            return $responseData;
+        }
+
+        throw ValidationException::withMessages([
+            'message' => $responseData['message'] ?? 'エラーが発生しました。',
+        ]);
+    }
     public function create_manual_record(Request $request){
         $request->validate([
             'project_id' => 'required',
@@ -2138,47 +2265,11 @@ class ProjectController extends Controller
         ]);
 
         $project = ProjectRecord::findOrFail($request->project_id);
-        $data = ["app" => 1181];
-        
-        if($request->id){
-            $data['id'] = $request->id;
-            $data['record'] = [
-                "タイトル" => [
-                    "value" => $request->title
-                ]
-            ];
-        }else{
-            $data['record'] = [
-                "タイトル" => [
-                    "value" => $request->title
-                ],
-                "部門" => [
-                    "value" => $project->name
-                ]
-            ];
-        }
-        $queryParams = [
-            'app' => '1181',
-        ];
-        if($request->id){
-            $queryParams['id'] = $request->id;
-        }
-        $queryString = http_build_query($queryParams);
-        $url = "https://glowd-hldgs.cybozu.com/k/v1/record.json?$queryString";
+        $recordId = filled($request->id) ? (string) $request->id : null;
 
-        try {
-            $method = $request->id ? 'put' : 'post';
-            $response = Http::withHeaders($this->kintone_headers())->$method($url, $data);
-            $responseData = $response->json();
-            if(isset($response['revision'])){
-                return $responseData;
-            }
-            else{
-                throw ValidationException::withMessages(['message' => $response['message'] ?? 'エラーが発生しました。']);
-            }
-        } catch (\Exception $e) {
-            throw ValidationException::withMessages(['message' => 'API request failed: ' . $e->getMessage()]);
-        }     
+        return response()->json(
+            $this->upsertManualRecord($project, trim((string) $request->title), $recordId)
+        );
     }
     private function update_manual_record_table ($rules, $record_id){
         $data = [
@@ -2225,21 +2316,7 @@ class ProjectController extends Controller
         $request->validate([
             'manual_id' => 'required',
         ]);
-        $record_id = $request->manual_id;
-        $data = [
-            'app' => '1181',
-            'ids' => [$record_id],
-        ];
-        $url = "https://glowd-hldgs.cybozu.com/k/v1/records.json";
-
-        $response = Http::withHeaders($this->kintone_headers())->delete($url,$data);
-        $responseData = $response->json();
-        if(isset($response['revision'])){
-            return $responseData;
-        }
-        else{
-            throw ValidationException::withMessages(['message' => $response['message'] ?? 'エラーが発生しました。']);
-        }
+        return response()->json($this->deleteManualRecordById((string) $request->manual_id));
     }
     
 
@@ -3178,7 +3255,7 @@ class ProjectController extends Controller
                     $profitData = [
                         "sales" => $totalSales,
                         "expense" => $totalExpense,
-                        "profit" => round((float)(float) $profitData['利益'], 0, PHP_ROUND_HALF_UP),
+                        "profit" => $totalSales - $totalExpense,
                         "profit_rate" => (float) $profitData['利益率'],
                     ];
                     $plan_res_data[$project_name][$periodKey]['profit'] = $profitData;
@@ -4488,9 +4565,33 @@ class ProjectController extends Controller
         return response()->json($contractRecord);
     }
 
-    protected function resolveProjectContract(ProjectRecord $project): ?ProjectContract
+    protected function resolveProjectContract(ProjectRecord $project, ?int $contractId = null): ?ProjectContract
     {
-        return $project->contract()->latest('updated_at')->first();
+        $query = $project->contracts()->latest('updated_at');
+
+        if ($contractId) {
+            $query->whereKey($contractId);
+        }
+
+        return $query->first();
+    }
+
+    protected function projectContractPayload(ProjectRecord $project, ProjectContract $contract): array
+    {
+        $filePath = $contract->file_path;
+        $disk = Storage::disk('local');
+        $fileExists = $filePath && $disk->exists($filePath);
+
+        $payload = $contract->toArray();
+        $payload['file_size'] = $fileExists ? $disk->size($filePath) : null;
+        $payload['file_url'] = $fileExists
+            ? route('projects.contract.preview', ['project' => $project, 'contract_id' => $contract->id])
+            : null;
+        $payload['download_url'] = $fileExists
+            ? route('projects.contract.download', ['project' => $project, 'contract_id' => $contract->id])
+            : null;
+
+        return $payload;
     }
 
     protected function ensureProjectAccess(ProjectRecord $project): void
@@ -5162,6 +5263,29 @@ class ProjectController extends Controller
             $data['project_members'] = $managing_projects;
         }
         return response()->json($data);
+    }
+
+    public function markAsSeen(Request $request) {
+        $user = $this->active_user();
+        $projectId = $request->input('project_id');
+
+        ProjectRecordReadState::updateOrCreate(
+            [
+                'project_record_id' => $projectId,
+                'user_id' => $user->id,
+            ],
+            [
+                'last_seen_at' => now()
+            ]
+        );
+
+        // プロジェクトの未読通知を既読にする処理
+        // 例: ProjectNotificationモデルがある場合
+        // ProjectNotification::where('project_id', $projectId)
+        //     ->where('user_id', $user->id)
+        //     ->update(['seen' => true]);
+
+        return response()->json(['status' => 'ok']);
     }
 }
 

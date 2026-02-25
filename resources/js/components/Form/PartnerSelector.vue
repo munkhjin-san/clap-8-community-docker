@@ -41,6 +41,7 @@
                 </v-autocomplete>                  
             </div>            
         </div>
+        <p v-if="error" class="i-error">{{ error }}</p>
     </div>
 </template>
 <script setup lang="ts">
@@ -49,9 +50,11 @@ import 'styles/selector.css';
 import { useDebouncedRef } from '@/utils/tools'
 import CloseIcon from './CloseIcon.vue';
 import { useApi } from '@/composables/api';
+import { validator } from '@/validation/validator';
     const props = defineProps<{
         placeHolder?: string
         modelValue: string[]
+        rules?: string
     }>()
     const tagOptions = ref<string[]>([])
   
@@ -59,6 +62,8 @@ import { useApi } from '@/composables/api';
     const tagSelectorRef = ref<HTMLElement | null>(null)
     const searching = ref(false)
     const api = useApi()
+    const trigger = ref(false)
+    const error = ref('')
     onMounted(() => {
         superFetch()
     })
@@ -93,6 +98,9 @@ import { useApi } from '@/composables/api';
 
     const update = (p) => {
         selectedTag.value = p
+        setTimeout(() => {
+            validate()
+        }, 100)
         console.log(p)
     }
     const search = (newTag:string) => {
@@ -100,8 +108,15 @@ import { useApi } from '@/composables/api';
         searchKey.value = newTag
     }
 
+    const validate = async (passive?: boolean) => {
+        if (passive && !trigger.value) return
 
-
+        const { isValid, errorMessage } = await validator(props.rules || '', selectedTag.value)
+        error.value = errorMessage || ''
+        trigger.value = true
+        return { valid: isValid }
+    }
+    defineExpose({ validate })
 </script>
 <style lang="scss">
 .selectorFocus{

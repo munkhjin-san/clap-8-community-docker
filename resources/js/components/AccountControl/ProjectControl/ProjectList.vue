@@ -1,7 +1,7 @@
 <template>
     <div class="post-container scrollable project-table-container" style="height: calc(100% - 126px);">
         <div class="project-table">
-            <div class="project-header-row">
+            <div class="project-header-row break-keep">
                 <div class="project-cell">プロジェクト名</div>
                 <div class="project-cell">部門</div>
                 <div class="project-cell">期間</div>
@@ -88,7 +88,7 @@
             </div>
             
         </div>
-        <FloatButton @action="createWindow = true">
+        <FloatButton @action="applyWindow = true">
             <template #icon>
                 <AddIcon size="15" fill="black"/>
             </template>
@@ -102,13 +102,19 @@
                 :edit-data="editData"
             />
         </Transition>
+        <Transition name="modalFade">
+            <ProjectApply 
+                v-if="applyWindow"
+                @close="(val) => applyWindow = val"
+            />
+        </Transition>
     </div>
 </template>
 <script setup lang="ts">
 import FloatButton from '@/components/Global/FloatButton.vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import UserPanel from '@/components/Global/UserPanel.vue'
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Project } from '@/interface/projectInterface';
 import { useMenuStore } from '@/store/menu';
 import ProjectCreate from './ProjectCreate.vue';
@@ -117,8 +123,9 @@ import { User } from '@/interface/globalInterface';
 import { DateTime } from 'luxon';
 import AddIcon from '@/components/Form/AddIcon.vue';
 import { useApi } from '@/composables/api';
+import { useProject } from '@/composables/project';
+import ProjectApply from './ProjectApply.vue';
 
-const projects = ref<Project[]>([])
 const menu = useMenuStore()
 const createWindow = ref(false)
 
@@ -126,9 +133,8 @@ const editData = ref<Project | null>(null)
 const projectUsers = useProjectUsers()
 const props = defineProps(['keywords', 'userList'])
 const api = useApi()
-onMounted(async() => {
-    getProjects() 
-})
+const { projectList, getProjects } = useProject()
+const applyWindow = ref(false)
 const searchResults = computed(() => {
     if(props.keywords){
         const lowSearch = props.keywords.toLowerCase()
@@ -142,14 +148,10 @@ const searchResults = computed(() => {
             }
             return false;
         }
-        return projects.value.filter(project => deepSearch(project))
+        return projectList.value.filter(project => deepSearch(project))
     }
-    return projects.value 
+    return projectList.value 
 })
-const getProjects = async() => {
-    const data = await api.get('/get_projects')
-    data && (projects.value = data as Project[])
-}
 
 const editProject = (project: Project) => {
     editData.value = project

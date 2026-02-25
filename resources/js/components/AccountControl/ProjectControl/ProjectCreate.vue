@@ -1,13 +1,13 @@
 <template>
-    <div class="overlay" @click="emit('close')">
+    <div class="overlay" @click="closeOrBack">
         <div class="projectModalInner" @click.stop>
             <div class="projectModalMainHeader">
                 <p class="ml-[30px]">{{ editData ? 'プロジェクトを編集する' : '新しいプロジェクトを作成する' }}</p>
-                <div class="flex items-center justify-center w-[60px] h-[60px] min-w-[60px] ml-auto cursor-pointer" @click="emit('close')">
+                <div class="flex items-center justify-center w-[60px] h-[60px] min-w-[60px] ml-auto cursor-pointer" @click="closeOrBack">
                     <CloseIcon size="13"/>
                 </div>
             </div>
-            <div class="projectModalContainer">                
+            <div class="projectModalContainer" v-if="!isQuestion">                
                 <div class="projectModalSideMenu">
                     <div class="projectModalSideMenuInner">
                         <div 
@@ -47,7 +47,7 @@
                                     ref="projectManager"
                                 />
                             </div>
-                            <div class="si-box">
+                            <div v-if="fullAccess" class="si-box">
                                 <MemberSelector 
                                     name="member"
                                     v-model="projectParams.members"
@@ -59,30 +59,52 @@
                                 />
                             </div>
                             <div class="si-box">
-                                <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">期間</p>
-                                <div style="display:flex;position: relative;width:100%">
-                                    <ShortInput 
-                                        name="startDate" 
-                                        :rules="'required'"
-                                        :initialValue="projectParams.date_start"
-                                        customClass="date"
-                                        ref="startDateRef"
-                                        type="date"
-                                        v-model="projectParams.date_start"
-                                    />
-                                    <div style="align-self: center;margin: 0 20px;font-size: 14px;color: gray;">ー</div>
-                                    <ShortInput 
-                                        name="endDate" 
-                                        :rules="'required'"
-                                        :initialValue="projectParams.date_end"
-                                        customClass="date"
-                                        ref="endDateRef"
-                                        type="date"
-                                        v-model="projectParams.date_end"
-                                    />
+                                <div class="flex gap-5">
+                                    <div>
+                                        <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">プロジェクト開始日</p>
+                                        <ShortInput 
+                                            name="startDate" 
+                                            :rules="'required'"
+                                            :initialValue="projectParams.date_start"
+                                            customClass="date"
+                                            ref="startDateRef"
+                                            type="date"
+                                            v-model="projectParams.date_start"
+                                        />
+                                        
+                                    </div>
+                                    <!-- <div style="align-self: center;margin: 0 20px;font-size: 14px;color: gray;">ー</div> -->
+
+                                    <div>
+                                        <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">プロジェクト終了日</p>
+                                        <ShortInput 
+                                            name="endDate" 
+                                            :rules="'required'"
+                                            :initialValue="projectParams.date_end"
+                                            customClass="date"
+                                            ref="endDateRef"
+                                            type="date"
+                                            v-model="projectParams.date_end"
+                                        />
+                                    </div>
                                 </div>
+                                
                             </div>
                             <div class="si-box">
+                                <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">契約開始日</p>
+                                <div class="flex">
+                                    <ShortInput 
+                                        name="cStartdate" 
+                                        :rules="'required'"
+                                        :initialValue="projectParams.contract_started_at"
+                                        customClass="date"
+                                        ref="contractStartedAtRef"
+                                        type="date"
+                                        v-model="projectParams.contract_started_at"
+                                    />
+                                </div>  
+                            </div>
+                            <div v-if="fullAccess" class="si-box">
                                 <p class="text-[14px]">部門</p>
                                 <div class="mt-[15px] flex flex-wrap gap-[15px]">
                                     <label v-for="rp in [{value: 1, label: '新規'}, {value: 0, label: '既存'}]" class="flex items-center gap-[10px] text-[12px] user-select-none cursor-pointer" :key="rp.value">
@@ -105,7 +127,7 @@
                                 
                             </div>
                         </div>
-                        <div id="projectCreateAchievements" class="mb-[60px] section-hd">
+                        <div v-if="fullAccess" id="projectCreateAchievements" class="mb-[60px] section-hd">
                             <p class="mb-[20px]"><strong>実績管理機能</strong></p>
                             <div class="selectSwitchArea" style="width: fit-content;">    
                                 <input type="checkbox" id="set_actual" v-model="projectParams.has_actual_func">
@@ -212,6 +234,7 @@
                                                 label="サービスカテゴリ"
                                                 :menu-props="{ scrollStrategy: 'close'}"
                                                 v-model="projectParams.category"
+                                                @update:model-value="validateServiceCategory(true)"
                                                 
                                             >
                                                 <template v-slot:chip="{ props, item }">
@@ -240,6 +263,7 @@
                                         </div>
                                     </div>
                                 </div>
+                                <p v-if="serviceCategoryError" style="position: unset;" class="i-error">{{ serviceCategoryError }}</p>
 
                             </div>
                             <div class="si-box flex flex-col gap-[15px]">
@@ -247,6 +271,8 @@
                                     name="customer"
                                     v-model="projectParams.customers!"
                                     placeHolder="顧客企業（正式名称）"
+                                    :rules="'required'"
+                                    ref="partnerSelectorRef"
                                 />
                             </div>
                             <div class=si-box>
@@ -270,6 +296,7 @@
                                                 label="業種区分"
                                                 :menu-props="{ scrollStrategy: 'close'}"
                                                 v-model="projectParams.industry_type"
+                                                @update:model-value="validateIndustryType(true)"
                                                 
                                             >
                                                 <template v-slot:chip="{ props, item }">
@@ -294,6 +321,7 @@
                                         </div>
                                     </div>
                                 </div>
+                                <p v-if="industryTypeError" class="i-error">{{ industryTypeError }}</p>
 
                             </div>
 
@@ -315,10 +343,11 @@
                                     which="description"
                                     ref="descriptionGenerator"
                                     config-key="project_description_generation"
+                                    rules="required"
                                     :data="projectParams"
                                 />                                                                
                             </div>
-                            <p class="text-[12px] text-[gray] mt-[10px] leading-normal">概要は管理者用の非公開メモから自動生成されます。プロジェクト情報を詳しく入力すると、より正確な概要が作成されます。</p>
+                            <p class="text-[12px] text-[gray] mt-[15px] leading-normal">概要は管理者用の非公開メモから自動生成されます。プロジェクト情報を詳しく入力すると、より正確な概要が作成されます。</p>
  
                         </div>
                         <div class="mb-[60px] section-hd" id="miso">
@@ -331,6 +360,7 @@
                                     which="mission"
                                     ref="missionGenerator"
                                     config-key="project_miso_generation"
+                                    rules="required"
                                     :data="projectParams"
                                 /> 
                             </div>
@@ -342,6 +372,7 @@
                                     which="innovation"
                                     ref="innovationGenerator"
                                     config-key="project_miso_generation"
+                                    rules="required"
                                     :data="projectParams"
                                 /> 
                             </div>
@@ -353,6 +384,7 @@
                                     which="strategy"
                                     ref="strategyGenerator"
                                     config-key="project_miso_generation"
+                                    rules="required"
                                     :data="projectParams"
                                 /> 
                             </div>
@@ -364,11 +396,18 @@
                                     which="operation"
                                     ref="operationGenerator"
                                     config-key="project_miso_generation"
+                                    rules="required"
                                     :data="projectParams"
                                 /> 
                             </div>
                         </div>
-                        <div class="section-hd" id="tasks">
+                        <!-- <div class="mb-[60px] section-hd" id="manual">
+                            <p class="mb-[20px]"><strong>業務マニュアル</strong></p>
+                            <div class="relative" ref="flowContainer">
+                                <BusinessManual v-model="manualDrafts" @editing-change="setBusinessManualEditing" />
+                            </div>
+                        </div> -->
+                        <div v-if="fullAccess" class="section-hd" id="tasks">
                             <p class="mb-[20px]"><strong>タスクの自動生成</strong></p>
                             <div class="relative" ref="flowContainer">
                                 <div>
@@ -423,7 +462,7 @@
                         </div> 
                     </div>                            
                 </div>
-                <div class="section-hd mt-[60px]" id="legal">
+                <div v-if="fullAccess" class="section-hd mt-[60px]" id="legal">
                     <p class="mb-5"><strong>契約レビュー</strong></p>
                     <div class="selectSwitchArea" style="width: fit-content;">    
                         <input type="checkbox" id="legal_review" v-model="legal_review">
@@ -589,13 +628,25 @@
                     </div>
                     
                 </div>
-                    <div class="si-box flex gap-[30px] justify-center" id="projectCreateButton">
-                        <LoaderButton @triggered="createProject('draft')" :loading="isLoading('draft')" content="下書き保存" style="margin:0;"/>
-                        <LoaderButton @triggered="createProject('pending_director')" :loading="isLoading('pending_director')" content="申請する" style="margin:0;"/>
+                    <div v-if="fullAccess" class="si-box">
+                        <LoaderButton @triggered="createProject(editData?.status)" content="保存する"/>
+                    </div>
+                    <div v-else class="si-box flex gap-[30px] justify-center" id="projectCreateButton">
+                        <LoaderButton @triggered="createProject(editData ? editData?.status : 'draft')" :loading="isLoading('draft')" content="下書き保存" style="margin:0;"/>
+                        <LoaderButton @triggered="goToConfirmApply" :loading="isLoading('pending_director')" content="次へ" style="margin:0;"/>
                     </div>
                     </div>
                 </div>
             </div>
+            <ConfirmApply 
+                :has-privilage="auth.hasPrivilage"
+                v-if="isQuestion"
+                :edit-data="editData?.specs?.spec_data"
+                :files="editData?.specs?.files"
+                :saving="isLoading('pending_director')"
+                @save-draft="saveDraftFromConfirmApply"
+                @submit="val => createProject('pending_director', val)"
+            />
         </div>
     </div>
 </template>
@@ -630,13 +681,16 @@ import ProjectContract from './ProjectContract.vue';
 import { contractTypeDefaults, contractRoleDefaults } from '@/utils/tools';
 import { useTour } from '@/composables/useTour';
 import { useTutorialStore } from '@/store/tutorial';
+import ConfirmApply from '@/components/Project/ProjectTabs/Overview/ConfirmApply.vue';
+import { validator } from '@/validation/validator';
 
-type ProjectStatus = 'draft' | 'pending_director'
+type ProjectStatus = 'draft' | 'creating' | 'pending_director'
+
 
 const emit = defineEmits(['close', 'getProjects'])
 const props = defineProps(['userList', 'editData'])
 const api = useApi()
-const {ask, ping, toast } = useDialog()
+const {ask, ping } = useDialog()
 const loadingStatus = ref<ProjectStatus | null>(null)
 const taskCreating = ref(false)
 const misoCreating = ref(false)
@@ -657,14 +711,16 @@ type StatusRow = { status_id: number | null; label: string; selected: boolean; s
 const statusRows = ref<StatusRow[]>([])
 const suggestedStatuses = ref<string[]>([])
 
-const stepTitles = [
-    {name: '基本情報', hash: '#basic'},
-    {name: '実績管理', hash: '#projectCreateAchievements'},
-    {name: '概要', hash: '#overview'},
-    {name: 'MISO', hash: '#miso'},
-    {name: 'タスク自動生成', hash: '#tasks'},
-    {name: '契約レビュー', hash: '#legal'}
-]
+const stepTitles = computed(() => [
+  { name: "基本情報", hash: "#basic" },
+  ...(fullAccess.value ? [{ name: "実績管理", hash: "#projectCreateAchievements" }] : []),
+  { name: "概要", hash: "#overview" },
+  { name: "MISO", hash: "#miso" },
+  ...(fullAccess.value ? [{ name: "タスク自動生成", hash: "#tasks" }] : []),
+  ...(fullAccess.value ? [{ name: "契約レビュー", hash: "#legal" }] : []),
+//   { name: "業務マニュアル", hash: "#manual" },
+]);
+const isQuestion = ref(false)
 const projectParams = reactive<Partial<Project>>(props.editData ? { ...toRaw(props.editData) } : {
     name: '',
     description: '',
@@ -685,6 +741,7 @@ const projectParams = reactive<Partial<Project>>(props.editData ? { ...toRaw(pro
     unit_id: 'JPY',
     custom_unit_label: '',
     transitioned_at: '',
+    contract_started_at: '',
 })
 const contract_type = ref('outsourcing')
 const contract_role = ref('乙')
@@ -772,14 +829,37 @@ const projectManager = useTemplateRef<ComponentExposed<typeof MemberSelector>>('
 const mainTaskRef = useTemplateRef<ComponentExposed<typeof SampleTask>[]>('mainTaskRef')
 const projectMemo = useTemplateRef<ComponentExposed<typeof LongInput>>('projectMemo')
 const flowContainer = useTemplateRef('flowContainer')
-
+const contractStartedAtRef = useTemplateRef<ComponentExposed<typeof ShortInput>>('contractStartedAtRef')
 const serviceCategoryRef = useTemplateRef('serviceCategoryRef')
 const industryTypeRef = useTemplateRef('industryTypeRef')
+const descriptionGenerator = useTemplateRef<ComponentExposed<typeof AiGenerationProject>>('descriptionGenerator')
+const missionGenerator = useTemplateRef<ComponentExposed<typeof AiGenerationProject>>('missionGenerator')
+const innovationGenerator = useTemplateRef<ComponentExposed<typeof AiGenerationProject>>('innovationGenerator')
+const strategyGenerator = useTemplateRef<ComponentExposed<typeof AiGenerationProject>>('strategyGenerator')
+const operationGenerator = useTemplateRef<ComponentExposed<typeof AiGenerationProject>>('operationGenerator')
 const serviceCategories = ProjectServiceCategories
-
+const serviceCategoryError = ref('')
+const industryTypeError = ref('')
+const serviceCategoryTrigger = ref(false)
+const industryTypeTrigger = ref(false)
+const partnerSelectorRef = useTemplateRef<ComponentExposed<typeof PartnerSelector>>('partnerSelectorRef')
 const managerOptions = computed(() => {
     return props.userList.filter((user: { position_id: number; }) => user.position_id <= 6)
 })
+watch(
+    () => projectParams.category,
+    () => {
+        validateServiceCategory(true)
+    },
+    { deep: true }
+)
+watch(
+    () => projectParams.industry_type,
+    () => {
+        validateIndustryType(true)
+    },
+    { deep: true }
+)
 const uploadedMeta = computed(() => {
     if (!uploaded.value) return null
     const name = uploaded.value.name
@@ -815,7 +895,16 @@ const loaderPayload = computed(() => {
 
   return { loading: false, message: '', kind: null }
 })
-
+const fullAccess = computed(() => {
+    return props.editData && (props.editData.status == 'director_approved' || props.editData.status == 'running')
+})
+const closeOrBack = () => {
+    if (isQuestion.value) {
+        isQuestion.value = false
+    } else {
+        emit('close')
+    }
+}
 const onChange = (event: Event) => {
     const target = event.target as HTMLInputElement
     const file = target && target.files ? target.files[0] : null
@@ -883,7 +972,7 @@ const ai_review = async() => {
     
     if (props.editData?.contract) {
         let answer = { value: false}
-        answer = await ask('すでにレビュー結果が存在します。\n新しいファイルをレビューすると、現在のレビュー結果が上書きされます。\n新しいファイルをレビューしてもよろしいですか?')
+        answer = await ask('すでにレビュー結果が存在します。\n新しいファイルをレビューすると、法務レビューに新しいファイルとして追加されます。\n新しいファイルをレビューしてもよろしいですか?')
         if (!answer.value) return
     }
     
@@ -961,8 +1050,31 @@ const flowTasks = computed(() => {
         totalWidth: flowContainer.value?.clientWidth
     }
 })
-const validation = async() => {
-    const validationTargets = [startDateRef.value, endDateRef.value, projectTitle.value]
+const validation = async(mode: 'draft' | 'submit' = 'submit') => {
+    if (mode === 'draft' && isQuestion.value) {
+        return !!projectParams.name
+    }
+    if (mode === 'submit' && isQuestion.value) {
+        return true
+    }
+
+    const validationTargets = mode === 'draft'
+        ? [projectTitle.value]
+        : [
+            startDateRef.value,
+            endDateRef.value,
+            projectTitle.value,
+            projectMemo.value,
+            contractStartedAtRef.value,
+            { validate: () => validateServiceCategory() },
+            { validate: () => validateIndustryType() },
+            partnerSelectorRef.value,
+            descriptionGenerator.value,
+            missionGenerator.value,
+            innovationGenerator.value,
+            strategyGenerator.value,
+            operationGenerator.value,
+        ]
     let result = true
     for(const target of validationTargets){                
         const val = await target?.validate() || {valid:false}
@@ -971,9 +1083,55 @@ const validation = async() => {
     return result
 }
 const managerValidation = async() => {
+    if (isQuestion.value) return true
     if (!projectManager.value) return false
     const val = await projectManager.value?.validate() || { valid: false}
     return val.valid
+}
+const validateServiceCategory = async(passive = false) => {
+    if (passive && !serviceCategoryTrigger.value) return { valid: true }
+    const { isValid, errorMessage } = await validator('required', projectParams.category)
+    serviceCategoryError.value = isValid ? '' : (errorMessage || '')
+    serviceCategoryTrigger.value = true
+    return { valid: isValid }
+}
+const validateIndustryType = async(passive = false) => {
+    if (passive && !industryTypeTrigger.value) return { valid: true }
+    const { isValid, errorMessage } = await validator('required', projectParams.industry_type)
+    industryTypeError.value = isValid ? '' : (errorMessage || '')
+    industryTypeTrigger.value = true
+    return { valid: isValid }
+}
+const validateByStatus = async(status: ProjectStatus) => {
+    const errors: string[] = []
+
+    if (status === 'draft') {
+        const titleValid = await validation('draft')
+        if (!titleValid) {
+            errors.push('下書き保存にはタイトルの入力が必要です。')
+        }
+        return errors
+    }
+
+    const baseValid = await validation('submit')
+    const managerValid = await managerValidation()
+    if (!baseValid || !managerValid) {
+        errors.push('基本情報の必須項目を入力してください。')
+    }
+
+    return errors
+}
+const goToConfirmApply = async() => {
+    const errors = await validateByStatus('pending_director')
+    if (errors.length) {
+        ping(errors.join('<br>'))
+        return
+    }
+    isQuestion.value = true
+}
+const saveDraftFromConfirmApply = (specs: any) => {
+    const status = props.editData ? props.editData.status : 'draft'
+    createProject(status, specs)
 }
 const contractPayload = computed(() => {
     const c = contract.value
@@ -1020,7 +1178,7 @@ const statusPayload = computed(() => {
             sort_order: order++,
         }))
 })
-const buildParams = (status: ProjectStatus) => ({
+const buildParams = (status: ProjectStatus, specs?: any) => ({
     id: props.editData?.id,
     params: {
         ...projectParams,
@@ -1031,28 +1189,31 @@ const buildParams = (status: ProjectStatus) => ({
     contract_data: contractPayload.value?.data,
     contract_file_path: contractPayload.value?.file_path,
     contract_role: contractPayload.value?.role,
-    contract_type: contractPayload.value?.type
-
+    contract_type: contractPayload.value?.type,
+    specs: specs
 })
 const isLoading = (s: ProjectStatus) => loadingStatus.value === s
-const createProject = async(status: ProjectStatus) => {
+const createProject = async(status: ProjectStatus, specs?: any) => {
     if (loadingStatus.value) return
 
-    const validate = await validation()
-    const managerValidate = await managerValidation()
+    const errors = await validateByStatus(status)
+    if(errors.length) {
+        ping(errors.join('<br>'))
+        return
+    }
 
-    if(!validate || !managerValidate) {
-        ping('必須項目を入力してください。')
-        return
+    if (status !== 'draft') {
+        const membersIds = projectParams.members?.map((member: { id: number; }) => member.id) ?? []
+        const managerIds = projectParams.manager?.map((manager: { id: number; }) => manager.id) ?? []
+        const checkDuplicated = membersIds.filter((id: number) => managerIds.includes(id))
+        if(checkDuplicated.length > 0){
+            ping('メンバーと管理者に同じユーザーが含まれています。')
+            return
+        }
     }
-    const membersIds = projectParams.members?.map((member: { id: number; }) => member.id) ?? []
-    const managerIds = projectParams.manager?.map((manager: { id: number; }) => manager.id) ?? []
-    const checkDuplicated = membersIds.filter((id: number) => managerIds.includes(id))
-    if(checkDuplicated.length > 0){
-        ping('メンバーと管理者に同じユーザーが含まれています。')
-        return
-    }
-    const params = buildParams(status)
+
+    const params = buildParams(status, specs)
+    
     loadingStatus.value = status
     const data = await api.post('/create_project', params, {
         toast: '保存しました。',
@@ -1183,6 +1344,7 @@ const setTutorialStep = (key:string) => {
     }, 300);       
     tutorialStore.setTutorial({ active: false, name: [] })
 }
+
 </script>
 <style scoped>
 .legal-upload {

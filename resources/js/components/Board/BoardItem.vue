@@ -54,7 +54,7 @@ import { computed, inject } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useBadgeStore } from '@/store/badge'
 import ItemMenu from '../Global/ItemMenu.vue';
-import { mentionFormatter } from '@/utils/tools';
+import { mentionFormatter, oikawaFormatter } from '@/utils/tools';
 import { useRoute } from 'vue-router';
 import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
 import { MenuList } from '@/interface/globalInterface';
@@ -96,7 +96,7 @@ import { MenuList } from '@/interface/globalInterface';
             return '現在メッセージはありません';
         }
         if (last_message.message) {
-            return mentionFormatter(last_message.message, true);
+            return mentionFormatter(oikawaFormatter(last_message.message, 20), true);
         }
         const messageTypes = [
             { key: 'message_files_exists', label: 'ファイルメッセージ' },

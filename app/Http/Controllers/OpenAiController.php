@@ -201,7 +201,10 @@ class OpenAiController extends Controller
           ?? $resp->outputText
           ?? null;
         $json = json_decode($text ?? '', true);
-        $filePath = $file->storeAs('project_files/contracts', $fileName);
+        $filePath = null;
+        if ($review_type !== 'deep') {
+            $filePath = $file->storeAs('project_files/contracts/' . Str::uuid()->toString(), $fileName);
+        }
         return response()->json([
             'status' => 'ok',
             'raw'    => $text,     // in case you want to see it

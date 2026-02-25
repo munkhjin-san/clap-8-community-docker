@@ -6403,7 +6403,7 @@ input:autofill {
   justify-content: space-between;
   white-space: nowrap;
   flex-wrap: wrap;
-  column-gap: 15px;
+  gap: 15px;
 }
 
 .message-top-block {
@@ -6422,7 +6422,10 @@ input:autofill {
   font-size: 12px;
   color: gray;
 }
-
+.chat-emoji {
+  vertical-align: -0.2em;
+  display: inline-block;
+}
 .mntuser {
   color: var(--link-color);
   cursor: pointer;

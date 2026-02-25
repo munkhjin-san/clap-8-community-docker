@@ -120,7 +120,12 @@
                 </div>
                 <Transition name="modalFade">
                     <div id="EmojiPicker" v-if="menu.name == 'EmojiPicker' && menu.id == 1002">
-                        <EmojiPicker                                     
+                        <div class="sub-tab-container p-5 bg-[var(--background-color)]">
+                            <div @click="tab = 'oikawa'" :class="{'selected-sub-tab': tab === 'oikawa'}" class="sub-tab-item no-underline hover:text-inherit hover:no-underline">オイカワ</div>
+                            <div @click="tab = 'emoji'" :class="{'selected-sub-tab': tab === 'emoji'}" class="sub-tab-item no-underline hover:text-inherit hover:no-underline">絵文字</div>
+                        </div>
+                        <EmojiPicker  
+                            v-show="tab === 'emoji'"                                   
                             :native="true" 
                             @select="selectEmoji" 
                             :hide-search="true" 
@@ -131,11 +136,26 @@
                             :display-recent="true"
                             style="left: 0;right:auto;"
                         />
+                        <div v-show="tab === 'oikawa'" class="w-max absolute p-4 bg-[var(--background-color)] z-10 bottom-[25px] shadow-xl">
+                            <div class="grid grid-cols-5 gap-2">                        
+                                <div class="flex items-end transition-transform duration-200 ease-out hover:scale-105" v-for="num in 15" @click="selectOikawa(num)">
+                                    <Character :size="40" :emoteId="num"/>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     
                 </Transition>
                 <div class="typeCommandBar">
                     <div class="message-icon-outer">
+                        <div class="pc message-icon-wrapper" title="絵文字" @click.stop="menu.setMenu( {name: 'EmojiPicker', id: 1002})">                                          
+                            <svg style="fill: var(--third-color);" version="1.1" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 30 30">
+                                <path d="M14.977,0C6.735-0.056-0.127,6.93,0.002,15.153c-0.028,8.165,6.816,14.938,14.975,14.811v-0.04c0.967,0.013,1.936-0.067,2.889-0.242c4.817-0.863,9.055-4.275,10.937-8.8C32.985,11.039,25.688-0.021,14.977,0 M14.977,27.902C6.08,27.658-0.075,18.755,3.433,10.373C7.814,0.291,22.13,0.293,26.49,10.386C30.002,18.61,23.886,27.788,14.977,27.902"/>
+                                <path d="M22.441,18.263c-0.623-0.436-1.479-0.284-1.917,0.338c0.007-0.011,0.002-0.006-0.001-0.004c-0.002,0.002-0.006,0.005-0.011,0.01l-0.027,0.025c-0.734,0.658-1.568,1.264-2.479,1.639c-0.291,0.123-0.596,0.222-0.9,0.292c-0.67,0.185-1.332,0.349-2.043,0.376c-2.039,0.059-4.107-0.841-5.435-2.355c-1.226-1.563-3.443,0.199-2.196,1.769c0.199,0.27,0.418,0.529,0.646,0.772c1.784,1.911,4.359,3.094,6.986,3.106c1.119,0.021,2.305-0.08,3.354-0.525c1.753-0.72,3.36-1.896,4.362-3.526C23.214,19.556,23.063,18.698,22.441,18.263"/>
+                                <path d="M18.513,14.558c0.905,0.201,1.834-0.509,2.073-1.585c0.239-1.076-0.302-2.111-1.208-2.313c-0.904-0.201-1.833,0.509-2.072,1.585C17.065,13.322,17.606,14.357,18.513,14.558"/>
+                                <path d="M11.44,14.558c0.906-0.201,1.446-1.236,1.208-2.313c-0.239-1.076-1.167-1.786-2.074-1.585c-0.906,0.203-1.446,1.238-1.208,2.313C9.605,14.049,10.534,14.759,11.44,14.558"/>
+                            </svg>
+                        </div>
                         <div title="メンション" class="message-icon-wrapper" style="position: relative;">
                             <svg @click.stop="mentionBoxForceOpen"  height="19" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 32" style="fill: var(--third-color);">
                                 <path d="M7.073 10.146c0.051 0.267 0.127 0.533 0.19 0.787 0.076 0.254 0.178 0.521 0.279 0.775 0.406 1.003 1.029 1.93 1.816 2.692 0.775 0.762 1.714 1.359 2.717 1.74 1.003 0.394 2.298 0.559 3.149 0.559 1.143 0 2.133-0.19 3.149-0.584 1.003-0.381 1.93-0.978 2.717-1.727 0.775-0.749 1.41-1.664 1.841-2.667s0.648-2.095 0.66-3.187c0.013-1.092-0.19-2.197-0.597-3.213-0.406-1.029-1.016-1.968-1.778-2.768-0.775-0.787-1.702-1.435-2.73-1.879s-2.146-0.673-3.264-0.673-2.222 0.229-3.251 0.673c-1.016 0.432-1.943 1.092-2.717 1.879-1.524 1.587-2.387 3.797-2.349 5.968l0.051 0.813c0.025 0.267 0.076 0.533 0.114 0.813zM10.197 6.438c0.292-0.648 0.711-1.232 1.232-1.727 0.508-0.483 1.117-0.864 1.765-1.117s1.333-0.381 2.032-0.381 1.384 0.14 2.032 0.394 1.244 0.635 1.752 1.117c0.508 0.483 0.927 1.067 1.219 1.714s0.444 1.359 0.457 2.070c0.025 1.435-0.559 2.857-1.549 3.924-0.495 0.533-1.105 0.952-1.765 1.27-0.673 0.305-1.537 0.47-2.146 0.47-0.432 0-1.473-0.203-2.133-0.495-0.66-0.305-1.27-0.724-1.765-1.244-0.99-1.041-1.625-2.451-1.6-3.898 0.025-0.737 0.178-1.448 0.47-2.095zM15.264 19.048c4.064 0 6.54 1.168 8.444 2.387 2.171 1.384 3.708 3.073 4.686 4.457s1.702 2.984 2.019 4.127c0.292 1.054 0 1.829-0.673 1.981-0.622 0.127-1.232-0.33-1.524-0.927-0.419-0.851-1.168-2.337-1.93-3.352-0.838-1.13-1.981-2.235-3.124-3.060-0.978-0.711-2.489-1.384-3.822-1.765-1.054-0.305-2.565-0.483-4.089-0.483-1.537 0-3.187 0.229-4.14 0.508-1.333 0.381-2.806 1.041-3.771 1.74-1.13 0.825-2.273 1.917-3.124 3.060-0.749 1.016-1.498 2.502-1.93 3.352-0.292 0.597-0.902 1.054-1.524 0.927-0.673-0.14-0.952-0.927-0.673-1.981 0.317-1.143 1.041-2.743 2.019-4.127s2.514-3.086 4.686-4.457c1.93-1.219 4.406-2.387 8.47-2.387z"></path>
@@ -152,14 +172,6 @@
                                 <input multiple type="file" name="sharedfile" id="sharedfile" v-on:change="addAttachment" style="display: none;">
                             </div>
                         </div>
-                        <div class="pc message-icon-wrapper" title="絵文字" @click.stop="menu.setMenu( {name: 'EmojiPicker', id: 1002})">                                          
-                            <svg style="fill: var(--third-color);" version="1.1" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 30 30">
-                                <path d="M14.977,0C6.735-0.056-0.127,6.93,0.002,15.153c-0.028,8.165,6.816,14.938,14.975,14.811v-0.04c0.967,0.013,1.936-0.067,2.889-0.242c4.817-0.863,9.055-4.275,10.937-8.8C32.985,11.039,25.688-0.021,14.977,0 M14.977,27.902C6.08,27.658-0.075,18.755,3.433,10.373C7.814,0.291,22.13,0.293,26.49,10.386C30.002,18.61,23.886,27.788,14.977,27.902"/>
-                                <path d="M22.441,18.263c-0.623-0.436-1.479-0.284-1.917,0.338c0.007-0.011,0.002-0.006-0.001-0.004c-0.002,0.002-0.006,0.005-0.011,0.01l-0.027,0.025c-0.734,0.658-1.568,1.264-2.479,1.639c-0.291,0.123-0.596,0.222-0.9,0.292c-0.67,0.185-1.332,0.349-2.043,0.376c-2.039,0.059-4.107-0.841-5.435-2.355c-1.226-1.563-3.443,0.199-2.196,1.769c0.199,0.27,0.418,0.529,0.646,0.772c1.784,1.911,4.359,3.094,6.986,3.106c1.119,0.021,2.305-0.08,3.354-0.525c1.753-0.72,3.36-1.896,4.362-3.526C23.214,19.556,23.063,18.698,22.441,18.263"/>
-                                <path d="M18.513,14.558c0.905,0.201,1.834-0.509,2.073-1.585c0.239-1.076-0.302-2.111-1.208-2.313c-0.904-0.201-1.833,0.509-2.072,1.585C17.065,13.322,17.606,14.357,18.513,14.558"/>
-                                <path d="M11.44,14.558c0.906-0.201,1.446-1.236,1.208-2.313c-0.239-1.076-1.167-1.786-2.074-1.585c-0.906,0.203-1.446,1.238-1.208,2.313C9.605,14.049,10.534,14.759,11.44,14.558"/>
-                            </svg>
-                        </div>  
                         <div @click="editWithAi" title="AI添削" class="message-icon-wrapper" style="width:28px">     
                             <AiIcon size="20" fill="var(--third-color)" :class="{'animate-pulse': aiCorrectionRef?.working}"/>
                         </div>       
@@ -210,7 +222,9 @@ import { useDialog } from '@/composables/dialog';
 import { useBoardList } from '@/composables/board';
 import { Message, MessageFile, SharingFile, UploadingFile, User } from '@/interface/globalInterface';
 import { MessageMethodsKey, MessageMethods } from '@/interface/keys';
+import { oikawaFormatter } from '@/utils/tools'
 import AiCorrection from '@/components/Global/AiCorrection.vue';
+import Character from '@/components/Global/Character.vue'
     const sharingData = useSharingDataStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -241,7 +255,7 @@ import AiCorrection from '@/components/Global/AiCorrection.vue';
     const aiEditing = ref(false)
     const api = useApi()
     const { toast } = useDialog()
-
+    const tab = ref('oikawa')
     const aiCorrectionRef = useTemplateRef('aiCorrectionRef')
     
     onUnmounted(() => {
@@ -433,6 +447,19 @@ import AiCorrection from '@/components/Global/AiCorrection.vue';
         sharingFiles.value = []             
         
     }       
+    const selectOikawa = (num: number) => {
+        if (!messageInputArea.value) return 
+        const oikawaSyntax = `[oikawa:${num}:]`
+        const text = messageInputArea.value.textContent || ''
+        const textBeforeCursor = text.slice(0, caretPosition.value)
+        const textAfterCursor = text.slice(caretPosition.value)
+        const output = textBeforeCursor + oikawaSyntax + textAfterCursor
+        messageInputArea.value.textContent = output
+        const newPosition = caretPosition.value + oikawaSyntax.length
+        setEndOfContenteditable(newPosition)
+        msgSave()
+        menu.close()
+    }
     const mentionUser = (user, index) => {             
         if(user && messageInputArea.value){
             const mentionSyntax = `[To:${user.name}:]`

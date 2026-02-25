@@ -48,7 +48,16 @@ class ProjectRecord extends Model
     }
     public function contract()
     {
-        return $this->hasOne(ProjectContract::class);
+        return $this->hasOne(ProjectContract::class)->latestOfMany('updated_at');
+    }
+    public function specs()
+    {
+        return $this->hasOne(ProjectSpec::class, 'project_id', 'id');
+    }
+
+    public function contracts()
+    {
+        return $this->hasMany(ProjectContract::class)->orderByDesc('updated_at');
     }
 
     public function memberRoles()

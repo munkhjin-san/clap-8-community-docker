@@ -160,8 +160,25 @@ const routes = [
                     {
                         path:'overview',
                         name:'overview',
-                        component: () => import('./components/Project/ProjectTabs/ProjectOverview.vue'),
-                        
+                        component: () => import('./components/Project/ProjectTabs/OverviewRoot.vue'),
+                        redirect: { name: 'project-overview-detail' },
+                        children: [
+                            {
+                                path: 'detail',
+                                name: 'project-overview-detail',
+                                component: () => import('./components/Project/ProjectTabs/Overview/Detail.vue')
+                            },
+                            {
+                                path: 'checkitems',
+                                name: 'project-overview-checkitems',
+                                component: () => import('./components/Project/ProjectTabs/Overview/CheckList.vue')
+                            },
+                            {
+                                path: 'apply',
+                                name: 'project-overview-apply',
+                                component: () => import('./components/Project/ProjectTabs/Overview/ConfirmApply.vue')
+                            }
+                        ]
                     },
                     {
                         path: 'project-members',
@@ -447,6 +464,11 @@ const routes = [
                         
                         component: () => import('./components/AccountControl/ProjectControl/AccountManager.vue')
                     },
+                    {
+                        path: 'checkitems',
+                        name: 'checkitems',
+                        component: () => import('./components/AccountControl/ProjectControl/CheckItems.vue')
+                    }
                 ]
             },
             {

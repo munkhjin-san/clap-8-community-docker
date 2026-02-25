@@ -1,12 +1,13 @@
 <template>
   <div>
-    <div class="flex flex-col h-[calc(100vh-155px)] max-h-screen overflow-hidden p-4 space-y-6">
+    <div class="flex flex-col h-[calc(100vh-126px)] max-h-screen overflow-hidden px-4 space-y-6">
       <div class="flex items-center gap-3 flex-wrap">
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <label class="text-xs text-[var(--primary-color)]">プロジェクト</label>
-          <select v-model="selectedProjectId" class="px-2 py-1 border border-solid border-[var(--normalBorder)] bg-[var(--background-color)] text-[var(--primary-color)]" @change="load">
-            <option v-for="p in projects" :key="p.id" :value="p.id">{{ p.name }} ({{ p.is_new ? '新規' : '既存' }})</option>
-          </select>
+          <CustomDropDown
+            v-model="selectedProjectId"
+            :options="projects"
+          />
         </div>
         <button class="px-3 py-1 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] text-xs" @click="load">
           再読込
@@ -19,23 +20,23 @@
         </button>
       </div>
 
-      <div class="flex-1 min-h-0 border border-solid border-[var(--normalBorder)] bg-[var(--background-color)] overflow-auto">
+      <div class="flex-1 min-h-0 bg-[var(--background-color)] overflow-auto">
         <table class="w-full text-sm text-[var(--primary-color)]">
-          <thead class="bg-[var(--background-color)] sticky top-0 z-10 border-b [border-bottom-style:solid] border-[var(--normalBorder)]">
+          <thead class="bg-[var(--background-color)] sticky top-0 z-10">
             <tr>
               <th class="text-left px-3 py-2 w-24">コード</th>
               <th class="text-left px-3 py-2">名称</th>
-            <th class="text-left px-3 py-2">深さ</th>
-            <th class="text-left px-3 py-2">Path</th>
-            <th class="text-left px-3 py-2">入力可</th>
-            <th class="text-left px-3 py-2">計算</th>
-            <th class="text-left px-3 py-2">有効</th>
-            <th class="text-left px-3 py-2">並び順</th>
-            <th class="text-left px-3 py-2">操作</th>
-          </tr>
-        </thead>
+              <th class="text-left px-3 py-2">深さ</th>
+              <th class="text-left px-3 py-2">Path</th>
+              <th class="text-left px-3 py-2">入力可</th>
+              <th class="text-left px-3 py-2">計算</th>
+              <th class="text-left px-3 py-2">有効</th>
+              <th class="text-left px-3 py-2">並び順</th>
+              <th class="text-left px-3 py-2">操作</th>
+            </tr>
+          </thead>
           <tbody v-if="accounts.length">
-            <tr v-for="a in accounts" :key="a.id" class="border-b [border-bottom-style:solid] border-[var(--normalBorder)]">
+            <tr v-for="a in accounts" :key="a.id">
               <td class="px-3 py-2">{{ a.code }}</td>
               <td class="px-3 py-2">{{ indent(a.depth) }}{{ a.name }}</td>
               <td class="px-3 py-2">{{ a.depth }}</td>
@@ -60,7 +61,7 @@
             <tr>
               <td
                 colspan="9"
-                class="py-16 text-center text-sm text-[color:var(--muted-text,#9ca3af)]"
+                class="py-16 !text-center text-sm text-[color:var(--muted-text,#9ca3af)]"
               >
                 科目が登録されていません。左上のプロジェクトを選択するか、科目を追加してください。
               </td>
@@ -168,6 +169,9 @@ import FloatButton from '@/components/Global/FloatButton.vue'
 import Modal from '@/components/Global/Modal.vue'
 import { useDialog } from '@/composables/dialog'
 import AddIcon from '@/components/Form/AddIcon.vue'
+import CustomDropDown from '@/components/AccountControl/ProjectControl/CustomDropDown.vue'
+import { useProject } from '@/composables/project'
+import { Project } from '@/interface/projectInterface'
 
 type Account = {
   id: number
@@ -183,18 +187,12 @@ type Account = {
   formula?: string | null
 }
 
-type ProjectItem = { id: number; name: string, is_new: number }
-
-const props = defineProps<{
-  projectId?: number
-}>()
-
+const { projectList } = useProject()
 const api = useApi()
-const route = useRoute()
 const { toast, askInput, ask } = useDialog()
 const openModal = ref(false)
-const projects = ref<ProjectItem[]>([])
-const selectedProjectId = ref<number | null>(null)
+
+const selectedProjectId = ref<number | null>(projectList.value?.[0]?.id ?? null)
 const accounts = ref<Account[]>([])
 const parentOptions = computed(() => {
   // Sort by path to keep parent/child grouping (e.g., /4000/ before /4000/4010/)
@@ -211,33 +209,20 @@ const form = reactive({
 const editingAccountId = ref<number | null>(null)
 const isEditing = computed(() => editingAccountId.value !== null)
 
-const currentProjectId = () => {
-  if (selectedProjectId.value) return selectedProjectId.value
-  if (props.projectId) return Number(props.projectId)
-  if (route.params.projectId) return Number(route.params.projectId)
-  return null
-}
-const activeProjectId = computed(() => currentProjectId())
 const selectedProject = computed(() => {
-  if (!activeProjectId.value) return null
-  return projects.value.find(p => p.id === activeProjectId.value) ?? null
+  if (!selectedProjectId.value) return null
+  return projects.value.find(p => p.id === selectedProjectId.value) ?? null
 })
 const selectedProjectIsNew = computed(() => Number(selectedProject.value?.is_new ?? 0) === 1)
 const defaultBonusFormula = computed(() => '[9110]*{bonus_rate}')
 const isBonusFormulaTarget = computed(() => form.is_formula && form.code.trim() === '9120')
+const projects = computed(() => {
+  return projectList.value.map((p: Project) => ({ id: p.id, name: p.name, is_new: p.is_new}))
+})
 
-const loadProjects = async () => {
-  // Uses existing projects endpoint; adjust if you have a dedicated admin list
-  const data = await api.get('/get_projects')
-  const rows = Array.isArray(data) ? data : []
-  projects.value = rows.map((p: any) => ({ id: p.id, name: p.name, is_new: p.is_new }))
-  if (!selectedProjectId.value && projects.value.length) {
-    selectedProjectId.value = projects.value[0].id
-  }
-}
 
 const load = async () => {
-  const projectId = currentProjectId()
+  const projectId = selectedProjectId.value
   if (!projectId) return
   const data = await api.get(`/projects/${projectId}/accounts`)
   accounts.value = data || []
@@ -248,7 +233,7 @@ const load = async () => {
 }
 
 const syncTemplate = async () => {
-  const projectId = currentProjectId()
+  const projectId = selectedProjectId.value
   if (!projectId) return
   const ok = await ask('CoATemplates を再同期します。未登録の科目のみ追加します。よろしいですか？', {
     answers: [
@@ -314,7 +299,7 @@ const openEdit = (acct: Account) => {
 }
 
 const saveAccount = async () => {
-  const projectId = currentProjectId()
+  const projectId = selectedProjectId.value
   if (!projectId) return
   if (!form.code.trim() || !form.name.trim()) return
   if (form.is_formula) {
@@ -354,7 +339,7 @@ const saveAccount = async () => {
 }
 
 const toggleActive = async (acct: Account) => {
-  const projectId = currentProjectId()
+  const projectId = selectedProjectId.value
   if (!projectId) return
   await api.put(`/projects/${projectId}/accounts/${acct.id}`, {
     is_active: !acct.is_active,
@@ -363,7 +348,7 @@ const toggleActive = async (acct: Account) => {
 }
 
 const togglePostable = async (acct: Account) => {
-  const projectId = currentProjectId()
+  const projectId = selectedProjectId.value
   if (!projectId) return
   await api.put(`/projects/${projectId}/accounts/${acct.id}`, {
     is_postable: !acct.is_postable,
@@ -372,7 +357,7 @@ const togglePostable = async (acct: Account) => {
 }
 
 const toggleFormula = async (acct: Account) => {
-  const projectId = currentProjectId()
+  const projectId = selectedProjectId.value
   if (!projectId) return
   await api.put(`/projects/${projectId}/accounts/${acct.id}`, {
     is_formula: !acct.is_formula,
@@ -382,7 +367,7 @@ const toggleFormula = async (acct: Account) => {
 }
 
 const deleteAccount = async (acct: Account) => {
-  const projectId = currentProjectId()
+  const projectId = selectedProjectId.value
   if (!projectId) return
   await api.del(`/projects/${projectId}/accounts/${acct.id}`, {}, {
     ask: `「${acct.code} ${acct.name}」を削除しますか？関連する金額も削除されます。`
@@ -393,12 +378,42 @@ const deleteAccount = async (acct: Account) => {
 const indent = (depth: number) => '— '.repeat(Math.max(0, depth))
 
 onMounted(async () => {
-  await loadProjects()
   await load()
 })
 
-watch([() => form.code, () => form.is_formula, activeProjectId, selectedProjectIsNew], () => {
+watch(selectedProjectId, (next, prev) => {
+  if (!next || next === prev) return
+  void load()
+})
+
+watch([() => form.code, () => form.is_formula, selectedProjectId, selectedProjectIsNew], () => {
   if (!openModal.value || isEditing.value) return
   applyDefaultBonusFormula(false)
 })
 </script>
+<style scoped>
+table{
+    border-collapse: separate;
+    border-spacing: 0;
+    background-color: var(--background-color);
+    font-size: 14px;
+    box-sizing: border-box !important;
+}
+thead th {
+  border-top: 1px solid var(--calendarBorder);
+}
+th, td {
+    border-bottom: 1px solid var(--calendarBorder);
+    padding: 8px;
+    text-align: left;
+    font-size: 13px;
+    white-space: nowrap;
+    border-right: 1px solid var(--calendarBorder);
+}
+th:first-of-type {
+  border-left: 1px solid var(--calendarBorder);
+}
+td:first-of-type {
+  border-left: 1px solid var(--calendarBorder);
+}
+</style>

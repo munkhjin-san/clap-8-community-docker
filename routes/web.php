@@ -388,6 +388,11 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::patch('/project_checkitem_update', [ProjectController::class, 'project_checkitem_update']);
         Route::post('/project_checkitem_comment_add', [ProjectController::class, 'project_checkitem_comment_add']);
         Route::post('/project_refresh', [ProjectController::class, 'project_refresh']);
+        Route::post('/ensure_checkitems', [ProjectController::class, 'ensureProjectCheckitems']);
+        Route::get('/check_item_categories', [ProjectController::class, 'check_item_categories']);
+        Route::post('/create_update_checkitem', [ProjectController::class, 'create_update_checkitem']);
+        Route::delete('/delete_checkitem/{checkitem}', [ProjectController::class, 'delete_checkitem']);
+        Route::post('/mark_as_seen', [ProjectController::class, 'markAsSeen']);
 
         Route::get('/get_work_data', [WorkController::class, 'getWorkData']);
         Route::get('/get_shift_data', [WorkController::class, 'get_shift_data']);
@@ -585,6 +590,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/projects/{project}/contract', [ProjectController::class, 'show_contract'])->name('projects.contract.show');
         Route::get('/projects/{project}/contract/file', [ProjectController::class, 'preview_contract'])->name('projects.contract.preview');
         Route::get('/projects/{project}/contract/download', [ProjectController::class, 'download_contract'])->name('projects.contract.download');
+        Route::delete('/projects/{project}/contract/{contract}', [ProjectController::class, 'delete_contract'])->name('projects.contract.delete');
         Route::post('/save_review', [ProjectController::class, 'save_review']);
 
         Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);

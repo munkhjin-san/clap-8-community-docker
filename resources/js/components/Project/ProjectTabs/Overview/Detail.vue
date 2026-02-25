@@ -1,13 +1,8 @@
 <template>
-    <div class="h-full relative overflow-y-auto" ref="scrollContainer"> 
-        <div v-if="!checkTab" class="project-detail flex flex-col gap-[15px]">
+    <div class="h-[calc(100%-75px)] relative overflow-y-auto" ref="scrollContainer"> 
+        <div class="project-detail flex flex-col gap-[15px]">
             <div v-if="hasPrivilage" class="absolute top-[20px] right-[20px]">
                 <div class="flex gap-5">
-                    <button 
-                        v-if="selectedProject && ['director_approved', 'running', 'returned'].includes(selectedProject.status)"
-                        class="bg-[var(--primary-button)] text-white p-1 text-xs"
-                        @click="checkTab = true"
-                    >チェック項目</button>
                     <ItemMenu :items="[
                         {title: '編集する', action: () => editProjects(selectedProject)},
                         {title: '削除する', action: () => deleteProject(selectedProject)}
@@ -96,15 +91,11 @@
                 </button>
             </div>                       
         </div>
-        <CheckList 
-            v-else
-            @close="checkTab = false"
-        />
     </div>
 </template>
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, useTemplateRef, watch } from 'vue';
-import ItemMenu from '../../Global/ItemMenu.vue';
+import ItemMenu from '../../../Global/ItemMenu.vue';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { DateTime } from 'luxon';
@@ -114,12 +105,11 @@ import CommandButton from '@/components/Global/CommandButton.vue';
 import { Project } from '@/interface/projectInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { useApi } from '@/composables/api';
-import CheckList from './CheckList.vue';
 import { useRoute } from 'vue-router';
-    const props = defineProps(['userList', 'hasPrivilage'])
+    const props = defineProps(['hasPrivilage'])
     const editProjects = inject('editProjects') as (project: any) => void
     const deleteProject = inject('deleteProject') as (project: Project | null) => void
-    const { selectedProject, refreshProject } = useProject()
+    const { selectedProject, updateProject } = useProject()
     const checkTab = ref(false)
 
     const sanitized = (text: string) => {
@@ -262,7 +252,7 @@ import { useRoute } from 'vue-router';
         }, {
             toast: '変更しました'
         })
-        refreshProject([{name: 'status'}])
+        updateProject([{name: 'status'}])
     }
 </script>
 <style scoped>

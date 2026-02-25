@@ -104,8 +104,8 @@ export function useProject() {
         return selectedProject.value?.manager.some((ob: { id: number | null; }) => ob.id === auth.id)
     })
 
-    const refreshProject = () => {
-        const projectId = route.params.projectId;
+    const refreshProject = (id?: number) => {
+        const projectId = id ?? route.params.projectId;
         if (!projectId) return;
         getProjects(undefined, undefined, Number(projectId));        
     }

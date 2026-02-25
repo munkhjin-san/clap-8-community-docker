@@ -130,9 +130,12 @@
                             <span style="margin: auto 0; cursor: pointer; font-size: 12px;" v-if="message.reacted_users?.length > 3">...({{message.reacted_users?.length}})</span>
                         </div>                                    
                     </div>
-                    <div v-if="checkFunctionView" style="display: flex;margin-top: auto;gap: 15px;min-height: 25px;align-items: end;">
-                        <div @click.stop="viewCheckedUserList" style="display: flex;font-size: 12px;cursor: pointer">確認済み ({{ message.checked_users?.length}})</div>
-                        <div @click.stop="viewunCheckedUserList" style="display: flex;font-size: 12px;cursor: pointer">未確認 ({{ message.unchecked_users?.length}})</div> 
+                    <div v-if="checkFunctionView" style="display: flex;margin-top: auto;gap: 15px;min-height: 25px;align-items: end;flex-wrap:wrap;">
+                        <div v-if="message.check_request_deadline" style="font-size: 12px;">期日: {{ DateTime.fromSQL(message.check_request_deadline).toFormat('yyyy/MM/dd HH:mm') }}</div>
+                        <div class="flex gap-[15px]">
+                            <div @click.stop="viewCheckedUserList" style="display: flex;font-size: 12px;cursor: pointer">確認済み ({{ message.checked_users?.length}})</div>
+                            <div @click.stop="viewunCheckedUserList" style="display: flex;font-size: 12px;cursor: pointer">未確認 ({{ message.unchecked_users?.length}})</div> 
+                        </div>
                     </div>               
                 </div>  
                     
@@ -181,7 +184,7 @@ import { useUrlMessage } from "@/store/urlMessage";
 import { useBadgeStore } from '@/store/badge'
 import MessageEditor from './MessageEditor.vue'
 import ItemMenu from "@/components/Global/ItemMenu.vue";
-import { DateParser, mentionFormatter } from "@/utils/tools";
+import { DateParser, mentionFormatter, oikawaFormatter } from "@/utils/tools";
 import { useMessageSchedule } from "@/store/messageSchedule"
 import UserPanel from "@/components/Global/UserPanel.vue";
 import { useApi } from "@/composables/api";
@@ -189,6 +192,8 @@ import { MenuList, Message, User } from "@/interface/globalInterface";
 import TTSPlayer from "@/components/Global/TTSPlayer.vue";
 import { useModal } from "@/composables/modal";
 import Character from "@/components/Global/Character.vue";
+import { DateTime } from "luxon";
+import EmojiBox from "./EmojiBox.vue";
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const quoteReply = useQuoteReply()
@@ -278,7 +283,8 @@ import Character from "@/components/Global/Character.vue";
         : '非アクティブユーザー';
     })
     const messageBody = computed(() => {
-        return mentionFormatter(props.message.message, true)    
+        const oikawaGet = oikawaFormatter(props.message.message)
+        return mentionFormatter(oikawaGet, true)    
     })
     const reactedUsersListAll = computed(() => {
         return props.message.reacted_users && props.message.reacted_users.length ? Array.from(props.message.reacted_users).reverse() as User[] : []                

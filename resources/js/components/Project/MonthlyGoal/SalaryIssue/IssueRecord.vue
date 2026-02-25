@@ -92,7 +92,7 @@
             <div class="kadai-content">{{ issue.result }}</div>                        
             <Files style="margin-top: 15px;" v-if="issue?.files?.length" :items="issue?.files" :path="'project_files'"/>
         </div>
-        <MessageArea :passing-data="passingData" which="salary_issue" :item="issue" :key="`message-area-goal-${goal.id}`" @refresh="() => refresh()"/>
+        <MessageArea which="salary_issue" :item="issue" :passing-data="passingData" :key="`message-area-goal-${goal.id}`" @refresh="() => refresh()"/>
         <div v-if="issue.status < 2 && (auth.id === goal.user_id || evaluationData?.mentor_id === auth.id)" class="flex gap-5 mb-3 justify-center">
             <LoaderButton style="margin: 0;" @click="emit('edit', issue)" content="編集"/>
             <LoaderButton style="margin: 0;" @click="deleteIssue(issue)" :content="'削除'"/>
@@ -143,7 +143,11 @@ import Files from '@/components/Global/Files.vue';
 import { useBadgeStore } from '@/store/badge';
 import Report from './Report.vue';
 import ItemStatusDetail from '../ItemStatusDetail.vue';
-
+const passingData = {
+    path: '/project_goal_comment_create',
+    title: '進捗報告・メッセージ',
+    file_path: 'project_goal_report_files'
+}
 const props = defineProps<{
     issue: SalaryIssue
     goal: ProjectGoal
@@ -152,11 +156,6 @@ const emit = defineEmits<{
     refresh: []
     edit: [issue: SalaryIssue]
 }>()
-const passingData = {
-    path: '/project_goal_comment_create',
-    title: '進捗報告・メッセージ',
-    file_path: 'project_goal_report_files'
-}
 const auth = useAuthUserStore()
 const goalsStore = useDashboardGoalsStore()
 const { salaryIssueStatuses, evaluationData } = storeToRefs(goalsStore)

@@ -10,16 +10,18 @@
                         </div>                        
                     </div>
                     
-                    <button @click="setOption(option)" v-for="option in dateOptionsData" class="flex items-center border border-solid border-[var(--formBorder)] px-[8px] py-[5px] cursor-pointer relative">
+                    <button @click="setOption(option)" v-for="option in dateOptionsData" class="flex items-center border border-solid border-[var(--formBorder)] px-[8px] py-[5px] cursor-pointer relative gap-1">
                         {{ option.name }}
                         <span class="side-notification" 
-                            style="right: 2px; top: 6px; left: auto;position:unset; width: fit-content;" 
-                            v-if="confirmBadges(option) + commentBadges(option) > 0"
-                            :class="{
-                                'side-notification--comment-only': !confirmBadges(option) && commentBadges(option)
-                            }"
-                        >{{ confirmBadges(option) + commentBadges(option) }}
-                    </span>
+                                style="right: 2px; top: 6px; left: auto;position:unset; width: fit-content;" 
+                                v-if="confirmBadges(option) > 0"
+                            >{{ confirmBadges(option) }}
+                        </span>
+                        <span class="side-notification side-notification--comment-only" 
+                                style="right: 2px; top: 6px; left: auto;position:unset; width: fit-content;" 
+                                v-if="commentBadges(option) > 0"
+                            >{{ commentBadges(option) }}
+                        </span>
                     </button>
                 </div>
             </div>

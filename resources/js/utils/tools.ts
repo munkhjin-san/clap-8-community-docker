@@ -2,6 +2,7 @@ import Autolinker from 'autolinker';
 import { DateTime } from 'luxon'
 import { customRef } from 'vue'
 import { filesize } from 'filesize';
+import { useTheme } from '@/store/theme';
 function useDebouncedRef(value:any, delay = 200) {
     let timeout:ReturnType<typeof setTimeout> | number = 300;
     return customRef((track, trigger) => {
@@ -20,6 +21,16 @@ function useDebouncedRef(value:any, delay = 200) {
       }
     })
   }
+const theme = useTheme()
+const oikawaFormatter = (text: string | null, height: number = 35) => { 
+    const prefix = theme.dark ? 'dark' : 'light'
+    const cook = text ? text : ''
+    const cooked = cook.replace(/\[oikawa:([^\]]+):\]/g, (match, type) => {
+        const style = type == 8 ? `height: ${height * 0.65}px;` : `height: ${height}px;`;
+        return `<img class="chat-emoji" data-type="${type}" src="/images/reactions/v3/${prefix}_${type}.webp" alt="${type}" style="${style}" />`;
+    })
+    return cooked
+}
 const mentionFormatter = (text: string | null, withUrl?: boolean) => {
     const cook = text ? text : ''
     const cooked = cook.replace(
@@ -208,16 +219,47 @@ const isMobile = () => window.matchMedia('(max-width: 768px)').matches
 
 export const PROJECT_STATUS_LABEL: Record<string, string> = {
   draft: '下書き',
+  // creating: '作成中',
   pending_director: '承認申請中',
   director_approved: '役員承認済（準備中）',
   running: '進行中',
-  suspended: '一時停止',
-  completed: '完了',
-  cancelled: '中止',
+  // suspended: '一時停止',
+  // completed: '完了',
+  // cancelled: '中止',
   returned: '差し戻し',
-  rejected: '却下',
+  // rejected: '却下',
 }
+export const linkifyParts = (text: string) => {
+  const URL_RE =
+    /\b((?:https?:\/\/|www\.)[^\s<>"'`]+)(?<![.,!?;:)\]])/gi;
 
+  const parts: any[] = [];
+  let lastIndex = 0;
+
+  text.replace(URL_RE, (match, rawUrl, offset) => {
+    // push text before url
+    if (offset > lastIndex) {
+      parts.push({ type: "text", value: text.slice(lastIndex, offset) });
+    }
+
+    const href = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
+    parts.push({
+      type: "link",
+      value: match,
+      href,
+    });
+
+    lastIndex = offset + match.length;
+    return match;
+  });
+
+  // remaining text
+  if (lastIndex < text.length) {
+    parts.push({ type: "text", value: text.slice(lastIndex) });
+  }
+
+  return parts;
+}
 export { 
     debounce, 
     mentionFormatter, 
@@ -243,4 +285,5 @@ export {
     contractTypeDefaults,
     contractRoleDefaults,
     isMobile,
+    oikawaFormatter
 }

@@ -1,7 +1,9 @@
 <template>
     <LongInput 
+        ref="contentInput"
         name="description"
         :place-holder="placeHolder"
+        :rules="rules"
         v-model="text"
         :key="`key_${key}`"
         custom-class="!pb-[35px]"
@@ -15,7 +17,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { onBeforeUnmount, ref, useTemplateRef } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import LongInput from '../Form/LongInput.vue';
 import { useSSE } from '@/composables/sse';
 import { useApi } from '@/composables/api';
@@ -27,9 +29,11 @@ const props = defineProps<{
     urlPrefix: string
     data: Partial<Project>
     placeHolder?: string
+    rules?: string
     which: 'description' | 'mission' | 'innovation' | 'strategy' | 'operation'
     configKey: 'project_description_generation' | 'project_miso_generation'
 }>()
+const contentInput = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
 const key = ref(0)
 const api = useApi()
 const text = defineModel<string>('text', { default: '' })
@@ -99,7 +103,15 @@ onBeforeUnmount(() => {
     stop();
 });
 
+const validate = async () => {
+    if (!contentInput.value || typeof contentInput.value.validate !== 'function') {
+        return { valid: true }
+    }
+    return await contentInput.value.validate()
+}
+
 defineExpose({
-    execute
+    execute,
+    validate
 })
 </script>

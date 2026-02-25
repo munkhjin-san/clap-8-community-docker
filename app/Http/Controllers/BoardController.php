@@ -245,7 +245,7 @@ class BoardController extends Controller
        
         $now = time();
         
-        Cache::store('redis')->forget("must_sync_{$active_user->id}");
+        // Cache::store('redis')->forget("must_sync_{$active_user->id}");
 
         return response()->json($board_list);
         
@@ -1088,7 +1088,7 @@ class BoardController extends Controller
         $row->last_message = $lastMessageId;
         $row->save();
 
-        Cache::store('redis')->put("user_stamp_{$active_user->id}", time());
+        // Cache::store('redis')->put("user_stamp_{$active_user->id}", time());
         $res = $this->get_board_badge();
         return $res;     
         
@@ -1259,6 +1259,7 @@ class BoardController extends Controller
             
             $message->check_flag = 1;
             $message->check_request_at = Carbon::now();
+            $message->check_request_deadline = $request->check_request_deadline;
             $message->checkUsers()->sync($request->users);
             $message->save();
             $board = boardRecord::where('id', $message->record_id)->first(); 

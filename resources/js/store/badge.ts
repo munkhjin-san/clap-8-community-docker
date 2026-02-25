@@ -25,6 +25,13 @@ interface State {
     boardBadgeFetchedAt: number | null,
     boardBadgeRequest: Promise<void> | null,
     communityBadge: boolean;
+    project_report: {
+        records: [{
+            project_record_id: number | null,
+            unread_count: number
+        }],
+        total: number
+    }
 }
 const BOARD_BADGE_CACHE_MS = 2000;
 

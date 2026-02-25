@@ -1,5 +1,5 @@
 <template>
-  <div class="py-0 px-5 space-y-4 text-[var(--primary-color)] h-[calc(100%-70px)]">
+  <div v-if="hasPrivilage" class="py-0 px-5 space-y-4 text-[var(--primary-color)] h-[calc(100%-70px)]">
     <!-- Header / Controls -->
     <div ref="controlRef" class="bg-[var(--background-color)] p-5 sticky top-0 z-20 flex items-center gap-3 border-solid border border-[var(--normalBorder)] shadow-sm flex-wrap">
       <div class="flex flex-col">
@@ -64,7 +64,7 @@
       </button> -->
       <div class="flex items-center gap-2 ml-auto">
         <button
-          v-if="lockState.is_locked && isHQ"
+          v-if="lockState.is_locked && auth.isAdmin"
           class="ml-auto text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition"
           @click="unlockPlan"
         >確定解除</button>
@@ -198,6 +198,9 @@
       
     </div> -->
   </div>
+  <div v-else class="w-full h-[calc(100%-67px)] flex items-center justify-center">
+    権限がありません。
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -209,7 +212,6 @@ import { reactive, ref, computed, watch, onMounted, useTemplateRef, nextTick, on
 import { useRoute } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
 import { useProject } from '@/composables/project';
-import { Project } from '@/interface/projectInterface';
 
 type Account = {
   id: number;
@@ -232,6 +234,7 @@ type PeriodRow = {
 const { selectedProject } = useProject()
 const props = defineProps<{
   year: number
+  hasPrivilage: boolean
 }>()
 const generateFiscalPeriods = (startYear: number, startM: number): PeriodRow[] => {
   const out: PeriodRow[] = []
@@ -276,8 +279,7 @@ const lockState = reactive<{
   locked_at: null,
 })
 
-const isHQ = computed(() => Number(auth.activeUser?.id) === 610)
-const isReadOnly = computed(() => lockState.is_locked && !isHQ.value)
+const isReadOnly = computed(() => lockState.is_locked && !auth.isAdmin)
 const controlRef = useTemplateRef<HTMLDivElement>('controlRef')
 const controlRefHeight = ref(0)
 
