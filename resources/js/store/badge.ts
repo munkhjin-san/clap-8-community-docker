@@ -58,7 +58,7 @@ export const useBadgeStore = defineStore('badge', () => {
     const boardBadgeFetchedAt = ref<number | null>(null);
     const boardBadgeRequest = ref<Promise<void> | null>(null);
     const communityBadge = ref(false);
-
+    const project_report = ref<{records: {project_record_id: number | null, unread_count: number}[], total: number}>({records: [], total: 0});
     // Actions
     function setTaskBadge(payload: number[]) {
         task.value = payload;
@@ -168,6 +168,7 @@ export const useBadgeStore = defineStore('badge', () => {
         goal_issue_comment.value = data.goal_issue_comment;
         contact_comment.value = data.contact_comment;
         communityBadge.value = data.today_readable.has_unread;
+        project_report.value = data.project_report;
     }
 
     // Getters
@@ -216,7 +217,7 @@ export const useBadgeStore = defineStore('badge', () => {
     });
 
     const projectCommentTotal = computed(() => {
-        return task_comment.value.length + finance_comment.value.total_unread + goal_issue_comment.value.length;
+        return task_comment.value.length + finance_comment.value.total_unread + goal_issue_comment.value.length + project_report.value.total;
     });
 
     const projectTotal = computed(() => {
@@ -305,7 +306,15 @@ export const useBadgeStore = defineStore('badge', () => {
     const communityBadgeStatus = computed(() => {
         return communityBadge.value;
     });
-
+    const projectReportMap = computed(() => {
+        const map: {[project_record_id: number]: number} = {};
+        project_report.value.records.forEach(record => {
+            if (record.project_record_id) {
+                map[record.project_record_id] = record.unread_count;
+            }
+        })
+        return map;
+    })
     return {
         // State
         board,
@@ -359,5 +368,6 @@ export const useBadgeStore = defineStore('badge', () => {
         goalIssueCommentBadgeByFilter,
         contactBadge,
         communityBadgeStatus,
+        projectReportMap
     };
 })
