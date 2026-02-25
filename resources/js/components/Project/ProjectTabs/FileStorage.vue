@@ -346,7 +346,6 @@ const props = defineProps<{
     fileAccess?: boolean,
     parentId?: string | null
     userList: any[]
-    mentionableUsers: any[]
 
 }>()
 const menu = useMenuStore()

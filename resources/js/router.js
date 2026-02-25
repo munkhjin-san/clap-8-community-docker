@@ -287,14 +287,6 @@ const routes = [
                         component: () => import('./components/Project/ProjectTabs/Dispatch.vue'),
                     },
                     {
-                        path: 'assets',
-                        name: 'assets',
-                        meta: {
-                            title: '物品'
-                        },
-                        component: () => import('./components/Asset/AssetContainer.vue'),
-                    },
-                    {
                         path: 'task-calendar',
                         name: 'task-calendar',
                         component: () => import('./components/Project/ProjectTabs/TaskCalendar.vue'),

@@ -193,7 +193,6 @@ import TTSPlayer from "@/components/Global/TTSPlayer.vue";
 import { useModal } from "@/composables/modal";
 import Character from "@/components/Global/Character.vue";
 import { DateTime } from "luxon";
-import EmojiBox from "./EmojiBox.vue";
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const quoteReply = useQuoteReply()

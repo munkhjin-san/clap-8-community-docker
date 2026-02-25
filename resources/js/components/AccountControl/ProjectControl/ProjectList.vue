@@ -102,12 +102,6 @@
                 :edit-data="editData"
             />
         </Transition>
-        <Transition name="modalFade">
-            <ProjectApply 
-                v-if="applyWindow"
-                @close="(val) => applyWindow = val"
-            />
-        </Transition>
     </div>
 </template>
 <script setup lang="ts">
@@ -124,7 +118,6 @@ import { DateTime } from 'luxon';
 import AddIcon from '@/components/Form/AddIcon.vue';
 import { useApi } from '@/composables/api';
 import { useProject } from '@/composables/project';
-import ProjectApply from './ProjectApply.vue';
 
 const menu = useMenuStore()
 const createWindow = ref(false)

@@ -128,7 +128,6 @@ import { useRoute, useRouter } from 'vue-router';
         { name: '派遣', path: 'dispatch'},
         { name: '予算・実績', path: 'finance'},
         { name: 'ガントチャート', path: 'task-calendar'},
-        { name: '物品', path: 'assets'},
     ];
 
     const tabs = computed<Tab[]>(() => {

@@ -114,7 +114,6 @@
         <Transition name="modalFade">
             <TaskCreate :pre-data="preData" :project="project" @close="createWindow = false"
                 v-if="createWindow && project" />
-                <div v-if="createWindow && project">ggggg</div>
         </Transition>
         <Transition name="modalFade">
             <SubTaskControl :pre-data="subPreData" :project="project" @close="clearSubPreData"
