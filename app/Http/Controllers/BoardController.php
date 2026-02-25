@@ -1048,12 +1048,14 @@ class BoardController extends Controller
         $active_user = $this->active_user();
         $auth_user_id = $active_user->id;        
         $message_record = messageRecord::findOrFail($request->message_id);
-        $checkUser = $message_record->checkUsers()->where('user_id', $active_user->id)->first();
-        if ($checkUser) {
+        $message_record->checkUsers()->updateExistingPivot($active_user->id, ['checked' => true]);
+        // $checkUser = $message_record->checkUsers()->where('user_id', $active_user->id)->first();
+        // if ($checkUser) {
             
-            $checkUser->pivot->checked = true;
-            $checkUser->pivot->save();
-        } 
+        //     // $checkUser->pivot->checked = true;
+        //     // $checkUser->pivot->save();
+            
+        // } 
         $related_members = [];
         $related_members[] = $auth_user_id;
         $rebound = array(

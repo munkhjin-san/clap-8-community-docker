@@ -11,7 +11,7 @@ class messageRecord extends Model
     use SoftDeletes; 
     public function checkUsers()
     {
-        return $this->belongsToMany(User::class, 'message_check_users')->withPivot(['checked'])->select('users.id', 'users.name', 'users.icon_path', 'users.deleted_at');
+        return $this->belongsToMany(User::class, 'message_check_users')->withPivot(['checked'])->withTimestamps()->select('users.id', 'users.name', 'users.icon_path', 'users.deleted_at');
     }
     public function reactedUsers()
     {
