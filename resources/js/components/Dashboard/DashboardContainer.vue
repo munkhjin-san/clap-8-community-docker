@@ -24,108 +24,20 @@
                         </div>
                     </div>
                 </template>
-                <template v-for="card in dashboardCards" :key="card.type">
-                    <DashboardMessageLayout
-                        v-if="!initialLoader && card.layout === 'message'"
-                        v-show="card.data.length > 0"
-                        class="dashboard-card-item"
-                        :class="[card.col, 'min-w-0 w-full']"
-                        :fullscreen="route.params.type === card.type"
-                        :data="card"
-                        ref="cardLayouts"
-                        @refreshData="refreshData"
-                        @toggle="toggle"
-                        @resize="(type) => resize(type)"
-                    />
-                    <DashboardTaskLayout
-                        v-else-if="!initialLoader && card.layout === 'task'"
-                        v-show="card.data.length > 0"
-                        class="dashboard-card-item"
-                        :class="[card.col, 'min-w-0 w-full']"
-                        :fullscreen="route.params.type === card.type"
-                        @toggle="toggle"
-                        :data="card"
-                        ref="cardLayouts"
-                        @resize="(type) => resize(type)"
-                        @refreshData="refreshData"
-                    />
-                    <DashboardSurvey
-                        v-else-if="!initialLoader && card.layout === 'survey'"
-                        class="dashboard-card-item"
-                        :class="[card.col, 'min-w-0 w-full']"
-                        :fullscreen="route.params.type === card.type"
-                        @toggle="toggle"
-                        :data="card"
-                        ref="cardLayouts"
-                        @resize="(type) => resize(type)"
-                    />
-                    <DashboardGoal
-                        v-else-if="!initialLoader && card.layout === 'monthly_goals'"
-                        class="dashboard-card-item"
-                        :class="[card.col, 'min-w-0 w-full']"
-                        :fullscreen="route.params.type === card.type"
-                        @toggle="toggle"
-                        :data="card"
-                        ref="cardLayouts"
-                        @resize="(type) => resize(type)"
-                    />
-                    <DashboardChallenge
-                        v-else-if="!initialLoader && card.layout === 'challenge'"
-                        v-show="card.data.length > 0"
-                        class="dashboard-card-item"
-                        :class="[card.col, 'min-w-0 w-full']"
-                        :fullscreen="route.params.type === card.type"
-                        @toggle="toggle"
-                        :data="card"
-                        ref="cardLayouts"
-                        @resize="(type) => resize(type)"
-                    />
-                    <DashboardAsset
-                        v-else-if="!initialLoader && card.layout === 'assets'"
-                        class="dashboard-card-item"
-                        :class="[card.col, 'min-w-0 w-full']"
-                        :fullscreen="route.params.type === card.type"
-                        @toggle="toggle"
-                        :data="card"
-                        ref="cardLayouts"
-                        @resize="(type) => resize(type)"
-                        @refreshData="refreshData"
-                    />
-                    <DashboardSchedule
-                        v-else-if="!initialLoader && card.layout === 'schedules'"
-                        v-show="card.data.temp_schedules.length"
-                        class="dashboard-card-item"
-                        :class="[card.col, 'min-w-0 w-full']"
-                        :fullscreen="route.params.type === card.type"
-                        @toggle="toggle"
-                        :data="card"
-                        ref="cardLayouts"
-                        @resize="(type) => resize(type)"
-                        @refreshData="refreshData"
-                    />
-                    <DashboardPersonnelEvaluation
-                        v-else-if="!initialLoader && card.layout === 'personnelEvaluation'"
-                        class="dashboard-card-item"
-                        :class="[card.col, 'min-w-0 w-full']"
-                        :fullscreen="route.params.type === card.type"
-                        @toggle="toggle"
-                        :data="card"
-                        ref="cardLayouts"
-                        @resize="(type) => resize(type)"
-                        @refreshData="refreshData"  
-                    />
-                    <DashboardTimesheet
-                        v-else-if="!initialLoader && card.layout === 'timesheet'"
-                        class="dashboard-card-item"
-                        :class="[card.col, 'min-w-0 w-full']"
-                        :fullscreen="route.params.type === card.type"
-                        @toggle="toggle"
-                        :data="card"
-                        ref="cardLayouts"
-                        @resize="(type) => resize(type)"
-                        @refreshData="refreshData"
-                    />
-                </template>
+                <component
+                    v-for="card in dashboardCards"
+                    :key="card.type"
+                    v-show="!initialLoader && shouldShowCard(card)"
+                    :is="DASHBOARD_COMPONENTS[card.layout]"
+                    class="dashboard-card-item"
+                    :class="[card.col, 'min-w-0 w-full']"
+                    :fullscreen="route.params.type === card.type"
+                    :data="card"
+                    ref="cardLayouts"
+                    @toggle="toggle"
+                    @resize="(type) => resize(type)"
+                    @refreshData="refreshData"
+                />
 
             </div>
             <FloatButton :hide-on="sortParent" title="データを更新" @action="refreshAll" class="fixed" v-if="!route.params.type">
@@ -141,31 +53,28 @@
 </template>
 <script lang="ts" setup>
 import { useAuthUserStore } from '@/store/auth';
-import { nextTick, onMounted, provide, Ref, ref, useTemplateRef, watch } from 'vue';
+import { nextTick, onMounted, provide, ref, useTemplateRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useResizeObserver } from '@vueuse/core';
 import { useDialog } from '@/composables/dialog';
-import { Message, Task } from '@/interface/globalInterface';
 import { useSortable } from '@vueuse/integrations/useSortable.mjs';
-import DashboardMessageLayout from './Layout/DashboardMessageLayout.vue';
-import DashboardTaskLayout from './Layout/DashboardTaskLayout.vue';
-import './dashboard.css'
-import { CustomForm } from '@/interface/customFormInterface';
-import DashboardSurvey from './Layout/DashboardSurvey.vue';
-import DashboardGoal from './Layout/DashboardGoal.vue';
 import HamBurger from '../Global/HamBurger.vue';
+import FloatButton from '../Global/FloatButton.vue';
 import { useDashboardStore } from '@/store/dashboard';
 import { useDashboardPrefsStore } from '@/store/dashboardPrefs';
-import { Post } from '@/interface/postInterface';
-import DashboardChallenge from './Layout/DashboardChallenge.vue';
-import FloatButton from '../Global/FloatButton.vue';
-import DashboardAsset from './Layout/DashboardAsset.vue';
-import { Asset } from '@/interface/assetInterface';
-import { CalendarRecord } from '@/interface/calendarInterface';
+import { useDashboardGoalsStore } from '@/store/dashboardGoals';
 import { DashboardCard } from '@/interface/dashboard';
-import DashboardSchedule from './Layout/DashboardSchedule.vue';
-import DashboardPersonnelEvaluation from './Layout/Admin/DashboardPersonnelEvaluation.vue';
-import DashboardTimesheet from './Layout/DashboardTimesheet.vue';
+import { 
+    DASHBOARD_COMPONENTS, 
+    DEFAULT_DASHBOARD_CARDS, 
+    ADMIN_PERSONNEL_EVALUATION_CARD,
+    CARD_DATA_KEY_BY_TYPE,
+    CARD_ADMIN_DATA_KEY_BY_TYPE,
+    CARD_REFRESH_KEYS_BY_TYPE,
+    CARD_ADMIN_REFRESH_KEYS_BY_TYPE,
+    shouldShowCard
+} from '@/config/dashboardCards';
+import './dashboard.css'
 
 const auth = useAuthUserStore()
 const initialLoader = ref(true)
@@ -175,6 +84,7 @@ const route = useRoute()
 const dashboardStore = useDashboardStore()
 const { collection } = dashboardStore
 const { getBatchDashboardData } = dashboardStore
+const dashboardGoalsStore = useDashboardGoalsStore()
 type SkeletonCard = {
     id: string
     col: string
@@ -187,177 +97,8 @@ const skeletonCards = ref<SkeletonCard[]>([])
 
 const prefsStore = useDashboardPrefsStore()
 
-const defaultDashboardCards: DashboardCard[] = [
-    {
-        title: 'リマインドメッセージ',
-        type: 'remindedMessages',
-        layout: 'message',
-        col: 'col-span-2',
-        order: undefined,
-        data: [] as Message[],
-        canFullscreen: true,
-        canResize: true,
-    },
-    {
-        title: '確認依頼',
-        type: 'mustCheckMessages',
-        layout: 'message',
-        col: 'col-span-1',
-        order: undefined,
-        data: [] as Message[],
-        canFullscreen: true,
-        canResize: true,
-    },
-    {
-        title: 'サイン依頼',
-        type: 'mustSignMessages',
-        layout: 'message',
-        col: 'col-span-1',
-        order: undefined,
-        data: [] as Message[],
-        canFullscreen: true,
-        canResize: true,
-    },
-    {
-        title: '未対応タスク',
-        type: 'unfinishedTasks',
-        layout: 'task',
-        col: 'col-span-1',
-        order: undefined,
-        data: [] as Task[],
-        canFullscreen: true,
-        canResize: true,
-    },
-    {
-        title: '未完了タスク',
-        type: 'untouchedTasks',
-        layout: 'task',
-        col: 'col-span-1',
-        order: undefined,
-        data: [] as Task[],
-        canFullscreen: true,
-        canResize: true,
-    },
-    {
-        title: '承認待ちタスク',
-        type: 'pendingApprovalTasks',
-        layout: 'task',
-        col: 'col-span-1',
-        order: undefined,
-        data: [] as Task[],
-        canFullscreen: true,
-        canResize: true,
-    },
-    {
-        title: 'フォーム',
-        type: 'forms',
-        layout: 'survey',
-        col: 'col-span-1',
-        order: undefined,
-        data: [] as CustomForm[],
-        canFullscreen: true,
-        canResize: true,
-    },
-    {
-        title: '',
-        type: 'overdueGoals',
-        layout: 'monthly_goals',
-        col: 'col-span-1',
-        order: undefined,
-        data: [],
-        canFullscreen: true,
-        canResize: true,
-    },
-    {
-        title: 'チャレンジ',
-        type: 'challenges',
-        layout: 'challenge',
-        col: 'col-span-1',
-        order: undefined,
-        data: [] as Post[],
-        canFullscreen: false,
-        canResize: true,
-    },
-    {
-        title: '物品',
-        type: 'assets',
-        layout: 'assets',
-        col: 'col-span-1',
-        order: undefined,
-        data: {
-            in_use: [] as Asset[]
-        },
-        canFullscreen: true,
-        canResize: true,
-    },
-    {
-        title: 'スケジュール',
-        type: 'schedules',
-        layout: 'schedules',
-        col: 'col-span-1',
-        order: undefined,
-        data: {
-            temp_schedules: [] as CalendarRecord[]
-        },
-        canFullscreen: false,
-        canResize: true,
-    },
-    {
-        title: 'タイムシート',
-        type: 'timesheet',
-        layout: 'timesheet',
-        col: 'col-span-1',
-        order: undefined,
-        data: {
-            pendingTimesheets: [] as any[],
-            departuresReportUsers: []
-        },
-        canFullscreen: false,
-        canResize: true,
-
-    }
-    
-]
-
-type DashboardStoreCollection = typeof collection
-type DashboardStoreKey = keyof DashboardStoreCollection
-
-const CARD_DATA_KEY_BY_TYPE: Record<string, DashboardStoreKey> = {
-    remindedMessages: 'remindedMessages',
-    mustCheckMessages: 'mustCheckMessages',
-    mustSignMessages: 'mustSignMessages',
-    unfinishedTasks: 'unfinishedTasks',
-    untouchedTasks: 'untouchedTasks',
-    pendingApprovalTasks: 'pendingApprovalTasks',
-    forms: 'forms',
-    overdueGoals: 'overdueGoals',
-    challenges: 'challenges',
-    assets: 'assets',
-    schedules: 'schedules',
-    timesheet: 'timesheet',
-}
-const CARD_REFRESH_KEYS_BY_TYPE: Record<string, DashboardStoreKey[]> = {
-    remindedMessages: ['remindedMessages'],
-    mustCheckMessages: ['mustCheckMessages'],
-    mustSignMessages: ['mustSignMessages'],
-    unfinishedTasks: ['unfinishedTasks', 'untouchedTasks'],
-    untouchedTasks: ['untouchedTasks'],
-    pendingApprovalTasks: ['pendingApprovalTasks'],
-    forms: ['forms'],
-    overdueGoals: ['overdueGoals'],
-    challenges: ['challenges'],
-    assets: ['assets'],
-    schedules: ['schedules'],
-    timesheet: ['timesheet'],
-}
-
-const CARD_ADMIN_DATA_KEY_BY_TYPE: Record<string, DashboardStoreKey> = {
-    personnelEvaluation: 'personnelEvaluation',
-}
-const CARD_ADMIN_REFRESH_KEYS_BY_TYPE: Record<string, DashboardStoreKey[]> = {
-    personnelEvaluation: ['personnelEvaluation'],
-}
-
+// Initialize cards with defaults from config
+const defaultDashboardCards = structuredClone(DEFAULT_DASHBOARD_CARDS)
 prefsStore.applyLayoutToCards(defaultDashboardCards)
 
 const dashboardCards = ref<DashboardCard[]>(prefsStore.applyOrderToCards(defaultDashboardCards))
@@ -511,7 +252,8 @@ const resize = async(type: string) => {
     const nextSpan = currentNumber === 4 ? 1 : currentNumber + 1;
 
     if(!cardLayouts.value) return;
-    const el = cardLayouts.value.find((comp) => comp && comp.cardType === type)?.$el as HTMLElement;
+    const comp = cardLayouts.value.find((comp: any) => comp && comp.cardType === type) as any;
+    const el = comp?.$el as HTMLElement;
     if (!el) return
 
     // FIRST
@@ -580,31 +322,14 @@ const toggle = async (el: HTMLElement | null, type: string) => {
 
 onMounted(async () => {
     if(auth.isAdmin) {
-        dashboardCards.value.push({
-            title: '人事評価',
-            type: 'personnelEvaluation',
-            layout: 'personnelEvaluation',
-            col: 'col-span-1',
-            order: undefined,
-            data: {
-                pendingEvaluations: [] as any[]
-            },
-            canFullscreen: false,
-            canResize: true,
-        })
+        dashboardCards.value.push(structuredClone(ADMIN_PERSONNEL_EVALUATION_CARD))
     }
     init()
 })
 
 const init = async() => {
     try {
-        const baseKeys = Object.keys(CARD_DATA_KEY_BY_TYPE) as string[]
-        if(auth.isAdmin) {
-            const adminKeys = Object.keys(CARD_ADMIN_DATA_KEY_BY_TYPE) as string[]
-            baseKeys.push(...adminKeys)
-        }
-        console.log('fetching dashboard data with keys', baseKeys)
-        await getBatchDashboardData(baseKeys)
+        await dashboardGoalsStore.initDashboardData() // Uses cache if fresh
         syncDashboardCardsFromStore()
     } finally {
         initialLoader.value = false
@@ -615,7 +340,12 @@ const init = async() => {
 }
 const refreshAll = async () => {
     initialLoader.value = true
-    await init()
+    try {
+        await dashboardGoalsStore.initDashboardData(true) // Force refresh
+        syncDashboardCardsFromStore()
+    } finally {
+        initialLoader.value = false
+    }
 }
 watch(
     () => initialLoader.value,

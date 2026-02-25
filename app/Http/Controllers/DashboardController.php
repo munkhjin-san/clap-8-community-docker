@@ -211,9 +211,11 @@ class DashboardController extends Controller
     public function timesheet() {
         $pendingTimesheets = $this->pendingDailyReports();
         $departuresReportUsers = $this->departuresReportUsers();
+        $pendingPlannedLeaves = $this->pendingPlannedLeaves();
         return [
             "pendingTimesheets" => $pendingTimesheets,
-            "departuresReportUsers" => $departuresReportUsers
+            "departuresReportUsers" => $departuresReportUsers,
+            "pendingPlannedLeaves" => $pendingPlannedLeaves,
         ];
     }
     public function pendingDailyReports(){
@@ -431,7 +433,7 @@ class DashboardController extends Controller
                 
             }
         }
-        return response()->json($list);
+        return $list;
     }
     public function pendingGoalsUserForHR() {
         $user = Auth::user();

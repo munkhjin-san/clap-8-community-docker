@@ -93,6 +93,7 @@ import { useBadgeStore } from '@/store/badge';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import { useDashboardStore } from '@/store/dashboard';
     const props = defineProps(['currentDay', 'statuses', 'item'])
     const emit = defineEmits(['reload', 'closeModal'])
     const auth = useAuthUserStore()
@@ -100,6 +101,7 @@ import { useDialog } from '@/composables/dialog';
     const { edit, stampDelete, addDepartmentOnly } = inject('stamps')
     const api = useApi()
     const { ask } = useDialog()
+    const { getBatchDashboardData } = useDashboardStore()
     onMounted(() => {
         if(props.item.ability.daily_report_approve){
             window.addEventListener('keydown', handleEnterPress);
@@ -128,7 +130,7 @@ import { useDialog } from '@/composables/dialog';
         })
         emit('reload')
         emit('closeModal')
-        badge.getRemindBadge()
+        getBatchDashboardData(['timesheet'])
     }
     const formatedDay = computed(() => {
         return DateTime.fromISO(props.item?.day_full).toFormat('M月d日')

@@ -578,7 +578,6 @@ const approveOutComeGoal = async(status: number) => {
         badge.getManagersGoalsBadge()
     }
     if (auth.id === 631) {
-        badge.getRemindBadge()
         refreshRemind('remind_project_not_approved')
     }
     goalDecisionData.active = false
@@ -621,7 +620,6 @@ const approveSalaryIssue = async(id: number, status: number) => {
     emit('close')
     badge.getSalaryIssueBadge()
     if (auth.id === 631) {
-        badge.getRemindBadge()
         refreshRemind('remind_project_not_approved')
     }
     salaryIssueData.active = false

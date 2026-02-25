@@ -36,7 +36,8 @@ import { useApi } from '@/composables/api';
 import Step3 from './Step3.vue';
 import Step2 from './Step2.vue';
 import { ProjectGoal, SalaryIssue } from '@/interface/projectInterface';
-import { useGoal } from '@/composables/dashboard';
+import { useDashboardGoalsStore, issueThemes } from '@/store/dashboardGoals';
+import { storeToRefs } from 'pinia';
 const emit = defineEmits<{
     close: [flag: boolean]
 }>()
@@ -59,7 +60,7 @@ const selectedDateDate = computed(() => {
     }
 })
 
-const { evaluationData, issueThemes } = useGoal()
+const { evaluationData } = storeToRefs(useDashboardGoalsStore())
 const next = (val: number) => {
     step.value = val
     if(modalContent.value){

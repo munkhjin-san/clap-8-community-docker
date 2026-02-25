@@ -109,6 +109,7 @@ import { DateTime } from 'luxon';
 import MonthPickerNew from '../Global/MonthPickerNew.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import { useDashboardStore } from '@/store/dashboard';
     const props = defineProps([
         'selectedYear',
         'selectedMonth',
@@ -142,6 +143,7 @@ import { useDialog } from '@/composables/dialog';
     const statuses = ['', '', ' : 申請中', ' : 承認済']
     const api = useApi()
     const { ask, ping } = useDialog()
+    const { getBatchDashboardData } = useDashboardStore()
     onMounted(async() => {
         console.log('usersCheckArray', props.usersCheckArray)
         await fetchWorkGroups()
@@ -206,7 +208,7 @@ import { useDialog } from '@/composables/dialog';
         await api.patch('/shift_approve_all', {user_ids: userIds, year_month: yearMonth}, {
             toast: '承認しました。',
         })
-        badge.getRemindBadge()
+        getBatchDashboardData(['timesheet']) 
 
         fetchWorkGroups()
         
@@ -220,7 +222,7 @@ import { useDialog } from '@/composables/dialog';
         await api.patch('/shift_approve', {shift_id: shiftId, status: status}, {
             toast: status == 3 ? '承認しました。' : status == 2 ? '承認取消しました。' : '差戻しました。',
         })
-        badge.getRemindBadge()
+        getBatchDashboardData(['timesheet'])
 
         fetchWorkGroups()
    

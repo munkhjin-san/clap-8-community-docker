@@ -102,7 +102,8 @@ import { useTheme } from '@/store/theme';
 import { useResponsive } from '@/store/responsive';
 import { useSideMenuView } from '@/store/sideMenuView';
 import { useBadgeStore } from '@/store/badge'
-import { useGoal } from '@/composables/dashboard';
+import { useDashboardGoalsStore } from '@/store/dashboardGoals';
+import { storeToRefs } from 'pinia';
 import { useDashboardStore } from '@/store/dashboard';
     const badge = useBadgeStore()
     const auth = useAuthUserStore()
@@ -110,7 +111,7 @@ import { useDashboardStore } from '@/store/dashboard';
     const responsive = useResponsive()
     const router = useRouter()
     const theme = useTheme()
-    const { pulseBadgeCount } = useGoal()
+    const { pulseBadgeCount } = storeToRefs(useDashboardGoalsStore())
     const dashboardStore = useDashboardStore()
     const badgeFilter = (number) => {
         if(number == -1){

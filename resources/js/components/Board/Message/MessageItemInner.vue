@@ -146,7 +146,7 @@
                 <Transition name="downShiftPop">
                 <div class="w-max absolute p-4 bg-[var(--background-color)] z-10 bottom-[25px] shadow-xl" :id="`iokawaReactionPop_${message.id}`" v-if="menu.parent == `iokawaReactionPop_${message.id}`">
                     <div class="grid grid-cols-5 gap-2">                        
-                        <div class="flex items-end transition-transform duration-200 ease-out hover:scale-105" v-for="num in 15" @click="emit('sendEmote', num)">
+                        <div class="flex items-end justify-center transition-transform duration-200 ease-out hover:scale-105" v-for="num in 25" @click="emit('sendEmote', num)">
                             <Character :size="40" :emoteId="num"/>
                         </div>
                     </div>

@@ -44,6 +44,7 @@ import SharingData from '@/components/Global/SharingData.vue';
 import { useResponsive } from '@/store/responsive';
 import { useQuoteReply } from '@/store/quoteReply';
 import { useUrlMessage } from '@/store/urlMessage';
+import { useDashboardStore } from '@/store/dashboard';
     const badge = useBadgeStore()
     const auth = useAuthUserStore()
     const menu = useMenuStore()
@@ -73,6 +74,7 @@ import { useUrlMessage } from '@/store/urlMessage';
     const api = useApi()
     const { ask, ping, toast } = useDialog()
     const urlMessage = useUrlMessage()
+    const { getBatchDashboardData } = useDashboardStore()
     onMounted(() => {
         if((messageBox.value && props.message.id == props.searchTargetId && props.messageListType == 'search') || urlMessage.id == props.message.id){
             messageBox.value?.$el?.scrollIntoView({block: 'center' }); 
@@ -253,8 +255,8 @@ import { useUrlMessage } from '@/store/urlMessage';
                 if(confirmed.value){
                     const data = await api.post('/check_send_api', { message_id: msg.id, user_id: auth.activeUser.id, pattern: 'check' })                              
                     refreshMessages(data.message)    
-                    toast('確認済みにしました。') 
-                    badge.getRemindBadge()     
+                    toast('確認済みにしました。')    
+                    getBatchDashboardData(['mustCheckMessages'])
                 }                                  
             }
             if(checked && reacted){                  

@@ -136,6 +136,7 @@ import { useBoardList } from '@/composables/board'
 import { Board, CopyData, Message, UnreadMessages } from '@/interface/globalInterface'
 import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
 import { DateTime } from 'luxon'
+import { useDashboardStore } from '@/store/dashboard'
     const BoardDetails = defineAsyncComponent(() => import('./BoardDetails.vue'))
     const SearchMessage = defineAsyncComponent(() => import('./Search/SearchMessage.vue'))
     const BoardEdit = defineAsyncComponent(() => import('./BoardEdit.vue'))
@@ -199,6 +200,7 @@ import { DateTime } from 'luxon'
     const routeWatchLock = ref(false)
     const messageContainerRef = useTemplateRef('messageContainerRef')
     const keyboardStore = useKeyboardStore()
+    const { getBatchDashboardData } = useDashboardStore()
     const activeListeners = new Set<string>();
     const api = useApi()
     const { toast, ask } = useDialog()
@@ -588,7 +590,7 @@ import { DateTime } from 'luxon'
         const res = await api.post('/remind_add', { id: message.id })
         const inf = res.reminded === true ? 'リマインドしました。' : 'リマインドを取り消しました。'
         toast(inf)
-        badge.getRemindBadge()
+        getBatchDashboardData(['remindedMessages'])
         refreshMessages(res.data)
         
     }

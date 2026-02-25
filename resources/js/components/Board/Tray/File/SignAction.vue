@@ -85,7 +85,7 @@ import { useResponsive } from '@/store/responsive';
 import { useBadgeStore } from '@/store/badge';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
-import { BoardMethodsKey } from '@/interface/keys';
+import { useDashboardStore } from '@/store/dashboard';
     const menu = useMenuStore()
     const responsive = useResponsive()
     const props = defineProps(['file', 'viewer', 'source'])
@@ -106,6 +106,7 @@ import { BoardMethodsKey } from '@/interface/keys';
     const filePreview = useFilePreview()
     const api = useApi()
     const { ask, ping } = useDialog()
+    const { getBatchDashboardData } = useDashboardStore()
     const refreshMessage = inject('refreshMessage')
     const signableFile = computed(() => {
         const unsignedUsers = props.file.unsigned_users;
@@ -256,7 +257,7 @@ import { BoardMethodsKey } from '@/interface/keys';
         filePreview.setFilePreview(data)
         setTimeout(() => {
             refresh('remind_unsigned_messages')
-            badge.getRemindBadge()
+            getBatchDashboardData(['mustSignMessages'])
         }, 100);
     }
     const useMySignature = () => {

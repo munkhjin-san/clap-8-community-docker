@@ -23,7 +23,6 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         forms: [] as CustomForm[],
         
         pendingApprovalTasks: [] as Task[],
-        pendingPlannedLeaves: [] as WorkItem[],
         pendingGoalsUserForHR: [] as User[],
         remindedMessages: [] as Message[],
         schedules: {
@@ -39,7 +38,8 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         },  
         timesheet: {
             pendingTimesheets: [] as any[],
-            departuresReportUsers: [] as UserWithShift[]
+            departuresReportUsers: [] as UserWithShift[],
+            pendingPlannedLeaves: [] as any[],
 
         }
     })
@@ -88,7 +88,6 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         const total = departuresCount + 
         inconfirmedAssets + collection.value.assets.waiting_approval.length + 
         collection.value.challenges.length + collection.value.forms.length + 
-        collection.value.pendingApprovalTasks.length + collection.value.pendingPlannedLeaves.length +
         collection.value.pendingGoalsUserForHR.length + 
         collection.value.schedules.temp_schedules.length + collection.value.pendingDailyReports.length +
         collection.value.mustCheckMessages.length + collection.value.mustSignMessages.length + 

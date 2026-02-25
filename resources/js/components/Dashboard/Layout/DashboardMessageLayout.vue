@@ -38,6 +38,9 @@
                             @react-or-check="reactOrCheck"
                             @sendEmote="num => sendEmote(message, num)"
                         />
+                        <div>
+                            <router-link :to="`/board/${message.record_id}?m=${message.id}&jump_message=true`">チャットへ移動</router-link>
+                        </div>
                     </PanelData>
                 </v-expansion-panel-text>
             </v-expansion-panel>
@@ -104,13 +107,6 @@ const remindRequest = async(message: Message) => {
     const inf = data?.reminded === true ? 'リマインドしました。' : 'リマインドを取り消しました。'
     toast(inf)
     emit('refreshData', 'remindedMessages')
-    // if(data !== null){
-    //     badge.getRemindBadge()
-    //     const numericId = typeof message.id === 'string' ? Number(message.id) : message.id
-    //     if (typeof numericId === 'number' && Number.isFinite(numericId)) {
-    //         emit('remove', numericId)
-    //     }
-    // }
 }
 const reactOrCheck = async(msg) => {        
     console.log('reactOrCheck', msg)
@@ -131,7 +127,7 @@ const reactOrCheck = async(msg) => {
                 await api.post('/check_send_api', { message_id: msg.id, user_id: auth.activeUser.id, pattern: 'check' })                              
                 // emit('getUncheckedMessages')    
                 toast('確認済みにしました。') 
-                badge.getRemindBadge()     
+                emit('refreshData', props.data.type)  
             }                                  
         }
         if(checked && reacted){                  

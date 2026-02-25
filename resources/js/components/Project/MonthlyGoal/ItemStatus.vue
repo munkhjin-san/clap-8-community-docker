@@ -28,7 +28,7 @@
 </template>
 <script setup lang="ts">
 import UserPanel from '@/components/Global/UserPanel.vue';
-import { useGoal } from '@/composables/dashboard';
+import { useDashboardGoalsStore } from '@/store/dashboardGoals';
 import { StatusLog } from '@/interface/globalInterface';
 import { DateTime } from 'luxon';
 import { ref } from 'vue';
@@ -41,5 +41,5 @@ const props = defineProps<{
 
 const showStatusLog = ref(false)
 
-const { goalStatus, salaryIssueStatus } = useGoal()
+const { goalStatus, salaryIssueStatus } = useDashboardGoalsStore()
 </script>

@@ -67,11 +67,22 @@ export type DashboardTimesheetCard = CardBase & {
     layout: 'timesheet'
     data: {
         pendingTimesheets: any[]
-        departuresReportUsers: UserWithShift[]
+        departuresReportUsers: UserWithShift[],
+        pendingPlannedLeaves: any[],
     }
 }
-
-
+export type SpanRequiredGoalData = {
+    year: number,
+    half: string,
+    needed_count: number,
+    total_slot: number,
+    created_count: number,
+}
+export type GoalRequiredData = {
+    user: User,
+    this_span: SpanRequiredGoalData,
+    previous_span: SpanRequiredGoalData,
+}
 
 export type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard | DashboardAssetCard | DashboardScheduleCard | DashboardPersonnelEvaluationCard | DashboardTimesheetCard  
 

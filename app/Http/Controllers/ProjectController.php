@@ -219,55 +219,138 @@ class ProjectController extends Controller
     {
         $active_user = $this->active_user();
         $userId = $active_user->id;
+
         $now = Carbon::now();
 
-        // Fiscal year starts April 1
         $fiscalYear = $now->month >= 4 ? $now->year : $now->year - 1;
 
         $firstStart = Carbon::create($fiscalYear, 4, 1)->startOfDay();
         $firstEnd   = Carbon::create($fiscalYear, 9, 30)->endOfDay();
-        $secondEnd  = Carbon::create($fiscalYear + 1, 3, 31)->endOfDay();
 
-        $isFirstHalf  = $now->between($firstStart, $firstEnd);
-        $current_half = $isFirstHalf ? 'first' : 'second';
-        $halfEnd      = $isFirstHalf ? $firstEnd : $secondEnd;
+        $current_half = $now->between($firstStart, $firstEnd) ? 'first' : 'second';
+        $previous_half = $current_half === 'first' ? 'second' : 'first';
+        $previous_year = $current_half === 'first' ? $fiscalYear - 1 : $fiscalYear;
+        // dd([
+        //     "this_span" =>  "$fiscalYear-$current_half",
+        //     "previous_span" => "$previous_year-$previous_half",
+        // ]);
 
-        // months left in this half, inclusive (Feb..Mar = 2)
-        $monthsRemaining = $now->copy()->startOfMonth()
-            ->diffInMonths($halfEnd->copy()->startOfMonth()) + 1;
-
-            // dd($monthsRemaining);
-
-        $evaluation = EvaluationRecord::where('user_id', $userId)
+        $thisEvaluation = EvaluationRecord::where('user_id', $userId)
             ->where('year', $fiscalYear)
             ->where('which_half', $current_half)
             ->first();
 
+        $previousEvaluation = EvaluationRecord::where('user_id', $userId)
+            ->where('year', $previous_year)
+            ->where('which_half', $previous_half)
+            ->first();
+
         // total slots required for the half
-        $monthsTotal = (int) ($evaluation?->monthly_goal_slot ?? 0);
+        $thisSpanTotal = (int) ($thisEvaluation?->monthly_goal_slot ?? 0);
+        $previousSpanTotal = (int) ($previousEvaluation?->monthly_goal_slot ?? 0);
 
         $data = [
             'user' => $active_user->only('id', 'name', 'icon_path', 'icon_bg', 'position_id'),
-            'needs' => 0,
-            'year' => $fiscalYear,
-            'half' => $current_half,
+            'this_span' => [
+                'year' => $fiscalYear,
+                'half' => $current_half,
+                'total_slots' => $thisSpanTotal,
+                'created_count' => 0,
+                'needed_count' => 0,
+            ],
+            'previous_span' => [
+                'year' => $previous_year,
+                'half' => $previous_half,
+                'total_slots' => $previousSpanTotal,
+                'created_count' => 0,
+                'needed_count' => 0,
+            ],
         ];
 
-        if ($monthsTotal <= 0) {
-            return response()->json($data);
-        }
+        $goalsQuery = ProjectGoal::query()->where('user_id', $userId);
 
-        // how many goals should exist by now
-        $should_have = max(0, $monthsTotal - $monthsRemaining);
-
-        $goals = ProjectGoal::where('user_id', $userId)
+        $previousGoalsCount = $goalsQuery->clone()
+            ->where('status', '>', 0)
+            ->where('year', $previous_year)
+            ->where('which_half', $previous_half)
+            ->count();
+        $thisGoalsCount = $goalsQuery->clone()
+            ->where('status', '>', 0)
             ->where('year', $fiscalYear)
             ->where('which_half', $current_half)
             ->count();
 
-        $needs = max(0, $should_have - $goals);
+        $data['this_span']['created_count'] = $thisGoalsCount;
+        $data['previous_span']['created_count'] = $previousGoalsCount;
+        //if after 20th, add 1 or keep curreent month 
+        $targetMonth = $now->copy()->day >= 20 ? $now->month + 1 : $now->month;
+        
+        $thisMap = [
+            4 => max(0, $thisSpanTotal - 5),
+            5 => max(0, $thisSpanTotal - 4),
+            6 => max(0, $thisSpanTotal - 3),
+            7 => max(0, $thisSpanTotal - 2),
+            8 => max(0, $thisSpanTotal - 1),
+            9 => max(0, $thisSpanTotal - 0),
+            10 => max(0, $thisSpanTotal - 5),
+            11 => max(0, $thisSpanTotal - 4),
+            12 => max(0, $thisSpanTotal - 3),
+            1 => max(0, $thisSpanTotal - 2),
+            2 => max(0, $thisSpanTotal - 1),
+            3 => max(0, $thisSpanTotal - 0),
+        ];
 
-        $data['needs'] = $needs;
+        $previous_needed = $previousSpanTotal - $previousGoalsCount;
+
+        $data['this_span']['needed_count'] = $thisMap[$targetMonth] - $thisGoalsCount ?? 0;
+        $data['previous_span']['needed_count'] = $previous_needed > 0 ? $previous_needed : 0;
+
+        // $firstStart = Carbon::create($fiscalYear, 4, 1)->startOfDay();
+        // $firstEnd   = Carbon::create($fiscalYear, 9, 30)->endOfDay();
+        // $secondEnd  = Carbon::create($fiscalYear + 1, 3, 31)->endOfDay();
+
+        // $isFirstHalf  = $now->between($firstStart, $firstEnd);
+        // $current_half = $isFirstHalf ? 'first' : 'second';
+        // $halfEnd      = $isFirstHalf ? $firstEnd : $secondEnd;
+
+        // // months left in this half, inclusive (Feb..Mar = 2)
+        // $monthsRemaining = $now->copy()->startOfMonth()
+        //     ->diffInMonths($halfEnd->copy()->startOfMonth()) + 1;
+
+
+        // $evaluation = EvaluationRecord::where('user_id', $userId)
+        //     ->where('year', $fiscalYear)
+        //     ->where('which_half', $current_half)
+        //     ->first();
+
+        // // total slots required for the half
+        // $monthsTotal = (int) ($evaluation?->monthly_goal_slot ?? 0);
+
+
+        // $data = [
+        //     'user' => $active_user->only('id', 'name', 'icon_path', 'icon_bg', 'position_id'),
+        //     'needs' => 0,
+        //     'year' => $fiscalYear,
+        //     'half' => $current_half,
+        // ];
+
+        // if ($monthsTotal <= 0) {
+        //     return response()->json($data);
+        // }
+
+        // // how many goals should exist by now
+        // $should_have = max(0, $monthsTotal - $monthsRemaining);
+
+        // $goals = ProjectGoal::where('user_id', $userId)
+        //     ->where('year', $fiscalYear)
+        //     ->where('which_half', $current_half)
+        //     ->count();
+
+        //     // dd($goals);
+
+        // $needs = max(0, $should_have - $goals);
+
+        // $data['needs'] = $needs;
 
         return $data;
     }

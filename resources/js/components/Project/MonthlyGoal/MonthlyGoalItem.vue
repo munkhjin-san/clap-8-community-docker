@@ -135,7 +135,7 @@
 import ItemMenu from '@/components/Global/ItemMenu.vue';
 import UserPanel from '@/components/Global/UserPanel.vue';
 import { useApi } from '@/composables/api';
-import { useGoal } from '@/composables/dashboard';
+import { useDashboardGoalsStore } from '@/store/dashboardGoals';
 import { ProjectGoal, ProjectGoalStep } from '@/interface/projectInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { useBadgeStore } from '@/store/badge';
@@ -160,7 +160,7 @@ const badge = useBadgeStore()
 
 const showStatusLog = ref(false)
 
-const { goalStatus, salaryIssueStatus, overallScore, getGoals } = useGoal()
+const { goalStatus, salaryIssueStatus, overallScore, getGoals, invalidateCache } = useDashboardGoalsStore()
 
 const goalBadge = computed(() => {
     if(props.projectId){
@@ -202,6 +202,7 @@ const deleteGoal = async (goal: ProjectGoal) => {
         ask: '成果目標を削除しますか？\n削除すると、昇給課題も一緒に削除されます。',
         toast: '成果目標を削除しました。'
     })
+    invalidateCache()
     getGoals(props.item.user_id, props.item.year, props.item.which_half)
 
 }
@@ -212,6 +213,7 @@ const applyEdit = async (goal: ProjectGoal) => {
         toast: '変更申請しました。',
         ask: 'この成果目標の変更を申請しますか？'
     })
+    invalidateCache()
     getGoals(props.item.user_id, props.item.year, props.item.which_half)
 }
 

@@ -170,7 +170,7 @@ interface ProjectGoalReport {
     content: string;
     user: User;
     created_at: string;
-    files: FileRecord[]
+    files: MessageFile[]
 }
 interface ProjectGoalStep {
     id?: number; 
@@ -193,7 +193,7 @@ interface SalaryIssue {
     reports: ProjectGoalReport[]
     actions: SalaryIssueAction[]
     comment: string | null;
-    files?: FileRecord[];
+    files?: MessageFile[];
     status_logs?: StatusLog[];
 }
 interface SalaryIssueAction {

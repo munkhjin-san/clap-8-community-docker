@@ -77,7 +77,8 @@
     </div>
 </template>
 <script setup lang="ts">
-import { useGoal } from '@/composables/dashboard';
+import { useDashboardGoalsStore, issueThemes } from '@/store/dashboardGoals';
+import { storeToRefs } from 'pinia';
 import { useDialog } from '@/composables/dialog'
 import { ProjectGoal } from '@/interface/projectInterface';
 
@@ -90,7 +91,7 @@ const emit = defineEmits(['next', 'selectThemeConfirm'])
 const levels = ['自己', '組織', '社会']
 const themes = ['意義', '調和', '創造']
 const { ping } = useDialog()
-const { evaluationData, issueThemes } = useGoal()
+const { evaluationData } = storeToRefs(useDashboardGoalsStore())
 const grades = [
   { level: '1等級', self: 2, organization: 2, society: 2 },
   { level: '2等級', self: 1, organization: 2, society: 2 },

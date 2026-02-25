@@ -207,7 +207,7 @@ import AiLoader from '@/components/Global/AiLoader.vue';
 import AiIcon from '@/components/Icons/AiIcon.vue';
 import { useDialog } from '@/composables/dialog';
 import { useApi } from '@/composables/api';
-import { useGoal } from '@/composables/dashboard';
+import { useDashboardGoalsStore } from '@/store/dashboardGoals';
 
 const emit = defineEmits([
     'close',
@@ -251,7 +251,7 @@ const firstLoad = ref(true)
 
 const usersProjects = ref<Project[]>([])
 const { ask, ping, toast } = useDialog()
-const { getGoals } = useGoal()
+const { getGoals, invalidateCache } = useDashboardGoalsStore()
 const api = useApi()
 const keys = reactive({
     goalContent: 0,
@@ -506,6 +506,7 @@ const saveOutcomeGoal = async(status: number) => {
         toast: info_message
     })
     emit('close')
+    invalidateCache()
     getGoals(props.userId , Number(year), which_half)
     badge.getMembersGoalsBadge()
 }

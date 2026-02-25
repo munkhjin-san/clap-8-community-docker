@@ -86,6 +86,7 @@ import { PWAPrompt } from 'vue-ios-pwa-prompt'
 import { DateTime } from 'luxon';
 import { useDialog } from '@/composables/dialog';
 import { initPush } from '@/utils/push';
+import { useDashboardGoalsStore } from '@/store/dashboardGoals';
     const props = defineProps(['session', 'auth_user', 'initial_date'])
     const route = useRoute()
     const router = useRouter()
@@ -106,6 +107,8 @@ import { initPush } from '@/utils/push';
         cY: 0
     })
     const confused = ref(false)
+    const dashboardGoalsStore = useDashboardGoalsStore()
+    const { initDashboardData, initGoalData } = dashboardGoalsStore
     // const socket = ref()
     onBeforeMount(() => {
         auth.setUser(props.auth_user)
@@ -160,16 +163,14 @@ import { initPush } from '@/utils/push';
         if (isIOS.value) {
             savePWAStatus()
         } 
+        initDashboardData()
+        initGoalData()
     })
     async function loadBadges() {
         const jobs = []
 
         jobs.push(badge.getBoardBadge(true, 'initialLoad'))
 
-        if(!auth.isPartner){
-            // jobs.push(badge.getNoticeBadge())
-            jobs.push(badge.getRemindBadge())
-        }
         jobs.push(badge.getbadgeSummary())
         // if(auth.user?.position_id < 6){
         //     jobs.push(badge.getManagersGoalsBadge())
@@ -333,7 +334,6 @@ import { initPush } from '@/utils/push';
         await auth.setActiveUser(id)
         window.location.reload(true)
         // skeleton.setSkeleton(0)
-        // badge.getRemindBadge()
         // nextTick(() => {
         //     setTimeout(() => {
         //         switchLoader.value = false

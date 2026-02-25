@@ -122,6 +122,7 @@ import BoardIcon from '@/components/Board/Mixed/BoardIcon.vue';
 import BoardTitle from '@/components/Board/Mixed/BoardTitle.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import { useDashboardStore } from '@/store/dashboard';
     const messageUsers = useMessageUsers()
     const responsive = useResponsive()
     const auth = useAuthUserStore()
@@ -148,6 +149,7 @@ import { useDialog } from '@/composables/dialog';
     const route = useRoute()
     const api = useApi()
     const { ask, ping, toast } = useDialog()
+    const { getBatchDashboardData } = useDashboardStore()
     onMounted(() => {
         if(urlTask.id == props.item.id){
             nextTick(() => {                  
@@ -350,7 +352,7 @@ import { useDialog } from '@/composables/dialog';
         await api.patch(`/complete_task`, params)
         emit('getBoardTasks')
         badge.getTaskBadge()
-        badge.getRemindBadge()
+        getBatchDashboardData(['pendingApprovalTasks', 'unfinishedTasks', 'untouchedTasks']) 
         updating.status = false
 
     }

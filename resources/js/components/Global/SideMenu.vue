@@ -162,7 +162,8 @@ import { useSideMenuView } from '@/store/sideMenuView';
 import { useBadgeStore } from '@/store/badge'
 import { useBreakTime } from '../../store/breakTime';
 import WeatherIcon from '@/components/Global/WeatherIcon.vue';
-import { useGoal } from '@/composables/dashboard';
+import { useDashboardGoalsStore } from '@/store/dashboardGoals';
+import { storeToRefs } from 'pinia';
 import { useDashboardStore } from '@/store/dashboard';
     const badge = useBadgeStore()
     const route = useRoute()
@@ -171,7 +172,7 @@ import { useDashboardStore } from '@/store/dashboard';
     const props = defineProps(['session', 'auth_user', 'setActiveUser', 'switchLoader'])
     const newsList = ref([])
     const breakTimeStore = useBreakTime()
-    const { pulseBadgeCount } = useGoal()
+    const { pulseBadgeCount } = storeToRefs(useDashboardGoalsStore())
     const dashboardStore = useDashboardStore()
     onMounted(() => {
         setTimeout(() => {

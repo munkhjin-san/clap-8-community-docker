@@ -209,6 +209,7 @@ import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import YearPicker from '../Global/YearPicker.vue';
 import { useRoute } from 'vue-router';
+import { useDashboardStore } from '@/store/dashboard';
     const responsive = useResponsive()
     const theme = useTheme()
     const emit = defineEmits(['closeModal', 'reload', 'viewPaidLeave'])
@@ -260,6 +261,7 @@ import { useRoute } from 'vue-router';
     const { ping } = useDialog()
     const plannedLeaveTargetYear = ref(DateTime.now().year)
     const yearOptions = [DateTime.now().minus({year: 1}).year, DateTime.now().year, DateTime.now().plus({year: 1}).year]
+    const { getBatchDashboardData } = useDashboardStore()
     onMounted(async() => {
         propsCheck()
         getRemainingDays()
@@ -633,7 +635,7 @@ import { useRoute } from 'vue-router';
             });
             emit('closeModal')
             emit('reload')
-            badge.getRemindBadge()
+            getBatchDashboardData(['timesheet'])
             
         }else{
             ping('今月の休日数は' + holidayNum + '日以上取得が必要です。')

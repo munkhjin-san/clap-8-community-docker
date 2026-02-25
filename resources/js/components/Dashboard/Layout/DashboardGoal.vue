@@ -19,6 +19,19 @@
                 <div class="spinner-mini"></div>
             </div>
             <div>
+                <div v-if="requiredGoalData && !auth.isBoss">
+                    <div class="text-sm p-3 bg-[var(--bg3)] m-3 rounded-md leading-normal" v-if="requiredGoalData?.previous_span?.needed_count">
+                        <p class="flex items-center gap-2">
+                            <span style="position: unset;" :class="['side-notification !w-2 !min-w-2 !h-2', 'custom-heartbeat',  ]"></span>  
+                            {{ `${requiredGoalData.previous_span.year}年${requiredGoalData.previous_span.half == 'first' ? '上期' : '下期'}の成果目標：${requiredGoalData.previous_span.needed_count}件未作成` }}
+                        </p>
+                        <p class="flex items-center gap-2 mt-2" v-if="requiredGoalData.this_span.needed_count">
+                            <span style="position: unset;" :class="['side-notification !w-2 !min-w-2 !h-2', 'custom-heartbeat',  ]"></span>  
+                            {{ `${requiredGoalData.this_span.year}年${requiredGoalData.this_span.half == 'first' ? '上期' : '下期'}の成果目標：${requiredGoalData.this_span.needed_count}件未作成` }}
+                        </p>
+
+                    </div>
+                </div>
                 <div v-if="!fullscreen" class="mx-3 mb-3">
                     <div v-for="item in approvaNeeded" class="mb-4">
                         <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis">
@@ -120,7 +133,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useAuthUserStore } from '@/store/auth';
 import { detailedDateOptions } from '@/utils/tools';
 import { DateTime } from "luxon";
-import { useGoal } from '@/composables/dashboard';
+import { useDashboardGoalsStore } from '@/store/dashboardGoals';
 import { useBadgeStore } from '@/store/badge';
 import { ProjectGoal } from '@/interface/projectInterface';
 import MonthlyGoalContainer from '@/components/Project/MonthlyGoal/MonthlyGoalContainer.vue';
@@ -129,6 +142,7 @@ import MonthlyGoalItemCompact from '@/components/Project/MonthlyGoal/MonthlyGoal
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
 import UserPanel from '@/components/Global/UserPanel.vue';
+import { storeToRefs } from 'pinia';
 
 const props = defineProps<{
     data: {
@@ -150,7 +164,10 @@ const emit = defineEmits<{
 
 const badge = useBadgeStore()
 
-const { goals, getGoals, loading, pendingMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals } = useGoal()
+const goalsStore = useDashboardGoalsStore()
+const { goals, loading, pendingMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals, requiredGoalData } = storeToRefs(goalsStore)
+const { getGoals } = goalsStore
+
 const auth = useAuthUserStore()
 const selectedUser = ref<User | null>(auth.user)
 
@@ -171,7 +188,7 @@ onMounted(() => {
     if(auth.id){
         selectedUser.value = auth.user
     }
-    getGoals(selectedUser.value?.id ?? 0 ,year, span)
+    // getGoals(selectedUser.value?.id ?? 0 ,year, span)
 })
 
 const approvaNeeded = computed(() => {

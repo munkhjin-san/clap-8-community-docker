@@ -87,7 +87,7 @@
                 <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">オペレーション</span></div> 
                 <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.operation ?? '')"></div>
             </div> 
-            <div v-if="isDirector && selectedProject?.status == 'pending_director'" class="flex gap-4 py-4">
+            <div v-if="auth.isBoss && selectedProject?.status == 'pending_director'" class="flex gap-4 py-4">
                 <button @click="statusChange('director_approved')" class="bg-[var(--primary-button)] text-white p-1">
                     承認する
                 </button>
@@ -134,7 +134,6 @@ import { useRoute } from 'vue-router';
     const isTruncated = ref(false);
     const excerptHtml = ref('');
     const auth = useAuthUserStore()
-    const isDirector = computed(() => auth.activeUser.position_id < 6)
     const route = useRoute()
     const scrollRef = useTemplateRef('scrollContainer')
     onMounted(() => {

@@ -1,7 +1,7 @@
 <template>
     
     <div>
-        <teleport :disabled="!fullscreen" to="#dashBoardContainer">
+        <Teleport defer :disabled="!fullscreen" to="#dashBoardContainer">
         <div ref="parent" class="panel" :class="{ fullscreen }">
             <div class="flex items-center justify-between px-3 panel-header">
                 <div class="flex items-center overflow-x-hidden min-w-0 h-full">
@@ -40,7 +40,7 @@
             </div>
             <slot :parentElement="parent"></slot>
         </div>
-        </teleport>
+        </Teleport>
     </div>
   
 </template>

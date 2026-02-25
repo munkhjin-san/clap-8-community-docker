@@ -49,6 +49,7 @@ import { useApi } from '@/composables/api';
 import { Post } from '@/interface/postInterface';
 import { useBadgeStore } from '@/store/badge';
 import { useRoute } from 'vue-router';
+import { useDashboardStore } from '@/store/dashboard';
     const props = defineProps<{
         record: Post
     }>()
@@ -59,6 +60,7 @@ import { useRoute } from 'vue-router';
     const processing = ref(false)
     const api = useApi()
     const route = useRoute()
+    const { getBatchDashboardData } = useDashboardStore()
     onMounted(() => {
         if(route.query.status){
             const statusParam = parseInt(route.query.status as string)
@@ -89,7 +91,8 @@ import { useRoute } from 'vue-router';
             loadingRef: processing,
         })
         emit('close', props.record.id)
-        badge.getRemindBadge() 
+        getBatchDashboardData(['challenges'])
+        
     }
     const selectStatus = (id) => {
         selected.value = id

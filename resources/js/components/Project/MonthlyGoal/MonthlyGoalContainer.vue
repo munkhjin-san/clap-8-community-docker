@@ -52,7 +52,8 @@
     </div>
 </template>
 <script setup lang="ts">
-import { useGoal } from '@/composables/dashboard';
+import { useDashboardGoalsStore } from '@/store/dashboardGoals';
+import { storeToRefs } from 'pinia';
 import { Project, ProjectGoal } from '@/interface/projectInterface';
 import MonthlyGoalItem from './MonthlyGoalItem.vue';
 import { computed, onMounted, ref, useTemplateRef } from 'vue';
@@ -79,7 +80,10 @@ const emit = defineEmits<{
 }>()
 const api = useApi()
 const route = useRoute()
-const { getGoals, goals, totalScore, evaluationData, totalOverallScore, loading } = useGoal()
+const { askData, ask, ping } = useDialog()
+const goalsStore = useDashboardGoalsStore()
+const { goals, totalScore, evaluationData, totalOverallScore, loading } = storeToRefs(goalsStore)
+const { getGoals } = goalsStore
 
 const auth = useAuthUserStore()
 
@@ -87,7 +91,6 @@ const editData = ref<ProjectGoal | null>(null)
 const createWindow = ref(false)
 const searching = ref(false)
 const scrollParentLocal = useTemplateRef('scrollParentLocal')
-const { ping } = useDialog()
 onMounted(() => {   
 
     if(activeProjectId.value && activeSpan.value && activeUser.value){

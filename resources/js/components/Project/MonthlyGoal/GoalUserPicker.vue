@@ -52,7 +52,7 @@
                         <div v-if="menteeData.loading" class="flex justify-center items-center py-3">
                             <div class="spinner-mini"></div>
                         </div>
-                        <div v-if="menteeData.fetched && !menteeData.loading && !menteeData.users.length">
+                        <div v-if="selectedTab === 'mentees' && menteeData.fetched && !menteeData.loading && !menteeData.users.length">
                             <div class="text-sm text-[gray] py-3 text-center">メンティーが見つかりません</div>
                         </div>
                     </div>

@@ -47,6 +47,7 @@ import { useAuthUserStore } from '@/store/auth';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import RollDice from '../Global/RollDice.vue';
+import { useDashboardStore } from '@/store/dashboard';
 const badge = useBadgeStore()
 const props = defineProps<{
     survey: CustomForm
@@ -63,6 +64,7 @@ const api = useApi()
 const { ping } = useDialog()
 const prizeEligible = ref(false)
 const answerId = ref<number | null>(null)
+const { getBatchDashboardData } = useDashboardStore()
 onMounted(() => {
     const answerEditId = props.answerId || route.query.answerId || null
     if(props.survey.survey_answers && answerEditId){
@@ -176,7 +178,7 @@ const sendSurvey = async(status:number) => {
         answerId.value = data.id
     }else{
         setTimeout(() => {        
-            badge.getRemindBadge()  
+            getBatchDashboardData(['forms']) 
             emit('saved', status, data?.id)
         }, 300);
     }
@@ -187,7 +189,7 @@ const sendSurvey = async(status:number) => {
 
 const closePrize = () => {
     prizeEligible.value = false
-    badge.getRemindBadge()  
+    getBatchDashboardData(['forms']) 
     emit('saved', 2, answerId.value)
 }
 </script>

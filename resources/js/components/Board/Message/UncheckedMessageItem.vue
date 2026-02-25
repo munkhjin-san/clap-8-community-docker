@@ -83,6 +83,7 @@ import UserPanel from "@/components/Global/UserPanel.vue";
 import { useBadgeStore } from "@/store/badge";
 import { useApi } from "@/composables/api";
 import { useDialog } from "@/composables/dialog";
+import { useDashboardStore } from "@/store/dashboard";
 const { toast, ping, ask } = useDialog()
     const auth = useAuthUserStore()
     const messageUsers = useMessageUsers()
@@ -94,6 +95,7 @@ const { toast, ping, ask } = useDialog()
     const messageBodyRef = useTemplateRef('messageBodyRef')
     const badge = useBadgeStore()
     const api = useApi()
+    const { getBatchDashboardData } = useDashboardStore()
     onMounted(() => {
         if (messageBodyRef.value) {
             if(messageBodyRef.value?.clientHeight > 170){
@@ -181,7 +183,7 @@ const { toast, ping, ask } = useDialog()
                     await api.post('/check_send_api', { message_id: msg.id, user_id: auth.activeUser.id, pattern: 'check' })                              
                     emit('getUncheckedMessages')    
                     toast('確認済みにしました。') 
-                    badge.getRemindBadge()     
+                    getBatchDashboardData(['mustCheckMessages'])   
                 }                                  
             }
             if(checked && reacted){                  
@@ -203,7 +205,7 @@ const { toast, ping, ask } = useDialog()
         const inf = data === true ? 'リマインドしました。' : 'リマインドを取り消しました。'
         toast(inf)
         if(data !== null){
-            badge.getRemindBadge()
+            getBatchDashboardData(['remindedMessages'])
             emit('getRemindMessages')
         } 
     }        

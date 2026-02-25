@@ -72,6 +72,7 @@ import WorkRecordTotal from './WorkRecordTotal.vue'
 import { useBadgeStore } from '@/store/badge';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
+import { useDashboardStore } from '@/store/dashboard';
     const props = defineProps([
         'monthAverage',
         'usersData',
@@ -86,6 +87,7 @@ import { useApi } from '@/composables/api';
     const emit = defineEmits(['reload'])
     const tempItem = ref(null)
     const badge = useBadgeStore()
+    const { getBatchDashboardData } = useDashboardStore()
     const holidays = computed(() => {
         const holidays = holiday_jp.between(new Date(props.selectedYear + '-01-01'), new Date(props.selectedYear + '-12-31'));
         return holidays
@@ -98,7 +100,7 @@ import { useApi } from '@/composables/api';
         tempItem.value = null
         const targets = [dailyApproval, timeCardRemand, dailyCancel, overtTimeRequest]
         Promise.resolve(targets[value](item))
-        .finally(() => badge.getRemindBadge());
+        .finally(() => getBatchDashboardData(['timesheet']));
     }
     const overtTimeRequest = (item) => {
         overTimeRequestData.value = item

@@ -15,6 +15,16 @@
             </svg>
         </template>
         <div>
+            <div class="mx-3 mb-3" v-if="data.data.pendingPlannedLeaves && data.data.pendingPlannedLeaves.length">
+                <p class="text-sm mb-3 flex items-center gap-1"><span class="side-notification !w-2 !min-w-2 !h-2 custom-heartbeat" style="position: unset;"></span>計画有給</p>
+                <div v-for="item in data.data.pendingPlannedLeaves">
+                    <WorkMessage
+                        v-if="item"
+                        :item="item"
+                    />
+                </div>
+
+            </div>
             <div class="mx-3 mb-3" v-if="data.data.departuresReportUsers && data.data.departuresReportUsers.length">
                 <p class="text-sm mb-3">出発報告状況</p>
                 <div class="overflow-hidden w-fit flex flex-col gap-[10px] bg-[var(--background-color)]">
@@ -66,6 +76,7 @@ import UserPanel from '@/components/Global/UserPanel.vue';
 import BaseLayout from './BaseLayout.vue';
 import { DateTime } from 'luxon';
 import { useRouter } from 'vue-router';
+import WorkMessage from '@/components/Work/WorkMessage.vue';
 
 const props = defineProps<{
     data: {
@@ -73,6 +84,7 @@ const props = defineProps<{
         data: {
             pendingTimesheets: [] | any[],
             departuresReportUsers: [] | any[],
+            pendingPlannedLeaves: [] | any[],
         },
         order?: number,
         type: string

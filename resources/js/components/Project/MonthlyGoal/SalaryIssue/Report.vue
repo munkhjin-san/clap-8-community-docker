@@ -37,22 +37,20 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { inject, ref } from 'vue';
-import LongInput from '@/components/Form/LongInput.vue';
+import { ref } from 'vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
-import { FileRecord } from '@/interface/trayInterface';
 import { useBadgeStore } from '@/store/badge';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import { SalaryIssue } from '@/interface/projectInterface';
-// const props = defineProps(['chosenIssue', 'reviewing'])
+import { MessageFile } from '@/interface/globalInterface';
 const props = defineProps<{
     chosenIssue: SalaryIssue
 }>()
 const emit = defineEmits(['close', 'reload'])
 const result = ref(props.chosenIssue?.result ?? '')
 const loading = ref([false, false, false, false])
-const uploadedFiles = ref<FileRecord[]>(props.chosenIssue?.files ?? [])
+const uploadedFiles = ref<MessageFile[]>(props.chosenIssue?.files ?? [])
 const badge = useBadgeStore()
 const api = useApi()
 const { ask } = useDialog()

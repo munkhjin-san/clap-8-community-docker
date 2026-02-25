@@ -148,7 +148,7 @@
                         </div>
                     </div>
                     
-                    <MessageArea which="goal" :item="goal" :key="`message-area-goal-${goal.id}`" @refresh="() => refresh()"/>
+                    <MessageArea which="goal" :passing-data="passingData" :item="goal" :key="`message-area-goal-${goal.id}`" @refresh="() => refresh()"/>
                     <div v-if="(631 === auth.id || auth.isAdmin) && goal?.status == 3" class="flex gap-5 mb-3 justify-center">
                         <LoaderButton style="margin: 0;" @click="updateGoalStatus(1, '人事差戻')" :content="'人事差戻'"/>
                         <LoaderButton style="margin: 0;" @click="updateGoalStatus(5, '人事承認')" :content="'人事承認'"/>
@@ -169,137 +169,6 @@
                     :selectedDate="selectedDate"
                     @refresh="refresh"
                 />
-                <!-- <div class="flex flex-col gap-[30px] relative" v-if="salaryIssueRecord && sub_tab === 1">
-                    <div class="pc absolute top-0 right-0">
-                        <div class="px-[10px] py-[5px] bg-[var(--bg3)] text-[12px]">{{ salaryIssueStatus(salaryIssueRecord.status) }}</div>
-                    </div>
-                    <div class="mobile w-fit">
-                        <div class="text-[13px] font-semibold">ステータス</div>
-                        <div class="px-[10px] py-[5px] bg-[var(--bg3)] text-[12px] mt-[10px]">{{ salaryIssueStatus(salaryIssueRecord.status) }}</div>
-                    </div>
-                    <div 
-                        v-if="auth.isAdmin" 
-                        class="flex flex-wrap items-center gap-[10px] bg-[var(--bg3)] px-[10px] py-[8px]"
-                    >
-                        <div class="text-[12px] font-semibold whitespace-nowrap">人事専用ステータス変更</div>
-                        <select 
-                            v-model.number="selectedSalaryIssueStatus" 
-                            class="py-[6px] px-[10px] text-[13px] text-[var(--primary-color)] bg-[var(--background-color)] border border-solid border-[var(--formBorder)] min-w-[180px]"
-                        >
-                            <option v-for="(label, index) in salaryIssueStatus" :key="index" :value="index">
-                                {{ label }}
-                            </option>
-                        </select>
-                        <LoaderButton style="margin: 0;" :content="'更新'" @click="updateSalaryIssueStatusDirectly" />
-                    </div>
-                    <div>
-                        <div class="text-[13px] font-semibold">テーマ</div>
-                        <div>{{ salaryIssueRecord.theme }}</div>
-                    </div>
-                    <div>
-                        <div class="text-[13px] font-semibold">メンター</div>
-                        <div class="kadai-content">{{ evaluationData?.mentor?.name ?? '未設定' }}</div>
-                    </div>
-                    <div>
-                        <div class="text-[13px] font-semibold">タイトル</div>
-                        <div class="kadai-content">{{ salaryIssueRecord.title }}</div>
-                    </div>
-                    <div v-if="salaryIssueRecord.content">
-                        <div class="text-[13px] font-semibold">内容・詳細</div>
-                        <div class="kadai-content">{{ salaryIssueRecord.content }}</div>
-                    </div>
-                    <div>
-                        <div class="text-[13px] font-semibold">開発能力</div>
-                        <div class="kadai-content">{{ salaryIssueRecord.ability }}</div>
-                    </div>      
-                    <div>
-                        <div class="text-[13px] font-semibold mb-[10px]">修得要件</div>
-                        <div v-if="salaryIssueRecord.actions" class="flex flex-col gap-[15px]">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th class="w-[80px]">修得状況</th>
-                                        <th>修得要件</th>
-                                        <th>ガイドライン</th>
-                                    </tr>
-                                </thead>
-                                <tbody>                                    
-                                    <tr v-for="action in salaryIssueRecord.actions">                                        
-                                        <td class="w-[80px] max-w-[110px] text-center">
-                                            <select 
-                                                :disabled="!salaryIssueReport" 
-                                                :value="action.status" 
-                                                @change="salaryIssueActionComplete(action)" 
-                                                class="py-[5px] px-[10px]"
-                                                :class="{'!cursor-not-allowed appearance-none': !salaryIssueReport}"
-                                                :style="{ background: action.status == 1 ? '#64bc44' : 'var(--bg3)', color: action.status == 1 ? 'white' : 'var(--primary-color)' }"
-                                            >
-                                                <option :value="1">修得済み</option>
-                                                <option :value="0">未修得</option>
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <div class="leading-normal text-[13px]">{{ action.content }}</div>
-                                        </td>
-                                        <td>
-                                            <div class="leading-normal text-[13px]">{{ action.learning_content }}</div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>                                  
-                    <div v-if="salaryIssueRecord.comment">
-                        <div class="text-[13px] font-semibold">コメント</div>
-                        <div class="kadai-content">{{ salaryIssueRecord.comment }}</div>
-                    </div>
-                    <div v-if="salaryIssueRecord.review">
-                        <div class="text-[13px] font-semibold">AI添削結果</div>
-                        <div class="kadai-content">{{ salaryIssueRecord.review }}</div>
-                    </div>
-                    <div v-if="salaryIssueRecord?.status >= 6">
-                        <div class="post-separetor mt-[10px]"></div>
-                        <div class="mb-[10px] font-semibold text-[13px]">開発能力検証報告</div>
-                        <div class="kadai-content">{{ salaryIssueRecord.result }}</div>                        
-                        <Files style="margin-top: 15px;" v-if="salaryIssueRecord?.files?.length" :items="salaryIssueRecord?.files" :path="'project_files'"/>
-                    </div>
-                    <MessageArea which="salary_issue" :item="salaryIssueRecord" :key="`message-area-goal-${goal.id}`" @refresh="() => refresh()"/>
-                    <div v-if="salaryIssueRecord.status < 2 && (auth.id === goal.user_id || evaluationData?.mentor_id === auth.id)" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="editIssue(goal.salary_issue)" :content="'変更'"/>
-                        <LoaderButton style="margin: 0;" @click="deleteIssue(goal.salary_issue)" :content="'削除'"/>
-                    </div>
-                    <div v-if="evaluationData?.mentor_id === auth.id && salaryIssueRecord?.status == 2" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(salaryIssueRecord, 1)" :content="'差戻'"/>
-                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(salaryIssueRecord, 3)" :content="'承認'"/>
-                    </div>
-                    <div v-if="631 === auth.id && salaryIssueRecord?.status == 3" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(salaryIssueRecord, 1)" :content="'人事差戻'"/>
-                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(salaryIssueRecord, 5)" :content="'人事承認'"/>
-                    </div>
-                    <div v-if="631 === auth.id && salaryIssueRecord?.status == 9" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(salaryIssueRecord, 6)" :content="'結果人事差戻'"/>
-                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(salaryIssueRecord, 10)" :content="'結果人事承認'"/>
-                    </div>
-                    <div v-if="610 === auth.activeUser.id && salaryIssueRecord?.status == 5" style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton style="margin: 0;" @click="openSalaryIssueApproveWindow(salaryIssueRecord, 3)" :content="'人事承認取消'"/>
-                    </div>
-                    <div style="display: flex; gap: 20px;margin-bottom: 10px;">
-                        <LoaderButton v-if="salaryIssueReport" style="margin: 0;" :content="'開発能力検証報告'" @click="addIssueReport(false, goal)"/>
-                        <LoaderButton style="margin: 0;" v-if="evaluationData?.mentor_id === auth.id && salaryIssueRecord?.status === 7" :content="'進捗報告承認'" @click="addIssueReport(true, goal)"/>
-                    </div>
-                </div> -->
-                <!-- <div v-else-if="canCreateIssue && sub_tab === 1">
-                    <div v-if="(auth.id === goal.user_id || evaluationData?.mentor_id === auth.id)">
-                        <LoaderButton style="margin: 0;" @click="salaryIssue = true" :content="'作成'"/>
-                    </div>
-                    <div v-else>
-                        権限がありません。
-                    </div>
-                </div>
-                 
-                <div v-else-if="sub_tab === 1">
-                    選択された成果目標は、昇給課題作成の要件を満たしていません。［期間］
-                </div>                  -->
             </div>
         <Transition name="modalFade">
             <ProjectGoalResult 
@@ -310,67 +179,26 @@
                 @reload="openReport = false, refresh()"
             />
         </Transition>
-        <!-- <Transition name="modalFade">
-            <ProjectSalaryIssueCreation
-                v-if="salaryIssue" 
-                @close="salaryIssue = false, emit('close')"
-                @selectThemeConfirm="selectThemeConfirm"
-                :getIssues="getIssues"
-                @goback="selectedTheme = null"
-                :selectedTheme="selectedTheme"
-                :selectedDate="selectedDate"
-                :editData="editData"
-                :chosenGoal="goal"
-                :evaluation="evaluationData"
-            />
-        </Transition>
-        <Transition name="modalFade">
-            <Report 
-                v-if="issueReport"
-                :chosenIssue="issueReport"
-                :reviewing="reviewing"
-                @close="issueReport = null"
-                @reload="issueReport = null, emit('close')"
-            />
-        </Transition>
-        <Transition name="modalFade">
-            <Modal v-if="salaryIssueData.active && salaryIssueData.status && salaryIssueData.id" @close="salaryIssueData.active = false, salaryIssueData.status = null">
-                <template #title>
-                </template>
-                <template #content>
-                    <div>判断: <strong>{{ [1,6].includes(salaryIssueData.status) ? '差戻' : [5,3,10].includes(salaryIssueData.status) ? '承認' : ''  }}</strong></div>
-                    <div class="si-box">
-                        <LongInput v-model="salaryIssueData.comment" name="comment" place-holder="コメント" />
-                    </div>
-                    <div class="si-box">
-                        <LoaderButton @triggered="approveSalaryIssue(salaryIssueData.id, salaryIssueData.status)" :content="'保存'" />
-                    </div>
-                </template>
-
-            </Modal>
-        </Transition> -->
         </template>
     </Modal>
     </Transition>
 </template>
 <script setup lang="ts">
 import { useAuthUserStore } from '@/store/auth';
-import { computed, inject, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import ProjectGoalResult from '../ProjectGoalResult.vue';
-import ProjectSalaryIssueCreation from '../ProjectSalaryIssueCreation.vue';
 import Files from '@/components/Global/Files.vue';
-import Report from './SalaryIssue/Report.vue';
-import { ProjectGoal, SalaryIssue } from '@/interface/projectInterface';
+import { ProjectGoal } from '@/interface/projectInterface';
 import { useBadgeStore } from '@/store/badge'
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import Modal from '@/components/Global/Modal.vue';
-import LongInput from '@/components/Form/LongInput.vue';
 import { DateTime } from 'luxon';
 import ProgressSlider from '../ProgressSlider.vue';
 import { useApi } from '@/composables/api';
 import MessageArea from '../MessageArea.vue';
-import { useGoal } from '@/composables/dashboard';
+import { useDashboardGoalsStore, issueThemes } from '@/store/dashboardGoals';
+import { storeToRefs } from 'pinia';
 import SalaryIssueSection from './SalaryIssueSection.vue';
 import ItemStatusDetail from './ItemStatusDetail.vue';
 
@@ -382,15 +210,12 @@ const props = defineProps<{
 }>()
 const emit = defineEmits(['close'])
 const auth = useAuthUserStore()
-const { goalStatus, salaryIssueStatus, goalStatuses, evaluationData, getGoals } = useGoal()
+const goalsStore = useDashboardGoalsStore()
+const { goalStatuses, evaluationData } = storeToRefs(goalsStore)
+const { goalStatus, salaryIssueStatus, getGoals, invalidateCache } = goalsStore
 const openReport = ref(false)
 const sub_tab = ref(0)
-const salaryIssue = ref(false)
-const selectedTheme = ref(null)
-const editData = ref({})
 const reviewing = ref(false)
-const refreshRemind = inject('refreshRemind') as Function
-const issueReport = ref(null)
 const api = useApi()
 const selectedGoalStatus = ref<number | null>(props.goal?.status ?? null)
 const selectedSalaryIssueStatus = ref<number | null>(props.goal?.salary_issue?.status ?? null)
@@ -398,7 +223,6 @@ const selectedSalaryIssueStatus = ref<number | null>(props.goal?.salary_issue?.s
 
 const badge = useBadgeStore()
 const router = useRouter()   
-const route = useRoute()
 const scoreMap = {
     1: '明確に悪化',
     2: '悪化傾向',
@@ -406,6 +230,11 @@ const scoreMap = {
     4: '好転傾向',
     5: '明確に好転'
 } 
+const passingData = {
+    path: '/project_goal_comment_create',
+    title: '進捗報告・メッセージ',
+    file_path: 'project_goal_report_files'
+}
 onMounted(async () => {
     setTimeout(() => {
         badge.clearGoalIssue({column: 'project_goal_id', value: props.goal?.id})
@@ -421,21 +250,7 @@ const canConfirmOrDeny = computed(() => {
 const isManager = computed(() => {
     return props.goal.project?.is_manager
 })
-const canCreateIssue = computed(() => {
-    const start = props.goal?.start_date ? DateTime.fromSQL(props.goal.start_date) : null;
-    const end = props.goal?.end_date ? DateTime.fromSQL(props.goal.end_date) : null
-    if (start?.isValid && end?.isValid) {
-        const differenceInMonths = end.diff(start, 'months').as('months'); 
-        const differenceInDays = end.diff(start, 'days').as('days');
-        if (differenceInMonths >= 2.9 || differenceInDays >= 89) { 
-            return true;
-        }
-    }
-    return false
-})
-const salaryIssueRecord = computed(() => {
-    return props.goal?.salary_issue
-})
+
 watch(
     () => props.goal?.status,
     (value) => {
@@ -456,118 +271,7 @@ const reviewReport = computed(() => {
 const managerOrDirector = computed(() => {
     return (auth.user?.position_id && auth.user?.position_id < 6) || isManager.value || auth.isAdmin
 })
-// const salaryIssueReport = computed(() => {
-//     return (salaryIssueRecord.value?.status >= 5 && salaryIssueRecord.value?.status < 9 && salaryIssueRecord.value?.status !== 7) 
-//         && (auth.id === props.goal.user_id || evaluationData.value?.mentor_id === auth.id)
-// })
-const selectThemeConfirm = (level, theme) => {
-    selectedTheme.value = getIssues(level, theme)[0]
-}
-const evalutionsValues = computed(() => {
-    return props.themeRecords
-})
 
-
-const salaryIssueData = reactive({
-    id: <number | null>null,
-    comment: '',
-    status: <number| null>null,
-    active: false
-})
-
-const openSalaryIssueApproveWindow = (issue: SalaryIssue, status: number) => {
-    salaryIssueData.status = status
-    salaryIssueData.id = issue.id
-    salaryIssueData.active = true    
-}
-
-const approveSalaryIssue = async(id: number, status: number) => {
-    let content = ''
-    let info_message = ''
-    switch (status) {
-        case 1: 
-            content = 'この昇給課題を差し戻してもよろしいですか'
-            info_message = '差戻しました。'
-            break
-        case 3: 
-            content = 'この昇給課題を承認してもよろしいですか？'
-            info_message = '承認しました。'
-            break
-        case 5: 
-            content = 'この昇給課題は人事承認でよろしいですか？'
-            info_message = '人事承認しました。'
-            break
-        case 6: 
-            content = 'この昇給課題は達成でよろしいですか？'
-            break
-        default:
-            content = 'エラーが発生しました'
-            break
-    }
-    if(!id) return
-
-    await api.put('/approve_salary_issue', { id: id, status: status, comment: salaryIssueData.comment }, {
-        ask: content,
-        toast: info_message,
-    })
-    if (typeof refresh === 'function') {
-        refresh()
-    }
-    emit('close')
-    badge.getSalaryIssueBadge()
-    if (auth.id === 631) {
-        badge.getRemindBadge()
-        refreshRemind('remind_project_not_approved')
-    }
-    salaryIssueData.active = false
-    salaryIssueData.status = null
-    salaryIssueData.comment = ''
-    salaryIssueData.id = null
-} 
-const getIssues = (level, theme) => {
-    if(evalutionsValues.value){
-        const foundItem = evalutionsValues.value.find((item) => item.level === level);
-        if (foundItem) {
-            return foundItem.issues.filter((issue) => issue.theme === theme);
-        }
-    }
-    return []
-}
-
-const editIssue = (issue: SalaryIssue) => {
-    if(issue) {
-        let template = issue
-        let theme = null;
-        for (const item of evalutionsValues.value) {
-            const issue = item.issues.find((issue) => issue.title_full === template.theme);
-            if (issue) {
-                theme = issue;
-            }
-        }
-        if(theme){
-            selectedTheme.value = theme
-            editData.value = template
-        }
-    }
-    salaryIssue.value = true    
-}
-const deleteIssue = async(issue: SalaryIssue) => {
-    api.del(`/delete_issue`, {
-        id: issue.id,
-    }, {
-        ask: '昇給課題を削除します。よろしいですか？',
-        toast: '削除しました。',
-    })
-    if (typeof refresh === 'function') {
-        refresh()
-    }
-    emit('close')
-
-}
-const addIssueReport = (report: boolean, goal: any) => {
-    reviewing.value = report
-    issueReport.value = goal?.salary_issue
-}
 const updateGoalStatusDirectly = async () => {
     if (selectedGoalStatus.value === null || !props.goal?.id) return
     await api.put('/approve_outcome_goal', { id: props.goal.id, status: selectedGoalStatus.value, comment: '' }, {
@@ -578,16 +282,7 @@ const updateGoalStatusDirectly = async () => {
         refresh()
     }
 }
-const updateSalaryIssueStatusDirectly = async () => {
-    if (selectedSalaryIssueStatus.value === null || !props.goal?.salary_issue?.id) return
-    await api.put('/approve_salary_issue', { id: props.goal.salary_issue.id, status: selectedSalaryIssueStatus.value, comment: '' }, {
-        ask: 'この昇給課題のステータスを変更しますか？',
-        toast: 'ステータスを更新しました。',
-    })
-    if (typeof refresh === 'function') {
-        refresh()
-    }
-}
+
 const kpiCalculation = (steps: any) => {
     if(steps && steps.length){
         const totalProgress = steps.reduce((acc: number, step: any) => {
@@ -609,21 +304,8 @@ const overallScore = computed(() => {
     return Math.round(sum / 2)
 })
 
-const salaryIssueActionComplete = async(record) => {
-    const status = record.status
-    const confirmMessage = status == 1 ? '修得要件を未修得にします。よろしいですか？' : '修得要件を修得済みにします。よろしいですか？'
-    const successMessage = status == 1 ? '未修得にしました。' : '修得済みしました。'
-    await api.post('/salary_issue_action_complete', { action_id: record.id, issue_id: record.salary_issue_id }, {
-        ask: confirmMessage,
-        toast: successMessage,
-    })
-    if (typeof refresh === 'function') {
-        refresh()
-    }
-    emit('close')
-}
-
 const refresh = () => {
+    invalidateCache()
     getGoals(props.goal.user_id, props.goal.year, props.goal.which_half)
 }
 
