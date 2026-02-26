@@ -1,10 +1,65 @@
 <template>
     <div class="bg-[var(--background-color)] relative">
-        <div class="">
-            <div v-if="auth.isAdmin" class="flex justify-end my-[20px] mr-[20px]">
-                <LoaderButton content="CSV出力" style="margin: 0" :loading="exporting" @triggered="exportCSV"/>
-            </div>
+        <div v-if="loading" class="spinner-micro fixed top-2/4 left-2/4"></div>
+        <div>
+            
             <div class="min-h-[calc(100%-50px)]">
+                <div class="flex px-4 pb-4">
+                    <div id="assetSort" class="relative flex border border-solid border-[var(--formBorder)]">
+                        <div class="h-full relative bg-[var(--bg3)]">
+                            <select id="selectedSearchQuerySelector" class="text-[var(--primary-color)] bg-[var(--bg3)] pl-2 h-[35px] appearance-none pr-6" v-model="selectedSearchQuery.value">
+                                <option v-for="option in searchQueryOptions" :key="option.value" :value="option.value">{{ option.name }}</option>
+                            </select>
+                            <div class="absolute top-[10px] rotate-[-90deg] right-2 pointer-events-none">
+                                <Back size="10"/>
+                            </div>
+                        </div>
+                        <div class="h-full w-[1px] bg-[var(--formBorder)]"></div>
+                        <div v-if="['gl_number', 'item_name', 'model_number' ].includes(selectedSearchQuery.value)">
+                            <input 
+                                v-if="['gl_number', 'item_name', 'model_number' ].includes(selectedSearchQuery.value)" 
+                                v-model="searchQuery[selectedSearchQuery.value]" 
+                                type="text" 
+                                placeholder="検索ワードを入力" 
+                                class="ml-2 p-2 text-[var(--primary-color)]"
+                            />
+                        </div>
+                        <div class="h-full" v-if="selectedSearchQuery.value == 'user_id'">
+                            <AssetUserPicker v-model="searchQuery.user_id"/>
+                        </div>
+                        <div v-if="['status', 'office_id', 'confirm_status'].includes(selectedSearchQuery.value)" class="h-full relative">
+                            <div @click.stop="menu.setMenu({parent: 'p-search-query-selector'})" class="h-full">
+                                <div class="h-full cursor-pointer" v-if="!searchQuery[selectedSearchQuery.value].length">
+                                    <div class="h-full text-[gray] text-[12px] pointer-events-none flex justify-center px-3 items-center">選択してください</div>
+                                </div>
+                                <div v-else>
+                                    <div class="flex gap-2 flex-wrap px-3 py-2 cursor-pointer">
+                                        <div v-for="value in searchQuery[selectedSearchQuery.value]" :key="value" class="flex items-center gap-1 bg-[var(--bg3)] px-2 py-1 rounded text-[12px]">
+                                            <span>{{ getOptionLabel(selectedSearchQuery.value, value) }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>                            
+                            <Teleport defer to="#assetSort" :disabled="responsive.mobile ? false : true">
+                                <Transition name="slidePop">
+                                    <div v-if="menu.parent == 'p-search-query-selector'" id="p-search-query-selector" class="absolute top-full left-0 w-max max-h-[400px] bg-[var(--background-color)] border border-solid border-[var(--secondary-background)] shadow-lg rounded-md overflow-auto z-10">
+                                        <div class="p-3">
+                                            <label v-for="option in selectorOptions[selectedSearchQuery.value]" :key="option.value" class="cursor-pointer hover:bg-[var(--secondary-background)] p-2 flex items-center gap-2 rounded-md text-[12px]" >
+                                                <input type="checkbox" class="custom-f-checkbox" :value="option.value" v-model="searchQuery[selectedSearchQuery.value]" />
+                                                <span>{{ option.name }}</span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </Transition>
+                            </Teleport>
+                        </div>
+
+                        
+                    </div>    
+                    <div v-if="auth.isAdmin" class="flex justify-end ml-auto mr-[20px]">
+                <LoaderButton content="CSV出力" style="margin: 0" :loading="exporting" @triggered="exportCSV"/>
+            </div>                
+                </div>
                 <table class="asset-table mx-4 w-[calc(100%-40px)]">
                     <AssetTableHeader 
                         :offices="allOffices"
@@ -40,12 +95,15 @@
                                     </td>
                                     <td><div class="inner-col"><span class="mobile">ステータス</span>{{ asset.requests.length ? '移動中' : AssetStatus.find(ob => ob.value === asset.status)?.label }}</div></td>
                                     <td>
-                                        <div class="leading-normal">
+                                        <div class="inner-col"><span class="mobile">使用場所</span>
                                             <span>{{ asset?.current_office?.name }}</span>
                                         </div>
                                     </td>
                                     <td>
-                                        {{ asset.confirm_logs.find(log => new Date(log.created_at).getFullYear() === new Date().getFullYear()) ? '確認済み' : '未確認' }}
+                                        <div class="inner-col"><span class="mobile">確認状況</span>
+                                            {{ asset.confirm_logs.find(log => new Date(log.created_at).getFullYear() === new Date().getFullYear()) ? '確認済み' : '未確認' }}
+                                        </div>
+                                
                                     </td>
                                     <td class="text-center">
                                         <button
@@ -94,7 +152,7 @@
                         </template>
                         <template v-else-if="fetchCount > 0">
                             <tr>
-                                <td colspan="6" class="!text-center">データがありません</td>
+                                <td colspan="8" class="!text-center">データがありません</td>
                             </tr>
                         </template>
                     </tbody>
@@ -130,7 +188,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { onMounted, provide, reactive, ref, watch } from 'vue';
+import { computed, onMounted, provide, reactive, ref, watch } from 'vue';
 import { Asset } from '@/interface/assetInterface';
 import FloatButton from '../Global/FloatButton.vue';
 import AssetCreate from './AssetCreate.vue';
@@ -147,12 +205,15 @@ import { useApi } from '@/composables/api';
 import LoaderButton from '../Global/LoaderButton.vue';
 import { DateTime } from 'luxon';
 import { useAsset } from '@/composables/asset';
+import AssetUserPicker from './AssetUserPicker.vue';
+import { useResponsive } from '@/store/responsive';
+import { useMenuStore } from '@/store/menu';
 
 
 const openModal = ref(false)
 const editData = ref<Asset | null>(null)
 const possibleProjects = ref([])
-
+const loading = ref(false)
 const auth = useAuthUserStore()
 const searchQuery = reactive({
     item_name: '',
@@ -189,8 +250,39 @@ const fetchCount = ref(0)
 
 const selectedAssetIds = ref<number[]>([])
 const exporting = ref(false)
-const { userList, fetchAssetUsers } = useAsset()
+const responsive = useResponsive()
+const menu = useMenuStore()
+const selectedSearchQuery = ref({
+    name: 'GL番号',
+    value: 'gl_number'
+})
 
+const selectorOptions = computed(() => {
+    return {
+        office_id: allOffices.value.map(office => ({ name: office.name, value: office.id })),
+        status: AssetStatus.map(status => ({ name: status.label, value: status.value })),
+        confirm_status: [
+            { name: '確認済み', value: 'confirmed' },
+            { name: '未確認', value: 'unconfirmed' }
+        ]
+    }
+})
+
+const searchQueryOptions = [
+    { name: 'GL番号', value: 'gl_number' },
+    { name: '品名', value: 'item_name' },
+    { name: '型番', value: 'model_number' },
+    { name: '使用者', value: 'user_id' },
+    { name: 'ステータス', value: 'status' },
+    { name: '使用場所', value: 'office_id' },
+    { name: '確認状況', value: 'confirm_status' }
+]
+const { userList, fetchAssetUsers } = useAsset()
+const getOptionLabel = (queryKey: string, value: number | string) => {
+    const options = selectorOptions.value[queryKey]
+    const option = options.find((opt: { name: string, value: number | string }) => opt.value === value)
+    return option ? option.name : value
+}
 const tagOptions = ref<{title: string, requiredData: string}[]>([
     {title: "ノートPC", requiredData: "メーカー・OS・バージョン"},
     {title: "デスクトップ", requiredData: "メーカー・OS・バージョン"},
@@ -208,6 +300,9 @@ const allOffices = ref<Office[]>([])
 
 onMounted(() => {
 
+    if(searchQuery.user_id.length) {
+        selectedSearchQuery.value = { name: '使用者', value: 'user_id' }
+    }
     getAssets()
     fetchAssetUsers([])
     getOffices()
@@ -244,6 +339,7 @@ const getOffices = async() => {
     allOffices.value = data
 }  
 const getAssets = async(page?:number) => {
+    loading.value = true
     const pageIndex = page ?? assetsData.value.current_page
         
     const response = await api.get(`/get_assets?page=${pageIndex}`, {        
@@ -251,6 +347,7 @@ const getAssets = async(page?:number) => {
     })
     assetsData.value = response
     fetchCount.value++
+    loading.value = false
 }
 // const getPossibleProjects = async() => {
 

@@ -313,7 +313,7 @@ class ProjectController extends Controller
 
         $previous_needed = $previousSpanTotal - $previousGoalsCount;
 
-        $data['this_span']['needed_count'] = $thisMap[$targetMonth] - $thisGoalsCount ?? 0;
+        $data['this_span']['needed_count'] = max(0, $thisMap[$targetMonth] - $thisGoalsCount) ?? 0;
         $data['previous_span']['needed_count'] = $previous_needed > 0 ? $previous_needed : 0;
 
         // $firstStart = Carbon::create($fiscalYear, 4, 1)->startOfDay();

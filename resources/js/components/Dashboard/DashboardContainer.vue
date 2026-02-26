@@ -33,6 +33,7 @@
                     :class="[card.col, 'min-w-0 w-full']"
                     :fullscreen="route.params.type === card.type"
                     :data="card"
+                    :id="`card-${card.type}`"
                     ref="cardLayouts"
                     @toggle="toggle"
                     @resize="(type) => resize(type)"
@@ -144,9 +145,11 @@ const setupDashboardCardHeightObservers = () => {
 
         const { stop } = useResizeObserver(el, (entries) => {
             const entry = entries[0]
+            console.log(`Resize observed for ${type}`, entry)
             const h = Math.round(entry?.contentRect?.height ?? 0)
             if (h <= 0) return
             prefsStore.setHeight(type, h)
+            console.log(`Height updated for ${type}: ${h}px`)
         })
         heightObservers.set(type, stop)
     }

@@ -106,10 +106,8 @@
             
 </template>
 <script setup lang="ts">
-import { CustomForm } from '@/interface/customFormInterface';
-import { defineAsyncComponent, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { onMounted, ref, useTemplateRef, watch } from 'vue';
 import BaseLayout from './BaseLayout.vue';
-import CommandButton from '@/components/Global/CommandButton.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
 import PanelTitle from './PanelTitle.vue';

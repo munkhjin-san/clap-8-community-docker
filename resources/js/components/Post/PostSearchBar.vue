@@ -1,7 +1,7 @@
 <template>
     <div :class="className">
         <div class="w-full flex">
-            <div class="searchBarInner" :style="{width: responsive.mobile || className == 'newChatMemberSearch' ? '100%' : '25%',marginLeft: 'auto'}">   
+            <div class="searchBarInner" :style="{width: responsive.mobile || className == 'newChatMemberSearch' ? '100%' : '25%', marginLeft: 'auto'}">   
                 <input 
                     name="postSearchBar" 
                     @keydown.enter.prevent 

@@ -215,13 +215,6 @@ const routes = [
                                         path: ':span/:goalId?',
                                         name: 'goal-span',
                                         component: () => import('./components/Project/MonthlyGoal/MonthlyGoalContainer.vue'),
-                                        // children:[
-                                        //     {
-                                        //         path: ':goalId',
-                                        //         name: 'goal-more',
-                                        //         component: () => import('./components/Project/ProjectGoalMore.vue'),
-                                        //     }
-                                        // ]
         
                                     }
                                 ]
@@ -798,39 +791,6 @@ const routes = [
             
         
 
-    },
-    {
-        path: '/remind',
-        name: 'remind',
-        meta: {
-            title: 'リマインド',
-            titleJp: 'リマインド'
-        }, 
-        component: () => import('./components/Remind/RemindContainer.vue'),
-        children: [
-            {
-                path: 'project-approval/:userId',
-                name: 'project-approval',
-                component: () => import('./components/Global/CheckGoal.vue'),
-                children: [
-                    {
-                        path: ':projectId/:goalId',
-                        name: 'goal-approval',
-                        component: () => import('./components/Project/ProjectGoalMore.vue')
-                    }
-                ]
-            },
-            {
-                path: 'evaluation-approval/:memberId/:span',
-                name: 'evaluation-approval',
-                component: () => import('./components/Global/CheckEvaluation.vue'),
-            },
-            {
-                path: 'goal-creation/:memberId/:span',
-                name: 'goal-creation',
-                component: () => import('./components/Project/ProjectGoalCreation.vue')
-            }
-        ]
     },
     {
         path: '/asset-partner',
