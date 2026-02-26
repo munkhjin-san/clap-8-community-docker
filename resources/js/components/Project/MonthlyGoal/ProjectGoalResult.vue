@@ -80,11 +80,11 @@
 </template>
 <script setup lang="ts">
 import { inject, ref } from 'vue';
-import LongInput from '../Form/LongInput.vue';
-import LoaderButton from '../Global/LoaderButton.vue';
+import LongInput from '@/components/Form/LongInput.vue';
+import LoaderButton from '@/components/Global/LoaderButton.vue';
 import { useAuthUserStore } from '@/store/auth';
 import { useBadgeStore } from '@/store/badge'
-import FileUploader from '../Form/FileUploader.vue';
+import FileUploader from '@/components/Form/FileUploader.vue';
 import { FileRecord } from '@/interface/trayInterface';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';

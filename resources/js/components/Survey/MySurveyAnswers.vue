@@ -11,18 +11,18 @@
             v-if="selectedForm"
         />
     </Teleport>
-    <div class="post-header">
-        <!-- <HamBurger v-if="responsive.mobile"/> -->
-        <div class="post-search-wrap">
-            <PostSearchBar 
-                className="newChatMemberSearch" 
-                customPlaceHolder="フォームを検索" 
-                @search-start="onSearchStart"
-            />                
-        </div>            
-    </div>
+    <div class="flex p-4 max-w-[300px] under960:max-w-[none]">   
+
+        <PostSearchBar 
+            className="newChatMemberSearch" 
+            customPlaceHolder="フォームを検索" 
+            @search-start="onSearchStart"
+        />    
+    </div>            
+
     <div class="p-[20px] pt-0 text-[var(--primary-color)]">
         <div v-if="surveys.length" class="forms-table-wrap">
+            <!-- Desktop Table View -->
             <div class="forms-table-outer">
                 <table class="forms-table">
                     <colgroup>
@@ -35,7 +35,7 @@
                     <thead>
                         <tr>
                             <th>タイトル</th>
-                            <th>説明</th>
+                            <th class="pc">説明</th>
                             <th>繰り返し</th>
                             <th class="th-right">自分の回答</th>
                             <th class="th-center">詳細</th>
@@ -50,7 +50,7 @@
                                 @click="toggleExpanded(form.id)"
                             >
                                 <td class="td-title" :title="form.title">{{ form.title }}</td>
-                                <td>
+                                <td class="pc">
                                     <div
                                         v-if="form.description"
                                         class="leading-snug line-clamp-2 break-words opacity-80"
@@ -170,6 +170,134 @@
                         </template>
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Mobile Card View -->
+            <div class="forms-mobile">
+                <div 
+                    v-for="form in surveys" 
+                    :key="form.id"
+                    :id="`survey_row_${form.id}`"
+                    class="form-card"
+                    :class="{ expanded: expandedFormId === form.id }"
+                >
+                    <div class="form-card-main" @click="toggleExpanded(form.id)">
+                        <div class="form-card-header">
+                            <h3 class="form-card-title">{{ form.title }}</h3>
+                            <button
+                                type="button"
+                                class="mobile-toggle"
+                                @click.stop="toggleExpanded(form.id)"
+                                :aria-expanded="expandedFormId === form.id"
+                                aria-label="詳細を開閉"
+                            >
+                                <span class="toggle-icon" :class="{ open: expandedFormId === form.id }">
+                                    <Back :size="10" />
+                                </span>
+                            </button>
+                        </div>
+
+                        <div v-if="form.description" class="form-card-desc">
+                            {{ plainTextFromHtml(form.description) }}
+                        </div>
+
+                        <div class="form-card-meta">
+                            <div class="meta-item">
+                                <span class="meta-label">繰り返し</span>
+                                <span class="meta-value">{{ repeatText(form) }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">自分の回答</span>
+                                <span class="count-pill" :class="{ 'has-draft': tempSavedCount(form) > 0 }">
+                                    {{ form.survey_answers?.length ? form.survey_answers.length : 0 }}件
+                                    <span
+                                        v-if="tempSavedCount(form) > 0"
+                                        class="draft-dot"
+                                        :title="`一時保存 ${tempSavedCount(form)}件`"
+                                        aria-label="一時保存あり"
+                                    />
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Transition name="accordion">
+                        <div v-show="expandedFormId === form.id" class="form-card-expanded">
+                            <div class="answers-block">
+                                <div class="answers-header">
+                                    <div class="answers-header-left">
+                                        <div class="font-semibold">自分の回答</div>
+                                        <router-link
+                                            class="new-answer-btn"
+                                            :to="{ name: 'survey-form', params: { surveyId: form.id }, query: { openFormId: form.id } }"
+                                            @click.stop
+                                        >
+                                            新規回答
+                                        </router-link>
+                                    </div>
+                                    <div class="answers-header-right">
+                                        <div v-if="tempSavedCount(form) > 0" class="draft-hint">
+                                            <span class="draft-dot-inline" aria-hidden="true" />
+                                            一時保存 {{ tempSavedCount(form) }}件
+                                        </div>
+                                        <div class="answers-count">{{ form.survey_answers?.length ? form.survey_answers.length : 0 }}件</div>
+                                    </div>
+                                </div>
+
+                                <div v-if="!form.survey_answers?.length" class="empty-state">回答がありません</div>
+
+                                <div v-else class="answers-grid">
+                                    <div v-for="answer in form.survey_answers" :key="answer.id" class="answer-card">
+                                        <div class="answer-card-top">
+                                            <div class="answer-meta">
+                                                <div class="answer-label">回答日</div>
+                                                <div class="answer-value">
+                                                    {{ answer.created_at && DateTime.fromISO(answer.created_at).toFormat('yyyy/M/d HH:mm') }}
+                                                </div>
+                                            </div>
+
+                                            <span
+                                                class="status-pill"
+                                                :class="{ 'is-done': answer.status == 2, 'is-draft': answer.status == 1 }"
+                                            >
+                                                {{ answer.status == 2 ? '回答済み' : answer.status == 1 ? '一時保存中' : '' }}
+                                            </span>
+                                        </div>
+
+                                        <div class="answer-card-body">
+                                            <div class="answer-meta">
+                                                <div class="answer-label">対象月</div>
+                                                <div class="answer-value">
+                                                    {{ answer.target_date && DateTime.fromISO(answer.target_date).toFormat('yyyy年M月') }}
+                                                </div>
+                                            </div>
+
+                                            <div class="answer-meta">
+                                                <div class="answer-value">
+                                                    <div class="answer-actions">
+                                                        <router-link
+                                                            class="jump-link"
+                                                            :to="{ name: 'dashboard', params: { type: 'forms', itemId: form.id }, query: { answerId: answer.id, openFormId: form.id } }"
+                                                        >
+                                                            詳細
+                                                        </router-link>
+                                                        <router-link
+                                                            v-if="answer.status == 1"
+                                                            class="jump-link"
+                                                            :to="{ name: 'survey-form', params: { surveyId: form.id }, query: { answerId: answer.id, openFormId: form.id } }"
+                                                        >
+                                                            編集
+                                                        </router-link>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </Transition>
+                </div>
             </div>
 
             <div v-if="lastPage > 1" class="mt-3">
@@ -705,9 +833,134 @@ td{
     max-height: 1200px;
     opacity: 1;
 }
+/* Mobile Card View (hidden on desktop) */
+.forms-mobile{
+    display: none;
+}
+
+.form-card{
+    background: var(--background-color);
+    border: 1px solid var(--calendarBorder);
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.form-card.expanded{
+    background: var(--selected-background);
+}
+
+.form-card-main{
+    padding: 16px;
+    cursor: pointer;
+}
+
+.form-card-main:active{
+    opacity: 0.9;
+}
+
+.form-card-header{
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.form-card-title{
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.4;
+    word-break: break-word;
+    min-width: 0;
+    flex: 1;
+}
+
+.mobile-toggle{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 8px;
+    background: var(--bg3);
+}
+
+.form-card-desc{
+    font-size: 13px;
+    line-height: 1.5;
+    opacity: 0.8;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+.form-card-meta{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.meta-item{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.meta-label{
+    font-size: 12px;
+    font-weight: 700;
+    opacity: 0.75;
+    white-space: nowrap;
+}
+
+.meta-value{
+    white-space: nowrap;
+}
+
+.form-card-expanded{
+    border-top: 1px solid var(--calendarBorder);
+    padding: 16px;
+    background: var(--selected-background);
+}
+
 @media screen and (max-width: 959px) {
-    .forms-table{
-        min-width: 760px;
+    /* Hide desktop table on mobile */
+    .forms-table-outer{
+        display: none;
+    }
+    
+    /* Show mobile cards */
+    .forms-mobile{
+        display: block;
+    }
+    
+    /* Adjust answers grid for mobile */
+    .answers-grid{
+        grid-template-columns: 1fr;
+    }
+    
+    /* Make answer cards full width on mobile */
+    .answer-card{
+        min-width: 0;
+    }
+    
+    /* Adjust answers header for mobile */
+    .answers-header{
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .answers-header-left,
+    .answers-header-right{
+        width: 100%;
+        justify-content: space-between;
     }
 }
 </style>

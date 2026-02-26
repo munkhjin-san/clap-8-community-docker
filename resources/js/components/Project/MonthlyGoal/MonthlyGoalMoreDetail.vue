@@ -56,7 +56,7 @@
                             v-model.number="selectedGoalStatus" 
                             class="py-[6px] text-[var(--primary-color)] px-[10px] text-[13px] bg-[var(--background-color)] border border-solid border-[var(--formBorder)] min-w-[180px]"
                         >
-                            <option v-for="(label, index) in goalStatuses" :key="index" :value="index">
+                            <option v-for="(label, index) in goalsStore.goalStatuses" :key="index" :value="index">
                                 {{ label }}
                             </option>
                         </select>
@@ -187,7 +187,7 @@
 import { useAuthUserStore } from '@/store/auth';
 import { computed, onMounted, ref, watch } from 'vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
-import ProjectGoalResult from '../ProjectGoalResult.vue';
+import ProjectGoalResult from './ProjectGoalResult.vue';
 import Files from '@/components/Global/Files.vue';
 import { ProjectGoal } from '@/interface/projectInterface';
 import { useBadgeStore } from '@/store/badge'
@@ -211,8 +211,8 @@ const props = defineProps<{
 const emit = defineEmits(['close'])
 const auth = useAuthUserStore()
 const goalsStore = useDashboardGoalsStore()
-const { goalStatuses, evaluationData } = storeToRefs(goalsStore)
-const { goalStatus, salaryIssueStatus, getGoals, invalidateCache } = goalsStore
+const { evaluationData } = storeToRefs(goalsStore)
+const { getGoals, invalidateCache } = goalsStore
 const openReport = ref(false)
 const sub_tab = ref(0)
 const reviewing = ref(false)

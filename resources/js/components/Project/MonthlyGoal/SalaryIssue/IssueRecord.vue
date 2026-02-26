@@ -15,7 +15,7 @@
                 v-model.number="selectedSalaryIssueStatus" 
                 class="py-[6px] px-[10px] text-[13px] text-[var(--primary-color)] bg-[var(--background-color)] border border-solid border-[var(--formBorder)] min-w-[180px]"
             >
-                <option v-for="(label, index) in salaryIssueStatuses" :key="index" :value="index">
+                <option v-for="(label, index) in goalsStore.salaryIssueStatuses" :key="index" :value="index">
                     {{ label }}
                 </option>
             </select>
@@ -158,8 +158,7 @@ const emit = defineEmits<{
 }>()
 const auth = useAuthUserStore()
 const goalsStore = useDashboardGoalsStore()
-const { salaryIssueStatuses, evaluationData } = storeToRefs(goalsStore)
-const { salaryIssueStatus } = goalsStore
+const { evaluationData } = storeToRefs(goalsStore)
 
 const selectedSalaryIssueStatus = ref<number | null>(null)
 
