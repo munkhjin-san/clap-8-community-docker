@@ -54,7 +54,7 @@
 import { computed, inject, onMounted, ref, useTemplateRef } from "vue";
 import MessageFiles from "./MessageFiles.vue";
 import UserPanel from '@/components/Global/UserPanel.vue'
-import { mentionFormatter, oikawaFormatter } from "@/utils/tools";
+import { mentionFormatter } from "@/utils/tools";
     const props = defineProps(['which', 'message', 'quotMessage', 'mentionClick'])
     const pushInstantUser = inject('pushInstantUser') as Function
     const replyBody = useTemplateRef('replyBody')
@@ -69,7 +69,7 @@ import { mentionFormatter, oikawaFormatter } from "@/utils/tools";
     })
     const messageBody = computed(() => {
         const t_text = props.which == 'quot' ? String(props.quotMessage) : props.message.message
-        return mentionFormatter(oikawaFormatter(t_text), true)
+        return mentionFormatter(t_text, true)
     })
     const messageUserName = computed(() => {                
         return props.message.user && props.message.user.deleted_at == null

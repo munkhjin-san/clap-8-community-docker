@@ -31,6 +31,13 @@ interface State {
             unread_count: number
         }],
         total: number
+    },
+    check_item_confirm: {
+        total: number,
+        records: {
+            project_id: number,
+            count: number
+        }[]
     }
 }
 const BOARD_BADGE_CACHE_MS = 2000;
@@ -59,6 +66,7 @@ export const useBadgeStore = defineStore('badge', () => {
     const boardBadgeRequest = ref<Promise<void> | null>(null);
     const communityBadge = ref(false);
     const project_report = ref<{records: {project_record_id: number | null, unread_count: number}[], total: number}>({records: [], total: 0});
+    const check_item_confirm = ref<{total: number, records: {project_id: number, count: number}[]}>({total: 0, records: []});
     // Actions
     function setTaskBadge(payload: number[]) {
         task.value = payload;
@@ -138,7 +146,10 @@ export const useBadgeStore = defineStore('badge', () => {
         const data = await axios.get('/projects/finance/unread-badges').then(response => response.data);
         finance_comment.value = data;
     }
-
+    async function clearProjectReportBadge() {
+        const response = await axios.get('/clear_project_report_badge').then(response => response.data);
+        project_report.value = response;
+    }
     async function clearGoalIssue({column, value}: {column: string, value: any}) {
         const response = await axios.post('/clear_goal_issue_badge', {column: column, value: value});
         goal_issue_comment.value = response.data;
@@ -169,6 +180,7 @@ export const useBadgeStore = defineStore('badge', () => {
         contact_comment.value = data.contact_comment;
         communityBadge.value = data.today_readable.has_unread;
         project_report.value = data.project_report;
+        check_item_confirm.value = data.check_item_confirm;
     }
 
     // Getters
@@ -221,7 +233,7 @@ export const useBadgeStore = defineStore('badge', () => {
     });
 
     const projectTotal = computed(() => {
-        return goalAndSalaryTotal.value + asset.value.length;
+        return goalAndSalaryTotal.value + asset.value.length + check_item_confirm.value.total;
     });
 
     const sumOfAll = computed(() => {
@@ -315,6 +327,15 @@ export const useBadgeStore = defineStore('badge', () => {
         })
         return map;
     })
+    const checkItemConfirmByFilter = computed(() => {
+        const map: {[project_record_id: number]: number} = {};
+        check_item_confirm.value.records.forEach(record => {
+            if (record.project_id) {
+                map[record.project_id] = record.count;
+            }
+        })
+        return map;
+    })
     return {
         // State
         board,
@@ -350,6 +371,7 @@ export const useBadgeStore = defineStore('badge', () => {
         getContactCommentBadge,
         getTodayReadableBadge,
         getbadgeSummary,
+        clearProjectReportBadge,
         // Getters
         activeUsersBoardBadge,
         totalBoardBadge,
@@ -368,6 +390,7 @@ export const useBadgeStore = defineStore('badge', () => {
         goalIssueCommentBadgeByFilter,
         contactBadge,
         communityBadgeStatus,
-        projectReportMap
+        projectReportMap,
+        checkItemConfirmByFilter,
     };
 })

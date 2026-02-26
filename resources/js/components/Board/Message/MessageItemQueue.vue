@@ -151,7 +151,7 @@ import { computed, inject, onMounted, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useTempUnique } from '@/store/tempUnique';
 import UserPanel from '@/components/Global/UserPanel.vue'
-import { mentionFormatter, oikawaFormatter } from '@/utils/tools';
+import { mentionFormatter } from '@/utils/tools';
 import { useApi } from '@/composables/api';
 import { MessageMethodsKey, MessageMethods } from '@/interface/keys';
 import { DateTime } from 'luxon';
@@ -174,7 +174,7 @@ import { DateTime } from 'luxon';
     })
     const pushInstantUser = inject('pushInstantUser') as Function
     const messageBody = computed(() => {
-        return mentionFormatter(oikawaFormatter(props.message.message), true)    
+        return mentionFormatter(props.message.message, true)    
     })
     const messageUserName = computed(() => {                
         return props.message.user && props.message.user.deleted_at == null

@@ -473,8 +473,11 @@ import { User } from '@/interface/globalInterface'
             ping('入力内容に不備があります。')
             return
         }
-        const confirm = await ask('入力内容には間違いないかを確認してください。\n作成後は編集できません。')
-        if (!confirm.value) return
+        if (app_type.value === 2) {
+            const confirm = await ask('入力内容には間違いないかを確認してください。\n作成後は編集できません。')
+            if (!confirm.value) return
+        }
+        
         processing.value = true      
 
             

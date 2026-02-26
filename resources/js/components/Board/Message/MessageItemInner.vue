@@ -20,7 +20,9 @@
                 minWidth: message.message == null || !message.message || !message.message.length ? 'unset' : '',
             }" 
         >
-            <div :class="['mobileMessageBody', 'mb-2', { 'reached' : urlMessage.id == message.id}, { emojiOnly: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot, editIsOn:editing, 'mb-35':editing && unreadMessages.id == message.id}]">
+            <div 
+                :class="['mobileMessageBody', 'mb-2', { 'reached' : urlMessage.id == message.id}, { emojiOnly: emojiTrue, editIsOn:editing, 'mb-35':editing && unreadMessages.id == message.id, 'float-right': auth && auth.activeUser.id == message.user.id && emojiTrue }]"
+            >
                 <div v-if="!compact" class="message-top-block">
                     <div class="flex items-center gap-[10px]">
                         <div class="relative">
@@ -96,7 +98,7 @@
                             :style="{display: messageBody  ? 'inline-block' : 'none', marginBottom: message.message_files && message.message_files.length && !messageBody ? '10px' : '0'}" 
                             v-html="messageBody" 
                             class="messageInnerBody"
-                            :class="{ emojiOnlyInner: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot}">
+                            :class="{ emojiOnlyInner: emojiTrue }">
                         </div>   
                         <MessageEditor 
                             v-else 
@@ -184,7 +186,7 @@ import { useUrlMessage } from "@/store/urlMessage";
 import { useBadgeStore } from '@/store/badge'
 import MessageEditor from './MessageEditor.vue'
 import ItemMenu from "@/components/Global/ItemMenu.vue";
-import { DateParser, mentionFormatter, oikawaFormatter } from "@/utils/tools";
+import { DateParser, mentionFormatter } from "@/utils/tools";
 import { useMessageSchedule } from "@/store/messageSchedule"
 import UserPanel from "@/components/Global/UserPanel.vue";
 import { useApi } from "@/composables/api";
@@ -281,9 +283,17 @@ import { DateTime } from "luxon";
         ? props.message.user.name
         : '非アクティブユーザー';
     })
+    const isSingleOikawaEmoji = computed(() => {
+        const text = props.message.message
+        const s = (text ?? '').trim()
+        return /^\[oikawa:\d+:\]$/.test(s)
+    })
     const messageBody = computed(() => {
-        const oikawaGet = oikawaFormatter(props.message.message)
-        return mentionFormatter(oikawaGet, true)    
+        const oikawaGet = isSingleOikawaEmoji.value ? mentionFormatter(props.message.message, true, 2) : mentionFormatter(props.message.message, true)
+        return oikawaGet   
+    })
+    const emojiTrue = computed(() => {
+        return (props.message.emoji_flag == 1 || props.message.emoji_flag == 2 || isSingleOikawaEmoji.value) && !props.message.message_reply && !props.message.message_quot
     })
     const reactedUsersListAll = computed(() => {
         return props.message.reacted_users && props.message.reacted_users.length ? Array.from(props.message.reacted_users).reverse() as User[] : []                
@@ -312,6 +322,7 @@ import { DateTime } from "luxon";
     const reactButtonView = computed(() => {
         return !(props.message.user_id == auth.activeUser.id && !props.message.reacted_users?.length)
     })
+    
     const showItemMenu = (event: Event) => {
         if(itemMenuRef.value){
             itemMenuRef.value.longTapAction(event)

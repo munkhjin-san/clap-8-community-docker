@@ -119,8 +119,8 @@
                     >
                 </div>
                 <Transition name="modalFade">
-                    <div id="EmojiPicker" v-if="menu.name == 'EmojiPicker' && menu.id == 1002">
-                        <div class="sub-tab-container p-5 bg-[var(--background-color)]">
+                    <div id="EmojiPicker" class="absolute bottom-20" v-if="menu.name == 'EmojiPicker' && menu.id == 1002">
+                        <div class="sub-tab-container bg-[var(--background-color)]">
                             <div @click="tab = 'oikawa'" :class="{'selected-sub-tab': tab === 'oikawa'}" class="sub-tab-item no-underline hover:text-inherit hover:no-underline">オイカワ</div>
                             <div @click="tab = 'emoji'" :class="{'selected-sub-tab': tab === 'emoji'}" class="sub-tab-item no-underline hover:text-inherit hover:no-underline">絵文字</div>
                         </div>
@@ -134,11 +134,11 @@
                             :disable-sticky-group-names="true" 
                             :disable-skin-tones="true"
                             :display-recent="true"
-                            style="left: 0;right:auto;"
+                            style="left: 0;right:auto;position: unset !important;"
                         />
-                        <div v-show="tab === 'oikawa'" class="w-max absolute p-4 bg-[var(--background-color)] z-10 bottom-[25px] shadow-xl">
+                        <div v-show="tab === 'oikawa'" class="w-max p-4 bg-[var(--background-color)] shadow-xl">
                             <div class="grid grid-cols-5 gap-2">                        
-                                <div class="flex items-end transition-transform duration-200 ease-out hover:scale-105" v-for="num in 15" @click="selectOikawa(num)">
+                                <div class="flex items-end transition-transform duration-200 ease-out hover:scale-105" v-for="num in 25" @click="selectOikawa(num)">
                                     <Character :size="40" :emoteId="num"/>
                                 </div>
                             </div>
@@ -148,7 +148,7 @@
                 </Transition>
                 <div class="typeCommandBar">
                     <div class="message-icon-outer">
-                        <div class="pc message-icon-wrapper" title="絵文字" @click.stop="menu.setMenu( {name: 'EmojiPicker', id: 1002})">                                          
+                        <div class="message-icon-wrapper" title="絵文字" @click.stop="menu.setMenu( {name: 'EmojiPicker', id: 1002})">                                          
                             <svg style="fill: var(--third-color);" version="1.1" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 30 30">
                                 <path d="M14.977,0C6.735-0.056-0.127,6.93,0.002,15.153c-0.028,8.165,6.816,14.938,14.975,14.811v-0.04c0.967,0.013,1.936-0.067,2.889-0.242c4.817-0.863,9.055-4.275,10.937-8.8C32.985,11.039,25.688-0.021,14.977,0 M14.977,27.902C6.08,27.658-0.075,18.755,3.433,10.373C7.814,0.291,22.13,0.293,26.49,10.386C30.002,18.61,23.886,27.788,14.977,27.902"/>
                                 <path d="M22.441,18.263c-0.623-0.436-1.479-0.284-1.917,0.338c0.007-0.011,0.002-0.006-0.001-0.004c-0.002,0.002-0.006,0.005-0.011,0.01l-0.027,0.025c-0.734,0.658-1.568,1.264-2.479,1.639c-0.291,0.123-0.596,0.222-0.9,0.292c-0.67,0.185-1.332,0.349-2.043,0.376c-2.039,0.059-4.107-0.841-5.435-2.355c-1.226-1.563-3.443,0.199-2.196,1.769c0.199,0.27,0.418,0.529,0.646,0.772c1.784,1.911,4.359,3.094,6.986,3.106c1.119,0.021,2.305-0.08,3.354-0.525c1.753-0.72,3.36-1.896,4.362-3.526C23.214,19.556,23.063,18.698,22.441,18.263"/>
@@ -222,7 +222,6 @@ import { useDialog } from '@/composables/dialog';
 import { useBoardList } from '@/composables/board';
 import { Message, MessageFile, SharingFile, UploadingFile, User } from '@/interface/globalInterface';
 import { MessageMethodsKey, MessageMethods } from '@/interface/keys';
-import { oikawaFormatter } from '@/utils/tools'
 import AiCorrection from '@/components/Global/AiCorrection.vue';
 import Character from '@/components/Global/Character.vue'
     const sharingData = useSharingDataStore()

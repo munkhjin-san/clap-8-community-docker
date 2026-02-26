@@ -22,50 +22,17 @@
 
                 <div class="tab-name">{{ tab.name }}</div>
                 <div class="flex items-center gap-1">
-                    <span 
-                        title="コメントバッジ"
-                        class="side-notification" 
-                        style="position: unset;width: 15px;z-index: 1;background-color:#F28C28;" 
-                        v-if="tab.path == 'overview'&& projectReportBadge"
-                    >{{ projectReportBadge }}
-                    </span>
-                    <span 
-                        title="確認バッジ"
-                        class="side-notification" 
-                        style="position: unset;width: 15px;z-index: 1;" 
-                        v-if="tab.path == 'project-members'&& goalBadges"
-                    >{{ goalBadges }}
-                    </span>
-                    <span 
-                        title="コメントバッジ"
-                        class="side-notification" 
-                        style="position: unset;width: 15px;z-index: 1;background-color:#F28C28;" 
-                        v-if="tab.path == 'project-members'&& goalCommentBadge"
-                    >{{ goalCommentBadge }}
+                    <span
+                        v-for="b in badgesForTab(tab.path)"
+                        :key="b.key"
+                        v-show="b.value"
+                        class="side-notification"
+                        :title="b.title"
+                        :style="badgeStyle(b.variant)"
+                    >
+                        {{ b.value }}
                     </span>
                 </div>
-                
-                <span 
-                    title="確認バッジ"
-                    class="side-notification" 
-                    style="position: unset;width: 15px;z-index: 1;" 
-                    v-if="tab.path == 'assets'&& assetBadge"
-                >{{ assetBadge }}
-                </span>
-                <span 
-                    title="コメントバッジ"
-                    class="side-notification" 
-                    style="position: unset;width: 15px;z-index: 1;background-color:#F28C28;" 
-                    v-if="tab.path == 'task-calendar'&& taskCommentBadge"
-                >{{ taskCommentBadge }}
-                </span>
-                <span 
-                    title="コメントバッジ"
-                    class="side-notification" 
-                    style="position: unset;width: 15px;z-index: 1;background-color:#F28C28;" 
-                    v-if="tab.path == 'finance'&& financeCommentBadge"
-                >{{ financeCommentBadge }}
-                </span>
             </router-link>
         </div>
     </div>
@@ -105,7 +72,43 @@ import { useRoute, useRouter } from 'vue-router';
     const { selectedProject, memberData } = useProject() 
     const userId = computed(() => auth.activeUser?.id ?? auth.id ?? null);
     type Tab = { name: string; path: string };
+    type BadgeVariant = "confirm" | "comment";
 
+    type BadgeDef = {
+        key: string;
+        title: string;
+        variant: BadgeVariant;
+        value: any; // number/string
+    };
+
+    const badgeStyle = (variant: BadgeVariant) => ({
+        position: "initial" as const,
+        width: "15px",
+        zIndex: 1,
+        ...(variant === "comment" ? { backgroundColor: "#F28C28" } : {}),
+    });
+
+    const badgesByTab = computed<Record<string, BadgeDef[]>>(() => ({
+        overview: [
+            { key: "overview-confirm", title: "確認バッジ", variant: "confirm", value: checkItemConfirmBadge.value },
+            { key: "overview-comment", title: "コメントバッジ", variant: "comment", value: projectReportBadge.value },
+        ],
+        "project-members": [
+            { key: "members-confirm", title: "確認バッジ", variant: "confirm", value: goalBadges.value },
+            { key: "members-comment", title: "コメントバッジ", variant: "comment", value: goalCommentBadge.value },
+        ],
+        assets: [
+            { key: "assets-confirm", title: "確認バッジ", variant: "confirm", value: assetBadge.value },
+        ],
+        "task-calendar": [
+            { key: "task-comment", title: "コメントバッジ", variant: "comment", value: taskCommentBadge.value },
+        ],
+        finance: [
+            { key: "finance-comment", title: "コメントバッジ", variant: "comment", value: financeCommentBadge.value },
+        ],
+    }));
+
+    const badgesForTab = (path: string) => badgesByTab.value[path] ?? [];
     const fileAccess = computed<boolean>(() => {
         const sp = selectedProject.value;
         const uid = userId.value;
@@ -154,6 +157,9 @@ import { useRoute, useRouter } from 'vue-router';
     })
     const projectReportBadge = computed(() => {
         return badge.projectReportMap[Number(route.params.projectId)] ?? 0
+    })
+    const checkItemConfirmBadge = computed(() => {
+        return badge.checkItemConfirmByFilter[Number(route.params.projectId)] ?? 0
     })
     const hasPrivilage = computed(() => {
         return (selectedProject.value?.manager?.some(manager => manager.id === auth.id) || (auth.user?.position_id && auth.user?.position_id < 6) || auth.activeUser.id == 610 || auth.activeUser.id == 608) ? true : false
@@ -232,7 +238,7 @@ import { useRoute, useRouter } from 'vue-router';
         position: sticky;
         left: 0;
         right: 0;
-        z-index: 1;
+        z-index: 2;
     }
     .tab-link{
         text-decoration: none;

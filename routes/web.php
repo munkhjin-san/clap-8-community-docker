@@ -550,7 +550,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::put('/finance_comment_update', [ProjectController::class, 'finance_comment_update']);
         Route::delete('/finance_comment_delete', [ProjectController::class, 'finance_comment_delete']);
         Route::post('/get_comment_count_from_total', [ProjectController::class, 'get_comment_count_from_total']);
-        Route::post('/mark_finance_check', [ProjectController::class, 'mark_finance_check']);
+        Route::post('/finance_check', [ProjectController::class, 'finance_check']);
+        Route::get('/clear_project_report_badge', [ProjectController::class, 'clear_project_report_badge']);
 
         Route::get('/get_members_goals_badge', [ProjectController::class, 'get_members_goals_badge']);
         Route::get('/get_managers_goals_badge', [ProjectController::class, 'get_managers_goals_badge']);

@@ -21,23 +21,49 @@ function useDebouncedRef(value:any, delay = 200) {
       }
     })
   }
-const theme = useTheme()
-const oikawaFormatter = (text: string | null, height: number = 35) => { 
-    const prefix = theme.dark ? 'dark' : 'light'
-    const cook = text ? text : ''
-    const cooked = cook.replace(/\[oikawa:([^\]]+):\]/g, (match, type) => {
-        const style = type == 8 ? `height: ${height * 0.65}px;` : `height: ${height}px;`;
-        return `<img class="chat-emoji" data-type="${type}" src="/images/reactions/v3/${prefix}_${type}.webp" alt="${type}" style="${style}" />`;
-    })
-    return cooked
+const oikawaSizeMap = {
+    1: '40px',
+    2: '40px',
+    3: '40px',
+    4: '40px',
+    5: '40px',
+    6: '40px',
+    7: '40px',
+    8: '40px',
+    9: '40px',
+    10: '40px',
+    11: '40px',
+    12: '40px',
+    13: '40px',
+    14: '40px',
+    15: '38px',
+    16: '40px',
+    17: '40px',
+    18: '40px',
+    19: '24px',
+    20: '40px',
+    21: '42px',
+    22: '45px',
+    23: '42px',
+    24: '43px',
+    25: '45px',
 }
-const mentionFormatter = (text: string | null, withUrl?: boolean) => {
+const theme = useTheme()
+
+const mentionFormatter = (text: string | null, withUrl?: boolean, multiple: number = 1) => {
     const cook = text ? text : ''
+    const prefix = theme.dark ? 'dark' : 'light'
     const cooked = cook.replace(
         /<a href=\/app\/public\/user\?id=(\d+)>(.*?)<\/a>/g,
         '<span class="mntuser" data-userid="$1">$2</span>'
     ).replace(/\[To:([^\]]+):\]/g, (match, username) => {
         return `<span class="mntuser" data-username="${username}">@${username}</span>`;
+    }).replace(/\[oikawa:([^\]]+):\]/g, (match, type) => {
+        const basePx = parseFloat(oikawaSizeMap[type] ?? '40px')
+        const maxHeight = (basePx * multiple) + 'px'
+
+        const style = `max-height: ${maxHeight};`
+        return `<img class="chat-emoji" data-type="${type}" src="/images/reactions/v6/${prefix}_${type}.webp" srcset="/images/reactions/v6/${prefix}_${type}.webp 1x, /images/reactions/v5/${prefix}_${type}@2x.webp 2x" alt="${type}" style="${style}" />`;
     })
     return withUrl ? urlCheck(cooked) : cooked
 }
@@ -285,5 +311,5 @@ export {
     contractTypeDefaults,
     contractRoleDefaults,
     isMobile,
-    oikawaFormatter
+    oikawaSizeMap
 }

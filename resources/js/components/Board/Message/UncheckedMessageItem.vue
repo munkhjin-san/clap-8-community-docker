@@ -27,7 +27,7 @@
                             
                             
                         >
-                        <p ref="messageBodyRef" v-html="mentionFormatter(oikawaFormatter(messageBody), true)"></p>
+                        <p ref="messageBodyRef" v-html="mentionFormatter(messageBody, true)"></p>
                         </div>
                     </div>
                      
@@ -78,7 +78,7 @@ import MessageFiles from "./MessageFiles.vue";
 import { computed, onMounted, ref, useTemplateRef } from "vue";
 import { useAuthUserStore } from '@/store/auth'
 import { useMessageUsers } from "../../../store/messageUsers";
-import { DateParser, mentionFormatter, oikawaFormatter } from "@/utils/tools";
+import { DateParser, mentionFormatter } from "@/utils/tools";
 import UserPanel from "@/components/Global/UserPanel.vue";
 import { useBadgeStore } from "@/store/badge";
 import { useApi } from "@/composables/api";

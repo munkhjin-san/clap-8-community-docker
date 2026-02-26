@@ -149,7 +149,7 @@
                     <div class="project-cell pc">
                         {{ project.is_new ? '新規' : '既存' }}
                     </div>
-                    <div class="project-cell">
+                    <div class="project-cell pc">
                         {{ PROJECT_STATUS_LABEL[project.status] ?? '不明' }}
                     </div> 
                     <div class="project-cell pc">
@@ -473,7 +473,8 @@ const totalBadges = (projectId: number) => {
 const confirmBadges = (projectId: number) => {
     return badge.goalsBadgeByFilter([{by: 'project_id', value: projectId}]).length +
     badge.salaryIssueByFilter([{by: 'project_id', value: projectId}]).length +
-    badge.assetsBadgeByFilter([{by: 'project_id', value: projectId}]).length
+    badge.assetsBadgeByFilter([{by: 'project_id', value: projectId}]).length +
+    (badge.checkItemConfirmByFilter[projectId] ?? 0)
 }
 const jumpToProject = (project: Project) => {
     const routeName = route.name === 'project' ? 'overview' : route.name

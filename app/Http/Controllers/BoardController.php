@@ -202,6 +202,7 @@ class BoardController extends Controller
             ) DESC',
             [$active_user->id]
         )
+        ->withExists(['messages as has_draft_message'  => fn ($q) => $q->where('draft_flag', 1)])
         ->orderByDesc('updated_at')
         ->orderByDesc('id');
 
@@ -1015,7 +1016,6 @@ class BoardController extends Controller
         if (!empty($message)) {
             $message->reserved_at = $request->reserved_at;
             $message->save();
-            $board = boardRecord::find($message->record_id)->touch();
         }
         $mutatedMessage = $this->message_refresh($message);
         return response()->json($mutatedMessage);

@@ -2,7 +2,7 @@
     <div 
         ref="editor"
         style="font-size: 14px;line-height: 1.5;white-space: break-spaces;outline: none;word-break: break-word;display: inline-block;width: -webkit-fill-available;" 
-        v-html="oikawaFormatter(props.message.message)"
+        v-html="mentionFormatter(props.message.message)"
         contentEditable="plaintext-only">
     </div>
     <Transition name="slidePop">   
@@ -18,7 +18,7 @@
 import { useApi } from '@/composables/api';
 import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
 import { inject, onMounted, ref, useTemplateRef } from 'vue';
-import { oikawaFormatter } from '@/utils/tools';
+import { mentionFormatter } from '@/utils/tools';
     
     const props = defineProps(['message'])
     const emit = defineEmits(['cancel'])

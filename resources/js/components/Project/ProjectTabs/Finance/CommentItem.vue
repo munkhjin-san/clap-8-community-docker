@@ -180,11 +180,20 @@ import { useMessageUsers } from '@/store/messageUsers';
     const checkView = computed(() => {
         return !(props.comment.user_id == auth.activeUser.id && !props.comment.checked_users.length)
     })
-    const checkComment = async() => {
-        if(props.comment.user_id == auth.activeUser.id) return    
-        checking.value = props.comment.checked_users.some(ob => ob.id === auth.activeUser.id)
-        await api.post('/mark_finance_check', {id: props.comment.id})
-        emit('reload')
+    const checkComment = async () => {
+        if (props.comment.user_id === auth.activeUser.id) return
+        if (checking.value) return
+
+        checking.value = true
+        try {
+            const isChecked = props.comment.checked_users.some(u => u.id === auth.activeUser.id)
+            const next = !isChecked
+
+            await api.post('/finance_check', { id: props.comment.id, checked: next })
+            emit('reload')
+        } finally {
+            checking.value = false
+        }
     }
     const viewReactedUsersList = () => {
         const data = {

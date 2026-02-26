@@ -632,21 +632,57 @@
                         <LoaderButton @triggered="createProject(editData?.status)" content="保存する"/>
                     </div>
                     <div v-else class="si-box flex gap-[30px] justify-center" id="projectCreateButton">
-                        <LoaderButton @triggered="createProject(editData ? editData?.status : 'draft')" :loading="isLoading('draft')" content="下書き保存" style="margin:0;"/>
+                        <LoaderButton @triggered="createProject(confirmDraftStatus)" :loading="isLoading(confirmDraftStatus)" content="下書き保存" style="margin:0;"/>
                         <LoaderButton @triggered="goToConfirmApply" :loading="isLoading('pending_director')" content="次へ" style="margin:0;"/>
                     </div>
                     </div>
                 </div>
             </div>
-            <ConfirmApply 
-                :has-privilage="auth.hasPrivilage"
-                v-if="isQuestion"
-                :edit-data="editData?.specs?.spec_data"
-                :files="editData?.specs?.files"
-                :saving="isLoading('pending_director')"
-                @save-draft="saveDraftFromConfirmApply"
-                @submit="val => createProject('pending_director', val)"
-            />
+            <div class="projectModalContainer" v-else>
+                <div class="projectModalSideMenu">
+                    <div class="projectModalSideMenuInner">
+                        <div
+                            v-for="(title, index) in confirmStepTitles"
+                            :key="index"
+                            class="projectModalSideMenuItem"
+                            :class="{'active-step': title.hash == activeHash }"
+                            @click="jumpTo(title.hash)"
+                        >
+                            {{ title.name }}
+                        </div>
+                    </div>
+                </div>
+                <div class="projectModalContent">
+                    <div class="projectModalContentInner">
+                        <div id="confirm" class="mb-[60px] section-hd">
+                            <p class="mb-[20px]"><strong>確認事項</strong></p>
+                            <ConfirmApply
+                                ref="confirmApplyRef"
+                                v-model="confirmApplyPayload"
+                                :has-privilage="auth.hasPrivilage"
+                                :edit-data="editData?.specs?.spec_data"
+                                :files="editData?.specs?.files"
+                                :saving="isLoading('pending_director') || isLoading(confirmDraftStatus)"
+                                :show-actions="false"
+                            />
+                        </div>
+                        <div class="si-box flex gap-[30px] justify-center" id="projectCreateConfirmButton">
+                            <LoaderButton
+                                @triggered="saveDraftFromConfirmApply"
+                                :loading="isLoading(confirmDraftStatus)"
+                                content="下書き保存"
+                                style="margin:0;"
+                            />
+                            <LoaderButton
+                                @triggered="submitFromConfirmApply"
+                                :loading="isLoading('pending_director')"
+                                content="申請する"
+                                style="margin:0;"
+                            />
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </template>
@@ -683,8 +719,9 @@ import { useTour } from '@/composables/useTour';
 import { useTutorialStore } from '@/store/tutorial';
 import ConfirmApply from '@/components/Project/ProjectTabs/Overview/ConfirmApply.vue';
 import { validator } from '@/validation/validator';
+import type { ProjectApplyPayload } from '@/components/Project/ProjectTabs/Overview/confirmApplyMapper';
 
-type ProjectStatus = 'draft' | 'creating' | 'pending_director'
+type ProjectStatus = 'draft' | 'creating' | 'pending_director' | 'director_approved' | 'running' | 'returned'
 
 
 const emit = defineEmits(['close', 'getProjects'])
@@ -720,7 +757,9 @@ const stepTitles = computed(() => [
   ...(fullAccess.value ? [{ name: "契約レビュー", hash: "#legal" }] : []),
 //   { name: "業務マニュアル", hash: "#manual" },
 ]);
+const confirmStepTitles = [{ name: "確認事項", hash: "#confirm" }]
 const isQuestion = ref(false)
+const confirmApplyPayload = ref<ProjectApplyPayload | undefined>(props.editData?.specs?.spec_data)
 const projectParams = reactive<Partial<Project>>(props.editData ? { ...toRaw(props.editData) } : {
     name: '',
     description: '',
@@ -830,6 +869,7 @@ const mainTaskRef = useTemplateRef<ComponentExposed<typeof SampleTask>[]>('mainT
 const projectMemo = useTemplateRef<ComponentExposed<typeof LongInput>>('projectMemo')
 const flowContainer = useTemplateRef('flowContainer')
 const contractStartedAtRef = useTemplateRef<ComponentExposed<typeof ShortInput>>('contractStartedAtRef')
+const confirmApplyRef = useTemplateRef<ComponentExposed<typeof ConfirmApply>>('confirmApplyRef')
 const serviceCategoryRef = useTemplateRef('serviceCategoryRef')
 const industryTypeRef = useTemplateRef('industryTypeRef')
 const descriptionGenerator = useTemplateRef<ComponentExposed<typeof AiGenerationProject>>('descriptionGenerator')
@@ -898,9 +938,15 @@ const loaderPayload = computed(() => {
 const fullAccess = computed(() => {
     return props.editData && (props.editData.status == 'director_approved' || props.editData.status == 'running')
 })
+const toProjectStatus = (value: unknown, fallback: ProjectStatus = 'draft'): ProjectStatus => {
+    if (value === 'draft' || value === 'creating' || value === 'pending_director' || value === 'director_approved' || value === 'running' || value === 'returned') return value
+    return fallback
+}
+const confirmDraftStatus = computed<ProjectStatus>(() => toProjectStatus(props.editData?.status, 'draft'))
 const closeOrBack = () => {
     if (isQuestion.value) {
         isQuestion.value = false
+        activeHash.value = '#basic'
     } else {
         emit('close')
     }
@@ -1128,10 +1174,21 @@ const goToConfirmApply = async() => {
         return
     }
     isQuestion.value = true
+    activeHash.value = '#confirm'
 }
-const saveDraftFromConfirmApply = (specs: any) => {
-    const status = props.editData ? props.editData.status : 'draft'
+const getConfirmPayload = (): ProjectApplyPayload | undefined => {
+    return confirmApplyPayload.value ?? confirmApplyRef.value?.getPayload?.()
+}
+const saveDraftFromConfirmApply = () => {
+    const status = toProjectStatus(props.editData?.status, 'draft')
+    const specs = getConfirmPayload()
     createProject(status, specs)
+}
+const submitFromConfirmApply = () => {
+    const result = confirmApplyRef.value?.validate?.()
+    if (!result?.valid || !result.payload) return
+    confirmApplyPayload.value = result.payload
+    createProject('pending_director', result.payload)
 }
 const contractPayload = computed(() => {
     const c = contract.value

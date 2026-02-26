@@ -1,5 +1,5 @@
 <template>
-    <div v-if="hasPrivilage" class="project-apply-form">
+    <div v-if="hasPrivilage" :class="[{'px-[30px]' : confirming, 'pb-[30px]' : confirming}, 'project-apply-form']">
         <div v-if="validationErrors.length" class="apply-error-box">
             <p class="font-semibold">入力内容を確認してください。</p>
             <ul class="apply-error-list">
@@ -22,7 +22,7 @@
                     </label>
                 </div>
                 <div v-if="form.caseType.spotLimited" class="apply-branch">
-                    <p>期間を入力してください <span class="required-mark">※必須</span></p>
+                    <p class="text-sm">期間を入力してください <span class="required-mark">※必須</span></p>
                     <div class="flex gap-4"> 
                         <ShortInput customClass="date" type="date" v-model="form.spot_period.start" :disabled="confirming" />
                         <ShortInput customClass="date" type="date" v-model="form.spot_period.end" :disabled="confirming" />
@@ -117,7 +117,7 @@
                         </div>
                         <div v-if="form.membersCheckList[question.key] && question.hasCountInput" class="apply-option-inline">
                             <div v-if="confirming">
-                                <p>【数字入力】名 : {{ form.membersCheckList[`${question.key}_count`] }}</p>
+                                <p class="text-sm">【数字入力】名 : {{ form.membersCheckList[`${question.key}_count`] }}</p>
                             </div>
                            
                             <input
@@ -152,7 +152,7 @@
             </div>
             <div class="apply-question">
                 <p class="apply-question-title">7. 下記URLより年間収支計画を入力してください <span class="required-mark">※必須</span></p>
-                <a href="https://docs.google.com/spreadsheets/d/1Xo9s8n7j3nqLh0kKZt2r5c6e7f8g9h0i1j2k3l4m5/edit?usp=sharing" target="_blank" class="text-blue-600 underline">
+                <a href="https://docs.google.com/spreadsheets/d/1Xo9s8n7j3nqLh0kKZt2r5c6e7f8g9h0i1j2k3l4m5/edit?usp=sharing" target="_blank" class="text-blue-600 underline text-sm">
                     年間収支計画フォーマット
                 </a>
             </div>
@@ -173,7 +173,7 @@
                         custom-class="uploader-hover"
                     />
                 </div>
-                <div v-if="confirming">
+                <div class="text-sm" v-if="confirming">
                     <p class="mb-2">URL共有用</p>
                     <template v-for="(p, i) in parts" :key="i">
                         <a
@@ -240,11 +240,6 @@
                 <textarea v-else v-model="form.otherNotes" class="custom-a-input !w-full !min-h-[120px]" placeholder="備考（任意）" />
             </div>
         </section>
-
-        <div v-if="!confirming" class="flex justify-center gap-[30px]">
-            <LoaderButton @triggered="saveDraft" :loading="props.saving" content="下書き保存" style="margin: 0;"/>
-            <LoaderButton @triggered="submitForm" :loading="props.saving" content="申請する" style="margin: 0;"/>
-        </div>
     </div>
     <div v-else class="h-[calc(100%-115px)] w-full flex items-center justify-center">
         権限がありません
@@ -254,7 +249,6 @@
 <script setup lang="ts">
 import FileUploader from '@/components/Form/FileUploader.vue';
 import ShortInput from '@/components/Form/ShortInput.vue';
-import LoaderButton from '@/components/Global/LoaderButton.vue';
 import { useDialog } from '@/composables/dialog';
 import { computed, reactive, ref, watch } from 'vue';
 import {
@@ -279,18 +273,21 @@ const emit = defineEmits<{
     (e: 'close', flag: boolean): void
     (e: 'save-draft', payload: ProjectApplyPayload): void
     (e: 'submit', payload: ProjectApplyPayload): void
+    (e: 'update:modelValue', payload: ProjectApplyPayload): void
 }>()
 const props = withDefaults(defineProps<{
     hasPrivilage: boolean
     editData?: ProjectApplyPayload
+    modelValue?: ProjectApplyPayload
     saving?: boolean
     files?: CommonFile[]
     confirming?: boolean
 }>(), {
     editData: undefined,
+    modelValue: undefined,
     saving: false,
     files: undefined,
-    confirming: false
+    confirming: false,
 })
 const { ping } = useDialog()
 const validationErrors = ref<string[]>([])
@@ -344,6 +341,30 @@ watch(
     },
     { immediate: true, deep: true }
 )
+watch(
+    () => props.modelValue,
+    (next) => {
+        if (!next) return
+        const currentSnapshot = JSON.stringify(buildConfirmApplyPayload(form, specReferenceFileIds.value))
+        const nextSnapshot = JSON.stringify(next)
+        if (nextSnapshot === currentSnapshot) return
+
+        resetFormState()
+        specReferenceFileIds.value = hydrateConfirmApplyForm(form, next)
+        if (props.files?.length) {
+            form.referenceFiles = [...props.files]
+            specReferenceFileIds.value = []
+        }
+    },
+    { deep: true }
+)
+watch(
+    form,
+    () => {
+        emit('update:modelValue', buildConfirmApplyPayload(form, specReferenceFileIds.value))
+    },
+    { deep: true }
+)
 const autoResetOnFalse = (source: () => boolean, resetFn: () => void): void => {
     watch(source, (value) => {
         if (!value) {
@@ -391,22 +412,27 @@ const validateForm = (): string[] => {
     return errors
 }
 
-const submitForm = () => {
+const validate = () => {
     const errors = validateForm()
     validationErrors.value = errors
     if (errors.length) {
         ping('必須項目を確認してください。')
-        return
+        return {
+            valid: false,
+            payload: null,
+        }
     }
 
-    const payload = buildConfirmApplyPayload(form, specReferenceFileIds.value)
-    emit('submit', payload)
+    return {
+        valid: true,
+        payload: buildConfirmApplyPayload(form, specReferenceFileIds.value),
+    }
 }
-const saveDraft = () => {
-    validationErrors.value = []
-    const payload = buildConfirmApplyPayload(form, specReferenceFileIds.value)
-    emit('save-draft', payload)
-}
+const getPayload = () => buildConfirmApplyPayload(form, specReferenceFileIds.value)
+defineExpose({
+    validate,
+    getPayload,
+})
 </script>
 
 <style scoped>
@@ -423,7 +449,6 @@ const saveDraft = () => {
     gap: 30px;
     height: calc(100% - 90px);
     overflow: hidden auto;
-    padding: 0 30px 30px;
 }
 
 .apply-section-title {
@@ -432,14 +457,14 @@ const saveDraft = () => {
 }
 
 .apply-question {
-    margin-top: 16px;
+    margin-top: 15px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 15px;
 }
 
 .apply-question-title {
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1.6;
 }
 
@@ -473,6 +498,7 @@ const saveDraft = () => {
     gap: 8px;
     cursor: pointer;
     user-select: none;
+    font-size: 14px;
 }
 
 .apply-branch {

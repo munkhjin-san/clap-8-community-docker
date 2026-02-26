@@ -293,6 +293,7 @@ onBeforeUnmount(() => {
     font-size: 14px;
     color: var(--primary-color);
     cursor: pointer;
+    min-width: 40px;
 }
 .picker-trigger:hover {
     background: var(--bg2);
@@ -304,7 +305,7 @@ onBeforeUnmount(() => {
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
-    z-index: 30;
+    z-index: 20;
     display: grid;
     grid-template-columns: repeat(2, minmax(180px, auto));
     column-gap: 16px;

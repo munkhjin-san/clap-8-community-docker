@@ -3885,18 +3885,24 @@ class ProjectController extends Controller
         return response(200);
 
     }
-    public function mark_finance_check(Request $request){
+    public function finance_check(Request $request)
+    {
         $active_user = $this->active_user();
-        $comment = ProjectFinanceComment::with('checkedUsers')->findOrFail($request->id);
-        if ($comment->checkedUsers()->where('user_id', $active_user->id)->exists()) {
-            $comment->checkedUsers()->detach($active_user->id);            
+
+        $data = $request->validate([
+            'id' => ['required', 'integer', 'exists:project_finance_comments,id'],
+            'checked' => ['required', 'boolean'],
+        ]);
+
+        $comment = ProjectFinanceComment::findOrFail($data['id']);
+
+        if ($data['checked']) {
+            $comment->checkedUsers()->syncWithoutDetaching([$active_user->id]);
         } else {
-            $comment->checkedUsers()->attach($active_user->id);            
+            $comment->checkedUsers()->detach($active_user->id);
         }
 
-        $comment = $comment->fresh();
-        $comment->load('checkedUsers');
-        return response()->json($comment);
+        return response()->json($comment->fresh()->load('checkedUsers'));
     }
 
     public function project_resource_comment(Request $req) {
@@ -5286,6 +5292,13 @@ class ProjectController extends Controller
         //     ->update(['seen' => true]);
 
         return response()->json(['status' => 'ok']);
+    }
+    public function clear_project_report_badge(Request $request){
+        $user = $this->active_user();
+
+        $data = $this->badgeService->getProjectUnreadCount($user);
+
+        return $data;
     }
 }
 

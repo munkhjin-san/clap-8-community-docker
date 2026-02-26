@@ -277,16 +277,14 @@ import { useBadgeStore } from '@/store/badge';
     const postMenu = computed(() => {
         const appName = props.apps?.[props.record.app_type] ?? 'アプリ'
 
-        const items = [
-            { title: `${appName}を削除する`, action: () => emit('deleteRecord', props.record) },
-        ]
+        const items: any[] = [];
 
         if (props.record.app_type !== 2) {
             items.push({ title: `${appName}を編集する`, action: () => emit('editRecord', props.record) })
         } else {
             items.push({ title: 'ステータスを変更・進捗入力', action: updateStatus })
         }
-
+        items.push({ title: `${appName}を削除する`, action: () => emit('deleteRecord', props.record) },)
         return items
     })
 
