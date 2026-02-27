@@ -17,26 +17,34 @@
        <div v-if="!fullscreen" class="mx-3 mb-3">
             <div v-if="data.data.temp_schedules.length" class="mb-3">
                 <p class="text-sm mb-3">仮スケジュール（{{data.data.temp_schedules.length}}）</p>
-                <v-expansion-panels>
-                    <v-expansion-panel selected-class="selected-panel-item" hide-actions static :tile="true" class="rm-p" v-for="(schedule, index) in data.data.temp_schedules" :key="index">
-                        <v-expansion-panel-title class="task-panel">
-                            <template v-slot:default="{ expanded }">
-                                <ConfirmSchedule
-                                    mode="compact"
-                                    :record="schedule"
-                                    @refresh="emit('refreshData', data.type)"
-                                />
-                            </template>
-                        </v-expansion-panel-title>
-                        <v-expansion-panel-text>
+                <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                    <ExpansionPanelItem
+                        selected-class="selected-panel-item"
+                        hide-actions
+                        static
+                        :tile="true"
+                        class="rm-p"
+                        title-class="task-panel"
+                        v-for="(schedule, index) in data.data.temp_schedules"
+                        :key="schedule.id ?? index"
+                        :value="schedule.id ?? index"
+                    >
+                        <template #title>
+                            <ConfirmSchedule
+                                mode="compact"
+                                :record="schedule"
+                                @refresh="emit('refreshData', data.type)"
+                            />
+                        </template>
+                        <template #body>
                             <ConfirmSchedule
                                 :mode="'detailed'"
                                 :record="schedule"
                                 @refresh="emit('refreshData', data.type)"
                             />
-                        </v-expansion-panel-text>
-                    </v-expansion-panel>
-                </v-expansion-panels>
+                        </template>
+                    </ExpansionPanelItem>
+                </ExpansionGrid>
             </div>
         </div>
     </BaseLayout>
@@ -46,6 +54,8 @@ import { CalendarRecord } from '@/interface/calendarInterface';
 import BaseLayout from './BaseLayout.vue';
 import PanelData from './PanelData.vue';
 import ConfirmSchedule from '@/components/Calendar/ConfirmSchedule.vue';
+import ExpansionGrid from '../ExpansionGrid.vue';
+import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 const props = defineProps<{
     data: {
         title: string,
@@ -56,6 +66,7 @@ const props = defineProps<{
         type: string
         canResize?: boolean
         canFullscreen?: boolean
+        col?: string
     }
     fullscreen: boolean
 }>()

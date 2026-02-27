@@ -11,7 +11,10 @@
 	>
 		<div
 			:id="titleId"
-			class="expansion-panel-title text-left bg-transparent border-0 flex hover:bg-[var(--bg3)] cursor-pointer items-center"
+			:class="[
+				'expansion-panel-title text-left bg-transparent border-0 flex hover:bg-[var(--bg3)] cursor-pointer items-center',
+				titleClass,
+			]"
 			:disabled="disabled"
 			:aria-expanded="isExpanded"
 			:aria-controls="contentId"
@@ -59,6 +62,7 @@ const props = withDefaults(
 
 		selectedClass?: string
 		panelClass?: string | string[] | Record<string, boolean>
+		titleClass?: string | string[] | Record<string, boolean>
 
 		hideActions?: boolean
 		tile?: boolean
@@ -70,6 +74,7 @@ const props = withDefaults(
 		static: false,
 		selectedClass: '',
 		panelClass: '',
+		titleClass: '',
 		hideActions: false,
 		tile: false,
 	},
@@ -116,7 +121,7 @@ const isLastRow = computed(() => (grid ? grid.isLastRow(panelValue.value) : fals
 const titleId = computed(() => `${uid.value}-title`)
 const contentId = computed(() => `${uid.value}-content`)
 
-const canToggle = computed(() => !props.disabled && !props.readonly && !props.static)
+const canToggle = computed(() => !props.disabled && !props.readonly)
 
 function setExpanded(value: boolean) {
 	if (!canToggle.value) return
@@ -187,10 +192,10 @@ function onAfterLeave(el: Element) {
 	transition: height 200ms ease;
 }
 .is-expanded .expansion-panel-text {
-    border-bottom: solid 1px var(--formBorder);
+    border-bottom: solid 1px var(--panel-separate);
 }
 .expansion-panel-title{
-    border-bottom: solid 1px var(--formBorder);
+    border-bottom: solid 1px var(--panel-separate);
 }
 .is-expanded .expansion-panel-title{
     border-bottom: none;

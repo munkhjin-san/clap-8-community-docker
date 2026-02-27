@@ -12,11 +12,19 @@
         <div v-if="!fullscreen" class="mx-3 mb-3">
             <div v-if="data.data.in_use.length" class="mb-3">
                 <p class="text-sm mb-2">使用中の物品</p>
-                <v-expansion-panels>
-                    <v-expansion-panel selected-class="selected-panel-item" hide-actions static :tile="true" class="rm-p" v-for="(asset, index) in data.data.in_use" :key="index">
-                        <v-expansion-panel-title>
-                            <template v-slot:default="{ expanded }">
-                                <PanelTitle :expanded="expanded">
+                <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                    <ExpansionPanelItem
+                        selected-class="selected-panel-item"
+                        hide-actions
+                        static
+                        :tile="true"
+                        class="rm-p"
+                        v-for="(asset, index) in data.data.in_use"
+                        :key="asset.id ?? index"
+                        :value="asset.id ?? index"
+                    >
+                        <template #title="{ expanded }">
+                            <PanelTitle :expanded="expanded">
                                     <div>
                                         <div class="mr-1 ml-[-5px]" v-if="asset.confirm_logs.length">
                                             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" viewBox="0 0 38 32" style="fill: rgb(100, 188, 68);; margin-left: 4px;">
@@ -30,9 +38,8 @@
                                     
                                     {{ asset.item_name }}
                                 </PanelTitle>
-                            </template>
-                        </v-expansion-panel-title>
-                        <v-expansion-panel-text>
+                        </template>
+                        <template #body>
                             <PanelData>
                                 <div v-if="asset.confirm_logs.length">
                                     <p class="text-sm text-[var(--primary-color)] mb-2">今年の確認履歴</p>
@@ -49,9 +56,9 @@
                                     </div>
                                 </div>
                             </PanelData>
-                        </v-expansion-panel-text>
-                    </v-expansion-panel>
-                </v-expansion-panels>
+                        </template>
+                    </ExpansionPanelItem>
+                </ExpansionGrid>
             </div>
             <div v-else>
                 <div class="text-sm text-[gray] mb-3 text-center">
@@ -60,11 +67,19 @@
             </div>
             <div class="mt-5" v-if="data.data.waiting_approval && data.data.waiting_approval.length">
                 <p class="text-sm mb-2">【管理者】承認待ちの物品</p>
-                <v-expansion-panels>
-                    <v-expansion-panel selected-class="selected-panel-item" hide-actions static :tile="true" class="rm-p" v-for="(asset, index) in data.data.waiting_approval" :key="index">
-                        <v-expansion-panel-title>
-                            <template v-slot:default="{ expanded }">
-                                <PanelTitle v-if="asset.requests" :expanded="expanded">
+                <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                    <ExpansionPanelItem
+                        selected-class="selected-panel-item"
+                        hide-actions
+                        static
+                        :tile="true"
+                        class="rm-p"
+                        v-for="(asset, index) in data.data.waiting_approval"
+                        :key="asset.id ?? index"
+                        :value="asset.id ?? index"
+                    >
+                        <template #title="{ expanded }">
+                            <PanelTitle v-if="asset.requests" :expanded="expanded">
                                     <div class="flex items-center gap-2 text-[12px]" v-for="assetRequest in asset.requests">
                                         <div v-if="assetRequest.send_user">{{ assetRequest.send_user.name }}</div>
                                         <div v-if="assetRequest.from_external_user">{{ assetRequest.from_external_user }}</div>
@@ -74,9 +89,8 @@
                                     </div>
                                     <div>【{{ asset.item_name }}】</div>
                                 </PanelTitle>
-                            </template>
-                        </v-expansion-panel-title>
-                        <v-expansion-panel-text>
+                        </template>
+                        <template #body>
                             <PanelData>
                                 <div v-if="asset?.requests && asset.requests.length" class="bg-[var(--background-color)] w-fit rounded mb-4">
                                     <AssetMovement
@@ -89,9 +103,9 @@
                                     />
                                 </div>
                             </PanelData>
-                        </v-expansion-panel-text>
-                    </v-expansion-panel>
-                </v-expansion-panels>
+                        </template>
+                    </ExpansionPanelItem>
+                </ExpansionGrid>
             </div>
             <div class="text-center">
                 <router-link @click="viewHistory = true" :to="{name: 'dashboard', params: { type: 'assets'}}" class="jump-link text-sm text-center">
@@ -117,6 +131,8 @@ import AssetContainer from '@/components/Asset/AssetContainer.vue';
 import UserPanel from '@/components/Global/UserPanel.vue';
 import AssetMovement from '@/components/Asset/AssetMovement.vue';
 import { DateTime } from 'luxon';
+import ExpansionGrid from '../ExpansionGrid.vue';
+import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 
 // import MySurveyAnswers from '@/components/Survey/MySurveyAnswers.vue';
 
@@ -131,6 +147,7 @@ const props = defineProps<{
         type: string
         canResize?: boolean
         canFullscreen?: boolean
+        col?: string
     }
     fullscreen: boolean
 }>()

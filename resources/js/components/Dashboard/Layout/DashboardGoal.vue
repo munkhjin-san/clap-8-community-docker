@@ -65,11 +65,18 @@
                     </div>
                     <div v-if="myGoals.length">
                         <p v-if="approvaNeeded.length" class="text-sm mb-2">自分の目標 ({{ myGoals.length }})</p>
-                        <v-expansion-panels>
-                            <v-expansion-panel hide-actions static :tile="true" class="rm-p" v-for="(goal) in myGoals" :key="goal.id">       
-                                <v-expansion-panel-title>
-                                    <template v-slot:default="{ expanded }">
-                                        <PanelTitle :expanded="expanded">
+                        <ExpansionGrid class="gap-x-4" :col="Number(data.col.split('-')[2] ?? 1)">
+                            <ExpansionPanelItem
+                                hide-actions
+                                static
+                                :tile="true"
+                                class="rm-p"
+                                v-for="goal in myGoals"
+                                :key="goal.id"
+                                :value="goal.id"
+                            >
+                                <template #title="{ expanded }">
+                                    <PanelTitle :expanded="expanded">
                                         <div class="flex items-center h-full text-[13px] leading-normal overflow-hidden whitespace-nowrap">
                                             <div class="mr-1 ml-[-5px]" v-if="goal.status === 9">
                                                 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" viewBox="0 0 38 32" style="fill: rgb(100, 188, 68);; margin-left: 4px;">
@@ -89,16 +96,15 @@
                                                 </span>   
                                             </div>
                                         </div>
-                                        </PanelTitle>
-                                    </template>
-                                </v-expansion-panel-title>
-                                <v-expansion-panel-text>
+                                    </PanelTitle>
+                                </template>
+                                <template #body>
                                     <PanelData>
-                                        <MonthlyGoalItemCompact :goal="goal"/>
+                                        <MonthlyGoalItemCompact :goal="goal" />
                                     </PanelData>
-                                </v-expansion-panel-text>
-                            </v-expansion-panel>
-                        </v-expansion-panels>
+                                </template>
+                            </ExpansionPanelItem>
+                        </ExpansionGrid>
                     </div>
                     <div v-else class="text-center text-sm text-[gray] py-3">
                         成果目標が設定されていません。
@@ -155,6 +161,8 @@ import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
 import UserPanel from '@/components/Global/UserPanel.vue';
 import { storeToRefs } from 'pinia';
+import ExpansionGrid from '../ExpansionGrid.vue';
+import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 
 const props = defineProps<{
     data: {

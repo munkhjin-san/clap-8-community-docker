@@ -17,26 +17,32 @@
         </svg>
     </template>
         <div v-if="!fullscreen" class="mx-3 mb-3">
-             <v-expansion-panels>
-                <v-expansion-panel hide-actions static :tile="true" class="rm-p" v-for="(challenge, index) in data.data" :key="index">
-                    <v-expansion-panel-title>
-                        <template v-slot:default="{ expanded }">
-                            <PanelTitle :expanded="expanded">
-                                {{ challenge.title }}
-                            </PanelTitle>
-                        </template>
-                    </v-expansion-panel-title>
-                    <v-expansion-panel-text>
+            <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                <ExpansionPanelItem
+                    hide-actions
+                    static
+                    :tile="true"
+                    class="rm-p"
+                    v-for="(challenge, index) in data.data"
+                    :key="challenge.id ?? index"
+                    :value="challenge.id ?? index"
+                >
+                    <template #title="{ expanded }">
+                        <PanelTitle :expanded="expanded">
+                            {{ challenge.title }}
+                        </PanelTitle>
+                    </template>
+                    <template #body>
                         <PanelData>
-                            <p v-if="isOverdue(challenge) ">チャレンジ期間が終了しました。結果を入力してください。</p>
+                            <p v-if="isOverdue(challenge)">チャレンジ期間が終了しました。結果を入力してください。</p>
                             <p v-else>チャレンジの締切が近づいています。進捗を入力してください。</p>
                             <div class="mt-3">
-                                <router-link :to="{name: 'post', query: {id: challenge.id, status: 5}}">対応</router-link>
+                                <router-link :to="{ name: 'post', query: { id: challenge.id, status: 5 } }">対応</router-link>
                             </div>
                         </PanelData>
-                    </v-expansion-panel-text>
-                </v-expansion-panel>
-            </v-expansion-panels>
+                    </template>
+                </ExpansionPanelItem>
+            </ExpansionGrid>
         </div>
         <div v-if="fullscreen" class="px-4">
             
@@ -50,6 +56,8 @@ import BaseLayout from './BaseLayout.vue';
 import { DateTime } from 'luxon';
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
+import ExpansionGrid from '../ExpansionGrid.vue';
+import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 
 const props = defineProps<{
     data: {
@@ -59,6 +67,7 @@ const props = defineProps<{
         type: string
         canResize?: boolean
         canFullscreen?: boolean
+        col?: string
     },
     fullscreen: boolean
 }>()

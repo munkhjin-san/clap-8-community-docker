@@ -42,38 +42,6 @@
                 </template>
             </ExpansionPanelItem>
         </ExpansionGrid>
-        <!-- <v-expansion-panels>
-            <v-expansion-panel hide-actions static :tile="true" class="rm-p" v-for="(message, index) in data.data" :key="index">
-                <v-expansion-panel-title>
-                    <template v-slot:default="{ expanded }">
-                        <PanelTitle :expanded="expanded">
-                            <UserPanel disable-instant :user="message.user" :with-name="true" />
-                            <span v-if="!expanded"> : </span>
-                            <div v-if="!expanded" class="text-[14px] flex-1 ml-2 whitespace-nowrap overflow-hidden text-ellipsis leading-normal" v-html="mentionFormatter(message.message)"></div>
-
-                        </PanelTitle>
-                    </template>
-                </v-expansion-panel-title>
-                <v-expansion-panel-text>
-                    <PanelData class="px-4 py-4 pt-0">
-                        <MessageItemInner
-                            :message-menu-items="[]"
-                            :share-menu-items="[]"
-                            :message="message"
-                            :compact="true"
-                            :reacting="reacting === message.id"
-                            mode="remind"
-                            @remind="remindRequest(message)"
-                            @react-or-check="reactOrCheck"
-                            @sendEmote="num => sendEmote(message, num)"
-                        />
-                        <div>
-                            <router-link :to="`/board/${message.record_id}?m=${message.id}&jump_message=true`">チャットへ移動</router-link>
-                        </div>
-                    </PanelData>
-                </v-expansion-panel-text>
-            </v-expansion-panel>
-        </v-expansion-panels> -->
     </div>
     <div v-if="fullscreen" class="space-y-4 bg-[var(--bg3)] mx-4 mb-4">
         <MessageItemInner

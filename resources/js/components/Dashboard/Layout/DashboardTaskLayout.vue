@@ -16,18 +16,25 @@
         </svg>
     </template>
     <div v-if="!fullscreen" class="mx-3 mb-3">   
-        <v-expansion-panels>
-            <v-expansion-panel hide-actions static :tile="true" class="rm-p" v-for="(task, index) in data.data" :key="index">
-                <v-expansion-panel-title class="task-panel">
-                    <template v-slot:default="{ expanded }">
-                        <ListBox @getBoardTasks=" emit('refreshData', data.type)" :item="task" boxClass="w-full h-full" :isBoard="false" mode="minimal"/>
-                    </template>
-                </v-expansion-panel-title>
-                <v-expansion-panel-text>
-                    <ListBox @getBoardTasks=" emit('refreshData', data.type)" :item="task" boxClass="" :isBoard="false"/>
-                </v-expansion-panel-text>
-            </v-expansion-panel>
-        </v-expansion-panels>
+        <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+            <ExpansionPanelItem
+                hide-actions
+                static
+                :tile="true"
+                class="rm-p"
+                title-class="task-panel"
+                v-for="(task, index) in data.data"
+                :key="task.id ?? index"
+                :value="task.id ?? index"
+            >
+                <template #title>
+                    <ListBox @getBoardTasks="emit('refreshData', data.type)" :item="task" boxClass="w-full h-full" :isBoard="false" mode="minimal" />
+                </template>
+                <template #body>
+                    <ListBox @getBoardTasks="emit('refreshData', data.type)" :item="task" boxClass="" :isBoard="false" />
+                </template>
+            </ExpansionPanelItem>
+        </ExpansionGrid>
     </div> 
         <div v-if="fullscreen" class="px-4">
             <div v-for="task in data.data" :key="task.id" class="py-2 text-[14px] border-b border-[var(--border-color)] last:border-b-0">
@@ -42,6 +49,8 @@ import { Task } from '@/interface/globalInterface'
 import { useTemplateRef } from 'vue'
 import ListBox from '@/components/Task/List/ListBox.vue';
 import BaseLayout from './BaseLayout.vue';
+import ExpansionGrid from '../ExpansionGrid.vue';
+import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 
 const props = defineProps<{
     data: {
@@ -51,6 +60,7 @@ const props = defineProps<{
         type: string
         canResize?: boolean
         canFullscreen?: boolean
+        col?: string
     },
     fullscreen: boolean
 }>()

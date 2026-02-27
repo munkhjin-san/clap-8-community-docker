@@ -89,6 +89,7 @@
     --third-color: #878787;
     --inactive-background: #efefef;
     --complete: #9effb4
+    --panel-separate: #e9e9e9;
 }
 
 .dark-mode {
@@ -122,6 +123,7 @@
     --third-color: #e4e6eb;
     --inactive-background: #292929;
     --complete: #004510;
+    --panel-separate: #3b3b3b;
 }
 .header {
     background-color: var(--background-color);

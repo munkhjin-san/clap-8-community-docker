@@ -19,24 +19,31 @@
         <div v-if="!fullscreen" class="mx-3 mb-3">
             <div v-if="data.data.length" class="mb-3">
                 <p class="text-sm mb-2">未回答フォーム</p>
-                <v-expansion-panels>
-                    <v-expansion-panel selected-class="selected-panel-item" hide-actions static :tile="true" class="rm-p" v-for="(form, index) in data.data" :key="index">
-                        <v-expansion-panel-title>
-                            <template v-slot:default="{ expanded }">
-                                <PanelTitle :expanded="expanded">{{ form.title }}</PanelTitle>
-                            </template>
-                        </v-expansion-panel-title>
-                        <v-expansion-panel-text>
+                <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                    <ExpansionPanelItem
+                        selected-class="selected-panel-item"
+                        hide-actions
+                        static
+                        :tile="true"
+                        class="rm-p"
+                        v-for="(form, index) in data.data"
+                        :key="form.id ?? index"
+                        :value="form.id ?? index"
+                    >
+                        <template #title="{ expanded }">
+                            <PanelTitle :expanded="expanded">{{ form.title }}</PanelTitle>
+                        </template>
+                        <template #body>
                             <PanelData>
-                                <CommandButton 
+                                <CommandButton
                                     :buttons="[
-                                        {title: '回答', action: () => router.push(`/survey/${form.id}`)},
+                                        { title: '回答', action: () => router.push(`/survey/${form.id}`) },
                                     ]"
                                 />
                             </PanelData>
-                        </v-expansion-panel-text>
-                    </v-expansion-panel>
-                </v-expansion-panels>
+                        </template>
+                    </ExpansionPanelItem>
+                </ExpansionGrid>
             </div>
             <div v-else>
                 <div class="text-sm text-[gray] mb-3 text-center">
@@ -91,6 +98,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
+import ExpansionGrid from '../ExpansionGrid.vue';
+import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 // import MySurveyAnswers from '@/components/Survey/MySurveyAnswers.vue';
 
 const props = defineProps<{
@@ -101,6 +110,7 @@ const props = defineProps<{
         type: string
         canResize?: boolean
         canFullscreen?: boolean
+        col?: string
     }
     fullscreen: boolean
 }>()
