@@ -39,15 +39,27 @@
                             {{ item.title }} ({{ item.users.length }})
                         </p>
                         <div class="grid" :class="`grid-cols-${data.col.split('-')[2]}`" >
-                            <div class="p-2 cursor-pointer hover:bg-[var(--bg3)] rounded flex items-center text-[13px] overflow-hidden" v-for="member in item.users" :key="member.id">
-                                <UserPanel size="25" :user="member" disable-instant/>
-                                <div class="ml-2 flex w-full">
-                                    <div class="flex gap-1">
-                                        <span class="">{{ member.name }}</span>
-                                        <span class="ml-1 text-[12px] text-[gray] whitespace-nowrap">({{ member.outcome_goals_count }}件)</span>
+                            <div class="cursor-pointer hover:bg-[var(--bg3)] rounded flex flex-col text-[13px] overflow-hidden" v-for="member in item.users" :key="member.id">
+                                <label class="cursor-pointer p-2 w-full flex items-center" :for="`panel_${item.chip}_${member.id}`">
+                                    <input :id="`panel_${item.chip}_${member.id}`" :name="`panel_${item.chip}`" type="radio" :value="`${item.chip}_${member.id}`" class="hidden" v-model="selectedPanel"/>
+                                    <UserPanel size="25" :user="member" disable-instant/>
+                                    <div class="ml-2 flex w-full">
+                                        <div class="flex gap-1">
+                                            <span class="">{{ member.name }}</span>
+                                            <span class="ml-1 text-[12px] text-[gray] whitespace-nowrap">({{ member.outcome_goals.length }}件)</span>
+                                        </div>
+                                        
+                                        
+                                        <!-- <div class="jump-link ml-auto whitespace-nowrap" @click="{selectedUser = member; emit('toggle', parentElement, data.type)}">対応</div> -->
                                     </div>
-                                    <div class="jump-link ml-auto whitespace-nowrap" @click="{selectedUser = member; emit('toggle', parentElement, data.type)}">対応</div>
-                                </div>
+                                </label>
+                                <Transition name="slidePop">
+                                    <div v-if="selectedPanel == `${item.chip}_${member.id}`">
+                                        <div v-for="goal in member.outcome_goals">
+                                            
+                                        </div>
+                                    </div>
+                                </Transition>
                             </div>
                         </div>
                     </div>
@@ -165,8 +177,10 @@ const emit = defineEmits<{
 const badge = useBadgeStore()
 
 const goalsStore = useDashboardGoalsStore()
-const { goals, loading, pendingMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals, requiredGoalData } = storeToRefs(goalsStore)
+const { loading, pendingMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals, requiredGoalData } = storeToRefs(goalsStore)
 const { getGoals } = goalsStore
+
+const selectedPanel = ref('');
 
 const auth = useAuthUserStore()
 const selectedUser = ref<User | null>(auth.user)

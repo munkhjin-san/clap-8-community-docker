@@ -171,6 +171,9 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         const needed = (requiredGoalData.value?.this_span?.needed_count || 0) + (requiredGoalData.value?.previous_span?.needed_count || 0)
         return overdueGoals.length + needed
     })
+    const normalBadgeCount = computed(() => {
+        
+    })
 
     return {
         // State

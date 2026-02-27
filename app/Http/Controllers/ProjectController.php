@@ -281,6 +281,9 @@ class ProjectController extends Controller
                 'needed_count' => 0,
             ],
         ];
+        if($active_user->position_id < 6){
+            return $data;
+        }
 
         $goalsQuery = ProjectGoal::query()->where('user_id', $userId);
 
@@ -404,12 +407,12 @@ class ProjectController extends Controller
         if($is_mentor){
             $mentor_approval_needed_goals_with_salary_issue = User::whereNot('id', $user->id)
             ->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
-            ->withCount(['outcome_goals' => function ($q) use ($user) {
+            ->with(['outcome_goals' => function ($q) use ($user) {
                 $q->whereHas('salaryIssue', function ($q) use ($user){                
                     $q->whereIn('status', [2, 7])->whereHas('evaluation', function ($subQuery) use ($user) {
                         $subQuery->where('mentor_id', $user->id);
                     });
-                });
+                })->select('id', 'user_id', 'status', 'year', 'which_half');
             }])
             ->whereHas('outcome_goals', function ($q) use ($user) {
                 $q->whereHas('salaryIssue', function ($q) use ($user){                
@@ -421,10 +424,10 @@ class ProjectController extends Controller
         }
         if($is_admin){
             $admin_approval_needed_goals_with_salary_issue = User::select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
-            ->withCount(['outcome_goals' => function ($q) use ($user) {
+            ->with(['outcome_goals' => function ($q) use ($user) {
                 $q->whereHas('salaryIssue', function ($q) use ($user){                
                     $q->whereIn('status', [3, 4, 9]);
-                });
+                })->select('id', 'user_id', 'status', 'year', 'which_half');
             }])
             ->whereHas('outcome_goals', function ($q) use ($user) {
                 $q->whereHas('salaryIssue', function ($q) use ($user){                
@@ -433,9 +436,7 @@ class ProjectController extends Controller
             })->get();
 
             $admin_approval_needed_goals = User::select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
-            ->withCount(['outcome_goals' => function ($q) use ($user) {
-                $q->whereIn('status', [3, 4]);
-            }])
+            ->with(['outcome_goals' => fn ($q) => $q->whereIn('status', [3, 4])->select('id', 'user_id', 'status', 'year', 'which_half')])
             ->whereHas('outcome_goals', function ($q) use ($user) {
                 $q->whereIn('status', [3, 4]);
             })->get();
@@ -449,9 +450,7 @@ class ProjectController extends Controller
                         $directorQuery->where('users.id', $user->id);
                     });
                 });
-            })->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')->withCount(['outcome_goals' => function ($q) {
-                $q->whereIn('status', [2, 7]);
-            }])->get();
+            })->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')->with(['outcome_goals' => fn ($q) => $q->whereIn('status', [2, 7])->select('id', 'user_id', 'status', 'year', 'which_half')])->get();
         }
         if($is_boss){
             
@@ -460,9 +459,8 @@ class ProjectController extends Controller
             ->whereHas('outcome_goals', function ($q) use ($user) {
                 $q->whereIn('status', [2, 7]);
                 
-            })->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')->withCount(['outcome_goals' => function ($q) {
-                $q->whereIn('status', [2, 7]);
-            }])->get();
+            })->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
+            ->with(['outcome_goals' => fn ($q) => $q->whereIn('status', [2, 7])->select('id', 'user_id', 'status', 'year', 'which_half')])->get();
         }
 
         $project_goals = $this->goalLoader($user->id, $target_user_id, $year, $which_half);
