@@ -1,11 +1,13 @@
 {
     "compilerOptions": {
         "types": ["vite/client"],
+        "lib": ["ES2022", "DOM", "DOM.Iterable"],
         "module": "ESNext",
         "moduleResolution": "Bundler",
         "target": "ES2022",
         "jsx": "preserve",
         "jsxImportSource": "vue",
+        "skipLibCheck": true,
         "strictNullChecks": true,
         "strictFunctionTypes": true,
         "isolatedModules": true,
