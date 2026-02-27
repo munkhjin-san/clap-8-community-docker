@@ -12,6 +12,7 @@
                     <div class="project-header-row">
                         <div class="project-cell cell-width">メンバー</div>
                         <div class="project-cell cell-width">雇用形態</div>
+                        <div class="project-cell cell-width">役割</div>
                         <div class="project-cell cell-width">職階</div>
                         <div class="project-cell cell-width">メンター</div>
                         <div class="project-cell cell-width">職務レベル</div>                        
@@ -26,6 +27,7 @@
                             </div>                                
                         </div>
                         <div class="project-cell cell-width" data-label="雇用形態">{{ member?.positions?.name }}</div>
+                        <div class="project-cell cell-width" data-label="役割">{{ member?.pivot?.role_record?.title }}</div>
                         <div class="project-cell cell-width" data-label="職階">{{ member?.evaluation?.general_position }}</div>
                         <div class="project-cell cell-width" data-label="メンター">{{ member?.evaluation?.mentor?.name }}</div>
                         <div class="project-cell cell-width" data-label="職務レベル">{{ member?.evaluation?.current_level }}</div>

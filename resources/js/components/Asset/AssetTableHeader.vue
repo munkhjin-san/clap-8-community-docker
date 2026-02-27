@@ -3,7 +3,7 @@
     <tr>
         <td class="relative">
             <div class="relative">
-                <div class="cursor-pointer flex items-center gap-[5px] h-p">                                        
+                <div class="flex items-center gap-[5px] h-p">                                        
                     GL番号
                 </div>
                
@@ -12,7 +12,7 @@
         </td>
         <td class="relative">
             <div class="relative">
-                <div class="cursor-pointer flex items-center gap-[5px] h-p">                                        
+                <div class="flex items-center gap-[5px] h-p">                                        
                     物品名
                 </div>                
                 <div v-if="nameQuery" class="mt-2 text-[12px] text-[gray] italic">”{{ nameQuery }}”</div>
@@ -20,7 +20,7 @@
         </td>
         <td class="relative">
             <div class="relative">
-                <div class="cursor-pointer flex items-center gap-[5px] h-p">                                        
+                <div class="flex items-center gap-[5px] h-p">                                        
                     型番
                 </div>                
                 <div v-if="modelQuery" class="mt-2 text-[12px] text-[gray] italic">”{{ modelQuery }}”</div>
@@ -28,7 +28,7 @@
         </td>
         <td class="relative">
             <div class="relative">
-                <div class="cursor-pointer flex items-center gap-[5px] h-p">                                        
+                <div class="flex items-center gap-[5px] h-p">                                        
                     使用者
                 </div>           
                 <div v-if="userQuery.length">
@@ -41,7 +41,7 @@
         </td>
         <td class="relative">
             <div class="relative">
-                <div class="cursor-pointer flex items-center gap-[5px] h-p">                                        
+                <div class="flex items-center gap-[5px] h-p">                                        
                     ステータス                  
                 </div>    
                 <div v-if="statusQuery.length">
@@ -54,7 +54,7 @@
         </td>
         <td class="relative">
             <div class="relative">
-                <div class="cursor-pointer flex items-center gap-[5px] h-p">                                        
+                <div class="flex items-center gap-[5px] h-p">                                        
                     使用場所
                 </div>
                 <div v-if="officeQuery.length">
@@ -66,7 +66,7 @@
         </td>
         <td class="relative">
             <div class="relative">
-                <div class="cursor-pointer flex items-center gap-[5px] h-p">                                        
+                <div class="flex items-center gap-[5px] h-p">                                        
                     確認状況
                 </div>   
                 <div v-if="confirmQuery.length">

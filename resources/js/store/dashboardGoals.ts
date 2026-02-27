@@ -111,7 +111,6 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
             const adminKeys = Object.keys(CARD_ADMIN_DATA_KEY_BY_TYPE) as string[]
             baseKeys.push(...adminKeys)
         }
-        console.log('fetching dashboard data with keys', baseKeys)
         await dashboardStore.getBatchDashboardData(baseKeys)
         lastFetchedAt.value = Date.now()
     }

@@ -5,6 +5,9 @@
                 メンバー詳細
             </template>
             <template #content>
+                <Teleport to="body">
+                    <AiLoader v-if="loading" message="適正評価中...この処理には数分かかる場合があります" />
+                </Teleport>
                 <UserPanel :user="member" :size="30" with-name/>
                 <div class="mt-5 flex items-center">
                     役割: 
@@ -162,8 +165,35 @@
                             <li v-for="(limitation, index) in asignEvaluationResult.notes.limitations" :key="index">{{ limitation }}</li>
                         </ul>
                     </div>
+
+                    <!-- プロジェクトマネジャー確認項目 -->
+                    <div v-if="asignEvaluationResult.project_manager_check_items?.length" class="pt-4 mt-4">
+                        <h4 class="font-medium mb-3">確認項目</h4>
+                        <div class="space-y-4">
+                            <div v-for="(item, index) in asignEvaluationResult.project_manager_check_items" :key="index" class="p-3">
+                                <!-- Checkbox Type -->
+                                <div v-if="item.type === 'checkbox'" class="flex items-start gap-3">
+                                    <input type="checkbox" v-model="item.answer" class="mt-1 w-4 h-4 cursor-pointer" />
+                                    <label class="w-full text-[13px] leading-normal flex-1 cursor-pointer">{{ item.content }}</label>
+                                </div>
+                                
+                                <!-- Short Text Type -->
+                                <div v-else-if="item.type === 'shorttext'" class="flex flex-col gap-2">
+                                    <p class="text-[13px] leading-normal w-full mb-2">{{ item.content }}</p>
+                                    <input type="text" v-model="item.answer" class="border border-solid border-[var(--formBorder)] px-3 py-2 text-sm" placeholder="具体的な対応策を入力してください" />
+                                </div>
+                                
+                                <!-- Long Text Type -->
+                                <div v-else-if="item.type === 'longtext'" class="flex flex-col gap-2">
+                                    <p class="text-[13px] leading-normal w-full mb-2">{{ item.content }}</p>
+                                    <textarea :value="(item.answer as string) || ''" @input="item.answer = ($event.target as HTMLTextAreaElement).value" class="border border-solid border-[var(--formBorder)] px-3 py-2 text-sm" rows="3" placeholder="具体的な対応策を入力してください"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div>
-                        <LoaderButton v-if="changedAssignData" @triggered="saveAssignData" :loading="savingAssignData" content="この内容で保存" />
+                        <LoaderButton @triggered="saveAssignData" :loading="savingAssignData" content="この内容で保存" />
                     </div>
                 </div>
             </template>
@@ -180,6 +210,9 @@ import { useApi } from "@/composables/api";
 import LoaderButton from "@/components/Global/LoaderButton.vue";
 import AiIcon from "@/components/Icons/AiIcon.vue";
 import { AssignmentFitEvaluationResponse, Decision, Score1to10 } from "@/interface/assign";
+import { useDialog } from "@/composables/dialog";
+import AiLoader from "@/components/Global/AiLoader.vue";
+
 const props = defineProps<{
     member: ProjectMember
 }>();
@@ -194,17 +227,19 @@ const asignEvaluationResult = ref<AssignmentFitEvaluationResponse | null>(props.
 const savingAssignData = ref(false);
 const changedAssignData = ref<boolean>(false);
 const safeExit = ref(true)
+
 const roles = computed(() => {
     return selectedProject.value?.member_roles || [];
 })
 
 const api = useApi()
-
+const { ask, ping, toast } = useDialog()
 const savingRole = ref(false);
 const loading = ref(false);
-const close = () => {
+const close = async () => {
     if (!safeExit.value) {
-        if (confirm('評価データが保存されていません。本当に閉じますか？')) {
+        const confirmed = await ask('評価データが保存されていません。本当に閉じますか？')
+        if(confirmed.value) {
             emit('close', true);
         }
     } else {
@@ -271,8 +306,10 @@ const getDecisionClass = (decision: Decision): string => {
 const saveAssignData = async () => {
     if (!asignEvaluationResult.value) return;
     savingAssignData.value = true;
+
+    console.log('Saving assign data:', asignEvaluationResult.value);
     try {
-        await api.post('/save_member_assign_data', {
+        const res = await api.post('/save_member_assign_data', {
             project_id: selectedProject.value?.id,
             user_id: props.member.id,
             assign_data: asignEvaluationResult.value
@@ -280,6 +317,9 @@ const saveAssignData = async () => {
             toast: '保存しました。'
         });
         refreshProject();
+        if(res){
+            toast('保存しました。');
+        }        
     } finally {
         savingAssignData.value = false;
         safeExit.value = true;

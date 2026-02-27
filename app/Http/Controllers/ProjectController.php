@@ -166,7 +166,11 @@ class ProjectController extends Controller
             'reports.files'
         ])
         ->get();
+        
+        // Load role_record for members and managers pivots
         $projects->each(function ($p) use ($confirmBadgeMap, $commentBadgeMap) {
+            $p->loadMemberRoles();
+            
             $p->has_confirm_badge = isset($confirmBadgeMap[$p->id]);
             $p->has_comment_badge = isset($commentBadgeMap[$p->id]);
         });
@@ -4985,10 +4989,10 @@ class ProjectController extends Controller
     }
     private function user_monthly_goals_history($user_id){
         $monthly_goals_history = <<<EOD
-        以下は、過去12ヶ月間の月次目標履歴です。
+        以下は、過去24ヶ月間の月次目標履歴です。
         EOD;
 
-        $date = Carbon::now()->subMonths(12)->toDateString();
+        $date = Carbon::now()->subMonths(24)->toDateString();
         $user = User::findOrFail($user_id);
 
         $goals = ProjectGoal::where('user_id', $user_id)
@@ -5017,7 +5021,7 @@ class ProjectController extends Controller
 
             }
         } else {
-            $monthly_goals_history .= "\n過去12ヶ月間に月次目標の記録はありません。\n\n";
+            $monthly_goals_history .= "\n過去24ヶ月間に月次目標の記録はありません。\n\n";
         }
         return $monthly_goals_history;
         

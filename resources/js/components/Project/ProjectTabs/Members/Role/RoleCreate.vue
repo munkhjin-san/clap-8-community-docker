@@ -18,13 +18,13 @@
                     :place-holder="'役割の説明（業務内容など）'"
                 />
             </div>
-            <div class="si-box">
+            <!-- <div class="si-box">
                 <ShortInput
                     v-model="params.member_limit"
                     :place-holder="'メンバー上限'"                    
                     type="number"
                 />
-            </div>
+            </div> -->
             <div class="si-box">
                 <div class="mb-4">勤務条件</div>
                 <div class="flex flex-wrap gap-4">

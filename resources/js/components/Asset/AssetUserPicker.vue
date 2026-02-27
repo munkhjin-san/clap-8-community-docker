@@ -11,7 +11,7 @@
         </button>
         <Teleport defer to="#assetSort" :disabled="responsive.mobile ? false : true">
             <Transition name="slidePop">
-                <div @click.stop @touchstart.stop id="p-user-pick" v-if="menu.parent == 'p-user-pick'" class="max-w-[80vw] left-0 absolute top-full w-max max-h-[400px] bg-[var(--background-color)] border border-solid border-[var(--secondary-background)] shadow-lg rounded-md overflow-auto z-10">
+                <div @click.stop @touchstart.stop id="p-user-pick" v-if="menu.parent == 'p-user-pick'" class="max-w-[80vw] left-0 absolute top-full w-max max-h-[400px] bg-[var(--background-color)] border border-solid border-[var(--secondary-background)] shadow-lg rounded-md overflow-auto z-[4]">
                     <div class="sticky top-0 bg-[var(--background-color)] z-[2] p-3">                
                         <div class="flex w-full ">
                             <input 

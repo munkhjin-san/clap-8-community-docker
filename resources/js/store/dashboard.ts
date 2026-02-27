@@ -48,7 +48,6 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
     const getBatchDashboardData = async (requestedData?: string[]) => {
         try {
             const indexes = requestedData && requestedData.length > 0 ? requestedData : Object.keys(collection.value);
-            console.log('Fetching dashboard data for:', indexes);
             const res = await axios.get('/dashboard_data', {
                 params: {
                     requestedData: indexes,

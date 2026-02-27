@@ -13,11 +13,13 @@ class ProjectMember extends Pivot
         'overall_assign_score' => 'float',
     ];
 
+    protected $with = ['roleRecord'];
+
     public function user(){
         return $this->belongsTo(User::class)->select('name', 'user_code', 'id');
     }
-    public function projectRole(){
-        return $this->belongsTo(ProjectMemberRole::class);
+    public function roleRecord(){
+        return $this->belongsTo(ProjectMemberRole::class, 'project_member_role_id');
     }
     public function project(){
         return $this->belongsTo(ProjectRecord::class, 'project_id', 'id');

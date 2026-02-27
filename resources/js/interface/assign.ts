@@ -66,6 +66,12 @@ export interface Notes {
   limitations: string[];
 }
 
+export interface ProjectManagerCheckItem {
+  type: "checkbox" | "shorttext" | "longtext";
+  content: string;
+  answer?: boolean | string;
+}
+
 export interface XRules {
   /** schema const */
   gate_rule?: "If must_conditions.score <= 2 then overall.score = 0.0 and final_judgement.decision = '不適'.";
@@ -84,5 +90,7 @@ export interface AssignmentFitEvaluationResponse {
   overall: Overall;
   final_judgement: FinalJudgement;
   notes: Notes;
+  project_manager_check_items: ProjectManagerCheckItem[];
+  manager_free_notes?: string;
   "x-rules"?: XRules;
 }
