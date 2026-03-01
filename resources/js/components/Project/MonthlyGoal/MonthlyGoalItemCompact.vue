@@ -1,5 +1,5 @@
 <template>
-    <div class="p-3">
+    <div>
         <ItemStatus :status="goal.status" class="my-2" type="project_goal"/>
         <div v-if="!isCompleted">
             <div v-if="isInDeadline">

@@ -1,6 +1,6 @@
 <template>
 	<div
-		class="expansion-panel"
+		class="expansion-panel rounded overflow-hidden"
 		:class="[
 			attrsClass,
 			panelClass,

@@ -1,6 +1,6 @@
 <template>
     <BaseLayout 
-        :title="`成果目標（${selectedDate.short_name}）`" 
+        :title="`成果目標`" 
         :count="0" 
         :fullscreen="fullscreen" 
         :type="data.type"
@@ -38,8 +38,8 @@
                             <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 py-0.5">{{ item.chip }}</span>
                             {{ item.title }} ({{ item.users.length }})
                         </p>
-                        <div class="grid" :class="`grid-cols-${data.col.split('-')[2]}`" >
-                            <div class="cursor-pointer hover:bg-[var(--bg3)] rounded flex flex-col text-[13px] overflow-hidden" v-for="member in item.users" :key="member.id">
+                        <ExpansionGrid class="gap-x-4" :col="Number(data.col.split('-')[2] ?? 1)">
+                            <!-- <div class="cursor-pointer hover:bg-[var(--bg3)] rounded flex flex-col text-[13px] overflow-hidden" v-for="member in item.users" :key="member.id">
                                 <label class="cursor-pointer p-2 w-full flex items-center" :for="`panel_${item.chip}_${member.id}`">
                                     <input :id="`panel_${item.chip}_${member.id}`" :name="`panel_${item.chip}`" type="radio" :value="`${item.chip}_${member.id}`" class="hidden" v-model="selectedPanel"/>
                                     <UserPanel size="25" :user="member" disable-instant/>
@@ -50,7 +50,7 @@
                                         </div>
                                         
                                         
-                                        <!-- <div class="jump-link ml-auto whitespace-nowrap" @click="{selectedUser = member; emit('toggle', parentElement, data.type)}">対応</div> -->
+                                        <div class="jump-link ml-auto whitespace-nowrap" @click="{selectedUser = member; emit('toggle', parentElement, data.type)}">対応</div>
                                     </div>
                                 </label>
                                 <Transition name="slidePop">
@@ -60,11 +60,49 @@
                                         </div>
                                     </div>
                                 </Transition>
-                            </div>
-                        </div>
-                    </div>
+                            </div> -->
+                            <ExpansionPanelItem
+                                hide-actions
+                                static
+                                :tile="true"
+                                class="rm-p"
+                                v-for="member in item.users" 
+                                :key="member.id" 
+                                :value="member.id"
+                            >
+                                <template #title="{ expanded }">
+                                    <PanelTitle :expanded="expanded">
+                                        <UserPanel size="25" :user="member" disable-instant/>
+                                        <div class="ml-2 flex w-full">
+                                            <div class="flex gap-1">
+                                                <span class="">{{ member.name }}</span>
+                                                <span class="ml-1 text-[12px] text-[gray] whitespace-nowrap">({{ member.outcome_goals.length }}件)</span>
+                                            </div>
+                                        </div>                                        
+                                    </PanelTitle>
+                                </template>
+                                <template #body>
+                                    <PanelData>
+                                        <div
+                                            v-for="group in groupOutcomeGoals(member.outcome_goals)"
+                                            :key="`${group.year}-${group.which_half}`"
+                                            class="mb-2"
+                                        >
+                                            <div class="text-[12px] text-[gray] mb-1 flex gap-1 justify-between">
+                                                {{ group.label }}（{{ group.goals.length }}件）
+                                                <div class="jump-link ml-auto whitespace-nowrap" @click="jumpToGoal(member, group, parentElement)">対応</div>
+                                            </div>
+                                        </div>
+                                    </PanelData>
+                                </template>
+                            </ExpansionPanelItem>
+                        </ExpansionGrid>
+                    </div>  
                     <div v-if="myGoals.length">
-                        <p v-if="approvaNeeded.length" class="text-sm mb-2">自分の目標 ({{ myGoals.length }})</p>
+                        <div class="flex text-sm my-2">
+                            <p v-if="approvaNeeded.length" class="text-sm mb-2">自分の目標 ({{ myGoals.length }})</p>
+                            <p>期間：{{ selectedDate.short_name }}</p>
+                        </div>                        
                         <ExpansionGrid class="gap-x-4" :col="Number(data.col.split('-')[2] ?? 1)">
                             <ExpansionPanelItem
                                 hide-actions
@@ -163,6 +201,13 @@ import UserPanel from '@/components/Global/UserPanel.vue';
 import { storeToRefs } from 'pinia';
 import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
+
+type OutcomeGoalGroup = {
+    year: number;
+    which_half: string;
+    label: string;
+    goals: ProjectGoal[];
+}
 
 const props = defineProps<{
     data: {
@@ -264,6 +309,53 @@ const goalIsOverWeek = (goal: ProjectGoal) => {
     const deadline = DateTime.fromISO(goal.end_date);
     const diffInDays = now.diff(deadline, 'days').days;
     return diffInDays > 7 && diffInDays >= 0;
+}
+
+const halfLabel = (whichHalf: string) => {
+    if (whichHalf === 'first') return '上期'
+    if (whichHalf === 'second') return '下期'
+    return whichHalf
+}
+
+const groupOutcomeGoals = (goals: ProjectGoal[]): OutcomeGoalGroup[] => {
+    const map = new Map<string, OutcomeGoalGroup>()
+
+    for (const goal of goals ?? []) {
+        const key = `${goal.year}-${goal.which_half}`
+        const existing = map.get(key)
+        if (existing) {
+            existing.goals.push(goal)
+            continue
+        }
+
+        map.set(key, {
+            year: goal.year,
+            which_half: goal.which_half,
+            label: `${goal.year}${halfLabel(goal.which_half)}`,
+            goals: [goal],
+        })
+    }
+
+    const halfRank = (whichHalf: string) => {
+        if (whichHalf === 'first') return 0
+        if (whichHalf === 'second') return 1
+        return 99
+    }
+
+    return Array.from(map.values()).sort((a, b) => {
+        if (a.year !== b.year) return b.year - a.year
+        return halfRank(a.which_half) - halfRank(b.which_half)
+    })
+}
+
+const jumpToGoal = (member: UserWithGoals, group: OutcomeGoalGroup, parentElement: HTMLElement | null) => {
+    if(!selectedUser.value) return
+    selectedUser.value = member; 
+    const selected = targetDates.find( date => date.year.toString() === group.year.toString() && date.which_half === group.which_half )
+    if(selected){
+        selectedDate.value = selected
+    }
+    emit('toggle', parentElement, props.data.type)
 }
 defineExpose({
     cardType: props.data.type,
