@@ -1,11 +1,6 @@
 <template>
     <div class="flex flex-col gap-[30px] relative" v-if="issue">
-
-        <ItemStatusDetail
-            :type="'salary_issue'"
-            :status="issue?.status"
-            :logs="issue?.status_logs"
-        />
+        <IssueStatus :issue="issue" :goal="goal"/>
         <div 
             v-if="auth.isAdmin" 
             class="flex flex-wrap items-center gap-[10px] bg-[var(--bg3)] px-[10px] py-[8px] mt-10"
@@ -118,7 +113,6 @@
         </div>
         <div class="flex gap-5 mb-3 justify-center">
             <LoaderButton v-if="salaryIssueReport" style="margin: 0;" :content="'開発能力検証報告'" @click="reportWindow = true"/>
-            <!-- <LoaderButton style="margin: 0;" v-if="evaluationData?.mentor_id === auth.id && issue?.status === 7" :content="'進捗報告承認'" @click="reportWindow"/> -->
         </div>
         <Teleport to="body">
             <Report
@@ -140,9 +134,8 @@ import { computed, ref } from 'vue';
 import MessageArea from '../../MessageArea.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import Files from '@/components/Global/Files.vue';
-import { useBadgeStore } from '@/store/badge';
 import Report from './Report.vue';
-import ItemStatusDetail from '../ItemStatusDetail.vue';
+import IssueStatus from './IssueStatus.vue';
 const passingData = {
     path: '/project_goal_comment_create',
     title: '進捗報告・メッセージ',
@@ -163,7 +156,6 @@ const { evaluationData } = storeToRefs(goalsStore)
 const selectedSalaryIssueStatus = ref<number | null>(null)
 
 const api = useApi()
-const badge = useBadgeStore()
 
 const reportWindow = ref(false)
 

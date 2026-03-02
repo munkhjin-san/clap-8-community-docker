@@ -1,6 +1,6 @@
 <template>
     <div>
-        <ItemStatus :status="goal.status" class="my-2" type="project_goal"/>
+        <GoalStatus class="mb-3" :item="goal"/>
         <div v-if="!isCompleted">
             <div v-if="isInDeadline">
                 <div>期日まであと{{ daysLeft }}日</div>
@@ -9,7 +9,7 @@
                 <div class="text-[tomato] text-[12px]">期日を過ぎています（{{ -daysLeft }}日）</div>
             </div>
         </div>       
-        <div class="mt-2">        
+        <div class="mt-2 ml-auto w-fit">        
             <router-link class="jump-link text-[12px]" :to="{name: 'dashboard', params: { type: 'overdueGoals', itemId: goal.id}}">{{ '詳細'}}</router-link>
         </div>
     </div>
@@ -18,7 +18,7 @@
 import { ProjectGoal } from '@/interface/projectInterface';
 import { DateTime } from 'luxon';
 import { computed } from 'vue';
-import ItemStatus from './ItemStatus.vue';
+import GoalStatus from './GoalStatus.vue';
 
 const props = defineProps<{
     goal: ProjectGoal

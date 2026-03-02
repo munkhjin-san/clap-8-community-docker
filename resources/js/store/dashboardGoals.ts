@@ -31,30 +31,30 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
 
     // Goal status constants
     const goalStatusList = [
-        '作成中（本人対応中）',
-        '目標を差戻中（本人対応中）',
-        '目標を上席者に申請中（上席者対応中）',
-        '目標を人事に申請中（人事対応中）',
-        '目標の変更申請中（人事対応中）',
-        '目標承認済み（本人対応中）',
-        '結果入力中（本人対応中）',
-        '結果を上席者に申請中（上席者対応中）',
-        '報告を差戻中（本人対応中）',
-        '結果を上席者承認済み（完了）'
+        '作成中（本人対応中）', // 0
+        '目標を差戻中（本人対応中）', // 1
+        '目標を上席者に申請中（上席者対応中）', // 2
+        '目標を人事に申請中（人事対応中）', // 3
+        '目標の変更申請中（人事対応中）', // 4
+        '目標承認済み（本人対応中）', // 5
+        '結果入力中（本人対応中）', // 6
+        '結果を上席者に申請中（上席者対応中）', // 7
+        '報告を差戻中（本人対応中）', // 8
+        '結果を上席者承認済み（完了）' // 9
     ]
 
     const salaryIssueStatusList = [
-        '作成中（本人対応中）',
-        '課題を差戻中（本人対応中）',
-        '課題をメンターに申請中（メンター対応中）',
-        '課題を人事に申請中（人事対応中）',
-        '課題の変更申請中（人事対応中）',
-        '課題承認済み（本人対応中）',
-        '結果入力中（本人対応中）',
-        '結果をメンターに申請中（メンター対応中）',
-        '結果を差戻中（本人対応中）',
-        '結果を人事に申請中（人事対応中）',
-        '昇給達成（完了）or 未達成（完了）'
+        '作成中（本人対応中）', // 0
+        '課題を差戻中（本人対応中）', // 1
+        '課題をメンターに申請中（メンター対応中）', // 2
+        '課題を人事に申請中（人事対応中）', // 3
+        '課題の変更申請中（人事対応中）', // 4
+        '課題承認済み（本人対応中）',  // 5
+        '結果入力中（本人対応中）', // 6
+        '結果をメンターに申請中（メンター対応中）', // 7
+        '結果を差戻中（本人対応中）', // 8
+        '結果を人事に申請中（人事対応中）', // 9
+        '昇給達成（完了）or 未達成（完了）' // 10
     ]
 
     // Actions
@@ -81,7 +81,23 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
             loading.value = false
         }
     }
-
+    const markAsRead = async ({column, value}: {column: string, value: any}) => {
+        const data = await api.post('/clear_goal_issue_badge', {column: column, value: value});
+        if(data){
+            if(column === 'project_goal_id'){
+                const goal = goals.value.find(g => g.id === value)
+                if(goal){
+                    goal.goal_notifications_count = 0
+                }
+            }
+            if(column === 'salary_issue_id'){
+                const goal = goals.value.find(g => g.salary_issue && g.salary_issue.id === value)
+                if(goal && goal.salary_issue){
+                    goal.salary_issue.issue_notifications_count = 0
+                }
+            }
+        }
+    }
     const initGoalData = async () => {
         const authStore = useAuthUserStore()
         const now = DateTime.local()
@@ -165,14 +181,24 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
     const pulseBadgeCount = computed(() => {
         const today = new Date()
         const overdueGoals = myGoals.value.filter(goal => {
-            return goal.status !== 9 && goal.end_date && new Date(goal.end_date) < today
+            if(goal.status === 9) return false
+            const now = DateTime.local();
+            const deadline = DateTime.fromISO(goal.end_date);
+            const diffInDays = now.diff(deadline, 'days').days;
+            return diffInDays > 7;
         })
 
         const needed = (requiredGoalData.value?.this_span?.needed_count || 0) + (requiredGoalData.value?.previous_span?.needed_count || 0)
         return overdueGoals.length + needed
     })
     const normalBadgeCount = computed(() => {
-        
+        return pendingMembers.value.length +
+        managersGoals.value.length +
+        adminApprovalNeededGoalsWithSalaryIssue.value.length +
+        mentorApprovalNeededGoalsWithSalaryIssue.value.length +
+        adminApprovalNeededGoals.value.length
+
+
     })
 
     return {
@@ -204,10 +230,12 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         salaryIssueStatus,
         kpiCalculation,
         overallScore,
+        markAsRead,
 
         // Computed
         totalOverallScore,
         pulseBadgeCount,
+        normalBadgeCount
     }
 })
 

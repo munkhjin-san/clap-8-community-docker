@@ -4,30 +4,8 @@
         <template #title>
             <div class="admin-command-bar">            
                 <div class="sub-tab-container">
-                    <div @click="sub_tab = 0" :class="['sub-tab-item flex gap-[3px]', { 'selected-sub-tab': sub_tab == 0 }]">成果目標
-                        <span 
-                            class="side-notification" 
-                            style="position: unset;width:15px" 
-                            v-if="badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length"
-                            :class="{
-                                'side-notification--comment-only': !badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length && badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length
-                            }"
-                        >
-                            {{ badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'project_goal_id', value: goal.id}]).length }}
-                        </span>
-                    </div>
-                    <div @click="sub_tab = 1, badge.clearGoalIssue({column: 'salary_issue_id', value: goal?.salary_issue?.id})" :class="['sub-tab-item flex gap-[3px]', { 'selected-sub-tab': sub_tab == 1 }]">昇給課題
-                        <span 
-                            class="side-notification" 
-                            style="position: unset;width:15px" 
-                            v-if="badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: goal?.salary_issue?.id}]).length"
-                            :class="{
-                                'side-notification--comment-only': !badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}]).length && badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: goal?.salary_issue?.id}]).length
-                            }"
-                        >
-                            {{ badge.salaryIssueByFilter([{by: 'goal_id', value: goal.id}]).length + badge.goalIssueCommentBadgeByFilter([{by: 'salary_issue_id', value: goal?.salary_issue?.id}]).length }}
-                        </span>
-                    </div>
+                    <div @click="sub_tab = 0" :class="['sub-tab-item flex gap-[3px]', { 'selected-sub-tab': sub_tab == 0 }]">成果目標</div>
+                    <div @click="sub_tab = 1, markAsRead({column: 'salary_issue_id', value: goal?.salary_issue?.id})" :class="['sub-tab-item flex gap-[3px]', { 'selected-sub-tab': sub_tab == 1 }]">昇給課題</div>
                 </div>       
             </div>
         </template>
@@ -39,14 +17,7 @@
                         <div class="text-[13px] font-semibold">該当部門 ／ 職能レベル ／ 担当者</div>
                         <div class="kadai-content">{{ goal?.project?.name }} ／ {{ evaluationData?.current_level ?? '未設定' }} ／ {{ goal?.user?.name }}</div>
                     </div>
-                    <!-- <div class="w-fit">
-                        <div class="px-[10px] py-[5px] bg-[var(--bg3)] text-[12px]">{{ goalStatus(goal?.status) }}</div>
-                    </div> -->
-                    <ItemStatusDetail
-                        :type="'project_goal'"
-                        :status="goal?.status"
-                        :logs="goal?.status_logs"
-                    />
+                    <GoalStatus :item="goal"/>                        
                     <div 
                         v-if="auth.isAdmin" 
                         class="flex flex-wrap items-center gap-[10px] bg-[var(--bg3)] px-[10px] py-[8px]"
@@ -190,17 +161,16 @@ import LoaderButton from '@/components/Global/LoaderButton.vue';
 import ProjectGoalResult from './ProjectGoalResult.vue';
 import Files from '@/components/Global/Files.vue';
 import { ProjectGoal } from '@/interface/projectInterface';
-import { useBadgeStore } from '@/store/badge'
 import { useRouter } from 'vue-router';
 import Modal from '@/components/Global/Modal.vue';
 import { DateTime } from 'luxon';
 import ProgressSlider from '../ProgressSlider.vue';
 import { useApi } from '@/composables/api';
 import MessageArea from '../MessageArea.vue';
-import { useDashboardGoalsStore, issueThemes } from '@/store/dashboardGoals';
+import { useDashboardGoalsStore } from '@/store/dashboardGoals';
 import { storeToRefs } from 'pinia';
 import SalaryIssueSection from './SalaryIssueSection.vue';
-import ItemStatusDetail from './ItemStatusDetail.vue';
+import GoalStatus from './GoalStatus.vue';
 
 
 const props = defineProps<{
@@ -212,7 +182,7 @@ const emit = defineEmits(['close'])
 const auth = useAuthUserStore()
 const goalsStore = useDashboardGoalsStore()
 const { evaluationData } = storeToRefs(goalsStore)
-const { getGoals, invalidateCache } = goalsStore
+const { getGoals, invalidateCache, markAsRead } = goalsStore
 const openReport = ref(false)
 const sub_tab = ref(0)
 const reviewing = ref(false)
@@ -224,8 +194,6 @@ const passingData = {
     title: '進捗報告・メッセージ',
     file_path: 'project_goal_report_files'
 }
-
-const badge = useBadgeStore()
 const router = useRouter()   
 const scoreMap = {
     1: '明確に悪化',
@@ -237,7 +205,7 @@ const scoreMap = {
 
 onMounted(async () => {
     setTimeout(() => {
-        badge.clearGoalIssue({column: 'project_goal_id', value: props.goal?.id})
+        markAsRead({column: 'project_goal_id', value: props.goal?.id})
     }, 3000);
 })
 
@@ -331,11 +299,6 @@ const updateGoalStatus = async(status: number, action: string) => {
     loaderBank[status] = false
     if(!result) return
     refresh()
-
-    if(auth.user && auth.user?.position_id && auth.user?.position_id < 6){
-        badge.getManagersGoalsBadge()
-    }
-    badge.getMembersGoalsBadge()
 
 }
 </script>

@@ -1,23 +1,29 @@
 <template>
 	<div
-		class="expansion-panel rounded overflow-hidden"
+		class="expansion-panel rounded"
 		:class="[
 			attrsClass,
 			panelClass,
 			isExpanded ? selectedClass : null,
-			{ 'is-expanded': isExpanded, 'is-last-row': isLastRow },
+			{ 'is-expanded': isExpanded, },
 		]"
 		v-bind="rootAttrs"
 	>
 		<div
 			:id="titleId"
 			:class="[
-				'expansion-panel-title text-left bg-transparent border-0 flex hover:bg-[var(--bg3)] cursor-pointer items-center',
+				'expansion-panel-title text-left border-0 flex  cursor-pointer items-center',
 				titleClass,
+                {'bg-[var(--selected-background)]' : isExpanded},
+                {'hover:bg-[var(--bg3)]' : !isExpanded}
 			]"
 			:disabled="disabled"
 			:aria-expanded="isExpanded"
 			:aria-controls="contentId"
+            :style="{
+                borderRadius: isExpanded ? '5px 5px 0 0 ' : '5px'
+                
+            }"
 			@click="onTitleClick"
 		>
 			<slot name="title" :expanded="isExpanded" :toggle="toggle" :disabled="disabled" />
@@ -31,17 +37,19 @@
 			@after-leave="onAfterLeave"
 		>
 			<div
-				v-show="isExpanded"
-				class="expansion-panel-text"
+				v-if="isExpanded"
+				class="expansion-panel-text  bg-[var(--selected-background)]"
 				:id="contentId"
 				role="region"
 				:aria-labelledby="titleId"
+                style="border-radius: 0 0 5px 5px;"
 			>
 				<div class="expansion-panel-text__wrapper">
 					<slot name="body" :expanded="isExpanded" :toggle="toggle" :disabled="disabled" />
 				</div>
 			</div>
 		</transition>
+        <div class="d-separator-line" v-if="!isLastRow"></div>
 	</div>
 </template>
 
@@ -191,21 +199,18 @@ function onAfterLeave(el: Element) {
 .expansion-panel-leave-active {
 	transition: height 200ms ease;
 }
-.is-expanded .expansion-panel-text {
-    border-bottom: solid 1px var(--panel-separate);
-}
-.expansion-panel-title{
-    border-bottom: solid 1px var(--panel-separate);
-}
+
+
 .is-expanded .expansion-panel-title{
     border-bottom: none;
 }
 
-.is-last-row .expansion-panel-title{
-	border-bottom: none;
-}
-
-.is-last-row.is-expanded .expansion-panel-text {
-	border-bottom: none;
+.d-separator-line{
+    height: 1px;
+    background-color: var(--panel-separate);
+    width: calc(100% - 20px);
+    margin: -1px auto;
+    z-index: 4;
+    position: relative;
 }
 </style>

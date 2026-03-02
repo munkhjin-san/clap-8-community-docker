@@ -62,11 +62,22 @@ export type DashboardPersonnelEvaluationCard = CardBase & {
         pendingEvaluations: any[]
     }
 }
-
+export type pendingTimesheedData = {
+    overtime: number
+    shift: {
+        month: number
+        count: number        
+    }[]
+    timecard: {
+        month: number
+        count: number
+    }[]
+    user: User
+}
 export type DashboardTimesheetCard = CardBase & {
     layout: 'timesheet'
     data: {
-        pendingTimesheets: any[]
+        pendingTimesheets: pendingTimesheedData[]
         departuresReportUsers: UserWithShift[],
         pendingPlannedLeaves: any[],
     }

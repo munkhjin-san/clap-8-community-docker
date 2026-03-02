@@ -53,4 +53,8 @@ class SalaryIssue extends Model
         return $q->where('status', '<', 9);
     }
 
+    public function issue_notifications(){
+        return $this->hasMany(ProjectMemberReportNotification::class);
+    }
+
 }

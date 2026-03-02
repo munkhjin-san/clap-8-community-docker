@@ -16,7 +16,7 @@
                 <path d="M20.36,10.34c-1.89-.13-3.77-.16-5.66-.19-3.1-.03-6.35.01-9.44.15-1.24.11-1.24,1.86,0,1.97,2.47.11,5.07.16,7.55.16,2.49-.01,5.07-.04,7.55-.2.47-.03.85-.4.88-.88.04-.52-.36-.98-.88-1.01Z"></path>
                 <path d="M20.29,15.1c-1.88-.13-3.76-.16-5.64-.19-3.09-.03-6.31.01-9.39.15-1.24.11-1.24,1.86,0,1.97,2.46.11,5.05.16,7.52.16,2.48-.01,5.05-.04,7.52-.2.47-.03.85-.4.88-.88.04-.52-.36-.98-.88-1.01Z"></path></svg>
         </template>
-        <div v-if="!fullscreen" class="mx-3 mb-3">
+        <div v-if="!fullscreen" class="m-5">
             <div v-if="data.data.length" class="mb-3">
                 <p class="text-sm mb-2">未回答フォーム</p>
                 <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
@@ -35,11 +35,12 @@
                         </template>
                         <template #body>
                             <PanelData>
-                                <CommandButton
-                                    :buttons="[
-                                        { title: '回答', action: () => router.push(`/survey/${form.id}`) },
-                                    ]"
-                                />
+                                <div>
+                                    <div v-html="form.description"></div>
+                                </div>
+                                <div class="mt-3 ml-auto w-fit">
+                                    <router-link :to="`/survey/${form.id}`" class="jump-link text-[12px]">回答する</router-link>
+                                </div>
                             </PanelData>
                         </template>
                     </ExpansionPanelItem>
@@ -100,7 +101,6 @@ import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
 import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
-// import MySurveyAnswers from '@/components/Survey/MySurveyAnswers.vue';
 
 const props = defineProps<{
     data: {

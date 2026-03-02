@@ -1,7 +1,7 @@
 import { Asset } from "@/interface/assetInterface";
 import { CalendarRecord } from "@/interface/calendarInterface";
 import { CustomForm } from "@/interface/customFormInterface";
-import { UserWithShift } from "@/interface/dashboard";
+import { pendingTimesheedData, UserWithShift } from "@/interface/dashboard";
 import { Message, Task, User } from "@/interface/globalInterface";
 import { Post } from "@/interface/postInterface";
 import { Evaluation } from "@/interface/projectInterface";
@@ -37,7 +37,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
             pendingEvaluations: [] as any[],
         },  
         timesheet: {
-            pendingTimesheets: [] as any[],
+            pendingTimesheets: [] as pendingTimesheedData[],
             departuresReportUsers: [] as UserWithShift[],
             pendingPlannedLeaves: [] as any[],
 

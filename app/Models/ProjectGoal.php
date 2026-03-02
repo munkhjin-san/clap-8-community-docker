@@ -71,5 +71,8 @@ class ProjectGoal extends Model
         if (!$this->end_date) return null;
         return Carbon::parse($this->end_date)->addDays(7)->toDateString();
     }
+    public function goal_notifications(){
+        return $this->hasMany(ProjectMemberReportNotification::class);
+    }
 
 }

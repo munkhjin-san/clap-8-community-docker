@@ -178,6 +178,7 @@ interface ProjectGoal {
     year: number;
     which_half: string
     user: User;
+    goal_notifications_count?: number;
     status_logs?: StatusLog[];
 }
 interface ProjectGoalReport {
@@ -209,6 +210,7 @@ interface SalaryIssue {
     comment: string | null;
     files?: MessageFile[];
     status_logs?: StatusLog[];
+    issue_notifications_count?: number;
 }
 interface SalaryIssueAction {
     content: string;

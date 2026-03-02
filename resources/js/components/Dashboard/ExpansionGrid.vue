@@ -1,11 +1,11 @@
 <template>
     <div
-        class="v-expansion-panels grid"
+        class="v-expansion-panels grid under960:!grid-cols-1"
         :class="attrsClass"
         :style="gridStyle"
         v-bind="rootAttrs"
-    >
-        <slot />
+    >       
+        <slot></slot>        
     </div>
 </template>
 <script setup lang="ts">

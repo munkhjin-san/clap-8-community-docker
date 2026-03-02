@@ -501,7 +501,15 @@ class ProjectController extends Controller
                 'reports' => fn($q) => $q->with('user'),
                 'user' => fn($q) => $q->select('id', 'name', 'icon_path', 'icon_bg', 'position_id'),
             ])
-            ->with(['salaryIssue' => fn ($q) => $q->with(['files', 'actions', 'reports', 'statusLogs' => fn ($q) => $q->with('user')])])
+            ->withCount(['goal_notifications' => fn($q) => $q->where('target_user_id', $self_id)])
+            ->with(['salaryIssue' => fn ($q) => $q->with([
+                    'files', 
+                    'actions', 
+                    'reports', 
+                    'statusLogs' => fn ($q) => $q->with('user')
+                    ])->withCount(['issue_notifications' => fn($q) => $q->where('target_user_id', $self_id)
+                ])
+            ])
             ->get();
     }
     public function get_member($projectId, $memberId)

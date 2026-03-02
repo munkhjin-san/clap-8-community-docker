@@ -31,7 +31,7 @@
             </div>
             <router-link :to="{name: 'dashboard'}" :class="['side-menu-route', { selectedRoute: selectedRoute == 'dashboard'}]">
                 <div class="side-menu-route-inner">               
-                    <span v-if="dashboardStore.badgeCount + pulseBadgeCount" :class="['side-notification', {'custom-heartbeat' : pulseBadgeCount > 0}]">{{ dashboardStore.badgeCount + pulseBadgeCount}}</span>  
+                    <span v-if="dashboardStore.badgeCount + pulseBadgeCount + normalBadgeCount" :class="['side-notification', {'custom-heartbeat' : pulseBadgeCount > 0}]">{{ dashboardStore.badgeCount + pulseBadgeCount + normalBadgeCount}}</span>  
                     <svg style="width: 20px;" class="side-app-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26.18075 22.84016">
                         <path d="M10.42886,11.35606c.59804.01137,1.09299-.41833,1.10554-.95974,0,0,.02337-4.30077.02342-4.30077.02106-1.32608.037-3.6849-.05964-4.88222-.05082-.62961-.56693-1.14724-1.26615-1.1463-.74289-.01084-1.48582-.02669-2.22876-.0334C6.70803.00912,4.85971.01763,3.54563,0c-.74294-.00004-1.48588-.00032-2.22882.03747C.61072.04536.02403.56329.01808,1.21332-.00539,3.79137-.01363,6.55313.04111,9.13697c.01856.37225.02586.87312.065,1.23866.04726.56637.57545,1.0076,1.21071.9972l9.09398-.01792c.00606.0002.01195.00103.01807.00114h0ZM1.91012,5.7509c.0065-1.20847-.05605-2.87781-.06529-4.08625,2.57652.0326,5.35896.03273,7.93312,0,.01846,1.22679-.03667,3.02439-.00416,4.08626,0,0-.03364,2.34956.00416,3.80115l-7.93312.0496c.04623-1.24747.05967-2.76781.06529-3.85076Z"/>
                         <path d="M14.52787,5.66255c1.77662.099,3.64147.13801,5.42106.14155,1.78553-.01092,3.64303-.03444,5.42106-.17401.3362-.02716.61253-.34857.63617-.76299.02581-.45237-.25902-.84416-.63617-.87511-1.35494-.10874-2.70952-.13808-4.0658-.16406-2.22652-.02597-4.55505.00877-6.77632.13159-.89464.0939-.895,1.61213,0,1.70303Z"/>
@@ -172,7 +172,7 @@ import { useDashboardStore } from '@/store/dashboard';
     const props = defineProps(['session', 'auth_user', 'setActiveUser', 'switchLoader'])
     const newsList = ref([])
     const breakTimeStore = useBreakTime()
-    const { pulseBadgeCount } = storeToRefs(useDashboardGoalsStore())
+    const { pulseBadgeCount, normalBadgeCount } = storeToRefs(useDashboardGoalsStore())
     const dashboardStore = useDashboardStore()
     onMounted(() => {
         setTimeout(() => {
