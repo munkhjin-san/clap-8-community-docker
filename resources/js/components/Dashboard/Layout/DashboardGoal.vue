@@ -19,13 +19,13 @@
                 <div class="spinner-mini"></div>
             </div>
             <div>
-                <div v-if="requiredGoalData && (requiredGoalData.this_span.needed_count || requiredGoalData.previous_span.needed_count) && !auth.isBoss">
+                <div class="space-y-2" v-if="requiredGoalData && (requiredGoalData.this_span.needed_count || requiredGoalData.previous_span.needed_count) && !auth.isBoss">
                     <div class="text-sm p-3 bg-[var(--bg3)] m-5 rounded-md leading-normal" >
                         <div v-if="requiredGoalData?.previous_span?.needed_count" class="flex items-center gap-2">
                             <div class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
                             {{ `${requiredGoalData.previous_span.year}年${requiredGoalData.previous_span.half == 'first' ? '上期' : '下期'}の成果目標：${requiredGoalData.previous_span.needed_count}件未作成` }}
                         </div>
-                        <div v-if="requiredGoalData?.this_span?.needed_count" class="flex items-center gap-2 mt-2">
+                        <div v-if="requiredGoalData?.this_span?.needed_count" class="flex items-center gap-2">
                             <div class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
                             {{ `${requiredGoalData.this_span.year}年${requiredGoalData.this_span.half == 'first' ? '上期' : '下期'}の成果目標：${requiredGoalData.this_span.needed_count}件未作成` }}
                         </div>
