@@ -202,7 +202,7 @@ class BoardController extends Controller
             ) DESC',
             [$active_user->id]
         )
-        ->withExists(['messages as has_draft_message'  => fn ($q) => $q->where('draft_flag', 1)])
+        ->withExists(['messages as has_draft_message'  => fn ($q) => $q->where('draft_flag', 1)->where('user_id', $active_user->id)])
         ->orderByDesc('updated_at')
         ->orderByDesc('id');
 
