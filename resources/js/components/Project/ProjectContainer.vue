@@ -217,7 +217,7 @@
             </Transition>
 
         </div>
-        <FloatButton @action="createWindow = true" id="projectCreate" v-if="auth.activeUser.position_id && auth.activeUser.position_id <= 6 && (route.name == 'gantt-chart' || route.name == 'project')">
+        <FloatButton @action="createWindow = true" id="projectCreate" v-if="(auth.activeUser.position_id && auth.activeUser.position_id <= 6 || auth.isAdmin) && (route.name == 'gantt-chart' || route.name == 'project')">
             <template #icon>
                 <AddIcon size="15" fill="black"/>
             </template>

@@ -17,10 +17,13 @@ import DashboardAsset from '@/components/Dashboard/Layout/DashboardAsset.vue'
 import DashboardSchedule from '@/components/Dashboard/Layout/DashboardSchedule.vue'
 import DashboardPersonnelEvaluation from '@/components/Dashboard/Layout/Admin/DashboardPersonnelEvaluation.vue'
 import DashboardTimesheet from '@/components/Dashboard/Layout/DashboardTimesheet.vue'
+import { useAuthUserStore } from '@/store/auth'
 
 /**
  * Layout type constants
  */
+
+const auth = useAuthUserStore()
 export const CARD_LAYOUTS = {
     MESSAGE: 'message',
     TASK: 'task',
@@ -191,19 +194,19 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         data: [] as CustomForm[],
         canFullscreen: true,
         canResize: true,
-    },
+    },    
     {
         title: '',
         type: 'overdueGoals',
         layout: 'monthly_goals',
-        col: 'col-span-1',
+        col: 'col-span-2',
         order: undefined,
         data: [],
         canFullscreen: true,
         canResize: true,
     },
     {
-        title: 'チャレンジ',
+        title: 'ポスト',
         type: 'challenges',
         layout: 'challenge',
         col: 'col-span-1',
@@ -269,6 +272,19 @@ export const ADMIN_PERSONNEL_EVALUATION_CARD: DashboardCard = {
 }
 
 /**
+ * Get default dashboard cards filtered by user permissions
+ */
+export function getDefaultDashboardCards(): DashboardCard[] {
+    return DEFAULT_DASHBOARD_CARDS.filter(card => {
+        // Overdue goals card - only include for non-partner and non-registered users
+        if (card.type === 'overdueGoals') {
+            return !auth.isPartner && !auth.isRegistered
+        }
+        return true
+    })
+}
+
+/**
  * Helper to determine if a card should be shown
  */
 export function shouldShowCard(card: DashboardCard): boolean {
@@ -282,13 +298,6 @@ export function shouldShowCard(card: DashboardCard): boolean {
     // Schedules card
     if (layout === 'schedules') {
         return (data as any)?.temp_schedules?.length > 0
-    }
-
-    if (layout === 'timesheet') { 
-        const timesheetData = data as any
-        return (timesheetData?.pendingTimesheets?.length > 0) || 
-               (timesheetData?.departuresReportUsers?.length > 0) || 
-               (timesheetData?.pendingPlannedLeaves?.length > 0)
     }
 
     // All other cards show by default

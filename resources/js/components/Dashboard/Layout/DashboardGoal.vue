@@ -19,17 +19,16 @@
                 <div class="spinner-mini"></div>
             </div>
             <div>
-                <div v-if="requiredGoalData && !auth.isBoss">
-                    <div class="text-sm p-3 bg-[var(--bg3)] m-3 rounded-md leading-normal" v-if="requiredGoalData?.previous_span?.needed_count">
-                        <p class="flex items-center gap-2">
+                <div v-if="requiredGoalData && (requiredGoalData.this_span.needed_count || requiredGoalData.previous_span.needed_count) && !auth.isBoss">
+                    <div class="text-sm p-3 bg-[var(--bg3)] m-5 rounded-md leading-normal" >
+                        <div v-if="requiredGoalData?.previous_span?.needed_count" class="flex items-center gap-2">
                             <div class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
                             {{ `${requiredGoalData.previous_span.year}年${requiredGoalData.previous_span.half == 'first' ? '上期' : '下期'}の成果目標：${requiredGoalData.previous_span.needed_count}件未作成` }}
-                        </p>
-                        <p class="flex items-center gap-2 mt-2" v-if="requiredGoalData.this_span.needed_count">
+                        </div>
+                        <div v-if="requiredGoalData?.this_span?.needed_count" class="flex items-center gap-2 mt-2">
                             <div class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
                             {{ `${requiredGoalData.this_span.year}年${requiredGoalData.this_span.half == 'first' ? '上期' : '下期'}の成果目標：${requiredGoalData.this_span.needed_count}件未作成` }}
-                        </p>
-
+                        </div>
                     </div>
                 </div>
                 <div v-if="!fullscreen" class="m-5">
@@ -51,12 +50,8 @@
                                 <template #title="{ expanded }">
                                     <PanelTitle :expanded="expanded">
                                         <UserPanel size="25" :user="member" disable-instant/>
-                                        <div class="ml-2 flex w-full">
-                                            <div class="flex gap-1">
-                                                <span class="">{{ member.name }}</span>
-                                                <span class="ml-1 text-[12px] text-[gray] whitespace-nowrap">({{ member.outcome_goals.length }}件)</span>
-                                            </div>
-                                        </div>                                        
+                                        <div class="overflow-hidden whitespace-nowrap text-ellipsis ml-2">{{ member.name }}</div>
+                                        <div class="ml-1 text-[12px] text-[gray] whitespace-nowrap">({{ member.outcome_goals.length }}件)</div>                       
                                     </PanelTitle>
                                 </template>
                                 <template #body>
@@ -76,10 +71,10 @@
                             </ExpansionPanelItem>
                         </ExpansionGrid>
                     </div>  
-                    <div v-if="myGoals.length">
-                        <div class="flex text-sm my-2">
-                            <p v-if="approvaNeeded.length" class="text-sm mb-2">自分の目標 ({{ myGoals.length }})</p>
-                            <p class="ml-2">期間：{{ selectedDate.short_name }}</p>
+                    <div v-if="myGoals.length" class="mt-6">
+                        <div class="flex text-sm my-2 flex-wrap gap-2 items-center">
+                            <p v-if="approvaNeeded.length" class="text-sm">自分の目標 ({{ myGoals.length }})</p>
+                            <p class="ml-auto text-[12px] text-[gray]">期間：{{ selectedDate.short_name }}</p>
                         </div>                        
                         <ExpansionGrid class="gap-x-4" :col="Number(data.col.split('-')[2] ?? 1)">
                             <ExpansionPanelItem
@@ -102,9 +97,7 @@
                                             <div v-if="goalIsOverWeek(goal)" class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
                                             <div class="overflow-hidden whitespace-nowrap text-ellipsis">{{ goal.title || goal.outcome_goal }}</div>
                                             <div class="flex items-center gap-1 ml-2">
-                                                <span class="side-notification" style="position: unset;width:15px;z-index: 1;" v-if="badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length">
-                                                    {{ badge.goalsBadgeByFilter([{by: 'id', value: goal.id}]).length }}
-                                                </span>
+                                                <div v-if="goal.user_id == auth.activeUser.id && (goal.status == 1 || goal.status == 8 || goal?.salary_issue?.status == 1 || goal?.salary_issue?.status == 8)" class="text-[11px] bg-[tomato] text-[white] px-1 rounded-full">差戻中</div>
                                                 <div class="relative flex" v-if="goal?.goal_notifications_count || goal?.salary_issue?.issue_notifications_count">
                                 
                                                     <svg fill="orange" xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 0 30.88051 24.9735">
@@ -170,7 +163,6 @@ import { useAuthUserStore } from '@/store/auth';
 import { detailedDateOptions } from '@/utils/tools';
 import { DateTime } from "luxon";
 import { useDashboardGoalsStore } from '@/store/dashboardGoals';
-import { useBadgeStore } from '@/store/badge';
 import { ProjectGoal } from '@/interface/projectInterface';
 import MonthlyGoalContainer from '@/components/Project/MonthlyGoal/MonthlyGoalContainer.vue';
 import GoalUserPicker from '@/components/Project/MonthlyGoal/GoalUserPicker.vue';
@@ -207,13 +199,9 @@ const emit = defineEmits<{
     toggle: [el: HTMLElement | null, title: string]
 }>()
 
-const badge = useBadgeStore()
-
 const goalsStore = useDashboardGoalsStore()
 const { loading, pendingMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals, requiredGoalData } = storeToRefs(goalsStore)
 const { getGoals } = goalsStore
-
-const selectedPanel = ref('');
 
 const auth = useAuthUserStore()
 const selectedUser = ref<User | null>(auth.user)
@@ -235,6 +223,7 @@ onMounted(() => {
     if(auth.id){
         selectedUser.value = auth.user
     }
+    console.log('yyy')
     // getGoals(selectedUser.value?.id ?? 0 ,year, span)
 })
 
@@ -247,35 +236,35 @@ const approvaNeeded = computed(() => {
     if(pendingMembers.value.length){
         items.push({
             chip: 'PM',
-            title: '承認漏れ【メンバー】',
+            title: '承認依頼【メンバー】',
             users: pendingMembers.value
         })
     }
     if(managersGoals.value.length){
         items.push({
             chip: '役員',
-            title: '承認漏れ【PM】',
+            title: '承認依頼【PM】',
             users: managersGoals.value
         })
     }
     if(mentorApprovalNeededGoalsWithSalaryIssue.value.length){
         items.push({
             chip: 'メンター',
-            title: '承認漏れ【メンティー】',
+            title: '承認依頼【メンティー】',
             users: mentorApprovalNeededGoalsWithSalaryIssue.value
         })
     }
     if(adminApprovalNeededGoalsWithSalaryIssue.value.length){
         items.push({
             chip: '人事',
-            title: '承認漏れ【昇給課題】',
+            title: '承認依頼【昇給課題】',
             users: adminApprovalNeededGoalsWithSalaryIssue.value    
         })
     }
     if(adminApprovalNeededGoals.value.length){
         items.push({
             chip: '人事',
-            title: '承認漏れ【成果目標】',
+            title: '承認依頼【成果目標】',
             users: adminApprovalNeededGoals.value    
         })
     }

@@ -31,7 +31,9 @@
                         :value="form.id ?? index"
                     >
                         <template #title="{ expanded }">
-                            <PanelTitle :expanded="expanded">{{ form.title }}</PanelTitle>
+                            <PanelTitle :expanded="expanded">
+                                <div class="overflow-hidden whitespace-nowrap text-ellipsis">{{ form.title }}</div>
+                            </PanelTitle>
                         </template>
                         <template #body>
                             <PanelData>

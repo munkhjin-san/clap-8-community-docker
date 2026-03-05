@@ -942,33 +942,33 @@ class CalendarController extends Controller
         
         $list = [
             'qualified_institution' => [
-                [ 'label' =>  '本社会議室', 'value' =>  0, 'selected' => false ],
-                [ 'label' =>  '本社休憩室', 'value' =>  1, 'selected' => false ],
-                [ 'label' =>  '大阪会議室', 'value' =>  2, 'selected' => false ],
-                [ 'label' =>  '東京会議室', 'value' =>  3, 'selected' => false ],
-                [ 'label' =>  '仙台会議室', 'value' =>  4, 'selected' => false ],
-                [ 'label' =>  '青森会議室', 'value' =>  5, 'selected' => false ],
-                [ 'label' => 'フジメンビル', 'value' => 6, 'selected' => false ],
+                [ 'label' =>  '本社会議室', 'value' =>  0, 'selected' => false, 'selectable' => true ],
+                [ 'label' =>  '本社休憩室', 'value' =>  1, 'selected' => false, 'selectable' => true ],
+                [ 'label' =>  '大阪会議室', 'value' =>  2, 'selected' => false, 'selectable' => true ],
+                [ 'label' =>  '東京会議室', 'value' =>  3, 'selected' => false, 'selectable' => true ],
+                [ 'label' =>  '仙台会議室', 'value' =>  4, 'selected' => false, 'selectable' => true ],
+                [ 'label' =>  '青森会議室', 'value' =>  5, 'selected' => false, 'selectable' => true ],
+                [ 'label' => 'フジメンビル', 'value' => 6, 'selected' => false, 'selectable' => true ],
             ],
             'zoom_value' => [
-                [ 'label' => 'Zoom1', 'value' => 0, 'selected' => false ],
-                [ 'label' => 'Zoom2', 'value' => 1, 'selected' => false ],
-                [ 'label' => 'Zoom3', 'value' => 2, 'selected' => false ]
+                [ 'label' => 'Zoom1', 'value' => 0, 'selected' => false, 'selectable' => true ],
+                [ 'label' => 'Zoom2', 'value' => 1, 'selected' => false, 'selectable' => true ],
+                [ 'label' => 'Zoom3', 'value' => 2, 'selected' => false, 'selectable' => true ]
             ],
             'qualified_car' => [
-                // [ 'label' => '福岡582く5617 ホンダライフ', 'value' => 0, 'selected' => false ],
-                [ 'label' => '福岡582え8686 ダイハツミラ', 'value' => 1, 'selected' => false ],
-                [ 'label' => '福岡580と5654 オッティ', 'value' => 2, 'selected' => false ],
-                [ 'label' => '福岡480わ3206 クリッパー', 'value' => 3, 'selected' => false ],
-                [ 'label' => '福岡480ね5019 バン', 'value' => 4, 'selected' => false ],
-                [ 'label' => '福岡480ね5020 バン', 'value' => 5, 'selected' => false ],
-                [ 'label' => '鹿児島582そ6650 ミライース', 'value' => 6, 'selected' => false ],
-                [ 'label' => '福岡582ち7350', 'value' => 7, 'selected' => false ],
-                [ 'label' => 'なにわ502の1116', 'value' => 8, 'selected' => false ],
-                [ 'label' => '大阪581わ707（ﾚﾝﾀｶｰ）', 'value' => 9, 'selected' => false ],
-                [ 'label' => '仙台580ひ6191', 'value' => 10, 'selected' => false ],
-                [ 'label' => '福岡582そ1234', 'value' => 11, 'selected' => false ],
-                [ 'label' => '鹿児島582そ8143', 'value' => 12, 'selected' => false ],
+                [ 'label' => '福岡582く5617 ホンダライフ', 'value' => 0, 'selected' => false, 'selectable' => false ],
+                [ 'label' => '福岡582え8686 ダイハツミラ', 'value' => 1, 'selected' => false, 'selectable' => true ],
+                [ 'label' => '福岡580と5654 オッティ', 'value' => 2, 'selected' => false, 'selectable' => true ],
+                [ 'label' => '福岡480わ3206 クリッパー', 'value' => 3, 'selected' => false, 'selectable' => true ],
+                [ 'label' => '福岡480ね5019 バン', 'value' => 4, 'selected' => false, 'selectable' => true ],
+                [ 'label' => '福岡480ね5020 バン', 'value' => 5, 'selected' => false, 'selectable' => true ],
+                [ 'label' => '鹿児島582そ6650 ミライース', 'value' => 6, 'selected' => false, 'selectable' => true ],
+                [ 'label' => '福岡582ち7350', 'value' => 7, 'selected' => false, 'selectable' => true ],
+                [ 'label' => 'なにわ502の1116', 'value' => 8, 'selected' => false, 'selectable' => true ],
+                [ 'label' => '大阪581わ707（ﾚﾝﾀｶｰ）', 'value' => 9, 'selected' => false, 'selectable' => true ],
+                [ 'label' => '仙台580ひ6191', 'value' => 10, 'selected' => false, 'selectable' => true ],
+                [ 'label' => '福岡582そ1234', 'value' => 11, 'selected' => false, 'selectable' => true ],
+                [ 'label' => '鹿児島582そ8143', 'value' => 12, 'selected' => false, 'selectable' => true ],
             ]
         ];
         if( $type == 'all' ){
@@ -999,9 +999,9 @@ class CalendarController extends Controller
             $facility_check = $this->facility_validate($rec, false);
             // $unavialable_items[] = $facility_check;
             $item = [
-                "label" => !$facility_check ? $list[$id]['label'] : $list[$id]['label'] . '（選択不可）' ,
+                "label" => !$facility_check && $list[$id]['selectable'] ? $list[$id]['label'] : $list[$id]['label'] . '（選択不可）' ,
                 "id" => (string) $list[$id]['value'],
-                "availablity" => !$facility_check
+                "availablity" => !$facility_check && $list[$id]['selectable'] 
             ];
             $items[] = $item;
 

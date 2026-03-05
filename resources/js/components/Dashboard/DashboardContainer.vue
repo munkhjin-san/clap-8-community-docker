@@ -26,7 +26,7 @@
                 </template>
                 <component
                     v-for="card in dashboardCards"
-                    :key="card.type"
+                    :key="`${card.type}-${updateKey}`"
                     v-show="!initialLoader && shouldShowCard(card)"
                     :is="DASHBOARD_COMPONENTS[card.layout]"
                     class="dashboard-card-item"
@@ -67,7 +67,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
 import { DashboardCard } from '@/interface/dashboard';
 import { 
     DASHBOARD_COMPONENTS, 
-    DEFAULT_DASHBOARD_CARDS, 
+    getDefaultDashboardCards,
     ADMIN_PERSONNEL_EVALUATION_CARD,
     CARD_DATA_KEY_BY_TYPE,
     CARD_ADMIN_DATA_KEY_BY_TYPE,
@@ -91,7 +91,7 @@ type SkeletonCard = {
     col: string
     height: number
 }
-
+const updateKey = ref(0)
 const randomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min
 
 const skeletonCards = ref<SkeletonCard[]>([])
@@ -99,7 +99,7 @@ const skeletonCards = ref<SkeletonCard[]>([])
 const prefsStore = useDashboardPrefsStore()
 
 // Initialize cards with defaults from config
-const defaultDashboardCards = structuredClone(DEFAULT_DASHBOARD_CARDS)
+const defaultDashboardCards = structuredClone(getDefaultDashboardCards())
 prefsStore.applyLayoutToCards(defaultDashboardCards)
 
 const dashboardCards = ref<DashboardCard[]>(prefsStore.applyOrderToCards(defaultDashboardCards))
@@ -342,8 +342,10 @@ const init = async() => {
 const refreshAll = async () => {
     initialLoader.value = true
     try {
+        updateKey.value += 1
         await dashboardGoalsStore.initDashboardData(true) // Force refresh
         syncDashboardCardsFromStore()
+        dashboardStore.getAnnualLeaveData()
     } finally {
         initialLoader.value = false
     }

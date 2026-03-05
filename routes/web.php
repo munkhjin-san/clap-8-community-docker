@@ -426,6 +426,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/check_break_time', [WorkController::class, 'check_break_time']);
         Route::put('/shift_add_department', [WorkController::class, 'shift_add_department']);
         Route::post('/get_planned_leaves', [WorkController::class, 'get_planned_leaves']);
+        Route::get('/annual_leave_data', [WorkController::class, 'annual_leave_data']);
+
         Route::get('/get_my_car_data', [WorkController::class, 'get_my_car_data']);
         Route::get('/get_remaining_days', [WorkController::class, 'get_remaining_days']);
         Route::get('/get_work_temp', [WorkController::class, 'get_work_temp']);

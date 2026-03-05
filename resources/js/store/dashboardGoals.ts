@@ -89,11 +89,19 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
                 if(goal){
                     goal.goal_notifications_count = 0
                 }
+                const myGoal = myGoals.value.find(g => g.id === value)
+                if(myGoal){
+                    myGoal.goal_notifications_count = 0
+                }
             }
             if(column === 'salary_issue_id'){
                 const goal = goals.value.find(g => g.salary_issue && g.salary_issue.id === value)
                 if(goal && goal.salary_issue){
                     goal.salary_issue.issue_notifications_count = 0
+                }
+                const myGoal = myGoals.value.find(g => g.salary_issue && g.salary_issue.id === value)
+                if(myGoal && myGoal.salary_issue){
+                    myGoal.salary_issue.issue_notifications_count = 0
                 }
             }
         }
@@ -179,7 +187,6 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
 
 
     const pulseBadgeCount = computed(() => {
-        const today = new Date()
         const overdueGoals = myGoals.value.filter(goal => {
             if(goal.status === 9) return false
             const now = DateTime.local();
@@ -192,13 +199,25 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         return overdueGoals.length + needed
     })
     const normalBadgeCount = computed(() => {
+        const attentionNeededMyGoals = myGoals.value.filter(goal => goal.status == 1 || goal.status == 8 || (goal.salary_issue && (goal.salary_issue.status == 1 || goal.salary_issue.status == 8)))
+
         return pendingMembers.value.length +
         managersGoals.value.length +
         adminApprovalNeededGoalsWithSalaryIssue.value.length +
         mentorApprovalNeededGoalsWithSalaryIssue.value.length +
-        adminApprovalNeededGoals.value.length
+        adminApprovalNeededGoals.value.length +
+        attentionNeededMyGoals.length + 
+        commentCount.value
+        
+    })
 
-
+    const commentCount = computed(() => {
+        const myGoalComments = myGoals.value.reduce((acc, goal) => {
+            const goalComments = goal.goal_notifications_count || 0
+            const salaryIssueComments = goal.salary_issue?.issue_notifications_count || 0
+            return acc + goalComments + salaryIssueComments
+        }, 0)
+        return myGoalComments
     })
 
     return {
@@ -235,7 +254,8 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         // Computed
         totalOverallScore,
         pulseBadgeCount,
-        normalBadgeCount
+        normalBadgeCount,
+        commentCount
     }
 })
 

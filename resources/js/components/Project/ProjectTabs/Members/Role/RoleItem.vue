@@ -27,6 +27,7 @@
 
 <script setup lang="ts">
 import ItemMenu from '@/components/Global/ItemMenu.vue';
+import { useProject } from '@/composables/project';
 import { MemberRole } from '@/interface/projectInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { computed } from 'vue';
@@ -41,8 +42,8 @@ const emit = defineEmits<{
 }>()
 
 const auth = useAuthUserStore()
+const { isManager } = useProject()
 const isAuthorized = computed(() => {
-	const activeUserId = auth.activeUser?.id
-	return auth.hasPrivilage || (activeUserId != null && props.role.user_id === activeUserId)
+	return auth.isBoss || auth.isAdmin || isManager.value
 })
 </script>

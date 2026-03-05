@@ -2034,6 +2034,25 @@ class WorkController extends Controller
                                     ->get();
         return response()->json($paidholidays);
     }
+    public function annual_leave_data(Request $request){
+        $user = $this->active_user();
+        $year = Carbon::now()->year;
+        $planned_leaves_this_year = $this->get_planned_leaves(new Request(['user_id' => $user->id, 'year' => $year]))->getData(true);
+        $planned_leaves_last_year = $this->get_planned_leaves(new Request(['user_id' => $user->id, 'year' => $year - 1]))->getData(true);
+        $user->code = $user->user_code;
+        $remaining_days = 0;
+        if($user->user_code){
+            $remaining_days_data = $this->get_remaining_days(new Request(['user_code' => $user->user_code]))->getData(true);
+
+            $remaining_days = $remaining_days_data['days'] ?? 0;
+            $remaining_days = (int) $remaining_days;
+        }
+        return response()->json([
+            'planned_leaves_this_year' => $planned_leaves_this_year,
+            'planned_leaves_last_year' => $planned_leaves_last_year,
+            'remaining_days' => $remaining_days
+         ]);
+    }
     public function send_departure_report(Request $request){
         $user = Auth::user();
         $date = Carbon::now()->toDateString();

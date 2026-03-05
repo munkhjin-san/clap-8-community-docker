@@ -231,12 +231,22 @@ class DashboardController extends Controller
         $target_users = [];
         $workGroupIds = [];
         $list = [];
+
+        $headquartersIds = [];
+        $hqProject = ProjectRecord::where('id', 20)->first();
+        if($hqProject){
+            $headquartersIds = $hqProject->members()->pluck('users.id')->toArray();
+        }
         if(in_array($active_user->id, $ids)){
-            $pms = User::where('position_id', 6)
-                        ->where('retire', 0)
+            $pms = User::where('retire', 0)
                         ->where('partner_flag', 0)
                         ->where('deleted_flag', 0)
                         ->where('on_leave', 0)
+                        ->where(function ($query) use ($headquartersIds) {
+                            $query->where('position_id', 6)
+                            ->orWhereIn('id', $headquartersIds);
+                        })
+                        
                         ->pluck('id')->toArray();
             $target_users = $pms;
             $workGroupIds = ProjectRecord::pluck('id')->unique()->values()->toArray();
@@ -303,45 +313,76 @@ class DashboardController extends Controller
     public function schedules(){
         $active_user = $this->active_user();
         $userId = $active_user->id;
-        $records = CalendarRecord::where('temp_flag', 1)->where('date_start', '>=', Carbon::today()->startOfMonth())
-            ->whereHas('calendar_users', function ($query) use ($userId) {
-                $query->where('user_id', $userId);
-            })->with([
-                'calendar_users',
+
+        $now = now();
+
+        $monthStart = $now->copy()->startOfMonth();
+        $endOfMonth = $now->copy()->endOfMonth();
+
+        $nextWeekEnd = $now->copy()->addWeek()->endOfWeek();
+
+        // later of endOfMonth / nextWeekEnd
+        $upperBound = $endOfMonth->greaterThan($nextWeekEnd) ? $endOfMonth : $nextWeekEnd;
+
+        $records = CalendarRecord::query()
+            ->whereHas('calendar_users', fn ($q) => $q->where('user_id', $userId))
+            ->whereBetween('date_start', [$monthStart, $upperBound]) // starts in range
+            ->whereNot('title', '休日')
+            ->with([
                 'department',
                 'task',
                 'updated_by',
-                'created_by',
-                'files',
-                'calendar_view_users',
-    
-            ])->get();
+                'calendar_users' => fn($q) => $q->where('user_id', $userId),
+            ])
+            ->get();
+
+        $thisWeekStart = $now->copy()->startOfWeek();
+        $thisWeekEnd   = $now->copy()->endOfWeek();
+
+        $nextWeekStart = $now->copy()->addWeek()->startOfWeek();
+        $nextWeekEnd   = $now->copy()->addWeek()->endOfWeek();
+
+        // temp: “this month and onward”
+        $tempSchedules = $records->where('temp_flag', 1)->values();
+
+        // If you want "starts in week" (same as your original logic)
+        $thisWeek = $records->filter(fn($r) =>
+            $r->date_start >= $thisWeekStart && $r->date_start <= $thisWeekEnd && $r->temp_flag != 1
+        )->values();
+
+        $nextWeek = $records->filter(fn($r) =>
+            $r->date_start >= $nextWeekStart && $r->date_start <= $nextWeekEnd && $r->temp_flag != 1
+        )->values();
+
         return [
-            "temp_schedules" => $records
-        ];    
+            'temp_schedules' => $tempSchedules,
+            'this_week_schedules' => $thisWeek,
+            'next_week_schedules' => $nextWeek,
+        ];
         
     }
     public function challenges()
     {
         $now = now();
         $active_user = $this->active_user();
-        $challenges = PostRecord::query()
-            ->where('app_type', 2)
-            ->where('status_flag', 0)
-            ->whereHas('to_users', function ($q) use ($active_user) {
-                $q->where('users.id', $active_user->id);
-            })
-            ->whereNotNull('date_start')
-            ->whereNotNull('date_end')
-            ->where('date_start', '<=', $now)
-            ->where('date_end', '>=', $now)    // active window
-            ->orderByDesc('date_start')
-            ->get();
+        $challengesQuery = PostRecord::query()
+        ->where('app_type', 2)            
+        ->whereHas('to_users', function ($q) use ($active_user) {
+            $q->where('users.id', $active_user->id);
+        })            
+        ->whereNotNull('date_start')
+        ->whereNotNull('date_end') 
+        ->orderByDesc('date_start');
 
-        if (!$challenges->count()) {
-            return [];
-        }
-        $data = $challenges->map(function ($challenge) use ($now) {
+        $progressNeed = (clone $challengesQuery)->where('status_flag', 0)->where('date_start', '<=', $now)
+        ->where('date_end', '>=', $now) 
+        ->get();
+        // if (!$challenges->count()) {
+        //     return [];
+        // }
+
+        $updateNeed = (clone $challengesQuery)->whereIn('status_flag', [0, 5])->get();
+        $data = $progressNeed->map(function ($challenge) use ($now) {
             $start = Carbon::parse($challenge->date_start);
             $end   = Carbon::parse($challenge->date_end);
 
@@ -352,9 +393,14 @@ class DashboardController extends Controller
             if ($pct < 50) {
                 return null; // skip if less than 50%
             }
+            $challenge['attention_type'] = 'progress_need';
             return $challenge;
         })->filter()->values();
-        return $data;
+        $updateNeed->each(function ($challenge) {
+            $challenge['attention_type'] = 'update_need';
+        });
+        $final = $data->concat($updateNeed)->sortBy('date_start')->values();
+        return $final;
 
     }
     public function departuresReportUsers($badge = false) {

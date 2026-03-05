@@ -12,7 +12,7 @@
             </div>
         </div>
         <div v-else>役割が設定されていません。</div>
-        <FloatButton @action="() => { editData = null; createWindow = true }">
+        <FloatButton v-if="auth.isBoss || auth.isAdmin || isManager" @action="() => { editData = null; createWindow = true }">
             <template #icon>
                 <AddIcon />
             </template>
@@ -37,14 +37,16 @@ import { MemberRole } from '@/interface/projectInterface';
 import { computed, ref } from 'vue';
 import RoleCreate from './Role/RoleCreate.vue';
 import RoleItem from './Role/RoleItem.vue';
+import { useAuthUserStore } from '@/store/auth';
 
-const { memberData, selectedProject } = useProject()
+const { memberData, selectedProject, isManager } = useProject()
 
 const api = useApi()
 const { ask } = useDialog()
 
 const editData = ref<MemberRole | null>(null)
 const createWindow = ref(false)
+const auth = useAuthUserStore()
 
 const roles = computed(() => {
     return selectedProject.value?.member_roles ?? []

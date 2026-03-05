@@ -63,6 +63,7 @@ export interface CalendarRecord{
     facilities: Facility[];
     task: Task;
     members_only: number;
+    temp_flag: number
 }
 
 

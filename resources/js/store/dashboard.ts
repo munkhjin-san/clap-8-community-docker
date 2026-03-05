@@ -5,7 +5,7 @@ import { pendingTimesheedData, UserWithShift } from "@/interface/dashboard";
 import { Message, Task, User } from "@/interface/globalInterface";
 import { Post } from "@/interface/postInterface";
 import { Evaluation } from "@/interface/projectInterface";
-import { WorkItem } from "@/interface/workInterface";
+import { Shift, WorkItem } from "@/interface/workInterface";
 import axios from "axios";
 import { DateTime } from "luxon";
 import { defineStore } from "pinia";
@@ -27,6 +27,8 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         remindedMessages: [] as Message[],
         schedules: {
             temp_schedules: [] as CalendarRecord[],
+            this_week_schedules: [] as CalendarRecord[],
+            next_week_schedules: [] as CalendarRecord[],
         },
         pendingDailyReports: [] as any[],
         mustCheckMessages: [] as Message[],
@@ -42,6 +44,22 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
             pendingPlannedLeaves: [] as any[],
 
         }
+    })
+
+    const annualLeaveData = ref<{
+        remaining_days: number;
+        planned_leaves_this_year: Shift[];
+        planned_leaves_last_year: Shift[];
+        refreshed_at: string | null;
+        fetched: boolean;
+        fetching: boolean;
+    }>({
+        remaining_days: 0,
+        planned_leaves_this_year: [],
+        planned_leaves_last_year: [],
+        refreshed_at: null,
+        fetched: false,
+        fetching: false,
     })
     const lastUpdated = ref<DateTime | null>(null);
 
@@ -97,9 +115,27 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         return total
     })
 
+    const getAnnualLeaveData = async () => {
+        try {
+            annualLeaveData.value.fetching = true;
+            const res = await axios.get('/annual_leave_data');
+            annualLeaveData.value.remaining_days = res.data.remaining_days ?? 0;
+            annualLeaveData.value.planned_leaves_this_year = res.data.planned_leaves_this_year ?? [];
+            annualLeaveData.value.planned_leaves_last_year = res.data.planned_leaves_last_year ?? [];
+            annualLeaveData.value.refreshed_at = DateTime.now().toISO();
+            annualLeaveData.value.fetched = true;
+        } catch (error) {
+            console.error('Error fetching annual leave data:', error);
+        } finally {
+            annualLeaveData.value.fetching = false;
+        }
+    }
+
     return {
         collection,
         getBatchDashboardData,
-        badgeCount
+        badgeCount,
+        annualLeaveData,
+        getAnnualLeaveData
     }
 });

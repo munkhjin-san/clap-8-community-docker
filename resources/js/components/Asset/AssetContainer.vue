@@ -1,13 +1,12 @@
 <template>
     <div class="bg-[var(--background-color)] relative">
         <div v-if="loading" class="spinner-micro fixed top-2/4 left-2/4"></div>
-        <div>
-            
+        <div>            
             <div class="min-h-[calc(100%-50px)]">
-                <div class="flex px-4 pb-4">
+                <div class="flex px-4 pb-4" v-if="!auth.isPartner && !auth.isRegistered">
                     <div id="assetSort" class="relative flex border border-solid border-[var(--formBorder)]">
                         <div class="h-full relative bg-[var(--bg3)]">
-                            <select id="selectedSearchQuerySelector" class="text-[var(--primary-color)] bg-[var(--bg3)] pl-2 h-[35px] appearance-none pr-6" v-model="selectedSearchQuery.value">
+                            <select :disabled="auth.isPartner || auth.isRegistered" id="selectedSearchQuerySelector" class="text-[var(--primary-color)] bg-[var(--bg3)] pl-2 h-[35px] appearance-none pr-6" v-model="selectedSearchQuery.value">
                                 <option v-for="option in searchQueryOptions" :key="option.value" :value="option.value">{{ option.name }}</option>
                             </select>
                             <div class="absolute top-[10px] rotate-[-90deg] right-2 pointer-events-none">
@@ -25,7 +24,7 @@
                             />
                         </div>
                         <div class="h-full" v-if="selectedSearchQuery.value == 'user_id'">
-                            <AssetUserPicker v-model="searchQuery.user_id"/>
+                            <AssetUserPicker :disabled="auth.isPartner || auth.isRegistered" v-model="searchQuery.user_id"/>
                         </div>
                         <div v-if="['status', 'office_id', 'confirm_status'].includes(selectedSearchQuery.value)" class="h-full relative">
                             <div @click.stop="menu.setMenu({parent: 'p-search-query-selector'})" class="h-full">
@@ -57,8 +56,8 @@
                         
                     </div>    
                     <div v-if="auth.isAdmin" class="flex justify-end ml-auto mr-[20px]">
-                <LoaderButton content="CSV出力" style="margin: 0" :loading="exporting" @triggered="exportCSV"/>
-            </div>                
+                        <LoaderButton content="CSV出力" style="margin: 0" :loading="exporting" @triggered="exportCSV"/>
+                    </div>                
                 </div>
                 <table class="asset-table mx-4 w-[calc(100%-40px)]">
                     <AssetTableHeader 
@@ -168,7 +167,7 @@
             </div>
         </div>
 
-        <FloatButton class="fixed" type="plus" @action="openModal = true">
+        <FloatButton v-if="!auth.isRegistered && !auth.isPartner" class="fixed" type="plus" @action="openModal = true">
             <template #icon>
                 <AddIcon size="15" fill="black"/>
             </template>

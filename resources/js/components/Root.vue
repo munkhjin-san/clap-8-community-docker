@@ -164,7 +164,9 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
             savePWAStatus()
         } 
         initDashboardData()
-        initGoalData()
+        if(!auth.isPartner && !auth.isRegistered){
+            initGoalData()
+        }
     })
     async function loadBadges() {
         const jobs = []

@@ -1,46 +1,47 @@
 <template>
-  <div class="w-full h-[600px] bg-[var(--background-color)]" v-if="selectedProject">
-    <VueFlow
-      :nodes="rNodes.nodes"
-      :edges="rNodes.edges"
-      :default-viewport="{ x: 0, y: 0, zoom: 1 }"
-      :min-zoom="1"
-      :max-zoom="1"
-      :nodes-draggable="true"
-      :nodes-connectable="false"
-      :elements-selectable="false"
-      :zoom-on-scroll="false"
-      :pan-on-scroll="true"
-      :fit-view-on-init="true"
-      :style="{
-        height: '500px',
-        width: '100%',
-      }"
-      class="vueflow"
-    >
-      <template #node-custom="nodeProps">
-            <!-- Member node handle: bottom if above core, top if below core -->
-            <Handle v-if="nodeProps.data.memberData && nodeProps.data.isAbove" type="target" :position="Position.Bottom" :connectable="true" />
-            <Handle v-if="nodeProps.data.memberData && !nodeProps.data.isAbove" type="target" :position="Position.Top" :connectable="true" />
-            
-            <!-- Core node handles: top and bottom only -->
-            <template v-if="nodeProps.data.projectData">
-                <Handle v-for="num in rNodes.topHandleCount" :key="'top-'+num" :id="`source-handle-top-${num}`" type="source" :position="Position.Top" :connectable="true" />
-                <Handle v-for="num in rNodes.bottomHandleCount" :key="'bottom-'+num" :id="`source-handle-bottom-${num}`" type="source" :position="Position.Bottom" :connectable="true" />
+    <div class="w-full h-[calc(100%-75px)] bg-[var(--background-color)]" v-if="selectedProject && hasPrivilage">
+        <VueFlow
+            :nodes="rNodes.nodes"
+            :edges="rNodes.edges"
+            :default-viewport="{ x: 0, y: 0, zoom: 1 }"
+            :min-zoom="1"
+            :max-zoom="1"
+            :nodes-draggable="true"
+            :nodes-connectable="false"
+            :elements-selectable="false"
+            :zoom-on-scroll="false"
+            :pan-on-scroll="true"
+            :fit-view-on-init="true"
+            :style="{
+                height: '100%',
+                width: '100%',
+            }"
+            class="vueflow"
+        >
+            <template #node-custom="nodeProps">
+                <!-- Member node handle: bottom if above core, top if below core -->
+                <Handle v-if="nodeProps.data.memberData && nodeProps.data.isAbove" type="target" :position="Position.Bottom" :connectable="true" />
+                <Handle v-if="nodeProps.data.memberData && !nodeProps.data.isAbove" type="target" :position="Position.Top" :connectable="true" />
+                
+                <!-- Core node handles: top and bottom only -->
+                <template v-if="nodeProps.data.projectData">
+                    <Handle v-for="num in rNodes.topHandleCount" :key="'top-'+num" :id="`source-handle-top-${num}`" type="source" :position="Position.Top" :connectable="true" />
+                    <Handle v-for="num in rNodes.bottomHandleCount" :key="'bottom-'+num" :id="`source-handle-bottom-${num}`" type="source" :position="Position.Bottom" :connectable="true" />
+                </template>
+                <div class="bg-[var(--bg3)] h-full w-full flex items-center justify-center rounded-xl text-[14px] leading-normal" v-if="nodeProps.data.projectData">
+                    <div class="px-3 w-[130%] text-center">{{ nodeProps.data.projectData.name }}</div>
+                </div>
+                <div v-if="nodeProps.data.memberData" @click="userSelect(nodeProps.data.memberData)">
+                    <UserPanel disable-instant :user="nodeProps.data.memberData" />
+                </div>
             </template>
-            <div class="bg-[var(--bg3)] h-full w-full flex items-center justify-center rounded-xl" v-if="nodeProps.data.projectData">
-                <div>{{ nodeProps.data.projectData.name }}</div>
-            </div>
-            <div v-if="nodeProps.data.memberData" @click="userSelect(nodeProps.data.memberData)">
-                <UserPanel disable-instant :user="nodeProps.data.memberData" size="40"/>
-            </div>
-        </template>
-    </VueFlow>
-    <component :is="'style'">
-    {{ handlePositionStyles }}
-    </component>
-    <AsignMember v-if="activeMember" :member="activeMember" @close="activeMemberId = null"/>
-  </div>
+        </VueFlow>
+        <component :is="'style'">
+        {{ handlePositionStyles }}
+        </component>
+        <AsignMember v-if="activeMember" :member="activeMember" @close="activeMemberId = null"/>
+    </div>
+    <div v-else class="text-center text-[gray] mt-10">権限がありません。</div>
 </template>
 
 <script setup lang="ts">
@@ -49,12 +50,12 @@ import { type Node, type Edge, VueFlow, Position, Handle } from '@vue-flow/core'
 import { useProject } from "@/composables/project";
 import UserPanel from "@/components/Global/UserPanel.vue";
 import { ProjectMember } from "@/interface/projectInterface";
-import AsignMember from "./Asign/AsignMember.vue";
-import { AssignmentFitEvaluationResponse } from "@/interface/assign";
-const { selectedProject } = useProject()
+import AsignMember from "./Assign/AssignMember.vue";
+import { useAuthUserStore } from "@/store/auth";
+const { selectedProject, isManager } = useProject()
 const activeMemberId = ref<number | null>(null);
 
-
+const auth = useAuthUserStore()
 const activeMember = computed(() => {
     if (!activeMemberId.value) return null;
     return allMembers.value.find(m => m.id === activeMemberId.value) || null;
@@ -68,10 +69,10 @@ const rNodes = computed(() => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
     const members = allMembers.value;
-    const size = 40
+    const size = 30
     
     // Core position and size
-    const coreWidth = 150
+    const coreWidth = 180
     const coreHeight = 60
     const coreCenterX = 450
     const coreCenterY = 270
@@ -79,7 +80,7 @@ const rNodes = computed(() => {
     const coreY = coreCenterY - coreHeight / 2
     
     // Ellipse parameters
-    const ellipseRadiusX = 180 + members.length * 8 // Grow with member count
+    const ellipseRadiusX = 180 + members.length * 6 // Grow with member count
     const ellipseRadiusY = 120 + members.length * 5
     
     const strokeStyle = {
@@ -186,7 +187,7 @@ const rNodes = computed(() => {
         
         // Evenly distribute handles across core width
         const leftPx = aboveMembers.length > 1 
-            ? (handleIndex / (aboveMembers.length - 1)) * coreWidth 
+            ? (coreWidth / (aboveMembers.length + 1)) * (handleIndex + 1)
             : coreWidth / 2
         
         handlePositions.push({ handleId, leftPx })
@@ -210,7 +211,7 @@ const rNodes = computed(() => {
         
         // Evenly distribute handles across core width
         const leftPx = belowMembers.length > 1 
-            ? (handleIndex / (belowMembers.length - 1)) * coreWidth 
+            ? (coreWidth / (belowMembers.length + 1)) * (handleIndex + 1)
             : coreWidth / 2
         
         handlePositions.push({ handleId, leftPx })
@@ -236,7 +237,10 @@ const rNodes = computed(() => {
         bottomHandleCount: belowMembers.length,
     }
 })
+const hasPrivilage = computed(() => { 
 
+    return auth.isBoss || auth.isAdmin || isManager.value
+})
 
 
 const handlePositionStyles = computed(() => {
@@ -247,6 +251,8 @@ const handlePositionStyles = computed(() => {
         styles.push(`
             .vue-flow__handle[data-handleid=${handleId}] {
                 left: ${leftPx}px;
+                background: var(--bg3);
+                border: none
             }
         `)
     })
