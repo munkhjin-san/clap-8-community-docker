@@ -112,7 +112,7 @@
                                         {{ rp.label }}
                                     </label>
                                 </div>
-                                <div class="si-box" v-if="projectParams.is_new">
+                                <!-- <div class="si-box" v-if="projectParams.is_new">
                                     <p class="text-[14px]">既存扱い開始日</p>
                                     <div class="mt-[15px] flex">
                                         <ShortInput 
@@ -123,7 +123,7 @@
                                             v-model="projectParams.transitioned_at"
                                         />
                                     </div>
-                                </div>
+                                </div> -->
                                 
                             </div>
                         </div>
@@ -629,7 +629,9 @@
                     
                 </div>
                     <div v-if="fullAccess" class="si-box">
-                        <LoaderButton @triggered="createProject(editData?.status)" content="保存する"/>
+                        <!-- <LoaderButton @triggered="createProject(editData?.status)" content="保存する"/> -->
+                        <LoaderButton @triggered="createProject('running')" content="保存する"/>
+
                     </div>
                     <div v-else class="si-box flex gap-[30px] justify-center" id="projectCreateButton">
                         <LoaderButton @triggered="createProject(confirmDraftStatus)" :loading="isLoading(confirmDraftStatus)" content="下書き保存" style="margin:0;"/>
@@ -936,7 +938,8 @@ const loaderPayload = computed(() => {
   return { loading: false, message: '', kind: null }
 })
 const fullAccess = computed(() => {
-    return props.editData && (props.editData.status == 'director_approved' || props.editData.status == 'running')
+    return true
+    // return props.editData && (props.editData.status == 'director_approved' || props.editData.status == 'running')
 })
 const toProjectStatus = (value: unknown, fallback: ProjectStatus = 'draft'): ProjectStatus => {
     if (value === 'draft' || value === 'creating' || value === 'pending_director' || value === 'director_approved' || value === 'running' || value === 'returned') return value

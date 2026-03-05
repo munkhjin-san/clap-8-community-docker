@@ -1,5 +1,5 @@
 <template>
-    <div class="editor-root" style="padding: 0;overflow: hidden auto;" @click="colorPickerView = null, filePickerView = false, activeFile = ''">
+    <div class="editor-root" style="padding: 0;overflow: hidden auto;" @click="colorPickerView = null, filePickerView = false, activeFile = null">
         <div class="toolbar-root" v-if="editor">
             <button @click="editor.chain().focus().toggleBold().run()" :class="['toolbar-button', {'command-active': editor.isActive('bold')}]">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="inherit"><path d="M8 11H12.5C13.8807 11 15 9.88071 15 8.5C15 7.11929 13.8807 6 12.5 6H8V11ZM18 15.5C18 17.9853 15.9853 20 13.5 20H6V4H12.5C14.9853 4 17 6.01472 17 8.5C17 9.70431 16.5269 10.7981 15.7564 11.6058C17.0979 12.3847 18 13.837 18 15.5ZM8 13V18H13.5C14.8807 18 16 16.8807 16 15.5C16 14.1193 14.8807 13 13.5 13H8Z"></path></svg>
@@ -65,25 +65,76 @@
                         <button style="background: var(--bg2);width: fit-content;padding: 5px;margin-top: 10px;font-size: 12px;" @click="resetColor">リセット</button>
                     </div>
                 </Transition>
-                <Transition name="slidePop">
-                    <div class="file-picker" id="videopick" v-if="filePickerView" :style="{left: `0`}">  
-                        <div style="position: relative;">
-                            <div v-if="uploading" class="overlay" style="position: absolute;color: white;"><strong>アップロード中</strong></div>
-                            <div class="file-grid">
-                                <div :title="file?.replace('lesson_files/', '')" @click.stop="activeFile = file" :key="file" v-for="file in fileList" :class="['lesson-file-item', {'lesson-file-active' : activeFile == file}]">
-                                    <img v-if="fileExtension(file) == 'webp'" style="max-height: 50px;" v-lazy="{src: `/${file}`}" />
-                                    <video v-else style="max-height: 50px;width: 100%;height: 100%;" :src="`/${file}`"></video>                                    
-                                </div> 
-                            </div>          
-                            <div style="padding: 10px;">
+                <Teleport to="body">
+                <Transition name="modalFade">
+                    <div v-if="filePickerView" class="file-picker-overlay" @click.stop="filePickerView = false">  
+                        <div class="file-picker-modal" @click.stop>
+                            <div class="file-picker-header">
+                                <p>ファイルを選択</p>
+                                <CloseIcon size="13" class="cursor-pointer" @click.stop="filePickerView = false" />
+                            </div>
+                            
+                            <div v-if="uploading" class="overlay" style="position: absolute;color: white;z-index: 10;"><strong>アップロード中</strong></div>
+                            
+                            <div class="file-picker-content">
+                                <div class="file-table-wrapper">
+                                    <table class="file-table">
+                                        <thead>
+                                            <tr>
+                                                <th>名前</th>
+                                                <th>拡張子</th>
+                                                <th>作成日</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr 
+                                                v-for="file in fileList" 
+                                                :key="file.path" 
+                                                @click.stop="activeFile = file"
+                                                :class="{'file-row-active': activeFile?.path == file.path}"
+                                                class="file-row"
+                                            >
+                                                <td class="file-name">{{ getFileName(file) }}</td>
+                                                <td class="file-ext">{{ fileExtension(file) }}</td>
+                                                <td class="file-date">{{ formatDate(file) }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div class="file-preview">
+                                    <div v-if="activeFile" class="preview-content">
+                                        <h4>プレビュー</h4>
+                                        <div class="preview-media">
+                                            <img v-if="fileExtension(activeFile) == 'webp'" :src="`/${activeFile.path}`" alt="Preview" />
+                                            <video v-else :src="`/${activeFile.path}`" controls></video>
+                                        </div>
+                                        <p class="preview-filename">{{ getFileName(activeFile) }}</p>
+                                    </div>
+                                    <div v-else class="preview-empty">
+                                        <p>ファイルを選択してください</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <PostSearchPager 
+                                v-if="totalPages > 1"
+                                :possiblePage="totalPages"
+                                :activePath="currentPage"
+                                @setNavi="handlePageNavi"
+                                @setActivePage="handleSetPage"
+                            />
+                            
+                            <div class="file-picker-actions">
                                 <input @click.stop @change.stop="uploadImage" ref="filePicker" type="file" style="display: none;" name="videoPicker" id="videoPicker"/>
-                                <button style="background: var(--bg2);width: fit-content;padding: 5px;margin-top: 10px;font-size: 12px;" @click.stop="uploadStart">アップロード</button>
-                                <button v-if="activeFile" style="background: var(--bg2);width: fit-content;padding: 5px;margin-top: 10px;font-size: 12px;margin-left: 10px;" @click.stop="applyFile()">適用</button>
-                                <button v-if="activeFile" style="background: var(--bg2);width: fit-content;padding: 5px;margin-top: 10px;font-size: 12px;margin-left: 10px;" @click.stop="deleteFile()">削除</button>
+                                <button class="action-button" @click.stop="uploadStart">アップロード</button>
+                                <button v-if="activeFile" class="action-button" @click.stop="applyFile()">適用</button>
+                                <button v-if="activeFile" class="action-button danger" @click.stop="deleteFile()">削除</button>
                             </div>
                         </div>                       
                     </div>
                 </Transition>
+                </Teleport>
             </div>
 
             <button @click.stop="viewFilePicker" :class="['toolbar-button']">
@@ -106,7 +157,9 @@ import Highlight from '@tiptap/extension-highlight'
 import Image from '@tiptap/extension-image'
 import { ref } from 'vue'
 import CommandButton from './CommandButton.vue'
+import PostSearchPager from '@/components/Post/PostSearchPager.vue'
 import { useApi } from '@/composables/api'
+import CloseIcon from '../Form/CloseIcon.vue'
 
 const props = defineProps(['initilaValue'])
 const emit = defineEmits(['content-updated'])
@@ -128,12 +181,21 @@ const editor = useEditor({
         emit('content-updated', html)
     }
 })
+interface FileItem {
+    path: string
+    name: string
+    last_modified: number
+}
+
 const colorPickerView = ref<number| null>(null)
-const fileList = ref<string[]>([])
-const activeFile = ref<string>('')
+const fileList = ref<FileItem[]>([])
+const activeFile = ref<FileItem | null>(null)
 const filePicker = ref<HTMLInputElement| null>(null)
 const uploading = ref(false)
 const fileFetchCount = ref(0)
+const currentPage = ref(1)
+const totalPages = ref(1)
+const perPage = ref(10)
 const api = useApi()
 defineExpose({editor})
 const colorShadesArray = [
@@ -176,8 +238,35 @@ const selectColor = (color) => {
     colorPickerView.value = null
 }
 const getFileList = async() => {
-    const data = await api.get('/get_lesson_files')
-    fileList.value = data   
+    const response = await api.get(`/get_lesson_files?page=${currentPage.value}&per_page=${perPage.value}`)
+    fileList.value = response.data
+    totalPages.value = response.last_page
+    currentPage.value = response.current_page
+}
+
+const getFileName = (file: FileItem) => {
+    return file.path.replace('lesson_files/', '')
+}
+
+const formatDate = (file: FileItem) => {
+    const date = new Date(file.last_modified * 1000)
+    return date.toLocaleString('ja-JP', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+    })
+}
+
+const handlePageNavi = (direction: number) => {
+    currentPage.value = Math.max(1, Math.min(totalPages.value, currentPage.value + direction))
+    getFileList()
+}
+
+const handleSetPage = (page: number) => {
+    currentPage.value = page
+    getFileList()
 }
 const setLink = () => {
     const previousUrl = editor.value?.getAttributes('link').href
@@ -191,8 +280,9 @@ const setLink = () => {
     }
     editor.value?.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
 }
-const fileExtension = (name) => {
-    return name.split('.')[1]
+const fileExtension = (file: FileItem | null) => {
+    if (!file) return ''
+    return file.path.split('.').pop() || ''
 }
 const uploadingProgress = ref(0)
 const filePickerView = ref(false)
@@ -214,27 +304,267 @@ const uploadImage = async(event:Event) => {
     }
 }   
 const applyFile = () => {
+    if (!activeFile.value) return
     if(fileExtension(activeFile.value) == 'webp'){
-        editor.value?.chain().focus().setImage({ src: `/${activeFile.value}` }).run()
+        editor.value?.chain().focus().setImage({ src: `/${activeFile.value.path}` }).run()
     }else{
-        editor.value?.chain().insertContentAt(editor.value.state.selection.anchor, `[[learning_video src="/${activeFile.value}" learning_video]]`).focus().run()
+        editor.value?.chain().insertContentAt(editor.value.state.selection.anchor, `[[learning_video src="/${activeFile.value.path}" learning_video]]`).focus().run()
     }
+    filePickerView.value = false
+    activeFile.value = null
 }
 
 const deleteFile = async() => {
-    await api.del(`/remove_lesson_file?path=${activeFile.value}`)  
+    if (!activeFile.value) return
+    await api.del(`/remove_lesson_file?path=${activeFile.value.path}`)  
     getFileList()
-    activeFile.value = ''  
+    activeFile.value = null  
 }
 const viewFilePicker = () => {
     filePickerView.value = !filePickerView.value
     if(filePickerView.value && fileFetchCount.value == 0){
+        currentPage.value = 1
         getFileList()
         fileFetchCount.value++
+    } else if(filePickerView.value) {
+        getFileList()
     }
 }
 </script>
 <style scoped>
+.file-picker-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: var(--primary-color);
+}
+
+.file-picker-modal {
+    background: var(--background-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06);
+    max-width: 900px;
+    width: 100%;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.file-picker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid var(--side-menu-border);
+}
+
+.file-picker-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.close-button {
+    background: transparent;
+    border: none;
+    font-size: 28px;
+    color: var(--primary-color);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.close-button:hover {
+    background: var(--bg2);
+}
+
+.file-picker-content {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 20px;
+    padding: 20px;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+    color: var(--primary-color);
+}
+
+.file-table-wrapper {
+    overflow-y: auto;
+    border: 1px solid var(--side-menu-border);
+    border-radius: 4px;
+}
+
+.file-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.file-table thead {
+    position: sticky;
+    top: 0;
+    background: var(--bg2);
+    z-index: 1;
+}
+
+.file-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--side-menu-border);
+    font-size: 14px;
+}
+
+.file-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--side-menu-border);
+    font-size: 13px;
+}
+
+.file-row {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.file-row:hover {
+    background: var(--bg2);
+}
+
+.file-row-active {
+    background: var(--bg3);
+}
+
+.file-name {
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-ext {
+    text-transform: uppercase;
+    font-weight: 500;
+    color: var(--primary-color);
+}
+
+.file-date {
+    color: #888;
+    font-size: 12px;
+}
+
+.file-preview {
+    border: 1px solid var(--side-menu-border);
+    border-radius: 4px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.preview-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.preview-content h4 {
+    margin: 0 0 15px 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.preview-media {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg2);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    min-height: 200px;
+}
+
+.preview-media img,
+.preview-media video {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.preview-filename {
+    font-size: 12px;
+    color: #888;
+    word-break: break-word;
+    margin: 0;
+}
+
+.preview-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #888;
+}
+
+.file-picker-actions {
+    display: flex;
+    gap: 10px;
+    padding: 20px;
+    border-top: 1px solid var(--side-menu-border);
+}
+
+.action-button {
+    background: var(--bg2);
+    color: var(--primary-color);
+    border: 1px solid var(--side-menu-border);
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-button:hover {
+    background: var(--bg3);
+}
+
+.action-button.danger {
+    background: #dc2626;
+    color: white;
+    border-color: #dc2626;
+}
+
+.action-button.danger:hover {
+    background: #b91c1c;
+}
+
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
 .file-picker{
     position: absolute;
     background: var(--background-color);

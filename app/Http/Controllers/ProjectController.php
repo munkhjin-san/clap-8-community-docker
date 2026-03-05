@@ -3317,7 +3317,9 @@ class ProjectController extends Controller
                         $sumData[$project_name]['settlement']['profit'] = ($sumData[$project_name]['settlement']['profit'] ?? 0) + round((float)(float) str_replace(',', '', $settlement_profit_val), 0, PHP_ROUND_HALF_UP);
                         // $summarizeData['settlement']['sales'] = ($summarizeData['settlement']['sales'] ?? 0) + $totalSales;
                         // $summarizeData['settlement']['expense'] = ($summarizeData['settlement']['expense'] ?? 0) + $totalExpense;
-                        $accumulatePeriodTotals($periodKey, 'settlement', $plan_res_data[$project_name][$periodKey]['settlement']);
+                        if ($project_name !== '間接費部門' && $project_name !== '積立部門') {
+                            $accumulatePeriodTotals($periodKey, 'settlement', $plan_res_data[$project_name][$periodKey]['settlement']);
+                        }
                  
                     }else{
                         $plan_res_data[$project_name][$periodKey]['settlement'] = $default_settlement_data;

@@ -1070,8 +1070,8 @@ class RemindController extends Controller
                 'goal_issue_comment' => [],
                 'contact_comment' => $this->badgeService->contactComment($user),
                 'today_readable' => $this->badgeService->todayReadable($user),
-                'project_report' => $this->badgeService->getProjectUnreadCount($user),
-                'check_item_confirm' => $this->badgeService->checkItemConfirm($user),
+                'project_report' => ['records' => [], 'total' => 0],
+                'check_item_confirm' => ['records' => [], 'total' => 0],
             ];
         });
         return response()->json($data);

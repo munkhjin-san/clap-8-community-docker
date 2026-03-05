@@ -46,7 +46,7 @@
                         
                     </div>
                     <div class="project-cell whitespace-nowrap">部門</div>
-                    <div class="project-cell cursor-pointer relative">
+                    <!-- <div class="project-cell cursor-pointer relative">
                         <div @click.stop="menu.setMenu({ parent: 'projectStatusSort' })" class="flex items-center gap-[5px] whitespace-nowrap">
                             ステータス
                             <Back class="rotate-[270deg]" size="10"/>
@@ -71,7 +71,7 @@
                             </div>
                         </Transition>
                         
-                    </div>
+                    </div> -->
                     <div class="project-cell cursor-pointer relative">
                         <div @click.stop="menu.setMenu({parent: 'projectDateSelect'})" class="flex items-center gap-[5px] whitespace-nowrap">
                             期間
@@ -149,9 +149,9 @@
                     <div class="project-cell pc">
                         {{ project.is_new ? '新規' : '既存' }}
                     </div>
-                    <div class="project-cell pc">
+                    <!-- <div class="project-cell pc">
                         {{ PROJECT_STATUS_LABEL[project.status] ?? '不明' }}
-                    </div> 
+                    </div>  -->
                     <div class="project-cell pc">
                         <div v-if="project?.date_start">{{ DateTime.fromISO(project.date_start).toLocaleString(DateTime.DATE_SHORT) }} ~ {{ DateTime.fromISO(project.date_end).toLocaleString(DateTime.DATE_SHORT) }}</div>
                     </div>

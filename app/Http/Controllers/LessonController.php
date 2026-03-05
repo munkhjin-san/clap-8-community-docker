@@ -243,10 +243,39 @@ class LessonController extends Controller
     }
     public function get_lesson_files(Request $request){
         $files = Storage::allFiles('/lesson_files');
-        usort($files, function ($a, $b) {
-            return Storage::lastModified($b) - Storage::lastModified($a);
+        
+        // Map files to include metadata
+        $filesWithMetadata = array_map(function($file) {
+            return [
+                'path' => $file,
+                'name' => basename($file),
+                'last_modified' => Storage::lastModified($file)
+            ];
+        }, $files);
+        
+        // Sort by last modified date (newest first)
+        usort($filesWithMetadata, function ($a, $b) {
+            return $b['last_modified'] - $a['last_modified'];
         });
-        return response()->json($files);
+        
+        // Pagination parameters
+        $perPage = $request->input('per_page', 15);
+        $page = $request->input('page', 1);
+        
+        // Calculate pagination
+        $total = count($filesWithMetadata);
+        $offset = ($page - 1) * $perPage;
+        $paginatedFiles = array_slice($filesWithMetadata, $offset, $perPage);
+        
+        return response()->json([
+            'data' => $paginatedFiles,
+            'current_page' => (int) $page,
+            'per_page' => (int) $perPage,
+            'total' => $total,
+            'last_page' => (int) ceil($total / $perPage),
+            'from' => $total > 0 ? $offset + 1 : null,
+            'to' => $total > 0 ? min($offset + $perPage, $total) : null
+        ]);
     }
     public function remove_lesson_file(Request $request){
         $deleted = Storage::delete('/' . $request->path);
