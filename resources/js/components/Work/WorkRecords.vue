@@ -1,5 +1,5 @@
 <template>
-    <div class="records-wrapper" ref="wrapper" :style="{height: `calc(100% - ${headerHeight.value}px)`}">
+    <div class="records-wrapper" ref="wrapper" :style="{height: `calc(100% - ${headerHeight}px)`}">
         
         <div v-if="!records.length" class="absolute-div">
             メンバーを選択してください。
@@ -136,8 +136,8 @@ import { useDashboardStore } from '@/store/dashboard';
             { title: '報告'},
         ];
         if(includeRegistered.value){
-            const index = headersArray.findIndex(element => element.title == 'ステータス')
-            headersArray.splice(index, 0, {title: 'インセンティブ'})
+            // const index = headersArray.findIndex(element => element.title == 'ステータス')
+            // headersArray.splice(index, 0, {title: 'インセンティブ'})
             const t_index = headersArray.findIndex(element => element.title == '時間外')
             headersArray.splice(t_index, 0, {title: '研修時間'})
         }      

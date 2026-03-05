@@ -22,7 +22,7 @@ class CommunityController extends Controller
     }
     public function get_office_list(Request $request)
     {
-        $offices = officeRecord::with('employees')->orderBy('created_at', 'desc')->get();
+        $offices = officeRecord::with(['employees', 'files'])->orderBy('created_at', 'desc')->get();
 
         return response()->json($offices);
     }
@@ -42,6 +42,13 @@ class CommunityController extends Controller
                 'post_code_1' => $request->post_code_1, 
                 'post_code_2' => $request->post_code_2,
             ] 
+        );
+        $fileIds = $request->file_ids;
+        $office->fileAttachments()->createMany(
+            array_map(fn ($id) => [
+                'file_id' => $id,
+                'collection' => 'attachments',
+            ], $fileIds)
         );
         $members = $request->employees ?? [];
         $member_ids = array_map(function($member){

@@ -76,7 +76,7 @@
                         @removeFile="removeFile"
                     />
                 </div>
-                <IncentiveField v-if="item.position_id === 15" v-model="incentives"/>
+                <!-- <IncentiveField v-if="item.position_id === 15" v-model="incentives"/> -->
                 <div class="report-field !mb-[35px]">
                     <p class="report-header !mb-4">マイカーの走行距離（往復）</p>
                     <div class="flex gap-4 items-center flex-wrap">
@@ -594,6 +594,9 @@ import { useTour } from '@/composables/useTour';
             await fifteenMinuteCalc()
             const answer = await ask('日報を申請します。申請後は修正できません。よろしいですか。')
             if(!answer.value) return
+        }
+        if (actualRows.value.some(a => a.status == 'インセンティブ')) {
+            incentives.value[0].count = actualRows.value.find(a => a.status == 'インセンティブ').value
         }
         loading.value[status_flag] = true
         const params = await buildParams(status_flag)

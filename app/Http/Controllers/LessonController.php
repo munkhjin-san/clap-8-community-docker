@@ -13,6 +13,7 @@ use App\Models\LessonPortfolio;
 use App\Models\LessonTheme;
 use App\Models\LessonForm;
 use App\Models\LessonSection;
+use App\Models\positionRecord;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File; 
 use Intervention\Image\Laravel\Facades\Image;
@@ -64,11 +65,19 @@ class LessonController extends Controller
         }
     }
     public function get_learning_themes(){
-        $themes = LessonTheme::get();
+        $themes = LessonTheme::with('accessMembers')->get();
         return response()->json($themes);
     }
     public function get_lesson_themes(){
-        $themes_portfolio = LessonTheme::with([
+        $user = Auth::user();
+        $themes_portfolio = LessonTheme::query()
+        ->where(function ($q) use ($user) {
+            $q->whereHas('accessMembers', function ($qq) use ($user) {
+                $qq->where('user_id', $user->id);
+            })
+            ->orWhereDoesntHave('accessMembers'); // no rows = public
+        })
+        ->with([
             'lesson_portfolio' => function ($q){
                 $q->where('user_id', Auth::id());
             }, 
@@ -90,7 +99,9 @@ class LessonController extends Controller
 
         $id = $request->id ?? null;
         $params = $request->params;
+        $allowed_positions = $request->access_members ?? [];
         $theme = LessonTheme::updateOrCreate(['id' => $id], $params);
+        $theme->accessMembers()->sync($allowed_positions);
         return response()->json($theme);
     }
     public function lesson_add_record(Request $request){
@@ -402,5 +413,24 @@ class LessonController extends Controller
         return response()->json([
             'themeData' => $theme ?? null,
         ]);
+    }
+
+    public function get_members_by_position(){
+        $list = positionRecord::where('deleted_flag', 0)
+        ->whereHas('employees')
+        ->with([
+            'employees' => function ($q) {
+                $q->with([
+                        'positions' => function ($q) {
+                            $q->where('deleted_flag', 0);
+                        }
+                    ])
+                    ->select('id', 'name', 'icon_path', 'icon_bg', 'position_id');
+            }
+        ])
+        ->orderBy('sort_flag', 'asc')
+        ->get();   
+
+        return response()->json($list);
     }
 }

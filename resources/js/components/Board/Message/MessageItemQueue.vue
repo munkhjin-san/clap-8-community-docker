@@ -9,7 +9,7 @@
                 width: 'fit-content'
             }" 
             class="mobileMessageBody"
-            :class="{ emojiOnly: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot}"
+            :class="{ emojiOnly: emojiTrue && !message.message_reply && !message.message_quot}"
             >
             <div class="queueBox" :class="{queueBoxError : message.error}" style="z-index:4">
                 <div id="loaderMini" v-if="!message.error || resending">
@@ -67,7 +67,7 @@
                         :id="'editComment_' + message.id" 
                         style="line-height: 1.5;white-space: break-spaces;outline:none;display: inline-block;width:100%" 
                         v-html="messageBody" 
-                        :class="{ emojiOnlyInner: (message.emoji_flag == 1 || message.emoji_flag == 2) && !message.message_reply && !message.message_quot}">
+                        :class="{ emojiOnlyInner: emojiTrue && !message.message_reply && !message.message_quot}">
                     </div>
                     
 
@@ -181,7 +181,13 @@ import { DateTime } from 'luxon';
         ? props.message.user.name
         : '非アクティブユーザー';
     })
-
+    const isSingleOikawaEmoji = computed(() => {
+        const s = (props.message.message ?? '').trim()
+        return /^\{#[a-z0-9_-]+(?:\:[a-z0-9_-]+)?\}$/i.test(s)
+    })
+    const emojiTrue = computed(() => {
+        return (props.message.emoji_flag == 1 || props.message.emoji_flag == 2 || isSingleOikawaEmoji.value) && !props.message.message_reply && !props.message.message_quot
+    })
     const sendMessage = async() => {
         if(!resending.value && props.message.error) {
             return

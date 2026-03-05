@@ -963,7 +963,7 @@ class MemberController extends Controller
     public function create_custom_field_emote_user(Request $request){
         $request->validate([
             'custom_field_data_record_id' => 'required',
-            'emote_id' => 'required',
+            'emote_name' => 'required',
             'user_id' => 'required',
         ]);
         $user_id = $request->user_id;
@@ -975,12 +975,12 @@ class MemberController extends Controller
 
 
         $existingEmote = $record->emotedUsers()->where('user_id', $active_user->id)->first();
-        if ($existingEmote && $existingEmote->pivot->emote_id == $request->emote_id) {
+        if ($existingEmote && $existingEmote->pivot->emote_name == $request->emote_name) {
             $record->emotedUsers()->detach($active_user->id);            
         } else if($existingEmote){
-            $record->emotedUsers()->updateExistingPivot($active_user->id, ['emote_id' => $request->emote_id]);
+            $record->emotedUsers()->updateExistingPivot($active_user->id, ['emote_name' => $request->emote_name]);
         } else {
-            $record->emotedUsers()->attach($active_user->id, ['emote_id' => $request->emote_id]);  
+            $record->emotedUsers()->attach($active_user->id, ['emote_name' => $request->emote_name]);  
         }
 
 

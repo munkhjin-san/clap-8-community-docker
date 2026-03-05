@@ -19,7 +19,7 @@
             <div class="mt-2 w-fit" @click="setEmoteUsers(comment.emoted_users)" v-if="comment.emoted_users && comment.emoted_users.length && (!emoteArea || !expanded)">
                 <div class="flex items-end cursor-pointer text-[var(--primary-color)] w-fit overflow-hidden">
                     <TransitionGroup name="downShiftPop">
-                        <Character v-for="emote in emotes" :key="emote" :size="20" :emoteId="emote"/>
+                        <Character v-for="emote in emotes" :key="emote" :multiple="0.5" :emote-name="emote"/>
                     </TransitionGroup>
                 </div>
             </div> 
@@ -27,9 +27,9 @@
 
 
         <div v-if="expanded" class="bg-[var(--bg3)] grid grid-cols-5 shade p-3 gap-3">
-            <div @click="sendEmote(num)" v-for="num in 10" :key="num" class="flex items-end justify-center">
+            <div @click="sendEmote(oikawa.name)" v-for="oikawa in oikawaMap" :key="oikawa.name" class="flex items-end justify-center">
                 <div>
-                    <Character :emote-id="num" :size="30" />
+                    <Character :emote-name="oikawa.name" :multiple="0.75" />
                 </div>
                 
             </div>
@@ -48,6 +48,7 @@ import { useApi } from '@/composables/api';
 import { useModal } from '@/composables/modal';
 import { useAuthUserStore } from '@/store/auth';
 import Smile from '../Icons/Smile.vue';
+import { oikawaMap } from '@/utils/tools';
 
 const props = defineProps<{
     user: DailyMessageUser
@@ -90,12 +91,12 @@ const toggleComment = () => {
         }
     })
 }
-const fastPreCheckEmote = (num) => {
+const fastPreCheckEmote = (name) => {
     if(!comment.value || !comment.value.emoted_users) return;
         // pretend to send emote api for fast response
     const checkExist = comment.value.emoted_users.find(ob => ob.id == auth.activeUser.id)
     if(checkExist){
-        if(checkExist.pivot.emote_id == num) {
+        if(checkExist.pivot.emote_id == name) {
             const user:DailyMessageUser = {...props.user, custom_field_data_records: [{
                 ...comment.value,
                 emoted_users: comment.value.emoted_users.filter(ob => ob.id != auth.activeUser.id)
@@ -111,7 +112,7 @@ const fastPreCheckEmote = (num) => {
                                 ...emotedUser,
                                 pivot: {
                                     ...emotedUser.pivot,
-                                    emote_id: num
+                                    emote_name: name
                                 }
                             }
                         }
@@ -139,27 +140,27 @@ const fastPreCheckEmote = (num) => {
                 ...comment.value,
                 emoted_users: [{
                     ...auth.activeUser as User,
-                    pivot: {emote_id: num, message_id: comment.value.id, user_id: auth.activeUser.id }
+                    pivot: {emote_name: name, message_id: comment.value.id, user_id: auth.activeUser.id }
                 },...comment.value.emoted_users]
             }]
         })
     }
 }
-const sendEmote = async (emoteId: number) => {
+const sendEmote = async (emoteName: string) => {
     if(!comment.value) return;
     emoteArea.value = false;
-    fastPreCheckEmote(emoteId);
+    fastPreCheckEmote(emoteName);
     const data = await api.post('/create_custom_field_emote_user', {
         user_id: props.user.id,
         custom_field_data_record_id: comment.value.id,
-        emote_id: emoteId
+        emote_name: emoteName
     });
     emit('refresh', data)
 }
 
 const emotes = computed(() => {
     if(comment.value === null || comment.value.emoted_users === undefined || comment.value.emoted_users.length === 0) return [];
-    return comment.value.emoted_users.map(item => item.pivot.emote_id)
+    return comment.value.emoted_users.map(item => item.pivot.emote_name)
 })
 </script>
 <style scoped>

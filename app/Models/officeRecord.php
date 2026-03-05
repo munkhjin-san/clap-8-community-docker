@@ -15,4 +15,16 @@ class officeRecord extends Model
     }
 
     protected $guarded = [];
+
+    public function fileAttachments()
+    {
+        return $this->morphMany(FileAttachment::class, 'attachable');
+    }
+
+    public function files()
+    {
+        return $this->belongsToMany(FileRecord::class, 'file_attachments', 'attachable_id', 'file_id')
+            ->wherePivot('attachable_type', self::class)
+            ->withPivot(['collection', 'created_at']);
+    }
 }

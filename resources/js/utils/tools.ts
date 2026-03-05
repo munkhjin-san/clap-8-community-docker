@@ -21,33 +21,50 @@ function useDebouncedRef(value:any, delay = 200) {
       }
     })
   }
-const oikawaSizeMap = {
-    1: '40px',
-    2: '40px',
-    3: '40px',
-    4: '40px',
-    5: '40px',
-    6: '40px',
-    7: '40px',
-    8: '40px',
-    9: '40px',
-    10: '40px',
-    11: '40px',
-    12: '40px',
-    13: '40px',
-    14: '40px',
-    15: '38px',
-    16: '40px',
-    17: '40px',
-    18: '40px',
-    19: '24px',
-    20: '40px',
-    21: '42px',
-    22: '45px',
-    23: '42px',
-    24: '43px',
-    25: '45px',
-}
+const parseNumber = (v) => {
+    const n = parseInt(String(v ?? "").replace(/,/g, ""), 10);
+    return Number.isNaN(n) ? 0 : n;
+};
+const yenFmt = (n) => (n ? `¥${Number(n).toLocaleString("ja-JP")}` : "—");
+const EXPENSE_ITEMS = [
+  { key: "salary", label: "給料手当" },
+  { key: "outsourcing", label: "外注費" },
+  { key: "travel", label: "旅費交通費" },
+  { key: "communication", label: "通信費" },
+  { key: "supplies", label: "消耗品費" },
+  { key: "vehicle", label: "車両費" },
+  { key: "rent", label: "地代家賃" },
+  { key: "rental", label: "賃借料" },
+  { key: "lease", label: "リース料" },
+  { key: "other", label: "その他" },
+];
+const oikawaMap = [
+  { id: 1,  name: 'guts',     size: '40px' },
+  { id: 2,  name: 'banzai',   size: '40px' },
+  { id: 3,  name: 'like',     size: '40px' },
+  { id: 4,  name: 'tea',      size: '40px' },
+  { id: 5,  name: 'bow',      size: '40px' },
+  { id: 6,  name: 'pray',     size: '40px' },
+  { id: 7,  name: 'nervous',  size: '40px' },
+  { id: 8,  name: 'angry',    size: '40px' },
+  { id: 9,  name: 'cry',      size: '40px' },
+  { id: 10, name: 'love',     size: '40px' },
+  { id: 11, name: 'rush',     size: '40px' },
+  { id: 12, name: 'dead',     size: '40px' },
+  { id: 13, name: 'broken',   size: '40px' },
+  { id: 14, name: 'huh',      size: '40px' },
+  { id: 15, name: 'cat',      size: '38px' },
+  { id: 16, name: 'cheer',    size: '40px' },
+  { id: 17, name: 'rock',     size: '40px' },
+  { id: 18, name: 'mustache', size: '40px' },
+  { id: 19, name: 'lazy',     size: '24px' },
+  { id: 20, name: 'ramen',    size: '40px' },
+  { id: 21, name: 'reaper',   size: '42px' },
+  { id: 22, name: 'angel',    size: '45px' },
+  { id: 23, name: 'mummy',    size: '42px' },
+  { id: 24, name: 'sumo',     size: '43px' },
+  { id: 25, name: 'samurai',  size: '45px' },
+]
 const theme = useTheme()
 
 const mentionFormatter = (text: string | null, withUrl?: boolean, multiple: number = 1) => {
@@ -58,12 +75,14 @@ const mentionFormatter = (text: string | null, withUrl?: boolean, multiple: numb
         '<span class="mntuser" data-userid="$1">$2</span>'
     ).replace(/\[To:([^\]]+):\]/g, (match, username) => {
         return `<span class="mntuser" data-username="${username}">@${username}</span>`;
-    }).replace(/\[oikawa:([^\]]+):\]/g, (match, type) => {
-        const basePx = parseFloat(oikawaSizeMap[type] ?? '40px')
+    }).replace(/\{#([a-z0-9_-]+(?::[a-z0-9_-]+)?)\}/gi, (match, type) => {
+        const matched = oikawaMap.find(ob => ob.name === type)
+        if (!matched) return match
+        const basePx = parseFloat(matched.size ?? '40px')
         const maxHeight = (basePx * multiple) + 'px'
 
         const style = `max-height: ${maxHeight};`
-        return `<img class="chat-emoji" data-type="${type}" src="/images/reactions/v6/${prefix}_${type}.webp" srcset="/images/reactions/v6/${prefix}_${type}.webp 1x, /images/reactions/v5/${prefix}_${type}@2x.webp 2x" alt="${type}" style="${style}" />`;
+        return `<img class="chat-emoji" data-type="${type}" src="/images/reactions/v7/${prefix}_${type}.webp" srcset="/images/reactions/v7/${prefix}_${type}@2x.webp 2x" alt="${type}" style="${style}" />`;
     })
     return withUrl ? urlCheck(cooked) : cooked
 }
@@ -250,7 +269,7 @@ export const PROJECT_STATUS_LABEL: Record<string, string> = {
   director_approved: '役員承認済（準備中）',
   running: '進行中',
   // suspended: '一時停止',
-  // completed: '完了',
+  completed: '完了',
   // cancelled: '中止',
   returned: '差し戻し',
   // rejected: '却下',
@@ -311,5 +330,8 @@ export {
     contractTypeDefaults,
     contractRoleDefaults,
     isMobile,
-    oikawaSizeMap
+    oikawaMap,
+    EXPENSE_ITEMS,
+    parseNumber,
+    yenFmt,
 }

@@ -150,13 +150,13 @@ import { useTutorialStore } from '@/store/tutorial'
     const api = useApi()
     const { ask, ping, toast } = useDialog() 
     const tutorialStore = useTutorialStore()
-    onMounted(async() => {
+    onMounted(() => {
         const query = route.query
         if(query.user_id){
             usersCheckArray.value = [Number(query.user_id)]
         }
         fetchDatas()
-        await fetchWorkData()
+        fetchWorkData()
         fetchShiftDataTable(0)
         if(query.startDate){
             startDate.value = query.startDate
@@ -200,10 +200,8 @@ import { useTutorialStore } from '@/store/tutorial'
         fetchWorkData()
         setTimeout(() => (isClearing = false), 0);
     }
-    const headerHeight = computed(() => {
-        const { height } = useElementSize(headerEl)
-        return height
-    })
+    const { height } = useElementSize(headerEl)
+    const headerHeight = computed(() => height.value)
     const relocateUsers = computed(() => {
         const authUserId = auth.id;
         const checkedUserArray = usersCheckArray.value;

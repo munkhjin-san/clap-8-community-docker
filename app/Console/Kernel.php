@@ -28,7 +28,7 @@ class Kernel extends ConsoleKernel
         
         $schedule->job(new RemoveFile('temp'))->cron('15 9 * * *');
         $schedule->job(new ResetCharge())->cron('15 9 10 3,6,9,12 *'); 
-        $schedule->job(new RemoveFile('cost'))->cron('15 9 20 * *');
+        // $schedule->job(new RemoveFile('cost'))->cron('15 9 20 * *');
         $schedule->job(new SendReport(610, 3532, 'incident'))->cron('15 9 * * *');
         // $schedule->job(new SendReport(610, 3633, 'weekly_staff'))->cron('15 9 * * 1');
         // $schedule->job(new SendReport(610, 1283, 'weekly_legal'))->cron('15 9 * * 1');
@@ -47,6 +47,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('alerts:variance --period='.now()->toDateString())->monthlyOn(20, '18:00');
         $schedule->command('logs:prune-activity-logs')->quarterly();
         $schedule->command('goals:check-alert-streak')->dailyAt('02:00');
+        $schedule->command('app:auto-attendance-confirm')->monthlyOn(3, '08:00');
     }
 
     /**

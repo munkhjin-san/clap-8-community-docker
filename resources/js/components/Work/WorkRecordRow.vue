@@ -103,18 +103,18 @@
                 </div>
             </div>
         </td>
-        <td v-if="hasHeader('インセンティブ')">
+        <!-- <td v-if="hasHeader('インセンティブ')">
             <div style="position: relative;word-break: auto-phrase;" class="w-hover-button">
                 <div v-if="responsive.mobile && item.time_card?.timecard_incentives.length">インセンティブ : </div>
                 <div>{{ incentiveCount}}</div>
-                <!-- <div @click="menu.close()" class="comment-box" id="incentiveBox" v-if="menu.name == 'incentiveBox' && menu.id == item.time_card?.id">
+                <div @click="menu.close()" class="comment-box" id="incentiveBox" v-if="menu.name == 'incentiveBox' && menu.id == item.time_card?.id">
                     <div v-for="incentive in item.time_card?.timecard_incentives" :key="incentive.id">
                         <div>{{ `${incentive.count ? incentive.count + '件' : ''}` }}</div>
                         <img @click="previewImage(incentive.file)" style="height:120px;cursor: pointer;" v-if="incentive?.file" :src="`/cdn/timecard_files/${incentive?.file?.id}_${incentive?.file?.user_id}_${incentive?.file?.path}.${incentive?.file?.extension}`"/>
                     </div>
-                </div> -->
+                </div>
             </div>
-        </td>
+        </td> -->
         
         <td>
             <div style="position: relative;">

@@ -6523,6 +6523,7 @@ input:autofill {
   top: 0px;
   background-color: var(--background-color);
   z-index: 20;
+  white-space: nowrap;
 }
 
 .project-cell-row {
@@ -6592,7 +6593,7 @@ input:autofill {
 
 .project-detail {
   background-color: var(--background-color);
-  padding: 20px;
+  padding: 0 20px 20px;
   line-height: 1.5;
   font-size: 14px;
   position: relative;
@@ -6765,6 +6766,14 @@ button.shift-button {
 }
 .number-chip {
   font-size: 14px;
+}
+.text-profit-positive {
+    color: #16A34A;
+    font-weight: bold;
+}
+.text-profit-negative {
+    color: #DC2626;
+    font-weight: bold;
 }
 @media screen and (max-width: 959px) {
     .messageBodyWrapper {

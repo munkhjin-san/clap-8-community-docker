@@ -27,5 +27,9 @@ class FileRecord extends Model
         'deleted_flag'
     ];
     
+    public function attachments()
+    {
+        return $this->hasMany(FileAttachment::class, 'file_id');
+    }
     
 }

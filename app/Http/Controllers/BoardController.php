@@ -246,7 +246,7 @@ class BoardController extends Controller
        
         $now = time();
         
-        // Cache::store('redis')->forget("must_sync_{$active_user->id}");
+        Cache::forget("must_sync_{$active_user->id}");
 
         return response()->json($board_list);
         
@@ -1090,7 +1090,6 @@ class BoardController extends Controller
         $row->last_message = $lastMessageId;
         $row->save();
 
-        // Cache::store('redis')->put("user_stamp_{$active_user->id}", time());
         $res = $this->get_board_badge();
         return $res;     
         
@@ -2009,18 +2008,18 @@ class BoardController extends Controller
 
     public function send_emote(Request $request){
         $request->validate([
-            'reaction' => 'required|integer',
+            'reaction' => 'required|string',
             'id' => 'required',
         ]);
         $active_user = $this->active_user();
         $message = messageRecord::with('emotedUsers')->findOrFail($request->id);
         $existingEmote = $message->emotedUsers()->where('user_id', $active_user->id)->first();
-        if ($existingEmote && $existingEmote->pivot->emote_id == $request->reaction) {
+        if ($existingEmote && $existingEmote->pivot->emote_name == $request->reaction) {
             $message->emotedUsers()->detach($active_user->id);            
         } else if($existingEmote){
-            $message->emotedUsers()->updateExistingPivot($active_user->id, ['emote_id' => $request->reaction]);
+            $message->emotedUsers()->updateExistingPivot($active_user->id, ['emote_name' => $request->reaction]);
         } else {
-            $message->emotedUsers()->attach($active_user->id, ['emote_id' => $request->reaction]);  
+            $message->emotedUsers()->attach($active_user->id, ['emote_name' => $request->reaction]);  
             if(!$message->reactedUsers()->where('user_id', $active_user->id)->exists()){
                 $message->reactedUsers()->attach($active_user->id);            
             }

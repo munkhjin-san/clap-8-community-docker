@@ -2,14 +2,14 @@
     <div @mousedown="setEmoteUsers([])" class="overlay !z-[47]">
         <div class="users-list-popup !bg-[var(--bg2)] !p-0" @mousedown.stop>
             <div class="flex items-end overflow-x-auto">
-                <label v-for="emote in sortedEmotesByOccurence" class="p-2 flex shrink-0" :class="{'sticky left-0 right-0 bg-[var(--background-color)]' : activeEmoteId == emote.emoteId}">
-                    <input type="radio" v-model="activeEmoteId" :value="emote.emoteId" class="hidden"/>
-                    <Character :size="40" :emoteId="emote.emoteId"/>
+                <label v-for="emote in sortedEmotesByOccurence" class="p-2 flex shrink-0" :class="{'sticky left-0 right-0 bg-[var(--background-color)]' : activeEmoteName == emote.emoteName}">
+                    <input type="radio" v-model="activeEmoteName" :value="emote.emoteName" class="hidden"/>
+                    <Character :size="40" :emote-name="emote.emoteName"/>
                     <!-- <div class="num-block">{{ emote.occurence }}</div> -->
                 </label>
             </div>
-            <div v-if="activeEmoteId" class="min-h-[180px] bg-[var(--background-color)] flex flex-col gap-2 p-4 max-h-[300px] overflow-y-auto">                
-                <div v-for="user in sortedEmotesByOccurence.find(e => e.emoteId === activeEmoteId)?.users || []" :key="user.id">
+            <div v-if="activeEmoteName" class="min-h-[180px] bg-[var(--background-color)] flex flex-col gap-2 p-4 max-h-[300px] overflow-y-auto">                
+                <div v-for="user in sortedEmotesByOccurence.find(e => e.emoteName === activeEmoteName)?.users || []" :key="user.id">
                     <UserPanel disable-instant with-name :user="user" size="25"/>             
                 </div>
             </div>
@@ -24,17 +24,17 @@ import UserPanel from './UserPanel.vue';
 import Character from './Character.vue';
 
 const { setEmoteUsers, emoteUsers } = useModal()
-const activeEmoteId = ref<number | null>();
+const activeEmoteName = ref<string | null>();
 
 const sortedEmotesByOccurence = computed(() => {
-    const data: {occurence: number, users: EmoteUser[], emoteId: number}[] = []
+    const data: {occurence: number, users: EmoteUser[], emoteName: string}[] = []
     emoteUsers.value.forEach(emote => {
-        const existing = data.find(d => d.emoteId === emote.pivot.emote_id);
+        const existing = data.find(d => d.emoteName === emote.pivot.emote_name);
         if (existing) {
             existing.occurence++;
             existing.users.push(emote);
         } else {
-            data.push({ occurence: 1, users: [emote], emoteId: emote.pivot.emote_id });
+            data.push({ occurence: 1, users: [emote], emoteName: emote.pivot.emote_name });
         }
     });
     data.sort((a, b) => b.occurence - a.occurence);
@@ -42,7 +42,7 @@ const sortedEmotesByOccurence = computed(() => {
 }); 
 onMounted(() => {
     if(sortedEmotesByOccurence.value.length){
-        activeEmoteId.value = sortedEmotesByOccurence.value[0].emoteId
+        activeEmoteName.value = sortedEmotesByOccurence.value[0].emoteName
     }
 })
 

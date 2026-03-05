@@ -56,9 +56,10 @@ export interface Tag {
 }
 export interface EmoteUser extends User {
     pivot: {
-        emote_id: number;
+        emote_id?: number;
         message_id: number;
         user_id: number;
+        emote_name: string;
     }
 }
 export interface UserWithGoals extends User {
@@ -152,6 +153,7 @@ export interface Office {
     post_code_2: string | null;
     employees: User[];
     layout: string | null;
+    files: CommonFile[]
 }
 export interface Facility {
     id: number;

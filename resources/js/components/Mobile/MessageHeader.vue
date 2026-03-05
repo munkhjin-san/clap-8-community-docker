@@ -10,6 +10,7 @@
                     align-items: center;
                     justify-content: center;
                     border-radius:50px;"
+                    class="cursor-pointer"
                    >      
                     <Back/>                                     
                     

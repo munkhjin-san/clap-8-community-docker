@@ -23,7 +23,13 @@
                     </div>
                     <p>({{ office?.employees?.length }})</p>
                 </div>
-                
+                <div v-if="office.files.length">
+                    <div class="mb-3">配置図：</div>
+                    <Files 
+                        :items="office.files"
+                        path="office_files"
+                    />
+                </div>
             </div>
         </div>
     </div>
@@ -35,6 +41,7 @@ import { onMounted, ref } from 'vue';
 import CommandButton from '../Global/CommandButton.vue';
 import { useDialog } from '@/composables/dialog';
 import { useProjectUsers } from '@/store/projectUsers';
+import Files from '../Global/Files.vue';
 const offices = ref<Office[]>([])
 const api = useApi()
 const { toast } = useDialog()

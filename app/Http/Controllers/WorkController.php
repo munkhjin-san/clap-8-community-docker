@@ -1712,7 +1712,6 @@ class WorkController extends Controller
         $active_user = $this->active_user();
         $work_type_flag = $request->user['work_type'];
         $work_type = $work_type_flag == 0 ? 'フレックス' : '通常';
-        $month_petition = '済';
         $user_code = $request->user->user_code ?? 99999999;
         if(empty($attendance_record)){
             $attendance_record = new attendanceRecord;
@@ -1721,40 +1720,7 @@ class WorkController extends Controller
             $attendance_record->name = $request->user['name'];
             $attendance_record->user_code = $user_code;
             $attendance_record->date_year_month = $request->date;
-            $attendance_record->prescribed_working_hours = 0;
             $attendance_record->work_type = $work_type;
-            $attendance_record->month_petition = $month_petition;
-            $attendance_record->working_days_shift = 0;
-            $attendance_record->normal_working_days = 0;
-            $attendance_record->holiday_working_days = 0;
-            $attendance_record->paid_holiday_hours = 0;
-            $attendance_record->planned_paid_holiday = 0;
-            $attendance_record->petitionType8_count = 0;
-            $attendance_record->petitionType7_count = 0;
-            $attendance_record->petitionType6_count = 0;
-            $attendance_record->petitionType5_count = 0;
-            $attendance_record->petitionType4_count = 0;
-            $attendance_record->petitionType3_count = 0;
-            $attendance_record->petitionType2_count = 0;
-            $attendance_record->petitionType1_count = 0;
-            $attendance_record->working_hours = 0;
-            $attendance_record->over_time = 0;
-            $attendance_record->status_flag = 1;
-            $attendance_record->night_work_time = 0;
-            $attendance_record->working_hours_no_over = 0;
-            $attendance_record->stay_pay = 0;
-            $attendance_record->move_pay = 0;
-            $attendance_record->closed_day = 0;
-            $attendance_record->half_day_holiday = 0;
-            $attendance_record->condolence_holiday = 0;
-            $attendance_record->special_holiday = 0;
-            $attendance_record->oda_holiday = 0;
-            $attendance_record->working_days_shift = 0;
-            $attendance_record->pay_day = 20;
-            $attendance_record->absence_days = 0;
-            $attendance_record->absence_hour = 0;
-            $attendance_record->expenses = 0;
-            $attendance_record->incentive = 0;
             $attendance_record->save();
 
         }

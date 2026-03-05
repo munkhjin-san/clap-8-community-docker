@@ -36,7 +36,7 @@
                         </label>
                         
                     </div>  
-                    <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;">ONにすると受講者は全セクション完了後にポートフォリオ作成フローへ進みます。案内文が学習画面に表示されます。<br>※ポートフォリオが ON の場合、ケーススタディタイプは選択できません。</p>
+                    <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;line-height:normal;">ONにすると受講者は全セクション完了後にポートフォリオ作成フローへ進みます。案内文が学習画面に表示されます。<br>※ポートフォリオが ON の場合、ケーススタディタイプは選択できません。</p>
                 </div>
                
                 <div class="si-box" v-if="portfolio">
@@ -77,7 +77,7 @@
                         </label>
                         
                 </div>  
-                    <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;">ONにすると各レッスンで『ケーススタディ』タイプを選択でき、学習画面ではカード形式で表示されます。<br>※ケーススタディが ON の場合、ポートフォリオは選択できません。</p>
+                    <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;line-height:normal;">ONにすると各レッスンで『ケーススタディ』タイプを選択でき、学習画面ではカード形式で表示されます。<br>※ケーススタディが ON の場合、ポートフォリオは選択できません。</p>
                     <span v-if="errors.structure" class="form-error" style="font-size: 11px;color:tomato;">{{ errors.structure }}</span>
             </div>
                 <div class="si-box">
@@ -93,7 +93,7 @@
                         </label>
                         
                     </div>  
-                    <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;">OFFのテーマは受講者画面に表示されません（下書き状態）。</p>
+                    <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;line-height: normal;">OFFのテーマは受講者画面に表示されません（下書き状態）。</p>
                 </div>
                 <div class="si-box">
                     <div style="font-size: 13px;margin-bottom: 15px;">グループディスカッション日付（任意）</div>
@@ -114,9 +114,31 @@
                         :close-on-select="true"
                         v-model="selectedForm"
                     />
-                    <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;">テーマ完了後に受講者へ表示するカスタムアンケートを選択できます。</p>
+                    <p class="form-helper" style="font-size: 12px;color: gray;margin-top: 5px;line-height: normal;">テーマ完了後に受講者へ表示するカスタムアンケートを選択できます。</p>
                 </div>
-                <div style="text-align: center;margin-top: auto;padding: 20px 0;">
+                <div class="si-box">
+                    <ItemSelector 
+                        placeHolder="アクセス可能役"
+                        :options="positions"
+                        label="name"
+                        :multiple="true"
+                        :clearable="true"
+                        :close-on-select="false"
+                        v-model="selectedPositions"    
+                    />
+                </div>
+                <div class="si-box">
+                    <MemberSelector 
+                        placeHolder="アクセス可能メンバー"
+                        :options="members"
+                        label="name"
+                        :multiple="true"
+                        :clearable="true"
+                        :close-on-select="false"
+                        v-model="selectedMembers"
+                    />
+                </div>
+                <div class="si-box">
                     <LoaderButton @triggered="create" :loading="loader" content="作成する"/>
                 </div>
 
@@ -134,6 +156,7 @@ import RichEditor from '@/components/Global/RichEditor.vue';
 import ItemSelector from '@/components/Form/ItemSelector.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import MemberSelector from '@/components/Form/MemberSelector.vue';
 const props = defineProps(['editTarget'])
 const emit = defineEmits(['closeModal'])
 const title = ref(props.editTarget ? props.editTarget.title : '')
@@ -147,9 +170,23 @@ const theme = useTheme()
 const portfolio = ref(props.editTarget?.portfolio === 1 ? true : false);
 const case_study = ref(props.editTarget?.has_case_study === 1 ? true : false);
 const forms = ref([])
+const positions = ref([])
 const selectedForm = ref(props.editTarget?.custom_form_id ?? null)
+const selectedPositions = ref([])
+const selectedMembers = ref(props.editTarget ? props.editTarget.access_members : [])
 const api = useApi()
 const { toast, ping } = useDialog()
+const members = computed(() => {
+    let list = []
+    positions.value.forEach(position => {
+        if(position.employees){
+            position.employees.forEach(employee => {
+                list.push(employee)
+            })
+        }
+    })
+    return list
+})
 const initialPortfolioGuidance = computed(() => {
     return props.editTarget && props.editTarget.guidance ? props.editTarget.guidance : ''
 })
@@ -186,6 +223,20 @@ watch(portfolio, (value) => {
         errors.portfolioGuidance = ''
         errors.episodeGuidance = ''
         errors.titleGuidance = ''
+    }
+})
+watch(selectedPositions, (val) => {
+    if (val) {
+        const selectedMembersSet = new Set()
+        val.forEach(positionId => {
+            const position = positions.value.find(pos => pos.id === positionId)
+            if (position && position.employees) {
+                position.employees.forEach(emp => selectedMembersSet.add(emp.id))
+            }
+        })
+        selectedMembers.value = members.value.filter(member => selectedMembersSet.has(member.id))
+    } else {
+        selectedMembers.value = []
     }
 })
 const handlePortfolioGuidanceUpdate = (html) => {
@@ -261,8 +312,9 @@ const create = async() => {
                 title_guidance: portfolio.value ? titleGuidanceContent.value : '',
                 portfolio: portfolio.value,
                 has_case_study: case_study.value,
-                custom_form_id: selectedForm.value
-            }
+                custom_form_id: selectedForm.value,
+            },
+            access_members: selectedMembers.value.map((member) => member.id)
     
         },{       
             toast: props.editTarget ? '編集しました。' :'保存しました。'       
@@ -280,7 +332,12 @@ const getForms = async() => {
     const response = await api.get('/get_forms')
     forms.value = response
 }
+const getPositions = async() => {
+    const response = await api.get('/get_members_by_position')
+    positions.value = response
+}
 onMounted(() => {
     getForms()
+    getPositions()
 })
 </script>

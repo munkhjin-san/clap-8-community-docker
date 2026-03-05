@@ -35,4 +35,8 @@ class LessonTheme extends Model
     {
         return $this->form?->survey_answers?->where('user_id', Auth::id())->first()?->updated_at;
     }
+    public function accessMembers()
+    {
+        return $this->belongsToMany(User::class, 'lesson_access', 'lesson_theme_id', 'user_id');
+    }
 }

@@ -2,7 +2,7 @@
     <div 
         ref="editor"
         style="font-size: 14px;line-height: 1.5;white-space: break-spaces;outline: none;word-break: break-word;display: inline-block;width: -webkit-fill-available;" 
-        v-html="mentionFormatter(props.message.message)"
+        v-html="message.message"
         contentEditable="plaintext-only">
     </div>
     <Transition name="slidePop">   
@@ -18,7 +18,6 @@
 import { useApi } from '@/composables/api';
 import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
 import { inject, onMounted, ref, useTemplateRef } from 'vue';
-import { mentionFormatter } from '@/utils/tools';
     
     const props = defineProps(['message'])
     const emit = defineEmits(['cancel'])
@@ -40,6 +39,7 @@ import { mentionFormatter } from '@/utils/tools';
     const { refreshMessages } = inject(BoardMethodsKey) as BoardMethods 
     const update = async() => {
         const new_text = editor.value?.textContent;
+        
         if(sending.value) return
 
         sending.value = true          

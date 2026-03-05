@@ -138,8 +138,8 @@
                         />
                         <div v-show="tab === 'oikawa'" class="w-max p-4 bg-[var(--background-color)] shadow-xl">
                             <div class="grid grid-cols-5 gap-2">                        
-                                <div class="flex items-end transition-transform duration-200 ease-out hover:scale-105" v-for="num in 25" @click="selectOikawa(num)">
-                                    <Character :size="40" :emoteId="num"/>
+                                <div class="flex items-end transition-transform duration-200 ease-out hover:scale-105" v-for="oikawa in oikawaMap" @click="selectOikawa(oikawa.name)">
+                                    <Character :size="40" :emote-name="oikawa.name"/>
                                 </div>
                             </div>
                         </div>
@@ -224,6 +224,7 @@ import { Message, MessageFile, SharingFile, UploadingFile, User } from '@/interf
 import { MessageMethodsKey, MessageMethods } from '@/interface/keys';
 import AiCorrection from '@/components/Global/AiCorrection.vue';
 import Character from '@/components/Global/Character.vue'
+import { oikawaMap } from '@/utils/tools'
     const sharingData = useSharingDataStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -446,9 +447,9 @@ import Character from '@/components/Global/Character.vue'
         sharingFiles.value = []             
         
     }       
-    const selectOikawa = (num: number) => {
+    const selectOikawa = (label: string) => {
         if (!messageInputArea.value) return 
-        const oikawaSyntax = `[oikawa:${num}:]`
+        const oikawaSyntax = `{#${label}}`
         const text = messageInputArea.value.textContent || ''
         const textBeforeCursor = text.slice(0, caretPosition.value)
         const textAfterCursor = text.slice(caretPosition.value)

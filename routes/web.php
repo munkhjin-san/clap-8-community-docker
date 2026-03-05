@@ -83,6 +83,7 @@ Route::get('/pdf-reader/{path}', [ContentController::class, 'pdf_reader'])
 // Route::get('/change_shift_status', [AutoJobController::class, 'change_shift_status']);
 // Route::get('/board_badge_update_auto', [AutoJobController::class, 'board_badge_update_auto']);
 Route::get('/timecard_update', [AutoJobController::class, 'timecard_update']);
+Route::get('/emote_rearrange', [AutoJobController::class, 'emote_rearrange']);
 // temp_routes
 // Route::get('/for_kintone', [ContentController::class, 'for_kintone']);
 // Route::get('/for_kintone_pop', [ContentController::class, 'for_kintone_pop']);
@@ -490,6 +491,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::delete('/lesson_remove_summary', [LessonController::class, 'lesson_remove_summary']);
         Route::post('/save_summary_answers', [LessonController::class, 'save_summary_answers']);
         Route::get('/get_theme_data', [LessonController::class, 'get_theme_data']);
+        Route::get('/get_members_by_position', [LessonController::class, 'get_members_by_position']);
+
         Route::get('/lesson_exam', [LessonExamController::class, 'get_exam']);
         Route::post('/lesson_exam', [LessonExamController::class, 'save_exam']);
         Route::delete('/lesson_exam', [LessonExamController::class, 'delete_exam']);

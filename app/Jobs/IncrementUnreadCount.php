@@ -41,7 +41,7 @@ class IncrementUnreadCount implements ShouldQueue
 
         $members->each(function ($member) {
             $member->increment('unread_count');
-            // Cache::store('redis')->put("must_sync_{$member->user_id}", true);
+            Cache::put("must_sync_{$member->user_id}", true);
         });
     }
 }

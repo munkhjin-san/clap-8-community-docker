@@ -25,7 +25,7 @@ class customFieldDataRecord extends Model
     public function emotedUsers()
     {
         return $this->belongsToMany(User::class, 'custom_field_emote_users')
-                    ->withPivot(['emote_id'])
+                    ->withPivot(['emote_name'])
                     ->select('users.id', 'users.name', 'users.icon_path','users.icon_bg', 'users.deleted_at');
     }
 

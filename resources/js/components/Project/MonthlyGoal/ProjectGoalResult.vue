@@ -67,6 +67,8 @@
                     <LongInput 
                         placeHolder="反応の根拠事例（ステークホルダーからの声、数字、出来事など）"
                         v-model="stakeHolderReview"
+                        rules="required"
+                        ref="stackHolderRef"
                     />
                 </div>
                 <div class="si-box" style="display: flex; gap: 20px; justify-content: center;">
@@ -79,7 +81,7 @@
     </div>
 </template>
 <script setup lang="ts">
-import { inject, ref } from 'vue';
+import { inject, ref, useTemplateRef } from 'vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import { useAuthUserStore } from '@/store/auth';
@@ -97,7 +99,6 @@ const sliderValue = ref(props.chosenGoal?.achievement_rate ?? 0)
 const result = ref(props.chosenGoal?.result ?? '')
 const report = ref(props.chosenGoal?.report ?? '')
 const reportRef = ref<InstanceType<typeof LongInput> | null>(null)
-const resultRef = ref<InstanceType<typeof LongInput> | null>(null)
 const stakeHolderPoint = ref(props.chosenGoal?.stakeholder_point && props.chosenGoal?.stakeholder_point > 0 ? props.chosenGoal?.stakeholder_point : 3)
 const stakeHolderReview = ref(props.chosenGoal?.stakeholder_review ?? '')
 const loading = ref([false, false, false, false])
@@ -105,6 +106,7 @@ const auth = useAuthUserStore()
 const badge = useBadgeStore()
 const api = useApi()
 const { ask } = useDialog()
+const stackHolderRef = ref<InstanceType<typeof LongInput> | null>(null)
 const uploadedFiles = ref<FileRecord[]>(props.chosenGoal?.files ?? [])
 const mobile = window.innerWidth <= 640;
 const tickLabel = {
@@ -115,7 +117,7 @@ const tickLabel = {
     5: '明確に好転'
 }
 const progressReport = async(status: number) => {
-    const validateTargets = [resultRef.value, reportRef.value]
+    const validateTargets = [stackHolderRef.value, reportRef.value]
     const targets = validateTargets.filter(ob => ob !== null)
     let validate = true
     for(const target of targets){

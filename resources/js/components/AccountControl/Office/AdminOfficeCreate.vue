@@ -44,6 +44,13 @@
                 />
             </div>
             <div class="si-box">
+                <FileUploader 
+                    v-model="files"
+                    placeHolder="配置図"
+                    path="/office_files"
+                />
+            </div>
+            <div class="si-box">
                 <LoaderButton @triggered="save" :loading="loading" content="保存する" />
             </div>
         </template>
@@ -56,8 +63,9 @@ import LongInput from "@/components/Form/LongInput.vue";
 import LoaderButton from "@/components/Global/LoaderButton.vue";
 import Modal from "@/components/Global/Modal.vue";
 import { useApi } from "@/composables/api";
-import { Office } from "@/interface/globalInterface";
+import { CommonFile, Office } from "@/interface/globalInterface";
 import MemberSelector from "@/components/Form/MemberSelector.vue";
+import FileUploader from "@/components/Form/FileUploader.vue";
 const props = defineProps<{
     editTarget: Office | null;  
 }>();
@@ -72,6 +80,7 @@ const params = reactive<Partial<Office> >({
     post_code_1: props.editTarget ? props.editTarget.post_code_1 : "",
     post_code_2: props.editTarget ? props.editTarget.post_code_2: ""
 })
+const files = ref<CommonFile[]>(props.editTarget?.files ?? [])
 const loading = ref(false);
 const officeTitleRef = ref<InstanceType<typeof ShortInput> | null>(null);
 const api = useApi()
@@ -81,9 +90,12 @@ const closeModal = (flag: boolean) => {
 const save = async () => {
     const valid = (await officeTitleRef.value?.validate()) || { valid: false };
     if (!valid.valid) return;
-    
+    const payload = {
+        ...params,
+        file_ids: files.value.map(f => f.id)
+    }
   
-    const data = await api.post("/office_item", params, {
+    const data = await api.post("/office_item", payload, {
         toast: '営業所を保存しました',
     });
     emit("close", true);

@@ -8,6 +8,7 @@ import { useAuthUserStore } from './store/auth'
 import { useProjectUsers } from '@/store/projectUsers'
 import { useKeyboardStore } from '@/store/keyboardStore'
 import { useBoardList } from '@/composables/board'
+import { useModal } from '@/composables/modal';
 
 import axios from 'axios'
 const routes = [
@@ -482,8 +483,20 @@ const routes = [
                 path: 'refresh-control',
                 name: 'refresh-control',
                 meta: { head: 'リフレッシュ' },
-                
+                redirect: { name: 'applications' },
                 component: () => import('@/components/AccountControl/RefreshControl/RefreshControl.vue'),
+                children: [
+                    {
+                        path: 'management',
+                        name: 'management',
+                        component: () => import('@/components/AccountControl/RefreshControl/RefreshManagement.vue'),
+                    },
+                    {
+                        path: 'applications',
+                        name: 'applications',
+                        component: () => import('@/components/AccountControl/RefreshControl/RefreshApplications.vue'),
+                    }
+                ]
             },
             {
                 path: 'offices',
@@ -865,10 +878,12 @@ router.afterEach((to, from) => {
     cleanUp(to, from)
   });
   function cleanUp(to, from){
+    const { setEmoteUsers } = useModal()
     const messageUsers = useMessageUsers()
     const filePreview = useFilePreview()
     const projectUsers = useProjectUsers()
     const { setNextCursor, nextCursor } = useBoardList() 
+    setEmoteUsers([])
     projectUsers.setProjectUsers({
         active: false,
         userList: [],

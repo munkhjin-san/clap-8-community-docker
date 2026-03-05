@@ -1,7 +1,7 @@
 <template>
     <div>
         <div :class="['form-wrapper', {focused: (multiple ? modelValue.length : modelValue) || focus}]">
-            <span style="z-index:5" :class="['form-plc', {'focused-plc': selectedItems || (Array.isArray(selectedItems) && selectedItems.length)}]">{{ placeHolder }}</span> 
+            <span style="z-index:5" :class="['form-plc', {'focused-plc': (Array.isArray(selectedItems) && selectedItems.length)}]">{{ placeHolder }}</span> 
             <drop-selector
                 class="one-selector"
                 :options="itemOptions"
@@ -74,7 +74,7 @@ import { useApi } from '@/composables/api';
         itemOptions.value = props.options
     })
     onMounted(() => {
-        console.log(props.modelValue)
+        console.log(Array.isArray(selectedItems.value))
         if (props.options.length) {
             itemOptions.value = props.options
         } else if (props.path) {

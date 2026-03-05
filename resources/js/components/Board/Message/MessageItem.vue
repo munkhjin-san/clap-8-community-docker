@@ -16,6 +16,7 @@
         @draftSend="draftSend"
         @remind="message => remind(message)"
         @reactOrCheck="message => reactOrCheck(message)"
+        @cancelEdit="editing = false"
     >
         <template #unreadLine>
             <div v-bind="unreadLineVisible()" @click="refresh" v-if="unreadMessages.id == message.id" :id="'unread_line_' + message.id" class="cursor-pointer" style="user-select:none;width:100%;border-bottom:solid thin #a09f9f;position: absolute;bottom:10px;font-size:12px;">
@@ -265,14 +266,14 @@ import { useDashboardStore } from '@/store/dashboard';
         } 
            
     }       
-    const fastPreCheckEmote = (num) => {
+    const fastPreCheckEmote = (name) => {
         // pretend to send emote api for fast response
         const checkExist = props.message.emoted_users?.find(ob => ob.id == auth.activeUser.id)
         if(checkExist){
-            if(checkExist.pivot.emote_id == num) {
+            if(checkExist.pivot.emote_name == name) {
                 refreshMessages({
                     ...props.message,
-                    emoted_users: props.message.emoted_users.filter(ob => !(ob.id == auth.activeUser.id && ob.pivot.emote_id == num))
+                    emoted_users: props.message.emoted_users.filter(ob => !(ob.id == auth.activeUser.id && ob.pivot.emote_name == name))
                 })
             }else{ 
                 const newEmotedUsers = props.message.emoted_users.map(ob => {
@@ -281,7 +282,7 @@ import { useDashboardStore } from '@/store/dashboard';
                             ...ob,
                             pivot: {
                                 ...ob.pivot,
-                                emote_id: num
+                                emote_name: name
                             }
                         }
                     }
@@ -302,16 +303,16 @@ import { useDashboardStore } from '@/store/dashboard';
                     pivot: {
                         message_id: props.message.id as number,
                         user_id: auth.activeUser.id as number,
-                        emote_id: num
+                        emote_name: name
                     }
                 }, ...props.message.emoted_users]
             })
         }
     }
-    const sendEmote = async(num) => {
+    const sendEmote = async(name) => {
         menu.close()
-        fastPreCheckEmote(num)
-        const data = await api.post('/send_emote', {id: props.message.id, reaction: num})
+        fastPreCheckEmote(name)
+        const data = await api.post('/send_emote', {id: props.message.id, reaction: name})
         refreshMessages(data)
     }    
 
