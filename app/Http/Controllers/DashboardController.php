@@ -381,7 +381,7 @@ class DashboardController extends Controller
         //     return [];
         // }
 
-        $updateNeed = (clone $challengesQuery)->whereIn('status_flag', [0, 5])->get();
+        $updateNeed = (clone $challengesQuery)->where('date_end', '<=', $now)->whereIn('status_flag', [0, 5])->get();
         $data = $progressNeed->map(function ($challenge) use ($now) {
             $start = Carbon::parse($challenge->date_start);
             $end   = Carbon::parse($challenge->date_end);
