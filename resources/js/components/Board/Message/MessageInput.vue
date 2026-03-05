@@ -138,7 +138,7 @@
                         />
                         <div v-show="tab === 'oikawa'" class="w-max p-4 bg-[var(--background-color)] shadow-xl">
                             <div class="grid grid-cols-5 gap-2">                        
-                                <div class="flex items-end transition-transform duration-200 ease-out hover:scale-105" v-for="oikawa in oikawaMap" @click="selectOikawa(oikawa.name)">
+                                <div class="flex items-end justify-center transition-transform duration-200 ease-out hover:scale-105" v-for="oikawa in oikawaMap" @click="selectOikawa(oikawa.name)">
                                     <Character :size="40" :emote-name="oikawa.name"/>
                                 </div>
                             </div>
