@@ -28,13 +28,13 @@
                 >
                     <template #title="{ expanded }">
                         <PanelTitle :expanded="expanded">
-                            {{ challenge.title }}
+                            <div class="overflow-hidden text-ellipsis">{{ challenge.title }}</div>
                         </PanelTitle>
                     </template>
                     <template #body>
                         <PanelData>
-                            <p v-if="isOverdue(challenge)">チャレンジ期間が終了しました。結果を入力してください。</p>
-                            <p v-else>チャレンジの締切が近づいています。進捗を入力してください。</p>
+                            <p v-if="isOverdue(challenge)" class="text-[12px] text-[tomato]">チャレンジ期間が終了しました。結果を入力してください。</p>
+                            <p v-else class="text-[12px] text-[gray]">チャレンジの締切が近づいています。進捗を入力してください。</p>
                             <div class="mt-3 text-right">
                                 <router-link :to="{ name: 'post', query: { id: challenge.id, status: 5 } }">対応</router-link>
                             </div>
