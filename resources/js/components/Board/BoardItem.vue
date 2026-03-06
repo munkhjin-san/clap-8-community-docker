@@ -3,7 +3,7 @@
         <div class="left-panel-items" @click="open(item)" :class="{leftPanelSelected : isOpened}">
             <div :class="['board-info-bar', {openedInfoBar : isOpened}]">
                 <div v-if="item.has_draft_message" title="下書き">
-                    <Edit size="15"/>
+                    <Edit size="15" color="var(--kebab-icon)"/>
                 </div>
                 <div v-if="badge.task[item.id]">
                     <svg class="dot-menu" version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 37 32">
