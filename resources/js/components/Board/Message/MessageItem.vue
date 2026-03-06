@@ -41,17 +41,17 @@ import { BoardMethodsKey, BoardMethods, MessageMethods, MessageMethodsKey } from
 import { MenuList, Message, MessageFile } from "@/interface/globalInterface";
 import { useBoardList } from "@/composables/board";
 import MessageItemInner from "./MessageItemInner.vue";
-import SharingData from '@/components/Global/SharingData.vue';
 import { useResponsive } from '@/store/responsive';
 import { useQuoteReply } from '@/store/quoteReply';
 import { useUrlMessage } from '@/store/urlMessage';
 import { useDashboardStore } from '@/store/dashboard';
+import { useSharingDataStore } from '@/store/sharingData';
     const badge = useBadgeStore()
     const auth = useAuthUserStore()
     const menu = useMenuStore()
     const responsive = useResponsive()
     const quoteReply = useQuoteReply()
-
+    const sharingData = useSharingDataStore()
     const props = defineProps<{
         message: Message,
         mIndex?: number | string,
@@ -359,7 +359,7 @@ import { useDashboardStore } from '@/store/dashboard';
                 drag: false,
                 instruction: to == 'board' ? '送る先のチャットを選択してください' : ''
             }
-            SharingData.setSharingData(shareData)
+            sharingData.setSharingData(shareData)
             if(to == 'task'){
                 if(responsive.mobile){
                     setTimeout(() =>{

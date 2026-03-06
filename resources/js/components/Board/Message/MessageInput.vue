@@ -448,14 +448,22 @@ import { oikawaMap } from '@/utils/tools'
         
     }       
     const selectOikawa = (label: string) => {
-        if (!messageInputArea.value) return 
+        const el = messageInputArea.value
+        if (!el) return
+
         const oikawaSyntax = `{#${label}}`
-        const text = messageInputArea.value.textContent || ''
-        const textBeforeCursor = text.slice(0, caretPosition.value)
-        const textAfterCursor = text.slice(caretPosition.value)
-        const output = textBeforeCursor + oikawaSyntax + textAfterCursor
-        messageInputArea.value.textContent = output
-        const newPosition = caretPosition.value + oikawaSyntax.length
+        const text = el.textContent || ''
+
+        const start = caretPosition.value ?? text.length // fallback to end if undefined
+
+        const output = text.slice(0, start) + oikawaSyntax + text.slice(start)
+        el.textContent = output
+
+        const newPosition = start + oikawaSyntax.length
+
+        // IMPORTANT: keep your state in sync
+        caretPosition.value = newPosition
+
         setEndOfContenteditable(newPosition)
         msgSave()
         menu.close()

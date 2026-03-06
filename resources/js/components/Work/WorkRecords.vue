@@ -12,7 +12,6 @@
             item-value="name"
             id="dt-responsive-table"
             class="p-datatable-table"
-            item-height="41"
             dense
             disable-sort
         >
