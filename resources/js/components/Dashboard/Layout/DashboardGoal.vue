@@ -135,6 +135,11 @@
                                 </div>
                                 
                             </div>
+                            <div class="flex items-center">
+                                <div class="text-sm border px-3 py-1 w-fit">
+                                    <p class="text-[13px]">現時点で達成評価点 ： <strong>{{ totalOverallScore }}</strong>点</p>
+                                </div>  
+                            </div>
                             <div class="evaluation-date">
                                 <select name="locales" v-model="selectedDate" class="dropDownSelector cursor-pointer" style="width: fit-content; padding: 5px 10px;">
                                     <option :value="date" v-for="date in targetDates">{{ date.name}}</option>
@@ -200,7 +205,7 @@ const emit = defineEmits<{
 }>()
 
 const goalsStore = useDashboardGoalsStore()
-const { loading, pendingMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals, requiredGoalData } = storeToRefs(goalsStore)
+const {totalOverallScore, loading, pendingMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals, requiredGoalData } = storeToRefs(goalsStore)
 const { getGoals } = goalsStore
 
 const auth = useAuthUserStore()

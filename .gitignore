@@ -21,3 +21,4 @@ package-lock.json
 composer.lock
 /public/mix-manifest.json
 /root
+.DS_Store
