@@ -448,19 +448,32 @@ class ProjectController extends Controller
                 ->whereHas('project', function ($projectQuery) use ($user) {
                     $projectQuery->whereHas('manager', function ($directorQuery) use ($user) {
                         $directorQuery->where('users.id', $user->id);
+                    })->whereHas('members', function ($memberQuery) {
+                        $memberQuery->whereColumn('users.id', 'project_goals.user_id');
                     });
                 });
-            })->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')->with(['outcome_goals' => fn ($q) => $q->whereIn('status', [2, 7])->select('id', 'user_id', 'status', 'year', 'which_half')])->get();
+            })->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
+            ->with(['outcome_goals' => fn ($q) => $q->whereIn('status', [2, 7])
+                ->whereHas('project.members', function ($memberQuery) {
+                    $memberQuery->whereColumn('users.id', 'project_goals.user_id');
+                })
+            ->select('id', 'user_id', 'status', 'year', 'which_half')])->get();
         }
         if($is_boss){
             
             $managers_goals = User::whereNot('id', $user->id)
             ->whereIn('id', $project_managers)
-            ->whereHas('outcome_goals', function ($q) use ($user) {
+            ->whereHas('outcome_goals', function ($q) {
                 $q->whereIn('status', [2, 7]);
-                
+                $q->whereDoesntHave('project.members', function ($memberQuery) {
+                    $memberQuery->whereColumn('users.id', 'project_goals.user_id');
+                });
             })->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
-            ->with(['outcome_goals' => fn ($q) => $q->whereIn('status', [2, 7])->select('id', 'user_id', 'status', 'year', 'which_half')])->get();
+            ->with(['outcome_goals' => fn ($q) => $q->whereIn('status', [2, 7])
+                ->whereDoesntHave('project.members', function ($memberQuery) {
+                    $memberQuery->whereColumn('users.id', 'project_goals.user_id');
+                })
+                ->select('id', 'user_id', 'status', 'year', 'which_half')])->get();
         }
 
         $project_goals = $this->goalLoader($user->id, $target_user_id, $year, $which_half);
