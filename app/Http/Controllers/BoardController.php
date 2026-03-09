@@ -1393,6 +1393,7 @@ class BoardController extends Controller
                     }
                 })
                 // ->where('message_text', 'LIKE', '%' . $request->keyword . '%')
+                ->where('draft_flag', 0)
                 ->whereHas('user')
                 ->with('user')
                 ->latest('created_at')
@@ -1404,6 +1405,7 @@ class BoardController extends Controller
                 if($selfcheck->created_at){
                     $comment_list_pre = messageRecord::where('record_id', $board->id)
                     ->where('created_at', '>=',  $selfcheck->created_at)->where('message_text', 'LIKE', '%' . $request->keyword . '%')
+                    ->where('draft_flag', 0)
                     ->whereHas('user')->with('user')
                     ->latest('created_at')
                     ->select('id', 'user_id', 'record_id', 'created_at', 'message', 'message_text')
@@ -1416,6 +1418,7 @@ class BoardController extends Controller
                             $query->where('message_text', 'LIKE', "%$keyword%");
                         }
                     })
+                    ->where('draft_flag', 0)
                     ->whereHas('user')
                     ->with('user')
                     ->latest('created_at')
