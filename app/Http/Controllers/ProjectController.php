@@ -144,15 +144,15 @@ class ProjectController extends Controller
         ->when($id, function ($q) use ($id) {
             $q->where('id', $id);
         })
-        ->where(function ($q) use ($user) {
-            $q->where('status', '!=', 'draft')
-                ->orWhere(function ($q) use ($user) {
-                    $q->where('status', 'draft')
-                        ->whereHas('manager', function ($m) use ($user) {
-                            $m->where('users.id', $user->id);
-                        });
-                });
-        })
+        // ->where(function ($q) use ($user) {
+        //     $q->where('status', '!=', 'draft')
+        //         ->orWhere(function ($q) use ($user) {
+        //             $q->where('status', 'draft')
+        //                 ->whereHas('manager', function ($m) use ($user) {
+        //                     $m->where('users.id', $user->id);
+        //                 });
+        //         });
+        // })
         ->with([
             'director:id,name,icon_path,icon_bg',
             'manager' => $usersLoader(true),
@@ -179,10 +179,7 @@ class ProjectController extends Controller
             $isMember = in_array(Auth::id(), $project->members->pluck('id')->toArray());
             $isManager = in_array(Auth::id(), $project->manager->pluck('id')->toArray());
             $isDirector = $project->director && $project->director->id == Auth::id();
-            $isDraft = $project->status == 'draft';
-            if ($isDraft) {
-                return 4;
-            } elseif ($isMember) {
+            if ($isMember) {
                 return 3;
             } elseif ($isManager) {
                 return 2;
@@ -3253,9 +3250,12 @@ class ProjectController extends Controller
                     
                     $sumData[$project_name]['yearly_plan']['sales'] = ($sumData[$project_name]['yearly_plan']['sales'] ?? 0) + $totalSales;
                     $sumData[$project_name]['yearly_plan']['expense'] = ($sumData[$project_name]['yearly_plan']['expense'] ?? 0) + $totalExpense;
-                    $summarizeData['yearly_plan']['sales'] = ($summarizeData['yearly_plan']['sales'] ?? 0) + $totalSales;
-                    $summarizeData['yearly_plan']['expense'] = ($summarizeData['yearly_plan']['expense'] ?? 0) + $totalExpense;
-                    $accumulatePeriodTotals($periodKey, 'yearly_plan', $planData);
+                    if ($project_name !== '間接費部門' && $project_name !== '積立部門') {
+                        $summarizeData['yearly_plan']['sales'] = ($summarizeData['yearly_plan']['sales'] ?? 0) + $totalSales;
+                        $summarizeData['yearly_plan']['expense'] = ($summarizeData['yearly_plan']['expense'] ?? 0) + $totalExpense;
+                        $accumulatePeriodTotals($periodKey, 'yearly_plan', $planData);
+                    }
+                    
                 } else {
                     $plan_res_data[$project_name][$periodKey]['yearly_plan']  = $default_data;
                     $accumulatePeriodTotals($periodKey, 'yearly_plan', $default_data);
@@ -3285,10 +3285,13 @@ class ProjectController extends Controller
                     $sumData[$project_name]['profit']['sales'] = ($sumData[$project_name]['profit']['sales'] ?? 0) + $totalSales;
                     $sumData[$project_name]['profit']['expense'] = ($sumData[$project_name]['profit']['expense'] ?? 0) + $totalExpense;
                     $sumData[$project_name]['profit']['profit'] = ($sumData[$project_name]['profit']['profit'] ?? 0) + $profitData['profit'];
-                    $summarizeData['profit']['sales'] = ($summarizeData['profit']['sales'] ?? 0) + $totalSales;
-                    $summarizeData['profit']['expense'] = ($summarizeData['profit']['expense'] ?? 0) + $totalExpense;
-                    $summarizeData['profit']['profit'] = ($summarizeData['profit']['profit'] ?? 0) + $profitData['profit'];
-                    $accumulatePeriodTotals($periodKey, 'profit', $profitData);
+                    if ($project_name !== '間接費部門' && $project_name !== '積立部門') {
+                        $summarizeData['profit']['sales'] = ($summarizeData['profit']['sales'] ?? 0) + $totalSales;
+                        $summarizeData['profit']['expense'] = ($summarizeData['profit']['expense'] ?? 0) + $totalExpense;
+                        $summarizeData['profit']['profit'] = ($summarizeData['profit']['profit'] ?? 0) + $profitData['profit'];
+                        $accumulatePeriodTotals($periodKey, 'profit', $profitData);
+                    }
+                    
                 }
                 else{
                     $plan_res_data[$project_name][$periodKey]['profit'] = $default_data;
