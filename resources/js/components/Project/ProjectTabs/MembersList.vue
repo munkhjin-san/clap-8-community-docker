@@ -79,7 +79,7 @@
                     </UserPanel>
                     <div class="text-xs" v-if="member?.evaluation?.mentor">メンター：{{ member?.evaluation?.mentor?.name }}</div>
                     <div class="flex items-center justify-between flex-wrap gap-3">
-                        <router-link class="jump-link text-[12px]" :to="{name: 'evaluation', params: { projectId: route.params.projectId, memberId: member.id }}">成果目標・昇給課題
+                        <router-link class="jump-link text-[12px]" :to="{name: 'outcomegoal', params: { projectId: route.params.projectId, memberId: member.id}}">成果目標・昇給課題
                             <span 
                                 class="side-notification" 
                                 style="position: unset;width: fit-content;" 
