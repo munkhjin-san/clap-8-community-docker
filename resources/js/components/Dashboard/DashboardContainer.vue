@@ -4,7 +4,7 @@
             <div class="mem-header-section mobile" :style="{'transform': `translateY(${offset}px)`}">        
                 <div class="post-header sticky top-0 z-[11] bg-[var(--background-color)]" >
                     <HamBurger />       
-                    <div class="text-[14px]">ダッシュボード</div>   
+                    <div class="text-[14px] text-[var(--primary-color)]">ダッシュボード</div>   
                 </div>
             </div>
             <div ref="mParent" class="dashboard-parent p-5 grid grid-cols-4 gap-5 under960:grid-cols-1 items-stretch">

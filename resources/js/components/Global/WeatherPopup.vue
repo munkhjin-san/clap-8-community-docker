@@ -51,7 +51,7 @@
                                 <div class="section-header">
                                     <p class="leading-normal">スケジュール</p>
                                     <button v-if="showSchedulesMore" class="more-link" type="button" @click="toggleSchedules">
-                                        {{ showAllSchedules ? 'とじる' : `もっと見る（${schedules.length}）` }}``
+                                        {{ showAllSchedules ? 'とじる' : `もっと見る（${schedules.length}）` }}
                                     </button>
                                 </div>
                                 <CardWrap
