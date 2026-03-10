@@ -29,7 +29,7 @@
                 <div class="mt-2">
                     <LoaderButton @click="evaluateMember" v-if="member?.pivot?.role_record" class="!m-0" content="評価する" :loading="loading">
                         <template #icon>
-                            <AiIcon class="mr-2" fill="var(--background-color)"/>
+                            <AiIcon class="mr-2" fill="var(--primary-color)"/>
                         </template>
                     </LoaderButton>
                 </div>
@@ -87,7 +87,7 @@
                                         {{ asignEvaluationResult.evaluations.must_conditions.score }}/10
                                     </span>
                                 </div>
-                                <p class="text-sm text-gray-600">{{ asignEvaluationResult.evaluations.must_conditions.reason }}</p>
+                                <p class="text-sm">{{ asignEvaluationResult.evaluations.must_conditions.reason }}</p>
                                 <div v-if="asignEvaluationResult.evaluations.must_conditions.evidence?.length" class="mt-2">
                                     <div class="text-xs text-gray-500">根拠:</div>
                                     <ul class="list-disc list-inside text-xs text-gray-500">
@@ -104,7 +104,7 @@
                                         {{ asignEvaluationResult.evaluations.job_fit.score }}/10
                                     </span>
                                 </div>
-                                <p class="text-sm text-gray-600">{{ asignEvaluationResult.evaluations.job_fit.reason }}</p>
+                                <p class="text-sm">{{ asignEvaluationResult.evaluations.job_fit.reason }}</p>
                                 <div v-if="asignEvaluationResult.evaluations.job_fit.evidence?.length" class="mt-2">
                                     <div class="text-xs text-gray-500">根拠:</div>
                                     <ul class="list-disc list-inside text-xs text-gray-500">
@@ -121,7 +121,7 @@
                                         {{ asignEvaluationResult.evaluations.performance_history.score }}/10
                                     </span>
                                 </div>
-                                <p class="text-sm text-gray-600">{{ asignEvaluationResult.evaluations.performance_history.reason }}</p>
+                                <p class="text-sm">{{ asignEvaluationResult.evaluations.performance_history.reason }}</p>
                                 <div v-if="asignEvaluationResult.evaluations.performance_history.evidence?.length" class="mt-2">
                                     <div class="text-xs text-gray-500">根拠:</div>
                                     <ul class="list-disc list-inside text-xs text-gray-500">
@@ -138,7 +138,7 @@
                                         {{ asignEvaluationResult.evaluations.risk_history.score }}/10
                                     </span>
                                 </div>
-                                <p class="text-sm text-gray-600">{{ asignEvaluationResult.evaluations.risk_history.reason }}</p>
+                                <p class="text-sm">{{ asignEvaluationResult.evaluations.risk_history.reason }}</p>
                                 <div v-if="asignEvaluationResult.evaluations.risk_history.evidence?.length" class="mt-2">
                                     <div class="text-xs text-gray-500">根拠:</div>
                                     <ul class="list-disc list-inside text-xs text-gray-500">
@@ -180,13 +180,13 @@
                                 <!-- Short Text Type -->
                                 <div v-else-if="item.type === 'shorttext'" class="flex flex-col gap-2">
                                     <p class="text-[13px] leading-normal w-full mb-2">{{ item.content }}</p>
-                                    <input type="text" v-model="item.answer" class="border border-solid border-[var(--formBorder)] px-3 py-2 text-sm" placeholder="具体的な対応策を入力してください" />
+                                    <input type="text" v-model="item.answer" class="text-[var(--primary-color)] border border-solid border-[var(--formBorder)] px-3 py-2 text-sm" placeholder="具体的な対応策を入力してください" />
                                 </div>
                                 
                                 <!-- Long Text Type -->
                                 <div v-else-if="item.type === 'longtext'" class="flex flex-col gap-2">
                                     <p class="text-[13px] leading-normal w-full mb-2">{{ item.content }}</p>
-                                    <textarea :value="(item.answer as string) || ''" @input="item.answer = ($event.target as HTMLTextAreaElement).value" class="border border-solid border-[var(--formBorder)] px-3 py-2 text-sm" rows="3" placeholder="具体的な対応策を入力してください"></textarea>
+                                    <textarea :value="(item.answer as string) || ''" @input="item.answer = ($event.target as HTMLTextAreaElement).value" class="text-[var(--primary-color)] border border-solid border-[var(--formBorder)] px-3 py-2 text-sm" rows="3" placeholder="具体的な対応策を入力してください"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -291,15 +291,15 @@ const getScoreClass = (score: Score1to10): string => {
 const getDecisionClass = (decision: Decision): string => {
     switch (decision) {
         case '適正あり':
-            return 'bg-green-50 border border-green-200';
+            return 'bg-green-50 border border-green-200 text-[black]';
         case '条件付き適正':
-            return 'bg-blue-50 border border-blue-200';
+            return 'bg-blue-50 border border-blue-200 text-[black]';
         case '要再検討':
-            return 'bg-yellow-50 border border-yellow-200';
+            return 'bg-yellow-50 border border-yellow-200 text-[black]';
         case '不適':
-            return 'bg-red-50 border border-red-200';
+            return 'bg-red-50 border border-red-200 text-[black]';
         default:
-            return 'bg-gray-50 border border-gray-200';
+            return 'bg-gray-50 border border-gray-200 text-gray-800';
     }
 };
 
