@@ -1459,7 +1459,7 @@ class ProjectController extends Controller
         }
 
         $projects_participated = $projects = ProjectRecord::whereHas('members', fn($q) => $q->where('users.id', $user_id))
-        ->OrWhereHas('members', fn($q) => $q->where('users.id', $user_id))
+        ->OrWhereHas('manager', fn($q) => $q->where('users.id', $user_id))
         ->select('id', 'name', 'overview', 'mission', 'strategy_miso', 'innovation', 'operation', 'date_start', 'date_end')
         ->get();
 
