@@ -11,7 +11,7 @@
                 </div>
             </div>
             <div class="projectModalContainer relative">
-                <div class="mobile px-[20px] mt-[20px] mb-[5px]">
+                <div class="mobile px-[20px] mt-[20px] mb-5">
                     <div @click.stop="menu.setMenu({ parent: 'mb-p-select' })" class="bg-[var(--primary-color)]  text-[var(--background-color)] text-xs w-fit p-2">
                         プロジェクト選択
                     </div>
@@ -55,7 +55,7 @@
                     <div class="h-full flex flex-col min-h-0">
                         <div
                             class="sticky top-0 bg-[var(--background-color)] z-[7] min-h-fit flex justify-between items-center px-[20px] flex-wrap gap-[10px] after:flex-auto after:content-['']">
-                            <div class="sub-tab-container">
+                            <div class="sub-tab-container pc">
                                 <button @click="tab = 'table'"
                                     :class="['sub-tab-item', { 'selected-sub-tab': tab == 'table' }]">テーブル</button>
                                 <button @click="tab = 'pie'"
@@ -63,14 +63,14 @@
                                 <button @click="tab = 'bar'"
                                     :class="['sub-tab-item', { 'selected-sub-tab': tab == 'bar' }]">棒グラフ</button>
                             </div>
-                            <div v-if="tab === 'table'" class="flex items-center gap-2 text-sm">
+                            <div v-if="tab === 'table'" class="flex items-center gap-2 text-sm pc">
                                 <label class="text-xs opacity-70">並び替え:</label>
                                 <select v-model="sortMode" class="text-[var(--primary-color)] px-2 py-1 bg-[var(--background-color)] text-sm">
                                     <option value="name">プロジェクト名</option>
                                     <option value="manager">管理者</option>
                                 </select>
                             </div>
-                            <div class="flex items-center gap-[20px] relative w-full justify-center md:justify-end flex-wrap md:flex-nowrap">
+                            <div class="flex items-center gap-[20px] relative w-full md:justify-end flex-wrap md:flex-nowrap">
                                 <div v-if="tab === 'table'" class="flex items-center gap-2 text-xs flex-wrap md:justify-end justify-center">
                                     <button
                                         type="button"
