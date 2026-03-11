@@ -27,20 +27,58 @@
                             :class="['sub-tab-item !bg-inherit', { 'selected-sub-tab': leftTab == 'manager' }]">管理者別</button>
                     </div>
                     <div v-if="leftTab == 'project'" class="project-selector-left">
-                        <label v-for="project in projects" :title="project.name"
-                            class="flex items-center gap-[15px] text-[14px] cursor-pointer">
-                            <input type="checkbox" name="project-selector" :value="project.id"
-                                v-model="selectedProjects">
-                            <span class="text-[13px] overflow-hidden whitespace-nowrap text-ellipsis">{{ project.name }}</span>
-                        </label>
+                        <div class="mobile-filter-panel">
+                            <div class="mobile-filter-panel__header">
+                                <input
+                                    v-model="mobileProjectKeywords"
+                                    type="text"
+                                    placeholder="プロジェクト検索"
+                                    class="border border-solid border-[var(--formBorder)] px-3 py-2 text-[13px] focus:border-[var(--primary-color)]"
+                                />
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="text-[12px] text-[gray]">{{ selectedProjects.length }}件選択中</span>
+                                    <CommandButton :buttons="mobileProjectFilterButtons"/>
+                                </div>
+                            </div>
+                            <div v-if="filteredMobileProjects.length" class="mobile-filter-panel__list">
+                                <label
+                                    v-for="project in filteredMobileProjects"
+                                    :key="project.id"
+                                    :title="project.name"
+                                    class="mobile-filter-panel__item"
+                                >
+                                    <input type="checkbox" name="project-selector" :value="project.id" v-model="selectedProjects">
+                                    <span class="text-[13px] overflow-hidden whitespace-nowrap text-ellipsis">{{ project.name }}</span>
+                                </label>
+                            </div>
+                            <div v-else class="mobile-filter-panel__empty">
+                                検索結果はありません。
+                            </div>
+                        </div>
                     </div>
                     <div v-if="leftTab == 'manager'" class="project-selector-left">
-                        <div v-for="manager in managers">
-                            <label class="flex items-center gap-[15px] text-[14px] cursor-pointer">
-                                <input type="checkbox" name="project-selector-by-manager"
-                                    v-model="selectedManagers" :value="manager.id">
-                                {{ manager.name }}
-                            </label>
+                        <div class="mobile-filter-panel">
+                            <div class="mobile-filter-panel__header">
+                                <input
+                                    v-model="mobileManagerKeywords"
+                                    type="text"
+                                    placeholder="PM検索"
+                                    class="border border-solid border-[var(--formBorder)] px-3 py-2 text-[13px] focus:border-[var(--primary-color)]"
+                                />
+                                <div class="flex items-center justify-between gap-3">
+                                    <span class="text-[12px] text-[gray]">{{ selectedManagers.length }}件選択中</span>
+                                    <CommandButton :buttons="mobileManagerFilterButtons"/>
+                                </div>
+                            </div>
+                            <div v-if="filteredMobileManagers.length" class="mobile-filter-panel__list">
+                                <label v-for="manager in filteredMobileManagers" :key="manager.id" class="mobile-filter-panel__item">
+                                    <input type="checkbox" name="project-selector-by-manager" v-model="selectedManagers" :value="manager.id">
+                                    <span class="text-[13px] overflow-hidden whitespace-nowrap text-ellipsis">{{ manager.name }}</span>
+                                </label>
+                            </div>
+                            <div v-else class="mobile-filter-panel__empty">
+                                検索結果はありません。
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -127,7 +165,21 @@
                             
 
                             </div>
-                        <div v-if="tab == 'table' && responsive.mobile" class="mobile-finance-list">
+                        <div v-if="!hasSelectedProjects" class="finance-empty-state">
+                            <div class="finance-empty-state__inner">
+                                <p class="finance-empty-state__title">プロジェクトが選択されていません</p>
+                                <p class="finance-empty-state__text">フィルター、または「全選択」から表示するプロジェクトを選んでください。</p>
+                                <div class="finance-empty-state__actions">
+                                    <button type="button" class="finance-empty-state__button finance-empty-state__button--primary" @click="selectAllProjects">
+                                        全選択
+                                    </button>
+                                    <button type="button" class="finance-empty-state__button" @click.stop="openProjectFilter">
+                                        フィルターを開く
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else-if="tab == 'table' && responsive.mobile" class="mobile-finance-list">
                             <div class="mobile-finance-toolbar">
                                 <button
                                     v-for="option in visibleScenarioOptions"
@@ -310,6 +362,7 @@
                                                         v-if="menu.parent == 'projectFilter'"
                                                         id="projectFilter"
                                                         :options="projects" 
+                                                        :include-select-all="true"
                                                         :searchable="true"
                                                         v-model:selected="selectedProjects"
                                                         custom-place-holder="プロジェクト検索"
@@ -432,7 +485,7 @@
                                 </thead>
                                 <!-- <tbody> -->
                                     
-                                    <tbody v-for="proj in sortedProjects">
+                                    <tbody v-if="hasSelectedProjects" v-for="proj in sortedProjects">
                                         <tr v-if="show('yearly_plan')" :key="`${proj.name}-yearly`">
                                             <td
                                                 v-if="firstVisibleScenario === 'yearly_plan'"
@@ -1252,7 +1305,7 @@
                             </table>
 
                         </div>
-                        <div class="overflow-auto h-[calc(100%-115px)]" v-if="tab == 'pie' || tab == 'bar'">
+                        <div class="overflow-auto h-[calc(100%-115px)]" v-if="hasSelectedProjects && (tab == 'pie' || tab == 'bar')">
                             <div class="px-[20px]">
                                 <div v-if="tab == 'pie'" class="flex gap-[15px] mt-[10px]">
                                     <label v-for="item in possibleScenarios"
@@ -1308,7 +1361,7 @@
 <script setup lang="ts">
 import { Project, YearlyFinancialData } from '@/interface/projectInterface';
 import CloseIcon from '../Form/CloseIcon.vue';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import 'styles/customForm.css'
 import { MonthNumbers, DateTime } from 'luxon';
 import { amountOfMoneyParser } from '@/utils/tools';
@@ -1616,6 +1669,8 @@ const scrollIntoCurrent = () => {
     }
 }
 const selectedManagers = ref<number[]>([])
+const mobileProjectKeywords = ref('')
+const mobileManagerKeywords = ref('')
 const loader = ref(true)
 const badgeLoader = ref(0)
 const tab = ref('table')
@@ -1652,16 +1707,13 @@ const totalSummaryEntry = (scenario: ScenarioKey): UnitData =>
     normalizeUnitData(summarizeData.value?.[scenario])
 const comparisonProjectTotals = ref<Record<string, Record<number, Record<ScenarioKey, UnitData>>>>({})
 const comparisonSummaryTotals = ref<Record<number, Record<ScenarioKey, UnitData>>>({})
+const storageProjectIdsKey = 'projectIds'
+const allProjectIds = computed(() => props.projects.map(project => project.id))
 const selectedProjectNames = computed(() => {
-    if (selectedProjects.value.length) {
-       return props.projects
+    return props.projects
         .filter(project => selectedProjects.value.includes(project.id))
         .map(project => project.name)
-    }
-    return props.projects.map(p => p.name)
-}
-    
-)
+})
 const normalizeScenarioTotals = (value: any): Record<ScenarioKey, UnitData> => ({
     yearly_plan: normalizeUnitData(value?.yearly_plan),
     profit: normalizeUnitData(value?.profit),
@@ -1673,10 +1725,6 @@ const fiscalSummaryEntry = (scenario: ScenarioKey, fiscalYear: number): UnitData
     comparisonSummaryTotals.value?.[fiscalYear]?.[scenario] ?? emptyUnit
 const commentCount = ref<Record<number, number>>({})
 const api = useApi()
-
-onMounted(() => {
-    selectedProjects.value = props.ownProjectIds && props.ownProjectIds.length ? props.ownProjectIds : []
-})
 const possibleTypes = [{ value: 'sales', label: '売上' }, { value: 'expense', label: '販管費' }, { value: 'profit', label: '利益' }]
 const possibleScenarios = [{ value: 'yearly_plan', label: '年度予算' }, { value: 'profit', label: '損益計画' }, { value: 'settlement', label: '実績' }]
 const activeType = ref('sales')
@@ -1684,6 +1732,31 @@ const activeScenario = ref('yearly_plan')
 const hasPrivilage = computed(() => {
     return auth.user?.position_id && auth.user?.position_id <= 6 || auth.activeUser.id === 610
 })
+const defaultProjectSelection = (projectIds: number[]) => {
+    if (!projectIds.length) return []
+
+    const savedProjectIds = localStorage.getItem(storageProjectIdsKey)
+    if (savedProjectIds) {
+        try {
+            const parsedIds = JSON.parse(savedProjectIds)
+            if (Array.isArray(parsedIds)) {
+                const filteredIds = parsedIds
+                    .map(id => Number(id))
+                    .filter(id => projectIds.includes(id))
+                if (filteredIds.length) return filteredIds
+            }
+        } catch {
+            localStorage.removeItem(storageProjectIdsKey)
+        }
+    }
+
+    if (hasPrivilage.value) {
+        return [...projectIds]
+    }
+
+    const ownProjectIds = props.ownProjectIds.filter(id => projectIds.includes(id))
+    return ownProjectIds.length ? ownProjectIds : [...projectIds]
+}
 const monthCount = computed(() => Math.round(normalizedRange.value.end.diff(normalizedRange.value.start, 'months').months ?? 0) + 1)
 const sortMode = ref<'name' | 'manager'>('name')
 
@@ -1754,6 +1827,44 @@ const managers = computed(() => {
     )
     return uniqueUsers
 })
+const filteredMobileProjects = computed(() => {
+    const keyword = mobileProjectKeywords.value.trim().toLowerCase()
+    if (!keyword) return props.projects
+    return props.projects.filter(project => project.name?.toLowerCase().includes(keyword))
+})
+const filteredMobileManagers = computed(() => {
+    const keyword = mobileManagerKeywords.value.trim().toLowerCase()
+    if (!keyword) return managers.value
+    return managers.value.filter(manager => manager.name?.toLowerCase().includes(keyword))
+})
+const mobileProjectFilterButtons = computed(() => ([
+    {
+        title: '全選択',
+        action: () => {
+            selectedProjects.value = [...allProjectIds.value]
+            mobileProjectKeywords.value = ''
+            menu.close()
+        }
+    },
+    {
+        title: 'リセット',
+        action: () => {
+            selectedProjects.value = []
+            mobileProjectKeywords.value = ''
+            menu.close()
+        }
+    }
+]))
+const mobileManagerFilterButtons = computed(() => ([
+    {
+        title: 'リセット',
+        action: () => {
+            selectedManagers.value = []
+            mobileManagerKeywords.value = ''
+            menu.close()
+        }
+    }
+]))
 const managerNameFor = (projectName: string) => {
     const proj = props.projects.find(p => p.name === projectName)
     const names = proj?.manager?.map(m => m.name).filter(Boolean) ?? []
@@ -1779,17 +1890,16 @@ const sortedProjects = computed(() =>
         data: dataByMonth.value?.[name] ?? {},
     }))
 )
+const hasSelectedProjects = computed(() => selectedProjects.value.length > 0)
 const selectProjectComment = (name: string) => {
     const findProject = props.projects.find(p => p.name === name)
     if (findProject) selectedId.value = findProject.id
 }
-const selectAllProjects = (event: Event) => {
-    const target = event.target as HTMLInputElement
-    if (target.checked) {
-        selectedProjects.value = props.projects.map(project => project.id)
-    } else {
-        selectedProjects.value = []
-    }
+const selectAllProjects = () => {
+    selectedProjects.value = [...allProjectIds.value]
+}
+const openProjectFilter = () => {
+    menu.setMenu({ parent: responsive.mobile ? 'mb-p-select' : 'projectFilter' })
 }
 
 const managersProjects = (manager: User) => {
@@ -1843,7 +1953,6 @@ const fetchTotalFinance = async (token: number) => {
         summarizeData.value = data?.summarizeData ?? summarizeData.value
         dataByMonth.value = data?.plan_res_data ?? {}
         periodTotals.value = data?.periodTotals ?? {}
-        menu.close()
     } catch (error) {
         if (token !== activeFetchToken) return
         throw error
@@ -1930,9 +2039,40 @@ const refreshTotalFinance = async () => {
 }
 
 watch(selectedProjects, (projects) => {
-    localStorage.setItem('projectIds', JSON.stringify(projects))
+    localStorage.setItem(storageProjectIdsKey, JSON.stringify(projects))
     refreshTotalFinance()
 }, { deep: true })
+
+watch(allProjectIds, (projectIds, previousProjectIds = []) => {
+    if (!projectIds.length) return
+
+    const hadAllSelected =
+        previousProjectIds.length > 0 &&
+        selectedProjects.value.length === previousProjectIds.length &&
+        previousProjectIds.every(id => selectedProjects.value.includes(id))
+
+    const hadOwnSelected =
+        previousProjectIds.length > 0 &&
+        props.ownProjectIds.filter(id => previousProjectIds.includes(id)).length === selectedProjects.value.length &&
+        selectedProjects.value.every(id => props.ownProjectIds.includes(id))
+
+    if (!selectedProjects.value.length) {
+        selectedProjects.value = defaultProjectSelection(projectIds)
+        return
+    }
+
+    if (hasPrivilage.value && hadAllSelected) {
+        selectedProjects.value = [...projectIds]
+        return
+    }
+
+    if (!hasPrivilage.value && hadOwnSelected) {
+        selectedProjects.value = props.ownProjectIds.filter(id => projectIds.includes(id))
+        return
+    }
+
+    selectedProjects.value = selectedProjects.value.filter(id => projectIds.includes(id))
+}, { immediate: true })
 
 watch([periodStartIso, periodEndIso], () => {
     refreshTotalFinance()
@@ -1961,7 +2101,7 @@ watch(selectedManagers, (managers) => {
         selectedProjects.value = props.projects.filter(p => Array.isArray(p.manager) && p.manager.some(m => set.has(m.id)))
         .map(p => p.id);
     } else {
-        selectedProjects.value = []
+        selectedProjects.value = defaultProjectSelection(allProjectIds.value)
     }
 })
 // watch(
@@ -1992,9 +2132,7 @@ const get_finance_comment_counts = async () => {
     await fetchCommentCounts(activeFetchToken)
 }
 const selectedBadge = computed(() => {
-  const selected = selectedProjects.value.length
-    ? new Set(selectedProjects.value)
-    : new Set(props.projects.map(p => p.id))
+  const selected = new Set(selectedProjects.value)
 
   let total_unread = 0
   const period_counts: Record<string, number> = {}
@@ -2229,11 +2367,52 @@ const selectedBadge = computed(() => {
 }
 .project-selector-left {
     display: flex;
-    gap: 15px;
     flex-direction: column;
-    padding: 15px;
     user-select: none;
     line-height: 1.5;
+}
+
+.mobile-filter-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+}
+
+.mobile-filter-panel__header {
+    position: sticky;
+    top: 40px;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: var(--bg3);
+    padding-bottom: 8px;
+}
+
+.mobile-filter-panel__list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mobile-filter-panel__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.mobile-filter-panel__item:hover {
+    background: var(--secondary-background);
+}
+
+.mobile-filter-panel__empty {
+    padding: 24px 16px;
+    text-align: center;
+    color: gray;
 }
 .top-border {
     border-top: solid thin var(--calendarBorder);
@@ -2305,7 +2484,65 @@ td[data-cell=right-border], th[data-cell=right-border] {
 }
 .finance-table-scroll {
     overflow: auto;
-    height: calc(100% - 115px);
+    height: calc(100% - 95px);
+}
+
+.finance-empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 280px;
+    height: calc(100% - 95px);
+    padding: 24px;
+    position: absolute;
+    width: 100%;
+}
+
+.finance-empty-state__inner {
+    width: min(460px, 100%);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 32px 28px;
+    border: 1px solid var(--calendarBorder);
+    background: var(--bg3);
+}
+
+.finance-empty-state__title {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.finance-empty-state__text {
+    font-size: 13px;
+    line-height: 1.6;
+    opacity: 0.8;
+}
+
+.finance-empty-state__actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.finance-empty-state__button {
+    border: 1px solid var(--normalBorder);
+    padding: 8px 14px;
+    font-size: 13px;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.finance-empty-state__button:hover {
+    border-color: var(--hoverBorder);
+}
+
+.finance-empty-state__button--primary {
+    background: var(--primary-color);
+    color: var(--background-color);
+    border-color: var(--primary-color);
 }
 
 .sticky-left {
@@ -2419,6 +2656,12 @@ td[data-cell=right-border], th[data-cell=right-border] {
 
     .finance-table-scroll {
         height: calc(100% - 170px);
+    }
+
+    .finance-empty-state {
+        height: calc(100% - 170px);
+        min-height: 220px;
+        width: auto;
     }
 
     .projectModalSideMenu {
