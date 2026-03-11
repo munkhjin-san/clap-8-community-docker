@@ -12,8 +12,10 @@
             </div>
             <div class="projectModalContainer relative">
                 <div class="mobile px-[20px] mt-[20px] mb-[5px]">
-                    <LoaderButton :loading="false" content="プロジェクト選択" style="margin: 0;"
-                        @click.stop="menu.setMenu({ parent: 'mb-p-select' })" />
+                    <div @click.stop="menu.setMenu({ parent: 'mb-p-select' })" class="bg-[var(--primary-color)]  text-[var(--background-color)] text-xs w-fit p-2">
+                        プロジェクト選択
+                    </div>
+                    
                 </div>
                 <div class="mobile projectModalSideMenu" id="mb-p-select"
                     :style="{ opacity: responsive.mobile && loader ? '0' : '1' }"
@@ -50,9 +52,9 @@
                                 style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
                         </div>
                     </div>
-                    <div class="h-full">
+                    <div class="h-full flex flex-col min-h-0">
                         <div
-                            class="sticky top-0 bg-[var(--background-color)] z-[7] min-h-[60px] flex justify-between items-center px-[20px] flex-wrap gap-[10px] pb-[20px] after:flex-auto after:content-['']">
+                            class="sticky top-0 bg-[var(--background-color)] z-[7] min-h-fit flex justify-between items-center px-[20px] flex-wrap gap-[10px] after:flex-auto after:content-['']">
                             <div class="sub-tab-container">
                                 <button @click="tab = 'table'"
                                     :class="['sub-tab-item', { 'selected-sub-tab': tab == 'table' }]">テーブル</button>
@@ -77,38 +79,223 @@
                                     >
                                         {{ totalGrouping === 'fiscal' ? '月次表示' : '年度比較' }}
                                     </button>
-                                    <span v-if="totalGrouping === 'fiscal'" class="opacity-70">
-                                        比較: FY{{ activeFiscalYears[0] }} / FY{{ activeFiscalYears[1] }} / FY{{ activeFiscalYears[2] }}
-                                    </span>
+                                    <div v-if="totalGrouping === 'fiscal'" class="flex items-center gap-2 flex-wrap">
+                                        <label class="flex items-center gap-1">
+                                            <span class="opacity-70">比較1</span>
+                                            <select v-model.number="selectedFiscalYearStart" class="text-[var(--primary-color)] px-2 py-1 bg-[var(--background-color)] text-sm">
+                                                <option v-for="year in fiscalYearOptions" :key="`fy-start-${year}`" :value="year">
+                                                    FY{{ year }}
+                                                </option>
+                                            </select>
+                                        </label>
+                                        <label class="flex items-center gap-1">
+                                            <span class="opacity-70">比較2</span>
+                                            <select v-model.number="selectedFiscalYearEnd" class="text-[var(--primary-color)] px-2 py-1 bg-[var(--background-color)] text-sm">
+                                                <option v-for="year in fiscalYearOptions" :key="`fy-end-${year}`" :value="year">
+                                                    FY{{ year }}
+                                                </option>
+                                            </select>
+                                        </label>
+                                    </div>
                                 </div>
-                                <div class="flex items-center">
-                                    <span v-if="previousMonthCount" class="side-notification side-notification--comment-only" style="position: static">{{ previousMonthCount }}</span>
-                                    <button @click="shiftRange(-1)" class="flex items-center justify-center h-[30px] w-fit gap-2 min-w-[30px]">
-                                        <Back size="13"/>
-                                    </button>
+                                <div class="flex items-center gap-[20px] relative justify-center md:justify-end flex-wrap md:flex-nowrap" v-if="totalGrouping === 'range'">
+                                    <div class="flex items-center">
+                                        <span v-if="previousMonthCount" class="side-notification side-notification--comment-only" style="position: static">{{ previousMonthCount }}</span>
+                                        <button @click="shiftRange(-1)" class="flex items-center justify-center h-[30px] w-fit gap-2 min-w-[30px]">
+                                            <Back size="13"/>
+                                        </button>
+                                    </div>
+                                    
+                                    <PeriodRangePicker
+                                        :start="periodStartIso"
+                                        :end="periodEndIso"
+                                        :max-months="MAX_RANGE_MONTHS"
+                                        :total-badge="thisMonthCount"
+                                        :period-badge="selectedBadge.period_counts"
+                                        @change="handleRangeChange"
+                                    />
+                                    <div class="flex items-center">
+                                        <button @click="shiftRange(1)" class="flex items-center justify-center h-[30px] w-fit gap-2 min-w-[30px]">
+                                            <Back size="13" class="rotate-180"/>
+                                        </button>
+                                        <span v-if="nextMonthCount" class="side-notification side-notification--comment-only" style="position: static">{{ nextMonthCount }}</span>
+                                    </div>
                                 </div>
                                 
-                                <PeriodRangePicker
-                                    :start="periodStartIso"
-                                    :end="periodEndIso"
-                                    :max-months="MAX_RANGE_MONTHS"
-                                    :total-badge="thisMonthCount"
-                                    :period-badge="selectedBadge.period_counts"
-                                    @change="handleRangeChange"
-                                />
-                                <div class="flex items-center">
-                                    <button @click="shiftRange(1)" class="flex items-center justify-center h-[30px] w-fit gap-2 min-w-[30px]">
-                                        <Back size="13" class="rotate-180"/>
-                                    </button>
-                                    <span v-if="nextMonthCount" class="side-notification side-notification--comment-only" style="position: static">{{ nextMonthCount }}</span>
-                                </div>
                                 
                             </div>
                             
 
                             </div>
-                        
-                        <div class="finance-table-scroll" v-if="tab == 'table'">
+                        <div v-if="tab == 'table' && responsive.mobile" class="mobile-finance-list">
+                            <div class="mobile-finance-toolbar">
+                                <button
+                                    v-for="option in visibleScenarioOptions"
+                                    :key="`mobile-scenario-${option.value}`"
+                                    type="button"
+                                    class="mobile-finance-chip"
+                                    :class="{ 'mobile-finance-chip--active': mobileActiveScenario === option.value }"
+                                    @click="mobileActiveScenario = option.value"
+                                >
+                                    {{ option.label }}
+                                </button>
+                            </div>
+
+                            <details v-if="hasPeriodTotals" class="mobile-finance-card mobile-finance-card--summary" open>
+                                <summary class="mobile-finance-card__summary">
+                                    <div class="mobile-finance-card__header">
+                                        <div>
+                                            <p class="mobile-finance-card__title">集計</p>
+                                            <p class="mobile-finance-card__caption">{{ mobileSummaryCaption }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="mobile-finance-kpis">
+                                        <div v-for="metric in mobileMetricItems" :key="`summary-${metric.key}`" class="mobile-finance-kpi">
+                                            <span class="mobile-finance-kpi__label">{{ metric.label }}</span>
+                                            <strong class="mobile-finance-kpi__value">
+                                                {{ formatScenarioMetric(mobileSummaryScenarioEntry(mobileActiveScenario), mobileActiveScenario, metric.key) }}
+                                            </strong>
+                                        </div>
+                                    </div>
+                                </summary>
+                                <div class="mobile-finance-card__body">
+                                    <section
+                                        v-for="option in visibleScenarioOptions"
+                                        :key="`summary-section-${option.value}`"
+                                        class="mobile-finance-section"
+                                    >
+                                        <div class="mobile-finance-section__header">
+                                            <h4>{{ option.label }}</h4>
+                                            <span class="mobile-finance-section__caption">{{ mobileDetailCaption }}</span>
+                                        </div>
+                                        <div v-if="totalGrouping === 'fiscal'" class="mobile-finance-detail-list">
+                                            <div
+                                                v-for="fy in activeFiscalYears"
+                                                :key="`summary-fy-${option.value}-${fy}`"
+                                                class="mobile-finance-detail-row"
+                                            >
+                                                <div class="mobile-finance-detail-row__label">FY{{ fy }}</div>
+                                                <div class="mobile-finance-detail-row__metrics">
+                                                    <div v-for="metric in mobileMetricItems" :key="`summary-${option.value}-${fy}-${metric.key}`" class="mobile-finance-detail-metric">
+                                                        <span>{{ metric.label }}</span>
+                                                        <strong>{{ formatScenarioMetric(fiscalSummaryEntry(option.value, fy), option.value, metric.key) }}</strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div v-else class="mobile-finance-detail-list">
+                                            <div
+                                                v-for="period in periods"
+                                                :key="`summary-period-${option.value}-${period.period}`"
+                                                class="mobile-finance-detail-row"
+                                            >
+                                                <div class="mobile-finance-detail-row__label">{{ formatPeriodLabel(period) }}</div>
+                                                <div class="mobile-finance-detail-row__metrics">
+                                                    <div v-for="metric in mobileMetricItems" :key="`summary-${option.value}-${period.period}-${metric.key}`" class="mobile-finance-detail-metric">
+                                                        <span>{{ metric.label }}</span>
+                                                        <strong>{{ formatScenarioMetric(periodEntry(period.period, option.value), option.value, metric.key) }}</strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+                            </details>
+
+                            <details
+                                v-for="proj in sortedProjects"
+                                :key="`mobile-card-${proj.name}`"
+                                class="mobile-finance-card"
+                            >
+                                <summary class="mobile-finance-card__summary">
+                                    <div class="mobile-finance-card__header">
+                                        <div>
+                                            <p class="mobile-finance-card__title">{{ proj.name }}</p>
+                                            <p v-if="managerNameFor(proj.name)" class="mobile-finance-card__caption">
+                                                PM: {{ managerNameFor(proj.name) }}
+                                            </p>
+                                        </div>
+                                        <div class="mobile-finance-card__badges">
+                                            <span v-if="showAnyArrow(proj.name)" class="mobile-finance-alert">要確認</span>
+                                            <button
+                                                v-if="showComment"
+                                                type="button"
+                                                class="mobile-finance-comment"
+                                                @click.stop="selectProjectComment(proj.name)"
+                                            >
+                                                <span>コメント</span>
+                                                <strong>{{ commentCount[proj.name] ?? 0 }}</strong>
+                                                <span
+                                                    v-if="financeTotalBadge(proj.name)?.[periodStartIso]"
+                                                    class="side-notification"
+                                                    style="position: unset; background-color: #F28C28; z-index: inherit;"
+                                                >
+                                                    {{ financeTotalBadge(proj.name)?.[periodStartIso] }}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="mobile-finance-card__meta">
+                                        <span>{{ mobileSummaryCaption }}</span>
+                                        <span>{{ scenarioLabel(mobileActiveScenario) }}</span>
+                                    </div>
+                                    <div class="mobile-finance-kpis">
+                                        <div v-for="metric in mobileMetricItems" :key="`${proj.name}-${mobileActiveScenario}-${metric.key}`" class="mobile-finance-kpi">
+                                            <span class="mobile-finance-kpi__label">{{ metric.label }}</span>
+                                            <strong class="mobile-finance-kpi__value">
+                                                {{ formatScenarioMetric(mobileProjectScenarioEntry(proj.name, mobileActiveScenario), mobileActiveScenario, metric.key) }}
+                                            </strong>
+                                        </div>
+                                    </div>
+                                </summary>
+
+                                <div class="mobile-finance-card__body">
+                                    <section
+                                        v-for="option in visibleScenarioOptions"
+                                        :key="`${proj.name}-${option.value}`"
+                                        class="mobile-finance-section"
+                                    >
+                                        <div class="mobile-finance-section__header">
+                                            <h4>{{ option.label }}</h4>
+                                            <span class="mobile-finance-section__caption">{{ mobileDetailCaption }}</span>
+                                        </div>
+
+                                        <div v-if="totalGrouping === 'fiscal'" class="mobile-finance-detail-list">
+                                            <div
+                                                v-for="fy in activeFiscalYears"
+                                                :key="`${proj.name}-${option.value}-fy-${fy}`"
+                                                class="mobile-finance-detail-row"
+                                            >
+                                                <div class="mobile-finance-detail-row__label">FY{{ fy }}</div>
+                                                <div class="mobile-finance-detail-row__metrics">
+                                                    <div v-for="metric in mobileMetricItems" :key="`${proj.name}-${option.value}-${fy}-${metric.key}`" class="mobile-finance-detail-metric">
+                                                        <span>{{ metric.label }}</span>
+                                                        <strong>{{ formatScenarioMetric(fiscalTotalEntry(proj.name, option.value, fy), option.value, metric.key) }}</strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div v-else class="mobile-finance-detail-list">
+                                            <div
+                                                v-for="period in periods"
+                                                :key="`${proj.name}-${option.value}-${period.period}`"
+                                                class="mobile-finance-detail-row"
+                                            >
+                                                <div class="mobile-finance-detail-row__label">{{ formatPeriodLabel(period) }}</div>
+                                                <div class="mobile-finance-detail-row__metrics">
+                                                    <div v-for="metric in mobileMetricItems" :key="`${proj.name}-${option.value}-${period.period}-${metric.key}`" class="mobile-finance-detail-metric">
+                                                        <span>{{ metric.label }}</span>
+                                                        <strong>{{ formatScenarioMetric(scenarioPeriodEntry(proj, period.period, option.value), option.value, metric.key) }}</strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </section>
+                                </div>
+                            </details>
+                        </div>
+                        <div class="finance-table-scroll" v-if="tab == 'table' && !responsive.mobile">
                             <table>
                                 <thead>
                                     <tr>
@@ -235,7 +422,7 @@
                                                 <th class="totals-head">利益率</th>
                                             </template>
                                         </template>
-                                        <template v-else-if="showTotals || isMobile()">
+                                        <template v-else-if="showTotals">
                                             <th class="totals-head">売上</th>
                                             <th class="totals-head">販管費</th>
                                             <th class="totals-head">利益</th>
@@ -267,68 +454,68 @@
                                             <td class="sub-name sticky-left third-col">
                                                 <span>年度予算</span>
                                             </td>
-                                            <template v-for="p in periods" :key="p.period" v-if="!isMobile() && totalGrouping !== 'fiscal'">
+                                            <template v-for="p in periods" :key="p.period" v-if="totalGrouping !== 'fiscal'">
                                                 
                                                 <td>
-                                                    <div class="inner-col"><span class="mobile">売上</span>{{
+                                                    <div class="inner-col">{{
                                                         amountOfMoneyParser(proj.data?.[p.period]?.yearly_plan.sales) }}</div>
                                                 </td>
                                                 <td>
-                                                    <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                    <div class="inner-col">{{
                                                         amountOfMoneyParser(proj.data?.[p.period]?.yearly_plan.expense) }}</div>
                                                 </td>
                                                 <td>
-                                                    <div class="inner-col"><span class="mobile">利益</span>{{
+                                                    <div class="inner-col">{{
                                                         amountOfMoneyParser(proj.data?.[p.period]?.yearly_plan.sales -
                                                         proj.data?.[p.period]?.yearly_plan.expense) }}</div>
                                                     </td>
                                                 <td data-cell="right-border">
-                                                    <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                    <div class="inner-col">{{
                                                         percentizer(proj.data?.[p.period]?.yearly_plan).display }}</div>
                                                 </td>
                                             </template>
                                             <template v-if="totalGrouping === 'fiscal'">
                                                 <template v-for="fy in activeFiscalYears" :key="`total-yearly-${proj.name}-${fy}`">
                                                     <td>
-                                                        <div class="inner-col"><span class="mobile">売上</span>{{
+                                                        <div class="inner-col">{{
                                                             amountOfMoneyParser(fiscalTotalEntry(proj.name, 'yearly_plan', fy).sales)
                                                         }}</div>
                                                     </td>
                                                     <td>
-                                                        <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                        <div class="inner-col">{{
                                                             amountOfMoneyParser(fiscalTotalEntry(proj.name, 'yearly_plan', fy).expense)
                                                         }}</div>
                                                     </td>
                                                     <td>
-                                                        <div class="inner-col"><span class="mobile">利益</span>{{
+                                                        <div class="inner-col">{{
                                                             amountOfMoneyParser(fiscalTotalEntry(proj.name, 'yearly_plan', fy).profit)
                                                         }}</div>
                                                     </td>
                                                     <td data-cell="right-border">
-                                                        <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                        <div class="inner-col">{{
                                                             percentizer(fiscalTotalEntry(proj.name, 'yearly_plan', fy)).display
                                                         }}</div>
                                                     </td>
                                                 </template>
                                             </template>
-                                            <template v-else-if="showTotals || isMobile()">
+                                            <template v-else-if="showTotals">
                                                 <td>
-                                                    <div class="inner-col"><span class="mobile">売上</span>{{
+                                                    <div class="inner-col">{{
                                                         amountOfMoneyParser(totalEntry(proj.name, 'yearly_plan').sales)
                                                     }}</div>
                                                 </td>
                                                 <td>
-                                                    <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                    <div class="inner-col">{{
                                                         amountOfMoneyParser(totalEntry(proj.name, 'yearly_plan').expense)
                                                     }}</div>
                                                 </td>
                                                 <td>
-                                                    <div class="inner-col"><span class="mobile">利益</span>{{
+                                                    <div class="inner-col">{{
                                                         amountOfMoneyParser(totalEntry(proj.name, 'yearly_plan').profit)
                                                     }}</div>
                                                 </td>
                                                 <td>
-                                                    <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                    <div class="inner-col">{{
                                                         percentizer(totalEntry(proj.name, 'yearly_plan')).display
                                                     }}</div>
                                                 </td>
@@ -356,7 +543,7 @@
                                             <td class="sub-name sticky-left third-col">
                                                 <span>損益計画</span>
                                             </td>
-                                            <template v-for="p in periods" :key="p.period" v-if="!isMobile() && totalGrouping !== 'fiscal'">
+                                            <template v-for="p in periods" :key="p.period" v-if="totalGrouping !== 'fiscal'">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -449,7 +636,7 @@
                                                     </td>
                                                 </template>
                                             </template>
-                                            <template v-else-if="showTotals || isMobile()">
+                                            <template v-else-if="showTotals">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -518,7 +705,7 @@
                                                 </div>
                                                 実績
                                             </td>
-                                            <template v-for="p in periods" :key="p.period" v-if="!isMobile() && totalGrouping !== 'fiscal'">
+                                            <template v-for="p in periods" :key="p.period" v-if="totalGrouping !== 'fiscal'">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -611,7 +798,7 @@
                                                     </td>
                                                 </template>
                                             </template>
-                                            <template v-else-if="showTotals || isMobile()">
+                                            <template v-else-if="showTotals">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -678,7 +865,7 @@
                                             <td class="sub-name sticky-left third-col">
                                                 <span>年度予算</span>
                                             </td>
-                                            <template v-for="p in periods" :key="`summary-yearly-${p.period}`" v-if="!isMobile() && totalGrouping !== 'fiscal'">
+                                            <template v-for="p in periods" :key="`summary-yearly-${p.period}`" v-if="totalGrouping !== 'fiscal'">
                                                 <td>
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
                                                         amountOfMoneyParser(periodEntry(p.period, 'yearly_plan').sales)
@@ -724,7 +911,7 @@
                                                     </td>
                                                 </template>
                                             </template>
-                                            <template v-else-if="showTotals || isMobile()">
+                                            <template v-else-if="showTotals">
                                                 <td>
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
                                                         amountOfMoneyParser(totalSummaryEntry('yearly_plan').sales)
@@ -761,7 +948,7 @@
                                             <td class="sub-name sticky-left third-col">
                                                 <span>損益計画</span>
                                             </td>
-                                            <template v-for="p in periods" :key="`summary-profit-${p.period}`" v-if="!isMobile() && totalGrouping !== 'fiscal'">
+                                            <template v-for="p in periods" :key="`summary-profit-${p.period}`" v-if="totalGrouping !== 'fiscal'">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -859,7 +1046,7 @@
                                                     </td>
                                                 </template>
                                             </template>
-                                            <template v-else-if="showTotals || isMobile()">
+                                            <template v-else-if="showTotals">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -915,7 +1102,7 @@
                                             <td class="sub-name sticky-left third-col">
                                                 <span>実績</span>
                                             </td>
-                                            <template v-for="p in periods" :key="`summary-settlement-${p.period}`" v-if="!isMobile() && totalGrouping !== 'fiscal'">
+                                            <template v-for="p in periods" :key="`summary-settlement-${p.period}`" v-if="totalGrouping !== 'fiscal'">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -1013,7 +1200,7 @@
                                                     </td>
                                                 </template>
                                             </template>
-                                            <template v-else-if="showTotals || isMobile()">
+                                            <template v-else-if="showTotals">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
                                                         <div class="inner-col"><span class="mobile">売上</span>{{
@@ -1141,7 +1328,6 @@ import CommentWindow from './ProjectTabs/Finance/CommentWindow.vue';
 import { useBadgeStore } from '@/store/badge';
 import { useAuthUserStore } from '@/store/auth';
 import PeriodRangePicker from './ProjectTabs/Finance/PeriodRangePicker.vue';
-import { isMobile } from '@/utils/tools';
 import Filter from '../Icons/Filter.vue';
 import CommandButton from '../Global/CommandButton.vue';
 import ProjectMemberSort from './ProjectMemberSort.vue';
@@ -1211,6 +1397,15 @@ type PeriodTotalsEntry = {
     profit?: UnitData
     settlement?: UnitData
 }
+const visibleScenarioOptions = computed(() =>
+    scenarioOptions.filter(option => show(option.value))
+)
+const mobileActiveScenario = ref<ScenarioKey>('profit')
+watch(visibleScenarioOptions, (options) => {
+    if (!options.some(option => option.value === mobileActiveScenario.value)) {
+        mobileActiveScenario.value = options[0]?.value ?? 'yearly_plan'
+    }
+}, { immediate: true })
 const THRESHOLD = 10;
 const emptyUnit: UnitData = {
     expense: 0,
@@ -1354,13 +1549,23 @@ const periods = computed<PeriodCell[]>(() =>
   generatePeriodRange(normalizedRange.value.start, normalizedRange.value.end)
 )
 const totalGrouping = ref<'range' | 'fiscal'>('range')
-const activeFiscalYear = computed(() =>
-    fiscalYearFrom(normalizedRange.value.end.year, normalizedRange.value.end.month)
+const minFiscalYear = 2024
+const maxFiscalYear = DateTime.now().year + 2
+const fiscalYearOptions = computed<number[]>(() =>
+    Array.from({ length: maxFiscalYear - minFiscalYear + 1 }, (_, index) => minFiscalYear + index)
+)
+const currentFiscalYear = fiscalYearFrom(DateTime.now().year, DateTime.now().month)
+const defaultFiscalYearStart = Math.max(minFiscalYear, currentFiscalYear - 1)
+const defaultFiscalYearEnd = Math.min(maxFiscalYear, currentFiscalYear)
+const selectedFiscalYearStart = ref(defaultFiscalYearStart)
+const selectedFiscalYearEnd = ref(
+    defaultFiscalYearStart === defaultFiscalYearEnd
+        ? Math.min(maxFiscalYear, defaultFiscalYearEnd + 1)
+        : defaultFiscalYearEnd
 )
 const activeFiscalYears = computed<number[]>(() => ([
-    activeFiscalYear.value - 1,
-    activeFiscalYear.value,
-    activeFiscalYear.value + 1,
+    selectedFiscalYearStart.value,
+    selectedFiscalYearEnd.value,
 ]))
 const toggleYearlyComparison = () => {
     totalGrouping.value = totalGrouping.value === 'fiscal' ? 'range' : 'fiscal'
@@ -1484,6 +1689,61 @@ const sortMode = ref<'name' | 'manager'>('name')
 
 const showTotals = computed(() => monthCount.value > 1)
 const showComment = computed(() => hasPrivilage.value && monthCount.value === 1 && totalGrouping.value !== 'fiscal')
+const activeFiscalYear = computed(() => 
+    fiscalYearFrom(normalizedRange.value.end.year, normalizedRange.value.end.month)
+)
+type MetricDisplayKey = 'sales' | 'expense' | 'profit' | 'profit_rate'
+const mobileMetricItems: Array<{ key: MetricDisplayKey; label: string }> = [
+    { key: 'sales', label: '売上' },
+    { key: 'expense', label: '販管費' },
+    { key: 'profit', label: '利益' },
+    { key: 'profit_rate', label: '利益率' },
+]
+const scenarioLabel = (scenario: ScenarioKey) =>
+    scenarioOptions.find(option => option.value === scenario)?.label ?? scenario
+const formatPeriodLabel = (period: PeriodCell) => `${period.year}/${pad2(period.month)}`
+const mobileSummaryCaption = computed(() => {
+    if (totalGrouping.value === 'fiscal') {
+        return `FY${activeFiscalYear.value}`
+    }
+    return monthCount.value > 1 ? `${periodStartIso.value} - ${periodEndIso.value}` : periodStartIso.value
+})
+const mobileDetailCaption = computed(() =>
+    totalGrouping.value === 'fiscal' ? '年度比較' : `${periods.value.length}ヶ月の推移`
+)
+const formatScenarioMetric = (
+    unit: UnitData | null | undefined,
+    scenario: ScenarioKey,
+    key: MetricDisplayKey,
+) => {
+    if (key === 'profit_rate') {
+        return percentizer(unit).display
+    }
+    if (scenario === 'settlement') {
+        const settlementUnit = unit ?? undefined
+        const value = key === 'profit'
+            ? settlementProfitValue(settlementUnit)
+            : settlementValue(settlementUnit, key as Key)
+        return Number.isNaN(value) ? '—' : amountOfMoneyParser(value)
+    }
+    const rawValue = key === 'profit'
+        ? Number(unit?.profit ?? (Number(unit?.sales ?? 0) - Number(unit?.expense ?? 0)))
+        : Number(unit?.[key] ?? 0)
+    return amountOfMoneyParser(rawValue)
+}
+const mobileProjectScenarioEntry = (projectName: string, scenario: ScenarioKey): UnitData =>
+    totalGrouping.value === 'fiscal'
+        ? fiscalTotalEntry(projectName, scenario, activeFiscalYear.value)
+        : totalEntry(projectName, scenario)
+const mobileSummaryScenarioEntry = (scenario: ScenarioKey): UnitData =>
+    totalGrouping.value === 'fiscal'
+        ? fiscalSummaryEntry(scenario, activeFiscalYear.value)
+        : totalSummaryEntry(scenario)
+const scenarioPeriodEntry = (
+    proj: { name: string; data: Record<string, any> },
+    period: string,
+    scenario: ScenarioKey,
+): UnitData => normalizeUnitData(proj.data?.[period]?.[scenario])
 const managers = computed(() => {
     const allManagers = props.projects.map(project => project.manager)
     const flatUsers = allManagers.flat()
@@ -1500,7 +1760,9 @@ const managerNameFor = (projectName: string) => {
     return names.length ? names.join(', ') : ''
 }
 const sortedProjectNames = computed(() => {
-    const names = Object.keys(dataByMonth.value ?? {})
+    const names = totalGrouping.value === 'fiscal'
+        ? [...selectedProjectNames.value]
+        : Object.keys(dataByMonth.value ?? {})
     return names.sort((a, b) => {
         if (sortMode.value === 'manager') {
             const ma = managerNameFor(a)
@@ -1678,6 +1940,21 @@ watch([periodStartIso, periodEndIso], () => {
 watch(totalGrouping, () => {
     refreshTotalFinance()
 })
+watch([selectedFiscalYearStart, selectedFiscalYearEnd], ([start, end], [previousStart, previousEnd]) => {
+    if (start === end) {
+        if (start !== previousStart) {
+            selectedFiscalYearEnd.value = fiscalYearOptions.value.find((year) => year !== start) ?? end
+            return
+        }
+        if (end !== previousEnd) {
+            selectedFiscalYearStart.value = [...fiscalYearOptions.value].reverse().find((year) => year !== end) ?? start
+            return
+        }
+    }
+    if (totalGrouping.value === 'fiscal') {
+        refreshTotalFinance()
+    }
+})
 watch(selectedManagers, (managers) => {
     if (managers.length) {
         const set = new Set(managers)
@@ -1715,17 +1992,23 @@ const get_finance_comment_counts = async () => {
     await fetchCommentCounts(activeFetchToken)
 }
 const selectedBadge = computed(() => {
-  const selected = new Set(selectedProjects.value)
+  const selected = selectedProjects.value.length
+    ? new Set(selectedProjects.value)
+    : new Set(props.projects.map(p => p.id))
+
   let total_unread = 0
   const period_counts: Record<string, number> = {}
 
   for (const proj of badge.finance_comment.projects ?? []) {
     if (!selected.has(proj.project_id)) continue
-    total_unread += proj.total_unread ?? 0
+
+    total_unread += Number(proj.total_unread ?? 0)
+
     for (const [period, count] of Object.entries(proj.period_counts ?? {})) {
       period_counts[period] = (period_counts[period] ?? 0) + Number(count ?? 0)
     }
   }
+
   return { total_unread, period_counts }
 })
 </script>
@@ -1743,6 +2026,206 @@ const selectedBadge = computed(() => {
     justify-content: center;
     min-width: 15px;
     height: 15px;
+}
+.mobile-finance-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 0 16px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    height: 100%;
+}
+.mobile-finance-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    display: flex;
+    gap: 8px;
+    overflow: auto;
+    padding: 8px 0 10px;
+    margin-bottom: 2px;
+    background: var(--background-color);
+    min-height: fit-content;
+}
+
+.mobile-finance-chip {
+    border: 1px solid var(--calendarBorder);
+    background: var(--bg3);
+    color: var(--primary-color);
+    border-radius: 999px;
+    padding: 7px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.mobile-finance-chip--active {
+    background: var(--primary-color);
+    color: var(--background-color);
+    border-color: var(--primary-color);
+}
+
+.mobile-finance-card {
+    flex: 0 0 auto;
+    border: 1px solid var(--calendarBorder);
+    border-radius: 18px;
+    background: linear-gradient(180deg, var(--bg3), var(--background-color));
+    overflow: hidden;
+}
+
+.mobile-finance-card--summary {
+    border-color: var(--hoverBorder);
+}
+
+.mobile-finance-card__summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.mobile-finance-card__summary::-webkit-details-marker {
+    display: none;
+}
+
+.mobile-finance-card__header,
+.mobile-finance-card__meta {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.mobile-finance-card__title {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.mobile-finance-card__caption,
+.mobile-finance-card__meta,
+.mobile-finance-section__caption,
+.mobile-finance-detail-metric span,
+.mobile-finance-detail-row__label,
+.mobile-finance-kpi__label {
+    font-size: 11px;
+    color: var(--primary-color);
+    opacity: 0.78;
+}
+
+.mobile-finance-card__meta {
+    align-items: center;
+}
+
+.mobile-finance-card__badges {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.mobile-finance-alert {
+    border-radius: 999px;
+    background: rgba(242, 140, 40, 0.16);
+    color: #c66a0a;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.mobile-finance-comment {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--calendarBorder);
+    border-radius: 999px;
+    background: var(--background-color);
+    color: var(--primary-color);
+    padding: 5px 9px;
+    font-size: 11px;
+}
+
+.mobile-finance-kpis {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.mobile-finance-kpi {
+    border: 1px solid var(--calendarBorder);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.35);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mobile-finance-kpi__value {
+    font-size: 14px;
+    line-height: 1.3;
+}
+
+.mobile-finance-card__body {
+    border-top: 1px solid var(--calendarBorder);
+    padding: 0 16px 16px;
+}
+
+.mobile-finance-section {
+    padding-top: 14px;
+}
+
+.mobile-finance-section + .mobile-finance-section {
+    margin-top: 14px;
+    border-top: 1px solid var(--calendarBorder);
+}
+
+.mobile-finance-section__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.mobile-finance-section__header h4 {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.mobile-finance-detail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.mobile-finance-detail-row {
+    border: 1px solid var(--calendarBorder);
+    border-radius: 14px;
+    padding: 10px 12px;
+    background: var(--background-color);
+}
+
+.mobile-finance-detail-row__metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+    margin-top: 8px;
+}
+
+.mobile-finance-detail-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mobile-finance-detail-metric strong {
+    font-size: 13px;
+    line-height: 1.3;
 }
 .project-selector-left {
     display: flex;
@@ -1935,30 +2418,7 @@ td[data-cell=right-border], th[data-cell=right-border] {
     }
 
     .finance-table-scroll {
-        overflow-x: visible;
-        padding-bottom: 0;
         height: calc(100% - 170px);
-    }
-    table tbody tr td.sticky-left:first-of-type {
-        background-color: var(--bg3);
-    }
-    .p-name {
-        max-width: 100%;
-        min-width: auto;
-        text-align: center;
-        background: var(--bg3);
-    }
-    .m-name {
-        max-width: 100%;
-        min-width: auto;
-        text-align: center;
-        background: var(--bg3);
-    }
-
-    .sub-name {
-        text-align: center;
-        min-width: auto;
-        max-width: none;
     }
 
     .projectModalSideMenu {
@@ -1972,77 +2432,6 @@ td[data-cell=right-border], th[data-cell=right-border] {
         box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px;
         z-index: 10;
         top: 45px;
-    }
-
-    table {
-        min-width: 100%;
-        thead {
-            display: none;
-        }
-
-        tbody {
-            tr {
-                display: block;
-                margin-bottom: -1px;
-
-                td {
-                    display: block;
-                    border-left: solid thin var(--calendarBorder);
-                    border-right: solid thin var(--calendarBorder);
-                    border-bottom: none;
-
-                }
-
-                td:last-of-type {
-                    border-bottom: solid thin var(--calendarBorder);
-                }
-
-                td:first-of-type {
-                    border-top: solid thin var(--calendarBorder);
-                }
-
-            }
-
-            tr:not(.summary-row):nth-child(3n) {
-                margin-bottom: 20px;
-            }
-
-        }
-    }
-
-    .h-cell {
-        width: auto;
-        text-align: start;
-        border-right: none;
-        border-left: none;
-    }
-
-    .sticky-left,
-    .sticky-right {
-        position: static;
-        left: auto;
-        right: auto;
-        box-shadow: none;
-        background: inherit;
-    }
-
-    .first-col,
-    .second-col,
-    .comment-cell {
-        min-width: auto;
-        max-width: none;
-    }
-
-    .inner-col {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 5px;
-        width: 100%;
-    }
-    .flex-center-col {
-        display: flex;
-        justify-content: center;
     }
 }
 </style>
