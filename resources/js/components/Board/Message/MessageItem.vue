@@ -248,24 +248,27 @@ import { useSharingDataStore } from '@/store/sharingData';
         refreshMessages(message)
         const checkedMessage = message
         if(checkedMessage.check_flag == 1){
-            const checked = checkedMessage.checked_users.filter(ob => ob.id == auth.activeUser.id).length
-            const unchecked = checkedMessage.unchecked_users.filter(ob => ob.id == auth.activeUser.id).length
-            const reacted = checkedMessage.reacted_users.filter(ob => ob.id == auth.activeUser.id).length          
-            if(unchecked && reacted){     
-                const confirmed = await ask('確認済みにしますか')
-                if(confirmed.value){
-                    const data = await api.post('/check_send_api', { message_id: msg.id, user_id: auth.activeUser.id, pattern: 'check' })                              
-                    refreshMessages(data.message)    
-                    toast('確認済みにしました。')    
-                    getBatchDashboardData(['mustCheckMessages'])
-                }                                  
-            }
-            if(checked && reacted){                  
-                ping('既に確認しています。')  
-            }
+            finishCheck(checkedMessage)
         } 
            
-    }       
+    }   
+    const finishCheck = async(checkedMessage) => {
+        const checked = checkedMessage.checked_users.filter(ob => ob.id == auth.activeUser.id).length
+        const unchecked = checkedMessage.unchecked_users.filter(ob => ob.id == auth.activeUser.id).length
+        const reacted = checkedMessage.reacted_users.filter(ob => ob.id == auth.activeUser.id).length          
+        if(unchecked && reacted){     
+            const confirmed = await ask('確認済みにしますか')
+            if(confirmed.value){
+                const data = await api.post('/check_send_api', { message_id: checkedMessage.id, user_id: auth.activeUser.id, pattern: 'check' })                              
+                refreshMessages(data.message)    
+                toast('確認済みにしました。')    
+                getBatchDashboardData(['mustCheckMessages'])
+            }                                  
+        }
+        if(checked && reacted){                  
+            ping('既に確認しています。')  
+        }
+    }    
     const fastPreCheckEmote = (name) => {
         // pretend to send emote api for fast response
         const checkExist = props.message.emoted_users?.find(ob => ob.id == auth.activeUser.id)
@@ -313,6 +316,9 @@ import { useSharingDataStore } from '@/store/sharingData';
         menu.close()
         fastPreCheckEmote(name)
         const data = await api.post('/send_emote', {id: props.message.id, reaction: name})
+        if (data.check_flag == 1) {
+            finishCheck(data)
+        }
         refreshMessages(data)
     }    
 
