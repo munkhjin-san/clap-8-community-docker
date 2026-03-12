@@ -21,7 +21,7 @@ class CloseExpiredPosts extends Command
      *
      * @var string
      */
-    protected $description = 'Mark grantable posts as failed if 10 days passed and awards < expenses';
+    protected $description = 'Mark grantable posts as failed if 14 days passed and awards < expenses';
 
     /**
      * Execute the console command.
@@ -38,7 +38,7 @@ class CloseExpiredPosts extends Command
 
         $posts = PostRecord::query()
             ->where('grantable', 1)
-            ->where('created_at', '<=', now()->subDays(10))
+            ->where('created_at', '<=', now()->subDays(14))
             ->leftJoinSub($awardsSub, 'aw', 'aw.record_id', '=', 'post_records.id')
             ->leftJoinSub($expensesSub, 'ex', 'ex.post_record_id', '=', 'post_records.id')
             ->whereRaw('COALESCE(aw.awards_sum,0) < COALESCE(ex.expenses_sum,0)')
