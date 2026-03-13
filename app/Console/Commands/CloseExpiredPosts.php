@@ -37,6 +37,7 @@ class CloseExpiredPosts extends Command
             ->groupBy('post_record_id');
 
         $posts = PostRecord::query()
+            ->where('app_type', 2)
             ->where('created_at', '<', now()->subDays(15));
             
         $grantable_posts = (clone $posts)
@@ -50,7 +51,7 @@ class CloseExpiredPosts extends Command
             ->whereRaw('COALESCE(aw.awards_sum,0) < COALESCE(ex.expenses_sum,0)')
             ->select('post_records.*')
             ->get();
-        $expired_posts = (clone $posts)->where('app_type', 2)->where('status_flag', 0)->get();
+        $expired_posts = (clone $posts)->where('status_flag', 0)->get();
         $all_posts = $grantable_posts->merge($expired_posts);
 
         $failed = 0;
