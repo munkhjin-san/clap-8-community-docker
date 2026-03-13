@@ -1,5 +1,5 @@
 <template>
-    <div style="display: inline;font-size: 14px;white-space: nowrap;margin-left: auto;" class="dateText">
+    <div style="display: inline;font-size: 14px;white-space: nowrap;margin-left: auto;">
         {{dateConverted}}                                                    
     </div>  
 </template>
@@ -10,7 +10,7 @@
     import { DateTime } from 'luxon';
     const props = defineProps<{
         record: Post;
-        dateClass: string;
+        which: string;
     }>()
         
      
@@ -18,8 +18,13 @@
         const now = DateTime.now();
     
         if(props.record.app_type == 2){
-            const startDate = DateTime.fromISO(props.record.date_start);
-            const endDate = DateTime.fromISO(props.record.date_end);
+            let startDate = DateTime.fromISO(props.record.date_start);
+            let endDate = DateTime.fromISO(props.record.date_end);
+            if (props.which == 'charge_period') {
+                startDate = DateTime.fromISO(props.record.created_at);
+                endDate = DateTime.fromISO(props.record.created_at).plus({ days: 14 });
+            }
+            
             
             if(startDate.year === endDate.year && endDate.year === now.year){
                 return `${startDate.toFormat('M / d')}  ―  ${endDate.toFormat('M / d')}`;

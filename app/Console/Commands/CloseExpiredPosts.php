@@ -37,20 +37,31 @@ class CloseExpiredPosts extends Command
             ->groupBy('post_record_id');
 
         $posts = PostRecord::query()
+            ->where('created_at', '<', now()->subDays(15));
+            
+        $grantable_posts = (clone $posts)
             ->where('grantable', 1)
-            ->where('created_at', '<=', now()->subDays(14))
+            ->where(function ($q) {
+                $q->where('status_flag', 0)
+                    ->orWhere('status_flag', 5);
+            })
             ->leftJoinSub($awardsSub, 'aw', 'aw.record_id', '=', 'post_records.id')
             ->leftJoinSub($expensesSub, 'ex', 'ex.post_record_id', '=', 'post_records.id')
             ->whereRaw('COALESCE(aw.awards_sum,0) < COALESCE(ex.expenses_sum,0)')
             ->select('post_records.*')
             ->get();
+        $expired_posts = (clone $posts)->where('app_type', 2)->where('status_flag', 0)->get();
+        $all_posts = $grantable_posts->merge($expired_posts);
 
         $failed = 0;
-        foreach ($posts as $post) {
+        
+        foreach ($all_posts as $post) {
             DB::transaction(function () use ($post, &$failed) {
                 $post->lockForUpdate();
-                if ($post->status_flag === 0) {
-                    $post->update(['status_flag' => 4]);
+                if ($post->grantable === 1) {
+                    $post->update(['status_flag' => 4]); 
+                } else {
+                    $post->update(['status_flag' => 5]); 
                 }
                 PostRefundService::refundAwardsFor($post);
                 $failed++;

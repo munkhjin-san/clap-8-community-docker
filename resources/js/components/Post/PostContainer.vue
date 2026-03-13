@@ -89,10 +89,10 @@
                         <PostIcon which="5" size="20"/>
                         {{ apps[5] }}
                     </router-link> -->
-                    <router-link :to="`/${appName}?app_type=6`" :class="['pt-selector']">
+                    <!-- <router-link :to="`/${appName}?app_type=6`" :class="['pt-selector']">
                         <PostIcon which="6" size="20"/>
                         {{ apps[6] }}
-                    </router-link>
+                    </router-link> -->
                 </div>
                 
             </div>
@@ -264,6 +264,14 @@ import { useTheme } from '@/store/theme';
     onMounted(() => {
         if(route.meta.data && Array.isArray(route.meta.data) && route.meta.data.length){
             postList.value = route.meta.data as Post[];
+            const last_chargeable = badge.post.last_chargeable_ids
+            if (last_chargeable.length) {
+                postList.value = [...postList.value].sort((a, b) => {
+                    const aPriority = last_chargeable.includes(a.id) ? 0 : 1
+                    const bPriority = last_chargeable.includes(b.id) ? 0 : 1
+                    return aPriority - bPriority
+                })
+            }
         }else{
             const query = getQuery.value
             fetchPosts(query)

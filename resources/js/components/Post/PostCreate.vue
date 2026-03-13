@@ -35,10 +35,10 @@
                     <PostIcon which="5" size="20"/>
                     グラリンピック
                 </div> -->
-                <div @click="app_type = 6" :class="['pt-selector', { ptSelected: app_type == 6}]">
+                <!-- <div @click="app_type = 6" :class="['pt-selector', { ptSelected: app_type == 6}]">
                     <PostIcon which="6" size="20"/>
                     リフレッシュ
-                </div>
+                </div> -->
             </div>
              <div class="si-box" v-if="app_type == 2">
                 <div class="switchLabel">
@@ -374,10 +374,10 @@ import { User } from '@/interface/globalInterface'
                 message: '終了日は開始日より前にすることはできません。'
             }                      
 
-        } else if (duration < 10) {
+        } else if (duration <= 14) {
             return {
-                hasError: duration < 10,
-                message: '実施期間は最低10日間以上必要です。'
+                hasError: duration <= 14,
+                message: '実施期間は最低14日間以上必要です。'
             }
         } else {
             return {
@@ -498,7 +498,9 @@ import { User } from '@/interface/globalInterface'
             award_entry: 0,
             app_type: app_type.value,
             chargeable: chargeable.value,
-            grantable: costs.length > 0,
+            grantable: costs.some(cost =>
+                cost.content.trim() !== '' && cost.expenses !== null
+            ),
             donatable: donatable.value,
             donation_target: selectedNpo.value,
             refresh_amount: refresh_amount.value,

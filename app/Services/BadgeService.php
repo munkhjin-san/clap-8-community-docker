@@ -53,10 +53,11 @@ final class BadgeService
             $query = PostRecord::query()
                 ->where('user_id', '!=', $user->id)
                 ->where('app_type', 2)
-                ->whereDate('date_end', $targetEnd)
+                ->where('created_at', '<=', now()->subDays(14))
                 ->whereDoesntHave('awards', function ($q) use ($user) {
                     $q->where('user_id', $user->id);
                 });
+
             $exists = $query->exists();
             
             $showBadge = $exists && (optional($list->updated_at)->toDateString() !== $date->toDateString());
@@ -64,12 +65,7 @@ final class BadgeService
             if ($showBadge) {
                 $last_chargeable = $query->pluck('id')->toArray();
             }
-            PostRecord::withoutTimestamps(function () use ($chargeEnd) {
-                PostRecord::where('app_type', 2)
-                    ->whereDate('date_end', $chargeEnd)
-                    ->update(['chargeable' => 0]);
-            });
-
+            
             $result = [
                 'created' => $created,
                 'changed' => count($changed),
@@ -466,26 +462,44 @@ final class BadgeService
         $counts = DB::table('project_records as pr')
             ->where('status', '!=', 'draft')
             ->whereIn('pr.id', $visibleRecords)
-            ->leftJoin('project_record_read_states as rs', function ($join) use ($user) {
-                $join->on('rs.project_record_id', '=', 'pr.id')
-                     ->where('rs.user_id', '=', $user->id);
-            })
             ->leftJoin('project_checkitems_reports as r', function ($join) use ($user) {
                 $join->on('r.project_record_id', '=', 'pr.id')
-                     ->where('r.user_id', '!=', $user->id);
+                    ->where('r.user_id', '!=', $user->id);
             })
-            ->whereRaw('r.created_at > COALESCE(rs.last_seen_at, "1970-01-01 00:00:00")')
-            ->selectRaw('pr.id as project_record_id, COUNT(DISTINCT r.id) as unread_count')
-            ->groupBy('pr.id')
+            ->leftJoin('project_record_read_states as rs', function ($join) use ($user) {
+                $join->on('rs.project_record_id', '=', 'pr.id')
+                    ->on('rs.type', '=', 'r.type')
+                    ->where('rs.user_id', '=', $user->id);
+            })
+            ->whereRaw("r.created_at > COALESCE(rs.last_seen_at, '1970-01-01 00:00:00')")
+            ->selectRaw('
+                pr.id as project_record_id,
+                r.type,
+                COUNT(DISTINCT r.id) as unread_count
+            ')
+            ->groupBy('pr.id', 'r.type')
             ->get();
         
+        $records = $counts
+            ->groupBy('project_record_id')
+            ->map(function ($rows, $projectRecordId) {
+                return [
+                    'project_record_id' => (int) $projectRecordId,
+                    'unread_count' => (int) $rows->sum('unread_count'),
+                    'types' => $rows->map(fn ($row) => [
+                        'type' => $row->type,
+                        'unread_count' => (int) $row->unread_count,
+                    ])->values()->all(),
+                ];
+            })
+            ->values()
+            ->all();
+
         return [
-            'records' => $counts->map(fn($row) => [
-                'project_record_id' => $row->project_record_id,
-                'unread_count'      => (int) $row->unread_count,
-            ])->values()->all(),
+            'records' => $records,
             'total' => (int) $counts->sum('unread_count'),
         ];
+       
     }
 
     public function checkItemConfirm(Authenticatable $user): array
@@ -495,7 +509,7 @@ final class BadgeService
         if ($user->position_id < 6) {
             $query->where('status', 'pending_director');
         } elseif (in_array($user->id, [610, 608], true)) {
-            $query->whereIn('status', ['pending_director', 'director_approved']);
+            $query->whereIn('status', ['pending_director']);
         } else {
             $query->whereHas('manager', fn ($q) => $q->whereKey($user->id))
                 ->where('status', 'returned');

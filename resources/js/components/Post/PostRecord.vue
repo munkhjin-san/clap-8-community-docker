@@ -34,12 +34,20 @@
                     </div> 
                 </div>
             </div>
-            <div class="flex items-center gap-4 flex-1 flex-wrap justify-end">            
-                <PostDate :record="record" dateClass="dateText"/> 
+            <div class="flex flex-col items-end gap-4 flex-wrap justify-end"> 
                 <div @click="updateStatus()" v-if="record.app_type == 2" class="text-sm whitespace-nowrap cursor-pointer">
                     <span v-once v-if="badge.post.changed_ids && badge.post.changed_ids.includes(record.id)" title="ステータスが更新されました" class="w-[10px] h-[10px] bg-[tomato] rounded-full inline-block mx-1"></span>
                     {{ status }}
                 </div>
+                <div class="flex items-center text-sm gap-2">
+                    <p v-if="record.app_type == 2">実施期間：</p>
+                    <PostDate :record="record" which="period"/>
+                </div>           
+                <div v-if="record.app_type == 2" class="flex items-center text-sm gap-2">
+                    <p>チャージ受付期間：</p>
+                    <PostDate :record="record" which="charge_period"/>
+                </div>
+                <span v-once v-if="badge.post.last_chargeable_ids.some(id => id === record.id)" class="text-sm text-[tomato] inline-block mx-1">チャージする最終日</span>   
             </div>
         </div>
         <div v-if="record.app_type == 2 && record.donation_target">
@@ -130,8 +138,7 @@
                     </button>
                 </div> -->
             </div>
-            <div class="flex flex-col justify-center items-center gap-2 my-10 mx-auto" v-if="challengeButtonView">
-                <span v-once v-if="badge.post.last_chargeable_ids.some(id => id === record.id)" class="text-sm text-[tomato] inline-block mx-1">チャージする最終日</span>    
+            <div class="flex flex-col justify-center items-center gap-2 my-10 mx-auto" v-if="challengeButtonView"> 
                 <button @click="emit('setChargeTarget', record.id)" v-if="challengeButtonSwitch" id="chargeAddButton" class="chargeFormeAddButton cursor-pointer">チャレンジにチャージする</button>
                 <button v-else class="chargeFormeAddButton" disabled>{{canNotCharge}}</button>
             </div>  
@@ -330,14 +337,15 @@ import { useBadgeStore } from '@/store/badge';
     })
     const challengeButtonSwitch = computed(() => {               
         var charged_user = props.record.awards.some(obj => obj.id == auth.id);
-        if (!props.record.chargeable) return false
+        if (DateTime.fromISO(props.record.created_at) <= DateTime.now().minus({days: 14})) return false
+        
         if(DateTime.now() <= customParser(props.record.date_end) && (props.record.status_flag == 0 || props.record.status_flag == 5) && !charged_user){
             return true
         }                
     })
     const canNotCharge = computed(() => {
-        if (!props.record.chargeable) {
-            return 'チャージ期間を終了しました'
+        if (DateTime.fromISO(props.record.created_at) <= DateTime.now().minus({days: 14}))  {
+            return 'チャージ期間終了しました'
         }
         if(props.record.status_flag > 0 && props.record.status_flag < 5){
             return 'チャレンジの結果が確定しました'
@@ -346,7 +354,7 @@ import { useBadgeStore } from '@/store/badge';
             if(charged_user){
                 return '既にチャージしています'
             }else if(DateTime.now() > customParser(props.record.date_end)){
-                return 'チャージ期間を終了しました'
+                return 'チャージ期間終了しました'
             }
         }
     })
