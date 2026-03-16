@@ -404,11 +404,11 @@ onBeforeUnmount(() => {
 }
 @media screen and (max-width: 540px) {
     .picker-panel {
-        left: 50%;
-        right: auto;
+        // left: 50%;
+        // right: auto;
         grid-template-columns: 1fr;
         min-width: 240px;
-        transform: translateX(-50%);
+        // transform: translateX(-50%);
     }
     .month-grid {
         grid-template-columns: repeat(4, minmax(48px, 1fr));

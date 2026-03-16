@@ -6777,7 +6777,6 @@ button.shift-button {
 }
 @media screen and (max-width: 959px) {
     .projectModalMainHeader {
-      height: 40px;
       font-size: 14px;
     }
     .messageBodyWrapper {
@@ -6819,7 +6818,6 @@ button.shift-button {
 
   .projectModalContainer {
     flex-direction: column;
-    height: calc(100% - 40px);
   }
 
   .projectModalInner {
