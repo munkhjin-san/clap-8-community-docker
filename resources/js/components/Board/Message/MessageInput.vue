@@ -121,7 +121,7 @@
                 <Transition name="modalFade">
                     <div id="EmojiPicker" class="absolute bottom-20" v-if="menu.name == 'EmojiPicker' && menu.id == 1002">
                         <div class="sub-tab-container bg-[var(--background-color)]">
-                            <div @click="tab = 'oikawa'" :class="{'selected-sub-tab': tab === 'oikawa'}" class="sub-tab-item no-underline hover:text-inherit hover:no-underline">オイカワ</div>
+                            <div @click="tab = 'oikawa'" :class="{'selected-sub-tab': tab === 'oikawa'}" class="sub-tab-item no-underline hover:text-inherit hover:no-underline">おぃかわ</div>
                             <div @click="tab = 'emoji'" :class="{'selected-sub-tab': tab === 'emoji'}" class="sub-tab-item no-underline hover:text-inherit hover:no-underline">絵文字</div>
                         </div>
                         <EmojiPicker  
