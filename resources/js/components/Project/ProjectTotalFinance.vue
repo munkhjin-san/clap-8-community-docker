@@ -2580,7 +2580,7 @@ const truncateDecimal = (value: number, fractionDigits: number) => {
     return Math.trunc(value * factor) / factor
 }
 const formatMillions = (value: number, scale = 1_000_000) => {
-    if (Number.isNaN(value)) return '———'
+    if (Number.isNaN(value)) return 'ー'
     if (scale === 1) {
         return Math.round(value).toLocaleString('en-US')
     }
@@ -2601,7 +2601,7 @@ const formatMobileMetric = (
 ) => {
     const value = metricNumericValue(unit, scenario, key)
     if (key === 'profit_rate') {
-        return percentizer(unit).display === '—' ? '———' : percentizer(unit).display
+        return percentizer(unit).display === '—' ? 'ー' : percentizer(unit).display
     }
     return formatMillions(value, scale)
 }
@@ -3266,7 +3266,6 @@ const selectedBadge = computed(() => {
 }
 .mobile-finance-compare-table--project {
     grid-template-columns: minmax(72px, 0.9fr) repeat(2, minmax(0, 1fr));
-    border-top: 0;
 }
 .mobile-finance-compare-table--compact {
     grid-template-columns: minmax(56px, 0.8fr) repeat(3, minmax(0, 1fr));
@@ -3386,7 +3385,7 @@ const selectedBadge = computed(() => {
 .mobile-finance-kpi {
     border: 1px solid var(--calendarBorder);
     border-radius: 14px;
-    background: rgba(255, 255, 255, 0.35);
+    background: var(--background-color);
     padding: 10px 12px;
     display: flex;
     flex-direction: column;
