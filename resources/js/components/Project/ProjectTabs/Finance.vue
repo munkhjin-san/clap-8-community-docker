@@ -11,10 +11,10 @@
         <div v-if="route.name === 'finance'" class="h-[calc(100%-60px)] overflow-y-auto">
             <div class="flex items-center gap-4 static flex-wrap md:flex-nowrap px-5 md:justify-normal justify-center">
                 <div class="text-sm"><span class="p-[5px] text-xs bg-[var(--bg3)] mr-[10px]">期間</span> {{ selectedProject?.date_start && selectedProject.date_end ? `${DateTime.fromISO(selectedProject.date_start).toLocaleString(DateTime.DATE_SHORT)}  ~  ${DateTime.fromISO(selectedProject.date_end).toLocaleString(DateTime.DATE_SHORT)}` : '未設定' }}</div>
-                <div class="work-monthpicker">
+                <div class="flex items-center gap-3 relative justify-end ml-auto">
                     <div class="flex items-center gap-2">
                         <span v-if="previousMonthCount" class="side-notification side-notification--comment-only" style="position: static">{{ previousMonthCount }}</span>
-                        <div @click="shiftMonth(-1)" class="work-prevmonth">
+                        <div @click="shiftMonth(-1)" class="flex items-center justify-center h-[30px] w-fit gap-2 min-w-[30px]">
                             <Back size="13"/>
                         </div>
                     </div>
@@ -27,14 +27,14 @@
                         @change="handleRangeChange"
                     />
                     <div class="flex items-center gap-2">
-                        <div @click="shiftMonth(1)" class="work-nextmonth">
+                        <div @click="shiftMonth(1)" class="flex items-center justify-center h-[30px] w-fit gap-2 min-w-[30px]">
                             <Back size="13" class="rotate-180"/>
                         </div>
                         <span v-if="nextMonthCount" class="side-notification side-notification--comment-only" style="position: static">{{ nextMonthCount }}</span>
                     </div>
                 </div>
             </div>
-            <div class="mb-[20px] mt-2 flex justify-end px-[20px] gap-4">
+            <div class="mb-[20px] mt-4 flex justify-end px-[20px] gap-4">
                 <LoaderButton @triggered="router.push({name: 'total-finance'})" style="margin: 0;" content="集計" :loading="false"/>
             </div>
             <div class="overflow-x-auto whitespace-nowrap m-5 pb-2">

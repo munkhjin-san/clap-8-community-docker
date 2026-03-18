@@ -205,8 +205,29 @@
                             v-else-if="tab == 'table' && responsive.mobile"
                             class="mobile-finance-list"
                         >
-                            <section class="mobile-finance-hero">
-                                <div class="mobile-finance-hero__switches">
+                            <div
+                                v-if="showMobileControls"
+                                class="mobile-finance-controls"
+                            >
+                                <div
+                                    v-if="showMobileModeSwitch"
+                                    class="mobile-finance-controls__row mobile-finance-controls__row--mode"
+                                >
+                                    <button
+                                        v-for="mode in mobileModeOptions"
+                                        :key="`mobile-mode-${mode.value}`"
+                                        type="button"
+                                        class="mobile-finance-chip mobile-finance-chip--segmented"
+                                        :class="{ 'mobile-finance-chip--active': mobileDisplayMode === mode.value }"
+                                        @click="mobileDisplayMode = mode.value"
+                                    >
+                                        {{ mode.label }}
+                                    </button>
+                                </div>
+                                <div
+                                    v-if="showMobileScenarioSwitch"
+                                    class="mobile-finance-controls__row"
+                                >
                                     <button
                                         v-for="option in visibleScenarioOptions"
                                         :key="`mobile-hero-${option.value}`"
@@ -218,12 +239,34 @@
                                         {{ option.label }}
                                     </button>
                                 </div>
+                                <div
+                                    v-else-if="showMobileCompareToolbar"
+                                    class="mobile-finance-controls__row mobile-finance-toolbar"
+                                >
+                                    <button
+                                        v-for="pair in mobileComparePairs"
+                                        :key="`mobile-pair-${pair.key}`"
+                                        type="button"
+                                        class="mobile-finance-chip"
+                                        :class="{ 'mobile-finance-chip--active': mobileComparePairKey === pair.key }"
+                                        @click="mobileComparePairKey = pair.key"
+                                    >
+                                        {{ pair.label }}
+                                    </button>
+                                </div>
+                            </div>
+                            <section class="mobile-finance-hero">
+                                
 
                                 <template v-if="totalGrouping === 'fiscal'">
                                     <article class="mobile-finance-compare-card">
-                                        <div class="mobile-finance-compare-card__caption">
-                                            {{ scenarioLabel(mobileActiveScenario) }}
+                                        <div class="flex justify-between items-center pt-[18px] pb-[14px] px-5">
+                                            <div class="mobile-finance-compare-card__caption">
+                                                {{ scenarioLabel(mobileActiveScenario) }}
+                                            </div>
+                                            <span class="mobile-finance-unit">単位: {{ mobileSummaryUnitLabel }}</span>
                                         </div>
+                                        
 
                                         <div class="mobile-finance-compare-table">
                                             <div class="mobile-finance-compare-table__head"></div>
@@ -234,10 +277,10 @@
                                             <template v-for="metric in mobileMetricItems" :key="`mobile-summary-compare-${metric.key}`">
                                                 <div class="mobile-finance-compare-table__label">{{ metric.label }}</div>
                                                 <div class="mobile-finance-compare-table__value">
-                                                    {{ formatMobileMetric(fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearStart), mobileActiveScenario, metric.key) }}
+                                                    {{ formatMobileMetric(fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearStart), mobileActiveScenario, metric.key, mobileSummaryUnit.scale) }}
                                                 </div>
                                                 <div class="mobile-finance-compare-table__value">
-                                                    {{ formatMobileMetric(fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearEnd), mobileActiveScenario, metric.key) }}
+                                                    {{ formatMobileMetric(fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearEnd), mobileActiveScenario, metric.key, mobileSummaryUnit.scale) }}
                                                 </div>
                                                 <div
                                                     class="mobile-finance-compare-table__delta"
@@ -261,45 +304,142 @@
                                 </template>
 
                                 <template v-else>
-                                    <div class="mobile-finance-card">
-                                    <div class="mobile-finance-card__summary">
-                                        <div class="finance-top-summary__header">
+                                    <article
+                                        v-if="mobileDisplayMode === 'compare'"
+                                        class="mobile-finance-compare-project"
+                                    >
+                                        <div class="mobile-finance-compare-project__header">
                                             <div>
-                                                <p class="finance-top-summary__title">集計</p>
-                                                <p class="finance-top-summary__caption">{{ mobileSummaryCaption }}</p>
+                                                <p class="mobile-finance-card__title mb-1">集計</p>
+                                                <p class="mobile-finance-card__caption">{{ mobileSummaryCaption }}</p>
                                             </div>
+                                            <span class="mobile-finance-unit">単位: {{ mobileSummaryCompareUnit.label }}</span>
                                         </div>
-                                        <div class="finance-top-summary__kpis">
-                                            <div v-for="metric in mobileMetricItems" :key="`top-summary-${metric.key}`" class="mobile-finance-kpi">
-                                                <span class="mobile-finance-kpi__label">{{ metric.label }}</span>
-                                                <strong class="mobile-finance-kpi__value">
-                                                    {{ formatMobileMetric(mobileSummaryScenarioEntry(mobileActiveScenario), mobileActiveScenario, metric.key) }}
-                                                </strong>
-                                            </div>
-                                        </div>
-                                        <div v-if="showTopSummaryBuckets" class="finance-top-summary__periods">
-                                            <div class="finance-top-summary__periods-header">
-                                                <h4>{{ topSummaryBucketsTitle }}</h4>
-                                                <span class="finance-top-summary__caption">{{ mobileDetailCaption }}</span>
-                                            </div>
-                                            <div class="finance-top-summary__period-scroll">
-                                                <article v-for="bucket in topSummaryBuckets" :key="bucket.key" class="finance-top-summary__period-card">
-                                                    <p class="finance-top-summary__period-title">{{ bucket.label }}</p>
-                                                    <div class="finance-top-summary__period-grid">
-                                                        <div v-for="metric in mobileMetricItems" :key="`${bucket.key}-${metric.key}`" class="mobile-finance-detail-metric">
-                                                            <span>{{ metric.label }}</span>
-                                                            <strong>{{ formatMobileMetric(bucket.entry, mobileActiveScenario, metric.key) }}</strong>
-                                                        </div>
+                                        <div class="mobile-finance-compare-project__grid">
+                                            <div class="mobile-finance-compare-table">
+                                                <div class="mobile-finance-compare-table__head"></div>
+                                                <div class="mobile-finance-compare-table__head">{{ mobileCompareLeftLabel }}</div>
+                                                <div class="mobile-finance-compare-table__head">{{ mobileCompareRightLabel }}</div>
+                                                <div class="mobile-finance-compare-table__head">差分</div>
+
+                                                <template v-for="metric in mobileMetricItems" :key="`mobile-summary-pair-${metric.key}`">
+                                                    <div class="mobile-finance-compare-table__label">{{ metric.label }}</div>
+                                                    <div class="mobile-finance-compare-table__value">
+                                                        {{ formatMobileMetric(mobileSummaryCompareLeftEntry, mobileCompareLeftScenario, metric.key, mobileSummaryCompareUnit.scale) }}
                                                     </div>
-                                                </article>
+                                                    <div class="mobile-finance-compare-table__value">
+                                                        {{ formatMobileMetric(mobileSummaryCompareRightEntry, mobileCompareRightScenario, metric.key, mobileSummaryCompareUnit.scale) }}
+                                                    </div>
+                                                    <div
+                                                        class="mobile-finance-compare-table__delta"
+                                                        :class="comparisonGapClass(
+                                                            mobileSummaryCompareLeftEntry,
+                                                            mobileSummaryCompareRightEntry,
+                                                            mobileCompareLeftScenario,
+                                                            mobileCompareRightScenario,
+                                                            metric.key
+                                                        )"
+                                                    >
+                                                        {{ comparisonGapDisplay(
+                                                            mobileSummaryCompareLeftEntry,
+                                                            mobileSummaryCompareRightEntry,
+                                                            mobileCompareLeftScenario,
+                                                            mobileCompareRightScenario,
+                                                            metric.key,
+                                                            mobileSummaryCompareUnit.scale
+                                                        ) }}
+                                                    </div>
+                                                </template>
                                             </div>
                                         </div>
-                                    </div>
-                                    </div>
+                                        <div class="mobile-finance-card__body">
+                                            <section class="mobile-finance-section">
+                                                <div class="mobile-finance-section__header">
+                                                    <h4>{{ topSummaryBucketsTitle }}</h4>
+                                                </div>
+                                                <div class="finance-top-summary__period-scroll">
+                                                    <article
+                                                        v-for="bucket in topSummaryCompareBuckets"
+                                                        :key="bucket.key"
+                                                        class="finance-top-summary__period-card"
+                                                    >
+                                                        <p class="finance-top-summary__period-title">{{ bucket.label }}</p>
+                                                        <div class="mobile-finance-compare-table mobile-finance-compare-table--compact">
+                                                            <div class="mobile-finance-compare-table__head"></div>
+                                                            <div class="mobile-finance-compare-table__head">{{ mobileCompareLeftLabel }}</div>
+                                                            <div class="mobile-finance-compare-table__head">{{ mobileCompareRightLabel }}</div>
+                                                            <div class="mobile-finance-compare-table__head">差分</div>
+                                                            <template v-for="metric in mobileMetricItems" :key="`${bucket.key}-${metric.key}`">
+                                                                <div class="mobile-finance-compare-table__label">{{ metric.label }}</div>
+                                                                <div class="mobile-finance-compare-table__value">
+                                                                    {{ formatMobileMetric(bucket.leftEntry, mobileCompareLeftScenario, metric.key, mobileSummaryCompareUnit.scale) }}
+                                                                </div>
+                                                                <div class="mobile-finance-compare-table__value">
+                                                                    {{ formatMobileMetric(bucket.rightEntry, mobileCompareRightScenario, metric.key, mobileSummaryCompareUnit.scale) }}
+                                                                </div>
+                                                                <div
+                                                                    class="mobile-finance-compare-table__delta"
+                                                                    :class="comparisonGapClass(bucket.leftEntry, bucket.rightEntry, mobileCompareLeftScenario, mobileCompareRightScenario, metric.key)"
+                                                                >
+                                                                    {{ comparisonGapDisplay(bucket.leftEntry, bucket.rightEntry, mobileCompareLeftScenario, mobileCompareRightScenario, metric.key, mobileSummaryCompareUnit.scale) }}
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </article>
+                                                </div>
+                                            </section>
+                                        </div>
+                                    </article>
+                                    <details v-else class="mobile-finance-card">
+                                        <summary class="mobile-finance-card__summary">
+                                            <div class="finance-top-summary__header">
+                                                <div>
+                                                    <p class="finance-top-summary__title mb-1">集計</p>
+                                                    <!-- <p class="finance-top-summary__caption">{{ mobileSummaryCaption }}</p> -->
+                                                </div>
+                                                <span class="mobile-finance-unit">単位: {{ mobileSummaryUnitLabel }}</span>
+                                            </div>
+                                            <div class="mobile-finance-card__meta">
+                                                <span>{{ mobileSummaryCaption }}</span>
+                                                <span>{{ scenarioLabel(mobileActiveScenario) }}</span>
+                                            </div>
+                                            <div class="finance-top-summary__kpis">
+                                                <div v-for="metric in mobileMetricItems" :key="`top-summary-${metric.key}`" class="mobile-finance-kpi">
+                                                    <span class="mobile-finance-kpi__label">{{ metric.label }}</span>
+                                                    <strong class="mobile-finance-kpi__value">
+                                                        {{ formatMobileMetric(mobileSummaryScenarioEntry(mobileActiveScenario), mobileActiveScenario, metric.key, mobileSummaryUnit.scale) }}
+                                                    </strong>
+                                                </div>
+                                            </div>
+                                        </summary>
+                                        <div class="mobile-finance-card__body">
+                                            <section
+                                                v-for="option in visibleScenarioOptions"
+                                                :key="`top-summary-${option.value}`"
+                                                class="mobile-finance-section"
+                                            >
+                                                <div class="mobile-finance-section__header">
+                                                    <h4>{{ option.label }}</h4>
+                                                </div>
+
+                                                <div class="finance-top-summary__period-scroll">
+                                                    <article v-for="bucket in topSummaryBucketsFor(option.value)" :key="bucket.key" class="finance-top-summary__period-card">
+                                                        <p class="finance-top-summary__period-title">{{ bucket.label }}</p>
+                                                        <div class="finance-top-summary__period-grid">
+                                                            <div v-for="metric in mobileMetricItems" :key="`${bucket.key}-${metric.key}`" class="mobile-finance-detail-metric">
+                                                                <span>{{ metric.label }}</span>
+                                                                <strong>{{ formatMobileMetric(bucket.entry, option.value, metric.key, mobileSummaryUnit.scale) }}</strong>
+                                                            </div>
+                                                        </div>
+                                                    </article>
+                                                </div>
+                                            </section>
+                                        </div>
+                                    </details>
                                 </template>
                             </section>
 
-                            <div class="mobile-finance-section-title">部門別</div>
+                            <div class="mobile-finance-section-title">プロジェクト別</div>
 
                             <template v-if="totalGrouping === 'fiscal'">
                                 <article
@@ -309,13 +449,18 @@
                                 >
                                     <div class="mobile-finance-compare-project__header">
                                         <div>
-                                            <p class="mobile-finance-card__title">{{ proj.name }}</p>
+                                            <p class="mobile-finance-card__title mb-1">{{ proj.name }}</p>
                                             <p v-if="managerNameFor(proj.name)" class="mobile-finance-card__caption">
-                                                PM: {{ managerNameFor(proj.name) }}
+                                                PM {{ managerNameFor(proj.name) }}
                                             </p>
                                         </div>
                                         <div class="mobile-finance-card__badges">
-                                            <span v-if="showAnyArrow(proj.name)" class="mobile-finance-alert">Alert</span>
+                                            <span class="mobile-finance-unit">単位: {{ projectCardUnitLabel(proj.name) }}</span>
+                                            <span v-if="showAnyArrow(proj.name)" class="mobile-finance-alert">
+                                                <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
+                                                    <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>
+                                                </svg>
+                                            </span>
                                             <button
                                                 v-if="showComment"
                                                 type="button"
@@ -337,10 +482,10 @@
                                             <template v-for="metric in mobileMetricItems" :key="`mobile-project-compare-${proj.name}-${metric.key}`">
                                                 <div class="mobile-finance-compare-table__label">{{ metric.label }}</div>
                                                 <div class="mobile-finance-compare-table__value">
-                                                    {{ formatMobileMetric(fiscalTotalEntry(proj.name, mobileActiveScenario, selectedFiscalYearStart), mobileActiveScenario, metric.key) }}
+                                                    {{ formatMobileMetric(fiscalTotalEntry(proj.name, mobileActiveScenario, selectedFiscalYearStart), mobileActiveScenario, metric.key, projectCardUnit(proj.name).scale) }}
                                                 </div>
                                                 <div class="mobile-finance-compare-table__value">
-                                                    {{ formatMobileMetric(fiscalTotalEntry(proj.name, mobileActiveScenario, selectedFiscalYearEnd), mobileActiveScenario, metric.key) }}
+                                                    {{ formatMobileMetric(fiscalTotalEntry(proj.name, mobileActiveScenario, selectedFiscalYearEnd), mobileActiveScenario, metric.key, projectCardUnit(proj.name).scale) }}
                                                 </div>
                                             </template>
                                         </div>
@@ -349,21 +494,26 @@
                             </template>
 
                             <template v-else>
-                                <details
-                                    v-for="proj in sortedProjects"
-                                    :key="`mobile-card-${proj.name}`"
-                                    class="mobile-finance-card"
-                                >
-                                    <summary class="mobile-finance-card__summary">
-                                        <div class="mobile-finance-card__header">
+                                <template v-if="mobileDisplayMode === 'compare'">
+                                    <article
+                                        v-for="proj in sortedProjects"
+                                        :key="`mobile-card-compare-${proj.name}`"
+                                        class="mobile-finance-compare-project"
+                                    >
+                                        <div class="mobile-finance-compare-project__header">
                                             <div>
-                                                <p class="mobile-finance-card__title">{{ proj.name }}</p>
+                                                <p class="mobile-finance-card__title mb-1">{{ proj.name }}</p>
                                                 <p v-if="managerNameFor(proj.name)" class="mobile-finance-card__caption">
-                                                    PM: {{ managerNameFor(proj.name) }}
+                                                    PM {{ managerNameFor(proj.name) }}
                                                 </p>
                                             </div>
                                             <div class="mobile-finance-card__badges">
-                                                <span v-if="showAnyArrow(proj.name)" class="mobile-finance-alert">Alert</span>
+                                                <span class="mobile-finance-unit">単位: {{ projectCompareUnit(proj.name).label }}</span>
+                                                <span v-if="showAnyArrow(proj.name)" class="mobile-finance-alert">
+                                                    <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
+                                                        <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>
+                                                    </svg>
+                                                </span>
                                                 <button
                                                     v-if="showComment"
                                                     type="button"
@@ -382,49 +532,153 @@
                                                 </button>
                                             </div>
                                         </div>
-                                        <div class="mobile-finance-card__meta">
-                                            <span>{{ mobileSummaryCaption }}</span>
-                                            <span>{{ scenarioLabel(mobileActiveScenario) }}</span>
-                                        </div>
-                                        <div class="mobile-finance-kpis">
-                                            <div v-for="metric in mobileMetricItems" :key="`${proj.name}-${mobileActiveScenario}-${metric.key}`" class="mobile-finance-kpi">
-                                                <span class="mobile-finance-kpi__label">{{ metric.label }}</span>
-                                                <strong class="mobile-finance-kpi__value">
-                                                    {{ formatMobileMetric(mobileProjectScenarioEntry(proj.name, mobileActiveScenario), mobileActiveScenario, metric.key) }}
-                                                </strong>
+                                        <div class="mobile-finance-compare-project__grid">
+                                            <div class="mobile-finance-compare-table">
+                                                <div class="mobile-finance-compare-table__head"></div>
+                                                <div class="mobile-finance-compare-table__head">{{ mobileCompareLeftLabel }}</div>
+                                                <div class="mobile-finance-compare-table__head">{{ mobileCompareRightLabel }}</div>
+                                                <div class="mobile-finance-compare-table__head">差分</div>
+
+                                                <template v-for="metric in mobileMetricItems" :key="`mobile-project-pair-${proj.name}-${metric.key}`">
+                                                    <div class="mobile-finance-compare-table__label">{{ metric.label }}</div>
+                                                    <div class="mobile-finance-compare-table__value">
+                                                        {{ formatMobileMetric(projectCompareEntry(proj.name, mobileCompareLeftScenario), mobileCompareLeftScenario, metric.key, projectCompareUnit(proj.name).scale) }}
+                                                    </div>
+                                                    <div class="mobile-finance-compare-table__value">
+                                                        {{ formatMobileMetric(projectCompareEntry(proj.name, mobileCompareRightScenario), mobileCompareRightScenario, metric.key, projectCompareUnit(proj.name).scale) }}
+                                                    </div>
+                                                    <div
+                                                        class="mobile-finance-compare-table__delta"
+                                                        :class="comparisonGapClass(projectCompareEntry(proj.name, mobileCompareLeftScenario), projectCompareEntry(proj.name, mobileCompareRightScenario), mobileCompareLeftScenario, mobileCompareRightScenario, metric.key)"
+                                                    >
+                                                        {{ comparisonGapDisplay(projectCompareEntry(proj.name, mobileCompareLeftScenario), projectCompareEntry(proj.name, mobileCompareRightScenario), mobileCompareLeftScenario, mobileCompareRightScenario, metric.key, projectCompareUnit(proj.name).scale) }}
+                                                    </div>
+                                                </template>
                                             </div>
                                         </div>
-                                    </summary>
+                                        <div class="mobile-finance-card__body">
+                                            <section class="mobile-finance-section">
+                                                <div class="mobile-finance-section__header">
+                                                    <h4>{{ topSummaryBucketsTitle }}</h4>
+                                                </div>
 
-                                    <div class="mobile-finance-card__body">
-                                        <section
-                                            v-for="option in visibleScenarioOptions"
-                                            :key="`${proj.name}-${option.value}`"
-                                            class="mobile-finance-section"
-                                        >
-                                            <div class="mobile-finance-section__header">
-                                                <h4>{{ option.label }}</h4>
-                                                <span class="mobile-finance-section__caption">{{ mobileDetailCaption }}</span>
+                                                <div class="finance-top-summary__period-scroll">
+                                                    <article
+                                                        v-for="bucket in projectCompareBuckets(proj)"
+                                                        :key="bucket.key"
+                                                        class="finance-top-summary__period-card"
+                                                    >
+                                                        <p class="finance-top-summary__period-title">{{ bucket.label }}</p>
+                                                        <div class="mobile-finance-compare-table mobile-finance-compare-table--compact">
+                                                            <div class="mobile-finance-compare-table__head"></div>
+                                                            <div class="mobile-finance-compare-table__head">{{ mobileCompareLeftLabel }}</div>
+                                                            <div class="mobile-finance-compare-table__head">{{ mobileCompareRightLabel }}</div>
+                                                            <div class="mobile-finance-compare-table__head">差分</div>
+                                                            <template v-for="metric in mobileMetricItems" :key="`${bucket.key}-${metric.key}`">
+                                                                <div class="mobile-finance-compare-table__label">{{ metric.label }}</div>
+                                                                <div class="mobile-finance-compare-table__value">
+                                                                    {{ formatMobileMetric(bucket.leftEntry, mobileCompareLeftScenario, metric.key, projectCompareUnit(proj.name).scale) }}
+                                                                </div>
+                                                                <div class="mobile-finance-compare-table__value">
+                                                                    {{ formatMobileMetric(bucket.rightEntry, mobileCompareRightScenario, metric.key, projectCompareUnit(proj.name).scale) }}
+                                                                </div>
+                                                                <div
+                                                                    class="mobile-finance-compare-table__delta"
+                                                                    :class="comparisonGapClass(bucket.leftEntry, bucket.rightEntry, mobileCompareLeftScenario, mobileCompareRightScenario, metric.key)"
+                                                                >
+                                                                    {{ comparisonGapDisplay(bucket.leftEntry, bucket.rightEntry, mobileCompareLeftScenario, mobileCompareRightScenario, metric.key, projectCompareUnit(proj.name).scale) }}
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </article>
+                                                </div>
+                                            </section>
+                                        </div>
+                                    </article>
+                                </template>
+                                <template v-else>
+                                    <details
+                                        v-for="proj in sortedProjects"
+                                        :key="`mobile-card-${proj.name}`"
+                                        class="mobile-finance-card"
+                                    >
+                                        <summary class="mobile-finance-card__summary">
+                                            <div class="mobile-finance-card__header">
+                                                <div>
+                                                    <p class="mobile-finance-card__title mb-1">{{ proj.name }}</p>
+                                                    <p v-if="managerNameFor(proj.name)" class="mobile-finance-card__caption">
+                                                        PM {{ managerNameFor(proj.name) }}
+                                                    </p>
+                                                </div>
+                                                <div class="mobile-finance-card__badges">
+                                                    <span class="mobile-finance-unit">単位: {{ projectCardUnitLabel(proj.name) }}</span>
+                                                    <span v-if="showAnyArrow(proj.name)" class="mobile-finance-alert">
+                                                        <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
+                                                            <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>
+                                                        </svg>
+                                                    </span>
+                                                    <button
+                                                        v-if="showComment"
+                                                        type="button"
+                                                        class="mobile-finance-comment"
+                                                        @click.stop="selectProjectComment(proj.name)"
+                                                    >
+                                                        <span>コメント</span>
+                                                        <strong>{{ commentCount[proj.name] ?? 0 }}</strong>
+                                                        <span
+                                                            v-if="financeTotalBadge(proj.name)?.[periodStartIso]"
+                                                            class="side-notification"
+                                                            style="position: unset; background-color: #F28C28; z-index: inherit;"
+                                                        >
+                                                            {{ financeTotalBadge(proj.name)?.[periodStartIso] }}
+                                                        </span>
+                                                    </button>
+                                                </div>
                                             </div>
+                                            <div class="mobile-finance-card__meta">
+                                                <span>{{ mobileSummaryCaption }}</span>
+                                                <span>{{ scenarioLabel(mobileActiveScenario) }}</span>
+                                            </div>
+                                            <div class="mobile-finance-kpis">
+                                                <div v-for="metric in mobileMetricItems" :key="`${proj.name}-${mobileActiveScenario}-${metric.key}`" class="mobile-finance-kpi">
+                                                    <span class="mobile-finance-kpi__label">{{ metric.label }}</span>
+                                                    <strong class="mobile-finance-kpi__value">
+                                                        {{ formatMobileMetric(mobileProjectScenarioEntry(proj.name, mobileActiveScenario), mobileActiveScenario, metric.key, projectCardUnit(proj.name).scale) }}
+                                                    </strong>
+                                                </div>
+                                            </div>
+                                        </summary>
 
-                                            <div class="finance-top-summary__period-scroll">
-                                                <div
-                                                    v-for="period in periods"
-                                                    :key="`${proj.name}-${option.value}-${period.period}`"
-                                                    class="finance-top-summary__period-card"
-                                                >
-                                                    <div class="mobile-finance-detail-row__label">{{ formatPeriodLabel(period) }}</div>
-                                                    <div class="mobile-finance-detail-row__metrics">
-                                                        <div v-for="metric in mobileMetricItems" :key="`${proj.name}-${option.value}-${period.period}-${metric.key}`" class="mobile-finance-detail-metric">
-                                                            <span>{{ metric.label }}</span>
-                                                            <strong>{{ formatMobileMetric(scenarioPeriodEntry(proj, period.period, option.value), option.value, metric.key) }}</strong>
+                                        <div class="mobile-finance-card__body">
+                                            <section
+                                                v-for="option in visibleScenarioOptions"
+                                                :key="`${proj.name}-${option.value}`"
+                                                class="mobile-finance-section"
+                                            >
+                                                <div class="mobile-finance-section__header">
+                                                    <h4>{{ option.label }}</h4>
+                                                    <!-- <span class="mobile-finance-section__caption">{{ mobileDetailCaption }}</span> -->
+                                                </div>
+
+                                                <div class="finance-top-summary__period-scroll">
+                                                    <div
+                                                        v-for="period in periods"
+                                                        :key="`${proj.name}-${option.value}-${period.period}`"
+                                                        class="finance-top-summary__period-card"
+                                                    >
+                                                        <div class="mobile-finance-detail-row__label">{{ formatPeriodLabel(period) }}</div>
+                                                        <div class="mobile-finance-detail-row__metrics">
+                                                            <div v-for="metric in mobileMetricItems" :key="`${proj.name}-${option.value}-${period.period}-${metric.key}`" class="mobile-finance-detail-metric">
+                                                                <span>{{ metric.label }}</span>
+                                                                <strong>{{ formatMobileMetric(scenarioPeriodEntry(proj, period.period, option.value), option.value, metric.key, projectCardUnit(proj.name).scale) }}</strong>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        </section>
-                                    </div>
-                                </details>
+                                            </section>
+                                        </div>
+                                    </details>
+                                </template>
                             </template>
                         </div>
                         <div class="finance-table-scroll" v-if="tab == 'table' && !responsive.mobile">
@@ -1492,8 +1746,8 @@ const generatePeriodRange = (start: DateTime, end: DateTime): PeriodCell[] => {
 }
 
 const scenarioOptions: Array<{ label: string; value: 'yearly_plan' | 'profit' | 'settlement' }> = [
-    {label: '年度予算', value: 'yearly_plan'},
-    {label: '損益計画', value: 'profit'},
+    {label: '予算', value: 'yearly_plan'},
+    {label: '損益', value: 'profit'},
     {label: '実績', value: 'settlement'}
 ]
 const selectedOption = ref<Array<'yearly_plan' | 'profit' | 'settlement'>>([])
@@ -1536,9 +1790,47 @@ const visibleScenarioOptions = computed(() =>
     scenarioOptions.filter(option => show(option.value))
 )
 const mobileActiveScenario = ref<ScenarioKey>('profit')
+type MobileDisplayMode = 'normal' | 'compare'
+type ScenarioPair = {
+    key: string
+    left: ScenarioKey
+    right: ScenarioKey
+    label: string
+}
+const mobileModeOptions: Array<{ value: MobileDisplayMode; label: string }> = [
+    { value: 'normal', label: '通常' },
+    { value: 'compare', label: '比較' },
+]
+const mobileDisplayMode = ref<MobileDisplayMode>('normal')
+const mobileComparePairs = computed<ScenarioPair[]>(() => {
+    const options = visibleScenarioOptions.value
+    const pairs: ScenarioPair[] = []
+    for (let index = 0; index < options.length; index += 1) {
+        for (let nextIndex = index + 1; nextIndex < options.length; nextIndex += 1) {
+            const left = options[index].value
+            const right = options[nextIndex].value
+            pairs.push({
+                key: `${left}:${right}`,
+                left,
+                right,
+                label: `${options[index].label}対${options[nextIndex].label}`,
+            })
+        }
+    }
+    return pairs
+})
+const mobileComparePairKey = ref('yearly_plan:profit')
 watch(visibleScenarioOptions, (options) => {
     if (!options.some(option => option.value === mobileActiveScenario.value)) {
         mobileActiveScenario.value = options[0]?.value ?? 'yearly_plan'
+    }
+}, { immediate: true })
+watch(mobileComparePairs, (pairs) => {
+    if (!pairs.some(pair => pair.key === mobileComparePairKey.value)) {
+        mobileComparePairKey.value = pairs[0]?.key ?? ''
+    }
+    if (!pairs.length && mobileDisplayMode.value === 'compare') {
+        mobileDisplayMode.value = 'normal'
     }
 }, { immediate: true })
 const THRESHOLD = 10;
@@ -2048,6 +2340,42 @@ const topSummaryBuckets = computed(() => {
         entry: periodEntry(period.period, mobileActiveScenario.value),
     }))
 })
+const topSummaryBucketsFor = (scenario: ScenarioKey) => {
+    if (totalGrouping.value === 'fiscal') {
+        return activeFiscalYears.value.map((fy) => ({
+            key: `fy-${scenario}-${fy}`,
+            label: `FY${fy}`,
+            entry: fiscalSummaryEntry(scenario, fy),
+        }))
+    }
+    return periods.value.map((period) => ({
+        key: `${scenario}-${period.period}`,
+        label: formatPeriodLabel(period),
+        entry: periodEntry(period.period, scenario),
+    }))
+}
+const activeMobileComparePair = computed<ScenarioPair | null>(() =>
+    mobileComparePairs.value.find(pair => pair.key === mobileComparePairKey.value) ?? mobileComparePairs.value[0] ?? null
+)
+const mobileCompareLeftScenario = computed<ScenarioKey>(() => activeMobileComparePair.value?.left ?? 'yearly_plan')
+const mobileCompareRightScenario = computed<ScenarioKey>(() => activeMobileComparePair.value?.right ?? 'profit')
+const mobileCompareLeftLabel = computed(() => scenarioLabel(mobileCompareLeftScenario.value))
+const mobileCompareRightLabel = computed(() => scenarioLabel(mobileCompareRightScenario.value))
+const showMobileModeSwitch = computed(() =>
+    totalGrouping.value !== 'fiscal' && mobileComparePairs.value.length > 0
+)
+const showMobileScenarioSwitch = computed(() =>
+    visibleScenarioOptions.value.length > 1 &&
+    (totalGrouping.value === 'fiscal' || mobileDisplayMode.value === 'normal')
+)
+const showMobileCompareToolbar = computed(() =>
+    totalGrouping.value !== 'fiscal' &&
+    mobileDisplayMode.value === 'compare' &&
+    mobileComparePairs.value.length > 1
+)
+const showMobileControls = computed(() =>
+    showMobileModeSwitch.value || showMobileScenarioSwitch.value || showMobileCompareToolbar.value
+)
 
 const metricNumericValue = (
     unit: UnitData | null | undefined,
@@ -2113,24 +2441,169 @@ const comparisonDeltaClass = (
         ? 'mobile-finance-compare-table__delta--positive'
         : 'mobile-finance-compare-table__delta--negative'
 }
-const formatMillions = (value: number) => {
-    if (Number.isNaN(value)) return '———'
-    const abs = Math.abs(value)
-    if (abs < 1_000_000) {
-        return `¥${(value / 1_000).toFixed(0)}K`
+const comparisonGapDisplay = (
+    left: UnitData | null | undefined,
+    right: UnitData | null | undefined,
+    leftScenario: ScenarioKey,
+    rightScenario: ScenarioKey,
+    key: MetricDisplayKey,
+    scale = 1,
+) => {
+    const leftValue = metricNumericValue(left, leftScenario, key)
+    const rightValue = metricNumericValue(right, rightScenario, key)
+    if (Number.isNaN(leftValue) || Number.isNaN(rightValue)) return '—'
+    const delta = rightValue - leftValue
+    if (key === 'profit_rate') {
+        return `${delta > 0 ? '+' : ''}${delta.toFixed(2)}pt`
     }
-    return `¥${(value / 1_000_000).toFixed(1)}M`
+    return `${delta > 0 ? '+' : ''}${formatMillions(delta, scale)}`
+}
+const comparisonGapClass = (
+    left: UnitData | null | undefined,
+    right: UnitData | null | undefined,
+    leftScenario: ScenarioKey,
+    rightScenario: ScenarioKey,
+    key: MetricDisplayKey,
+) => {
+    const leftValue = metricNumericValue(left, leftScenario, key)
+    const rightValue = metricNumericValue(right, rightScenario, key)
+    if (Number.isNaN(leftValue) || Number.isNaN(rightValue) || leftValue === rightValue) {
+        return 'mobile-finance-compare-table__delta--neutral'
+    }
+    const improved = key === 'expense'
+        ? rightValue < leftValue
+        : rightValue > leftValue
+    return improved
+        ? 'mobile-finance-compare-table__delta--positive'
+        : 'mobile-finance-compare-table__delta--negative'
+}
+type MobileUnit = {
+    label: string
+    scale: number
+}
+const MONEY_UNITS: MobileUnit[] = [
+    { label: '10億', scale: 1_000_000_000 },
+    { label: '100万', scale: 1_000_000 },
+    { label: '千', scale: 1_000 },
+    { label: '円', scale: 1 },
+]
+const mobileMoneyUnit = (values: number[]): MobileUnit => {
+    const maxAbs = values.reduce((max, value) => {
+        if (!Number.isFinite(value)) return max
+        return Math.max(max, Math.abs(value))
+    }, 0)
+    if (maxAbs >= 1_000_000_000) return MONEY_UNITS[0]
+    if (maxAbs >= 1_000_000) return MONEY_UNITS[1]
+    if (maxAbs >= 1_000) return MONEY_UNITS[2]
+    return MONEY_UNITS[3]
+}
+const unitValuesFromEntry = (unit: UnitData | null | undefined, scenario: ScenarioKey): number[] => {
+    const sales = metricNumericValue(unit, scenario, 'sales')
+    const expense = metricNumericValue(unit, scenario, 'expense')
+    const profit = metricNumericValue(unit, scenario, 'profit')
+    return [sales, expense, profit].filter(value => Number.isFinite(value))
+}
+const mobileSummaryUnit = computed<MobileUnit>(() => {
+    const values = visibleScenarioOptions.value.flatMap((option) => {
+        const summaryValues = unitValuesFromEntry(mobileSummaryScenarioEntry(option.value), option.value)
+        const bucketValues = topSummaryBucketsFor(option.value).flatMap((bucket) =>
+            unitValuesFromEntry(bucket.entry, option.value)
+        )
+        return [...summaryValues, ...bucketValues]
+    })
+    return mobileMoneyUnit(values)
+})
+const mobileSummaryUnitLabel = computed(() => mobileSummaryUnit.value.label)
+const pairUnitFromEntries = (
+    left: UnitData | null | undefined,
+    right: UnitData | null | undefined,
+    leftScenario: ScenarioKey,
+    rightScenario: ScenarioKey,
+): MobileUnit => mobileMoneyUnit([
+    ...unitValuesFromEntry(left, leftScenario),
+    ...unitValuesFromEntry(right, rightScenario),
+])
+const mobileSummaryCompareLeftEntry = computed(() => totalSummaryEntry(mobileCompareLeftScenario.value))
+const mobileSummaryCompareRightEntry = computed(() => totalSummaryEntry(mobileCompareRightScenario.value))
+const mobileSummaryCompareUnit = computed(() =>
+    pairUnitFromEntries(
+        mobileSummaryCompareLeftEntry.value,
+        mobileSummaryCompareRightEntry.value,
+        mobileCompareLeftScenario.value,
+        mobileCompareRightScenario.value,
+    )
+)
+const topSummaryCompareBuckets = computed(() =>
+    periods.value.map((period) => ({
+        key: `compare-${period.period}`,
+        label: formatPeriodLabel(period),
+        leftEntry: periodEntry(period.period, mobileCompareLeftScenario.value),
+        rightEntry: periodEntry(period.period, mobileCompareRightScenario.value),
+    }))
+)
+const projectCardUnit = (projectName: string): MobileUnit => {
+    const project = sortedProjects.value.find(item => item.name === projectName)
+    const values = totalGrouping.value === 'fiscal'
+        ? visibleScenarioOptions.value.flatMap((option) =>
+            activeFiscalYears.value.flatMap((fy) =>
+                unitValuesFromEntry(fiscalTotalEntry(projectName, option.value, fy), option.value)
+            )
+        )
+        : visibleScenarioOptions.value.flatMap((option) => {
+            const summaryValues = unitValuesFromEntry(mobileProjectScenarioEntry(projectName, option.value), option.value)
+            const periodValues = periods.value.flatMap((period) =>
+                unitValuesFromEntry(scenarioPeriodEntry(project ?? { name: projectName, data: {} }, period.period, option.value), option.value)
+            )
+            return [...summaryValues, ...periodValues]
+        })
+    return mobileMoneyUnit(values)
+}
+const projectCardUnitLabel = (projectName: string) => projectCardUnit(projectName).label
+const projectCompareEntry = (projectName: string, scenario: ScenarioKey): UnitData =>
+    totalEntry(projectName, scenario)
+const projectCompareUnit = (projectName: string): MobileUnit =>
+    pairUnitFromEntries(
+        projectCompareEntry(projectName, mobileCompareLeftScenario.value),
+        projectCompareEntry(projectName, mobileCompareRightScenario.value),
+        mobileCompareLeftScenario.value,
+        mobileCompareRightScenario.value,
+    )
+const projectCompareBuckets = (proj: { name: string; data: Record<string, any> }) =>
+    periods.value.map((period) => ({
+        key: `${proj.name}-compare-${period.period}`,
+        label: formatPeriodLabel(period),
+        leftEntry: scenarioPeriodEntry(proj, period.period, mobileCompareLeftScenario.value),
+        rightEntry: scenarioPeriodEntry(proj, period.period, mobileCompareRightScenario.value),
+    }))
+const truncateDecimal = (value: number, fractionDigits: number) => {
+    const factor = 10 ** fractionDigits
+    return Math.trunc(value * factor) / factor
+}
+const formatMillions = (value: number, scale = 1_000_000) => {
+    if (Number.isNaN(value)) return '———'
+    if (scale === 1) {
+        return Math.round(value).toLocaleString('en-US')
+    }
+    const normalized = value / scale
+    const abs = Math.abs(normalized)
+    const maxFractionDigits = abs >= 1000 ? 0 : abs >= 100 ? 1 : abs >= 10 ? 2 : 3
+    const truncated = truncateDecimal(normalized, maxFractionDigits)
+    return truncated.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: maxFractionDigits,
+    })
 }
 const formatMobileMetric = (
     unit: UnitData | null | undefined,
     scenario: ScenarioKey,
     key: MetricDisplayKey,
+    scale?: number,
 ) => {
     const value = metricNumericValue(unit, scenario, key)
     if (key === 'profit_rate') {
         return percentizer(unit).display === '—' ? '———' : percentizer(unit).display
     }
-    return formatMillions(value)
+    return formatMillions(value, scale)
 }
 const formatScenarioMetric = (
     unit: UnitData | null | undefined,
@@ -2574,6 +3047,19 @@ const selectedBadge = computed(() => {
     opacity: 0.78;
 }
 
+.mobile-finance-unit {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--calendarBorder);
+    border-radius: 999px;
+    background: var(--background-color);
+    color: var(--primary-color);
+    padding: 5px 9px;
+    font-size: 11px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
 .finance-top-summary__switches {
     display: flex;
     gap: 8px;
@@ -2646,41 +3132,51 @@ const selectedBadge = computed(() => {
     flex-direction: column;
     gap: 14px;
 }
-.mobile-finance-hero__switches {
+.mobile-finance-controls {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    gap: 6px;
+    padding-top: 4px;
+    margin-bottom: 2px;
+    background: var(--background-color);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+.mobile-finance-controls__row {
     display: inline-flex;
     align-self: flex-end;
     max-width: 100%;
-    padding: 4px;
+    padding: 3px;
     border: 1px solid var(--calendarBorder);
-    border-radius: 18px;
+    border-radius: 14px;
     background: var(--bg3);
-    overflow-x: auto;
+}
+.mobile-finance-controls__row--mode {
+    opacity: 0.9;
 }
 .mobile-finance-toolbar {
-    position: sticky;
-    top: 0;
-    z-index: 6;
-    display: flex;
+    display: inline-flex;
     gap: 8px;
     overflow: auto;
-    margin-bottom: 2px;
     min-height: fit-content;
+    padding-right: 2px;
 }
 
 .mobile-finance-chip {
-    border: 1px solid var(--calendarBorder);
-    background: var(--bg3);
+    border: 1px solid transparent;
+    background: transparent;
     color: var(--primary-color);
     border-radius: 999px;
-    padding: 5px 10px;
-    font-size: 12px;
+    padding: 6px 10px;
+    font-size: 11px;
+    line-height: 1.2;
     white-space: nowrap;
 }
 .mobile-finance-chip--segmented {
-    border-color: transparent;
-    background: transparent;
-    padding: 8px 16px;
-    border-radius: 14px;
+    padding: 7px 14px;
+    border-radius: 11px;
 }
 .mobile-finance-chip__icon {
     margin-left: 4px;
@@ -2706,7 +3202,6 @@ const selectedBadge = computed(() => {
     letter-spacing: 0.02em;
 }
 .mobile-finance-compare-card__caption {
-    padding: 18px 20px 14px;
     font-size: 14px;
     font-weight: 600;
     color: var(--primary-color);
@@ -2776,17 +3271,32 @@ const selectedBadge = computed(() => {
     grid-template-columns: minmax(72px, 0.9fr) repeat(2, minmax(0, 1fr));
     border-top: 0;
 }
+.mobile-finance-compare-table--compact {
+    grid-template-columns: minmax(56px, 0.8fr) repeat(3, minmax(0, 1fr));
+    border-top: 0;
+}
 .mobile-finance-compare-table--project .mobile-finance-compare-table__head,
 .mobile-finance-compare-table--project .mobile-finance-compare-table__label,
 .mobile-finance-compare-table--project .mobile-finance-compare-table__value {
     padding-top: 14px;
     padding-bottom: 14px;
 }
+.mobile-finance-compare-table--compact .mobile-finance-compare-table__head,
+.mobile-finance-compare-table--compact .mobile-finance-compare-table__label,
+.mobile-finance-compare-table--compact .mobile-finance-compare-table__value,
+.mobile-finance-compare-table--compact .mobile-finance-compare-table__delta {
+    padding: 10px 6px;
+    font-size: 11px;
+}
 .mobile-finance-compare-table--project .mobile-finance-compare-table__head {
     background: transparent;
 }
 .mobile-finance-compare-table--project .mobile-finance-compare-table__value {
     font-weight: 400;
+}
+.mobile-finance-compare-table--compact .mobile-finance-compare-table__value,
+.mobile-finance-compare-table--compact .mobile-finance-compare-table__delta {
+    font-weight: 600;
 }
 
 .mobile-finance-card {
@@ -2851,12 +3361,11 @@ const selectedBadge = computed(() => {
 }
 
 .mobile-finance-alert {
-    border-radius: 999px;
-    background: rgba(242, 140, 40, 0.16);
-    color: #c66a0a;
+    border-radius: 999px;    
     padding: 4px 8px;
     font-size: 11px;
     font-weight: 600;
+    display: flex;
 }
 
 .mobile-finance-comment {

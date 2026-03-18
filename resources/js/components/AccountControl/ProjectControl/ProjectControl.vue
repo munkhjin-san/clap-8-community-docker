@@ -59,8 +59,8 @@ const { getProjects } = useProject()
 onMounted(() => {
     const options = detailedDateOptions()
     const today = DateTime.now()
-    const which_half = today.month >= 3 && today.month <= 9 ? 'first' : 'second'
-    const fiscalYear = today.month >= 3 ? today.year : today.year - 1
+    const which_half = today.month >= 4 && today.month <= 10 ? 'first' : 'second'
+    const fiscalYear = today.month >= 4 ? today.year : today.year - 1
     const year = fiscalYear.toString()
     const foundOption = options.find(option => option.year == year && option.which_half == which_half)
     if (foundOption) {

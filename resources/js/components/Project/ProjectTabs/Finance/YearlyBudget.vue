@@ -17,12 +17,20 @@
           <span v-if="dirty && !isReadOnly" class="ml-2 text-[var(--alert-color, #ef4444)]">未保存</span>
         </div>
       </div>
-      <label class="text-sm">会計年度</label>
+      <!-- <label class="text-sm">会計年度</label>
       <input
         type="number"
         v-model="fiscalYear"
         class="w-24 px-2 py-1 text-right text-[var(--primary-color)] bg-[var(--background-color)] border border-solid border-[var(--normalBorder)] focus:outline-none focus:border-[var(--hoverBorder)]"
-      />
+      /> -->
+      <label class="flex items-center gap-1">
+          <span class="text-sm">会計年度</span>
+          <select v-model.number="fiscalYear" class="text-[var(--primary-color)] px-2 py-1 bg-[var(--background-color)] text-sm border border-solid border-[var(--normalBorder)] focus:outline-none focus:border-[var(--hoverBorder)]">
+              <option v-for="year in fiscalYearOptions" :key="`fy-start-${year}`" :value="year">
+                  {{ year }}
+              </option>
+          </select>
+      </label>
       <!-- <label class="text-sm">開始月</label>
       <select
         v-model="startMonth"
@@ -69,7 +77,7 @@
           @click="unlockPlan"
         >確定解除</button>
         <button
-          v-if="!lockState.is_locked"
+          v-if="!lockState.is_locked && (auth.isAdmin || auth.isBoss) "
           class="text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           :disabled="isReadOnly"
           @click="confirmAndLock"
@@ -283,7 +291,11 @@ const isReadOnly = computed(() => lockState.is_locked && !auth.isAdmin)
 const controlRef = useTemplateRef<HTMLDivElement>('controlRef')
 const controlRefHeight = ref(0)
 
-
+const minFiscalYear = 2024
+const maxFiscalYear = DateTime.now().year + 2
+const fiscalYearOptions = computed<number[]>(() =>
+    Array.from({ length: maxFiscalYear - minFiscalYear + 1 }, (_, index) => minFiscalYear + index)
+)
 
 const calcHeight = computed(() => {
   const h = Number(controlRefHeight.value ?? 0) || 0
@@ -506,7 +518,6 @@ const save = async () => {
       })
     }
   }
-  if (!months.length) return
   await api.post(`/projects/${projectId}/plan/grid`, {
     plan_year_id: planYearId.value,
     fiscal_year: fiscalYear.value,
@@ -515,7 +526,7 @@ const save = async () => {
     months,
   })
   dirty.value = false
-  toast(`保存しました（更新 ${months.length} セル）`)
+  toast(months.length ? `保存しました（更新 ${months.length} セル）` : '保存しました（全てクリア）')
 }
 
 const confirmAndLock = async () => {

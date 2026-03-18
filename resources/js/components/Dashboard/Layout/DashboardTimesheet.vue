@@ -45,9 +45,9 @@
             <div class="text-[13px] p-2 bg-[var(--bg3)] rounded mt-3 w-fit" v-if="dashboardStore.annualLeaveData.remaining_days">
                 有給残日数: {{ dashboardStore.annualLeaveData.remaining_days }}日
             </div>
-            <div v-if="dashboardStore.annualLeaveData.planned_leaves_last_year || dashboardStore.annualLeaveData.planned_leaves_this_year.length" class="mt-3">
-                <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)" v-if="dashboardStore.annualLeaveData.planned_leaves_last_year.length">
-                    <ExpansionPanelItem hide-actions static :tile="true" class="rm-p">
+            <div v-if="dashboardStore.annualLeaveData.planned_leaves_last_year.length || dashboardStore.annualLeaveData.planned_leaves_this_year.length" class="mt-3">
+                <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                    <ExpansionPanelItem hide-actions static :tile="true" class="rm-p" v-if="dashboardStore.annualLeaveData.planned_leaves_last_year.length">
                         <template #title="{ expanded }">
                             <PanelTitle :expanded="expanded">
                                 昨年計画有給（{{ dashboardStore.annualLeaveData.planned_leaves_last_year.length }}件）
@@ -63,7 +63,7 @@
                             </PanelData>
                         </template>
                     </ExpansionPanelItem>
-                    <ExpansionPanelItem hide-actions static :tile="true" class="rm-p">
+                    <ExpansionPanelItem hide-actions static :tile="true" class="rm-p" v-if="dashboardStore.annualLeaveData.planned_leaves_this_year.length">
                         <template #title="{ expanded }">
                             <PanelTitle :expanded="expanded">
                                 今年計画有給（{{ dashboardStore.annualLeaveData.planned_leaves_this_year.length }}件）

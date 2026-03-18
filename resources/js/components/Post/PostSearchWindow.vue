@@ -146,7 +146,7 @@
                             </div>
                         </div>
                         
-                        <PostDate :record="item" dateClass="dateText"/> 
+                        <PostDate :record="item" which="period"/> 
                         <div v-if="item.app_type == 2" style="font-size: 14px;margin-left: 10px;cursor:pointer">{{ status(item) }}</div>
                     </div>                     
 

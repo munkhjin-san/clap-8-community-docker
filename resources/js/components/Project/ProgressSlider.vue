@@ -40,6 +40,9 @@ const props = defineProps<{
     progress: number
     type: string
 }>()
+const emit = defineEmits<{
+   (e: 'refresh'): void
+}>()
 const menu = useMenuStore()
 
 const progressData = ref(toRef(props.progress))
@@ -67,6 +70,7 @@ const save = async() => {
         loadingRef: saving
     })
     menu.close()
+    emit('refresh')
     // if(typeof refresh === 'function') {
     //     refresh()
     // }

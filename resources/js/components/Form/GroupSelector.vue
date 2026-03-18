@@ -17,7 +17,6 @@
     </template>
     </drop-selector> 
     
-    <p v-if="error" class="i-error">{{error}}</p>
 </div>
 </template>
 <script setup>

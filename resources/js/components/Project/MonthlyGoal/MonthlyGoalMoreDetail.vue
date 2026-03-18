@@ -49,7 +49,7 @@
                         <div class="text-[13px] font-semibold">成果目標</div>
                         <div class="kadai-content">{{ goal?.outcome_goal }}</div>
                     </div>
-                    <div v-if="goal?.private_memo">
+                    <div v-if="goal?.private_memo && (auth.isBoss || goal.user_id === auth.id || auth.isAdmin || isManager)">
                         <div class="text-[13px] font-semibold">メモ</div>
                         <div class="kadai-content">{{ goal?.private_memo }}</div>
                     </div>                    
@@ -81,14 +81,14 @@
                                     <td>KGI</td>
                                     <td>{{ goal?.kgi }}</td>
                                     <td>
-                                        <ProgressSlider :goal-id="goal.id" :disabled="!reviewReport" :progress="goal.achievement_rate" type="kgi"/>
+                                        <ProgressSlider :goal-id="goal.id" :disabled="!reviewReport" :progress="goal.achievement_rate" type="kgi" @refresh="refresh"/>
                                     </td>
                                 </tr>                          
                                 <tr v-for="(step, index) in goal.steps" :key="index">
                                     <td v-if="index == 0" :rowspan="goal.steps.length">KPI</td>
                                     <td>{{ step.content }}</td>
                                     <td>
-                                        <ProgressSlider :goal-id="goal.id" :disabled="!reviewReport" :progress="step.progress" type="kpi" :step-id="step.id"/>
+                                        <ProgressSlider :goal-id="goal.id" :disabled="!reviewReport" :progress="step.progress" type="kpi" :step-id="step.id" @refresh="refresh"/>
                                     </td>                                    
                                 </tr>
                             </tbody>

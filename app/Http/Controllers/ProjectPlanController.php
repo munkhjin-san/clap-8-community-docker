@@ -118,7 +118,7 @@ class ProjectPlanController extends Controller
             'start_month'  => ['required_without:plan_year_id', 'integer', 'min:1', 'max:12'],
             'scenario_id'  => ['sometimes', 'nullable', 'integer'],
             'scenario_code'=> ['sometimes', 'nullable', 'string', 'max:50'],
-            'months'       => ['required', 'array'],
+            'months'       => ['sometimes', 'array'],
             'months.*.period_index' => ['required', 'integer', 'min:1', 'max:12'],
             'months.*.account_id'   => ['required', 'integer'],
             'months.*.amount'       => ['nullable', 'numeric'],
@@ -160,15 +160,17 @@ class ProjectPlanController extends Controller
             ];
         }
 
-        if (!count($rows)) {
-            return response()->json(['status' => 'ok', 'updated' => 0]);
-        }
+        DB::transaction(function () use ($project, $planYear, $scenarioId, $scenarioKey, $rows) {
+            DB::table('project_plan_amounts')
+                ->where('project_record_id', $project->id)
+                ->where('project_plan_year_id', $planYear->id)
+                ->where('scenario_key', $scenarioKey)
+                ->delete();
 
-        DB::table('project_plan_amounts')->upsert(
-            $rows,
-            ['project_record_id', 'project_plan_year_id', 'project_account_id', 'period_index', 'scenario_key'],
-            ['amount', 'updated_at']
-        );
+            if (count($rows)) {
+                DB::table('project_plan_amounts')->insert($rows);
+            }
+        });
 
         return response()->json(['status' => 'ok', 'updated' => count($rows)]);
     }
