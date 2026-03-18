@@ -217,7 +217,7 @@
                                         v-for="mode in mobileModeOptions"
                                         :key="`mobile-mode-${mode.value}`"
                                         type="button"
-                                        class="mobile-finance-chip mobile-finance-chip--segmented"
+                                        class="mobile-finance-chip"
                                         :class="{ 'mobile-finance-chip--active': mobileDisplayMode === mode.value }"
                                         @click="mobileDisplayMode = mode.value"
                                     >
@@ -232,7 +232,7 @@
                                         v-for="option in visibleScenarioOptions"
                                         :key="`mobile-hero-${option.value}`"
                                         type="button"
-                                        class="mobile-finance-chip mobile-finance-chip--segmented"
+                                        class="mobile-finance-chip"
                                         :class="{ 'mobile-finance-chip--active': mobileActiveScenario === option.value }"
                                         @click="mobileActiveScenario = option.value"
                                     >
@@ -3168,16 +3168,13 @@ const selectedBadge = computed(() => {
     border: 1px solid transparent;
     background: transparent;
     color: var(--primary-color);
-    border-radius: 999px;
+    border-radius: 11px;
     padding: 6px 10px;
     font-size: 11px;
     line-height: 1.2;
     white-space: nowrap;
 }
-.mobile-finance-chip--segmented {
-    padding: 7px 14px;
-    border-radius: 11px;
-}
+
 .mobile-finance-chip__icon {
     margin-left: 4px;
     font-size: 11px;
