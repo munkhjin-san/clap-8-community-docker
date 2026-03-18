@@ -166,18 +166,20 @@
                         <div class="attendance-title">
                             <span>諸手当</span>
                         </div>
-                        <div class="attendance-value">
+                        <div class="attendance-value space-y-2">
                             <p>宿泊日当 : {{ attendanceData.month_move_allowance_count }}</p>
-                            <p><br>遠方手当 : {{ attendanceData.month_stay_allowance_count }}</p>
-                            <p><br>待機手当 : {{ attendanceData.month_waiting_allowance_count }}</p>
-                            <p><br>マイカー手当 : {{ attendanceData.month_vehicle_allowance_count }}</p>
-                            <p><br>通勤特別手当 : {{ attendanceData.month_special_commute_allowance_count }}</p>
-                            <p><br>在宅手当 : <br>
-                                <p class="ml-4 leading-normal mt-2">
+                            <p>遠方手当 : {{ attendanceData.month_stay_allowance_count }}</p>
+                            <p>待機手当 : {{ attendanceData.month_waiting_allowance_count }}</p>
+                            <p>マイカー手当 : {{ attendanceData.month_vehicle_allowance_count }}</p>
+                            <p>通勤特別手当 : {{ attendanceData.month_special_commute_allowance_count }}</p>
+
+                            <div>
+                                <p>在宅手当 :</p>
+                                <div class="ml-4 mt-2 space-y-1 leading-normal">
                                     <p>個人都合 : {{ attendanceData.month_remote_personal_allowance_count }}</p>
                                     <p>会社都合 : {{ attendanceData.month_remote_company_allowance_count }}</p>
-                                </p>
-                            </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="attendance-row">
@@ -235,7 +237,7 @@ import Modal from '../Global/Modal.vue';
     })
     const loading = ref(0)
     const api = useApi()
-    const { ping } = useDialog()
+    const { ping, ask } = useDialog()
     onMounted(() => {
         fetchAttendanceData()
     })
@@ -370,6 +372,12 @@ import Modal from '../Global/Modal.vue';
     const attendanceConfirm = async() => {
         if(disableButton.value) return
         let yearMonth = dateInstance.value.toFormat('yyyy-MM')
+        const currentYearMonth = DateTime.now().toFormat('yyyy-MM')
+        let result = {value: true}
+        if(yearMonth === currentYearMonth){
+            result = await ask(`${monthFormat.value}は当月の勤怠です。勤怠を確定してもよろしいですか？`)
+        }
+        if (!result.value) return
         const workTime = attendanceData.value.user.position_id !== 15 ? attendanceData.value.should_work : attendanceData.value.planned_work
         const params = {
             date_year_month: yearMonth,
