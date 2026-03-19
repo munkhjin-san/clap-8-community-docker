@@ -38,7 +38,7 @@ class CloseExpiredPosts extends Command
 
         $posts = PostRecord::query()
             ->where('app_type', 2)
-            ->where('created_at', '<', now()->subDays(15));
+            ->whereDate('created_at', '<=', now()->subDays(15));
             
         $grantable_posts = (clone $posts)
             ->where('grantable', 1)
@@ -54,22 +54,24 @@ class CloseExpiredPosts extends Command
         $expired_posts = (clone $posts)->where('status_flag', 0)->get();
         $all_posts = $grantable_posts->merge($expired_posts);
 
-        $failed = 0;
-        
-        foreach ($all_posts as $post) {
-            DB::transaction(function () use ($post, &$failed) {
-                $post->lockForUpdate();
-                if ($post->grantable === 1) {
-                    $post->update(['status_flag' => 4]); 
-                } else {
-                    $post->update(['status_flag' => 5]); 
-                }
+        $refunded = 0;
+        $expired = 0;
+
+        foreach ($grantable_posts as $post) {
+            DB::transaction(function () use ($post, &$refunded) {
+                $post->update(['status_flag' => 4]);
                 PostRefundService::refundAwardsFor($post);
-                $failed++;
+                $refunded++;
             });
         }
-
-        $this->info("Closed and refunded {$failed} post(s).");
+        foreach ($expired_posts as $post) {
+            DB::transaction(function () use ($post, &$expired) {
+                $post->update(['status_flag' => 5]);
+                $expired++;
+            });
+        }
+        $this->info("Closed and refunded {$refunded} post(s).");
+        $this->info("Processed and expired {$expired} post(s).");
         return self::SUCCESS;
     }
 }

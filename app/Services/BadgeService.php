@@ -53,7 +53,7 @@ final class BadgeService
             $query = PostRecord::query()
                 ->where('user_id', '!=', $user->id)
                 ->where('app_type', 2)
-                ->where('created_at', '<=', now()->subDays(14))
+                ->whereDate('created_at', '=', now()->subDays(14))
                 ->whereDoesntHave('awards', function ($q) use ($user) {
                     $q->where('user_id', $user->id);
                 });
