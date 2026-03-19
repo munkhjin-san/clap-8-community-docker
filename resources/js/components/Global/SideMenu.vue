@@ -188,7 +188,7 @@ import Badge from './Badge.vue';
             let list = [];
             newsList.value.forEach(news => {
                 const sourceUrl = news?._embedded?.['wp:featuredmedia']?.[0]?.['media_details']?.['sizes']?.['sidesp']?.['source_url'] || 
-                news?._embedded?.['wp:featuredmedia']?.[0]?.['media_details']?.['sizes']?.['thumbnail']?.['source_url'];
+                news?._embedded?.['wp:featuredmedia']?.[0]?.['media_details']?.['sizes']?.['medium']?.['source_url'];
                 const item  = {
                     title: news.title && news.title.rendered ? news.title.rendered : '',                            
                     src: sourceUrl ? sourceUrl : '',

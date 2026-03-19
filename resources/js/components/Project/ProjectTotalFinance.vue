@@ -88,21 +88,55 @@
                         </div>
                         
                     </div>
-                    <div class="flex gap-5">
-                        <button
+                    <div class="flex gap-5 mr-5">
+                        <!-- 着地予測 Toggle -->
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            
+                            <span class="text-[11px] md:text-sm text-[var(--normalText)]">
+                                <span class="text-[9px] md:text-xs" v-if="includeForecastSettlement">※</span>予測
+                            </span>
+                            <button
                             type="button"
-                            class="px-2 py-1 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition"
+                            role="switch"
+                            :aria-checked="includeForecastSettlement"
                             @click="includeForecastSettlement = !includeForecastSettlement"
-                        >
-                            着地予測 {{ includeForecastSettlement ? 'ON' : 'OFF' }}
-                        </button>
-                        <button
+                            class="relative inline-flex h-5 w-9 items-center rounded-full border border-solid transition-colors duration-200"
+                            :class="includeForecastSettlement
+                                ? 'bg-[var(--scroll-bar)] border-[var(--scroll-bar)]'
+                                : 'bg-transparent border-[var(--normalBorder)]'"
+                            >
+                            <span
+                                class="inline-block h-3 w-3 rounded-full transition-transform duration-200"
+                                :class="includeForecastSettlement
+                                ? 'translate-x-5 bg-white'
+                                : 'translate-x-1 bg-[var(--normalBorder)]'"
+                            />
+                            </button>
+                            <!-- <span class="text-sm text-[var(--normalText)]">ON/OFF</span> -->
+                        </label>
+
+                        <!-- 月次/年度 Toggle -->
+                        <label class="flex items-center gap-2 cursor-pointer select-none">
+                            <span class="text-[11px] md:text-sm text-[var(--normalText)]">月次</span>
+                            <button
                             type="button"
-                            class="mr-5 px-2 py-1 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition"
+                            role="switch"
+                            :aria-checked="totalGrouping === 'fiscal'"
                             @click="toggleYearlyComparison"
-                        >
-                            {{ totalGrouping === 'fiscal' ? '月次表示' : '年度比較' }}
-                        </button>
+                            class="relative inline-flex h-5 w-9 items-center rounded-full border border-solid transition-colors duration-200"
+                            :class="totalGrouping === 'fiscal'
+                                ? 'bg-[var(--scroll-bar)] border-[var(--scroll-bar)]'
+                                : 'bg-transparent border-[var(--normalBorder)]'"
+                            >
+                            <span
+                                class="inline-block h-3 w-3 rounded-full transition-transform duration-200"
+                                :class="totalGrouping === 'fiscal'
+                                ? 'translate-x-5 bg-white'
+                                : 'translate-x-1 bg-[var(--normalBorder)]'"
+                            />
+                            </button>
+                            <span class="text-[11px] md:text-sm text-[var(--normalText)]">年度</span>
+                        </label>
                     </div>
                      
                 </div>
@@ -120,7 +154,7 @@
                     </div>
                     <div class="h-full flex flex-col min-h-0">
                         <div
-                            class="sticky top-0 bg-[var(--background-color)] z-[7] min-h-fit flex justify-between items-center px-[20px] flex-wrap after:flex-auto after:content-['']">
+                            class="sticky top-0 bg-[var(--background-color)] z-[7] min-h-fit flex justify-between items-center px-6 flex-wrap after:flex-auto after:content-['']">
                             <div class="sub-tab-container pc">
                                 <button @click="tab = 'table'"
                                     :class="['sub-tab-item', { 'selected-sub-tab': tab == 'table' }]">テーブル</button>
@@ -136,11 +170,11 @@
                                     <option value="manager">管理者</option>
                                 </select>
                             </div>
-                            <div class="flex items-center gap-[20px] py-3 relative w-full justify-end flex-wrap md:flex-nowrap">
+                            <div class="flex items-center gap-[10px] py-[10px] relative w-full justify-end flex-wrap md:flex-nowrap">
                                 <div v-if="tab === 'table' && totalGrouping === 'fiscal'" class="flex items-center gap-2 text-xs flex-wrap md:justify-end justify-center">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <label class="flex items-center gap-1">
-                                            <span class="opacity-70">比較年度</span>
+                                            <span class="opacity-70">比較</span>
                                             <select v-model.number="selectedFiscalYearStart" class="text-[var(--primary-color)] px-2 py-1 bg-[var(--background-color)] text-sm">
                                                 <option v-for="year in fiscalYearOptions" :key="`fy-start-${year}`" :value="year">
                                                     {{ year }}
@@ -148,7 +182,7 @@
                                             </select>
                                         </label>
                                         <label class="flex items-center gap-1">
-                                            <span class="opacity-70">対象年度</span>
+                                            <span class="opacity-70">対象</span>
                                             <select v-model.number="selectedFiscalYearEnd" class="text-[var(--primary-color)] px-2 py-1 bg-[var(--background-color)] text-sm">
                                                 <option v-for="year in fiscalYearOptions" :key="`fy-end-${year}`" :value="year">
                                                     {{ year }}
@@ -157,7 +191,7 @@
                                         </label>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-3 relative justify-center md:justify-end flex-wrap md:flex-nowrap" v-if="totalGrouping === 'range'">
+                                <div class="flex items-center gap-[10px] relative justify-center md:justify-end flex-wrap md:flex-nowrap" v-if="totalGrouping === 'range'">
                                     <div class="flex items-center">
                                         <span v-if="previousMonthCount" class="side-notification side-notification--comment-only" style="position: static">{{ previousMonthCount }}</span>
                                         <button @click="shiftRange(-1)" class="flex items-center justify-center h-[30px] w-fit gap-2 min-w-[30px]">
@@ -180,7 +214,42 @@
                                         <span v-if="nextMonthCount" class="side-notification side-notification--comment-only" style="position: static">{{ nextMonthCount }}</span>
                                     </div>
                                 </div>
-                                
+                                <div
+                                    class="mobile-finance-controls"
+                                    v-if="responsive.mobile"
+                                >
+                                    
+                                    <div
+                                        v-if="totalGrouping === 'fiscal'"
+                                        class="mobile-finance-controls__row"
+                                    >
+                                        <button
+                                            v-for="option in visibleScenarioOptions"
+                                            :key="`mobile-hero-${option.value}`"
+                                            type="button"
+                                            class="mobile-finance-chip"
+                                            :class="{ 'mobile-finance-chip--active': mobileActiveScenario === option.value }"
+                                            @click="mobileActiveScenario = option.value"
+                                        >
+                                            {{ option.label }}
+                                        </button>
+                                    </div>
+                                    <div
+                                        v-else
+                                        class="mobile-finance-controls__row mobile-finance-toolbar"
+                                    >
+                                        <button
+                                            v-for="pair in mobileComparePairs"
+                                            :key="`mobile-pair-${pair.key}`"
+                                            type="button"
+                                            class="mobile-finance-chip"
+                                            :class="{ 'mobile-finance-chip--active': mobileComparePairKey === pair.key }"
+                                            @click="mobileComparePairKey = pair.key"
+                                        >
+                                            {{ pair.label }}
+                                        </button>
+                                    </div>
+                                </div>
                                 
                             </div>
                             
@@ -205,56 +274,7 @@
                             v-else-if="tab == 'table' && responsive.mobile"
                             class="mobile-finance-list"
                         >
-                            <div
-                                v-if="showMobileControls"
-                                class="mobile-finance-controls"
-                            >
-                                <div
-                                    v-if="showMobileModeSwitch"
-                                    class="mobile-finance-controls__row mobile-finance-controls__row--mode"
-                                >
-                                    <button
-                                        v-for="mode in mobileModeOptions"
-                                        :key="`mobile-mode-${mode.value}`"
-                                        type="button"
-                                        class="mobile-finance-chip"
-                                        :class="{ 'mobile-finance-chip--active': mobileDisplayMode === mode.value }"
-                                        @click="mobileDisplayMode = mode.value"
-                                    >
-                                        {{ mode.label }}
-                                    </button>
-                                </div>
-                                <div
-                                    v-if="showMobileScenarioSwitch"
-                                    class="mobile-finance-controls__row"
-                                >
-                                    <button
-                                        v-for="option in visibleScenarioOptions"
-                                        :key="`mobile-hero-${option.value}`"
-                                        type="button"
-                                        class="mobile-finance-chip"
-                                        :class="{ 'mobile-finance-chip--active': mobileActiveScenario === option.value }"
-                                        @click="mobileActiveScenario = option.value"
-                                    >
-                                        {{ option.label }}
-                                    </button>
-                                </div>
-                                <div
-                                    v-else-if="showMobileCompareToolbar"
-                                    class="mobile-finance-controls__row mobile-finance-toolbar"
-                                >
-                                    <button
-                                        v-for="pair in mobileComparePairs"
-                                        :key="`mobile-pair-${pair.key}`"
-                                        type="button"
-                                        class="mobile-finance-chip"
-                                        :class="{ 'mobile-finance-chip--active': mobileComparePairKey === pair.key }"
-                                        @click="mobileComparePairKey = pair.key"
-                                    >
-                                        {{ pair.label }}
-                                    </button>
-                                </div>
-                            </div>
+                            
                             <section class="mobile-finance-hero">
                                 
 
@@ -264,48 +284,51 @@
                                             <div class="mobile-finance-compare-card__caption">
                                                 {{ scenarioLabel(mobileActiveScenario) }}
                                             </div>
-                                            <span class="mobile-finance-unit">単位: {{ mobileSummaryUnitLabel }}</span>
+                                            <span class="mobile-finance-unit">単位 {{ mobileSummaryUnitLabel }}</span>
                                         </div>
                                         
+                                        <div class="mobile-finance-compare-project__grid">
+                                            <div class="mobile-finance-compare-table">
+                                                <div class="mobile-finance-compare-table__head"></div>
+                                                <div class="mobile-finance-compare-table__head">比較<br>{{ selectedFiscalYearStart }}</div>
+                                                <div class="mobile-finance-compare-table__head">対象<br>{{ selectedFiscalYearEnd }}</div>
+                                                <div class="mobile-finance-compare-table__head"></div>
 
-                                        <div class="mobile-finance-compare-table">
-                                            <div class="mobile-finance-compare-table__head"></div>
-                                            <div class="mobile-finance-compare-table__head">比較年度<br>{{ selectedFiscalYearStart }}</div>
-                                            <div class="mobile-finance-compare-table__head">対象年度<br>{{ selectedFiscalYearEnd }}</div>
-                                            <div class="mobile-finance-compare-table__head"></div>
-
-                                            <template v-for="metric in mobileMetricItems" :key="`mobile-summary-compare-${metric.key}`">
-                                                <div class="mobile-finance-compare-table__label">{{ metric.label }}</div>
-                                                <div class="mobile-finance-compare-table__value">
-                                                    {{ formatMobileMetric(fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearStart), mobileActiveScenario, metric.key, mobileSummaryUnit.scale) }}
-                                                </div>
-                                                <div class="mobile-finance-compare-table__value">
-                                                    {{ formatMobileMetric(fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearEnd), mobileActiveScenario, metric.key, mobileSummaryUnit.scale) }}
-                                                </div>
-                                                <div
-                                                    class="mobile-finance-compare-table__delta"
-                                                    :class="comparisonDeltaClass(
-                                                        fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearStart),
-                                                        fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearEnd),
-                                                        mobileActiveScenario,
-                                                        metric.key
-                                                    )"
-                                                >
-                                                    {{ comparisonDeltaDisplay(
-                                                        fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearStart),
-                                                        fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearEnd),
-                                                        mobileActiveScenario,
-                                                        metric.key
-                                                    ) }}
-                                                </div>
-                                            </template>
+                                                <template v-for="metric in mobileMetricItems" :key="`mobile-summary-compare-${metric.key}`">
+                                                    <div class="mobile-finance-compare-table__label">{{ metric.label }}</div>
+                                                    <div class="mobile-finance-compare-table__value relative">
+                                                        <span v-if="fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearStart).is_forecast" class="inline text-[9px] absolute right-0">※</span>
+                                                        {{ formatMobileMetric(fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearStart), mobileActiveScenario, metric.key, mobileSummaryUnit.scale) }}
+                                                    </div>
+                                                    <div class="mobile-finance-compare-table__value relative">
+                                                        <span v-if="fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearEnd).is_forecast" class="inline text-[9px] absolute right-0">※</span>
+                                                        {{ formatMobileMetric(fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearEnd), mobileActiveScenario, metric.key, mobileSummaryUnit.scale) }}
+                                                    </div>
+                                                    <div
+                                                        class="mobile-finance-compare-table__delta"
+                                                        :class="comparisonDeltaClass(
+                                                            fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearStart),
+                                                            fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearEnd),
+                                                            mobileActiveScenario,
+                                                            metric.key
+                                                        )"
+                                                    >
+                                                        {{ comparisonDeltaDisplay(
+                                                            fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearStart),
+                                                            fiscalSummaryEntry(mobileActiveScenario, selectedFiscalYearEnd),
+                                                            mobileActiveScenario,
+                                                            metric.key
+                                                        ) }}
+                                                    </div>
+                                                </template>
+                                            </div>
                                         </div>
+                                        
                                     </article>
                                 </template>
 
                                 <template v-else>
                                     <article
-                                        v-if="mobileDisplayMode === 'compare'"
                                         class="mobile-finance-compare-project"
                                     >
                                         <div class="mobile-finance-compare-project__header">
@@ -313,7 +336,7 @@
                                                 <p class="mobile-finance-card__title mb-1">集計</p>
                                                 <p class="mobile-finance-card__caption">{{ mobileSummaryCaption }}</p>
                                             </div>
-                                            <span class="mobile-finance-unit">単位: {{ mobileSummaryCompareUnit.label }}</span>
+                                            <span class="mobile-finance-unit">単位 {{ mobileSummaryCompareUnit.label }}</span>
                                         </div>
                                         <div class="mobile-finance-compare-project__grid">
                                             <div class="mobile-finance-compare-table">
@@ -327,7 +350,8 @@
                                                     <div class="mobile-finance-compare-table__value">
                                                         {{ formatMobileMetric(mobileSummaryCompareLeftEntry, mobileCompareLeftScenario, metric.key, mobileSummaryCompareUnit.scale) }}
                                                     </div>
-                                                    <div class="mobile-finance-compare-table__value">
+                                                    <div class="mobile-finance-compare-table__value relative">
+                                                        <span v-if="mobileSummaryCompareRightEntry.is_forecast && mobileCompareRightScenario === 'settlement'" class="inline text-[9px] absolute right-0">※</span>
                                                         {{ formatMobileMetric(mobileSummaryCompareRightEntry, mobileCompareRightScenario, metric.key, mobileSummaryCompareUnit.scale) }}
                                                     </div>
                                                     <div
@@ -390,52 +414,7 @@
                                             </section>
                                         </div>
                                     </article>
-                                    <details v-else class="mobile-finance-card">
-                                        <summary class="mobile-finance-card__summary">
-                                            <div class="finance-top-summary__header">
-                                                <div>
-                                                    <p class="finance-top-summary__title mb-1">集計</p>
-                                                    <!-- <p class="finance-top-summary__caption">{{ mobileSummaryCaption }}</p> -->
-                                                </div>
-                                                <span class="mobile-finance-unit">単位: {{ mobileSummaryUnitLabel }}</span>
-                                            </div>
-                                            <div class="mobile-finance-card__meta">
-                                                <span>{{ mobileSummaryCaption }}</span>
-                                                <span>{{ scenarioLabel(mobileActiveScenario) }}</span>
-                                            </div>
-                                            <div class="finance-top-summary__kpis">
-                                                <div v-for="metric in mobileMetricItems" :key="`top-summary-${metric.key}`" class="mobile-finance-kpi">
-                                                    <span class="mobile-finance-kpi__label">{{ metric.label }}</span>
-                                                    <strong class="mobile-finance-kpi__value">
-                                                        {{ formatMobileMetric(mobileSummaryScenarioEntry(mobileActiveScenario), mobileActiveScenario, metric.key, mobileSummaryUnit.scale) }}
-                                                    </strong>
-                                                </div>
-                                            </div>
-                                        </summary>
-                                        <div class="mobile-finance-card__body">
-                                            <section
-                                                v-for="option in visibleScenarioOptions"
-                                                :key="`top-summary-${option.value}`"
-                                                class="mobile-finance-section"
-                                            >
-                                                <div class="mobile-finance-section__header">
-                                                    <h4>{{ option.label }}</h4>
-                                                </div>
-
-                                                <div class="finance-top-summary__period-scroll">
-                                                    <article v-for="bucket in topSummaryBucketsFor(option.value)" :key="bucket.key" class="finance-top-summary__period-card">
-                                                        <p class="finance-top-summary__period-title">{{ bucket.label }}</p>
-                                                        <div class="finance-top-summary__period-grid">
-                                                            <div v-for="metric in mobileMetricItems" :key="`${bucket.key}-${metric.key}`" class="mobile-finance-detail-metric">
-                                                                <span>{{ metric.label }}</span>
-                                                                <strong>{{ formatMobileMetric(bucket.entry, option.value, metric.key, mobileSummaryUnit.scale) }}</strong>
-                                                            </div>
-                                                        </div>
-                                                    </article>
-                                                </div>
-                                            </section>
-                                        </div>
-                                    </details>
+                                    
                                 </template>
                             </section>
 
@@ -455,7 +434,7 @@
                                             </p>
                                         </div>
                                         <div class="mobile-finance-card__badges">
-                                            <span class="mobile-finance-unit">単位: {{ projectCardUnitLabel(proj.name) }}</span>
+                                            <span class="mobile-finance-unit">単位 {{ projectCardUnitLabel(proj.name) }}</span>
                                             <span v-if="showAnyArrow(proj.name)" class="mobile-finance-alert">
                                                 <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
                                                     <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>
@@ -474,18 +453,36 @@
                                     </div>
 
                                     <div class="mobile-finance-compare-project__grid">
-                                        <div class="mobile-finance-compare-table mobile-finance-compare-table--project">
+                                        <div class="mobile-finance-compare-table">
                                             <div class="mobile-finance-compare-table__head"></div>
-                                            <div class="mobile-finance-compare-table__head">比較年度<br>{{ selectedFiscalYearStart }}</div>
-                                            <div class="mobile-finance-compare-table__head">対象年度<br>{{ selectedFiscalYearEnd }}</div>
-
+                                            <div class="mobile-finance-compare-table__head">比較<br>{{ selectedFiscalYearStart }}</div>
+                                            <div class="mobile-finance-compare-table__head">対象<br>{{ selectedFiscalYearEnd }}</div>
+                                            <div class="mobile-finance-compare-table__head"></div>
                                             <template v-for="metric in mobileMetricItems" :key="`mobile-project-compare-${proj.name}-${metric.key}`">
                                                 <div class="mobile-finance-compare-table__label">{{ metric.label }}</div>
-                                                <div class="mobile-finance-compare-table__value">
+                                                <div class="mobile-finance-compare-table__value relative">
+                                                    <span v-if="fiscalTotalEntry(proj.name, mobileActiveScenario, selectedFiscalYearStart).is_forecast" class="inline text-[9px] absolute right-0">※</span>
                                                     {{ formatMobileMetric(fiscalTotalEntry(proj.name, mobileActiveScenario, selectedFiscalYearStart), mobileActiveScenario, metric.key, projectCardUnit(proj.name).scale) }}
                                                 </div>
-                                                <div class="mobile-finance-compare-table__value">
+                                                <div class="mobile-finance-compare-table__value relative">
+                                                    <span v-if="fiscalTotalEntry(proj.name, mobileActiveScenario, selectedFiscalYearEnd).is_forecast" class="inline text-[9px] absolute right-0">※</span>
                                                     {{ formatMobileMetric(fiscalTotalEntry(proj.name, mobileActiveScenario, selectedFiscalYearEnd), mobileActiveScenario, metric.key, projectCardUnit(proj.name).scale) }}
+                                                </div>
+                                                <div
+                                                    class="mobile-finance-compare-table__delta"
+                                                    :class="comparisonDeltaClass(
+                                                        fiscalTotalEntry(proj.name, mobileActiveScenario, selectedFiscalYearStart),
+                                                        fiscalTotalEntry(proj.name, mobileActiveScenario, selectedFiscalYearEnd),
+                                                        mobileActiveScenario,
+                                                        metric.key
+                                                    )"
+                                                >
+                                                    {{ comparisonDeltaDisplay(
+                                                        fiscalTotalEntry(proj.name, mobileActiveScenario, selectedFiscalYearStart),
+                                                        fiscalTotalEntry(proj.name, mobileActiveScenario, selectedFiscalYearEnd),
+                                                        mobileActiveScenario,
+                                                        metric.key
+                                                    ) }}
                                                 </div>
                                             </template>
                                         </div>
@@ -494,191 +491,108 @@
                             </template>
 
                             <template v-else>
-                                <template v-if="mobileDisplayMode === 'compare'">
-                                    <article
-                                        v-for="proj in sortedProjects"
-                                        :key="`mobile-card-compare-${proj.name}`"
-                                        class="mobile-finance-compare-project"
-                                    >
-                                        <div class="mobile-finance-compare-project__header">
-                                            <div>
-                                                <p class="mobile-finance-card__title mb-1">{{ proj.name }}</p>
-                                                <p v-if="managerNameFor(proj.name)" class="mobile-finance-card__caption">
-                                                    PM {{ managerNameFor(proj.name) }}
-                                                </p>
-                                            </div>
-                                            <div class="mobile-finance-card__badges">
-                                                <span class="mobile-finance-unit">単位: {{ projectCompareUnit(proj.name).label }}</span>
-                                                <span v-if="showAnyArrow(proj.name)" class="mobile-finance-alert">
-                                                    <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
-                                                        <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>
-                                                    </svg>
-                                                </span>
-                                                <button
-                                                    v-if="showComment"
-                                                    type="button"
-                                                    class="mobile-finance-comment"
-                                                    @click.stop="selectProjectComment(proj.name)"
-                                                >
-                                                    <span>コメント</span>
-                                                    <strong>{{ commentCount[proj.name] ?? 0 }}</strong>
-                                                    <span
-                                                        v-if="financeTotalBadge(proj.name)?.[periodStartIso]"
-                                                        class="side-notification"
-                                                        style="position: unset; background-color: #F28C28; z-index: inherit;"
-                                                    >
-                                                        {{ financeTotalBadge(proj.name)?.[periodStartIso] }}
-                                                    </span>
-                                                </button>
-                                            </div>
+                                <article
+                                    v-for="proj in sortedProjects"
+                                    :key="`mobile-card-compare-${proj.name}`"
+                                    class="mobile-finance-compare-project"
+                                >
+                                    <div class="mobile-finance-compare-project__header">
+                                        <div>
+                                            <p class="mobile-finance-card__title mb-1">{{ proj.name }}</p>
+                                            <p v-if="managerNameFor(proj.name)" class="mobile-finance-card__caption">
+                                                PM {{ managerNameFor(proj.name) }}
+                                            </p>
                                         </div>
-                                        <div class="mobile-finance-compare-project__grid">
-                                            <div class="mobile-finance-compare-table">
-                                                <div class="mobile-finance-compare-table__head"></div>
-                                                <div class="mobile-finance-compare-table__head">{{ mobileCompareLeftLabel }}</div>
-                                                <div class="mobile-finance-compare-table__head">{{ mobileCompareRightLabel }}</div>
-                                                <div class="mobile-finance-compare-table__head">差分</div>
-
-                                                <template v-for="metric in mobileMetricItems" :key="`mobile-project-pair-${proj.name}-${metric.key}`">
-                                                    <div class="mobile-finance-compare-table__label">{{ metric.label }}</div>
-                                                    <div class="mobile-finance-compare-table__value">
-                                                        {{ formatMobileMetric(projectCompareEntry(proj.name, mobileCompareLeftScenario), mobileCompareLeftScenario, metric.key, projectCompareUnit(proj.name).scale) }}
-                                                    </div>
-                                                    <div class="mobile-finance-compare-table__value">
-                                                        {{ formatMobileMetric(projectCompareEntry(proj.name, mobileCompareRightScenario), mobileCompareRightScenario, metric.key, projectCompareUnit(proj.name).scale) }}
-                                                    </div>
-                                                    <div
-                                                        class="mobile-finance-compare-table__delta"
-                                                        :class="comparisonGapClass(projectCompareEntry(proj.name, mobileCompareLeftScenario), projectCompareEntry(proj.name, mobileCompareRightScenario), mobileCompareLeftScenario, mobileCompareRightScenario, metric.key)"
-                                                    >
-                                                        {{ comparisonGapDisplay(projectCompareEntry(proj.name, mobileCompareLeftScenario), projectCompareEntry(proj.name, mobileCompareRightScenario), mobileCompareLeftScenario, mobileCompareRightScenario, metric.key, projectCompareUnit(proj.name).scale) }}
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-                                        <div class="mobile-finance-card__body">
-                                            <section class="mobile-finance-section">
-                                                <div class="mobile-finance-section__header">
-                                                    <h4>{{ topSummaryBucketsTitle }}</h4>
-                                                </div>
-
-                                                <div class="finance-top-summary__period-scroll">
-                                                    <article
-                                                        v-for="bucket in projectCompareBuckets(proj)"
-                                                        :key="bucket.key"
-                                                        class="finance-top-summary__period-card"
-                                                    >
-                                                        <p class="finance-top-summary__period-title">{{ bucket.label }}</p>
-                                                        <div class="mobile-finance-compare-table mobile-finance-compare-table--compact">
-                                                            <div class="mobile-finance-compare-table__head"></div>
-                                                            <div class="mobile-finance-compare-table__head">{{ mobileCompareLeftLabel }}</div>
-                                                            <div class="mobile-finance-compare-table__head">{{ mobileCompareRightLabel }}</div>
-                                                            <div class="mobile-finance-compare-table__head">差分</div>
-                                                            <template v-for="metric in mobileMetricItems" :key="`${bucket.key}-${metric.key}`">
-                                                                <div class="mobile-finance-compare-table__label">{{ metric.label }}</div>
-                                                                <div class="mobile-finance-compare-table__value">
-                                                                    {{ formatMobileMetric(bucket.leftEntry, mobileCompareLeftScenario, metric.key, projectCompareUnit(proj.name).scale) }}
-                                                                </div>
-                                                                <div class="mobile-finance-compare-table__value">
-                                                                    {{ formatMobileMetric(bucket.rightEntry, mobileCompareRightScenario, metric.key, projectCompareUnit(proj.name).scale) }}
-                                                                </div>
-                                                                <div
-                                                                    class="mobile-finance-compare-table__delta"
-                                                                    :class="comparisonGapClass(bucket.leftEntry, bucket.rightEntry, mobileCompareLeftScenario, mobileCompareRightScenario, metric.key)"
-                                                                >
-                                                                    {{ comparisonGapDisplay(bucket.leftEntry, bucket.rightEntry, mobileCompareLeftScenario, mobileCompareRightScenario, metric.key, projectCompareUnit(proj.name).scale) }}
-                                                                </div>
-                                                            </template>
-                                                        </div>
-                                                    </article>
-                                                </div>
-                                            </section>
-                                        </div>
-                                    </article>
-                                </template>
-                                <template v-else>
-                                    <details
-                                        v-for="proj in sortedProjects"
-                                        :key="`mobile-card-${proj.name}`"
-                                        class="mobile-finance-card"
-                                    >
-                                        <summary class="mobile-finance-card__summary">
-                                            <div class="mobile-finance-card__header">
-                                                <div>
-                                                    <p class="mobile-finance-card__title mb-1">{{ proj.name }}</p>
-                                                    <p v-if="managerNameFor(proj.name)" class="mobile-finance-card__caption">
-                                                        PM {{ managerNameFor(proj.name) }}
-                                                    </p>
-                                                </div>
-                                                <div class="mobile-finance-card__badges">
-                                                    <span class="mobile-finance-unit">単位: {{ projectCardUnitLabel(proj.name) }}</span>
-                                                    <span v-if="showAnyArrow(proj.name)" class="mobile-finance-alert">
-                                                        <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
-                                                            <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>
-                                                        </svg>
-                                                    </span>
-                                                    <button
-                                                        v-if="showComment"
-                                                        type="button"
-                                                        class="mobile-finance-comment"
-                                                        @click.stop="selectProjectComment(proj.name)"
-                                                    >
-                                                        <span>コメント</span>
-                                                        <strong>{{ commentCount[proj.name] ?? 0 }}</strong>
-                                                        <span
-                                                            v-if="financeTotalBadge(proj.name)?.[periodStartIso]"
-                                                            class="side-notification"
-                                                            style="position: unset; background-color: #F28C28; z-index: inherit;"
-                                                        >
-                                                            {{ financeTotalBadge(proj.name)?.[periodStartIso] }}
-                                                        </span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            <div class="mobile-finance-card__meta">
-                                                <span>{{ mobileSummaryCaption }}</span>
-                                                <span>{{ scenarioLabel(mobileActiveScenario) }}</span>
-                                            </div>
-                                            <div class="mobile-finance-kpis">
-                                                <div v-for="metric in mobileMetricItems" :key="`${proj.name}-${mobileActiveScenario}-${metric.key}`" class="mobile-finance-kpi">
-                                                    <span class="mobile-finance-kpi__label">{{ metric.label }}</span>
-                                                    <strong class="mobile-finance-kpi__value">
-                                                        {{ formatMobileMetric(mobileProjectScenarioEntry(proj.name, mobileActiveScenario), mobileActiveScenario, metric.key, projectCardUnit(proj.name).scale) }}
-                                                    </strong>
-                                                </div>
-                                            </div>
-                                        </summary>
-
-                                        <div class="mobile-finance-card__body">
-                                            <section
-                                                v-for="option in visibleScenarioOptions"
-                                                :key="`${proj.name}-${option.value}`"
-                                                class="mobile-finance-section"
+                                        <div class="mobile-finance-card__badges">
+                                            <span class="mobile-finance-unit">単位 {{ projectCompareUnit(proj.name).label }}</span>
+                                            <span v-if="showAnyArrow(proj.name)" class="mobile-finance-alert">
+                                                <svg fill="tomato" style="transform: rotate(180deg);" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 30 30">
+                                                    <path d="M14.978 0C6.735-.055-.129 6.931.002 15.153c-.028 8.166 6.815 14.939 14.976 14.811v-.04c.965.012 1.935-.068 2.889-.243 4.817-.861 9.056-4.274 10.937-8.8C32.986 11.04 25.688-.021 14.978 0m0 27.903C6.08 27.659-.075 18.755 3.433 10.373 7.813.292 22.129.294 26.49 10.385c3.512 8.225-2.605 17.404-11.512 17.518m-1.735-13.968c-.293 2.283-.156 4.58-.125 6.873l.166 2.289c.304 2.068 3.234 2.088 3.548 0 .186-1.523.193-3.051.205-4.58.028-1.53.044-3.058-.164-4.582-.334-2.082-3.284-2.104-3.63 0m-.344-4.565c.115.303.278.565.465.811.473.371 1.062.634 1.685.627 1.248.021 2.335-1.09 2.278-2.331-.015-.643-.308-1.218-.729-1.681-1.906-1.558-4.534.238-3.699 2.574"/>
+                                                </svg>
+                                            </span>
+                                            <button
+                                                v-if="showComment"
+                                                type="button"
+                                                class="mobile-finance-comment"
+                                                @click.stop="selectProjectComment(proj.name)"
                                             >
-                                                <div class="mobile-finance-section__header">
-                                                    <h4>{{ option.label }}</h4>
-                                                    <!-- <span class="mobile-finance-section__caption">{{ mobileDetailCaption }}</span> -->
-                                                </div>
-
-                                                <div class="finance-top-summary__period-scroll">
-                                                    <div
-                                                        v-for="period in periods"
-                                                        :key="`${proj.name}-${option.value}-${period.period}`"
-                                                        class="finance-top-summary__period-card"
-                                                    >
-                                                        <div class="mobile-finance-detail-row__label">{{ formatPeriodLabel(period) }}</div>
-                                                        <div class="mobile-finance-detail-row__metrics">
-                                                            <div v-for="metric in mobileMetricItems" :key="`${proj.name}-${option.value}-${period.period}-${metric.key}`" class="mobile-finance-detail-metric">
-                                                                <span>{{ metric.label }}</span>
-                                                                <strong>{{ formatMobileMetric(scenarioPeriodEntry(proj, period.period, option.value), option.value, metric.key, projectCardUnit(proj.name).scale) }}</strong>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </section>
+                                                <span>コメント</span>
+                                                <strong>{{ commentCount[proj.name] ?? 0 }}</strong>
+                                                <span
+                                                    v-if="financeTotalBadge(proj.name)?.[periodStartIso]"
+                                                    class="side-notification"
+                                                    style="position: unset; background-color: #F28C28; z-index: inherit;"
+                                                >
+                                                    {{ financeTotalBadge(proj.name)?.[periodStartIso] }}
+                                                </span>
+                                            </button>
                                         </div>
-                                    </details>
-                                </template>
+                                    </div>
+                                    <div class="mobile-finance-compare-project__grid">
+                                        <div class="mobile-finance-compare-table">
+                                            <div class="mobile-finance-compare-table__head"></div>
+                                            <div class="mobile-finance-compare-table__head">{{ mobileCompareLeftLabel }}</div>
+                                            <div class="mobile-finance-compare-table__head">{{ mobileCompareRightLabel }}</div>
+                                            <div class="mobile-finance-compare-table__head">差分</div>
+
+                                            <template v-for="metric in mobileMetricItems" :key="`mobile-project-pair-${proj.name}-${metric.key}`">
+                                                <div class="mobile-finance-compare-table__label">{{ metric.label }}</div>
+                                                <div class="mobile-finance-compare-table__value">
+                                                    {{ formatMobileMetric(projectCompareEntry(proj.name, mobileCompareLeftScenario), mobileCompareLeftScenario, metric.key, projectCompareUnit(proj.name).scale) }}
+                                                </div>
+                                                <div class="mobile-finance-compare-table__value relative">
+                                                    <span v-if="projectCompareEntry(proj.name, mobileCompareRightScenario).is_forecast && mobileCompareRightScenario === 'settlement'" class="inline text-[9px] absolute right-0">※</span>
+                                                    {{ formatMobileMetric(projectCompareEntry(proj.name, mobileCompareRightScenario), mobileCompareRightScenario, metric.key, projectCompareUnit(proj.name).scale) }}
+                                                </div>
+                                                <div
+                                                    class="mobile-finance-compare-table__delta"
+                                                    :class="comparisonGapClass(projectCompareEntry(proj.name, mobileCompareLeftScenario), projectCompareEntry(proj.name, mobileCompareRightScenario), mobileCompareLeftScenario, mobileCompareRightScenario, metric.key)"
+                                                >
+                                                    {{ comparisonGapDisplay(projectCompareEntry(proj.name, mobileCompareLeftScenario), projectCompareEntry(proj.name, mobileCompareRightScenario), mobileCompareLeftScenario, mobileCompareRightScenario, metric.key, projectCompareUnit(proj.name).scale) }}
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </div>
+                                    <div class="mobile-finance-card__body">
+                                        <section class="mobile-finance-section">
+                                            <div class="mobile-finance-section__header">
+                                                <h4>{{ topSummaryBucketsTitle }}</h4>
+                                            </div>
+
+                                            <div class="finance-top-summary__period-scroll">
+                                                <article
+                                                    v-for="bucket in projectCompareBuckets(proj)"
+                                                    :key="bucket.key"
+                                                    class="finance-top-summary__period-card"
+                                                >
+                                                    <p class="finance-top-summary__period-title">{{ bucket.label }}</p>
+                                                    <div class="mobile-finance-compare-table mobile-finance-compare-table--compact">
+                                                        <div class="mobile-finance-compare-table__head"></div>
+                                                        <div class="mobile-finance-compare-table__head">{{ mobileCompareLeftLabel }}</div>
+                                                        <div class="mobile-finance-compare-table__head">{{ mobileCompareRightLabel }}</div>
+                                                        <div class="mobile-finance-compare-table__head">差分</div>
+                                                        <template v-for="metric in mobileMetricItems" :key="`${bucket.key}-${metric.key}`">
+                                                            <div class="mobile-finance-compare-table__label">{{ metric.label }}</div>
+                                                            <div class="mobile-finance-compare-table__value">
+                                                                {{ formatMobileMetric(bucket.leftEntry, mobileCompareLeftScenario, metric.key, projectCompareUnit(proj.name).scale) }}
+                                                            </div>
+                                                            <div class="mobile-finance-compare-table__value">
+                                                                {{ formatMobileMetric(bucket.rightEntry, mobileCompareRightScenario, metric.key, projectCompareUnit(proj.name).scale) }}
+                                                            </div>
+                                                            <div
+                                                                class="mobile-finance-compare-table__delta"
+                                                                :class="comparisonGapClass(bucket.leftEntry, bucket.rightEntry, mobileCompareLeftScenario, mobileCompareRightScenario, metric.key)"
+                                                            >
+                                                                {{ comparisonGapDisplay(bucket.leftEntry, bucket.rightEntry, mobileCompareLeftScenario, mobileCompareRightScenario, metric.key, projectCompareUnit(proj.name).scale) }}
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </article>
+                                            </div>
+                                        </section>
+                                    </div>
+                                </article>
+                                
                             </template>
                         </div>
                         <div class="finance-table-scroll" v-if="tab == 'table' && !responsive.mobile">
@@ -829,7 +743,7 @@
                                             :rowspan="visibleScenarioCount"
                                         >—</td>
                                         <td class="sub-name sticky-left third-col">
-                                            <span>年度予算</span>
+                                            <span>年度</span>
                                         </td>
                                         <template v-for="p in periods" :key="`summary-yearly-${p.period}`" v-if="totalGrouping !== 'fiscal'">
                                             <td>
@@ -912,7 +826,7 @@
                                             :rowspan="visibleScenarioCount"
                                         >—</td>
                                         <td class="sub-name sticky-left third-col">
-                                            <span>損益計画</span>
+                                            <span>計画</span>
                                         </td>
                                         <template v-for="p in periods" :key="`summary-profit-${p.period}`" v-if="totalGrouping !== 'fiscal'">
                                             <td>
@@ -920,7 +834,7 @@
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
                                                         amountOfMoneyParser(periodEntry(p.period, 'profit').sales)
                                                     }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="sales"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="sales"
                                                         :planned="periodEntry(p.period, 'yearly_plan').sales"
                                                         :actual="periodEntry(p.period, 'profit').sales" />
                                                 </div>
@@ -930,7 +844,7 @@
                                                     <div class="inner-col"><span class="mobile">販管費</span>{{
                                                         amountOfMoneyParser(periodEntry(p.period, 'profit').expense)
                                                     }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="expense"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="expense"
                                                         :planned="periodEntry(p.period, 'yearly_plan').expense"
                                                         :actual="periodEntry(p.period, 'profit').expense" />
                                                 </div>
@@ -940,7 +854,7 @@
                                                     <div class="inner-col"><span class="mobile">利益</span>{{
                                                         amountOfMoneyParser(periodEntry(p.period, 'profit').profit)
                                                     }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="profit"
                                                         :planned="periodEntry(p.period, 'yearly_plan').sales - periodEntry(p.period, 'yearly_plan').expense"
                                                         :actual="periodEntry(p.period, 'profit').profit" />
                                                 </div>
@@ -950,7 +864,7 @@
                                                     <div class="inner-col"><span class="mobile">利益率</span>{{
                                                         percentizer(periodEntry(p.period, 'profit')).display
                                                     }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit_rate"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="profit_rate"
                                                         :planned="percentizer(periodEntry(p.period, 'yearly_plan')).value"
                                                         :actual="percentizer(periodEntry(p.period, 'profit')).value" />
                                                 </div>
@@ -964,7 +878,7 @@
                                                             amountOfMoneyParser(fiscalSummaryEntry('profit', fy).sales)
                                                         }}</div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('profit')"
                                                             type="sales"
                                                             :planned="fiscalSummaryEntry('yearly_plan', fy).sales"
                                                             :actual="fiscalSummaryEntry('profit', fy).sales"
@@ -977,7 +891,7 @@
                                                             amountOfMoneyParser(fiscalSummaryEntry('profit', fy).expense)
                                                         }}</div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('profit')"
                                                             type="expense"
                                                             :planned="fiscalSummaryEntry('yearly_plan', fy).expense"
                                                             :actual="fiscalSummaryEntry('profit', fy).expense"
@@ -990,7 +904,7 @@
                                                             amountOfMoneyParser(fiscalSummaryEntry('profit', fy).profit)
                                                         }}</div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('profit')"
                                                             type="profit"
                                                             :planned="fiscalSummaryEntry('yearly_plan', fy).profit"
                                                             :actual="fiscalSummaryEntry('profit', fy).profit"
@@ -1003,7 +917,7 @@
                                                             percentizer(fiscalSummaryEntry('profit', fy)).display
                                                         }}</div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('profit')"
                                                             type="profit_rate"
                                                             :planned="percentizer(fiscalSummaryEntry('yearly_plan', fy)).value"
                                                             :actual="percentizer(fiscalSummaryEntry('profit', fy)).value"
@@ -1018,7 +932,7 @@
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
                                                         amountOfMoneyParser(totalSummaryEntry('profit').sales)
                                                     }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="sales"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="sales"
                                                         :planned="totalSummaryEntry('yearly_plan').sales"
                                                         :actual="totalSummaryEntry('profit').sales" />
                                                 </div>
@@ -1028,7 +942,7 @@
                                                     <div class="inner-col"><span class="mobile">販管費</span>{{
                                                         amountOfMoneyParser(totalSummaryEntry('profit').expense)
                                                     }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="expense"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="expense"
                                                         :planned="totalSummaryEntry('yearly_plan').expense"
                                                         :actual="totalSummaryEntry('profit').expense" />
                                                 </div>
@@ -1038,7 +952,7 @@
                                                     <div class="inner-col"><span class="mobile">利益</span>{{
                                                         amountOfMoneyParser(totalSummaryEntry('profit').profit)
                                                     }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="profit"
                                                         :planned="totalSummaryEntry('yearly_plan').sales - totalSummaryEntry('yearly_plan').expense"
                                                         :actual="totalSummaryEntry('profit').profit" />
                                                 </div>
@@ -1048,7 +962,7 @@
                                                     <div class="inner-col"><span class="mobile">利益率</span>{{
                                                         percentizer(totalSummaryEntry('profit')).display
                                                     }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit_rate"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="profit_rate"
                                                         :planned="percentizer(totalSummaryEntry('yearly_plan')).value"
                                                         :actual="percentizer(totalSummaryEntry('profit')).value" />
                                                 </div>
@@ -1071,41 +985,41 @@
                                         <template v-for="p in periods" :key="`summary-settlement-${p.period}`" v-if="totalGrouping !== 'fiscal'">
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">売上</span>{{
-                                                        amountOfMoneyParser(settlementValue(periodEntry(p.period, 'settlement'), 'sales'))
-                                                    }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="sales"
-                                                        :planned="periodEntry(p.period, 'profit').sales"
+                                                    <div class="inner-col">
+                                                        {{amountOfMoneyParser(settlementValue(periodEntry(p.period, 'settlement'), 'sales'))}}<span v-if="includeForecastSettlement && periodEntry(p.period, 'settlement').is_forecast" class="text-xs inline">※</span>
+                                                    </div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="sales"
+                                                        :planned="periodEntry(p.period, deltaBaseScenario('settlement')).sales"
                                                         :actual="settlementValue(periodEntry(p.period, 'settlement'), 'sales')" />
                                                 </div>
                                             </td>
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                    <div class="inner-col">{{
                                                         amountOfMoneyParser(settlementValue(periodEntry(p.period, 'settlement'), 'expense'))
-                                                    }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="expense"
-                                                        :planned="periodEntry(p.period, 'profit').expense"
+                                                    }}<span v-if="includeForecastSettlement && periodEntry(p.period, 'settlement').is_forecast" class="text-xs inline mr-[1px]">※</span></div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="expense"
+                                                        :planned="periodEntry(p.period, deltaBaseScenario('settlement')).expense"
                                                         :actual="settlementValue(periodEntry(p.period, 'settlement'), 'expense')" />
                                                 </div>
                                             </td>
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">利益</span>{{
+                                                    <div class="inner-col">{{
                                                         amountOfMoneyParser(settlementProfitValue(periodEntry(p.period, 'settlement')))
-                                                    }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit"
-                                                        :planned="periodEntry(p.period, 'profit').profit"
+                                                    }}<span v-if="includeForecastSettlement && periodEntry(p.period, 'settlement').is_forecast" class="text-xs inline mr-[1px]">※</span></div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="profit"
+                                                        :planned="periodEntry(p.period, deltaBaseScenario('settlement')).profit"
                                                         :actual="settlementProfitValue(periodEntry(p.period, 'settlement'))" />
                                                 </div>
                                             </td>
                                             <td data-cell="right-border">
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                    <div class="inner-col">{{
                                                         percentizer(periodEntry(p.period, 'settlement')).display
-                                                    }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit_rate"
-                                                        :planned="percentizer(periodEntry(p.period, 'profit')).value"
+                                                    }}<span v-if="includeForecastSettlement && periodEntry(p.period, 'settlement').is_forecast" class="text-xs inline mr-[1px]">※</span></div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="profit_rate"
+                                                        :planned="percentizer(periodEntry(p.period, deltaBaseScenario('settlement'))).value"
                                                         :actual="percentizer(periodEntry(p.period, 'settlement')).value" />
                                                 </div>
                                             </td>
@@ -1114,52 +1028,52 @@
                                             <template v-for="fy in activeFiscalYears" :key="`summary-total-settlement-${fy}`">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
-                                                        <div class="inner-col"><span class="mobile">売上</span>{{
+                                                        <div class="inner-col">{{
                                                             amountOfMoneyParser(settlementValue(fiscalSummaryEntry('settlement', fy), 'sales'))
-                                                        }}</div>
+                                                        }}<span v-if="includeForecastSettlement && fiscalSummaryEntry('settlement', fy).is_forecast" class="text-xs inline mr-[1px]">※</span></div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('settlement')"
                                                             type="sales"
-                                                            :planned="fiscalSummaryEntry('profit', fy).sales"
+                                                            :planned="fiscalSummaryEntry(deltaBaseScenario('settlement'), fy).sales"
                                                             :actual="settlementValue(fiscalSummaryEntry('settlement', fy), 'sales')"
                                                         />
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
-                                                        <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                        <div class="inner-col">{{
                                                             amountOfMoneyParser(settlementValue(fiscalSummaryEntry('settlement', fy), 'expense'))
-                                                        }}</div>
+                                                        }}<span v-if="includeForecastSettlement && fiscalSummaryEntry('settlement', fy).is_forecast" class="text-xs inline mr-[1px]">※</span></div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('settlement')"
                                                             type="expense"
-                                                            :planned="fiscalSummaryEntry('profit', fy).expense"
+                                                            :planned="fiscalSummaryEntry(deltaBaseScenario('settlement'), fy).expense"
                                                             :actual="settlementValue(fiscalSummaryEntry('settlement', fy), 'expense')"
                                                         />
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
-                                                        <div class="inner-col"><span class="mobile">利益</span>{{
+                                                        <div class="inner-col">{{
                                                             amountOfMoneyParser(settlementProfitValue(fiscalSummaryEntry('settlement', fy)))
-                                                        }}</div>
+                                                        }}<span v-if="includeForecastSettlement && fiscalSummaryEntry('settlement', fy).is_forecast" class="text-xs inline mr-[1px]">※</span></div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('settlement')"
                                                             type="profit"
-                                                            :planned="fiscalSummaryEntry('profit', fy).profit"
+                                                            :planned="fiscalSummaryEntry(deltaBaseScenario('settlement'), fy).profit"
                                                             :actual="settlementProfitValue(fiscalSummaryEntry('settlement', fy))"
                                                         />
                                                     </div>
                                                 </td>
                                                 <td data-cell="right-border">
                                                     <div class="flex items-center gap-[5px]">
-                                                        <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                        <div class="inner-col">{{
                                                             percentizer(fiscalSummaryEntry('settlement', fy)).display
-                                                        }}</div>
+                                                        }}<span v-if="includeForecastSettlement && fiscalSummaryEntry('settlement', fy).is_forecast" class="text-xs inline mr-[1px]">※</span></div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('settlement')"
                                                             type="profit_rate"
-                                                            :planned="percentizer(fiscalSummaryEntry('profit', fy)).value"
+                                                            :planned="percentizer(fiscalSummaryEntry(deltaBaseScenario('settlement'), fy)).value"
                                                             :actual="percentizer(fiscalSummaryEntry('settlement', fy)).value"
                                                         />
                                                     </div>
@@ -1169,41 +1083,41 @@
                                         <template v-else-if="showTotals">
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">売上</span>{{
+                                                    <div class="inner-col">{{
                                                         amountOfMoneyParser(settlementValue(totalSummaryEntry('settlement'), 'sales'))
-                                                    }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="sales"
-                                                        :planned="totalSummaryEntry('profit').sales"
+                                                    }}<span v-if="includeForecastSettlement && totalSummaryEntry('settlement').is_forecast" class="text-xs inline mr-[1px]">※</span></div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="sales"
+                                                        :planned="totalSummaryEntry(deltaBaseScenario('settlement')).sales"
                                                         :actual="settlementValue(totalSummaryEntry('settlement'), 'sales')" />
                                                 </div>
                                             </td>
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                    <div class="inner-col">{{
                                                         amountOfMoneyParser(settlementValue(totalSummaryEntry('settlement'), 'expense'))
-                                                    }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="expense"
-                                                        :planned="totalSummaryEntry('profit').expense"
+                                                    }}<span v-if="includeForecastSettlement && totalSummaryEntry('settlement').is_forecast" class="text-xs inline mr-[1px]">※</span></div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="expense"
+                                                        :planned="totalSummaryEntry(deltaBaseScenario('settlement')).expense"
                                                         :actual="settlementValue(totalSummaryEntry('settlement'), 'expense')" />
                                                 </div>
                                             </td>
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">利益</span>{{
+                                                    <div class="inner-col">{{
                                                         amountOfMoneyParser(settlementProfitValue(totalSummaryEntry('settlement')))
-                                                    }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit"
-                                                        :planned="totalSummaryEntry('profit').profit"
+                                                    }}<span v-if="includeForecastSettlement && totalSummaryEntry('settlement').is_forecast" class="text-xs inline mr-[1px]">※</span></div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="profit"
+                                                        :planned="totalSummaryEntry(deltaBaseScenario('settlement')).profit"
                                                         :actual="settlementProfitValue(totalSummaryEntry('settlement'))" />
                                                 </div>
                                             </td>
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                    <div class="inner-col">{{
                                                         percentizer(totalSummaryEntry('settlement')).display
-                                                    }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit_rate"
-                                                        :planned="percentizer(totalSummaryEntry('profit')).value"
+                                                    }}<span v-if="includeForecastSettlement && totalSummaryEntry('settlement').is_forecast" class="text-xs inline mr-[1px]">※</span></div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="profit_rate"
+                                                        :planned="percentizer(totalSummaryEntry(deltaBaseScenario('settlement'))).value"
                                                         :actual="percentizer(totalSummaryEntry('settlement')).value" />
                                                 </div>
                                             </td>
@@ -1231,7 +1145,7 @@
                                             </div>
                                         </td>
                                         <td class="sub-name sticky-left third-col">
-                                            <span>年度予算</span>
+                                            <span>年度</span>
                                         </td>
                                         <template v-for="p in periods" :key="p.period" v-if="totalGrouping !== 'fiscal'">
                                             
@@ -1320,14 +1234,14 @@
                                             </div>
                                         </td>
                                         <td class="sub-name sticky-left third-col">
-                                            <span>損益計画</span>
+                                            <span>計画</span>
                                         </td>
                                         <template v-for="p in periods" :key="p.period" v-if="totalGrouping !== 'fiscal'">
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
                                                         amountOfMoneyParser(proj.data?.[p.period]?.profit.sales) }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="sales" :planned="proj.data?.[p.period]?.yearly_plan.sales"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="sales" :planned="proj.data?.[p.period]?.yearly_plan.sales"
                                                         :actual="proj.data?.[p.period]?.profit.sales" />
                                                 </div>
                                             </td>
@@ -1335,7 +1249,7 @@
                                                 <div class="flex items-center gap-[5px]">
                                                     <div class="inner-col"><span class="mobile">販管費</span>{{
                                                         amountOfMoneyParser(proj.data?.[p.period]?.profit.expense) }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="expense" :planned="proj.data?.[p.period]?.yearly_plan.expense"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="expense" :planned="proj.data?.[p.period]?.yearly_plan.expense"
                                                         :actual="proj.data?.[p.period]?.profit.expense" />
                                                 </div>
                                             </td>
@@ -1344,7 +1258,7 @@
                                                     <div class="inner-col"><span class="mobile">利益</span>{{
                                                         amountOfMoneyParser(proj.data?.[p.period]?.profit.profit) }}
                                                     </div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="profit"
                                                         :planned="proj.data?.[p.period]?.yearly_plan.sales - proj.data?.[p.period]?.yearly_plan.expense"
                                                         :actual="proj.data?.[p.period]?.profit.profit" />
                                                 </div>
@@ -1353,7 +1267,7 @@
                                                 <div class="flex items-center gap-[5px]">
                                                     <div class="inner-col"><span class="mobile">利益率</span>{{
                                                         percentizer(proj.data?.[p.period]?.profit).display }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit_rate"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="profit_rate"
                                                         :planned="percentizer(proj.data?.[p.period]?.yearly_plan).value"
                                                         :actual="percentizer(proj.data?.[p.period]?.profit).value" />
                                                 </div>
@@ -1367,7 +1281,7 @@
                                                             amountOfMoneyParser(fiscalTotalEntry(proj.name, 'profit', fy).sales)
                                                         }}</div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('profit')"
                                                             type="sales"
                                                             :planned="fiscalTotalEntry(proj.name, 'yearly_plan', fy).sales"
                                                             :actual="fiscalTotalEntry(proj.name, 'profit', fy).sales"
@@ -1380,7 +1294,7 @@
                                                             amountOfMoneyParser(fiscalTotalEntry(proj.name, 'profit', fy).expense)
                                                         }}</div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('profit')"
                                                             type="expense"
                                                             :planned="fiscalTotalEntry(proj.name, 'yearly_plan', fy).expense"
                                                             :actual="fiscalTotalEntry(proj.name, 'profit', fy).expense"
@@ -1393,7 +1307,7 @@
                                                             amountOfMoneyParser(fiscalTotalEntry(proj.name, 'profit', fy).profit)
                                                         }}</div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('profit')"
                                                             type="profit"
                                                             :planned="fiscalTotalEntry(proj.name, 'yearly_plan', fy).profit"
                                                             :actual="fiscalTotalEntry(proj.name, 'profit', fy).profit"
@@ -1406,7 +1320,7 @@
                                                             percentizer(fiscalTotalEntry(proj.name, 'profit', fy)).display
                                                         }}</div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('profit')"
                                                             type="profit_rate"
                                                             :planned="percentizer(fiscalTotalEntry(proj.name, 'yearly_plan', fy)).value"
                                                             :actual="percentizer(fiscalTotalEntry(proj.name, 'profit', fy)).value"
@@ -1421,7 +1335,7 @@
                                                     <div class="inner-col"><span class="mobile">売上</span>{{
                                                         amountOfMoneyParser(totalEntry(proj.name, 'profit').sales)
                                                     }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="sales"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="sales"
                                                         :planned="totalEntry(proj.name, 'yearly_plan').sales"
                                                         :actual="totalEntry(proj.name, 'profit').sales" />
                                                 </div>
@@ -1431,7 +1345,7 @@
                                                     <div class="inner-col"><span class="mobile">販管費</span>{{
                                                         amountOfMoneyParser(totalEntry(proj.name, 'profit').expense)
                                                     }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="expense"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="expense"
                                                         :planned="totalEntry(proj.name, 'yearly_plan').expense"
                                                         :actual="totalEntry(proj.name, 'profit').expense" />
                                                 </div>
@@ -1441,7 +1355,7 @@
                                                     <div class="inner-col"><span class="mobile">利益</span>{{
                                                         amountOfMoneyParser(totalEntry(proj.name, 'profit').profit)
                                                     }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="profit"
                                                         :planned="totalEntry(proj.name, 'yearly_plan').sales - totalEntry(proj.name, 'yearly_plan').expense"
                                                         :actual="totalEntry(proj.name, 'profit').profit" />
                                                 </div>
@@ -1450,7 +1364,7 @@
                                                 <div class="flex items-center gap-[5px]">
                                                     <div class="inner-col"><span class="mobile">利益率</span>{{
                                                         percentizer(totalEntry(proj.name, 'profit')).display }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit_rate"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('profit')" type="profit_rate"
                                                         :planned="percentizer(totalEntry(proj.name, 'yearly_plan')).value"
                                                         :actual="percentizer(totalEntry(proj.name, 'profit')).value" />
                                                 </div>
@@ -1487,36 +1401,36 @@
                                         <template v-for="p in periods" :key="p.period" v-if="totalGrouping !== 'fiscal'">
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">売上</span>{{
-                                                        amountOfMoneyParser(settlementValue(proj.data?.[p.period]?.settlement, 'sales')) }}
+                                                    <div class="inner-col">{{
+                                                        amountOfMoneyParser(settlementValue(proj.data?.[p.period]?.settlement, 'sales')) }}<span v-if="includeForecastSettlement && proj.data?.[p.period]?.settlement.is_forecast" class="text-xs inline mr-[1px]">※</span>
                                                     </div>
-                                                    <DeltaNumbers v-if="deltaShown" type="sales" :planned="proj.data?.[p.period]?.profit.sales"
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="sales" :planned="proj.data?.[p.period]?.[deltaBaseScenario('settlement')]?.sales"
                                                         :actual="settlementValue(proj.data?.[p.period]?.settlement, 'sales')" />
                                                 </div>
                                             </td>
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">販管費</span>{{
-                                                        amountOfMoneyParser(settlementValue(proj.data?.[p.period]?.settlement, 'expense')) }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="expense" :planned="proj.data?.[p.period]?.profit.expense"
+                                                    <div class="inner-col">{{
+                                                        amountOfMoneyParser(settlementValue(proj.data?.[p.period]?.settlement, 'expense')) }}<span v-if="includeForecastSettlement && proj.data?.[p.period]?.settlement.is_forecast" class="text-xs inline mr-[1px]">※</span></div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="expense" :planned="proj.data?.[p.period]?.[deltaBaseScenario('settlement')]?.expense"
                                                         :actual="settlementValue(proj.data?.[p.period]?.settlement, 'expense')" />
                                                 </div>
                                             </td>
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">利益</span>{{
-                                                        amountOfMoneyParser(settlementProfitValue(proj.data?.[p.period]?.settlement)) }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit"
-                                                        :planned="proj.data?.[p.period]?.profit.profit"
+                                                    <div class="inner-col">{{
+                                                        amountOfMoneyParser(settlementProfitValue(proj.data?.[p.period]?.settlement)) }}<span v-if="includeForecastSettlement && proj.data?.[p.period]?.settlement.is_forecast" class="text-xs inline mr-[1px]">※</span></div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="profit"
+                                                        :planned="proj.data?.[p.period]?.[deltaBaseScenario('settlement')]?.profit"
                                                         :actual="settlementProfitValue(proj.data?.[p.period]?.settlement)" />
                                                 </div>
                                             </td>
                                             <td data-cell="right-border">
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">利益率</span>{{
-                                                        percentizer(proj.data?.[p.period]?.settlement).display }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit_rate"
-                                                        :planned="percentizer(proj.data?.[p.period]?.profit).value"
+                                                    <div class="inner-col">{{
+                                                        percentizer(proj.data?.[p.period]?.settlement).display }}<span v-if="includeForecastSettlement && proj.data?.[p.period]?.settlement.is_forecast" class="text-xs inline mr-[1px]">※</span></div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="profit_rate"
+                                                        :planned="percentizer(proj.data?.[p.period]?.[deltaBaseScenario('settlement')]).value"
                                                         :actual="percentizer(proj.data?.[p.period]?.settlement).value" />
                                                 </div>
                                             </td>
@@ -1526,52 +1440,52 @@
                                             <template v-for="fy in activeFiscalYears" :key="`total-settlement-${proj.name}-${fy}`">
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
-                                                        <div class="inner-col"><span class="mobile">売上</span>{{
+                                                        <div class="inner-col">{{
                                                             amountOfMoneyParser(settlementValue(fiscalTotalEntry(proj.name, 'settlement', fy), 'sales'))
-                                                        }}</div>
+                                                        }}<span v-if="settlementValue(fiscalTotalEntry(proj.name, 'settlement', fy), 'sales') > 0 &&includeForecastSettlement && fiscalTotalEntry(proj.name, 'settlement', fy).is_forecast" class="text-xs inline mr-[1px]">※</span></div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('settlement')"
                                                             type="sales"
-                                                            :planned="fiscalTotalEntry(proj.name, 'profit', fy).sales"
+                                                            :planned="fiscalTotalEntry(proj.name, deltaBaseScenario('settlement'), fy).sales"
                                                             :actual="settlementValue(fiscalTotalEntry(proj.name, 'settlement', fy), 'sales')"
                                                         />
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
-                                                        <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                        <div class="inner-col">{{
                                                             amountOfMoneyParser(settlementValue(fiscalTotalEntry(proj.name, 'settlement', fy), 'expense'))
-                                                        }}</div>
+                                                        }}<span v-if="settlementValue(fiscalTotalEntry(proj.name, 'settlement', fy), 'expense') > 0 && includeForecastSettlement && fiscalTotalEntry(proj.name, 'settlement', fy).is_forecast" class="text-xs inline mr-[1px]">※</span></div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('settlement')"
                                                             type="expense"
-                                                            :planned="fiscalTotalEntry(proj.name, 'profit', fy).expense"
+                                                            :planned="fiscalTotalEntry(proj.name, deltaBaseScenario('settlement'), fy).expense"
                                                             :actual="settlementValue(fiscalTotalEntry(proj.name, 'settlement', fy), 'expense')"
                                                         />
                                                     </div>
                                                 </td>
                                                 <td>
                                                     <div class="flex items-center gap-[5px]">
-                                                        <div class="inner-col"><span class="mobile">利益</span>{{
+                                                        <div class="inner-col">{{
                                                             amountOfMoneyParser(settlementProfitValue(fiscalTotalEntry(proj.name, 'settlement', fy)))
-                                                        }}</div>
+                                                        }}<span v-if="settlementProfitValue(fiscalTotalEntry(proj.name, 'settlement', fy)) && includeForecastSettlement && fiscalTotalEntry(proj.name, 'settlement', fy).is_forecast" class="text-xs inline mr-[1px]">※</span></div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('settlement')"
                                                             type="profit"
-                                                            :planned="fiscalTotalEntry(proj.name, 'profit', fy).profit"
+                                                            :planned="fiscalTotalEntry(proj.name, deltaBaseScenario('settlement'), fy).profit"
                                                             :actual="settlementProfitValue(fiscalTotalEntry(proj.name, 'settlement', fy))"
                                                         />
                                                     </div>
                                                 </td>
                                                 <td data-cell="right-border">
                                                     <div class="flex items-center gap-[5px]">
-                                                        <div class="inner-col"><span class="mobile">利益率</span>{{
+                                                        <div class="inner-col">{{
                                                             percentizer(fiscalTotalEntry(proj.name, 'settlement', fy)).display
-                                                        }}</div>
+                                                        }}<span v-if="percentizer(fiscalTotalEntry(proj.name, 'settlement', fy)).value && includeForecastSettlement && fiscalTotalEntry(proj.name, 'settlement', fy).is_forecast" class="text-xs inline mr-[1px]">※</span></div>
                                                         <DeltaNumbers
-                                                            v-if="deltaShown"
+                                                            v-if="showDeltaForScenario('settlement')"
                                                             type="profit_rate"
-                                                            :planned="percentizer(fiscalTotalEntry(proj.name, 'profit', fy)).value"
+                                                            :planned="percentizer(fiscalTotalEntry(proj.name, deltaBaseScenario('settlement'), fy)).value"
                                                             :actual="percentizer(fiscalTotalEntry(proj.name, 'settlement', fy)).value"
                                                         />
                                                     </div>
@@ -1581,38 +1495,38 @@
                                         <template v-else-if="showTotals">
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">売上</span>{{
+                                                    <div class="inner-col">{{
                                                         amountOfMoneyParser(settlementValue(totalEntry(proj.name, 'settlement'), 'sales'))
-                                                    }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="sales" :planned="totalEntry(proj.name, 'profit').sales"
+                                                    }}<span v-if="settlementValue(totalEntry(proj.name, 'settlement'), 'sales') > 0 && includeForecastSettlement && totalEntry(proj.name, 'settlement').is_forecast" class="text-xs inline mr-[1px]">※</span></div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="sales" :planned="totalEntry(proj.name, deltaBaseScenario('settlement')).sales"
                                                         :actual="settlementValue(totalEntry(proj.name, 'settlement'), 'sales')" />
                                                 </div>
                                             </td>
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">販管費</span>{{
+                                                    <div class="inner-col">{{
                                                         amountOfMoneyParser(settlementValue(totalEntry(proj.name, 'settlement'), 'expense'))
-                                                    }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="expense" :planned="totalEntry(proj.name, 'profit').expense"
+                                                    }}<span v-if="settlementValue(totalEntry(proj.name, 'settlement'), 'expense') > 0 && includeForecastSettlement && totalEntry(proj.name, 'settlement').is_forecast" class="text-xs inline mr-[1px]">※</span></div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="expense" :planned="totalEntry(proj.name, deltaBaseScenario('settlement')).expense"
                                                         :actual="settlementValue(totalEntry(proj.name, 'settlement'), 'expense')" />
                                                 </div>
                                             </td>
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">利益</span>{{
+                                                    <div class="inner-col">{{
                                                         amountOfMoneyParser(settlementProfitValue(totalEntry(proj.name, 'settlement')))
-                                                    }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit"
-                                                        :planned="totalEntry(proj.name, 'profit').profit"
+                                                    }}<span v-if="settlementProfitValue(totalEntry(proj.name, 'settlement')) && includeForecastSettlement && totalEntry(proj.name, 'settlement').is_forecast" class="text-xs inline mr-[1px]">※</span></div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="profit"
+                                                        :planned="totalEntry(proj.name, deltaBaseScenario('settlement')).profit"
                                                         :actual="settlementProfitValue(totalEntry(proj.name, 'settlement'))" />
                                                 </div>
                                             </td>
                                             <td>
                                                 <div class="flex items-center gap-[5px]">
-                                                    <div class="inner-col"><span class="mobile">利益率</span>{{
-                                                        percentizer(totalEntry(proj.name, 'settlement')).display }}</div>
-                                                    <DeltaNumbers v-if="deltaShown" type="profit_rate"
-                                                        :planned="percentizer(totalEntry(proj.name, 'profit')).value"
+                                                    <div class="inner-col">{{
+                                                        percentizer(totalEntry(proj.name, 'settlement')).display }}<span v-if="percentizer(totalEntry(proj.name, 'settlement')).value && includeForecastSettlement && totalEntry(proj.name, 'settlement').is_forecast" class="text-xs inline mr-[1px]">※</span></div>
+                                                    <DeltaNumbers v-if="showDeltaForScenario('settlement')" type="profit_rate"
+                                                        :planned="percentizer(totalEntry(proj.name, deltaBaseScenario('settlement'))).value"
                                                         :actual="percentizer(totalEntry(proj.name, 'settlement')).value" />
                                                 </div>
                                             </td>
@@ -1691,43 +1605,36 @@
 </template>
 <script setup lang="ts">
 import { Project, YearlyFinancialData } from '@/interface/projectInterface';
-import CloseIcon from '../Form/CloseIcon.vue';
 import { computed, ref, watch } from 'vue';
 import 'styles/customForm.css'
 import { MonthNumbers, DateTime } from 'luxon';
 import { amountOfMoneyParser } from '@/utils/tools';
-import { useRoute, useRouter } from 'vue-router';
-import LoaderButton from '../Global/LoaderButton.vue';
+import { useRouter } from 'vue-router';
 import { useResponsive } from '@/store/responsive';
 import { useMenuStore } from '@/store/menu';
 import { User } from '@/interface/globalInterface';
 import DeltaNumbers from '@/components/Project/ProjectTabs/Finance/DeltaNumbers.vue'
-import UserPanel from '../Global/UserPanel.vue';
 import BarChart from './ProjectTabs/Finance/BarChart.vue';
 import PieChart from './ProjectTabs/Finance/PieChart.vue';
 import Back from '../Icons/Back.vue';
 import { useApi } from '@/composables/api';
-import BadgeLoader from './ProjectTabs/Finance/BadgeLoader.vue';
 import CommentWindow from './ProjectTabs/Finance/CommentWindow.vue';
 import { useBadgeStore } from '@/store/badge';
 import { useAuthUserStore } from '@/store/auth';
 import PeriodRangePicker from './ProjectTabs/Finance/PeriodRangePicker.vue';
 import Filter from '../Icons/Filter.vue';
 import CommandButton from '../Global/CommandButton.vue';
-import ProjectMemberSort from './ProjectMemberSort.vue';
 import FilterById from '../Global/FilterById.vue';
 const router = useRouter()
 const props = defineProps<{
     projects: Project[]
     ownProjectIds: number[]
 }>()
-const emit = defineEmits<{
-    close: []
-}>()
 type PeriodCell = { year:number; month:number; period:string; fiscalYear:number }
 const pad2 = (n:number) => String(n).padStart(2, '0')
 const periodKey = (y:number, m:number) => `${y}-${pad2(m)}`
 const fiscalYearFrom = (y:number, m:number) => (m >= 3 ? y : y - 1)
+type ScenarioKey = 'yearly_plan' | 'profit' | 'settlement'
 
 const generatePeriodRange = (start: DateTime, end: DateTime): PeriodCell[] => {
   const out: PeriodCell[] = []
@@ -1745,26 +1652,39 @@ const generatePeriodRange = (start: DateTime, end: DateTime): PeriodCell[] => {
   return out
 }
 
-const scenarioOptions: Array<{ label: string; value: 'yearly_plan' | 'profit' | 'settlement' }> = [
+const scenarioOptions: Array<{ label: string; value: ScenarioKey }> = [
     {label: '予算', value: 'yearly_plan'},
-    {label: '損益', value: 'profit'},
+    {label: '計画', value: 'profit'},
     {label: '実績', value: 'settlement'}
 ]
-const selectedOption = ref<Array<'yearly_plan' | 'profit' | 'settlement'>>([])
-const show = (k: 'yearly_plan' | 'profit' | 'settlement') => {
-  const opts = selectedOption.value;
-  return opts.length === 0 || opts.includes(k);
-};
-const includeForecastSettlement = ref(true)
-const visibleScenarioCount = computed(() =>
-    scenarioOptions.filter(option => show(option.value)).length
-)
-const firstVisibleScenario = computed<'yearly_plan' | 'profit' | 'settlement'>(() => {
-    if (show('yearly_plan')) return 'yearly_plan'
-    if (show('profit')) return 'profit'
-    return 'settlement'
+const allScenarioKeys = scenarioOptions.map(option => option.value)
+const selectedOption = ref<ScenarioKey[]>(['yearly_plan', 'profit', 'settlement'])
+const visibleScenarioKeys = computed<ScenarioKey[]>(() => {
+    const selected = selectedOption.value
+    return selected.length === 0 || selected.length === allScenarioKeys.length
+        ? allScenarioKeys
+        : allScenarioKeys.filter(key => selected.includes(key))
 })
-const deltaShown = computed(() => selectedOption.value.length === 0)
+const visibleScenarioSet = computed(() => new Set<ScenarioKey>(visibleScenarioKeys.value))
+const show = (key: ScenarioKey) => visibleScenarioSet.value.has(key)
+const includeForecastSettlement = ref(true)
+const visibleScenarioCount = computed(() => visibleScenarioKeys.value.length)
+const firstVisibleScenario = computed<ScenarioKey>(() => visibleScenarioKeys.value[0] ?? 'yearly_plan')
+const showDeltaForScenario = (scenario: Exclude<ScenarioKey, 'yearly_plan'>) => {
+    if (visibleScenarioCount.value === allScenarioKeys.length) return true
+    if (visibleScenarioCount.value !== 2) return false
+    if (scenario === 'profit') {
+        return visibleScenarioSet.value.has('profit') && !visibleScenarioSet.value.has('settlement')
+    }
+    return visibleScenarioSet.value.has('settlement')
+}
+const deltaBaseScenario = (scenario: Exclude<ScenarioKey, 'yearly_plan'>): ScenarioKey => {
+    if (scenario === 'profit') return 'yearly_plan'
+    if (visibleScenarioCount.value === 2) {
+        return visibleScenarioSet.value.has('profit') ? 'profit' : 'yearly_plan'
+    }
+    return 'profit'
+}
 
 const selectedId = ref<number | null>(null)
 interface UnitData {
@@ -1775,7 +1695,6 @@ interface UnitData {
     has_data?: boolean
     is_forecast?: boolean
 }
-type ScenarioKey = 'yearly_plan' | 'profit' | 'settlement'
 type PeriodTotalsEntry = {
     year?: number
     month?: number
@@ -1787,7 +1706,7 @@ type ProjectPeriodScenarioEntry = Record<ScenarioKey, UnitData>
 type ComparisonProjectPeriods = Record<string, Record<number, Record<string, Partial<ProjectPeriodScenarioEntry>>>>
 type ComparisonPeriodTotals = Record<number, Record<string, PeriodTotalsEntry>>
 const visibleScenarioOptions = computed(() =>
-    scenarioOptions.filter(option => show(option.value))
+    scenarioOptions.filter(option => visibleScenarioSet.value.has(option.value))
 )
 const mobileActiveScenario = ref<ScenarioKey>('profit')
 type MobileDisplayMode = 'normal' | 'compare'
@@ -1797,10 +1716,6 @@ type ScenarioPair = {
     right: ScenarioKey
     label: string
 }
-const mobileModeOptions: Array<{ value: MobileDisplayMode; label: string }> = [
-    { value: 'normal', label: '通常' },
-    { value: 'compare', label: '比較' },
-]
 const mobileDisplayMode = ref<MobileDisplayMode>('normal')
 const mobileComparePairs = computed<ScenarioPair[]>(() => {
     const options = visibleScenarioOptions.value
@@ -2109,7 +2024,6 @@ const mobileManagerKeywords = ref('')
 const loader = ref(true)
 const badgeLoader = ref(0)
 const tab = ref('table')
-const route = useRoute()
 const responsive = useResponsive()
 const menu = useMenuStore()
 const leftTab = ref<'project' | 'manager'>('project')
@@ -2142,7 +2056,7 @@ const normalizeUnitData = (unit?: Partial<UnitData> | null): UnitData => {
     const explicitProfit = unit?.profit
     const profit = Number.isFinite(Number(explicitProfit)) ? Number(explicitProfit) : sales - expense
     const has_data = unit?.has_data ?? unit !== undefined
-    const is_forecast = unit?.is_forecast ?? unit !== undefined
+    const is_forecast = unit?.is_forecast ?? false
     return {
         sales,
         expense,
@@ -2243,7 +2157,7 @@ const fiscalSummaryEntry = (scenario: ScenarioKey, fiscalYear: number): UnitData
 const commentCount = ref<Record<number, number>>({})
 const api = useApi()
 const possibleTypes = [{ value: 'sales', label: '売上' }, { value: 'expense', label: '販管費' }, { value: 'profit', label: '利益' }]
-const possibleScenarios = [{ value: 'yearly_plan', label: '年度予算' }, { value: 'profit', label: '損益計画' }, { value: 'settlement', label: '実績' }]
+const possibleScenarios = [{ value: 'yearly_plan', label: '年度' }, { value: 'profit', label: '計画' }, { value: 'settlement', label: '実績' }]
 const activeType = ref('sales')
 const activeScenario = ref('yearly_plan')
 const hasPrivilage = computed(() => {
@@ -2482,9 +2396,9 @@ type MobileUnit = {
     scale: number
 }
 const MONEY_UNITS: MobileUnit[] = [
-    { label: '10億', scale: 1_000_000_000 },
-    { label: '100万', scale: 1_000_000 },
-    { label: '千', scale: 1_000 },
+    { label: '十億円', scale: 1_000_000_000 },
+    { label: '百万円', scale: 1_000_000 },
+    { label: '千円', scale: 1_000 },
     { label: '円', scale: 1 },
 ]
 const mobileMoneyUnit = (values: number[]): MobileUnit => {
@@ -2600,6 +2514,7 @@ const formatMobileMetric = (
     scale?: number,
 ) => {
     const value = metricNumericValue(unit, scenario, key)
+    
     if (key === 'profit_rate') {
         return percentizer(unit).display === '—' ? 'ー' : percentizer(unit).display
     }
@@ -3158,7 +3073,6 @@ const selectedBadge = computed(() => {
 }
 .mobile-finance-toolbar {
     display: inline-flex;
-    gap: 8px;
     overflow: auto;
     min-height: fit-content;
     padding-right: 2px;
@@ -3263,6 +3177,7 @@ const selectedBadge = computed(() => {
 }
 .mobile-finance-compare-project__grid {
     padding: 0 16px 16px;
+    overflow: hidden;
 }
 .mobile-finance-compare-table--project {
     grid-template-columns: minmax(72px, 0.9fr) repeat(2, minmax(0, 1fr));
@@ -3374,6 +3289,7 @@ const selectedBadge = computed(() => {
     color: var(--primary-color);
     padding: 5px 9px;
     font-size: 11px;
+    line-height: 1;
 }
 
 .mobile-finance-kpis {
@@ -3512,7 +3428,7 @@ table {
     box-sizing: border-box !important;
     --first-col-width: 150px;
     --second-col-width: 150px;
-    --third-col-width: 75px;
+    --third-col-width: 45px;
     width: max-content;
     min-width: 100%;
     border-collapse: separate;
@@ -3556,9 +3472,9 @@ table {
                 text-align: left;
                 border-left: none;
                 box-sizing: border-box !important;
-                span {
-                    display: block;
-                }
+                // span {
+                //     display: block;
+                // }
             }
             td.sticky-left,
             td.sticky-right {
