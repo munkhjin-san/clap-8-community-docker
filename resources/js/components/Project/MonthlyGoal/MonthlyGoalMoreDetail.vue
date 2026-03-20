@@ -98,7 +98,7 @@
                         <div class="text-[13px] font-semibold">評価点</div>
                         <div class="kadai-content">{{ overallScore }}点</div>
                     </div>
-                    <div class="p-4 border border-solid border-[var(--formBorder)] ]">
+                    <div class="p-4 border border-solid border-[var(--formBorder)]] break-all">
                         <p>結果</p>
                         <div v-if="goal?.report">
                             <div class="kadai-content">{{ goal?.report }}</div>
