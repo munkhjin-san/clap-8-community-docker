@@ -150,13 +150,13 @@ import { useTutorialStore } from '@/store/tutorial'
     const api = useApi()
     const { ask, ping, toast } = useDialog() 
     const tutorialStore = useTutorialStore()
-    onMounted(() => {
+    onMounted(async() => {
         const query = route.query
         if(query.user_id){
             usersCheckArray.value = [Number(query.user_id)]
         }
         fetchDatas()
-        fetchWorkData()
+        await fetchWorkData()
         fetchShiftDataTable(0)
         if(query.startDate){
             startDate.value = query.startDate
