@@ -96,7 +96,7 @@ const fastPreCheckEmote = (name) => {
         // pretend to send emote api for fast response
     const checkExist = comment.value.emoted_users.find(ob => ob.id == auth.activeUser.id)
     if(checkExist){
-        if(checkExist.pivot.emote_id == name) {
+        if(checkExist.pivot.emote_name == name) {
             const user:DailyMessageUser = {...props.user, custom_field_data_records: [{
                 ...comment.value,
                 emoted_users: comment.value.emoted_users.filter(ob => ob.id != auth.activeUser.id)
@@ -155,7 +155,7 @@ const sendEmote = async (emoteName: string) => {
         custom_field_data_record_id: comment.value.id,
         emote_name: emoteName
     });
-    emit('refresh', data)
+    // emit('refresh', data)
 }
 
 const emotes = computed(() => {
