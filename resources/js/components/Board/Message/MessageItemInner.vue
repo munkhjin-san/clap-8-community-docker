@@ -21,7 +21,7 @@
             }" 
         >
             <div 
-                :class="['mobileMessageBody', 'mb-2', { 'reached' : urlMessage.id == message.id}, { emojiOnly: emojiTrue, editIsOn:editing, 'mb-35':editing && unreadMessages.id == message.id, 'float-right': auth && auth.activeUser.id == message.user.id && emojiTrue }]"
+                :class="['mobileMessageBody', 'mb-2', { 'reached' : urlMessage.id == message.id}, { emojiOnly: emojiTrue, editIsOn:editing, 'mb-35':editing && unreadMessages.id == message.id }]"
             >
                 <div v-if="!compact" class="message-top-block">
                     <div class="flex items-center gap-[10px]">

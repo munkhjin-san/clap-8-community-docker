@@ -2419,7 +2419,6 @@ textarea {
 }
 
 .emojiOnly {
-  width: fit-content !important;
   min-width: 0px !important;
   background: transparent !important;
 }

@@ -43,7 +43,7 @@
             </ExpansionPanelItem>
         </ExpansionGrid>
     </div>
-    <div v-if="fullscreen" class="space-y-4 bg-[var(--bg3)] mx-4 mb-4">
+    <div v-if="fullscreen" class="space-y-4 bg-[var(--bg3)] mx-4 mb-4 pb-4">
         <div v-for="message in data.data" :key="message.id ?? message.record_id">        
             <MessageItemInner
                 :message-menu-items="[]"

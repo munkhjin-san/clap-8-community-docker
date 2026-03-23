@@ -158,8 +158,8 @@
                             <div class="sub-tab-container pc">
                                 <button @click="tab = 'table'"
                                     :class="['sub-tab-item', { 'selected-sub-tab': tab == 'table' }]">テーブル</button>
-                                <button @click="tab = 'pie'"
-                                    :class="['sub-tab-item', { 'selected-sub-tab': tab == 'pie' }]">円グラフ</button>
+                                <button @click="tab = 'line'"
+                                    :class="['sub-tab-item', { 'selected-sub-tab': tab == 'line' }]">折れ線グラフ</button>
                                 <button @click="tab = 'bar'"
                                     :class="['sub-tab-item', { 'selected-sub-tab': tab == 'bar' }]">棒グラフ</button>
                             </div>
@@ -171,7 +171,7 @@
                                 </select>
                             </div>
                             <div class="flex items-center gap-[10px] py-[10px] relative w-full justify-end flex-wrap md:flex-nowrap">
-                                <div v-if="tab === 'table' && totalGrouping === 'fiscal'" class="flex items-center gap-2 text-xs flex-wrap md:justify-end justify-center">
+                                <div v-if="(tab === 'table' || tab === 'line') && totalGrouping === 'fiscal'" class="flex items-center gap-2 text-xs flex-wrap md:justify-end justify-center">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <label class="flex items-center gap-1">
                                             <span class="opacity-70">比較</span>
@@ -1626,16 +1626,8 @@
                             </table>
 
                         </div>
-                        <div class="overflow-auto h-[calc(100%-65px)]" v-if="hasSelectedProjects && (tab == 'pie' || tab == 'bar')">
+                        <div class="overflow-auto h-[calc(100%-65px)]" v-if="hasSelectedProjects && (tab == 'line' || tab == 'bar')">
                             <div class="px-[20px]">
-                                <div v-if="tab == 'pie'" class="flex gap-[15px] mt-[10px]">
-                                    <label v-for="item in possibleScenarios"
-                                        class="flex items-center gap-[10px] text-[12px]">
-                                        <input type="radio" class="custom-f-radio" name="scenario" :value="item.value"
-                                            v-model="activeScenario">
-                                        <span>{{ item.label }}</span>
-                                    </label>
-                                </div>
                                 <div class="flex my-[20px] gap-[15px]">
                                     <label v-for="item in possibleTypes"
                                         class="flex items-center gap-[10px] text-[12px]">
@@ -1647,11 +1639,17 @@
                             </div>
 
 
-                            <div v-if="tab == 'pie'">
+                            <div v-if="tab == 'line'">
 
-                                <div class="p-pie-chart">
-                                    <PieChart :projectsData="financeData" :activeScenario="activeScenario"
-                                        :activeType="activeType" />
+                                <div class="finance-chart-panel">
+                                    <TotalFinanceLineChart
+                                        :grouping="totalGrouping"
+                                        :activeView="activeType"
+                                        :periods="periods"
+                                        :periodTotals="periodTotals"
+                                        :activeFiscalYears="activeFiscalYears"
+                                        :comparisonPeriodTotals="comparisonPeriodTotals"
+                                    />
                                 </div>
 
                             </div>
@@ -1691,7 +1689,7 @@ import { useMenuStore } from '@/store/menu';
 import { User } from '@/interface/globalInterface';
 import DeltaNumbers from '@/components/Project/ProjectTabs/Finance/DeltaNumbers.vue'
 import BarChart from './ProjectTabs/Finance/BarChart.vue';
-import PieChart from './ProjectTabs/Finance/PieChart.vue';
+import TotalFinanceLineChart from './ProjectTabs/Finance/TotalFinanceLineChart.vue';
 import Back from '../Icons/Back.vue';
 import { useApi } from '@/composables/api';
 import CommentWindow from './ProjectTabs/Finance/CommentWindow.vue';
@@ -1993,8 +1991,13 @@ const summarizeData = computed(() => {
 
 const MAX_RANGE_MONTHS = 12
 const currentMonth = DateTime.now().startOf('month')
-const defaultStart = currentMonth
-const defaultEnd = currentMonth
+const defaultFiscalStart = DateTime.local(
+    currentMonth.month >= 3 ? currentMonth.year : currentMonth.year - 1,
+    3,
+    1
+).startOf('month')
+const defaultTableStart = currentMonth
+const defaultTableEnd = currentMonth
 
 const normalizeRange = (rawStart: DateTime, rawEnd: DateTime) => {
   let start = rawStart.startOf('month')
@@ -2014,9 +2017,17 @@ const normalizeRange = (rawStart: DateTime, rawEnd: DateTime) => {
   return { start, end }
 }
 
-const initialRange = normalizeRange(defaultStart, defaultEnd)
+const initialRange = normalizeRange(defaultTableStart, defaultTableEnd)
 const periodStart = ref<DateTime>(initialRange.start)
 const periodEnd = ref<DateTime>(initialRange.end)
+const tableRangeStart = ref<DateTime>(initialRange.start)
+const tableRangeEnd = ref<DateTime>(initialRange.end)
+const lineInitialRange = normalizeRange(
+    defaultFiscalStart,
+    defaultFiscalStart.plus({ months: MAX_RANGE_MONTHS - 1 })
+)
+const lineRangeStart = ref<DateTime>(lineInitialRange.start)
+const lineRangeEnd = ref<DateTime>(lineInitialRange.end)
 
 const periodStartIso = computed(() => periodStart.value.toFormat('yyyy-MM'))
 const periodEndIso = computed(() => periodEnd.value.toFormat('yyyy-MM'))
@@ -2115,6 +2126,28 @@ const handleRangeChange = ({ start, end }: { start: string; end: string }) => {
 const shiftRange = (months: number) => {
   applyRange(periodStart.value.plus({ months }), periodEnd.value.plus({ months }))
 }
+const activeRangeBucket = (tabName: 'table' | 'line' | 'bar') => tabName === 'line' ? 'line' : 'main'
+const sameRange = (leftStart: DateTime, leftEnd: DateTime, rightStart: DateTime, rightEnd: DateTime) =>
+    leftStart.toMillis() === rightStart.toMillis() && leftEnd.toMillis() === rightEnd.toMillis()
+const persistRangeForTab = (tabName: 'table' | 'line' | 'bar') => {
+    const normalized = normalizeRange(periodStart.value, periodEnd.value)
+    if (activeRangeBucket(tabName) === 'line') {
+        lineRangeStart.value = normalized.start
+        lineRangeEnd.value = normalized.end
+        return
+    }
+    tableRangeStart.value = normalized.start
+    tableRangeEnd.value = normalized.end
+}
+const restoreRangeForTab = (tabName: 'table' | 'line' | 'bar') => {
+    const useLineRange = activeRangeBucket(tabName) === 'line'
+    const start = useLineRange ? lineRangeStart.value : tableRangeStart.value
+    const end = useLineRange ? lineRangeEnd.value : tableRangeEnd.value
+    const normalized = normalizeRange(start, end)
+    if (sameRange(periodStart.value, periodEnd.value, normalized.start, normalized.end)) return
+    periodStart.value = normalized.start
+    periodEnd.value = normalized.end
+}
 const categorizedProjects = computed(() => {
     const myProjects: Project[] = []
     const otherProjects: Project[] = []
@@ -2142,7 +2175,7 @@ const mobileProjectKeywords = ref('')
 const mobileManagerKeywords = ref('')
 const loader = ref(true)
 const badgeLoader = ref(0)
-const tab = ref('table')
+const tab = ref<'table' | 'line' | 'bar'>('table')
 const responsive = useResponsive()
 const menu = useMenuStore()
 const leftTab = ref<'project' | 'manager'>('project')
@@ -2208,6 +2241,20 @@ const rawComparisonProjectTotals = ref<Record<string, Record<number, Record<Scen
 const rawComparisonSummaryTotals = ref<Record<number, Record<ScenarioKey, UnitData>>>({})
 const rawComparisonProjectPeriods = ref<ComparisonProjectPeriods>({})
 const rawComparisonPeriodTotals = ref<ComparisonPeriodTotals>({})
+const comparisonPeriodTotals = computed<ComparisonPeriodTotals>(() => {
+    if (includeForecastSettlement.value) return rawComparisonPeriodTotals.value
+    return Object.fromEntries(
+        Object.entries(rawComparisonPeriodTotals.value ?? {}).map(([fiscalYear, totals]) => [
+            fiscalYear,
+            Object.fromEntries(
+                Object.entries(totals ?? {}).map(([period, entry]) => [
+                    period,
+                    filterScenarioRecord(entry),
+                ])
+            ),
+        ])
+    ) as ComparisonPeriodTotals
+})
 const storageProjectIdsKey = 'projectIds'
 const allProjectIds = computed(() => props.projects.map(project => project.id))
 const selectedProjectNames = computed(() => {
@@ -2275,10 +2322,12 @@ const fiscalSummaryEntry = (scenario: ScenarioKey, fiscalYear: number): UnitData
 }
 const commentCount = ref<Record<number, number>>({})
 const api = useApi()
-const possibleTypes = [{ value: 'sales', label: '売上' }, { value: 'expense', label: '販管費' }, { value: 'profit', label: '利益' }]
-const possibleScenarios = [{ value: 'yearly_plan', label: '予算' }, { value: 'profit', label: '計画' }, { value: 'settlement', label: '実績' }]
-const activeType = ref('sales')
-const activeScenario = ref('yearly_plan')
+const possibleTypes: Array<{ value: Key; label: string }> = [
+    { value: 'sales', label: '売上' },
+    { value: 'expense', label: '販管費' },
+    { value: 'profit', label: '利益' },
+]
+const activeType = ref<Key>('sales')
 const hasPrivilage = computed(() => {
     return auth.user?.position_id && auth.user?.position_id <= 6 || auth.activeUser.id === 610
 })
@@ -3036,7 +3085,14 @@ watch(allProjectIds, (projectIds, previousProjectIds = []) => {
 }, { immediate: true })
 
 watch([periodStartIso, periodEndIso], () => {
+    persistRangeForTab(tab.value)
     refreshTotalFinance()
+})
+watch(tab, (newTab, oldTab) => {
+    if (oldTab) {
+        persistRangeForTab(oldTab)
+    }
+    restoreRangeForTab(newTab)
 })
 watch(totalGrouping, () => {
     refreshTotalFinance()
@@ -3840,11 +3896,12 @@ td[data-cell=right-border], th[data-cell=right-border] {
     border-right: solid thin var(--bg3);
 }
 
-.p-pie-chart {
-    width: 100%;
+.finance-chart-panel {
+    width: calc(100% - 40px);
     display: flex;
-    justify-content: center;
+    justify-content: stretch;
     margin: auto;
+    padding: 0 20px;
 }
 
 @media screen and (max-width: 959px) {
@@ -3869,8 +3926,8 @@ td[data-cell=right-border], th[data-cell=right-border] {
     .finance-top-summary__period-card {
         flex-basis: 240px;
     }
-    .p-pie-chart {
-        width: 80%;
+    .finance-chart-panel {
+        width: 100%;
     }
 
     .finance-table-scroll {

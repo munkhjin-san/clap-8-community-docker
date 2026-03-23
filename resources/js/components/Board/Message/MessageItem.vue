@@ -220,7 +220,8 @@ import { useSharingDataStore } from '@/store/sharingData';
         const data = await api.post('/chat_delete_api', {id: id}, {
             ask: 'メッセージを削除してもよろしいですか？',
             toast: 'メッセージを削除しました。'
-        })  
+        }) 
+        if (!data) return 
         refreshMessages(data)
     }
     const markUnread = async(id) => {
