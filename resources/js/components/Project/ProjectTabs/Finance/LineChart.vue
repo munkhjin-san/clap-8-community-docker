@@ -208,7 +208,7 @@ const segmentVisualConfig = (color: string) => {
     },
     pointBackgroundColor: (ctx: any) => applyAlpha(color, alphaAt(ctx.dataIndex)),
     pointBorderColor: (ctx: any) => applyAlpha(color, alphaAt(ctx.dataIndex)),
-    pointRadius: (ctx: any) => (isInFocus(ctx.dataIndex) ? 6 : 3),
+    pointRadius: (ctx: any) => (isInFocus(ctx.dataIndex) ? 3 : 3),
   };
 };
 
