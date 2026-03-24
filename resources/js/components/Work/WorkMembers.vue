@@ -41,7 +41,7 @@
                         v-if="hasAnySelection"
                         type="button"
                         class="selector-action-button"
-                        @click="resetSelection"
+                        @click.stop="resetSelection"
                     >
                         リセット
                     </button>
