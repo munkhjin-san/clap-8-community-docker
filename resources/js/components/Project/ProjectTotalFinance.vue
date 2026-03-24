@@ -808,7 +808,7 @@
                                         </template>
                                     </tr>
                                 </thead>
-                                <tbody v-if="hasPeriodTotals">
+                                <tbody v-if="hasSummaryRows">
                                     <tr v-if="show('yearly_plan')" class="summary-row">
                                         <td
                                             v-if="firstVisibleScenario === 'yearly_plan'"
@@ -1989,6 +1989,17 @@ const summarizeData = computed(() => {
     return filterScenarioRecord(rawSummarizeData.value) ?? rawSummarizeData.value
 })
 
+const storageProjectIdsKey = 'projectIds'
+const storageTotalFinanceViewKey = 'projectTotalFinance:view'
+type TotalFinanceViewState = {
+    grouping?: 'range' | 'fiscal'
+    fiscalYearStart?: number
+    fiscalYearEnd?: number
+    rangeStart?: string
+    rangeEnd?: string
+    sortMode?: 'name' | 'manager'
+}
+
 const MAX_RANGE_MONTHS = 12
 const currentMonth = DateTime.now().startOf('month')
 const defaultFiscalStart = DateTime.local(
@@ -2017,7 +2028,27 @@ const normalizeRange = (rawStart: DateTime, rawEnd: DateTime) => {
   return { start, end }
 }
 
-const initialRange = normalizeRange(defaultTableStart, defaultTableEnd)
+const readSavedTotalFinanceView = (): TotalFinanceViewState => {
+    try {
+        const raw = localStorage.getItem(storageTotalFinanceViewKey)
+        if (!raw) return {}
+        const parsed = JSON.parse(raw)
+        return parsed && typeof parsed === 'object' ? parsed as TotalFinanceViewState : {}
+    } catch {
+        localStorage.removeItem(storageTotalFinanceViewKey)
+        return {}
+    }
+}
+const parseStoredPeriod = (value: unknown) => {
+    if (typeof value !== 'string') return null
+    const parsed = DateTime.fromFormat(`${value}-01`, 'yyyy-MM-dd', { zone: 'Asia/Tokyo' })
+    return parsed.isValid ? parsed.startOf('month') : null
+}
+const savedTotalFinanceView = readSavedTotalFinanceView()
+const initialRange = normalizeRange(
+    parseStoredPeriod(savedTotalFinanceView.rangeStart) ?? defaultTableStart,
+    parseStoredPeriod(savedTotalFinanceView.rangeEnd) ?? defaultTableEnd
+)
 const periodStart = ref<DateTime>(initialRange.start)
 const periodEnd = ref<DateTime>(initialRange.end)
 const tableRangeStart = ref<DateTime>(initialRange.start)
@@ -2081,21 +2112,36 @@ const intervalPayload = computed(() => ({
 const periods = computed<PeriodCell[]>(() =>
   generatePeriodRange(normalizedRange.value.start, normalizedRange.value.end)
 )
-const totalGrouping = ref<'range' | 'fiscal'>('range')
 const minFiscalYear = 2024
 const maxFiscalYear = DateTime.now().year + 2
+const clampFiscalYear = (value: unknown, fallback: number) => {
+    const numeric = Number(value)
+    if (!Number.isInteger(numeric)) return fallback
+    return Math.min(maxFiscalYear, Math.max(minFiscalYear, numeric))
+}
+const totalGrouping = ref<'range' | 'fiscal'>(
+    savedTotalFinanceView.grouping === 'fiscal' || savedTotalFinanceView.grouping === 'range'
+        ? savedTotalFinanceView.grouping
+        : 'range'
+)
 const fiscalYearOptions = computed<number[]>(() =>
     Array.from({ length: maxFiscalYear - minFiscalYear + 1 }, (_, index) => minFiscalYear + index)
 )
 const currentFiscalYear = fiscalYearFrom(DateTime.now().year, DateTime.now().month)
 const defaultFiscalYearStart = Math.max(minFiscalYear, currentFiscalYear - 1)
 const defaultFiscalYearEnd = Math.min(maxFiscalYear, currentFiscalYear)
-const selectedFiscalYearStart = ref(defaultFiscalYearStart)
-const selectedFiscalYearEnd = ref(
+const initialFiscalYearStart = clampFiscalYear(savedTotalFinanceView.fiscalYearStart, defaultFiscalYearStart)
+const fallbackFiscalYearEnd =
     defaultFiscalYearStart === defaultFiscalYearEnd
         ? Math.min(maxFiscalYear, defaultFiscalYearEnd + 1)
         : defaultFiscalYearEnd
-)
+const rawInitialFiscalYearEnd = clampFiscalYear(savedTotalFinanceView.fiscalYearEnd, fallbackFiscalYearEnd)
+const initialFiscalYearEnd =
+    rawInitialFiscalYearEnd === initialFiscalYearStart
+        ? fiscalYearOptions.value.find((year) => year !== initialFiscalYearStart) ?? fallbackFiscalYearEnd
+        : rawInitialFiscalYearEnd
+const selectedFiscalYearStart = ref(initialFiscalYearStart)
+const selectedFiscalYearEnd = ref(initialFiscalYearEnd)
 const activeFiscalYears = computed<number[]>(() => ([
     selectedFiscalYearStart.value,
     selectedFiscalYearEnd.value,
@@ -2201,6 +2247,12 @@ const periodTotals = computed<Record<string, PeriodTotalsEntry>>(() => {
     ) as Record<string, PeriodTotalsEntry>
 })
 const hasPeriodTotals = computed(() => Object.keys(periodTotals.value).length > 0)
+const hasFiscalSummaryTotals = computed(() =>
+    activeFiscalYears.value.some((fiscalYear) => Boolean(rawComparisonSummaryTotals.value?.[fiscalYear]))
+)
+const hasSummaryRows = computed(() =>
+    totalGrouping.value === 'fiscal' ? hasFiscalSummaryTotals.value : hasPeriodTotals.value
+)
 const periodEntry = (period: string, scenario: ScenarioKey): UnitData => periodTotals.value[period]?.[scenario] ?? emptyUnit
 const normalizeUnitData = (unit?: Partial<UnitData> | null): UnitData => {
     const sales = Number(unit?.sales ?? 0)
@@ -2255,7 +2307,6 @@ const comparisonPeriodTotals = computed<ComparisonPeriodTotals>(() => {
         ])
     ) as ComparisonPeriodTotals
 })
-const storageProjectIdsKey = 'projectIds'
 const allProjectIds = computed(() => props.projects.map(project => project.id))
 const selectedProjectNames = computed(() => {
     return props.projects
@@ -2357,7 +2408,9 @@ const defaultProjectSelection = (projectIds: number[]) => {
     return ownProjectIds.length ? ownProjectIds : [...projectIds]
 }
 const monthCount = computed(() => Math.round(normalizedRange.value.end.diff(normalizedRange.value.start, 'months').months ?? 0) + 1)
-const sortMode = ref<'name' | 'manager'>('name')
+const sortMode = ref<'name' | 'manager'>(
+    savedTotalFinanceView.sortMode === 'manager' ? 'manager' : 'name'
+)
 
 const showTotals = computed(() => monthCount.value > 1)
 const showComment = computed(() => hasPrivilage.value && monthCount.value === 1 && totalGrouping.value !== 'fiscal')
@@ -3048,9 +3101,31 @@ const refreshTotalFinance = async () => {
     }
 }
 
+const financeRefreshKey = computed(() => {
+    const projectIdsKey = [...selectedProjects.value].sort((left, right) => left - right).join(',')
+    if (!projectIdsKey) return 'empty'
+    if (totalGrouping.value === 'fiscal') {
+        return `fiscal|${projectIdsKey}|${selectedFiscalYearStart.value}|${selectedFiscalYearEnd.value}`
+    }
+    return `range|${projectIdsKey}|${periodStartIso.value}|${periodEndIso.value}`
+})
+
+watch(
+    [totalGrouping, selectedFiscalYearStart, selectedFiscalYearEnd, periodStartIso, periodEndIso, sortMode],
+    () => {
+        localStorage.setItem(storageTotalFinanceViewKey, JSON.stringify({
+            grouping: totalGrouping.value,
+            fiscalYearStart: selectedFiscalYearStart.value,
+            fiscalYearEnd: selectedFiscalYearEnd.value,
+            rangeStart: periodStartIso.value,
+            rangeEnd: periodEndIso.value,
+            sortMode: sortMode.value,
+        }))
+    }
+)
+
 watch(selectedProjects, (projects) => {
     localStorage.setItem(storageProjectIdsKey, JSON.stringify(projects))
-    refreshTotalFinance()
 }, { deep: true })
 
 watch(allProjectIds, (projectIds, previousProjectIds = []) => {
@@ -3086,16 +3161,12 @@ watch(allProjectIds, (projectIds, previousProjectIds = []) => {
 
 watch([periodStartIso, periodEndIso], () => {
     persistRangeForTab(tab.value)
-    refreshTotalFinance()
 })
 watch(tab, (newTab, oldTab) => {
     if (oldTab) {
         persistRangeForTab(oldTab)
     }
     restoreRangeForTab(newTab)
-})
-watch(totalGrouping, () => {
-    refreshTotalFinance()
 })
 watch([selectedFiscalYearStart, selectedFiscalYearEnd], ([start, end], [previousStart, previousEnd]) => {
     if (start === end) {
@@ -3108,10 +3179,13 @@ watch([selectedFiscalYearStart, selectedFiscalYearEnd], ([start, end], [previous
             return
         }
     }
-    if (totalGrouping.value === 'fiscal') {
-        refreshTotalFinance()
-    }
 })
+watch(financeRefreshKey, () => {
+    if (totalGrouping.value === 'fiscal' && selectedFiscalYearStart.value === selectedFiscalYearEnd.value) {
+        return
+    }
+    refreshTotalFinance()
+}, { immediate: true })
 watch(selectedManagers, (managers) => {
     if (managers.length) {
         const set = new Set(managers)
@@ -3314,6 +3388,7 @@ const selectedBadge = computed(() => {
     border: 1px solid var(--calendarBorder);
     border-radius: 14px;
     background: var(--bg3);
+    gap: 3px;
 }
 .mobile-finance-controls__row--mode {
     opacity: 0.9;
