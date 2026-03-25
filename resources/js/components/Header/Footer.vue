@@ -34,7 +34,6 @@
                 <Badge 
                     :count="(badge.projectTotal || 0) + (badge.projectCommentTotal || 0)"
                     :color="!badge.projectTotal && badge.projectCommentTotal ? 'orange' : 'tomato'"
-                    :pulse="badge.projectCommentTotal > 0 && !badge.projectTotal"
                     style="top: -5px;right: -7px;z-index: 5;left: auto;"
                 />
             </div>
