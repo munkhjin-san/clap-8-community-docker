@@ -1446,7 +1446,7 @@ class BoardController extends Controller
         $uniqueIds = array_keys($counts); 
         $boards = boardRecord::query()
         ->whereIn('id', $uniqueIds)
-        ->with(['board_to_users.user:id,name'])              
+        ->with(['board_to_users.user:id,name,icon_path,icon_bg'])              
         ->get(['id', 'title', 'private_flag', 'icon_bg', 'icon_path', 'icon_text'])
         ->keyBy('id');
         $t_list = [];

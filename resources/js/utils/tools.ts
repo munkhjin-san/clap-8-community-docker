@@ -305,6 +305,23 @@ export const linkifyParts = (text: string) => {
 
   return parts;
 }
+const formatSalary = (text?: string) => {
+  if (!text) return
+  const match = text.match(/([０-９\d]+)等級\s*([０-９\d]+)号俸\s*([０-９\d,]+)/)
+  
+  if (!match) return text;
+
+  const grade = toFullWidth(match[1].replace(/,/g, ""));
+  const step = toFullWidth(match[2].replace(/,/g, ""));
+  const amount = Number(match[3].replace(/,/g, "")).toLocaleString("ja-JP");
+
+  return `${grade}等級${step}号俸　${amount}`;
+}
+const toFullWidth = (val: string) => {
+  return val.replace(/\d/g, (d) =>
+    String.fromCharCode(d.charCodeAt(0) + 0xFEE0)
+  );
+}
 export { 
     debounce, 
     mentionFormatter, 
@@ -334,4 +351,5 @@ export {
     EXPENSE_ITEMS,
     parseNumber,
     yenFmt,
+    formatSalary
 }

@@ -40,7 +40,7 @@
 
                         <div>
                             <div class="mb-[10px]">給料（非公開）</div>
-                            <div>{{ evaluationData?.current_salary_rank }}</div>
+                            <div>{{ formatSalary(evaluationData?.current_salary_rank) }}</div>
                         </div>
                         <div v-if="currentPosition?.value">
                             <div class="mb-[10px]">役職手当（非公開）</div>
@@ -143,7 +143,7 @@
     </div>
 </template>
 <script setup lang="ts">
-import { generalPositions, } from '@/utils/tools';
+import { formatSalary, generalPositions, } from '@/utils/tools';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
@@ -180,9 +180,9 @@ const api = useApi()
 
 const loading = ref(0)
 onMounted(async () => {
-
-    getEvaluations()
-
+    setTimeout(() => {
+        getEvaluations()
+    }, 100)
 })
 
 const { ping, ask, toast } = useDialog()

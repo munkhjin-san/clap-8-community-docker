@@ -63,8 +63,8 @@
                             </svg>
                         </td>
                         <!-- <td class="project-cell">{{ user?.evaluation?.grade }}</td> -->
-                        <td>{{ user?.evaluation?.current_salary_rank }}</td>
-                        <td>{{ user?.evaluation?.after_salary_rank }}</td>
+                        <td>{{ formatSalary(user?.evaluation?.current_salary_rank) }}</td>
+                        <td>{{ formatSalary(user?.evaluation?.after_salary_rank) }}</td>
                         <td>
                             <div>
                                 <div class="flex flex-wrap items-center justify-between gap-3">
@@ -161,7 +161,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { detailedDateOptions } from '@/utils/tools';
+import { detailedDateOptions, formatSalary } from '@/utils/tools';
 import { onMounted, ref, computed, reactive, useTemplateRef } from 'vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import EvaluationPreCreation from './EvaluationPreCreation.vue'
