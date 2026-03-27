@@ -37,18 +37,20 @@
             <div v-if="loading !== 0 && filterGroups.length" style="height: calc(100% - 128px); overflow: auto;">
                 <table style="width: 100%;">
                     <thead>
-                        <th>
-                            日付
-                        </th>
-                        <th v-for="user in filterGroups" class="p-[10px]">
-                            <div>
-                                {{ user.name }}
-                            </div>
-                            <div class="text-[12px] mt-[10px]">休日設定日数：{{ calculatedHoliday(user) }}</div>
-                            <div class="text-[12px] mt-[10px]">所定労働時間：{{ user.should_work_hours / 60 }}時間 ({{ user.work_day_num }}日)</div>
-                            <div class="text-[12px] mt-[10px]">勤務時間:{{ user.planned_shift_data.workMinutes / 60 }}時間 ({{ user.planned_shift_data.workDays }}日)</div>
-                            <div class="text-[12px] mt-[10px]">有給時間:{{ user.planned_shift_data.paidLeaveMinutes / 60 }}時間</div>
-                        </th>
+                        <tr>
+                            <th>
+                                日付
+                            </th>
+                            <th v-for="user in filterGroups" class="p-[10px]">
+                                <div>
+                                    {{ user.name }}
+                                </div>
+                                <div class="text-[12px] mt-[10px]">休日設定日数：{{ calculatedHoliday(user) }}</div>
+                                <div class="text-[12px] mt-[10px]">所定労働時間：{{ user.should_work_hours / 60 }}時間 ({{ user.work_day_num }}日)</div>
+                                <div class="text-[12px] mt-[10px]">勤務時間:{{ user.planned_shift_data.workMinutes / 60 }}時間 ({{ user.planned_shift_data.workDays }}日)</div>
+                                <div class="text-[12px] mt-[10px]">有給時間:{{ user.planned_shift_data.paidLeaveMinutes / 60 }}時間</div>
+                            </th>
+                        </tr>
                     </thead>
                     <tbody>
                         <tr v-for="shift, index in shiftRecords">
@@ -230,6 +232,7 @@ import { useDashboardStore } from '@/store/dashboard';
     const setDate = (date) => {
         approveMonth.value = date.month
         approveYear.value = date.year
+        loading.value = 0
         fetchWorkGroups()
     }
     const calculatedHoliday = (user) => {
