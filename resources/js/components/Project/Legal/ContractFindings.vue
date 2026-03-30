@@ -9,21 +9,21 @@
 
         <div class="contract-findings__filters">
             <button
-                class="contract-findings__filter"
+                class="contract-findings__filter contract-findings__filter--high"
                 :class="{'contract-findings__filter--active': activeFilter === 'high'}"
                 @click="toggleFilter('high')"
             >
                 高 <span>{{ counts.high }}</span>
             </button>
             <button
-                class="contract-findings__filter"
+                class="contract-findings__filter contract-findings__filter--medium"
                 :class="{'contract-findings__filter--active': activeFilter === 'medium'}"
                 @click="toggleFilter('medium')"
             >
                 中 <span>{{ counts.medium }}</span>
             </button>
             <button
-                class="contract-findings__filter"
+                class="contract-findings__filter contract-findings__filter--low"
                 :class="{'contract-findings__filter--active': activeFilter === 'low'}"
                 @click="toggleFilter('low')"
             >
@@ -78,7 +78,7 @@
                             <span>{{ finding.quote }}</span>
                         </p>
                         <p v-if="finding.negotiation_tip" class="contract-findings__item-line">
-                            <span class="contract-find__item-label">交渉ポイント</span>
+                            <span class="contract-findings__item-label">交渉ポイント</span>
                             <span>{{ finding.negotiation_tip }}</span>
                         </p>
                     </div>
@@ -173,6 +173,7 @@ const clearFilter = () => {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    color: var(--primary-color);
 }
 
 .contract-findings__header {
@@ -183,7 +184,7 @@ const clearFilter = () => {
 }
 
 .contract-findings__label {
-    color: var(--font-color, #555);
+    color: var(--sub-color, var(--font-color, #666));
 }
 
 .contract-findings__badge {
@@ -191,12 +192,15 @@ const clearFilter = () => {
     align-items: center;
     justify-content: center;
     gap: 6px;
+    align-self: flex-start;
     min-width: 52px;
-    padding: 2px 10px;
+    max-width: 100%;
+    padding: 2px 8px;
     border-radius: 999px;
     border: 1px solid var(--calendarBorder);
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
+    white-space: nowrap;
 }
 
 .contract-findings__badge--high {
@@ -212,44 +216,74 @@ const clearFilter = () => {
 }
 
 .contract-findings__badge--low {
-    color: #4c566a;
-    border-color: rgba(76, 86, 106, 0.3);
-    background: rgba(76, 86, 106, 0.08);
+    color: var(--primary-color);
+    border-color: var(--calendarBorder);
+    background: var(--bg3);
 }
 
 .contract-findings__filters {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 8px;
 }
 
 .contract-findings__filter {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 12px;
+    padding: 4px 10px;
     border-radius: 999px;
     border: 1px solid var(--calendarBorder);
-    background: transparent;
-    color: var(--font-color, #444);
-    font-size: 12px;
+    background: var(--bg3);
+    color: var(--primary-color);
+    font-size: 11px;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
+.contract-findings__filter span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    /* background: var(--background-color);
+    border: 1px solid var(--calendarBorder); */
+    color: inherit;
+}
+
+.contract-findings__filter--high {
+    color: #d14343;
+    border-color: rgba(209, 67, 67, 0.35);
+    background: rgba(209, 67, 67, 0.08);
+}
+
+.contract-findings__filter--medium {
+    color: #ff8a00;
+    border-color: rgba(255, 138, 0, 0.35);
+    background: rgba(255, 138, 0, 0.08);
+}
+
+.contract-findings__filter--low {
+    color: var(--primary-color);
+    border-color: var(--calendarBorder);
+    background: var(--bg3);
+}
+
 .contract-findings__filter--active {
-    background: var(--primary-color);
-    color: var(--background-color);
-    border-color: transparent;
+    box-shadow: inset 0 0 0 1px currentColor;
+    transform: translateY(-1px);
 }
 
 .contract-findings__filter-reset {
-    padding: 6px 12px;
+    padding: 4px 10px;
     border-radius: 8px;
-    border: none;
-    background: var(--bg2);
-    color: var(--font-color, #555);
-    font-size: 12px;
+    border: 1px solid var(--calendarBorder);
+    background: var(--bg3);
+    color: var(--primary-color);
+    font-size: 11px;
     cursor: pointer;
 }
 
@@ -262,10 +296,10 @@ const clearFilter = () => {
 }
 
 .contract-findings__item {
-    padding: 16px 18px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
 }
 
 .contract-findings__item + .contract-findings__item {
@@ -275,30 +309,31 @@ const clearFilter = () => {
 .contract-findings__item-header {
     display: flex;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
 }
 
 .contract-findings__item-meta {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     min-width: 0;
 }
 
 .contract-findings__item-section {
-    font-size: 12px;
-    color: var(--font-color, #666);
+    font-size: 11px;
+    color: var(--sub-color, var(--font-color, #666));
 }
 
 .contract-findings__item-title {
     text-align: left;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--primary-color);
     background: none;
     border: none;
     cursor: pointer;
     padding: 0;
+    line-height: 1.4;
 }
 
 .contract-findings__item-title:hover {
@@ -308,27 +343,29 @@ const clearFilter = () => {
 .contract-findings__item-body {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    font-size: 13px;
-    color: var(--font-color, #444);
-    line-height: normal;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--primary-color);
+    line-height: 1.5;
 }
 
 .contract-findings__item-line {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
+    padding-left: 10px;
+    border-left: 2px solid var(--calendarBorder);
 }
 
 .contract-findings__item-label {
     font-weight: 600;
-    font-size: 12px;
-    color: var(--font-color, #666);
+    font-size: 11px;
+    color: var(--sub-color, var(--font-color, #666));
 }
 
 .contract-findings__empty {
-    font-size: 13px;
-    color: var(--font-color, #777);
+    font-size: 12px;
+    color: var(--sub-color, var(--font-color, #666));
 }
 
 .fade-enter-active,
