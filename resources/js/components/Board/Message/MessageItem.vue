@@ -210,8 +210,8 @@ import { useSharingDataStore } from '@/store/sharingData';
         const body = innerEl.messageBoxBody
         if(!body) return
         copy({
-            height: body.clientHeight + 20,
-            width: body.clientWidth + 20,
+            height: body.clientHeight,
+            width: body.clientWidth,
             text: body.textContent
         })             
     }
