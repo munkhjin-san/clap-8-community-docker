@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Models\DriveActivityLog;
+use App\Models\DriveDownloadLog; 
 class PruneActivityLogs extends Command
 {
     /**
