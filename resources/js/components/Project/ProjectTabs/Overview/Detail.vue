@@ -1,95 +1,135 @@
 <template>
     <div class="h-[calc(100%-75px)] relative overflow-y-auto" ref="scrollContainer"> 
         <div class="project-detail flex flex-col gap-[15px]">
-            <div v-if="hasPrivilage" class="absolute top-[20px] right-[20px]">
-                <div class="flex gap-5">
+            <div v-if="hasPrivilage" class="ml-auto sticky top-0">
+                <div class="flex gap-4 items-center">
+                    <div v-if="(auth.isBoss || auth.isAdmin) && selectedProject?.status == 'pending_director'" class="flex gap-4">
+                        <button @click="statusChange('director_approved')" class="bg-[var(--primary-button)] text-white p-1">
+                            承認する
+                        </button>
+                        <button @click="statusChange('returned')" class="bg-[var(--primary-button)] text-white p-1">
+                            差し戻し
+                        </button>
+                    </div> 
                     <ItemMenu :items="[
                         {title: '編集する', action: () => editProjects(selectedProject)},
                         {title: '削除する', action: () => deleteProject(selectedProject)}
                     ]"/>
                 </div>
             </div>
-        
-            <div class="project-detail-header">
-                <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">部門</span> {{ selectedProject?.is_new ? '新規' : '既存' }}</div>
-            </div>
-            <div class="project-detail-header">
-                <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">期間</span> {{ selectedProject?.date_start && selectedProject.date_end ? `${DateTime.fromISO(selectedProject.date_start).toLocaleString(DateTime.DATE_SHORT)}  ~  ${DateTime.fromISO(selectedProject.date_end).toLocaleString(DateTime.DATE_SHORT)}` : '未設定' }}</div>
-            </div>
-            <div class="project-detail-header">
-                <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">サービスカテゴリー</span>
-                    <div v-if="selectedProject?.category && selectedProject.category.length" class="flex flex-col gap-[15px] mt-[15px]">
-                        <div v-for="cat in selectedProject?.category">
-                            <div>{{ ProjectServiceCategories.find( c => c.value == cat)?.title }}</div>
-                            <div class="text-[12px] text-[gray] mt-[5px]">{{ ProjectServiceCategories.find( c => c.value == cat)?.subtitle }}</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="project-detail-header">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">部門</span> {{ selectedProject?.is_new ? '新規' : '既存' }}</div>
+                </div>
+                <div class="project-detail-header">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">プロジェクト種別</span> {{ selectedProject?.projectType?.label ?? selectedProject?.project_type?.label ?? '未設定' }}</div>
+                </div>
+                <div class="project-detail-header" :class="{'text-[tomato]' : checkItemConfirmBadge}">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px] text-[var(--primary-color)]">ステータス</span>{{ PROJECT_STATUS_LABEL[selectedProject?.status ?? ''] ?? '不明' }}</div>
+
+                </div>
+                <div class="project-detail-header">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">プロジェクト期間</span> {{ selectedProject?.date_start && selectedProject.date_end ? `${DateTime.fromISO(selectedProject.date_start).toLocaleString(DateTime.DATE_SHORT)}  ~  ${DateTime.fromISO(selectedProject.date_end).toLocaleString(DateTime.DATE_SHORT)}` : '未設定' }}</div>
+
+                </div>
+                <div class="project-detail-header">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">契約開始日</span> {{ selectedProject?.contract_started_at ? `${DateTime.fromISO(selectedProject.contract_started_at).toLocaleString(DateTime.DATE_SHORT)}` : '未設定' }}</div>
+
+                </div>
+                <!-- <div class="project-detail-header">
+                </div> -->
+                <div class="project-detail-header">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">サービスカテゴリー</span>
+                        <div v-if="selectedProject?.category && selectedProject.category.length" class="flex flex-col gap-[15px] mt-[15px]">
+                            <div v-for="cat in selectedProject?.category">
+                                <div>{{ ProjectServiceCategories.find( c => c.value == cat)?.title }}</div>
+                                <div class="text-[12px] text-[gray] mt-[5px]">{{ ProjectServiceCategories.find( c => c.value == cat)?.subtitle }}</div>
+                            </div>
+                        </div>
+                        <span v-else>{{ selectedProject?.category && selectedProject.category.length ? selectedProject.category.join("、") : '未設定' }}</span>
+                    </div> 
+                </div>
+                <div class="project-detail-header">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">顧客企業</span>
+                        <span >{{ selectedProject?.customers && selectedProject.customers.length ? selectedProject.customers.join("、") : '未設定' }}</span>
+                    </div> 
+                </div>
+                <!-- <div class="project-detail-header">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">パートナー企業</span>
+                        <span >{{ selectedProject?.partners && selectedProject.partners.length ? selectedProject.partners.join("、") : '未設定' }}</span>
+                    </div> 
+                </div> -->
+                <div class="project-detail-header">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">業種区分</span>
+                        <span >{{ selectedProject?.industry_type && selectedProject.industry_type.length ? selectedProject.industry_type.join("、") : '未設定' }}</span>
+                    </div> 
+                </div>
+
+                <div v-if="hasPrivilage" class="project-detail-header">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">管理者用非公開メモ</span></div> 
+                    <div class="leading-normal mt-[10px]">
+                        <div v-html="displayHtml"></div>
+
+                        <div
+                            v-if="isTruncated"
+                            @click="toggleFull"
+                            class="mt-[10px] cursor-pointer text-sm"
+                            role="button"
+                            :aria-expanded="isExpanded ? 'true' : 'false'"
+                        >
+                            <CommandButton :buttons="[{title: isExpanded ? '閉じる' : '続きを表示する', action:() => ''}]"/>
+
                         </div>
                     </div>
-                    <span v-else>{{ selectedProject?.category && selectedProject.category.length ? selectedProject.category.join("、") : '未設定' }}</span>
                 </div> 
-            </div>
-            <div class="project-detail-header">
-                <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">顧客企業</span>
-                    <span >{{ selectedProject?.customers && selectedProject.customers.length ? selectedProject.customers.join("、") : '未設定' }}</span>
-                </div> 
-            </div>
-            <!-- <div class="project-detail-header">
-                <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">パートナー企業</span>
-                    <span >{{ selectedProject?.partners && selectedProject.partners.length ? selectedProject.partners.join("、") : '未設定' }}</span>
-                </div> 
-            </div> -->
-            <div class="project-detail-header">
-                <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">業種区分</span>
-                    <span >{{ selectedProject?.industry_type && selectedProject.industry_type.length ? selectedProject.industry_type.join("、") : '未設定' }}</span>
-                </div> 
-            </div>
 
-            <div v-if="hasPrivilage" class="project-detail-header">
-                <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">管理者用非公開メモ</span></div> 
-                <div class="leading-normal mt-[10px]">
-                    <div v-html="displayHtml"></div>
+                <div class="project-detail-header">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">概要</span></div> 
+                    <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.description ?? '')"></div>
+                </div> 
 
-                    <div
-                        v-if="isTruncated"
-                        @click="toggleFull"
-                        class="mt-[10px] cursor-pointer text-sm"
-                        role="button"
-                        :aria-expanded="isExpanded ? 'true' : 'false'"
-                    >
-                        <CommandButton :buttons="[{title: isExpanded ? '閉じる' : '続きを表示する', action:() => ''}]"/>
-
-                    </div>
+                <div class="project-detail-header">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">ミッション</span></div> 
+                    <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.mission ?? '')"></div>
                 </div>
-            </div> 
-
-            <div class="project-detail-header">
-                <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">概要</span></div> 
-                <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.description ?? '')"></div>
-            </div> 
-
-            <div class="project-detail-header">
-                <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">ミッション</span></div> 
-                <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.mission ?? '')"></div>
+                <div class="project-detail-header">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">イノベーション</span></div> 
+                    <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.innovation ?? '')"></div>
+                </div>
+                <div class="project-detail-header">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">ストラテジー</span></div> 
+                    <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.strategy_miso ?? '')"></div>
+                </div>
+                <div class="project-detail-header">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">オペレーション</span></div> 
+                    <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.operation ?? '')"></div>
+                </div> 
+                <!-- <div class="project-detail-header" v-if="isManager || auth.isBoss || auth.isAdmin">
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">年間収支計画（概要）</span></div> 
+                    <div class="leading-normal mt-[10px] space-y-3">
+                        <div class="flex justify-between">
+                            <span>売上高</span>
+                            <span>{{ yenFmt(planData?.revenue) }}</span>
+                        </div>
+                        <div v-for="expense in EXPENSE_ITEMS" class="flex justify-between">
+                            <span>{{ expense.label }}</span>
+                            <span>{{ yenFmt(planData?.[expense.key]) }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>年間利益（見込み）</span>
+                            <span
+                                :class="profit >= 0 ? 'text-profit-positive' : 'text-profit-negative'"
+                            >{{ yenFmt(profit) }}</span>
+                        </div>
+                        <div class="flex flex-col gap-2" v-if="planData?.remarks">
+                            <span>備考</span>
+                            <span>{{ planData?.remarks }}</span>
+                        </div>
+                    </div>
+                </div> -->
             </div>
-            <div class="project-detail-header">
-                <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">イノベーション</span></div> 
-                <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.innovation ?? '')"></div>
-            </div>
-            <div class="project-detail-header">
-                <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">ストラテジー</span></div> 
-                <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.strategy_miso ?? '')"></div>
-            </div>
-            <div class="project-detail-header">
-                <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">オペレーション</span></div> 
-                <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.operation ?? '')"></div>
-            </div> 
-            <div v-if="(auth.isBoss || auth.isAdmin) && selectedProject?.status == 'pending_director'" class="flex gap-4 py-4">
-                <button @click="statusChange('director_approved')" class="bg-[var(--primary-button)] text-white p-1">
-                    承認する
-                </button>
-                <button @click="statusChange('returned')" class="bg-[var(--primary-button)] text-white p-1">
-                    差し戻し
-                </button>
-            </div>                       
+            
+                                  
         </div>
     </div>
 </template>
@@ -106,10 +146,12 @@ import { Project } from '@/interface/projectInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { useApi } from '@/composables/api';
 import { useRoute } from 'vue-router';
+import { EXPENSE_ITEMS, parseNumber, PROJECT_STATUS_LABEL, yenFmt } from '@/utils/tools';
+import { useBadgeStore } from '@/store/badge';
     const props = defineProps(['hasPrivilage'])
     const editProjects = inject('editProjects') as (project: any) => void
     const deleteProject = inject('deleteProject') as (project: Project | null) => void
-    const { selectedProject, updateProject } = useProject()
+    const { selectedProject, updateProject, checkItemConfirmBadge } = useProject()
     const checkTab = ref(false)
 
     const sanitized = (text: string) => {
@@ -143,6 +185,29 @@ import { useRoute } from 'vue-router';
                 
             }
         }   
+    })
+    
+    const planData = computed(() => {
+        const raw = selectedProject.value?.specs?.plan_data
+        if (!raw) return
+        let parsed: any = raw
+        if (typeof raw === 'string') {
+            try {
+                parsed = JSON.parse(raw)
+            } catch {
+                return
+            }
+        }
+        if (!parsed || typeof parsed !== 'object') return
+        return {
+            ...parsed,
+            lease: parsed.lease ?? parsed.leasing
+        }
+    })
+    const totalExpenses = computed(() => EXPENSE_ITEMS.reduce((s, i) => s + parseNumber(planData.value?.[i.key]), 0) )
+    const totalRevenue = computed(() => parseNumber(planData.value?.revenue))
+    const profit = computed(() => {
+        return totalRevenue.value - totalExpenses.value
     })
     const displayHtml = computed(() => isExpanded.value ? fullHtml.value : excerptHtml.value);
     const toggleFull = () => { isExpanded.value = !isExpanded.value; };
@@ -244,15 +309,19 @@ import { useRoute } from 'vue-router';
 
     const api = useApi()
     type ProjectStatus = 'director_approved' | 'returned'
-
+    const badge = useBadgeStore()
     const statusChange = async(status: ProjectStatus) => {
+        const question = status === 'director_approved' ? '承認しますか？' : '差し戻しますか？'
+        const inform =  status === 'director_approved' ? '承認しました。' : '差し戻ししました。'
         await api.patch('/project_change_status', {
             status: status,
             id: selectedProject.value?.id
         }, {
-            toast: '変更しました'
+            toast: inform,
+            ask: question
         })
         updateProject([{name: 'status'}])
+        badge.clearProjectConfirmBadge()
     }
 </script>
 <style scoped>

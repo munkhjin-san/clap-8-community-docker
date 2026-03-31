@@ -948,10 +948,14 @@ class WorkController extends Controller
         return response()->json($inBreak);
     }
     private function breakTimeCheck($request){
+        $attendanceMode = $request->attendance_mode ?? 'work_only';
         $startTime = $request->start_time;
         $endTime = $request->end_time;
         $breakTime = $request->breakTime;
-
+        
+        if ($attendanceMode === 'training_only' || empty($startTime) || empty($endTime)) {
+            return;
+        }
         $startDateTime = new DateTime($startTime);
         $endDateTime = new DateTime($endTime);
 
@@ -1025,40 +1029,39 @@ class WorkController extends Controller
         $this->breakTimeCheck($request);
         
         $user = User::select('work_time_day', 'work_type', 'id', 'name', 'position_id')->findOrFail($request->userId);
+        $attendanceMode = $request->attendance_mode ?? 'work_only';
         $startTime = $request->start_time;
         $endTime = $request->end_time;
         $trainingStartTime = $request->training_start_time;
         $trainingEndTime = $request->training_end_time;
 
-        $start = Carbon::createFromFormat('H:i', $startTime);
-        $end = Carbon::createFromFormat('H:i', $endTime);
-        $nightOvertimeStart = Carbon::createFromFormat('H:i', '22:00')->subDay();
-        $nightOvertimeEnd = Carbon::createFromFormat('H:i', '05:00');
-        $todayNightOverTime = Carbon::createFromFormat('H:i', '22:00');
-        if($end->lt($start)){
-            $start->subDay();
+        $hasWorkHours = $attendanceMode !== 'training_only' && !empty($startTime) && !empty($endTime);
+        $hasTrainingHours = $attendanceMode !== 'work_only' && !empty($trainingStartTime) && !empty($trainingEndTime);
+
+        if (!$hasWorkHours && !$hasTrainingHours) {
+            throw ValidationException::withMessages(['message' => 'Enter work hours, training hours, or both before saving.']);
         }
+
         $shift_time_difference_seconds = 480 * 60;
         $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
-        
-        $time_difference_seconds = (int) $start->diffInSeconds($end, true);
-        $time_difference_seconds -= $request->breakTime * 60;
-        $time_difference_seconds = max(0, $time_difference_seconds);
-        
-        $night_difference_seconds = $this->calcNightSeconds($startTime, $endTime, $request->breakTime);
+        $time_difference_seconds = 0;
+        $night_difference_seconds = 0;
         $overtimeMinutes = 0;
-        // if ($start->between($nightOvertimeStart, $nightOvertimeEnd)) {
-        //     $night_difference_seconds = $end->between($nightOvertimeStart, $nightOvertimeEnd) ? (int) $start->diffInSeconds($end, true) : (int) $start->diffInSeconds($nightOvertimeEnd, true);
-        // } else if ($end->between($nightOvertimeStart, $nightOvertimeEnd)) {
-        //     $night_difference_seconds = (int) $nightOvertimeStart->diffInSeconds($end, true) ;
-        // } else if ($end->greaterThan($todayNightOverTime)){
-        //     $night_difference_seconds = (int) $todayNightOverTime->diffInSeconds($end, true);
-        // } else {
-        //     $night_difference_seconds = 0;
-        // }
-        // if($night_difference_seconds >= 360 * 60 || ($night_difference_seconds >= 180 * 60 && $night_difference_seconds < 360 * 60)){
-        //     $night_difference_seconds -= $request->breakTime * 60;
-        // }
+
+        if ($hasWorkHours) {
+            $start = Carbon::createFromFormat('H:i', $startTime);
+            $end = Carbon::createFromFormat('H:i', $endTime);
+            if($end->lt($start)){
+                $start->subDay();
+            }
+
+            $time_difference_seconds = (int) $start->diffInSeconds($end, true);
+            $time_difference_seconds -= $request->breakTime * 60;
+            $time_difference_seconds = max(0, $time_difference_seconds);
+
+            $night_difference_seconds = $this->calcNightSeconds($startTime, $endTime, $request->breakTime);
+        }
+
         if (is_array($request->customValues[37] ?? null) && in_array(2, $request->customValues[37], true)) {
             $this->checkWaitingAllowance($request);
         }
@@ -1069,13 +1072,13 @@ class WorkController extends Controller
                 'user_id' => $request->userId
             ]);
             $is_exist->work_group_id = $request->department;
-            $is_exist->start_time = $request->start_time;
-            $is_exist->end_time = $request->end_time;
-            if($trainingStartTime && $trainingEndTime){
-                $is_exist->training_start_time = $trainingStartTime;
-                $is_exist->training_end_time = $trainingEndTime;
-            }
-            if ($user->work_type === 1) {
+            $is_exist->start_time = $hasWorkHours ? $startTime : null;
+            $is_exist->end_time = $hasWorkHours ? $endTime : null;
+            $is_exist->training_start_time = $hasTrainingHours ? $trainingStartTime : null;
+            $is_exist->training_end_time = $hasTrainingHours ? $trainingEndTime : null;
+            $is_exist->over_time = 0;
+            $is_exist->late_time = 0;
+            if ($user->work_type === 1 && $hasWorkHours) {
                 if ($time_difference_seconds >= $shift_time_difference_seconds) {                
                     $overtimeSeconds = $time_difference_seconds - $shift_time_difference_seconds;
                     $overtimeMinutes = floor($overtimeSeconds / 60);
@@ -1086,7 +1089,7 @@ class WorkController extends Controller
                     $is_exist->late_time = $latetimeMinutes;
                 }
             }
-            if (isset($night_difference_seconds) && $night_difference_seconds > 0) {
+            if ($hasWorkHours && isset($night_difference_seconds) && $night_difference_seconds > 0) {
                 $nighttimeMinutes = floor($night_difference_seconds / 60);
                 $is_exist->night_over_time = $nighttimeMinutes;
             }else{
@@ -1094,10 +1097,10 @@ class WorkController extends Controller
             }
             $minutes = floor($time_difference_seconds / 60);
             $is_exist->work_time = $minutes;
-            $is_exist->edit_start_time = $request->start_time;
-            $is_exist->edit_end_time = $request->end_time;
+            $is_exist->edit_start_time = $hasWorkHours ? $startTime : null;
+            $is_exist->edit_end_time = $hasWorkHours ? $endTime : null;
             
-            $is_exist->break_time = $request->breakTime;
+            $is_exist->break_time = $hasWorkHours ? $request->breakTime : 0;
             $is_exist->stamp_flag = 1;
             $is_exist->status_flag = $request->status_flag;
             

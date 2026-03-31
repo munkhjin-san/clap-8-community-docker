@@ -3,15 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Models\CustomForm;
+use App\Models\ProjectRecord;
+use App\Models\ProjectCheckitemCategory;
+use App\Models\ProjectType;
 use App\Models\SurveyAnswer;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 class CustomFormController extends Controller
 {
+    private const PROJECT_CREATION_USAGE = 'project_creation';
+
     private function active_user(){
         $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
         if($sub){
@@ -52,9 +59,16 @@ class CustomFormController extends Controller
             'id' => 'required'
         ]);
 
-        $form = CustomForm::with(['blocks', 'users', 'admins'])->findOrFail($request->id);
+        $form = CustomForm::with(['blocks.checkitemCategories', 'users', 'admins'])->findOrFail($request->id);
+        $usage = $this->normalizeUsage($form->usage);
+        $status = (int) ($form->status ?? 0);
+        $this->ensureExclusiveActiveProjectCreationForm($usage, $status, null, $form->project_type_id);
         $new_form = $form->replicate();
         $new_form->title = $form->title . ' (コピー)';
+        $new_form->usage = $usage;
+        $new_form->status = $status;
+        $new_form->is_public = false;
+        $new_form->public_token = null;
         $new_form->save();
         $block_id_map = [];
         $element_id_map = [];
@@ -64,6 +78,7 @@ class CustomFormController extends Controller
             $new_block->custom_form_id = $new_form->id;
             $new_block->depends_on = null;
             $new_block->save();
+            $new_block->checkitemCategories()->sync($block->checkitemCategories->pluck('id')->all());
             $block_id_map[$block->id] = $new_block->id;
             $new_blocks[] = ['model' => $new_block, 'origin' => $block];
             $block->elements->each(function($element) use($new_block, &$element_id_map){
@@ -91,11 +106,34 @@ class CustomFormController extends Controller
         $forms = CustomForm::when($request->filled('status'), function ($q) use ($request) {
                 $q->where('status', $request->input('status'));
             })
+            ->when($request->filled('usage'), function ($q) use ($request) {
+                $usage = $request->input('usage');
+                if ($usage === 'public') {
+                    $q->where('usage', 'general')->where('is_public', true);
+                    return;
+                }
+
+                if ($usage === 'general') {
+                    $q->where('usage', 'general')->where(function ($inner) {
+                        $inner->where('is_public', false)->orWhereNull('is_public');
+                    });
+                    return;
+                }
+
+                $q->where('usage', $usage);
+            })
+            ->when($request->filled('project_type_id'), function ($q) use ($request) {
+                $q->where('project_type_id', $request->integer('project_type_id'));
+            })
+            ->when($request->filled('keyword'), function ($q) use ($request) {
+                $keyword = trim((string) $request->input('keyword'));
+                $q->where('title', 'like', '%' . $keyword . '%');
+            })
             ->where(function ($q) {
                 $q->whereNull('board_record_id')
                 ->orWhere('board_record_id', 3758);
             })
-            ->with(['blocks'])
+            ->with(['blocks.checkitemCategories', 'projectType'])
             ->orderBy('created_at', 'desc')
             ->when($active_user->position_id <= 6 && !in_array($active_user->id, [610, 608]), function ($q) use ($active_user) {
                 $q->whereHas('admins', function ($q) use ($active_user) {
@@ -117,6 +155,53 @@ class CustomFormController extends Controller
 
         
     }
+    public function get_active_project_creation_form(Request $request)
+    {
+        $validated = $request->validate([
+            'project_type_id' => ['required', 'integer', 'exists:project_types,id'],
+        ]);
+
+        $form = CustomForm::with(['blocks.elements', 'blocks.checkitemCategories', 'projectType'])
+            ->where('usage', self::PROJECT_CREATION_USAGE)
+            ->where('status', 0)
+            ->where('project_type_id', $validated['project_type_id'])
+            ->where(function ($q) {
+                $q->whereNull('board_record_id')
+                    ->orWhere('board_record_id', 3758);
+            })
+            ->latest('updated_at')
+            ->first();
+
+        return response()->json($form);
+    }
+    public function get_form_projects(CustomForm $form)
+    {
+        if ($this->normalizeUsage($form->usage) !== self::PROJECT_CREATION_USAGE) {
+            return response()->json([]);
+        }
+
+        $projects = ProjectRecord::query()
+            ->select([
+                'id',
+                'name',
+                'status',
+                'date_start',
+                'date_end',
+                'project_type_id',
+            ])
+            ->with([
+                'projectType:id,label,key',
+                'manager',
+                'specs:id,project_id,updated_at',
+            ])
+            ->whereHas('specs', function ($q) use ($form) {
+                $q->where('spec_data->form_id', $form->id);
+            })
+            ->orderByDesc('updated_at')
+            ->get();
+
+        return response()->json($projects);
+    }
     public function save_custom_form (Request $request)
     {
         $validated = $request->validate([
@@ -130,12 +215,17 @@ class CustomFormController extends Controller
             'repeat_setting' => 'integer',
             'repeat_day' => 'nullable|integer|min:1|max:31',
             'has_prize' => 'boolean',
+            'is_public' => 'boolean',
+            'status' => 'sometimes|integer|in:0,1',
+            'usage' => 'nullable|string|in:general,project_creation',
+            'project_type_id' => 'nullable|integer|exists:project_types,id',
             'blocks.*.id' => 'nullable|integer',
             'blocks.*.type' => 'required|string|max:50',
             'blocks.*.question' => 'required|string',
             'blocks.*.is_required' => 'boolean',
             'blocks.*.order_number' => 'required|integer',
             'blocks.*.placeholder' => 'nullable|string',
+            'blocks.*.category_ids' => 'nullable|array',
             'blocks.*.elements' => 'array',
             'blocks.*.elements.*.id' => 'nullable|integer',
             'blocks.*.elements.*.value' => 'required|string',
@@ -171,19 +261,49 @@ class CustomFormController extends Controller
     }
     private function saveForm( array $data)
     {
+        $id = $this->sanitizeId(Arr::get($data, 'id'));
+        $usage = $this->normalizeUsage(Arr::get($data, 'usage'));
+        $status = (int) Arr::get($data, 'status', 0);
+        $projectTypeId = $usage === self::PROJECT_CREATION_USAGE
+            ? $this->sanitizeId(Arr::get($data, 'project_type_id'))
+            : null;
+        $repeatSetting = $this->normalizeRepeatSetting($usage, Arr::get($data, 'repeat_setting'));
+        $repeatDay = $repeatSetting === 1 ? Arr::get($data, 'repeat_day') : null;
+        $hasPrize = $usage === self::PROJECT_CREATION_USAGE
+            ? false
+            : (bool) Arr::get($data, 'has_prize', false);
+        $users = $usage === self::PROJECT_CREATION_USAGE
+            ? []
+            : Arr::get($data, 'users', []);
+        $existingForm = $id ? CustomForm::find($id) : null;
+        $publicAccess = $this->normalizePublicSetting($data, $usage);
+        if ($publicAccess['is_public'] && $existingForm?->public_token) {
+            $publicAccess['public_token'] = $existingForm->public_token;
+        }
+        if ($publicAccess['is_public']) {
+            $users = [];
+            $hasPrize = false;
+            $repeatSetting = 0;
+            $repeatDay = null;
+        }
+        $this->ensureExclusiveActiveProjectCreationForm($usage, $status, $id, $projectTypeId);
 
         $form = CustomForm::updateOrCreate(
-            ['id' => $this->sanitizeId(Arr::get($data, 'id'))],
+            ['id' => $id],
             [
                 'title' => Arr::get($data, 'title'),
                 'description' => Arr::get($data, 'description'),
-                'repeat_setting' => Arr::get($data, 'repeat_setting' ),
-                'repeat_day' => Arr::get($data, 'repeat_day' ),
+                'repeat_setting' => $repeatSetting,
+                'repeat_day' => $repeatDay,
                 'board_record_id' => Arr::get($data, 'board_record_id', null),
-                'has_prize' => Arr::get($data, 'has_prize', false),
+                'has_prize' => $hasPrize,
+                'is_public' => $publicAccess['is_public'],
+                'public_token' => $publicAccess['public_token'],
+                'status' => $status,
+                'usage' => $usage,
+                'project_type_id' => $projectTypeId,
             ]
         );
-        $users = Arr::get($data, 'users', []);
         $user_ids = collect($users)->map(fn($user) => $user['id']);
 
         $admins = Arr::get($data, 'admins', []);
@@ -209,16 +329,24 @@ class CustomFormController extends Controller
     public function update_custom_form_status(Request $request){
         $request->validate([
             'id' => 'required|integer',
-            'status' => 'required|integer',
+            'status' => 'required|integer|in:0,1',
         ]);
         $form = CustomForm::findOrFail($request->id);
+        $nextStatus = (int) $request->status;
+        $this->ensureExclusiveActiveProjectCreationForm(
+            $this->normalizeUsage($form->usage),
+            $nextStatus,
+            $form->id,
+            $form->project_type_id
+        );
         $form->update([
-            'status' => $request->status,
+            'status' => $nextStatus,
         ]);
         return response()->json($form);
     }
     private function saveBlocks($form, array $blocks)
     {
+        $usage = $this->normalizeUsage($form->usage);
         $block_ids = [];
         $block_id_map = [];
         $element_id_map = [];
@@ -232,8 +360,15 @@ class CustomFormController extends Controller
                     'is_required' => Arr::get($block, 'is_required', false),
                     'order_number' => Arr::get($block, 'order_number'),
                     'placeholder' => Arr::get($block, 'placeholder'),
+                    'categories' => null,
                 ]
             );
+            if ($usage === self::PROJECT_CREATION_USAGE) {
+                $categoryIds = $this->resolveBlockCategoryIds($block);
+                $blockModel->checkitemCategories()->sync($categoryIds);
+            } else {
+                $blockModel->checkitemCategories()->sync([]);
+            }
             $block_ids[] = $blockModel->id;
             $original_block_id = Arr::get($block, 'id');
             if (is_numeric($original_block_id)) {
@@ -341,46 +476,188 @@ class CustomFormController extends Controller
     {
         return (is_numeric($id) && $id > 0) ? $id : null;
     }
+    private function normalizePublicSetting(array $data, string $usage): array
+    {
+        $requested = $usage !== self::PROJECT_CREATION_USAGE
+            && (bool) Arr::get($data, 'is_public', false);
+
+        if (!$requested) {
+            return [
+                'is_public' => false,
+                'public_token' => null,
+            ];
+        }
+
+        $blocks = Arr::get($data, 'blocks', []);
+        $hasFileBlock = collect($blocks)->contains(
+            fn ($block) => Arr::get($block, 'type') === 'file'
+        );
+
+        if ($hasFileBlock) {
+            throw ValidationException::withMessages([
+                'is_public' => '公開フォームではファイル質問をまだ利用できません。',
+            ]);
+        }
+
+        return [
+            'is_public' => true,
+            'public_token' => $this->generatePublicToken(),
+        ];
+    }
+    private function generatePublicToken(): string
+    {
+        do {
+            $token = Str::random(40);
+        } while (CustomForm::where('public_token', $token)->exists());
+
+        return $token;
+    }
+    private function normalizeUsage($usage): string
+    {
+        return $usage === self::PROJECT_CREATION_USAGE
+            ? self::PROJECT_CREATION_USAGE
+            : 'general';
+    }
+    private function normalizeRepeatSetting(string $usage, $repeatSetting): int
+    {
+        if ($usage === self::PROJECT_CREATION_USAGE) {
+            return 0;
+        }
+
+        return (int) $repeatSetting === 1 ? 1 : 0;
+    }
+    private function ensureExclusiveActiveProjectCreationForm(string $usage, int $status, ?int $ignoreId = null, ?int $projectTypeId = null): void
+    {
+        if ($usage !== self::PROJECT_CREATION_USAGE || $status !== 0) {
+            return;
+        }
+
+        if (!$projectTypeId) {
+            throw ValidationException::withMessages([
+                'project_type_id' => '案件作成フォームにはプロジェクト種別が必要です。',
+            ]);
+        }
+
+        $query = CustomForm::query()
+            ->where('usage', self::PROJECT_CREATION_USAGE)
+            ->where('status', 0)
+            ->where('project_type_id', $projectTypeId);
+
+        if ($ignoreId !== null) {
+            $query->where('id', '!=', $ignoreId);
+        }
+
+        if (!$query->exists()) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'project_type_id' => '選択したプロジェクト種別には進行中の案件作成フォームが既に存在します。既存フォームを完了してから作成・再開してください。',
+        ]);
+    }
+    private function resolveBlockCategoryIds(array $block): array
+    {
+        $categoryInputs = collect(Arr::get($block, 'category_ids', []))
+            ->when(
+                empty(Arr::get($block, 'category_ids')),
+                fn ($items) => $items->merge(Arr::get($block, 'categories', []))
+            )
+            ->unique()
+            ->values();
+
+        $ids = collect();
+        $labels = collect();
+
+        foreach ($categoryInputs as $input) {
+            if (is_numeric($input)) {
+                $ids->push((int) $input);
+                continue;
+            }
+
+            $label = trim((string) $input);
+            if ($label !== '') {
+                $labels->push($label);
+            }
+        }
+
+        if ($labels->isNotEmpty()) {
+            $existing = ProjectCheckitemCategory::whereIn('label', $labels->all())->pluck('id', 'label');
+            foreach ($labels->unique() as $label) {
+                $categoryId = $existing[$label] ?? $this->createCategoryFromLabel($label);
+                $ids->push((int) $categoryId);
+            }
+        }
+
+        return $ids->unique()->values()->all();
+    }
+
+    private function createCategoryFromLabel(string $label): int
+    {
+        $label = trim($label);
+        $existing = ProjectCheckitemCategory::where('label', $label)->first();
+        if ($existing) {
+            return (int) $existing->id;
+        }
+
+        $baseKey = Str::slug($label, '_') ?: 'category';
+        $key = $baseKey;
+        $suffix = 2;
+        while (ProjectCheckitemCategory::where('key', $key)->exists()) {
+            $key = $baseKey . '_' . $suffix;
+            $suffix++;
+        }
+
+        $sortOrder = ((int) ProjectCheckitemCategory::max('sort_order')) + 1;
+
+        return (int) ProjectCheckitemCategory::create([
+            'key' => $key,
+            'label' => $label,
+            'sort_order' => $sortOrder,
+            'status' => 0,
+        ])->id;
+    }
     public function save_survey_answer(Request $request){
 
         $active_user = $this->active_user();
-        $survey = SurveyAnswer::firstOrCreate([
-            "id" => $request->survey_answer_id,
-        ]);
-        if($request->survey_answer_id){
-            $survey->block_answers->each(function($block_answer){
-                $block_answer->element_answers()->delete();
-            });
-            $survey->block_answers()->delete();
-        }
-        
-
-
-        $survey->update([
-            'status' => $request->status,
-            'custom_form_id' => $request->custom_form_id,
-            'user_id' => $active_user->id,
-            'target_date' => $request->target_date ?? null,
-        ]);    
-
-        $params = $request->params;
-        foreach($params as $block){
-            $block_answer = $survey->block_answers()->create([
-                "user_id" => $active_user->id,
-                "text_answer" => $block['text_answer'],
-                "custom_form_block_id" => $block['custom_form_block_id']
+        $survey = DB::transaction(function () use ($request, $active_user) {
+            $survey = SurveyAnswer::firstOrCreate([
+                "id" => $request->survey_answer_id,
             ]);
-            $block_answer->files()->sync($block['files']);
-            $elements = $block['element_answers'];
-            foreach($elements as $element){
-                $block_answer->element_answers()->create([
-                    "user_id" => $active_user->id,
-                    "custom_form_block_element_id" => $element['custom_form_block_element_id'],
-                    "sub_text" => $element['sub_text'] ?? null,
-                    "checked" => $element['checked']
-                ]);
+            if($request->survey_answer_id){
+                $survey->block_answers->each(function($block_answer){
+                    $block_answer->element_answers()->delete();
+                });
+                $survey->block_answers()->delete();
             }
-        }
+
+            $survey->update([
+                'status' => $request->status,
+                'custom_form_id' => $request->custom_form_id,
+                'user_id' => $active_user->id,
+                'target_date' => $request->target_date ?? null,
+            ]);
+
+            $params = $request->params;
+            foreach($params as $block){
+                $block_answer = $survey->block_answers()->create([
+                    "user_id" => $active_user->id,
+                    "text_answer" => $block['text_answer'],
+                    "custom_form_block_id" => $block['custom_form_block_id']
+                ]);
+                $block_answer->files()->sync($block['files']);
+                $elements = $block['element_answers'];
+                foreach($elements as $element){
+                    $block_answer->element_answers()->create([
+                        "user_id" => $active_user->id,
+                        "custom_form_block_element_id" => $element['custom_form_block_element_id'],
+                        "sub_text" => $element['sub_text'] ?? null,
+                        "checked" => $element['checked']
+                    ]);
+                }
+            }
+
+            return $survey;
+        });
 
         $prize_eligible = false;
         $custom_form = CustomForm::findOrFail($request->custom_form_id);
@@ -440,7 +717,9 @@ class CustomFormController extends Controller
             foreach($survey as $s){
                 $user = $s->user;                
                 $data = [];
+                $data['id'] = $s->id;
                 $data['user'] = $user;
+                $data['respondent_label'] = $s->respondent_label;
                 $data['created_at'] = $s->updated_at;
                 $blocks = $custom_form->blocks;
                 foreach($blocks as $block){
@@ -541,14 +820,18 @@ class CustomFormController extends Controller
             //         $q->where('user_id', $active_user->id);
             //     });
             // })
-            ->with(['users', 'admins', 'survey_answers' => function($q){
+            ->with(['users' => function ($q) use($active_user) {
+                    $q->orderByRaw('user_id = ? DESC', [$active_user->id]);
+                }, 
+                'admins', 'survey_answers' => function($q){
                 $q->with(['user' => function($q){
                     $q->select('id', 'name', 'icon_path', 'icon_bg');
                 }, 'block_answers' => function($q){
                     $q->with(['element_answers' => function($q){
                         $q->with('user');
                     }])->with('files');
-                },]);
+                },])
+                ->orderBy('updated_at', 'desc');
             }])
             ->orderBy('created_at', 'desc')
             ->get();

@@ -108,6 +108,20 @@
                     </div>
                     <span class="form-plc" :class="{smallPlc: userParams.phone_number}">電話番号</span>  -->
                 </div>
+                <div v-if="!isPartner" class="si-box">
+                    <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">入社日</p>
+                    <div class="flex">
+                        <ShortInput 
+                            name="joined_date" 
+                            type="date"
+                            :rules="'required'"
+                            ref="joinedDateRef"
+                            customClass="date"
+                            v-model="userParams.joined_date"
+                        />
+                    </div>
+                    
+                </div>
                 <div class="si-box" v-if="!isPartner" style="flex-direction:column">
                     <span class="user form-label">メンバーページに表示</span>
                     <div class="input-inner-wrapper" style="margin-top:15px;">                        
@@ -170,9 +184,8 @@
                     />
                 </div>
 
-                <div style="padding: 15px;border: solid thin tomato;" class="si-box">
+                <div v-if="!isPartner" style="padding: 15px;border: solid thin tomato;" class="si-box">
                     <MemberSelector 
-                        v-if="!isPartner"
                         placeHolder="サブアカウント"
                         v-model="subParams.linked"
                         :options="linkables"
@@ -226,7 +239,7 @@ import { useApi } from '@/composables/api';
     const passwordRef = ref(null)
     const userCodeRef = ref(null)
     const workTimeRef = ref(null)
-
+    const joinedDateRef = ref(null)
     const userParams = reactive({
         name: props.editUserData ? props.editUserData.name : '',
         name_kana: props.editUserData ? props.editUserData.name_kana :  '',
@@ -242,6 +255,7 @@ import { useApi } from '@/composables/api';
         hide_flag: props.editUserData ? props.editUserData.hide_flag :  0,
         user_code:props.editUserData ? props.editUserData.user_code :  '',
         on_leave: props.editUserData ? props.editUserData.on_leave : 0,
+        joined_date: props.editUserData ? props.editUserData.joined_date : '',
     })
 
     const subParams = reactive({
@@ -270,7 +284,8 @@ import { useApi } from '@/composables/api';
             emailRef.value,
             passwordRef.value,
             userCodeRef.value,
-            workTimeRef.value
+            workTimeRef.value,
+            !isPartner.value ? joinedDateRef.value : null
         ]
         const validateTargets = targets.filter( target => target !== null)
         let result = true

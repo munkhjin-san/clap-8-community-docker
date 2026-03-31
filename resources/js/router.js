@@ -177,7 +177,7 @@ const routes = [
                             {
                                 path: 'apply',
                                 name: 'project-overview-apply',
-                                component: () => import('./components/Project/ProjectTabs/Overview/ConfirmApply.vue')
+                                component: () => import('./components/Project/ProjectTabs/Overview/ProjectCreationForm.vue')
                             }
                         ]
                     },
@@ -437,6 +437,16 @@ const routes = [
                         name: 'projectlist',
                         
                         component: () => import('./components/AccountControl/ProjectControl/ProjectList.vue')
+                    },
+                    {
+                        path: 'projecttypes',
+                        name: 'projecttypes',
+                        component: () => import('./components/AccountControl/ProjectControl/ProjectTypes.vue')
+                    },
+                    {
+                        path: 'checkitem-categories',
+                        name: 'checkitem-categories',
+                        component: () => import('./components/AccountControl/ProjectControl/CheckItemCategories.vue')
                     },
                     {
                         path: 'mentorcontrol',

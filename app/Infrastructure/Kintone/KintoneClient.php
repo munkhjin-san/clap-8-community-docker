@@ -36,7 +36,10 @@ class KintoneClient
 
             return $data['records'] ?? [];
         } catch (ClientException $e) {
-            throw new \RuntimeException("Kintone API request failed: {$e->getMessage()}", 0, $e);
+            $body = $e->hasResponse()
+                ? (string) $e->getResponse()->getBody()
+                : 'no response body';
+            throw new \RuntimeException("Kintone API request failed: {$e->getMessage()} | Body: {$body}", 0, $e);
         }
     }
     public function getRecord(string|int $appId, string|int $recordId, array $fields = []): array
@@ -72,9 +75,36 @@ class KintoneClient
             'id'     => (string) $recordId,
             'record' => $record,
         ];
-        
+       
         try {
             $resp = $this->http->put("record.json", [
+                'headers' => [
+                    'X-Cybozu-Authorization' => $this->authHeader,
+                    'X-Requested-With'       => 'XMLHttpRequest',
+                    'Accept'                 => 'application/json',
+                ],
+                'json' => $payload,
+                'timeout' => 15,
+            ]);
+
+            return json_decode((string) $resp->getBody(), true) ?? [];
+
+        } catch (ClientException $e) {
+            $body = $e->hasResponse()
+                ? (string) $e->getResponse()->getBody()
+                : 'no response body';
+            throw new \RuntimeException("Kintone API request failed: {$e->getMessage()} | Body: {$body}", 0, $e);
+        }
+    }
+    public function postRecord(string|int $appId, array $record): array
+    {
+        $payload = [
+            'app'    => (string) $appId,
+            'record' => $record,
+        ];
+
+        try {
+            $resp = $this->http->post("record.json", [
                 'headers' => [
                     'X-Cybozu-Authorization' => $this->authHeader,
                     'X-Requested-With'       => 'XMLHttpRequest',

@@ -4,6 +4,10 @@ namespace App\Services;
 use Carbon\Carbon;
 use App\Models\boardRecord;
 use App\Models\boardToUser;
+use App\Models\ProjectCheckitemCategory;
+use App\Models\ProjectCheckitemTemplate;
+use App\Models\ProjectCheckitems;
+use App\Models\ProjectRecord;
 use App\Models\User;
 use App\Models\Icons;
 use App\Models\messageRecord;
@@ -23,7 +27,9 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\File; 
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Str;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
+use DB;
 use InvalidArgumentException;
 class SharedService
 {
@@ -274,13 +280,14 @@ class SharedService
         $user_position = $user->position_id;
 
         $holidayNum = match (true) {
-            $user_position == 12 => 9,
-            $user_position == 13 => 9,
-            $month == 12 => 10,
-            $month == 1 => 12,
-            $lastDay == 29 => 8.5,
             $lastDay == 28 => 8,
-            default => 9,
+            $lastDay == 29 => 8.5,
+            default => match (true) {
+                $user_position == 12, $user_position == 13 => 9,
+                $month == 12 => 10,
+                $month == 1 => 12,
+                default => 9,
+            },
         };
 
         $workDays = $lastDay - $holidayNum;
@@ -412,5 +419,117 @@ class SharedService
             "status" => "success",
             "message" => "出発報告を受け付けました。"
         ];
+    }
+
+    public function createCheckItems(int $projectId) {
+        return $this->syncProjectCheckItems($projectId);
+    }
+
+    public function syncProjectCheckItems(int $projectId): array
+    {
+        $project = ProjectRecord::with('specs')->findOrFail($projectId);
+        $projectTypeId = $project->project_type_id
+            ?? DB::table('project_types')->where('key', 'default')->value('id');
+
+        if (!$projectTypeId) {
+            return ['status' => 'skipped', 'count' => 0];
+        }
+
+        $activeCategoryIds = $this->resolveActiveCheckitemCategoryIds($project->specs?->spec_data);
+        if (!count($activeCategoryIds)) {
+            ProjectCheckitems::where('project_record_id', $projectId)
+                ->whereNotNull('project_checkitem_template_id')
+                ->update(['is_applicable' => false]);
+
+            return ['status' => 'ok', 'count' => 0];
+        }
+
+        $templates = ProjectCheckitemTemplate::with(['children.category', 'category'])
+            ->where('project_type_id', $projectTypeId)
+            ->where('status', 0)
+            ->whereNull('parent_id')
+            ->whereIn('project_checkitem_category_id', $activeCategoryIds)
+            ->orderBy('sort_order')
+            ->get();
+
+        $desiredIds = [];
+
+        DB::transaction(function () use ($templates, $projectId, &$desiredIds) {
+            foreach ($templates as $template) {
+                $parent = $this->upsertProjectCheckItemFromTemplate($projectId, $template, null);
+                $desiredIds[] = $parent->id;
+
+                foreach ($template->children as $childTemplate) {
+                    $child = $this->upsertProjectCheckItemFromTemplate($projectId, $childTemplate, $parent->id);
+                    $desiredIds[] = $child->id;
+                }
+            }
+
+            ProjectCheckitems::where('project_record_id', $projectId)
+                ->whereNotNull('project_checkitem_template_id')
+                ->when(
+                    count($desiredIds),
+                    fn ($q) => $q->whereNotIn('id', $desiredIds),
+                    fn ($q) => $q
+                )
+                ->update(['is_applicable' => false]);
+        });
+
+        return ['status' => 'ok', 'count' => count($desiredIds)];
+    }
+
+    private function upsertProjectCheckItemFromTemplate(int $projectId, ProjectCheckitemTemplate $template, ?int $parentId): ProjectCheckitems
+    {
+        $categoryLabel = $template->category?->label ?? $template->category_label ?? '未分類';
+
+        return ProjectCheckitems::updateOrCreate(
+            [
+                'project_record_id' => $projectId,
+                'project_checkitem_template_id' => $template->id,
+            ],
+            [
+                'project_checkitem_category_id' => $template->project_checkitem_category_id,
+                'category' => $categoryLabel,
+                'label' => trim($template->label),
+                'parent_id' => $parentId,
+                'sort_order' => $template->sort_order,
+                'is_applicable' => true,
+            ]
+        );
+    }
+
+    private function resolveActiveCheckitemCategoryIds($specData): array
+    {
+        if (!is_array($specData)) {
+            return [];
+        }
+
+        $categoryIds = collect(Arr::get($specData, 'active_category_ids', []))
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (count($categoryIds)) {
+            return $categoryIds;
+        }
+
+        $labels = collect(Arr::get($specData, 'active_categories', []))
+            ->map(fn ($label) => trim((string) $label))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (!count($labels)) {
+            return [];
+        }
+
+        return ProjectCheckitemCategory::whereIn('label', $labels)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
     }
 }

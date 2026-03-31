@@ -2,52 +2,57 @@
     <div class="mx-[20px]">
         
         <table id="customers">
-            <tr style="position: sticky;top: -1px; z-index: 1;">
-                <th>氏名</th>
-                <th>会社名</th>
-                <th>種類</th>
-                <th>住所</th>
-                <th>メールアドレス</th>
-                <th>電話番号</th>
-                <th>FAX</th>
-                <th>共同制作者</th>
-                <th class="whitespace-nowrap">詳細</th>
-                <th class="whitespace-nowrap">メモ</th>
-            </tr>
-            <tr v-for="contact in contacts">
-                <td class="whitespace-nowrap">{{contact.name}}</td>
-                <td>{{contact.company_name}}</td>
-                <td>{{contact?.type?.title || '未設定'}}</td>
-                <td>{{contact.address}}</td>
-                <td>{{contact.email}}</td>
-                <td>{{contact.phone}}</td>
-                <td>{{contact.fax}}</td>
-                <td>
-                    <div class="flex items-center">
-                        <div v-for="co in contact.collaborators" :key="co.id">
-                            <UserPanel :user="co" :size="15" />
+            <thead>
+                <tr style="position: sticky;top: -1px; z-index: 1;">
+                    <th>氏名</th>
+                    <th>会社名</th>
+                    <th>種類</th>
+                    <th>住所</th>
+                    <th>メールアドレス</th>
+                    <th>電話番号</th>
+                    <th>FAX</th>
+                    <th>共同制作者</th>
+                    <th class="whitespace-nowrap">詳細</th>
+                    <th class="whitespace-nowrap">メモ</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="contact in contacts">
+                    <td class="whitespace-nowrap">{{contact.name}}</td>
+                    <td>{{contact.company_name}}</td>
+                    <td>{{contact?.type?.title || '未設定'}}</td>
+                    <td>{{contact.address}}</td>
+                    <td>{{contact.email}}</td>
+                    <td>{{contact.phone}}</td>
+                    <td>{{contact.fax}}</td>
+                    <td>
+                        <div class="flex items-center">
+                            <div v-for="co in contact.collaborators" :key="co.id">
+                                <UserPanel :user="co" :size="15" />
+                            </div>
                         </div>
-                    </div>
-                    
-                </td>
-                <td class="">
-                    <div class="flex whitespace-nowrap gap-1 items-center">
-                        <router-link :to="{name: 'contactDetail', params: {contactId: contact.id}}">詳細</router-link>
-                        <span v-if="badge.contactBadge.some(c => c.contact_id === contact.id)" class="side-notification" style="position: static">
-                            {{ badge.contactBadge.find(c => c.contact_id === contact.id).comments }}
-                        </span>
-                    </div>
-                    
-                </td>
-                <td class="whitespace-nowrap">
-                    <button
-                        type="button"
-                        class="jump-link !bg-inherit"
-                        @click="openMemo(contact)"
-                        v-if="contact?.collaborators?.some(co => co.id === auth.id)"
-                    >メモ</button>
-                </td>
-            </tr>
+                        
+                    </td>
+                    <td class="">
+                        <div class="flex whitespace-nowrap gap-1 items-center">
+                            <router-link :to="{name: 'contactDetail', params: {contactId: contact.id}}">詳細</router-link>
+                            <span v-if="badge.contactBadge.some(c => c.contact_id === contact.id)" class="side-notification" style="position: static">
+                                {{ badge.contactBadge.find(c => c.contact_id === contact.id).comments }}
+                            </span>
+                        </div>
+                        
+                    </td>
+                    <td class="whitespace-nowrap">
+                        <button
+                            type="button"
+                            class="jump-link !bg-inherit"
+                            @click="openMemo(contact)"
+                            v-if="contact?.collaborators?.some(co => co.id === auth.id)"
+                        >メモ</button>
+                    </td>
+                </tr>
+            </tbody>
+            
         </table>
     </div>
 </template>

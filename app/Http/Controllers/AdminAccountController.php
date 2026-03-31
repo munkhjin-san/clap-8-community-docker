@@ -121,7 +121,7 @@ class AdminAccountController extends Controller
         $user->user_code = $user_params['user_code'];
         $user->work_type = $user_params['work_type'];
         $user->on_leave = $user_params['on_leave'];
-        
+        $user->joined_date = $user_params['joined_date'];
         $user->work_time_day = $user_params['work_time_day'];
         $user->hide_flag = $user_params['hide_flag'];
         if($user_params['position_id'] == 6){

@@ -1,6 +1,9 @@
 
 import { User } from "./globalInterface"
 import { FileRecord } from "./trayInterface"
+import type { ProjectType } from "./projectInterface"
+
+export type CustomFormUsage = 'general' | 'project_creation'
 
 export interface CustomForm {
     id: number	
@@ -17,6 +20,13 @@ export interface CustomForm {
     repeat_day?: number
     board_record_id?: number | null
     has_prize?: boolean
+    is_public?: boolean
+    public_token?: string | null
+    status?: number
+    usage?: CustomFormUsage
+    project_type_id?: number | null
+    projectType?: ProjectType | null
+    project_type?: ProjectType | null
 }
 export interface CustomFormUser extends User {
     pivot: {
@@ -37,6 +47,10 @@ export interface CustomFormBlock {
     order_number?: number
     placeholder?: string
     depends_on?: CustomFormBlockDependsOn[] | null
+    categories?: string[] | null
+    category_ids?: Array<number | string> | null
+    checkitemCategories?: { id: number; label: string; name?: string }[]
+    checkitem_categories?: { id: number; label: string; name?: string }[]
 }
 export type CustomFormBlockType = 'checkbox' | 'radio' | 'singletext' | 'multitext' | 'date' | 'time' | 'select' | 'file' | 'header'
 export type CustomFormBlockState = 'control' | 'live'
@@ -71,6 +85,7 @@ export interface SurveyAnswer{
     status?: number
     target_date?: string | null
     custom_form?: CustomForm | null
+    respondent_label?: string
 }
 
 export interface SurveyBlockAnswer{

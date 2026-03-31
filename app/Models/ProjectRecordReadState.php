@@ -10,6 +10,7 @@ class ProjectRecordReadState extends Model
         'user_id',
         'project_record_id',
         'last_seen_at',
+        'type',
     ];
 
     public function user()

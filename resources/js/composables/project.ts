@@ -1,6 +1,7 @@
 import { User } from "@/interface/globalInterface";
 import { Project } from "@/interface/projectInterface";
 import { useAuthUserStore } from "@/store/auth";
+import { useBadgeStore } from "@/store/badge";
 import { detailedDateOptions } from "@/utils/tools";
 import axios from "axios";
 import { DateTime } from "luxon";
@@ -13,7 +14,7 @@ export function useProject() {
 
     
     const auth = useAuthUserStore()
-
+    const badge = useBadgeStore()
     const projectList = computed(() => list.value);
     const route = useRoute();
     const setProjectList = (projects: Project[]) => {
@@ -116,6 +117,12 @@ export function useProject() {
         const goalDate = options.find(option => option.year === year && option.which_half === which_half)
         return goalDate
     })
+    const projectReportBadge = computed(() => {
+        return badge.projectReportMap[Number(route.params.projectId)] ?? 0
+    })
+    const checkItemConfirmBadge = computed(() => {
+        return badge.checkItemConfirmByFilter[Number(route.params.projectId)] ?? 0
+    })
     return {
         projectList,
         getProjects,
@@ -127,7 +134,9 @@ export function useProject() {
         isManagerOrMember,
         isManager,
         selectedDate,
-        updateProject
+        updateProject,
+        projectReportBadge,
+        checkItemConfirmBadge
         
     };
 }

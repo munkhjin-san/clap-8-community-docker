@@ -29,6 +29,10 @@ interface State {
         records: [{
             project_record_id: number | null,
             unread_count: number
+            types: [{
+                type: string,
+                unread_count: number
+            }]
         }],
         total: number
     },
@@ -65,7 +69,7 @@ export const useBadgeStore = defineStore('badge', () => {
     const boardBadgeFetchedAt = ref<number | null>(null);
     const boardBadgeRequest = ref<Promise<void> | null>(null);
     const communityBadge = ref(false);
-    const project_report = ref<{records: {project_record_id: number | null, unread_count: number}[], total: number}>({records: [], total: 0});
+    const project_report = ref<{records: {project_record_id: number | null, unread_count: number, types: {type: string, unread_count: number}[]}[], total: number}>({records: [], total: 0});
     const check_item_confirm = ref<{total: number, records: {project_id: number, count: number}[]}>({total: 0, records: []});
     // Actions
     function setTaskBadge(payload: number[]) {
@@ -149,6 +153,10 @@ export const useBadgeStore = defineStore('badge', () => {
     async function clearProjectReportBadge() {
         const response = await axios.get('/clear_project_report_badge').then(response => response.data);
         project_report.value = response;
+    }
+    async function clearProjectConfirmBadge() {
+        const response = await axios.get('/clear_project_confirm_badge').then(response => response.data);
+        check_item_confirm.value = response;
     }
     async function clearGoalIssue({column, value}: {column: string, value: any}) {
         const response = await axios.post('/clear_goal_issue_badge', {column: column, value: value});
@@ -318,6 +326,22 @@ export const useBadgeStore = defineStore('badge', () => {
     const communityBadgeStatus = computed(() => {
         return communityBadge.value;
     });
+    const projectReportMapByType = computed(() => {
+        const map: Record<number, Record<string, number>> = {};
+
+        project_report.value.records.forEach(record => {
+            const recordId = record.project_record_id;
+            if (recordId == null) return;
+
+            map[recordId] ??= {};
+
+            record.types.forEach(t => {
+                if (t.type == null) return; // skip null
+                map[recordId][t.type] = t.unread_count;
+            });
+        });
+        return map;
+    })
     const projectReportMap = computed(() => {
         const map: {[project_record_id: number]: number} = {};
         project_report.value.records.forEach(record => {
@@ -372,6 +396,7 @@ export const useBadgeStore = defineStore('badge', () => {
         getTodayReadableBadge,
         getbadgeSummary,
         clearProjectReportBadge,
+        clearProjectConfirmBadge,
         // Getters
         activeUsersBoardBadge,
         totalBoardBadge,
@@ -391,6 +416,7 @@ export const useBadgeStore = defineStore('badge', () => {
         contactBadge,
         communityBadgeStatus,
         projectReportMap,
+        projectReportMapByType,
         checkItemConfirmByFilter,
     };
 })

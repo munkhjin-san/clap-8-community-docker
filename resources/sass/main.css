@@ -6603,7 +6603,9 @@ input:autofill {
   line-height: normal;
   margin-bottom: 20px;
 }
-
+.project-detail-header pre {
+  white-space: break-spaces;
+}
 .cell-width {
   width: 100px;
 }

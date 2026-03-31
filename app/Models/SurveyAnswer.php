@@ -9,6 +9,7 @@ class SurveyAnswer extends Model
 {
     use HasFactory, SoftDeletes;
     protected $guarded = [];
+    protected $appends = ['respondent_label'];
     public function block_answers(){
         return $this->hasMany(SurveyBlockAnswer::class);
     }
@@ -17,5 +18,13 @@ class SurveyAnswer extends Model
     }
     public function custom_form(){
         return $this->belongsTo(CustomForm::class, 'custom_form_id');
+    }
+    public function getRespondentLabelAttribute(): string
+    {
+        if ($this->relationLoaded('user') && $this->user) {
+            return $this->user->name;
+        }
+
+        return '匿名回答 #' . $this->id;
     }
 }

@@ -24,12 +24,18 @@
                 
             </div>
             <div class="si-box flex justify-center gap-[20px]">
-                <LoaderButton content="一時保存する" style="margin:0" :loading="loading[1]" @triggered="sendSurvey(1)"/>
+                <LoaderButton
+                    v-if="!guestMode"
+                    content="一時保存する"
+                    style="margin:0"
+                    :loading="loading[1]"
+                    @triggered="sendSurvey(1)"
+                />
                 <LoaderButton content="送信する" style="margin:0" :loading="loading[2]" @triggered="sendSurvey(2)"/>
             </div>
         </div>
         <Teleport to="body">
-            <RollDice :form-id="survey.id" v-if="prizeEligible" @close="closePrize"/>
+            <RollDice :form-id="survey.id" v-if="prizeEligible && !guestMode" @close="closePrize"/>
         </Teleport>
     </div>
 </template>
@@ -53,6 +59,8 @@ const props = defineProps<{
     survey: CustomForm
     mode?: 'board' | 'all'
     answerId?: number | null
+    submitUrl?: string
+    guestMode?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -65,9 +73,10 @@ const { ping } = useDialog()
 const prizeEligible = ref(false)
 const answerId = ref<number | null>(null)
 const { getBatchDashboardData } = useDashboardStore()
+const guestMode = computed(() => !!props.guestMode)
 onMounted(() => {
     const answerEditId = props.answerId || route.query.answerId || null
-    if(props.survey.survey_answers && answerEditId){
+    if(props.survey.survey_answers && answerEditId && auth.id){
         const targetAnswer = props.survey.survey_answers.find(a => a.id == answerEditId)
         console.log('targetAnswer', targetAnswer)
         if(targetAnswer && targetAnswer.user_id == auth.id){
@@ -163,13 +172,13 @@ const sendSurvey = async(status:number) => {
         custom_form_id: props.survey.id,
         params: constructedBlocks,
         status: status,
-        survey_answer_id: answer && answer.value.id ? answer.value.id : null,
+        survey_answer_id: guestMode.value ? null : (answer && answer.value.id ? answer.value.id : null),
         target_date: answer.value.target_date,
     }
     
     loading[status] = true
     const messages = ['', '保存しました。', '送信しました。']
-    const data = await api.post('/save_survey_answer', params, {
+    const data = await api.post(props.submitUrl || '/save_survey_answer', params, {
         toast: messages[status]
     })
     loading[status] = false
@@ -178,7 +187,9 @@ const sendSurvey = async(status:number) => {
         answerId.value = data.id
     }else{
         setTimeout(() => {        
-            getBatchDashboardData(['forms']) 
+            if (auth.id && !guestMode.value) {
+                getBatchDashboardData(['forms'])
+            }
             emit('saved', status, data?.id)
         }, 300);
     }
@@ -189,7 +200,9 @@ const sendSurvey = async(status:number) => {
 
 const closePrize = () => {
     prizeEligible.value = false
-    getBatchDashboardData(['forms']) 
+    if (auth.id && !guestMode.value) {
+        getBatchDashboardData(['forms'])
+    }
     emit('saved', 2, answerId.value)
 }
 </script>

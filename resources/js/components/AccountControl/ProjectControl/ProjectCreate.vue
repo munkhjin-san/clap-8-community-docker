@@ -37,6 +37,19 @@
                                 />
                             </div>
                             <div class="si-box">
+                                <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">プロジェクト種別</p>
+                                <select
+                                    v-model="projectParams.project_type_id"
+                                    class="custom-a-input"
+                                >
+                                    <option :value="null">選択してください</option>
+                                    <option v-for="type in projectTypes" :key="type.id" :value="type.id">
+                                        {{ type.label }}
+                                    </option>
+                                </select>
+                                <p v-if="projectTypeError" class="text-[12px] text-[tomato] mt-[8px]">{{ projectTypeError }}</p>
+                            </div>
+                            <div class="si-box">
                                 <MemberSelector 
                                     name="manager"
                                     rules="required"
@@ -104,7 +117,16 @@
                                     />
                                 </div>  
                             </div>
-                            <div v-if="fullAccess" class="si-box">
+                            <div class="si-box">
+                                <p class="text-[14px]">更新の可能性</p>
+                                <div class="mt-[15px] flex flex-wrap gap-[15px]">
+                                    <label v-for="rp in [{value: 1, label: '有'}, {value: 0, label: '無'}]" class="flex items-center gap-[10px] text-[12px] user-select-none cursor-pointer" :key="rp.value">
+                                        <input class="custom-f-radio" type="radio" v-model="projectParams.is_renewable" :value="rp.value"/>
+                                        {{ rp.label }}
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="si-box">
                                 <p class="text-[14px]">部門</p>
                                 <div class="mt-[15px] flex flex-wrap gap-[15px]">
                                     <label v-for="rp in [{value: 1, label: '新規'}, {value: 0, label: '既存'}]" class="flex items-center gap-[10px] text-[12px] user-select-none cursor-pointer" :key="rp.value">
@@ -271,7 +293,6 @@
                                     name="customer"
                                     v-model="projectParams.customers!"
                                     placeHolder="顧客企業（正式名称）"
-                                    :rules="'required'"
                                     ref="partnerSelectorRef"
                                 />
                             </div>
@@ -296,7 +317,6 @@
                                                 label="業種区分"
                                                 :menu-props="{ scrollStrategy: 'close'}"
                                                 v-model="projectParams.industry_type"
-                                                @update:model-value="validateIndustryType(true)"
                                                 
                                             >
                                                 <template v-slot:chip="{ props, item }">
@@ -629,9 +649,7 @@
                     
                 </div>
                     <div v-if="fullAccess" class="si-box">
-                        <!-- <LoaderButton @triggered="createProject(editData?.status)" content="保存する"/> -->
-                        <LoaderButton @triggered="createProject('running')" content="保存する"/>
-
+                        <LoaderButton @triggered="createProject(editData?.status)" content="保存する"/>
                     </div>
                     <div v-else class="si-box flex gap-[30px] justify-center" id="projectCreateButton">
                         <LoaderButton @triggered="createProject(confirmDraftStatus)" :loading="isLoading(confirmDraftStatus)" content="下書き保存" style="margin:0;"/>
@@ -654,29 +672,25 @@
                         </div>
                     </div>
                 </div>
-                <div class="projectModalContent">
+                <div class="projectModalContent" @scroll="onScroll">
                     <div class="projectModalContentInner">
                         <div id="confirm" class="mb-[60px] section-hd">
-                            <p class="mb-[20px]"><strong>確認事項</strong></p>
-                            <ConfirmApply
-                                ref="confirmApplyRef"
-                                v-model="confirmApplyPayload"
+                            <ProjectCreationForm
+                                ref="projectCreationFormRef"
                                 :has-privilage="auth.hasPrivilage"
                                 :edit-data="editData?.specs?.spec_data"
-                                :files="editData?.specs?.files"
-                                :saving="isLoading('pending_director') || isLoading(confirmDraftStatus)"
-                                :show-actions="false"
+                                :project-type-id="projectParams.project_type_id ?? null"
                             />
                         </div>
                         <div class="si-box flex gap-[30px] justify-center" id="projectCreateConfirmButton">
                             <LoaderButton
-                                @triggered="saveDraftFromConfirmApply"
+                                @triggered="saveDraftFromProjectCreationForm"
                                 :loading="isLoading(confirmDraftStatus)"
                                 content="下書き保存"
                                 style="margin:0;"
                             />
                             <LoaderButton
-                                @triggered="submitFromConfirmApply"
+                                @triggered="submitFromProjectCreationForm"
                                 :loading="isLoading('pending_director')"
                                 content="申請する"
                                 style="margin:0;"
@@ -719,9 +733,10 @@ import ProjectContract from './ProjectContract.vue';
 import { contractTypeDefaults, contractRoleDefaults } from '@/utils/tools';
 import { useTour } from '@/composables/useTour';
 import { useTutorialStore } from '@/store/tutorial';
-import ConfirmApply from '@/components/Project/ProjectTabs/Overview/ConfirmApply.vue';
+import ProjectCreationForm from '@/components/Project/ProjectTabs/Overview/ProjectCreationForm.vue';
 import { validator } from '@/validation/validator';
-import type { ProjectApplyPayload } from '@/components/Project/ProjectTabs/Overview/confirmApplyMapper';
+import type { ProjectCreationSpecData } from '@/components/Project/ProjectTabs/Overview/projectCreationForm';
+import type { ProjectType } from '@/interface/projectInterface';
 
 type ProjectStatus = 'draft' | 'creating' | 'pending_director' | 'director_approved' | 'running' | 'returned'
 
@@ -736,6 +751,8 @@ const misoCreating = ref(false)
 const contractReviewing = ref(false)
 const auth = useAuthUserStore()
 const filePreview = useFilePreview()
+const projectTypes = ref<ProjectType[]>([])
+const projectTypeError = ref('')
 const uploaded = ref<File | null>(null)
 const contractInput = ref<HTMLInputElement | null>(null)
 const contractPreviewUrl = ref<string | null>(null)
@@ -749,7 +766,6 @@ const unitOptions = [
 type StatusRow = { status_id: number | null; label: string; selected: boolean; sort_order: number; is_system_default: boolean }
 const statusRows = ref<StatusRow[]>([])
 const suggestedStatuses = ref<string[]>([])
-
 const stepTitles = computed(() => [
   { name: "基本情報", hash: "#basic" },
   ...(fullAccess.value ? [{ name: "実績管理", hash: "#projectCreateAchievements" }] : []),
@@ -761,9 +777,42 @@ const stepTitles = computed(() => [
 ]);
 const confirmStepTitles = [{ name: "確認事項", hash: "#confirm" }]
 const isQuestion = ref(false)
-const confirmApplyPayload = ref<ProjectApplyPayload | undefined>(props.editData?.specs?.spec_data)
+const projectCreationPayload = ref<ProjectCreationSpecData | undefined>(undefined)
+const defaultPlan = {
+    revenue: "",
+    salary: "",
+    outsourcing: "",
+    travel: "",
+    communication: "",
+    supplies: "",
+    vehicle: "",
+    rent: "",
+    rental: "",
+    lease: "",
+    other: "",
+    remarks: ""
+}
+const normalizePlanData = (raw: unknown) => {
+    if (!raw) return { ...defaultPlan }
+    let parsed: any = raw
+    if (typeof raw === 'string') {
+        try {
+            parsed = JSON.parse(raw)
+        } catch {
+            parsed = {}
+        }
+    }
+    const obj = (parsed && typeof parsed === 'object') ? parsed : {}
+    return {
+        ...defaultPlan,
+        ...obj,
+        lease: obj.lease ?? obj.leasing ?? ""
+    }
+}
+const plan = reactive(normalizePlanData(props.editData?.specs?.plan_data))
 const projectParams = reactive<Partial<Project>>(props.editData ? { ...toRaw(props.editData) } : {
     name: '',
+    project_type_id: null,
     description: '',
     strategy_miso: '',
     mission: '',
@@ -777,6 +826,7 @@ const projectParams = reactive<Partial<Project>>(props.editData ? { ...toRaw(pro
     date_end: '',
     board_id: null,
     is_new: 1,
+    is_renewable: 1,
     has_goals: false,
     has_actual_func: false,
     unit_id: 'JPY',
@@ -784,6 +834,10 @@ const projectParams = reactive<Partial<Project>>(props.editData ? { ...toRaw(pro
     transitioned_at: '',
     contract_started_at: '',
 })
+const fetchProjectTypes = async() => {
+    const data = await api.get('/project_types')
+    projectTypes.value = Array.isArray(data) ? data as ProjectType[] : []
+}
 const contract_type = ref('outsourcing')
 const contract_role = ref('乙')
 const generatedTasks = ref<Task[]>([])
@@ -839,6 +893,7 @@ if (props.editData) {
     projectParams.has_actual_func = projectParams.has_actual_func ?? false;
 }
 onMounted(() => {
+    fetchProjectTypes()
     if(projectParams.customers == null){
         projectParams.customers = []
     }
@@ -871,7 +926,7 @@ const mainTaskRef = useTemplateRef<ComponentExposed<typeof SampleTask>[]>('mainT
 const projectMemo = useTemplateRef<ComponentExposed<typeof LongInput>>('projectMemo')
 const flowContainer = useTemplateRef('flowContainer')
 const contractStartedAtRef = useTemplateRef<ComponentExposed<typeof ShortInput>>('contractStartedAtRef')
-const confirmApplyRef = useTemplateRef<ComponentExposed<typeof ConfirmApply>>('confirmApplyRef')
+const projectCreationFormRef = useTemplateRef<ComponentExposed<typeof ProjectCreationForm>>('projectCreationFormRef')
 const serviceCategoryRef = useTemplateRef('serviceCategoryRef')
 const industryTypeRef = useTemplateRef('industryTypeRef')
 const descriptionGenerator = useTemplateRef<ComponentExposed<typeof AiGenerationProject>>('descriptionGenerator')
@@ -895,13 +950,7 @@ watch(
     },
     { deep: true }
 )
-watch(
-    () => projectParams.industry_type,
-    () => {
-        validateIndustryType(true)
-    },
-    { deep: true }
-)
+
 const uploadedMeta = computed(() => {
     if (!uploaded.value) return null
     const name = uploaded.value.name
@@ -938,11 +987,10 @@ const loaderPayload = computed(() => {
   return { loading: false, message: '', kind: null }
 })
 const fullAccess = computed(() => {
-    return true
-    // return props.editData && (props.editData.status == 'director_approved' || props.editData.status == 'running')
+    return props.editData && (props.editData.status == 'pending_director' || props.editData.status == 'director_approved' || props.editData.status == 'running')
 })
 const toProjectStatus = (value: unknown, fallback: ProjectStatus = 'draft'): ProjectStatus => {
-    if (value === 'draft' || value === 'creating' || value === 'pending_director' || value === 'director_approved' || value === 'running' || value === 'returned') return value
+    if (value === 'draft' || value === 'pending_director' || value === 'director_approved' || value === 'running' || value === 'returned') return value
     return fallback
 }
 const confirmDraftStatus = computed<ProjectStatus>(() => toProjectStatus(props.editData?.status, 'draft'))
@@ -1116,7 +1164,6 @@ const validation = async(mode: 'draft' | 'submit' = 'submit') => {
             projectMemo.value,
             contractStartedAtRef.value,
             { validate: () => validateServiceCategory() },
-            { validate: () => validateIndustryType() },
             partnerSelectorRef.value,
             descriptionGenerator.value,
             missionGenerator.value,
@@ -1156,15 +1203,19 @@ const validateByStatus = async(status: ProjectStatus) => {
 
     if (status === 'draft') {
         const titleValid = await validation('draft')
-        if (!titleValid) {
-            errors.push('下書き保存にはタイトルの入力が必要です。')
+        const projectTypeValid = Boolean(projectParams.project_type_id)
+        projectTypeError.value = projectTypeValid ? '' : 'プロジェクト種別を選択してください。'
+        if (!titleValid || !projectTypeValid) {
+            errors.push('下書き保存にはタイトルとプロジェクト種別の入力が必要です。')
         }
         return errors
     }
 
     const baseValid = await validation('submit')
     const managerValid = await managerValidation()
-    if (!baseValid || !managerValid) {
+    const projectTypeValid = Boolean(projectParams.project_type_id)
+    projectTypeError.value = projectTypeValid ? '' : 'プロジェクト種別を選択してください。'
+    if (!baseValid || !managerValid || !projectTypeValid) {
         errors.push('基本情報の必須項目を入力してください。')
     }
 
@@ -1179,18 +1230,23 @@ const goToConfirmApply = async() => {
     isQuestion.value = true
     activeHash.value = '#confirm'
 }
-const getConfirmPayload = (): ProjectApplyPayload | undefined => {
-    return confirmApplyPayload.value ?? confirmApplyRef.value?.getPayload?.()
+const getProjectCreationPayload = (): ProjectCreationSpecData | undefined => {
+    const latestPayload = projectCreationFormRef.value?.getPayload?.()
+    if (latestPayload) {
+        projectCreationPayload.value = latestPayload
+        return latestPayload
+    }
+    return projectCreationPayload.value
 }
-const saveDraftFromConfirmApply = () => {
+const saveDraftFromProjectCreationForm = () => {
     const status = toProjectStatus(props.editData?.status, 'draft')
-    const specs = getConfirmPayload()
+    const specs = getProjectCreationPayload()
     createProject(status, specs)
 }
-const submitFromConfirmApply = () => {
-    const result = confirmApplyRef.value?.validate?.()
+const submitFromProjectCreationForm = () => {
+    const result = projectCreationFormRef.value?.validate?.()
     if (!result?.valid || !result.payload) return
-    confirmApplyPayload.value = result.payload
+    projectCreationPayload.value = result.payload
     createProject('pending_director', result.payload)
 }
 const contractPayload = computed(() => {
@@ -1250,7 +1306,8 @@ const buildParams = (status: ProjectStatus, specs?: any) => ({
     contract_file_path: contractPayload.value?.file_path,
     contract_role: contractPayload.value?.role,
     contract_type: contractPayload.value?.type,
-    specs: specs
+    specs: specs,
+    plan: { ...plan }
 })
 const isLoading = (s: ProjectStatus) => loadingStatus.value === s
 const createProject = async(status: ProjectStatus, specs?: any) => {
@@ -1366,7 +1423,6 @@ const onScroll = (event) => {
     if (target.scrollTop + target.clientHeight >= target.scrollHeight) {
         currentSection = "tasks";
     }
-
     if (currentSection) {
         activeHash.value = `#${currentSection}`;
     }

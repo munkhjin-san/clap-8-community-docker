@@ -116,7 +116,7 @@
             </div>
             <div class="si-box">
                 <p class="mb-[10px]">ステータス</p>
-                <select class="dropDownSelector taskDateTimePicker !w-fit" style="max-width: 100%;" v-model="status">
+                <select class="option-picker" style="max-width: 100%;" v-model="status">
                     <option v-for="(status, index) in AssetStatus" :value="status.value">{{ status.label }}</option>
                 </select>
             </div>

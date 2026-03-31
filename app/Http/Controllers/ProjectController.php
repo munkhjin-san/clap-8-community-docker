@@ -9,6 +9,7 @@ use App\Models\boardRecord;
 use App\Models\EvaluationRecord;
 use App\Models\ProjectCondition;
 use App\Models\ProjectMember;
+use App\Models\ProjectType;
 use App\Models\ProjectRecord;
 use App\Models\ProjectSpec;
 use App\Models\ProjectSetIncrease;
@@ -26,6 +27,8 @@ use App\Models\ProjectResourceComment;
 use App\Models\ProjectPlanYear;
 use App\Models\ProjectMemberRole;
 use App\Models\CustomForm;
+use App\Models\ProjectCheckitemCategory;
+use App\Models\ProjectCheckitemTemplate;
 use App\Models\ProjectCheckitems;
 use App\Models\ProjectRecordReadState;
 use App\Services\MentionAndNotify;
@@ -159,9 +162,14 @@ class ProjectController extends Controller
             'members' => $usersLoader(true),
             'director',
             'contract',
+            'projectType',
             'specs.files',
             'memberRoles',
-            'checkitems',
+            'checkitems.check_user',
+            'checkitems.link_user',
+            'checkitems.categoryRecord',
+            'checkitems.children',
+            'checkitems.children.categoryRecord',
             'reports.user',
             'reports.files'
         ])
@@ -776,10 +784,16 @@ class ProjectController extends Controller
         return response()->json($checkProject);
     }
     public function create_project(Request $request) {
+        $request->validate([
+            'params.project_type_id' => ['required', 'integer', 'exists:project_types,id'],
+        ]);
+
         $id = $request->id ?? null;
         $params = $request->params;
+        
         $filteredParams = collect($params)->only([
             'name',
+            'project_type_id',
             'description',
             'private_memo',
             'mission',
@@ -813,25 +827,61 @@ class ProjectController extends Controller
         $manager = collect($params['manager'])->pluck('id')->toArray();
         $project->members()->sync($members);
         $project->manager()->syncWithPivotValues($manager, ['authority' => 1]);
+
+        if (!$id) {
+            $query = "order by レコード番号 desc limit 1";
+            $fields = ["文字列__1行__3"];
+            
+            $recs = $this->api->getRecords(26, $query, $fields);
+            
+            $rec = $recs[0] ?? null; 
+            if ($rec) {
+                $d_code = $rec['文字列__1行__3']['value'] ?? null;
+                if ($d_code) {
+                    $number = (int) filter_var($d_code, FILTER_SANITIZE_NUMBER_INT);
+                    $newNumber = $number + 1;
+                    $newDCode = 'D_' . str_pad($newNumber, 5, '0', STR_PAD_LEFT);
+                    $pm = $project->manager->first();
+                    $name = preg_replace('/\s+/u', '', $pm->name);
+                    $result = $this->api->postRecord(26, [
+                        '文字列__1行__3' => ['value' => $newDCode],
+                        '部門' => ['value' => $project->name],
+                        'プロジェクトマネージャー' => ['value' => $name],
+                        '文字列__複数行_' => ['value' => $project->description]
+                    ]);
+                }
+            }
+            
+        }
+        
         $tasks = $request->tasks ?? [];
         if(count($tasks)) {
             $this->create_generated_project_tasks($tasks, $project->id);
         }
         $specs = $request->input('specs');
-        if ($specs !== null) {
+        $plan = $request->input('plan');
+        if ($specs !== null || $plan !== null) {
             $spec = ProjectSpec::firstOrNew(['project_id' => $project->id]);
             if (!$spec->exists) {
                 $spec->created_by = Auth::id();
             }
             
-            $spec->spec_data = $specs;
+            if ($specs !== null) {
+                $spec->spec_data = $specs;
+            }
+            if ($plan !== null) {
+                $spec->plan_data = $plan;
+            }
             $spec->updated_by = Auth::id();
             
             $spec->save();
-            $files = Arr::get($specs, 'supplies_and_billing.reference_file_ids', []);
-            if (is_array($files)) {
-                $spec->files()->sync($files);
+            if ($specs !== null) {
+                $files = $this->collectProjectSpecFileIds($specs);
+                if (is_array($files)) {
+                    $spec->files()->sync($files);
+                }
             }
+            $this->sharedService->createCheckItems($project->id);
         }
         
         $raw = $request->input('contract_data');
@@ -871,22 +921,189 @@ class ProjectController extends Controller
         
         return response()->json($project);
     }
+    private function collectProjectSpecFileIds($specs): array
+    {
+        if (!is_array($specs)) {
+            return [];
+        }
+
+        $legacyFiles = Arr::get($specs, 'supplies_and_billing.reference_file_ids', []);
+        $formFiles = collect(Arr::get($specs, 'answer.block_answers', []))
+            ->flatMap(function ($block) {
+                $files = Arr::get($block, 'files', []);
+                return is_array($files) ? $files : [];
+            })
+            ->map(function ($file) {
+                if (is_array($file)) {
+                    return Arr::get($file, 'id');
+                }
+                return $file;
+            })
+            ->filter(fn ($id) => is_numeric($id) && (int) $id > 0)
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return array_values(array_unique([
+            ...collect(is_array($legacyFiles) ? $legacyFiles : [])
+                ->filter(fn ($id) => is_numeric($id) && (int) $id > 0)
+                ->map(fn ($id) => (int) $id)
+                ->all(),
+            ...$formFiles,
+        ]));
+    }
     public function check_item_categories() {
-        $categories = ProjectCheckItems::query()
-            ->distinct()
-            ->pluck('category')
+        $categories = ProjectCheckitemCategory::query()
+            ->where('status', 0)
+            ->orderBy('sort_order')
+            ->get(['id', 'label', 'key'])
+            ->map(fn ($category) => [
+                'id' => $category->id,
+                'label' => $category->label,
+                'name' => $category->label,
+                'key' => $category->key,
+            ])
             ->values()
             ->toArray();
         return response()->json($categories);
     }
+    public function save_check_item_category(Request $request)
+    {
+        $data = $request->validate([
+            'id' => ['nullable', 'integer'],
+            'label' => ['required', 'string', 'max:255'],
+        ]);
+
+        $label = trim($data['label']);
+        $category = ProjectCheckitemCategory::find($data['id'] ?? null);
+        $previousLabel = $category?->label;
+
+        $baseKey = Str::slug($label, '_') ?: 'checkitem_category';
+        $key = $baseKey;
+        $suffix = 2;
+        while (
+            ProjectCheckitemCategory::where('key', $key)
+                ->when($category?->id, fn ($q) => $q->where('id', '!=', $category->id))
+                ->exists()
+        ) {
+            $key = $baseKey . '_' . $suffix;
+            $suffix++;
+        }
+
+        $category = ProjectCheckitemCategory::updateOrCreate(
+            ['id' => $data['id'] ?? null],
+            [
+                'label' => $label,
+                'key' => $key,
+                'status' => 0,
+                'sort_order' => $category?->sort_order ?? (((int) ProjectCheckitemCategory::max('sort_order')) + 1),
+            ]
+        );
+
+        if ($previousLabel && $previousLabel !== $label) {
+            ProjectCheckitemTemplate::where('project_checkitem_category_id', $category->id)
+                ->update(['category_label' => $label]);
+
+            ProjectCheckitems::where('project_checkitem_category_id', $category->id)
+                ->update(['category' => $label]);
+        }
+
+        return response()->json($category);
+    }
+    public function delete_check_item_category(ProjectCheckitemCategory $category)
+    {
+        abort_if($category->templates()->exists(), 422, '利用中のチェック項目テンプレートがあるため削除できません。');
+        abort_if($category->formBlocks()->exists(), 422, '利用中の案件作成フォーム項目があるため削除できません。');
+        abort_if($category->checkitems()->exists(), 422, '利用中のプロジェクトチェック項目があるため削除できません。');
+
+        $category->delete();
+
+        return response()->json(['status' => 'ok']);
+    }
+    public function get_project_types()
+    {
+        $types = ProjectType::query()
+            ->where('status', 0)
+            ->orderBy('label')
+            ->get(['id', 'label', 'key']);
+
+        return response()->json($types);
+    }
+    public function save_project_type(Request $request)
+    {
+        $data = $request->validate([
+            'id' => ['nullable', 'integer'],
+            'label' => ['required', 'string', 'max:255'],
+        ]);
+
+        $label = trim($data['label']);
+        $projectType = ProjectType::find($data['id'] ?? null);
+
+        $baseKey = Str::slug($label, '_') ?: 'project_type';
+        $key = $baseKey;
+        $suffix = 2;
+        while (
+            ProjectType::where('key', $key)
+                ->when($projectType?->id, fn ($q) => $q->where('id', '!=', $projectType->id))
+                ->exists()
+        ) {
+            $key = $baseKey . '_' . $suffix;
+            $suffix++;
+        }
+
+        $projectType = ProjectType::updateOrCreate(
+            ['id' => $data['id'] ?? null],
+            [
+                'label' => $label,
+                'key' => $key,
+                'status' => 0,
+            ]
+        );
+
+        return response()->json($projectType);
+    }
+    public function delete_project_type(ProjectType $projectType)
+    {
+        abort_if($projectType->key === 'default', 422, '標準のプロジェクト種別は削除できません。');
+        abort_if($projectType->projects()->exists(), 422, '利用中のプロジェクト種別は削除できません。');
+        abort_if($projectType->forms()->exists(), 422, '利用中のフォームがあるため削除できません。');
+        abort_if($projectType->checkitemTemplates()->exists(), 422, '利用中のチェック項目テンプレートがあるため削除できません。');
+
+        $projectType->delete();
+
+        return response()->json(['status' => 'ok']);
+    }
+    public function get_project_checkitem_templates(Request $request)
+    {
+        $data = $request->validate([
+            'project_type_id' => ['required', 'integer', 'exists:project_types,id'],
+        ]);
+
+        $templates = ProjectCheckitemTemplate::with(['children', 'category'])
+            ->with(['children.category'])
+            ->where('project_type_id', $data['project_type_id'])
+            ->whereNull('parent_id')
+            ->where('status', 0)
+            ->orderBy('sort_order')
+            ->get();
+
+        return response()->json($templates);
+    }
     public function project_change_status(Request $request) {
         $request->validate([
             'id'     => ['required', 'integer'],
-            'status' => ['required', Rule::in(['director_approved', 'returned', 'running'])],
+            'status' => ['required', Rule::in(['director_approved', 'returned', 'running', 'completed', 'draft', 'pending_director'])],
+            'completed_at' => ['sometimes', 'nullable', 'date'],
         ]);
 
         $project = ProjectRecord::findOrFail($request->id);
-        $project->update(['status' => $request->status]);
+        $updateData = ['status' => $request->status];
+        if ($request->status !== 'completed') {
+            $updateData['completed_at'] = null;
+        } elseif ($request->has('completed_at')) {
+            $updateData['completed_at'] = $request->completed_at;
+        }
+
+        $project->update($updateData);
 
         return response()->json($project->fresh());
     }
@@ -906,126 +1123,75 @@ class ProjectController extends Controller
 
         $checkedBy = null;
         $checkedAt = null;
+        $linkedBy = null;
         if ($data['status'] !== 'pending') {
             $checkedBy = $user->id;
             $checkedAt = now();
         }
-
+        if(Auth::id() != $user->id){
+            $linkedBy = Auth::id();
+        }
         $item->update([
             'status' => $data['status'],
             'checked_by' => $checkedBy,
+            'linked_by' => $linkedBy,
             'checked_at' => $checkedAt,
         ]);
 
-        return response()->json($item->fresh());
+        return response()->json($item->fresh()->load('check_user', 'link_user'));
     }
     public function create_update_checkitem(Request $request) {
         $request->validate([
             'id'     => ['sometimes'],
-            'projectId' => ['required'], 
-            'category' => ['required'],
-            'label' => ['required']
+            'projectTypeId' => ['nullable', 'integer', 'exists:project_types,id'],
+            'projectId' => ['nullable', 'integer', 'exists:project_records,id'],
+            'category_id' => ['nullable', 'integer', 'exists:project_checkitem_categories,id'],
+            'category' => ['nullable', 'string'],
+            'label' => ['required'],
+            'parent_id' => ['nullable', 'integer', 'exists:project_checkitem_templates,id'],
         ]);
 
 
         $id = $request->id ?? null;
-        $record = ProjectCheckItems::updateOrCreate(
+        $projectTypeId = $request->projectTypeId
+            ?? ProjectRecord::where('id', $request->projectId)->value('project_type_id')
+            ?? ProjectType::where('key', 'default')->value('id');
+        $categoryId = $this->resolveCheckitemCategoryId(
+            $request->integer('category_id') ?: null,
+            (string) $request->category
+        );
+        $categoryLabel = ProjectCheckitemCategory::find($categoryId)?->label ?? trim((string) $request->category);
+
+        $record = ProjectCheckitemTemplate::updateOrCreate(
             ['id' => $id],
             [
-                'project_record_id' => $request->projectId,
-                'category' => $request->category,
-                'label' => $request->label
+                'project_type_id' => $projectTypeId,
+                'project_checkitem_category_id' => $categoryId,
+                'category_label' => $categoryLabel,
+                'label' => $request->label,
+                'parent_id' => $request->parent_id,
+                'status' => 0,
+                'sort_order' => $request->sort_order ?? (((int) ProjectCheckitemTemplate::where('project_type_id', $projectTypeId)->max('sort_order')) + 1),
             ]
         );
         return response()->json($record);
 
     }
-    public function delete_checkitem(ProjectCheckItems $checkitem) {
+    public function delete_checkitem(ProjectCheckitemTemplate $checkitem) {
         $checkitem->delete();
         return response()->json(['status' => 'ok']);
     }
     public function ensureProjectCheckitems(Request $request)
     {
         $projectId = $request->id;
-        $exists = DB::table('project_checkitems')
-            ->where('project_record_id', $projectId)
-            ->exists();
-
-        if ($exists) {
-            return;
-        }
-
-        $groups = [
-            '人事' => [
-                '雇用契約書',
-                '辞令',
-                '入社手続き',
-                '転籍手続き',
-                '登録社員手続き',
-                '各種研修の周知',
-                '各種研修実施確認',
-                'アカウント作成',
-                '車両使用誓約書',
-                '免許証情報',
-            ],
-            '法務' => [
-                'クライアント契約',
-                '派遣契約',
-                'パートナー契約',
-                '派遣契約',
-            ],
-            '会計' => [
-                '年間収支が正しく入力されているか',
-                '損益計画に物品費用が反映がされているか',
-                '損益に交通費含まれているか（ETCカード・ガソリンカード）',
-            ],
-            '担当範囲不明' => [
-                'プロジェクトアプリの入力が済んでいるか',
-                '見積書や根拠資料の添付があるか',
-                '購入・物品登録・送付',
-            ],
-            'MISO' => [
-                '基本情報',
-                '概要',
-                'MISO',
-            ],
-            'リスク分析' => [
-                '入社時研修',
-                '情報管理研修など',
-                '車両研修',
-            ],
-        ];
-
-        $now = now();
-        $rows = [];
-        $sort = 1;
-        foreach ($groups as $category => $labels) {
-            foreach ($labels as $label) {
-                $label = trim($label);
-                if ($label === '') {
-                    continue;
-                }
-                $rows[] = [
-                    'project_record_id' => $projectId,
-                    'category' => $category,
-                    'label' => $label,
-                    'status' => 'pending',
-                    'sort_order' => $sort++,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
-            }
-        }
-
-        if (count($rows)) {
-            DB::table('project_checkitems')->insert($rows);
-        }
-        return response()->json($rows);
+        $result = $this->sharedService->createCheckItems($projectId);
+        return response()->json($result);
     }
     public function project_checkitem_comment_add(Request $request, MentionAndNotify $mentioner) {
         $data = $request->validate([
             'record_id' => 'required',
             'content' => 'required|string',
+            'type' => 'sometimes|string'
         ]);
         $user = $this->active_user();
 
@@ -1033,6 +1199,7 @@ class ProjectController extends Controller
         $report = $record->reports()->create([
             'content' => $request->content,
             'user_id' => $user->id,
+            'type'    => $request->type,
         ]);
 
         if($request->attached_temp_files){ 
@@ -1133,6 +1300,38 @@ class ProjectController extends Controller
             'id' => $project->id,
             'patch' => $patch,
         ]);
+    }
+
+    private function resolveCheckitemCategoryId(?int $categoryId, string $categoryLabel): ?int
+    {
+        if ($categoryId) {
+            return $categoryId;
+        }
+
+        $label = trim($categoryLabel);
+        if ($label === '') {
+            return null;
+        }
+
+        $existing = ProjectCheckitemCategory::where('label', $label)->first();
+        if ($existing) {
+            return (int) $existing->id;
+        }
+
+        $baseKey = Str::slug($label, '_') ?: 'category';
+        $key = $baseKey;
+        $suffix = 2;
+        while (ProjectCheckitemCategory::where('key', $key)->exists()) {
+            $key = $baseKey . '_' . $suffix;
+            $suffix++;
+        }
+
+        return (int) ProjectCheckitemCategory::create([
+            'key' => $key,
+            'label' => $label,
+            'sort_order' => ((int) ProjectCheckitemCategory::max('sort_order')) + 1,
+            'status' => 0,
+        ])->id;
     }
 
 
@@ -1439,9 +1638,9 @@ class ProjectController extends Controller
                                         }])
                                         ->with(['candidate', 'checklist', 'user'])->first();
 
-        if(!$evalutaionRecord) {
-            return;
-        }
+        // if(!$evalutaionRecord) {
+        //     return;
+        // }
         $levelData = $this->get_evaluation_levels()->getData();
         $selectedLevel = $evalutaionRecord->current_level ?? '';
         $baseSkills = [];
@@ -2686,13 +2885,13 @@ class ProjectController extends Controller
         $sheet_id = config('services.google.spreadsheet_id');
 
         $needed_ranges = [];
-        $sDate = $request->start ? Carbon::createFromFormat('Y-m', $request->start) : Carbon::createFromDate((int) $year, 3, 1);
-        $eDate = $request->end ? Carbon::createFromFormat('Y-m', $request->end) : $sDate->copy()->addMonthsNoOverflow(11);
-
+        $sDate = $request->start ? Carbon::createFromFormat('Y-m-d', $request->start . '-01') : Carbon::createFromDate((int) $year, 3, 1);
+        $eDate = $request->end ? Carbon::createFromFormat('Y-m-d', $request->end . '-01') : $sDate->copy()->addMonthsNoOverflow(11);
+        
         for ($d = $sDate->copy(); $d->lessThanOrEqualTo($eDate); $d->addMonth()) {
             $needed_ranges[] = sprintf('%04d%02d', $d->year, $d->month);
         }
-
+        
         $spreadsheet = $svc->spreadsheets->get($sheet_id);
         $sheets = $spreadsheet->getSheets();
         $existing = [];
@@ -2781,7 +2980,7 @@ class ProjectController extends Controller
             // you can use int if you're dealing with whole yen
             return is_numeric($normalized) ? (float) $normalized : null;
         }
-
+    
         foreach ($hitRowsByTab as $title => $rows) {
             foreach ($rows as $rowNum) {
                 $vals = $valueRanges[$k]->getValues()[0] ?? [];
@@ -2996,6 +3195,7 @@ class ProjectController extends Controller
 
         $startInstance = Carbon::createFromDate($interval['startYear'], $interval['startMonth'], 1);
         $endInstance = Carbon::createFromDate($interval['endYear'], $interval['endMonth'], 1);
+        
         if ($endInstance->lt($startInstance)) {
             return response()->json([
                 'error' => true,
@@ -3008,12 +3208,21 @@ class ProjectController extends Controller
                 'error' => true,
                 'message' => '最大12ヶ月まで選択できます。',
             ], 422);
-        }        
-        if (empty($project_ids)) {
-            $projects = ProjectRecord::all();
-        } else {
-            $projects = ProjectRecord::whereIn('id', $project_ids)->get();
-        }
+        }      
+        $start = $startInstance->toDateString();
+        $end = $endInstance->toDateString();
+        $query = ProjectRecord::query()->whereIn('id', $project_ids);
+
+        // if (!empty($project_ids)) {
+        //     $query->whereIn('id', $project_ids);
+        // }
+
+        $query->where(function ($q) use ($start) {
+            $q->whereNull('completed_at')
+            ->orWhereDate('completed_at', '>=', $start);
+        });
+
+        $projects = $query->get();
         $project_names = $projects->pluck('name', 'id')->toArray();   
 
         $project_names_str = implode('","', $project_names); 
@@ -3079,6 +3288,7 @@ class ProjectController extends Controller
                 ->where('fiscal_year', $filePathYear)
                 ->where('start_month', 3)
                 ->first();
+                
                 if (!$planYear && $filePathYear !== $year) {
                     $planYear = ProjectPlanYear::query()
                         ->where('fiscal_year', $year)
@@ -3091,21 +3301,38 @@ class ProjectController extends Controller
                     $sub_headers[$year] = [];
                     continue;
                 }
-                foreach($projects as $project){
-                    $transitionDate = $project->transitioned_at
-                        ? Carbon::parse($project->transitioned_at)
-                        : null;
+                $yearlyOut = [];
+                $fiscalYear = (int) $planYear->fiscal_year;
+                $startMonth = (int) $planYear->start_month;
 
-                    $bonus_calc = $transitionDate ? $transitionDate->year === $planYear->fiscal_year : false;
-                    $yearlyOut[$project->id] = $this->planFormulaService->buildMonthlyBalance(
+                $accountMap = [
+                    'sales' => '4020',
+                    't_expense' => '6270',
+                    'profit' => '9130',
+                    'bonus' => '9120',
+                ];
+
+                $monthMap = collect(range(1, 12))->mapWithKeys(function ($month) use ($fiscalYear, $startMonth) {
+                    return [
+                        $month => sprintf('%04d-%02d', $month < $startMonth ? $fiscalYear + 1 : $fiscalYear, $month)
+                    ];
+                })->all();
+
+                foreach ($projects as $project) {
+                    $balances = $this->planFormulaService->buildMonthlyBalance(
                         $project->id,
                         $planYear->id,
-                        (int) $planYear->start_month,
+                        $startMonth,
                         0,
-                        ['sales' => '4020', 't_expense' => '6270', 'profit' => '9130', 'bonus' => '9120'],
-                        $bonus_calc,
-                        $transitionDate ? $transitionDate->month : null
+                        $accountMap,
+                        false,
+                        null
                     );
+
+                    $yearlyOut[$project->id] = [];
+                    foreach ($balances as $month => $row) {
+                        $yearlyOut[$project->id][$monthMap[$month]] = $row;
+                    }
                 }
                 $yearlyPlanData[$year] = collect();
                 $month_headers[$year] = [];
@@ -3122,7 +3349,7 @@ class ProjectController extends Controller
             "profit" => 0,
             "profit_rate" => 0,
         ];
-        $default_settlement_data = $default_data + ['has_data' => false];
+        $default_settlement_data = $default_data + ['has_data' => false, 'is_forecast' => false];
 
         $defaultSumData = [
             'yearly_plan' => [
@@ -3164,19 +3391,32 @@ class ProjectController extends Controller
                 ]);
             }
         };
-        $accumulatePeriodTotals = function (string $key, string $scenario, array $values) use (&$periodTotals, $ensurePeriodKey) {
+        $accumulatePeriodTotals = function (string $key, string $scenario, array $values, bool $shouldSkip) use (&$periodTotals, $ensurePeriodKey) {
             $ensurePeriodKey($key);
             $sales = (float) ($values['sales'] ?? 0);
             $expense = (float) ($values['expense'] ?? 0);
-            $profit = array_key_exists('profit', $values) ? (float) $values['profit'] : ($sales - $expense);
-            $periodTotals[$key][$scenario]['sales'] = ($periodTotals[$key][$scenario]['sales'] ?? 0) + $sales;
-            $periodTotals[$key][$scenario]['expense'] = ($periodTotals[$key][$scenario]['expense'] ?? 0) + $expense;
-            $periodTotals[$key][$scenario]['profit'] = ($periodTotals[$key][$scenario]['profit'] ?? 0) + $profit;
+            if (!$shouldSkip) {
+                $periodTotals[$key][$scenario]['sales'] = ($periodTotals[$key][$scenario]['sales'] ?? 0) + $sales;
+                $periodTotals[$key][$scenario]['expense'] = ($periodTotals[$key][$scenario]['expense'] ?? 0) + $expense;
+                
+            } else {
+                $periodTotals[$key][$scenario]['expense'] = ($periodTotals[$key][$scenario]['expense'] ?? 0) + $expense - $sales;
+            }
+            
             $periodTotals[$key][$scenario]['profit_rate'] = 0;
             if (array_key_exists('has_data', $values)) {
                 $periodTotals[$key][$scenario]['has_data'] = ($periodTotals[$key][$scenario]['has_data'] ?? false) || !empty($values['has_data']);
             }
+            if (array_key_exists('is_forecast', $values)) {
+                $periodTotals[$key][$scenario]['is_forecast'] =
+                    ($periodTotals[$key][$scenario]['is_forecast'] ?? false)
+                    || ($values['is_forecast'] ?? false);
+            }
         };
+
+        //range check
+        $rangeStart = Carbon::create(2025, 3, 1);
+        $rangeEnd   = Carbon::create(2026, 2, 29);
         //process each data for each project
         foreach($project_names as $id => $project_name){
             $stDate = $startInstance->copy();
@@ -3187,8 +3427,15 @@ class ProjectController extends Controller
                 $month = $stDate->month;
                 $year = $stDate->year;
                 $periodKey = sprintf('%04d-%02d', $year, $month);
+                
                 $settle_tab_index = sprintf('%04d%02d', $year, $month);
                 $projectsData = $yearlyPlanData[$year]->first(fn($row) => $row[1] === $project_name);
+                $shouldSkip =
+                in_array($project_name, ['間接費部門', '積立部門'], true) ||
+                (
+                    $project_name === '経営管理本部' &&
+                    $stDate->betweenIncluded($rangeStart, $rangeEnd)
+                );
                 if($projectsData){
                     $month_target_indexes = [];
                     $month_found = false;
@@ -3233,32 +3480,41 @@ class ProjectController extends Controller
                     
                     $sumData[$project_name]['yearly_plan']['sales'] = ($sumData[$project_name]['yearly_plan']['sales'] ?? 0) + $totalSales;
                     $sumData[$project_name]['yearly_plan']['expense'] = ($sumData[$project_name]['yearly_plan']['expense'] ?? 0) + $totalExpense;
-                    $summarizeData['yearly_plan']['sales'] = ($summarizeData['yearly_plan']['sales'] ?? 0) + $totalSales;
-                    $summarizeData['yearly_plan']['expense'] = ($summarizeData['yearly_plan']['expense'] ?? 0) + $totalExpense;
-                    $accumulatePeriodTotals($periodKey, 'yearly_plan', $planData);
+                    if (!$shouldSkip) {
+                        $summarizeData['yearly_plan']['sales'] = ($summarizeData['yearly_plan']['sales'] ?? 0) + $totalSales;
+                        $summarizeData['yearly_plan']['expense'] = ($summarizeData['yearly_plan']['expense'] ?? 0) + $totalExpense;
+                    } else {
+                        $summarizeData['yearly_plan']['expense'] = ($summarizeData['yearly_plan']['expense'] ?? 0) + $totalExpense - $totalSales;
+                    }
+                    
+                    $accumulatePeriodTotals($periodKey, 'yearly_plan', $planData, $shouldSkip);
                 } else if (!empty($yearlyOut)) {
-                    $totalSales = $yearlyOut[$id][$month]['sales'] ?? 0;
-                    $totalExpense = $yearlyOut[$id][$month]['expense'] ?? 0;
+                    $totalSales = $yearlyOut[$id][$periodKey]['sales'] ?? 0;
+                    $totalExpense = $yearlyOut[$id][$periodKey]['expense'] ?? 0;
                     $planData = [
                         "sales" => $totalSales,
                         "expense" => $totalExpense,
-                        "profit" => $yearlyOut[$id][$month]['profit'] ?? 0,
-                        "profit_rate" => $yearlyOut[$id][$month]['profit_rate'] ?? 0,
+                        "profit" => $totalSales - $totalExpense,
+                        "profit_rate" => $yearlyOut[$id][$periodKey]['profit_rate'] ?? 0,
                     ];
                     $plan_res_data[$project_name][$periodKey]['yearly_plan'] = $planData;
 
                     
                     $sumData[$project_name]['yearly_plan']['sales'] = ($sumData[$project_name]['yearly_plan']['sales'] ?? 0) + $totalSales;
                     $sumData[$project_name]['yearly_plan']['expense'] = ($sumData[$project_name]['yearly_plan']['expense'] ?? 0) + $totalExpense;
-                    if ($project_name !== '間接費部門' && $project_name !== '積立部門') {
+                    if (!$shouldSkip) {
                         $summarizeData['yearly_plan']['sales'] = ($summarizeData['yearly_plan']['sales'] ?? 0) + $totalSales;
                         $summarizeData['yearly_plan']['expense'] = ($summarizeData['yearly_plan']['expense'] ?? 0) + $totalExpense;
-                        $accumulatePeriodTotals($periodKey, 'yearly_plan', $planData);
+                    } else {
+                        $summarizeData['yearly_plan']['expense'] = ($summarizeData['yearly_plan']['expense'] ?? 0) + $totalExpense - $totalSales;
                     }
+                    
+                    $accumulatePeriodTotals($periodKey, 'yearly_plan', $planData, $shouldSkip);
+                    
                     
                 } else {
                     $plan_res_data[$project_name][$periodKey]['yearly_plan']  = $default_data;
-                    $accumulatePeriodTotals($periodKey, 'yearly_plan', $default_data);
+                    $accumulatePeriodTotals($periodKey, 'yearly_plan', $default_data, $shouldSkip);
                 }
 
 
@@ -3285,17 +3541,21 @@ class ProjectController extends Controller
                     $sumData[$project_name]['profit']['sales'] = ($sumData[$project_name]['profit']['sales'] ?? 0) + $totalSales;
                     $sumData[$project_name]['profit']['expense'] = ($sumData[$project_name]['profit']['expense'] ?? 0) + $totalExpense;
                     $sumData[$project_name]['profit']['profit'] = ($sumData[$project_name]['profit']['profit'] ?? 0) + $profitData['profit'];
-                    if ($project_name !== '間接費部門' && $project_name !== '積立部門') {
+                    if (!$shouldSkip) {
                         $summarizeData['profit']['sales'] = ($summarizeData['profit']['sales'] ?? 0) + $totalSales;
                         $summarizeData['profit']['expense'] = ($summarizeData['profit']['expense'] ?? 0) + $totalExpense;
-                        $summarizeData['profit']['profit'] = ($summarizeData['profit']['profit'] ?? 0) + $profitData['profit'];
-                        $accumulatePeriodTotals($periodKey, 'profit', $profitData);
+                        // $summarizeData['profit']['profit'] = ($summarizeData['profit']['profit'] ?? 0) + $totalSales - $totalExpense;
+                    }  else {
+                        $summarizeData['profit']['expense'] = ($summarizeData['profit']['expense'] ?? 0) + $totalExpense - $totalSales;
                     }
+                    
+                    $accumulatePeriodTotals($periodKey, 'profit', $profitData, $shouldSkip);
+                    
                     
                 }
                 else{
                     $plan_res_data[$project_name][$periodKey]['profit'] = $default_data;
-                    $accumulatePeriodTotals($periodKey, 'profit', $default_data);
+                    $accumulatePeriodTotals($periodKey, 'profit', $default_data, $shouldSkip);
                 }        
                 
 
@@ -3333,19 +3593,36 @@ class ProjectController extends Controller
                         $sumData[$project_name]['settlement']['profit'] = ($sumData[$project_name]['settlement']['profit'] ?? 0) + round((float)(float) str_replace(',', '', $settlement_profit_val), 0, PHP_ROUND_HALF_UP);
                         // $summarizeData['settlement']['sales'] = ($summarizeData['settlement']['sales'] ?? 0) + $totalSales;
                         // $summarizeData['settlement']['expense'] = ($summarizeData['settlement']['expense'] ?? 0) + $totalExpense;
-                        if ($project_name !== '間接費部門' && $project_name !== '積立部門') {
-                            $accumulatePeriodTotals($periodKey, 'settlement', $plan_res_data[$project_name][$periodKey]['settlement']);
-                        }
-                 
-                    }else{
+                        
+                        $accumulatePeriodTotals($periodKey, 'settlement', $plan_res_data[$project_name][$periodKey]['settlement'], in_array($project_name, ['間接費部門', '積立部門'], true));
+                        
+                    } else {
                         $plan_res_data[$project_name][$periodKey]['settlement'] = $default_settlement_data;
-                        $accumulatePeriodTotals($periodKey, 'settlement', $default_settlement_data);
+                        $accumulatePeriodTotals($periodKey, 'settlement', $default_settlement_data, in_array($project_name, ['間接費部門', '積立部門'], true));
                     }                    
                     
 
-                }else{
+                } else if ($profitData) {
+                    // $totalSales = round( (float) $profitData['売上高合計'] + (float) $profitData['内部売上高合計'], 0, PHP_ROUND_HALF_UP);
+                    // $totalExpense = (int)  $profitData['販売管理費合計'] + (int) $profitData['間接費配賦'] + (int) $profitData['業績連動賞与積立金'];
+                    $settlementFromProfit = [
+                        "sales" => $profitData['sales'],
+                        "expense" => $profitData['expense'],
+                        "profit" => $profitData['profit'],
+                        "profit_rate" => $profitData['profit_rate'],
+                        "has_data" => true,
+                        "is_forecast" => true
+                    ];
+                    $plan_res_data[$project_name][$periodKey]['settlement'] = $settlementFromProfit;
+                    $sumData[$project_name]['settlement']['sales'] = ($sumData[$project_name]['settlement']['sales'] ?? 0) + $settlementFromProfit['sales'];
+                    $sumData[$project_name]['settlement']['expense'] = ($sumData[$project_name]['settlement']['expense'] ?? 0) + $settlementFromProfit['expense'];
+                    $sumData[$project_name]['settlement']['profit'] = ($sumData[$project_name]['settlement']['profit'] ?? 0) + $settlementFromProfit['profit'];
+                    $sumData[$project_name]['settlement']['is_forecast'] = $settlementFromProfit['is_forecast'];
+                    
+                    $accumulatePeriodTotals($periodKey, 'settlement', $settlementFromProfit, $shouldSkip);
+                } else {
                     $plan_res_data[$project_name][$periodKey]['settlement'] = $default_settlement_data;
-                    $accumulatePeriodTotals($periodKey, 'settlement', $default_settlement_data);
+                    $accumulatePeriodTotals($periodKey, 'settlement', $default_settlement_data, in_array($project_name, ['間接費部門', '積立部門'], true));
                 }
                 $sumData[$project_name]['settlement']['id'] = $id; 
                 $v[$project_name] = [
@@ -3359,8 +3636,13 @@ class ProjectController extends Controller
         foreach($periodTotals as $key => &$periodTotal){
             $summarizeData['settlement']['sales'] = ($summarizeData['settlement']['sales'] ?? 0) + $periodTotal['settlement']['sales'];
             $summarizeData['settlement']['expense'] = ($summarizeData['settlement']['expense'] ?? 0) + $periodTotal['settlement']['expense'];
+            $summarizeData['settlement']['is_forecast'] = $periodTotal['settlement']['is_forecast'];
             $periodTotal['settlement']['expense'] = (int) round($periodTotal['settlement']['expense'] ?? 0, 0, PHP_ROUND_HALF_UP);
-            $periodTotal['settlement']['profit'] = (int) round($periodTotal['settlement']['profit'] ?? 0, 0, PHP_ROUND_HALF_UP);
+            $periodTotalProfit = $periodTotal['settlement']['sales'] - $periodTotal['settlement']['expense'];
+            $periodTotal['settlement']['profit'] = (int) round($periodTotalProfit ?? 0, 0, PHP_ROUND_HALF_UP);
+            $summarizeData['profit']['profit'] = $summarizeData['profit']['sales'] - $summarizeData['profit']['expense'];
+            $periodTotal['profit']['profit'] = $periodTotal['profit']['sales'] - $periodTotal['profit']['expense'];
+            $periodTotal['yearly_plan']['profit'] = $periodTotal['yearly_plan']['sales'] - $periodTotal['yearly_plan']['expense'];
         }
         $summarizeData['settlement']['expense'] = (int) round($summarizeData['settlement']['expense'] ?? 0, 0, PHP_ROUND_HALF_UP);
         
@@ -4572,7 +4854,13 @@ class ProjectController extends Controller
     {
         $data = $request->validate([
             'id' => 'required|integer',
+            'project_id' => 'required|integer',
+            'summary' => 'required',
         ]);
+
+        $project = ProjectRecord::findOrFail($data['project_id']);
+        $this->ensureProjectAccess($project);
+
         $raw = $request->input('summary');
         if (is_string($raw)) {
             $contract = json_decode($raw, true);
@@ -4581,12 +4869,16 @@ class ProjectController extends Controller
         } else {
             $contract = $raw;
         }
+
+        abort_unless(is_array($contract), 422, 'レビュー結果が不正です。');
+
         $overall   = $contract['overall_risk'] ?? $contract['overallRisk'] ?? 'unknown';
         $findings  = $contract['findings'] ?? [];
         $findCount = is_array($findings) ? count($findings) : 0;
 
         $responseHash = hash('sha256', json_encode($contract, JSON_UNESCAPED_UNICODE));
-        $contractRecord = ProjectContract::findOrFail($data['id']);
+        $contractRecord = $this->resolveProjectContract($project, (int) $data['id']);
+        abort_unless($contractRecord, 404, '契約書が見つかりません。');
 
         $contractRecord->update([
             'review_type' => 'deep',
@@ -4596,7 +4888,7 @@ class ProjectController extends Controller
             'response_hash' => $responseHash
         ]);
 
-        return response()->json($contractRecord);
+        return response()->json($this->projectContractPayload($project, $contractRecord->fresh()));
     }
 
     protected function resolveProjectContract(ProjectRecord $project, ?int $contractId = null): ?ProjectContract
@@ -4760,7 +5052,8 @@ class ProjectController extends Controller
                         '給料手当出金' => (float)($v['給料手当出金']['value'] ?? 0),
                         '部門コード'   => (string)($r['新部門ｺｰﾄﾞ']['value'] ?? ''),
                         'レコード番号' => (int)($r['レコード番号']['value'] ?? 0),
-                        '雇用形態'     => (string)($v['雇用形態']['value'] ?? '')
+                        '雇用形態'     => (string)($v['雇用形態']['value'] ?? ''),
+                        '勤務地'       => (string)($v['勤務地']['value'] ?? '') 
                     ];
 
                     $val = trim((string)($v['雇用形態']['value'] ?? ''));
@@ -5302,11 +5595,12 @@ class ProjectController extends Controller
     public function markAsSeen(Request $request) {
         $user = $this->active_user();
         $projectId = $request->input('project_id');
-
+        $type = $request->input('type');
         ProjectRecordReadState::updateOrCreate(
             [
                 'project_record_id' => $projectId,
                 'user_id' => $user->id,
+                'type' => $type
             ],
             [
                 'last_seen_at' => now()
@@ -5328,5 +5622,11 @@ class ProjectController extends Controller
 
         return $data;
     }
-}
+    public function clear_project_confirm_badge(){
+        $user = $this->active_user();
 
+        $data = $this->badgeService->checkItemConfirm($user);
+
+        return $data;
+    }
+}

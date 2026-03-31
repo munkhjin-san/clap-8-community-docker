@@ -13,7 +13,7 @@ class CustomForm extends Model
     protected $guarded = [];
 
     public function blocks(){
-        return $this->hasMany(CustomFormBlock::class)->orderBy('order_number')->with('elements');
+        return $this->hasMany(CustomFormBlock::class)->orderBy('order_number')->with(['elements', 'checkitemCategories']);
     }
     public function survey_answers() {
         return $this->hasMany(SurveyAnswer::class);
@@ -23,6 +23,10 @@ class CustomForm extends Model
     }
     public function admins() {
         return $this->belongsToMany(User::class, 'custom_form_users', 'custom_form_id', 'user_id')->wherePivot('authority', 1)->withPivot(['try_flag', 'prize'])->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg');;
+    }
+    public function projectType()
+    {
+        return $this->belongsTo(ProjectType::class);
     }
 
     protected $casts = [

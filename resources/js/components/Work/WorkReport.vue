@@ -11,7 +11,24 @@
                         <option v-for="group in workGroupAsOptions" :value="group.id">{{ group.name }}</option>
                     </select>
                 </div>
-                <div class="report-field">
+                <div class="report-field" v-if="props.item.position_id === 15">
+                    <!-- <p class="report-header">出席タイプ</p> -->
+                    <div class="report-input">
+                        <div class="report-input-wrapper">
+                            <input id="attendanceWorkOnly" name="attendanceMode" type="radio" v-model="attendanceMode" value="work_only">
+                            <label for="attendanceWorkOnly">就業</label>
+                        </div>
+                        <div class="report-input-wrapper">
+                            <input id="attendanceWorkTraining" name="attendanceMode" type="radio" v-model="attendanceMode" value="work_and_training">
+                            <label for="attendanceWorkTraining">就業 + 研修</label>
+                        </div>
+                        <div class="report-input-wrapper">
+                            <input id="attendanceTrainingOnly" name="attendanceMode" type="radio" v-model="attendanceMode" value="training_only">
+                            <label for="attendanceTrainingOnly">研修</label>
+                        </div>
+                    </div>
+                </div>
+                <div v-if="includesWorkHours" class="report-field">
                     <p class="report-header">就業時間</p>
                     
                     <div class="report-input-time">
@@ -27,20 +44,9 @@
                         <div>※申請した残業時間は<strong>{{shift?.overtime_request.minutes}}分</strong>です。退勤は1分単位で入力してください。</div>
                     </div>
                 </div>
-                <div class="report-field">
+                <div v-if="includesTrainingHours" class="report-field">
                     <p class="report-header">研修時間</p>
-                    <div class="report-input">
-                        <div class="report-input-wrapper">
-                            <input id="hasTraining" name="trainingPre" type="radio" v-model="hasTraining" :value="1">
-                            <label for="hasTraining">あり</label>
-                        </div>
-                        <div class="report-input-wrapper">
-                            <input id="noTraining" name="trainingPre" type="radio" v-model="hasTraining" :value="0">
-                            <label for="noTraining">なし</label>
-                        </div>
-                    </div>
-
-                    <div v-if="hasTraining" class="report-input-time">
+                    <div class="report-input-time">
                         <div>
                             <input name="trainingStartTime" class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="trainingStartTime" step="900">
                         </div>
@@ -50,7 +56,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="report-field">
+                <div v-if="includesWorkHours" class="report-field">
                     <p class="report-header">休憩時間</p>
                     <div class="report-input">
                         <select class="dropDownSelector taskDateTimePicker" v-model="breakTimeSelect" name="breakTimeSelect">
@@ -58,6 +64,7 @@
                         </select>
                     </div>
                 </div>
+                
                 <div class="report-field" style="background:inherit;">
                     <p class="report-header" style="margin-bottom: 20px;">経費</p>
                     <CostField 
@@ -165,6 +172,11 @@ import { useDialog } from '@/composables/dialog';
 import { getCustomFields, getWorkGroup } from '../../utils/workApi';
 import { useTutorialStore } from '@/store/tutorial';
 import { useTour } from '@/composables/useTour';
+    const ATTENDANCE_MODE = {
+        WORK_ONLY: 'work_only',
+        WORK_AND_TRAINING: 'work_and_training',
+        TRAINING_ONLY: 'training_only',
+    }
     const auth = useAuthUserStore()
     const emit = defineEmits(['reload', 'closeModal'])
     const theme = useTheme()
@@ -227,8 +239,8 @@ import { useTour } from '@/composables/useTour';
     const loading = ref([false, false])
     const editStartTime = ref(timeCard.value?.start_time ? timeCard.value.start_time : shift.value?.start_time ? shift.value.start_time : '09:00:00')
     const editEndTime = ref(timeCard.value?.end_time ? timeCard.value.end_time : shift.value?.end_time ? shift.value.end_time : '18:00:00')
-    const trainingStartTime = ref(timeCard.value?.training_start_time ? timeCard.value.training_start_time : '')
-    const trainingEndTime = ref(timeCard.value?.training_end_time ? timeCard.value.training_end_time : '')
+    const trainingStartTime = ref(timeCard.value?.training_start_time ? timeCard.value.training_start_time : null)
+    const trainingEndTime = ref(timeCard.value?.training_end_time ? timeCard.value.training_end_time : null)
     const breakTimeOptions = ref([{label : 'なし' , value : 0 },
                         {label : '30分' , value : 30 },
                         {label : '45分' , value : 45 },
@@ -244,6 +256,23 @@ import { useTour } from '@/composables/useTour';
     const actualRows = ref([
         { status: null, value: null },
     ])
+    const getInitialAttendanceMode = () => {
+        const hasWorkTimes = Boolean(timeCard.value?.start_time && timeCard.value?.end_time)
+        const hasTrainingTimes = Boolean(timeCard.value?.training_start_time && timeCard.value?.training_end_time)
+
+        if (hasWorkTimes && hasTrainingTimes) {
+            return ATTENDANCE_MODE.WORK_AND_TRAINING
+        }
+
+        if (hasTrainingTimes) {
+            return ATTENDANCE_MODE.TRAINING_ONLY
+        }
+
+        return ATTENDANCE_MODE.WORK_ONLY
+    }
+    const attendanceMode = ref(getInitialAttendanceMode())
+    const includesWorkHours = computed(() => attendanceMode.value !== ATTENDANCE_MODE.TRAINING_ONLY)
+    const includesTrainingHours = computed(() => attendanceMode.value !== ATTENDANCE_MODE.WORK_ONLY)
     const costDepartment = computed(() => {
         return workGroupAsOptions.value.find(group => group.id === todayWorkGroup.value)?.name
     })
@@ -260,6 +289,11 @@ import { useTour } from '@/composables/useTour';
             cost.department = workGroupAsOptions.value.find(group => group.id === newWorkGroup)?.name
         })
         selectedProject.value = workGroupAsOptions.value.find(group => group.id === newWorkGroup)
+    })
+    watch(attendanceMode, (mode) => {
+        if (mode === ATTENDANCE_MODE.TRAINING_ONLY) {
+            breakTimeSelect.value = 0
+        }
     })
     // watch(selectedProject, (newVal) => {
     //     actualRows.value = [{ status: null, value: null }]
@@ -298,6 +332,12 @@ import { useTour } from '@/composables/useTour';
         },
         { immediate: true }
     );
+    watch(hasTraining, (val) => {
+        if (val) {
+            editStartTime.value = '00:00:00'
+            editEndTime.value = '00:00:00'
+        }
+    })
     const unitCode = computed(() => selectedProject.value?.unit_id ?? 'JPY');
     const unitLabel = computed(() => {
         if (unitCode.value === 'COUNT') return '件';
@@ -409,6 +449,9 @@ import { useTour } from '@/composables/useTour';
         return end.diff(start, 'minutes').as('minutes')
     })
     const workedTime = computed(() => {
+        if (!includesWorkHours.value || !editStartTime.value || !editEndTime.value) {
+            return 0
+        }
         const [fixedStartHour, fixedStartMinute] = editStartTime.value.split(':')
         const [fixedEndHour, fixedEndMinute] = editEndTime.value.split(':')
         const start = DateTime.fromFormat(`${fixedStartHour}:${fixedStartMinute}`, 'HH:mm')
@@ -423,6 +466,10 @@ import { useTour } from '@/composables/useTour';
         }
     })
     const breakTimeCalc = () => {
+        if (!includesWorkHours.value) {
+            breakTimeSelect.value = 0
+            return
+        }
         if(editStartTime.value && editEndTime.value && breakTimeSelect.value == 0){
             const startTimeParts = editStartTime.value.split(":");
             const endTimeParts = editEndTime.value.split(":");
@@ -452,6 +499,20 @@ import { useTour } from '@/composables/useTour';
             const targets = [39,40,41,44]
             if (workedTime.value > shiftWorkTime.value && props.item?.work_type == 1 && !shift.value?.overtime_request) {
                 targets.push(42)
+            }
+            if (includesWorkHours.value) {
+                if (isInvalidTime(formatTime(editStartTime.value)) || isInvalidTime(formatTime(editEndTime.value))) {
+                    ping('就業時間は必須です。')
+                    resolve(false)
+                    return
+                }
+            }
+            if (includesTrainingHours.value) {
+                if (isInvalidTime(formatTime(trainingStartTime.value)) || isInvalidTime(formatTime(trainingEndTime.value))) {
+                    ping('研修時間が必須です。')
+                    resolve(false)
+                    return
+                }
             }
             targets.forEach(index => {
                 const v = customValues.value[index]
@@ -495,6 +556,7 @@ import { useTour } from '@/composables/useTour';
         return true;
     };
     const formatTime = (time) => { 
+        if(!time) return null
         const [hours, minutes] = time.split(':')
         return `${hours}:${minutes}`
     }
@@ -526,6 +588,9 @@ import { useTour } from '@/composables/useTour';
     }
 
     const diffInMinutes = computed(() => {
+        if (!includesWorkHours.value || !editStartTime.value || !editEndTime.value) {
+            return 0
+        }
         const today = props.item?.day_full
         const [starthours, startminutes] = editStartTime.value.split(":");
         const [endhours, endminutes] = editEndTime.value.split(":");
@@ -558,11 +623,12 @@ import { useTour } from '@/composables/useTour';
         return new Promise((resolve) => {
             const a = {
                 customValues: customValues.value,
-                breakTime: breakTimeSelect.value,
-                start_time: formatTime(editStartTime.value),
-                end_time: formatTime(editEndTime.value),
-                training_start_time: hasTraining.value == 1 ? formatTime(trainingStartTime.value) : null,
-                training_end_time: hasTraining.value == 1 ? formatTime(trainingEndTime.value) : null,
+                attendance_mode: attendanceMode.value,
+                breakTime: includesWorkHours.value ? breakTimeSelect.value : 0,
+                start_time: includesWorkHours.value ? formatTime(editStartTime.value) : null,
+                end_time: includesWorkHours.value ? formatTime(editEndTime.value) : null,
+                training_start_time: includesTrainingHours.value ? formatTime(trainingStartTime.value) : null,
+                training_end_time: includesTrainingHours.value ? formatTime(trainingEndTime.value) : null,
                 day: props.item?.day_full,
                 status_flag: status_flag,
                 userId: props.item?.user_id,
@@ -583,14 +649,14 @@ import { useTour } from '@/composables/useTour';
     const saveTimeCard = async(status_flag) => {
         const validate = await showToastIfEmpty()
         if(!validate) return
-        if (isInvalidTime(formatTime(editStartTime.value)) || isInvalidTime(formatTime(editEndTime.value))) {
+        if (includesWorkHours.value && (isInvalidTime(formatTime(editStartTime.value)) || isInvalidTime(formatTime(editEndTime.value)))) {
             ping('就業時間は必須項目です。入力してください。')
             return
         }
-        if(shift.value?.overtime_request){
+        if(includesWorkHours.value && shift.value?.overtime_request){
             const confirm = await confirmOvertime()
             if(!confirm.value) return            
-        } else if(status_flag === 1){
+        } else if(includesWorkHours.value && status_flag === 1){
             await fifteenMinuteCalc()
             const answer = await ask('日報を申請します。申請後は修正できません。よろしいですか。')
             if(!answer.value) return

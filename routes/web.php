@@ -27,11 +27,13 @@ use App\Http\Controllers\LessonExamController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\RemindController;
+use App\Http\Controllers\RefreshController;
 use App\Http\Controllers\DriveController;
 use App\Http\Controllers\GoogleController;
 use App\Http\Controllers\CommunityController;
 use App\Http\Controllers\OpenAiController;
 use App\Http\Controllers\ProjectPlanController;
+use App\Http\Controllers\PublicSurveyController;
 use App\Http\Controllers\PushController;
 use App\Http\Controllers\DashboardController;
 use App\Models\User;
@@ -102,6 +104,9 @@ Route::get('/user_default_thumbnail/{char}/{size}/{color?}', [ContentController:
 Route::prefix('cdn_external')->group(function () {
     Route::get('{user_id}/{keyword}/{any?}', [ContentController::class, 'fileTransferAllExternal'])->where('any', '.*');
 });
+Route::get('/public-surveys/{token}', [PublicSurveyController::class, 'show']);
+Route::get('/public-surveys/{token}/data', [PublicSurveyController::class, 'data']);
+Route::post('/public-surveys/{token}/answers', [PublicSurveyController::class, 'submit'])->middleware('throttle:20,1');
 Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::post('/push/subscribe', [PushController::class, 'subscribe']);
     Route::get('/push/test', [PushController::class, 'test']);
@@ -320,10 +325,19 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_top_posts', [PostController::class, 'get_top_posts']);
         Route::post('/post_grant_upload', [PostController::class, 'post_grant_upload']);
         Route::post('/post_remove_file', [PostController::class, 'post_remove_file']);
-        Route::get('/get_refresh_post', [PostController::class, 'get_refresh_post']);
-        Route::patch('/post/refresh_approve/{id}', [PostController::class, 'post_refresh_approve']);
-        Route::delete('/post/refresh_delete/{id}', [PostController::class, 'post_refresh_delete']);
-        
+        Route::prefix('/refresh')->group(function () {
+            Route::get('/posts', [RefreshController::class, 'indexPosts']);
+            Route::patch('/posts/{id}/approve', [RefreshController::class, 'approvePost']);
+            Route::delete('/posts/{id}', [RefreshController::class, 'destroyPost']);
+            Route::get('/kintone', [RefreshController::class, 'kintoneRecords']);
+            Route::post('/kintone/sync', [RefreshController::class, 'syncKintone']);
+            Route::get('/me/summary', [RefreshController::class, 'mySummary']);
+            Route::get('/users/{id}/history', [RefreshController::class, 'userHistory']);
+            Route::get('/management', [RefreshController::class, 'indexManagement']);
+            Route::post('/management/grants', [RefreshController::class, 'storeManagementGrant']);
+            Route::delete('/management/reviews', [RefreshController::class, 'destroyManagementReview']);
+        });
+
         Route::post('/get_calendar_data', [CalendarController::class, 'get_calendar_data']);
         Route::post('/get_possible_facilities', [CalendarController::class, 'get_possible_facilities']);
         Route::post('/calendar_add_record', [CalendarController::class, 'calendar_add_record']);
@@ -390,7 +404,13 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/project_checkitem_comment_add', [ProjectController::class, 'project_checkitem_comment_add']);
         Route::post('/project_refresh', [ProjectController::class, 'project_refresh']);
         Route::post('/ensure_checkitems', [ProjectController::class, 'ensureProjectCheckitems']);
+        Route::get('/project_types', [ProjectController::class, 'get_project_types']);
+        Route::post('/project_types', [ProjectController::class, 'save_project_type']);
+        Route::delete('/project_types/{projectType}', [ProjectController::class, 'delete_project_type']);
         Route::get('/check_item_categories', [ProjectController::class, 'check_item_categories']);
+        Route::post('/check_item_categories', [ProjectController::class, 'save_check_item_category']);
+        Route::delete('/check_item_categories/{category}', [ProjectController::class, 'delete_check_item_category']);
+        Route::get('/project_checkitem_templates', [ProjectController::class, 'get_project_checkitem_templates']);
         Route::post('/create_update_checkitem', [ProjectController::class, 'create_update_checkitem']);
         Route::delete('/delete_checkitem/{checkitem}', [ProjectController::class, 'delete_checkitem']);
         Route::post('/mark_as_seen', [ProjectController::class, 'markAsSeen']);
@@ -557,6 +577,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_comment_count_from_total', [ProjectController::class, 'get_comment_count_from_total']);
         Route::post('/finance_check', [ProjectController::class, 'finance_check']);
         Route::get('/clear_project_report_badge', [ProjectController::class, 'clear_project_report_badge']);
+        Route::get('/clear_project_confirm_badge', [ProjectController::class, 'clear_project_confirm_badge']);
 
         Route::get('/get_members_goals_badge', [ProjectController::class, 'get_members_goals_badge']);
         Route::get('/get_managers_goals_badge', [ProjectController::class, 'get_managers_goals_badge']);
@@ -605,6 +626,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_gantt_project_tasks', [TaskController::class, 'get_gantt_project_tasks']);
         
         Route::get('/get_custom_forms', [CustomFormController::class, 'get_custom_forms']);
+        Route::get('/get_active_project_creation_form', [CustomFormController::class, 'get_active_project_creation_form']);
+        Route::get('/custom_forms/{form}/projects', [CustomFormController::class, 'get_form_projects']);
         Route::post('/duplicate_custom_form', [CustomFormController::class, 'duplicate_custom_form']);
         Route::post('/save_custom_form', [CustomFormController::class, 'save_custom_form']);
         Route::get('/get_survey', [CustomFormController::class, 'get_survey']);

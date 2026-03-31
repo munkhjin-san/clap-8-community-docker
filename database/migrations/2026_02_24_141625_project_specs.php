@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('project_specs', function (Blueprint $table) {
             $table->id();
             $table->integer('project_id')->unique();
-            $table->json('spec_data');
+            $table->json('spec_data')->nullable();
             $table->foreignId('created_by')->constrained('users')->onDelete('cascade');
             $table->foreignId('updated_by')->constrained('users')->onDelete('cascade');
             $table->timestamps();

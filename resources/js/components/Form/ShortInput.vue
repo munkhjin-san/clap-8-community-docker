@@ -33,7 +33,7 @@
         rules: String,
         type: String,
         customClass: String,
-        customStyle: String,
+        customStyle: Object,
         initialValue: String,
         max: String,
         min: String,

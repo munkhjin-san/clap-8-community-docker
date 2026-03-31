@@ -24,6 +24,7 @@ export interface ProjectContractResponse {
     review_type: 'quick' | 'deep';
     overall_risk: ContractFindingSeverity;
     findings_count: number;
+    version?: number;
     result_json?: ProjectContractResult;
     response_hash?: string | null;
     file_path?: string | null;
@@ -46,6 +47,11 @@ export interface ProjectMember extends User {
         assign_data?: AssignmentFitEvaluationResponse | null
         overall_assign_score?: number | null
     }
+}
+export interface ProjectType {
+    id: number
+    key: string
+    label: string
 }
 interface Project {
     id: number;
@@ -84,29 +90,40 @@ interface Project {
     contract?: ProjectContractResponse | null
     contracts?: ProjectContractResponse[]
     is_new: boolean
+    is_renewable: boolean
     has_goals?: boolean
     has_actual_func: boolean
     unit_id?: 'JPY' | 'COUNT' | 'HOUR' | 'CUSTOM'
     custom_unit_label?: string | null
     actual_statuses?: ProjectActualStatus[]
     transitioned_at?: string
+    completed_at?: string | null
     member_roles?: MemberRole[]
     checkitems: ProjectCheckItem[]
     reports: ProjectGoalReport[]
     has_confirm_badge?: boolean
     has_comment_badge?: boolean
     contract_started_at: string
+    project_type_id?: number | null
+    projectType?: ProjectType | null
+    project_type?: ProjectType | null
     specs?: ProjectSpecs | null
 }
 export type ProjectCheckItem = {
     id: number
     project_record_id: number
+    project_checkitem_template_id?: number | null
+    project_checkitem_category_id?: number | null
     category: string
     label: string
     status: string
+    is_applicable?: boolean
     sort_order: number
     checked_by: number | null
     checked_at: string | null
+    check_user: User
+    link_user: User
+    children: ProjectCheckItem[]
 }
 export type ProjectActualStatus = {
     status_id: number | null;
@@ -122,6 +139,7 @@ type ProjectSpecs = {
     created_by: number;
     updated_by: number;
     files: CommonFile[]
+    plan_data: any;
 }
 interface ProjectCondition {
     project_record_id: number;
@@ -186,6 +204,7 @@ interface ProjectGoalReport {
     user: User;
     created_at: string;
     files: MessageFile[]
+    type?: string;
 }
 interface ProjectGoalStep {
     id?: number; 

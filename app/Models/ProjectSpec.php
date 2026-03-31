@@ -9,6 +9,7 @@ class ProjectSpec extends Model
     protected $guarded = [];
     protected $casts = [
         'spec_data' => 'array',
+        'plan_data' => 'array'
     ];
 
     public function project()

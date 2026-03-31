@@ -106,6 +106,7 @@ export interface User {
     general_position: string
     partner_flag?: number;
     project_settings?: ProjectSetting[]
+    joined_date: string;
 }
 export interface ProjectSetting {
     color: string;

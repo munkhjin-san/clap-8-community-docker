@@ -118,7 +118,7 @@
                                     name="start_time" 
                                     rules="required" 
                                     ref="startTimeRef"
-                                    :customStyle="{colorScheme: theme.dark == true ? 'dark' : '', fontSize: '13px'}"
+                                    :customStyle="{fontSize: '13px'}"
                                 />
                             </div>
                             <div>
@@ -132,7 +132,7 @@
                                 name="end_time" 
                                 rules="required" 
                                 ref="endTimeRef"
-                                :customStyle="{colorScheme: theme.dark == true ? 'dark' : '', fontSize: '13px'}"
+                                :customStyle="{fontSize: '13px'}"
                                 />
                             </div>
                         </div>

@@ -43,6 +43,7 @@
           <v-list-item
             v-if="canAddCustom"
             density="compact"
+            style="color: var(--primary-color)"
             :ripple="false"
             :title="`「${searchKeyword.trim()}」を追加`"
             @click="addCustomOption"
@@ -73,7 +74,7 @@
 
         <template #no-data>
           <div style="padding: 6px 0;">
-            <div v-if="!canAddCustom" style="font-size: 14px; opacity: 0.8; padding: 10px 0;">
+            <div v-if="!canAddCustom" style="font-size: 14px; opacity: 0.8; padding: 10px; color: var(--primary-color);">
               アイテムはありません。
             </div>
           </div>

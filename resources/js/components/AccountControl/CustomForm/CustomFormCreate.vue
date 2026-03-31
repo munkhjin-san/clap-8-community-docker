@@ -17,6 +17,45 @@
                 />                
             </div>
             <div class="si-box" v-if="props.range == 'all'">
+                <p class="text-[14px]">フォーム種別</p>
+                <div class="mt-[15px] flex flex-wrap gap-[15px]">
+                    <label
+                        v-for="typeOption in formTypeOptions"
+                        :key="typeOption.value"
+                        class="flex items-center gap-[10px] text-[12px] user-select-none cursor-pointer"
+                    >
+                        <input
+                            v-model="formType"
+                            class="custom-f-radio"
+                            type="radio"
+                            :value="typeOption.value"
+                        >
+                        {{ typeOption.label }}
+                    </label>
+                </div>
+                <p
+                    v-if="formType === 'project_creation'"
+                    class="text-[gray] text-[12px] mt-[10px]"
+                >
+                    進行中のプロジェクト作成フォームは1件のみ作成できます。
+                </p>
+                <p
+                    v-else-if="formType === 'public'"
+                    class="text-[gray] text-[12px] mt-[10px]"
+                >
+                    公開フォームはログインなしで回答できます。対象者選択、繰り返し設定、グラウドナインは利用しません。
+                </p>
+            </div>
+            <div class="si-box" v-if="props.range == 'all' && isProjectCreationForm">
+                <p class="text-[14px]">プロジェクト種別</p>
+                <select v-model="params.project_type_id" class="custom-a-input mt-[15px]">
+                    <option :value="null">選択してください</option>
+                    <option v-for="type in projectTypes" :key="type.id" :value="type.id">
+                        {{ type.label }}
+                    </option>
+                </select>
+            </div>
+            <div class="si-box" v-if="props.range == 'all'">
                 <MemberSelector 
                     :initialValue="params.admins" 
                     ref="adminSelectorRef"
@@ -28,7 +67,7 @@
                 />
                 <span class="text-[gray] text-[12px]">※フォームの回答は管理者のみ閲覧可能です。「システム管理者含む」</span>
             </div>
-            <div class="si-box" v-if="props.range == 'all'">
+            <div class="si-box" v-if="props.range == 'all' && isGeneralForm && !params.is_public">
                 <p>対象者選択</p>
                 <div class="mt-[20px]">
                     <GroupSelector v-model="params.users" place-holder="グループ・プロジェクトから選択"/>
@@ -46,7 +85,7 @@
                     <span class="text-[gray] text-[12px]">※フォームのURLはどなたでもアクセス可能ですが、回答は対象者のみ必須となります。</span>
                 </div>
             </div>
-            <div class="si-box" v-if="props.range == 'board' && boardUsers">
+            <div class="si-box" v-if="props.range == 'board' && boardUsers && isGeneralForm">
                 <div class="si-box">
                     <MemberSelector 
                         :initialValue="params.admins" 
@@ -59,7 +98,7 @@
                     />
                     <span class="text-[gray] text-[12px]">※フォームの回答は管理者のみ閲覧可能です。「システム管理者含む」</span>
                 </div>
-                <div class="my-[15px]">
+                <div class="my-[15px]" v-if="!isPublicForm">
                     <div class="switchLabel">
                         <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">全員選択</p>
                     </div>
@@ -71,7 +110,7 @@
                         
                     </div>  
                 </div>
-                <div class="mt-[20px]">
+                <div class="mt-[20px]" v-if="!isPublicForm">
                     <MemberSelector 
                         :initialValue="params.users" 
                         ref="userSelectorRef"
@@ -83,8 +122,9 @@
                     />
                 </div>
             </div>
+            
 
-            <div class="si-box">
+            <div class="si-box" v-if="isGeneralForm && !isPublicForm">
                 <p class="text-[14px]">繰り返し設定</p>
                 <div class="mt-[15px] flex flex-wrap gap-[15px]">
                     <label v-for="rp in [{value: 0, label: '1回のみ'}, {value: 1, label: '毎月'}]" class="flex items-center gap-[10px] text-[12px] user-select-none cursor-pointer" :key="rp.value">
@@ -106,7 +146,7 @@
                 <p class="mb-[20px]">説明</p>
                 <RichEditor ref="richEdit" :initila-value="editData ? editData.description : ''"/>
             </div>
-            <div v-if="auth.activeUser.id && [608, 610].includes(auth.activeUser.id)" class="si-box" style="position: relative">
+            <div v-if="auth.activeUser.id && [608, 610].includes(auth.activeUser.id) && isGeneralForm && !isPublicForm" class="si-box" style="position: relative">
                 <div>
                     <p :class="['form-title-small', 'form-title-active']">グラウドナイン</p>
                 </div>
@@ -260,7 +300,21 @@
                                     v-else-if="block.type == 'header'" 
                                     :block="block"
                                     v-model:question="block.question"
-                                />                            
+                                />
+                                <div v-if="block.type !== 'header' && isProjectCreationForm" class="mt-[15px]">
+                                    <AddableItemSelector
+                                        v-model="block.category_ids"
+                                        place-holder="チェックカテゴリ"
+                                        path="/check_item_categories"
+                                        :multiple="true"
+                                        :close-on-select="false"
+                                        :allow-custom="true"
+                                        :reduce="option => typeof option === 'string' ? option : option?.id"
+                                    />
+                                    <p class="text-[11px] text-[gray] mt-[5px]">
+                                        カテゴリ未設定の項目はチェックリスト連動の対象外です。
+                                    </p>
+                                </div>                            
                             </div>
                         </div>
                         
@@ -289,7 +343,7 @@
 
 <script setup lang="ts">
 import Modal from '@/components/Global/Modal.vue';
-import { CustomForm, CustomFormBlock, CustomFormBlockDependsOn, CustomFormBlockType, CustomFormUser } from '@/interface/customFormInterface';
+import { CustomForm, CustomFormBlock, CustomFormBlockDependsOn, CustomFormBlockType, CustomFormUsage, CustomFormUser } from '@/interface/customFormInterface';
 import { computed, nextTick, onMounted, reactive, ref, useTemplateRef } from 'vue';
 import ShortInput from '@/components/Form/ShortInput.vue';
 import CustomCheckbox from '@/components/Form/CustomElements/CustomCheckbox.vue'
@@ -306,12 +360,15 @@ import { useSortable, moveArrayElement } from '@vueuse/integrations/useSortable'
 import RichEditor from '@/components/Global/RichEditor.vue';
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import GroupSelector from '@/components/Form/GroupSelector.vue';
+import AddableItemSelector from '@/components/Form/AddableItemSelector.vue';
 import { useAuthUserStore } from '@/store/auth';
 import 'styles/customForm.css'
 import { useApi } from '@/composables/api';
 import { Board } from '@/interface/globalInterface';
 import CustomHeader from '@/components/Form/CustomElements/CustomHeader.vue';
 import { useDialog } from '@/composables/dialog';
+import { watch } from 'vue';
+import type { ProjectType } from '@/interface/projectInterface';
 const props = defineProps<{
     editData: CustomForm | null
     range: 'all' | 'board'
@@ -321,12 +378,59 @@ const emit = defineEmits<{
     close: [flag: boolean]
 }>()
 const auth = useAuthUserStore()
+const projectTypes = ref<ProjectType[]>([])
 const richEdit = ref<typeof RichEditor | null>(null)
 
 const boardUsers = computed(() => {
     if(!props.board) return []
     return props.board.board_to_users.map( u => u.user)
 })
+type FormTypeOption = CustomFormUsage | 'public'
+
+const formTypeOptions:{ label: string, value: FormTypeOption }[] = [
+    { label: '通常フォーム', value: 'general' },
+    { label: '公開フォーム', value: 'public' },
+    { label: 'プロジェクトフォーム', value: 'project_creation' },
+]
+const isProjectCreationForm = computed(() => params.usage === 'project_creation')
+const isGeneralForm = computed(() => !isProjectCreationForm.value)
+const isPublicForm = computed(() => isGeneralForm.value && !!params.is_public)
+const formType = computed<FormTypeOption>({
+    get: () => {
+        if (params.usage === 'project_creation') {
+            return 'project_creation'
+        }
+
+        return params.is_public ? 'public' : 'general'
+    },
+    set: (value) => {
+        if (value === 'project_creation') {
+            params.usage = 'project_creation'
+            params.is_public = false
+            return
+        }
+
+        params.usage = 'general'
+        params.is_public = value === 'public'
+    },
+})
+const normalizeBlockCategoryInputs = (block: CustomFormBlock) => {
+    const relationIds = (
+        block.checkitemCategories
+        ?? block.checkitem_categories
+        ?? []
+    )
+        .map((category) => category.id)
+        .filter(Boolean)
+
+    if (relationIds.length) {
+        block.category_ids = relationIds
+        return
+    }
+
+    const legacyLabels = Array.isArray(block.categories) ? block.categories.filter(Boolean) : []
+    block.category_ids = legacyLabels.length ? legacyLabels : []
+}
 
 const blockTypes:{label:string, value: CustomFormBlockType}[] = [
     {label: 'チェックボックス', value: 'checkbox'}, 
@@ -340,7 +444,6 @@ const blockTypes:{label:string, value: CustomFormBlockType}[] = [
     {label: '見出しテキスト', value: 'header'}
 ]
 const menu = useMenuStore()
-const blockMenuIndex = ref<number | null>(null)
 const titleRef = useTemplateRef('titleRef')
 const sending = ref(false)
 const params = reactive<CustomForm>({
@@ -354,16 +457,24 @@ const params = reactive<CustomForm>({
     repeat_day: 1,
     board_record_id: props.board ? props.board.id : null,
     has_prize: false,
+    is_public: false,
+    status: 0,
+    usage: 'general',
+    project_type_id: null,
 })
 const sortParent = useTemplateRef('sortParent')
 const api = useApi()
 const branches = ref<number[]>([])
 const { ping } = useDialog()
 onMounted(() => {
+    fetchProjectTypes()
     if(props.editData && props.editData?.id){
         Object.assign(params, props.editData)
+        params.status = props.editData.status ?? 0
+        params.usage = props.editData.usage ?? 'general'
         params.blocks.forEach((block) => {
             normalizeDependsOn(block)
+            normalizeBlockCategoryInputs(block)
         })
         branches.value = params.blocks.filter(b => b.depends_on && b.depends_on.length).map(b => b.id)
     }else{
@@ -371,6 +482,24 @@ onMounted(() => {
     }
 
 })
+const fetchProjectTypes = async() => {
+    const data = await api.get('/project_types')
+    projectTypes.value = Array.isArray(data) ? data as ProjectType[] : []
+}
+watch(
+    () => params.usage,
+    (usage) => {
+        if (usage !== 'project_creation') {
+            params.project_type_id = null
+            return
+        }
+        params.has_prize = false
+        params.is_public = false
+        params.repeat_setting = 0
+        params.repeat_day = 1
+    },
+    { immediate: true }
+)
 
 useSortable(sortParent, params.blocks, {
     animation: 150,
@@ -396,6 +525,7 @@ const addBlock = (type:CustomFormBlockType, index: number) => {
         is_required: false,
         placeholder: '', 
         depends_on: [],
+        category_ids: [],
     }
     if(!params.blocks){
         params.blocks = []
@@ -422,16 +552,43 @@ const saveForm = async() => {
         ping('必須項目を入力してください。')
         return
     }
-    console.log(params)
     const desc = richEdit.value ? richEdit.value?.editor.getHTML() : null
     params.description = desc
     params.blocks.forEach((block, index) => {
         block.order_number = index + 1
         normalizeDependsOn(block)
     })
-    
+
+    const payload = JSON.parse(JSON.stringify(params)) as CustomForm
+    if (payload.usage === 'project_creation') {
+        payload.users = []
+        payload.has_prize = false
+        payload.repeat_setting = 0
+        payload.repeat_day = 1
+        payload.blocks = (payload.blocks ?? []).map((block) => ({
+            ...block,
+            categories: null,
+        }))
+    } else if (payload.is_public) {
+        payload.users = []
+        payload.has_prize = false
+        payload.repeat_setting = 0
+        payload.repeat_day = 1
+        payload.blocks = (payload.blocks ?? []).map((block) => ({
+            ...block,
+            categories: null,
+            category_ids: null,
+        }))
+    } else {
+        payload.blocks = (payload.blocks ?? []).map((block) => ({
+            ...block,
+            categories: null,
+            category_ids: null,
+        }))
+    }
+
     await api.post('/save_custom_form', {
-        ...params,
+        ...payload,
         removed_items: removedItems.value
     }, {
         toast: '保存しました。'
@@ -561,6 +718,7 @@ const selectAll = () => {
 const duplicate = (index: number, block: CustomFormBlock) => {
     const newBlock: CustomFormBlock = JSON.parse(JSON.stringify(block))
     newBlock.id = -(Math.floor(100000 + Math.random() * 900000))
+    normalizeBlockCategoryInputs(newBlock)
     if(newBlock.elements && newBlock.elements.length){
         newBlock.elements.forEach( e => {
             e.id = -(Math.floor(100000 + Math.random() * 900000))

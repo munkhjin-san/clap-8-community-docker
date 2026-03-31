@@ -66,11 +66,17 @@ class ProjectRecord extends Model
     }
     public function checkitems()
     {
-        return $this->hasMany(ProjectCheckitems::class);
+        return $this->hasMany(ProjectCheckitems::class)
+            ->where('parent_id', null)
+            ->where('is_applicable', true);
     }
     public function reports()
     {
         return $this->hasMany(ProjectCheckitemsReport::class);
+    }
+    public function projectType()
+    {
+        return $this->belongsTo(ProjectType::class);
     }
     protected $guarded = [];
 

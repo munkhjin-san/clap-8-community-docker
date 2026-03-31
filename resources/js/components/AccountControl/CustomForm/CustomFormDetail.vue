@@ -8,15 +8,71 @@
             {{ form.title }}
         </div>        
 
-        <div class="ml-auto w-fit flex mr-[20px]">
+        <div v-if="!isProjectCreationForm" class="ml-auto w-fit flex mr-[20px]">
             <LoaderButton @triggered="exportCSV" :loading="downloading" content="CSV出力" />
         </div>
         
     </div>
     <div :class="{'px-[20px] h-[calc(100%-60px)] overflow-auto': mode !== 'board'}">
         <div class="py-[20px]">
+            <div v-if="form.usage === 'project_creation'" class="p-[20px] bg-[var(--background-color)] text-[14px] leading-normal">
+                <div class="mb-[10px]">フォーム種別: 案件作成フォーム</div>
+                <div class="mb-[10px]">プロジェクト種別: {{ form.projectType?.label ?? form.project_type?.label ?? '未設定' }}</div>
+                <div class="mb-[20px]">紐づく案件数: {{ linkedProjects.length }}件</div>
+                <div v-if="form.description" class="rich-wrapper mt-[20px]" v-html="form.description"></div>
+                <div class="mt-[30px]">
+                    <div class="text-[13px] text-[gray] mb-[10px]">このフォームを使って作成された案件</div>
+                    <div v-if="projectLinksLoading" class="text-[13px] text-[gray]">読み込み中...</div>
+                    <div v-else-if="!linkedProjects.length" class="text-[13px] text-[gray]">
+                        まだこのフォームを利用した案件はありません。
+                    </div>
+                    <div v-else class="flex flex-col gap-[12px]">
+                        <div
+                            v-for="project in linkedProjects"
+                            :key="project.id"
+                            class="border border-solid border-[var(--calendarBorder)] px-[15px] py-[12px]"
+                        >
+                            <div class="flex flex-wrap items-center gap-[8px]">
+                                <div class="text-[15px]">{{ project.name }}</div>
+                                <div class="text-[11px] px-[8px] py-[2px] border border-solid border-[var(--calendarBorder)] rounded-full">
+                                    {{ PROJECT_STATUS_LABEL[project.status] ?? '不明' }}
+                                </div>
+                            </div>
+                            <div class="mt-[8px] text-[12px] text-[gray]">
+                                <span>プロジェクト種別: {{ project.projectType?.label ?? project.project_type?.label ?? '未設定' }}</span>
+                                <span class="ml-[12px]">期間: {{ formatProjectPeriod(project.date_start, project.date_end) }}</span>
+                                <span v-if="project.specs?.updated_at" class="ml-[12px]">
+                                    最終更新: {{ DateTime.fromISO(project.specs.updated_at).toFormat('yyyy/MM/dd HH:mm') }}
+                                </span>
+                            </div>
+                            <div class="mt-[10px] flex items-center gap-[8px]">
+                                <span class="text-[12px]">管理者:</span>
+                                <div v-if="project.manager?.length" class="flex items-center">
+                                    <UserPanel
+                                        v-for="manager in project.manager.slice(0, 4)"
+                                        :key="manager.id"
+                                        :user="manager"
+                                        size="20"
+                                        disable-instant
+                                    />
+                                    <span v-if="project.manager.length > 4" class="ml-[5px] text-[12px] text-[gray]">
+                                        ...({{ project.manager.length }}人)
+                                    </span>
+                                </div>
+                                <span v-else class="text-[12px] text-[gray]">未設定</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <template v-else>
             <div class="text-[14px]">
-                アンケートのURL: <a target="_blank" :href="url">{{url}}</a>
+                <template v-if="url">
+                    公開フォームURL: <a target="_blank" :href="url">{{ url }}</a>
+                </template>
+                <template v-else>
+                    公開フォームURL: <span class="text-[gray]">未公開</span>
+                </template>
             </div>
             <div class="mt-[30px]">
                 <div class="admin-command-bar">            
@@ -95,11 +151,12 @@
                             <div class="flex flex-col gap-[10px] p-[20px] bg-[var(--background-color)]" :class="{'!bg-[var(--bg3)]' : mode == 'board'}" v-for="(answer, index) in answersByUser">
                                 <label class="flex items-center">
                                     <UserPanel v-if="answer.user" :user="answer.user" with-name disable-instant/>
+                                    <div v-else class="text-[14px]">{{ answer.respondent_label }}</div>
                                     <p class="jump-link ml-[15px] text-[13px]">表示・非表示</p>
-                                    <input type="checkbox" v-model="openedUsers" :value="`by_user_${answer.user.id}_${index}`" class="hidden"/>
+                                    <input type="checkbox" v-model="openedUsers" :value="userRowKey(answer, index)" class="hidden"/>
                                     <p class="ml-auto text-[12px] text-[gray]">{{ DateTime.fromISO(answer.created_at).toLocaleString(DateTime.DATETIME_MED) }}</p>
                                 </label>
-                                <div v-if="openedUsers.includes(`by_user_${answer.user.id}_${index}`)" class="flex flex-col gap-[20px]">
+                                <div v-if="openedUsers.includes(userRowKey(answer, index))" class="flex flex-col gap-[20px]">
                                     <div v-for="block in answer.data" >
                                         <div class="text-sm leading-normal">{{ block.question }}</div>
                                         <div class="ml-[10px] mt-[10px] leading-normal text-[13px]">
@@ -184,6 +241,7 @@
                     <!--  -->
                 </div>
             </div>
+            </template>
         </div>
         
     </div>
@@ -205,7 +263,8 @@
 import UserPanel from '@/components/Global/UserPanel.vue';
 import { CustomForm, CustomFormBlock, SurveyAnswer } from '@/interface/customFormInterface';
 import { User } from '@/interface/globalInterface';
-import { computed, onMounted, reactive, ref } from 'vue';
+import type { ProjectMember, ProjectType } from '@/interface/projectInterface';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, Colors  } from 'chart.js'
 import { Pie } from 'vue-chartjs'
@@ -219,6 +278,7 @@ import CommandButton from '@/components/Global/CommandButton.vue';
 import { useMenuStore } from '@/store/menu';
 import { useTheme } from '@/store/theme';
 import { useApi } from '@/composables/api';
+import { PROJECT_STATUS_LABEL } from '@/utils/tools';
 ChartJS.register(ArcElement, Tooltip, Legend, Colors )
 const simpleTypes = ['multitext', 'singletext', 'date', 'time', 'select', 'file']
 const props = defineProps<{
@@ -230,7 +290,9 @@ const menu = useMenuStore()
 const theme = useTheme()
 const api = useApi()
 interface SimpleAnswer{
-    user: User,
+    user?: User | null,
+    respondent_label: string,
+    id?: number,
     created_at: string,
     data: {
         question: string,
@@ -238,8 +300,26 @@ interface SimpleAnswer{
         answers: { value: string, sub_text: string }[]
     }[]
 }
+interface LinkedProject {
+    id: number
+    name: string
+    status: string
+    date_start: string | null
+    date_end: string | null
+    manager: ProjectMember[]
+    projectType?: ProjectType | null
+    project_type?: ProjectType | null
+    specs?: {
+        updated_at?: string
+    } | null
+}
+const isProjectCreationForm = computed(() => props.form.usage === 'project_creation')
 const url = computed(() => {
-    return `${window.location.origin}/survey/${props.form.id}`
+    if (!props.form.is_public || !props.form.public_token) {
+        return ''
+    }
+
+    return `${window.location.origin}/public-surveys/${props.form.public_token}`
 })
 const years = Array.from({ length: DateTime.now().year - 2024 + 2 }, (_, index) => {
     const year = 2024 + index;
@@ -274,12 +354,17 @@ const tab = ref(0)
 const router = useRouter()
 const answersByUser = ref<SimpleAnswer[]>([])
 const answersByBlock = ref<CustomForm | null>(null)
+const linkedProjects = ref<LinkedProject[]>([])
+const projectLinksLoading = ref(false)
 const viewUsers = ref<{title: string, users: User[]}>({title: '', users: []})
 
 const openedQuestions = ref<string[]>([])
 const openedUsers = ref<string[]>([])
 onMounted(() => {
-    getSurveyAnswers()
+    loadDetail()
+})
+watch(() => props.form.id, () => {
+    loadDetail()
 })
 const adjustByOne = (direction: number) => {
     const instance = DateTime.fromObject({
@@ -293,6 +378,13 @@ const adjustByOne = (direction: number) => {
 }
 const setViewUsers = (payload: {title: string, users: User[]}) => {
     viewUsers.value = payload
+}
+const userRowKey = (answer: SimpleAnswer, index: number) => {
+    if (answer.user?.id) {
+        return `by_user_${answer.user.id}_${index}`
+    }
+
+    return `by_user_guest_${answer.id ?? index}`
 }
 const makePieColors = (n: number) =>
   Array.from({ length: n }, (_, i) => `hsl(${Math.round((360 * i) / n)}, 70%, 55%)`)
@@ -323,7 +415,39 @@ const chartData = computed(() => {
     })
     return chartable
 })
+const formatProjectPeriod = (dateStart?: string | null, dateEnd?: string | null) => {
+    if (!dateStart && !dateEnd) return '未設定'
+    if (!dateStart) return `〜${DateTime.fromISO(dateEnd!).toFormat('yyyy/MM/dd')}`
+    if (!dateEnd) return `${DateTime.fromISO(dateStart).toFormat('yyyy/MM/dd')}〜`
+    return `${DateTime.fromISO(dateStart).toFormat('yyyy/MM/dd')}〜${DateTime.fromISO(dateEnd).toFormat('yyyy/MM/dd')}`
+}
+const getLinkedProjects = async() => {
+    projectLinksLoading.value = true
+    try {
+        const data = await api.get(`/custom_forms/${props.form.id}/projects`)
+        linkedProjects.value = Array.isArray(data) ? data as LinkedProject[] : []
+    } finally {
+        projectLinksLoading.value = false
+    }
+}
+const loadDetail = () => {
+    openedQuestions.value = []
+    openedUsers.value = []
+
+    if (isProjectCreationForm.value) {
+        linkedProjects.value = []
+        answersByUser.value = []
+        answersByBlock.value = null
+        getLinkedProjects()
+        return
+    }
+
+    getSurveyAnswers()
+}
 const getSurveyAnswers = async() => {
+    if (isProjectCreationForm.value) {
+        return
+    }
     try {
         const response = await api.get(`/get_survey_answers`, {    
             custom_form_id: props.form.id,
@@ -343,6 +467,9 @@ const getSurveyAnswers = async() => {
     }
 }
 const exportCSV = async() => {
+    if (isProjectCreationForm.value) {
+        return
+    }
     downloading.value = true
     const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `【${props.form.title}】回答【${DateTime.now().toISODate()}】`});
     const data:SimpleAnswer[] = await api.get(`/get_survey_answers/`, {
@@ -355,7 +482,7 @@ const exportCSV = async() => {
     const dataSet: any = []
     data.forEach(row => {
         const v = {
-            "氏名" : row.user?.name
+            "氏名" : row.user?.name ?? row.respondent_label
         }
         row.data.forEach(ans => {
             v[ans.question] = ans.answers.map( a => a.value).join('\n') + '\n' + ans.answers.map( a => a.sub_text).join('\n')

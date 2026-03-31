@@ -177,6 +177,7 @@ const props = defineProps<{
     which?: 'goal' | 'salary_issue'
     passingData: PassingData
     title?: string
+    type?: string
 }>()
 
 const emit = defineEmits<{
@@ -412,6 +413,7 @@ const commentSendConfirm = async(num) => {
         which: props.which,
         content: text,
         attached_temp_files: successUploadedFiles.value,
+        type: props.type
     })
     sending.value = false
     if(data === null) return

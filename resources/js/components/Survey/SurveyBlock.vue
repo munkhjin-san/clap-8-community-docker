@@ -11,7 +11,7 @@
                         <input 
                             v-if="block.type == 'radio'"
                             ref="target" 
-                            :class="[`custom-f-${block.type}`, {'invalid-box' : validateOn && element.is_required && radioModel !== element.id}]" 
+                            :class="[`custom-f-${block.type}`, {'invalid-box' : validateOn && block.is_required && !radioModel}]" 
                             :name="`radio_values_${block.id}`" 
                             type="radio" 
                             :value="element.id"
@@ -30,7 +30,7 @@
                     </label>                    
                     <Transition name="customInputGroup">
                         <div class="mt-[10px] ml-[25px]" v-if="element.has_sub_text && (radioModel == element.id || checkboxModel.includes(element.id))">
-                            <input :class="['custom-a-input' , {'invalid-input': element.is_required && !sub_texts[element.id]}]" v-model="sub_texts[element.id]" :placeholder="element.placeholder ? element.placeholder : '回答'" back type="text"/>
+                            <input :class="['custom-a-input' , {'invalid-input': validateOn && element.has_sub_text_required && !sub_texts[element.id]}]" v-model="sub_texts[element.id]" :placeholder="element.placeholder ? element.placeholder : '回答'" back type="text"/>
                         </div>
                     </Transition>
                 </div>
@@ -58,7 +58,7 @@
             <div v-if="block.type == 'file'">
                 <FileUploader 
                     v-model="blockData.files"
-                    path="/survey_files"
+                    :path="filePath"
                     :customClass="['custom-a-input', {'invalid-file-input': hasError}]"
                     customStyle="width: 50%; border: 1px solid var(--formBorder);"
                 />
@@ -77,6 +77,7 @@ import { urlCheck } from '@/utils/tools';
 const props = defineProps<{
     block: CustomFormBlock
     answer?: SurveyBlockAnswer | null
+    filePath?: string
 }>()
 const emit = defineEmits<{
     selectionChange: [payload: { blockId: number; type: 'radio' | 'checkbox'; elementIds: number[] }]
@@ -93,6 +94,7 @@ const checkboxModel = ref<(number | string)[]>([])
 const validateOn = ref(false)
 const sub_texts = reactive({})
 const theme = useTheme()
+const filePath = computed(() => props.filePath || '/survey_files')
 onMounted(() => {
     if(props.answer){
         Object.assign(blockData, props.answer)
@@ -113,12 +115,11 @@ onMounted(() => {
                 });
             }
         }
-        if(props.block.elements.length){
-            props.block.elements.forEach(element => {
-                if(element.answers && element.answers.length){
-                    sub_texts[element.id] = element.answers[0].sub_text
-                }
-            });
+        if(props.answer.element_answers?.length){
+            props.answer.element_answers.forEach((elementAnswer) => {
+                if (!elementAnswer.custom_form_block_element_id) return
+                sub_texts[elementAnswer.custom_form_block_element_id] = elementAnswer.sub_text ?? ''
+            })
         }
     }
 
@@ -170,17 +171,29 @@ const isValid = ():boolean => {
         const val = Array.isArray(blockData.files) && blockData.files.length > 0
         return val
     }
+    if(props.block.type == 'radio'){
+        if (props.block.is_required && !radioModel.value) {
+            return false
+        }
+        if (!radioModel.value) {
+            return true
+        }
+        const selectedElement = props.block.elements.find((element) => element.id == radioModel.value)
+        if (!selectedElement?.has_sub_text_required) {
+            return true
+        }
+        return Boolean(sub_texts[selectedElement.id])
+    }
     else{         
         let elementsValid = true
-        const checked = props.block.type == 'radio' ? radioModel.value ? [radioModel.value] : [] : checkboxModel.value
+        const checked = checkboxModel.value
         props.block.elements.forEach(element => {
-            if(element.is_required){
-                let valid = checked.includes(element.id)
-                if(element.has_sub_text){
-                    let validText = sub_texts[element.id] ? true : false
-                    valid = validText && valid
-                }
-                elementsValid = elementsValid && valid
+            if(element.is_required && !checked.includes(element.id)){
+                elementsValid = false
+                return
+            }
+            if(element.has_sub_text_required && checked.includes(element.id) && !sub_texts[element.id]){
+                elementsValid = false
             }
         });
         const atleast = !props.block.is_required ? true : checked.length ? true : false
@@ -190,7 +203,7 @@ const isValid = ():boolean => {
 
 const extractedData = computed(() => {
     const answers:SurverBlockElementAnswer[] = []
-    if(props.block.type == 'radio'){
+    if(props.block.type == 'radio' && radioModel.value){
         const answer:SurverBlockElementAnswer = {
             custom_form_block_element_id: Number(radioModel.value),
             sub_text: sub_texts[Number(radioModel.value)],

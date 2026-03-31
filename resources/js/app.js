@@ -55,6 +55,7 @@ const vuetify = createVuetify()
 app
 .component('Root', defineAsyncComponent(() => import('./components/Root.vue')))
 .component('Login', defineAsyncComponent(() => import('./components/Auth/LoginComponent.vue')))
+.component('PublicSurveyRoot', defineAsyncComponent(() => import('./components/PublicSurvey/PublicSurveyRoot.vue')))
 
 // third party plugin
 .component("drop-selector", VueSelect)

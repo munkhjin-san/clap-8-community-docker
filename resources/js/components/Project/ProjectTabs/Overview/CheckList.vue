@@ -3,7 +3,7 @@
         <div v-if="auth.isAdmin" class="py-5 sticky top-0 z-10 bg-[var(--background-color)] flex items-center justify-between">
             <div class="flex gap-4 ml-auto">
                 <div>
-                    <button v-if="selectedProject?.status == 'director_approved'" @click="confirm('running')" class="bg-[var(--primary-button)] text-white py-1 px-2 text-xs">
+                    <button v-if="selectedProject?.status == 'director_approved'" @click="confirm('running')" class="bg-[var(--primary-button)] text-white py-1 px-2">
                         確定
                     </button>
                     <span v-else class="text-xs">
@@ -12,89 +12,194 @@
                 </div>
             </div>
         </div>
-        <div class="border border-solid border-[var(--calendarBorder)] rounded-lg mb-5">
-            <div class="flex items-center p-4 sticky top-0 z-10 bg-[var(--background-color)] rounded-lg">
-                <div data-v-f3d19ae5="" @click="toggleQuestions" title="すべて表示する" class="selector-accordion-el" style="min-width: 30px; min-height: 30px;">
-                    <svg data-v-f3d19ae5="" fill="var(--primary-color)" version="1.1" width="11" height="11" :class="[{'expand' : !questionsExpanded}, 'cursor-pointer', 'selector-accordion-inactive']" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg" style="">
-                        <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
-                    </svg>
-                </div>
-                <div class="font-bold">PM向け質問・仕様</div>
-            </div>
-            <ConfirmApply
-                v-if="questionsExpanded" 
-                :confirming="true"
-                :hasPrivilage="hasPrivilage"
-                :edit-data="selectedProject?.specs?.spec_data"
-                :files="selectedProject?.specs?.files"
-            />
-        </div>
-        
-        <div class="border border-solid border-[var(--calendarBorder)] rounded-lg">
-            <div class="flex items-center p-4">
-                <div data-v-f3d19ae5="" @click="toggleCheckList" title="すべて表示する" class="selector-accordion-el" style="min-width: 30px; min-height: 30px;">
-                    <svg data-v-f3d19ae5="" fill="var(--primary-color)" version="1.1" width="11" height="11" :class="[{'expand' : !checkListExpanded}, 'cursor-pointer', 'selector-accordion-inactive']" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg" style="">
-                        <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
-                    </svg>
-                </div>
-                <div class="font-bold">チェック項目<span class="ml-2 text-[11px] opacity-70 font-normal">完了 ({{ allStatus.done }}/{{ allStatus.total }})</span></div>
-            </div>
-            <div v-if="checkListExpanded" class="grid grid-cols-3 gap-5">
-                <div v-for="(items, category) in groupedCheckitems" :key="category" class="mb-4 bg-[var(--background-color)]">
-                    <div class="flex items-center p-6">
-                        <div class="font-bold">{{category}}</div>
+           
+                <div
+                    v-for="(items, category) in groupedCheckitems"
+                    :key="category"
+                    class="border border-solid border-[var(--calendarBorder)] mb-5 bg-[var(--background-color)] rounded-md overflow-hidden"
+                >
+                    <div :class="[{'border-b [border-bottom-style:solid] border-[var(--calendarBorder)]' : expanded[category]}, 'flex items-center p-4 bg-[var(--background-color)]']">
+                        <div data-v-f3d19ae5="" @click="toggleCategory(category)" title="すべて表示する" class="selector-accordion-el" style="min-width: 30px; min-height: 30px;">
+                            <svg data-v-f3d19ae5="" fill="var(--primary-color)" version="1.1" width="11" height="11" :class="[{'expand' : !expanded[category]}, 'cursor-pointer', 'selector-accordion-inactive']" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg" style="">
+                                <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
+                            </svg>
+                        </div>
+                        <div class="font-bold">{{category}}<span class="text-[11px] opacity-70 pt-2 px-2">
+                            完了 {{ (categoryStats[category]?.done ?? 0) + (categoryStats[category]?.na ?? 0) }} / {{ categoryStats[category]?.total ?? 0 }}
+                            <!-- <span v-if="categoryStats[category]?.na">・対象外 {{ categoryStats[category]?.na }}</span> -->
+                        </span></div>
+                        <div class="flex relative items-center justify-center font-normal" title="コメントバッジ" v-if="projectReportBadgeType?.[category]">
+                            <svg fill="#F28C28" xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 0 30.88051 24.9735">
+                                <path d="M30.72814,8.8769c-.14532-.82959-.40253-1.64972-.77496-2.4184-.37347-.76801-.86078-1.48114-1.43018-2.11041-.56958-.63019-1.21985-1.17505-1.91077-1.64008-.69165-.46552-1.42749-.84625-2.17938-1.16577-1.5072-.63647-3.08105-1.02167-4.65607-1.25201C18.1997.06067,16.61914-.02142,15.04528.00464c-1.57648.02826-3.16119.16687-4.73059.47339-1.56677.30853-3.12598.77979-4.58923,1.52222-.73016.37158-1.43451.81073-2.08917,1.32697-.65393.51624-1.25677,1.11188-1.7735,1.78302-.51813.66943-.9433,1.41797-1.25366,2.21051-.31232.7923-.4989,1.63013-.57269,2.46863-.03809.41821-.04175.84344-.03156,1.24939.01123.41052.04254.82294.0976,1.23492.11224.82324.32281,1.6463.65656,2.427.33209.7807.78845,1.51337,1.34021,2.15607.55261.64252,1.19427,1.19592,1.88171,1.6568,1.37878.92578,2.68457,1.41705,4.21594,1.83752,1.40436.38562,3.01337.61237,4.42383.68085.11499.00562.22223.05609.29999.14099.35828.39093.73218.8374,1.12903,1.18121.52246.45294,1.09735.87909,1.70001,1.23297.59595.34991,1.21814.62427,1.8606.87347.67725.2442,1.7251.4682,2.2804.51007.54651.0412.61255-.37128.435-.73407s-.21918-.43036-.29242-.58905c-.07404-.16064-.14563-.32257-.21429-.48541-.13745-.3255-.26355-.65436-.37738-.98267-.09088-.26556-.22833-.73004-.30035-1.09607-.02545-.12921.06171-.25269.19214-.27081,1.26611-.17621,2.52991-.42755,3.77478-.80463.76044-.23096,1.51337-.50958,2.24554-.85553.73206-.34485,1.44232-.76208,2.10303-1.26599.65881-.50543,1.26453-1.10352,1.7677-1.78918.25061-.34308.4754-.70667.67157-1.0849.19421-.37921.35907-.77295.49432-1.17499.26868-.80518.41492-1.64044.46771-2.46826.05145-.82404.01685-1.66162-.12994-2.49219Z" />
+                            </svg>
+                            <span class="absolute inset-0 flex items-center justify-center text-white text-[10px]">
+                                {{ projectReportBadgeType?.[category] }}
+                            </span>
+                        </div>
+                        <!-- <div>
+                            <span v-if="projectReportBadgeType?.[category]" class="side-notification side-notification--comment-only" style="position: unset;">{{ projectReportBadgeType?.[category] }}</span>
+
+                        </div> -->
                     </div>
                     
                     
 
-                    <div class="px-4 pb-4 space-y-2">
-                        <div class="text-[11px] opacity-70 pt-2">
-                            完了 {{ categoryStats[category]?.done ?? 0 }} / {{ categoryStats[category]?.total ?? 0 }}
-                            <span v-if="categoryStats[category]?.na">・対象外 {{ categoryStats[category]?.na }}</span>
-                        </div>
-                        <div
-                            v-for="it in items"
-                            :key="it.id"
-                            class="flex items-start justify-between gap-4 p-3 border-[var(--calendarBorder)]"
-                        >
-                            <label class="flex items-start gap-3 cursor-pointer text-sm leading-relaxed">
-                                <input
-                                    type="checkbox"
-                                    class="custom-f-checkbox mt-[2px]"
-                                    :style="{cursor: !auth.isAdmin ? 'not-allowed' : 'pointer'}"
-                                    :checked="it.status === 'done'"
-                                    :disabled="!auth.isAdmin || isUpdating(it.id)"
-                                    @change="(e) => toggleCheck(it, e)"
+                    <div v-if="expanded[category]" class="px-4 py-4 space-y-3">
+                        <div class="flex flex-col md:flex-row gap-5 items-start">
+                            <div class="w-full">
+                                <p class="text-sm">仕様</p>
+                                <ProjectCreationSummary
+                                    :category="category"
+                                    :edit-data="selectedProject?.specs?.spec_data"
                                 />
-                                <div>
-                                    <div>{{ it.label }}</div>
-                                    <div v-if="it.checked_at" class="text-[11px] opacity-60 mt-1">
-                                        更新: {{ formatDate(it.checked_at) }}
+                            </div>
+                            <div class="w-full">
+                                <p class="text-sm">経営管理本部チェック項目</p>
+                                <div
+                                    v-for="it in items"
+                                    :key="it.id"
+                                    class="p-3 mt-2 border border-solid border-[var(--calendarBorder)] rounded-md"
+                                >
+                                    <div class="flex items-start justify-between gap-4">
+                                        <div class="flex items-start gap-3 text-sm leading-relaxed">
+                                            <div>
+                                                <div>{{ it.label }}</div>
+                                                <div v-if="it.checked_at" class="text-[11px] opacity-60 mt-1">
+                                                    更新: {{ formatDate(it.checked_at) }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2 text-[11px]">
+                                            <label :class="statusOptionClass(it, 'done')">
+                                                <input
+                                                    @change="() => toggleCheck(it, 'done')"
+                                                    class="sr-only"
+                                                    :name="`status-${it.id}`"
+                                                    type="radio"
+                                                    value="done"
+                                                    :checked="it.status === 'done'"
+                                                    :disabled="!canEditStatus(it)"
+                                                >
+                                                完了
+                                            </label>
+                                            <label :class="statusOptionClass(it, 'na')">
+                                                <input
+                                                    @change="() => toggleCheck(it, 'na')"
+                                                    :name="`status-${it.id}`"
+                                                    class="sr-only"
+                                                    type="radio"
+                                                    value="na"
+                                                    :checked="it.status === 'na'"
+                                                    :disabled="!canEditStatus(it)"
+                                                >
+                                                対象外
+                                            </label>
+                                            <button
+                                                v-if="it.status !== 'pending' && auth.isAdmin"
+                                                type="button"
+                                                class="px-2 py-1 rounded border border-[var(--normalBorder)] opacity-80 hover:opacity-100 transition text-[11px] break-keep"
+                                                :disabled="!canEditStatus(it)"
+                                                @click="toggleCheck(it, 'pending')"
+                                            >
+                                                未選択
+                                            </button>
+                                            
+                                        
+                                            <span v-if="it.checked_by" class="break-keep">
+                                                <div class="relative" v-if="it.check_user">
+                                                    <UserPanel size="25" :user="it.check_user" imgClass="userNormalIcon"/>
+                                                    <div class="absolute bottom-[-2px] right-[-2px] z-[3]" v-if="it.link_user">
+                                                        <UserPanel size="15" :user="it.link_user"/>
+                                                    </div>                   
+                                                </div>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div v-if="it.children.length" class="mt-2 pl-2" v-for="ch in it.children" :key="ch.id">
+                                        <div class="flex items-start justify-between gap-4">
+                                            <div class="flex items-start gap-3 text-xs leading-relaxed">
+                                                <div>
+                                                    <div>{{ ch.label }}</div>
+                                                    <div v-if="ch.checked_at" class="text-[11px] opacity-60 mt-1">
+                                                        更新: {{ formatDate(ch.checked_at) }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-2 text-[11px]">
+                                                <label :class="statusOptionClass(ch, 'done')">
+                                                    <input
+                                                        @change="() => toggleCheck(ch, 'done')"
+                                                        class="sr-only"
+                                                        :name="`status-${ch.id}`"
+                                                        type="radio"
+                                                        value="done"
+                                                        :checked="ch.status === 'done'"
+                                                        :disabled="!canEditStatus(ch)"
+                                                    >
+                                                    完了
+                                                </label>
+                                                <label :class="statusOptionClass(ch, 'na')">
+                                                    <input
+                                                        @change="() => toggleCheck(ch, 'na')"
+                                                        :name="`status-${ch.id}`"
+                                                        class="sr-only"
+                                                        type="radio"
+                                                        value="na"
+                                                        :checked="ch.status === 'na'"
+                                                        :disabled="!canEditStatus(ch)"
+                                                    >
+                                                    対象外
+                                                </label>
+                                                <button
+                                                    v-if="ch.status !== 'pending' && auth.isAdmin"
+                                                    type="button"
+                                                    class="px-2 py-1 rounded border border-[var(--normalBorder)] opacity-80 hover:opacity-100 transition text-[11px] break-keep"
+                                                    :disabled="!canEditStatus(ch)"
+                                                    @click="toggleCheck(ch, 'pending')"
+                                                >
+                                                    未選択
+                                                </button>
+                                                
+                                            
+                                                <span v-if="ch.checked_by" class="break-keep">
+                                                    <div class="relative" v-if="ch.check_user">
+                                                        <UserPanel size="25" :user="ch.check_user" imgClass="userNormalIcon"/>
+                                                        <div class="absolute bottom-[-2px] right-[-2px] z-[3]" v-if="ch.link_user">
+                                                            <UserPanel size="15" :user="ch.link_user"/>
+                                                        </div>                   
+                                                    </div>
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </label>
-                            <div class="flex items-center gap-2 text-[11px]">
-                                <span :class="badgeClass(it.status)">{{ statusLabel(it.status) }}</span>
-                                <span v-if="it.checked_by" class="opacity-70 break-keep">管理本部</span>
                             </div>
                         </div>
+                        
+                        
+                        <div class="mt-6">
+                            <MessageArea 
+                                :type="category"
+                                :passingData="passingData"
+                                :item="{
+                                    ...selectedProject,
+                                    reports: selectedProject?.reports?.filter(report => report.type === category) ?? []
+                                }"
+                                @refresh="updateProject([
+                                    { name: 'reports', include: ['user', 'files'] },
+                                    { name: 'status' },
+                                ])"
+                            />
+                        </div>
                     </div>
+                    
                 </div>
-            </div>
             
-        </div>
+            
+        
         
 
-        <div class="mt-6">
-            <MessageArea 
-                :passingData="passingData"
-                :item="selectedProject"
-                @refresh="updateProject([
-                    { name: 'reports', include: ['user', 'files'] },
-                    { name: 'status' },
-                ])"
-            />
-        </div>
+        
     </div>
     <div v-else class="h-[calc(100%-115px)] w-full flex items-center justify-center">
         権限がありません
@@ -110,13 +215,17 @@ import { useAuthUserStore } from '@/store/auth';
 import { useDialog } from '@/composables/dialog';
 import { DateTime } from 'luxon';
 import { PROJECT_STATUS_LABEL } from '@/utils/tools';
-import ConfirmApply from './ConfirmApply.vue';
+import ProjectCreationSummary from './ProjectCreationSummary.vue';
 import { useBadgeStore } from '@/store/badge';
+import UserPanel from '@/components/Global/UserPanel.vue';
+import { useRoute } from 'vue-router';
+import { getProjectCreationActiveCategoryIds, getProjectCreationActiveCategories } from './projectCreationForm';
 
 const { selectedProject, updateProject } = useProject()
 const api = useApi()
 const auth = useAuthUserStore()
 const { ping } = useDialog()
+const seen = ref<Record<string, number>>({})
 const emit = defineEmits<{
     (e: 'close') : void
 }>()
@@ -129,18 +238,40 @@ const passingData = {
     title: 'メッセージ',
     file_path: 'project_checkitem_report_files'
 }
-const questionsExpanded = ref(false)
-const checkListExpanded = ref(false)
+const expanded = ref<Record<string, boolean>>({})
+const activeSpecCategoryIds = computed<Set<number> | null>(() =>
+    getProjectCreationActiveCategoryIds(selectedProject.value?.specs?.spec_data)
+)
+const activeSpecCategories = computed<Set<string> | null>(() =>
+    getProjectCreationActiveCategories(selectedProject.value?.specs?.spec_data)
+)
 const groupedCheckitems = computed<Record<string, ProjectCheckItem[]>>(() => {
+    const activeCategoryIds = activeSpecCategoryIds.value
+    const activeCategories = activeSpecCategories.value
     const items: ProjectCheckItem[] = selectedProject.value?.checkitems ?? []
-    const sorted = [...items].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const filtered = activeCategoryIds
+        ? items.filter((item) => activeCategoryIds.has(Number(item.project_checkitem_category_id)))
+        : activeCategories
+            ? items.filter((item) => activeCategories.has(item.category?.trim() || ''))
+        : items
+    const sorted = [...filtered].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     return sorted.reduce((acc, item) => {
         const key = item.category?.trim() || "未分類"
         ;(acc[key] ||= []).push(item)
         return acc
     }, {} as Record<string, ProjectCheckItem[]>)
 })
-
+watchEffect(() => {
+    for (const key of Object.keys(groupedCheckitems.value)) {
+        if (expanded.value[key] === undefined) {
+            expanded.value[key] = false
+        }
+    }
+})
+const toggleCategory = (category: string) => {
+    expanded.value[category] = !expanded.value[category]
+    read(category)
+}
 const categoryStats = computed(() => {
     const stats: Record<string, { total: number; done: number; na: number }> = {}
     for (const [category, items] of Object.entries(groupedCheckitems.value)) {
@@ -152,20 +283,6 @@ const categoryStats = computed(() => {
     }
     return stats
 })
-const allStatus = computed(() => {
-    const items: ProjectCheckItem[] = selectedProject.value?.checkitems ?? []
-    const total = items.length
-    const done = items.filter(it => it.status === 'done').length
-    const na = items.filter(it => it.status === 'na').length
-    return { total, done, na }
-})
-
-const toggleCheckList = () => {
-    checkListExpanded.value = !checkListExpanded.value
-}
-const toggleQuestions = () => {
-    questionsExpanded.value = !questionsExpanded.value
-}
 const isUpdating = (id: number) => updatingIds.value.includes(id)
 const setUpdating = (id: number, value: boolean) => {
     if (value) {
@@ -177,17 +294,21 @@ const setUpdating = (id: number, value: boolean) => {
     updatingIds.value = updatingIds.value.filter(v => v !== id)
 }
 
-const statusLabel = (s: string) => {
-    if (s === 'done') return '完了'
-    if (s === 'na') return '対象外'
-    return '未定'
+const canEditStatus = (it: ProjectCheckItem) => {
+    return auth.isAdmin && !isUpdating(it.id) && selectedProject.value?.status !== 'running'
 }
 
-const badgeClass = (s: string) => {
-    const base = 'px-2 py-[2px] rounded border border-solid break-keep'
-    if (s === 'done') return `${base} border-[var(--primary-color)] text-[var(--primary-color)] bg-[var(--bg3)]`
-    if (s === 'na') return `${base} border-[var(--normalBorder)] text-[gray] bg-[var(--background-color)]`
-    return `${base} border-[var(--normalBorder)] text-[gray] bg-[var(--bg2)]`
+const statusOptionClass = (it: ProjectCheckItem, option: 'done' | 'na') => {
+    const isActive = it.status === option
+    const isDisabled = !canEditStatus(it)
+    const base = 'px-3 py-1 rounded-full border border-solid break-keep select-none transition-all duration-150'
+    const active = option === 'done'
+        ? 'bg-green-600 text-white border-green-600 shadow-[0_0_0_1px_rgba(22,163,74,0.35)]'
+        : 'bg-amber-600 text-white border-amber-600 shadow-[0_0_0_1px_rgba(217,119,6,0.35)]'
+    const idle = 'bg-[var(--bg2)] text-[var(--primary-color)] border-[var(--normalBorder)]'
+    const hover = isDisabled ? '' : 'hover:brightness-110 hover:-translate-y-[1px] hover:border-[var(--hoverBorder)] focus-within:outline focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-[var(--hoverBorder)] cursor-pointer'
+    const disabled = isDisabled ? 'opacity-50 cursor-not-allowed' : ''
+    return `${base} ${isActive ? active : idle} ${hover} ${disabled}`
 }
 
 const formatDate = (value: string | null) => {
@@ -195,16 +316,19 @@ const formatDate = (value: string | null) => {
     return DateTime.fromSQL(value).toFormat('yyyy/M/d HH:mm:ss')
 }
 
-const toggleCheck = async (it: ProjectCheckItem, event: Event) => {
+const toggleCheck = async (it: ProjectCheckItem, nextStatus: 'pending' | 'done' | 'na') => {
     if (!auth.isAdmin || !selectedProject.value?.id) return
     if (selectedProject.value?.status === 'running') {
         ping('プロジェクト進行中')
         return
     }
-    const input = event.target as HTMLInputElement
-    const nextStatus = input.checked ? 'done' : 'pending'
+
     const prev = { status: it.status, checked_by: it.checked_by, checked_at: it.checked_at }
-    const toast = input.checked ? 'チェックしました。' : 'チェック外しました。'
+    const toast = nextStatus === 'done'
+        ? '完了に更新しました。'
+        : nextStatus === 'na'
+            ? '対象外に更新しました。'
+            : '未選択に戻しました。'
     it.status = nextStatus
     setUpdating(it.id, true)
     try {
@@ -235,14 +359,18 @@ const confirm = async(status: string) => {
     updateProject([{name: 'status'}])
 }
 const badge = useBadgeStore()
-const read = async() => {
+const route = useRoute()
+const read = async(type: string) => {
+    if (seen.value[type] > 0) return
     await api.post('/mark_as_seen', {
-        project_id: selectedProject.value?.id
+        project_id: selectedProject.value?.id,
+        type: type
     })
+    seen.value[type] = 1
     badge.clearProjectReportBadge()
 }
-onMounted(() => {
-    read()
+const projectReportBadgeType = computed(() => {
+    return badge.projectReportMapByType[Number(route.params.projectId)] ?? []
 })
 </script>
 <style scoped>
