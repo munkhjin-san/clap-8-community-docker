@@ -184,8 +184,9 @@
                     />
                 </div>
 
-                <div v-if="!isPartner" style="padding: 15px;border: solid thin tomato;" class="si-box">
+                <div style="padding: 15px;border: solid thin tomato;" class="si-box">
                     <MemberSelector 
+                        v-if="!isPartner"
                         placeHolder="サブアカウント"
                         v-model="subParams.linked"
                         :options="linkables"
