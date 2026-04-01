@@ -974,20 +974,31 @@ class ProjectController extends Controller
         ]);
 
         $label = trim($data['label']);
-        $category = ProjectCheckitemCategory::find($data['id'] ?? null);
+        $category = ProjectCheckitemCategory::withTrashed()->find($data['id'] ?? null);
+        $duplicateCategory = ProjectCheckitemCategory::withTrashed()
+            ->where('label', $label)
+            ->when($category?->id, fn ($q) => $q->where('id', '!=', $category->id))
+            ->first();
+
+        if ($duplicateCategory) {
+            if (!$category && $duplicateCategory->trashed()) {
+                $duplicateCategory->restore();
+                $duplicateCategory->update([
+                    'status' => 0,
+                ]);
+
+                return response()->json($duplicateCategory->fresh());
+            }
+
+            throw ValidationException::withMessages([
+                'label' => ['同じチェックカテゴリが既に存在します。'],
+            ]);
+        }
+
         $previousLabel = $category?->label;
 
         $baseKey = Str::slug($label, '_') ?: 'checkitem_category';
-        $key = $baseKey;
-        $suffix = 2;
-        while (
-            ProjectCheckitemCategory::where('key', $key)
-                ->when($category?->id, fn ($q) => $q->where('id', '!=', $category->id))
-                ->exists()
-        ) {
-            $key = $baseKey . '_' . $suffix;
-            $suffix++;
-        }
+        $key = $this->nextProjectCheckitemCategoryKey($baseKey, $category?->id);
 
         $category = ProjectCheckitemCategory::updateOrCreate(
             ['id' => $data['id'] ?? null],
@@ -1036,19 +1047,29 @@ class ProjectController extends Controller
         ]);
 
         $label = trim($data['label']);
-        $projectType = ProjectType::find($data['id'] ?? null);
+        $projectType = ProjectType::withTrashed()->find($data['id'] ?? null);
+        $duplicateProjectType = ProjectType::withTrashed()
+            ->where('label', $label)
+            ->when($projectType?->id, fn ($q) => $q->where('id', '!=', $projectType->id))
+            ->first();
+
+        if ($duplicateProjectType) {
+            if (!$projectType && $duplicateProjectType->trashed()) {
+                $duplicateProjectType->restore();
+                $duplicateProjectType->update([
+                    'status' => 0,
+                ]);
+
+                return response()->json($duplicateProjectType->fresh());
+            }
+
+            throw ValidationException::withMessages([
+                'label' => ['同じプロジェクト種別が既に存在します。'],
+            ]);
+        }
 
         $baseKey = Str::slug($label, '_') ?: 'project_type';
-        $key = $baseKey;
-        $suffix = 2;
-        while (
-            ProjectType::where('key', $key)
-                ->when($projectType?->id, fn ($q) => $q->where('id', '!=', $projectType->id))
-                ->exists()
-        ) {
-            $key = $baseKey . '_' . $suffix;
-            $suffix++;
-        }
+        $key = $this->nextProjectTypeKey($baseKey, $projectType?->id);
 
         $projectType = ProjectType::updateOrCreate(
             ['id' => $data['id'] ?? null],
@@ -1071,6 +1092,40 @@ class ProjectController extends Controller
         $projectType->delete();
 
         return response()->json(['status' => 'ok']);
+    }
+    private function nextProjectTypeKey(string $baseKey, ?int $ignoreId = null): string
+    {
+        $key = $baseKey;
+        $suffix = 2;
+
+        while (
+            ProjectType::withTrashed()
+                ->where('key', $key)
+                ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+                ->exists()
+        ) {
+            $key = $baseKey . '_' . $suffix;
+            $suffix++;
+        }
+
+        return $key;
+    }
+    private function nextProjectCheckitemCategoryKey(string $baseKey, ?int $ignoreId = null): string
+    {
+        $key = $baseKey;
+        $suffix = 2;
+
+        while (
+            ProjectCheckitemCategory::withTrashed()
+                ->where('key', $key)
+                ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
+                ->exists()
+        ) {
+            $key = $baseKey . '_' . $suffix;
+            $suffix++;
+        }
+
+        return $key;
     }
     public function get_project_checkitem_templates(Request $request)
     {
