@@ -221,13 +221,16 @@ class DashboardController extends Controller
         ];
     }
     public function pendingAttendance() {
-        $userId = Auth::id();
+        
+        $user = Auth::user();
+        if ($user->position_id < 6 || $user->position_id === 14) return null;
+
         $previousMonth = Carbon::now()->subMonthNoOverflow()->format('Y-m');
-        $pendingAttendance = attendanceRecord::where('user_id', $userId)
+        $pendingAttendance = attendanceRecord::where('user_id', $user->id)
         ->where('date_year_month', $previousMonth)->first();
         if (!$pendingAttendance) {
             $data = [
-                "user_id" => $userId,
+                "user_id" => $user->id,
                 "date_year_month" => $previousMonth,
             ];
             return $data;

@@ -222,6 +222,7 @@ import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import Modal from '../Global/Modal.vue';
+import { useDashboardStore } from '@/store/dashboard';
     
     const emit = defineEmits(['reload', 'closeModal'])
     const props = defineProps([
@@ -238,6 +239,7 @@ import Modal from '../Global/Modal.vue';
     const loading = ref(0)
     const api = useApi()
     const { ping, ask } = useDialog()
+    const { getBatchDashboardData } = useDashboardStore()
     onMounted(() => {
         fetchAttendanceData()
     })
@@ -413,6 +415,7 @@ import Modal from '../Global/Modal.vue';
         })
         emit('closeModal')
         emit('reload')
+        getBatchDashboardData(['timesheet'])
         sending.value = false      
     }
     const attendanceCreate = async() => {
