@@ -156,6 +156,7 @@ class PostController extends Controller
         ->orderBy('updated_at', 'desc')
         ->with('awards')
         ->with('result_files')
+        ->with('emotedUsers')
         
         ->when(!$has_id, function ($query) use($skip) {
             $query->skip($skip);
@@ -167,6 +168,31 @@ class PostController extends Controller
         return response()->json($qr);
 
 
+    }
+    private function post_refresh(PostRecord $post)
+    {
+        $post->refresh();
+        $post->load([
+            'user',
+            'tags',
+            'files',
+            'receipts',
+            'claps',
+            'to_users',
+            'grants',
+            'awards',
+            'result_files',
+            'emotedUsers',
+            'entries' => function ($query) {
+                $query->withCount('comments')
+                    ->withCount('claps')
+                    ->with('claps')
+                    ->orderBy('created_at', 'desc');
+            },
+        ]);
+        $post->loadCount('comments');
+
+        return $post;
     }
     public function post_get_suggested_tags(Request $request){
         $super = $request->super;
@@ -533,6 +559,27 @@ class PostController extends Controller
             ]);
         }
         return response()->json(); 
+    }
+    public function post_send_emote(Request $request)
+    {
+        $request->validate([
+            'id' => 'required',
+            'reaction' => 'required|string',
+        ]);
+
+        $activeUser = Auth::user();
+        $post = PostRecord::with('emotedUsers')->findOrFail($request->id);
+        $existingEmote = $post->emotedUsers()->where('user_id', $activeUser->id)->first();
+
+        if ($existingEmote && $existingEmote->pivot->emote_name == $request->reaction) {
+            $post->emotedUsers()->detach($activeUser->id);
+        } else if ($existingEmote) {
+            $post->emotedUsers()->updateExistingPivot($activeUser->id, ['emote_name' => $request->reaction]);
+        } else {
+            $post->emotedUsers()->attach($activeUser->id, ['emote_name' => $request->reaction]);
+        }
+
+        return response()->json($this->post_refresh($post));
     }
     private function containsOnlyEmojis($text)
     {

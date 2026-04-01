@@ -46,12 +46,11 @@
 <script setup lang="ts">
 import { PostEntry } from '@/interface/postInterface';
 import UserPanel from '../Global/UserPanel.vue';
-import { amountOfMoneyParser, DateParser } from '@/utils/tools';
+import { amountOfMoneyParser, DateParser, urlCheck } from '@/utils/tools';
 import { computed, ref } from 'vue';
 import PostEntryFiles from './PostEntryFiles.vue';
 import ClapButton from './ClapButton.vue';
 import PostComment from './PostComment.vue';
-import Autolinker from 'autolinker';
 
 const props = defineProps<{
     entry: PostEntry
@@ -63,7 +62,7 @@ const truncated = ref(false)
 const body = computed(() => {           
     const text = props.entry.comment || ''
     const truncate = cutter(text, 200)
-    const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
+    const urlParse = urlCheck(truncate)   
     return urlParse          
     
 })

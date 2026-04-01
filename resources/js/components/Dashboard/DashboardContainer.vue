@@ -1,6 +1,6 @@
 <template>
     <div id="dashBoardContainer" class="w-full h-full overflow-hidden relative">
-        <div class="w-full h-full overflow-auto bg-[var(--bg3)] relative" :class="{'hidescroll' : route.params.type}" ref="sortParent" @scroll="handleScroll">
+        <div class="w-full h-full overflow-y-scroll bg-[var(--bg3)] relative" :class="{'hidescroll' : route.params.type}" ref="sortParent" @scroll="handleScroll">
             <div class="mem-header-section mobile" :style="{'transform': `translateY(${offset}px)`}">        
                 <div class="post-header sticky top-0 z-[11] bg-[var(--background-color)]" >
                     <HamBurger />       

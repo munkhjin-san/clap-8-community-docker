@@ -1,6 +1,6 @@
 
 import { LocationQueryValue } from "vue-router";
-import { CommonFile, User } from "./globalInterface";
+import { CommonFile, EmoteUser, User } from "./globalInterface";
 
 export interface Post{
     app_type: number;
@@ -36,6 +36,7 @@ export interface Post{
     refresh_amount: string;
     grants: PostGrant[];
     grantable: boolean;
+    emoted_users: EmoteUser[];
 }
 interface PostGrant {
     id: number;

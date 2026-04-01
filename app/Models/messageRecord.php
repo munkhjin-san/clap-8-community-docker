@@ -27,9 +27,15 @@ class messageRecord extends Model
     }
     public function emotedUsers()
     {
-        return $this->belongsToMany(User::class, 'message_emote_users')
+        return $this->morphToMany(User::class, 'stampable', 'stamps', 'stampable_id', 'user_id')
                     ->withPivot(['emote_name'])
+                    ->withTimestamps()
                     ->select('users.id', 'users.name', 'users.icon_path','users.icon_bg', 'users.deleted_at');
+    }
+
+    public function stamps()
+    {
+        return $this->morphMany(Stamp::class, 'stampable');
     }
 
     public function uncheckedUsers()

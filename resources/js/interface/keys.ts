@@ -1,5 +1,6 @@
 import type { InjectionKey, Ref } from 'vue'
 import { Board, Message, CopyData, Division, Task } from './globalInterface'
+import { Post } from './postInterface'
 import { FastCreateData } from './calendarInterface'
 import { DateTime } from 'luxon'
 import { SubTaskPreData } from './projectInterface'
@@ -40,6 +41,7 @@ type KeyboardMethods = {
 }
 type PostMethods = {
     commentCount: (num: number, id: number) => void
+    updateRecord: (record: Post) => void
 }
 type DivisionMethods = {
     remove: (item: Division) => void

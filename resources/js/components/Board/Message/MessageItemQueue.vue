@@ -42,20 +42,17 @@
                     v-if="message.message_reply"
                     :which="'reply'"
                     :message="message.message_reply"
-                    :quotMessage="null"
-                    :urlCheck="urlCheck"/>
+                    :quotMessage="null"/>
                 <MessageQuoteReply 
                     v-if="message.message_quot"
                     :which="'quot'"
                     :message="message.message_quot"
-                    :quotMessage="message.quot_message"
-                    :urlCheck="urlCheck"/>
+                    :quotMessage="message.quot_message"/>
                 <MessageQuoteReply 
                     v-if="message.message_forward"
                     :which="'forward'"
                     :message="message.message_forward"
-                    :quotMessage="null"
-                    :urlCheck="urlCheck"/>
+                    :quotMessage="null"/>
                 
 
 
@@ -144,7 +141,6 @@
 </template>
 
 <script setup lang="ts">
-import Autolinker from 'autolinker';
 import MessageQuoteReply from "./MessageQuoteReply.vue";
 import FileIcon from '../Mixed/FileIcon.vue';
 import { computed, inject, onMounted, ref } from 'vue';
@@ -235,12 +231,6 @@ import { DateTime } from 'luxon';
         resending.value = true
         sendMessage()                
 
-    }
-    const urlCheck = (text) => {
-        if(text){                
-            var linkedText = Autolinker.link(text, {stripPrefix: false});              
-            return linkedText;                
-        }            
     }
               
 

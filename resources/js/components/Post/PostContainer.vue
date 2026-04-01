@@ -466,6 +466,12 @@ import { useTheme } from '@/store/theme';
     }
     provide(PostMethodsKey, {
         commentCount: (num, id) => setCommentCount(num, id),
+        updateRecord: (record) => {
+            const index = postList.value.findIndex(item => item.id === record.id)
+            if (index > -1) {
+                postList.value[index] = record
+            }
+        },
     })
 
 </script>

@@ -53,12 +53,20 @@
                                             <UserPanel v-if="log.user" :user="log.user" size="20" with-name disable-instant/>
                                             <div class="text-[11px] text-[gray]">{{ DateTime.fromISO(log.created_at).toLocaleString(DateTime.DATETIME_MED) }}</div>
                                         </div>
-                                    </div>
+                                    </div>                                              
                                 </div>
                                 <div v-else>
-                                    <div class="text-sm text-[gray] mb-3 text-center">
+                                    <div v-if="currentMonth >= ASSET_CONFIRM_DEADLINE_MONTH" class="text-[tomato] mb-3 text-center text-[12px]">
+                                        物品の確認を行ってください。
+                                    </div>
+                                    <div v-else class="text-[gray] mb-3 text-center text-[12px]">
                                         物品の確認がまだ行われていません。
                                     </div>
+                                </div>
+                                <div class="mt-3 ml-auto w-fit">
+                                    <router-link :to="{name: 'dashboard', params: { type: 'assets'}, query: {asset_id: asset.id}}" class="jump-link text-sm text-center">
+                                        詳細
+                                    </router-link>
                                 </div>
                             </PanelData>
                         </template>
@@ -92,7 +100,7 @@
                                         <div v-if="assetRequest.recieve_user">{{ assetRequest.recieve_user.name }}</div>
                                         <div v-if="assetRequest.to_external_user">{{ assetRequest.to_external_user }}</div>
                                     </div>
-                                    <div>【{{ asset.item_name }}】</div>
+                                    <div>【{{ asset.item_name }}】</div>                      
                                 </PanelTitle>
                         </template>
                         <template #body>
@@ -168,7 +176,7 @@ const parent = useTemplateRef('parent')
 const auth = useAuthUserStore()
 const loadCount = ref(0)
 const viewHistory = ref(false)
-const ASSET_CONFIRM_DEADLINE_MONTH = 4
+const ASSET_CONFIRM_DEADLINE_MONTH = 3
 const currentMonth = DateTime.now().month
 onMounted(() => {
     if(route.params.type === props.data.type) {

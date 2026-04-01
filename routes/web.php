@@ -233,6 +233,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::put('/set_message_schedule', [BoardController::class, 'set_message_schedule']);
     Route::put('/update_view_from', [BoardController::class, 'update_view_from']);
     Route::post('/send_emote', [BoardController::class, 'send_emote']);
+    Route::post('/post_send_emote', [PostController::class, 'post_send_emote']);
     // Task
     Route::get('/task_list', [TaskController::class, 'getTask']); 
     Route::patch('/complete_task', [TaskController::class, 'completeTask']); 
@@ -414,6 +415,10 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/create_update_checkitem', [ProjectController::class, 'create_update_checkitem']);
         Route::delete('/delete_checkitem/{checkitem}', [ProjectController::class, 'delete_checkitem']);
         Route::post('/mark_as_seen', [ProjectController::class, 'markAsSeen']);
+        Route::get('/get_members_assign_data', [ProjectController::class, 'get_members_assign_data']);
+        Route::post('/add_assign_action', [ProjectController::class, 'add_assign_action']);
+        Route::post('/update_assign_support_level', [ProjectController::class, 'update_assign_support_level']);
+        Route::post('/apply_assign_data_to_hr', [ProjectController::class, 'apply_assign_data_to_hr']);
 
         Route::get('/get_work_data', [WorkController::class, 'getWorkData']);
         Route::get('/get_shift_data', [WorkController::class, 'get_shift_data']);

@@ -150,32 +150,61 @@
             <div>現在のチャージ総額 {{ totalChargeAmmount }}円</div>
         </div>
         <div class="post-footer">
-             <div class="post-footer-wrap" v-if="record.app_type == 2 && record.grantable && totalExpenses > 0">
-                <div class="text-[14px]">経費合計: {{ amountOfMoneyParser(totalExpenses) }}円</div>
-            </div>
-            <div v-if="record.app_type == 2" class="post-footer-wrap">
-                <div class="text-[14px] cursor-pointer" @click="viewSupporters" v-if="supporters.length">サポーター {{ supporters.length }}人</div>
-            </div>
-            <div v-if="record.app_type == 5" class="post-footer-wrap">
-                <div class="text-[14px] mr-[20px]">カロリー合計: <span v-if="totalCalories">🔥 </span>{{ amountOfMoneyParser(totalCalories) }} kcal</div>
-                <div class="text-[14px] cursor-pointer flex items-center gap-1" @click="viewEntries = !viewEntries">
-                    <People size="25"/>
-                    {{ record.entries.length }}
+            <div class="mt-2 flex w-fit relative items-center gap-2">
+                <div
+                    class="cursor-pointer"
+                    @click.stop="emoteAction(record)"
+                >
+                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="18" height="19" viewBox="0 0 30 30" style="fill: var(--check-inactive)">
+                        <path d="M14.977,0C6.735-0.056-0.127,6.93,0.002,15.153c-0.028,8.165,6.816,14.938,14.975,14.811v-0.04c0.967,0.013,1.936-0.067,2.889-0.242c4.817-0.863,9.055-4.275,10.937-8.8C32.985,11.039,25.688-0.021,14.977,0 M14.977,27.902C6.08,27.658-0.075,18.755,3.433,10.373C7.814,0.291,22.13,0.293,26.49,10.386C30.002,18.61,23.886,27.788,14.977,27.902"></path><path d="M22.441,18.263c-0.623-0.436-1.479-0.284-1.917,0.338c0.007-0.011,0.002-0.006-0.001-0.004c-0.002,0.002-0.006,0.005-0.011,0.01l-0.027,0.025c-0.734,0.658-1.568,1.264-2.479,1.639c-0.291,0.123-0.596,0.222-0.9,0.292c-0.67,0.185-1.332,0.349-2.043,0.376c-2.039,0.059-4.107-0.841-5.435-2.355c-1.226-1.563-3.443,0.199-2.196,1.769c0.199,0.27,0.418,0.529,0.646,0.772c1.784,1.911,4.359,3.094,6.986,3.106c1.119,0.021,2.305-0.08,3.354-0.525c1.753-0.72,3.36-1.896,4.362-3.526C23.214,19.556,23.063,18.698,22.441,18.263"></path><path d="M18.513,14.558c0.905,0.201,1.834-0.509,2.073-1.585c0.239-1.076-0.302-2.111-1.208-2.313c-0.904-0.201-1.833,0.509-2.072,1.585C17.065,13.322,17.606,14.357,18.513,14.558"></path><path d="M11.44,14.558c0.906-0.201,1.446-1.236,1.208-2.313c-0.239-1.076-1.167-1.786-2.074-1.585c-0.906,0.203-1.446,1.238-1.208,2.313C9.605,14.049,10.534,14.759,11.44,14.558"></path>
+                    </svg>
+                </div>
+                <Transition name="downShiftPop">
+                    <div class="w-max absolute p-4 bg-[var(--background-color)] z-10 bottom-[25px] shadow-xl" :id="`iokawaReactionPop_${record.id}`" v-if="menu.parent == `iokawaReactionPop_${record.id}`">
+                        <div class="grid grid-cols-5 gap-2">
+                            <div class="flex items-end justify-center transition-transform duration-200 ease-out hover:scale-105" v-for="oikawa in oikawaMap" :key="oikawa.name" @click="sendEmote(oikawa.name)">
+                                <Character :size="40" :emoteName="oikawa.name"/>
+                            </div>
+                        </div>
+                    </div>
+                </Transition>
+                <div @click="setEmoteUsers(record.emoted_users)" v-if="record.emoted_users && record.emoted_users.length">
+                    <div class="flex items-end cursor-pointer text-[var(--primary-color)] flex-wrap">
+                        <TransitionGroup name="downShiftPop">
+                            <Character v-for="emote in emotes" :key="emote" :size="40" :emoteName="emote"/>
+                        </TransitionGroup>
+                    </div>
                 </div>
             </div>
-            <div v-if="record.app_type == 6 && record.refresh_amount && auth.id === record.user_id" class="post-footer-wrap">
-                <div class="text-[14px] cursor-pointer">リフレッシュ総額（非公開）: {{ record.refresh_amount }}円</div>
+            <div class="flex items-center gap-4 ml-auto">            
+                <div class="post-footer-wrap" v-if="record.app_type == 2 && record.grantable && totalExpenses > 0">
+                    <div class="text-[14px]">経費合計: {{ amountOfMoneyParser(totalExpenses) }}円</div>
+                </div>
+                <div v-if="record.app_type == 2" class="post-footer-wrap">
+                    <div class="text-[14px] cursor-pointer" @click="viewSupporters" v-if="supporters.length">サポーター {{ supporters.length }}人</div>
+                </div>
+                <div v-if="record.app_type == 5" class="post-footer-wrap">
+                    <div class="text-[14px] mr-[20px]">カロリー合計: <span v-if="totalCalories">🔥 </span>{{ amountOfMoneyParser(totalCalories) }} kcal</div>
+                    <div class="text-[14px] cursor-pointer flex items-center gap-1" @click="viewEntries = !viewEntries">
+                        <People size="25"/>
+                        {{ record.entries.length }}
+                    </div>
+                </div>
+                <div v-if="record.app_type == 6 && record.refresh_amount && auth.id === record.user_id" class="post-footer-wrap">
+                    <div class="text-[14px] cursor-pointer">リフレッシュ総額（非公開）: {{ record.refresh_amount }}円</div>
+                </div>
+            
+                <div class="post-footer-wrap">
+                    <svg @click="isExpanded = !isExpanded" class="comment-icon" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 32">
+                        <path d="M10.788 8.109c1.574-0.063 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.345 0.021-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.896 0.010-0.459 0.386-0.823 0.834-0.844zM10.788 13.050c1.574-0.052 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.356 0.010-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.907 0.021-0.438 0.396-0.803 0.844-0.823zM10.788 17.991c0.74-0.052 1.491-0.083 2.231-0.104l1.115-0.031c0.375-0.010 0.74-0.010 1.115-0.010 0.74 0 1.491 0.010 2.231 0.042 0.75 0.031 1.491 0.063 2.231 0.136 0.459 0.052 0.803 0.459 0.75 0.928-0.042 0.407-0.365 0.709-0.75 0.75-0.75 0.073-1.491 0.115-2.231 0.136-0.75 0.031-1.491 0.042-2.231 0.042-0.375 0-0.74 0-1.115-0.010l-1.115-0.031c-0.74-0.021-1.491-0.052-2.231-0.104-0.479-0.042-0.844-0.459-0.803-0.938 0.031-0.427 0.375-0.771 0.803-0.803z"></path>
+                        <path d="M39.432 11.393c-0.188-1.063-0.521-2.116-0.99-3.106-0.479-0.99-1.105-1.897-1.835-2.71s-1.564-1.511-2.45-2.106c-0.886-0.594-1.835-1.084-2.794-1.501-1.939-0.813-3.95-1.313-5.973-1.605s-4.055-0.396-6.066-0.365c-2.022 0.042-4.055 0.219-6.066 0.605-2.012 0.396-4.013 1.001-5.889 1.949-0.938 0.479-1.845 1.042-2.679 1.699-0.834 0.667-1.616 1.428-2.272 2.293-0.667 0.855-1.209 1.824-1.605 2.835-0.396 1.021-0.636 2.095-0.74 3.169-0.052 0.532-0.052 1.084-0.042 1.605 0.010 0.532 0.052 1.053 0.125 1.584 0.146 1.053 0.417 2.116 0.844 3.117s1.011 1.939 1.72 2.762c0.709 0.823 1.532 1.532 2.418 2.126 1.772 1.188 3.44 1.824 5.41 2.356 1.803 0.49 3.867 0.782 5.681 0.876 0.146 0.010 0.281 0.073 0.386 0.177 0.459 0.5 0.938 1.074 1.449 1.511 0.667 0.584 1.407 1.126 2.178 1.584 0.761 0.448 1.564 0.803 2.387 1.115 0.865 0.313 2.21 0.605 2.929 0.657 0.698 0.052 0.782-0.479 0.563-0.938-0.229-0.469-0.281-0.552-0.375-0.761s-0.188-0.417-0.271-0.625-0.344-0.844-0.49-1.261c-0.115-0.344-0.292-0.938-0.386-1.407-0.031-0.167 0.083-0.323 0.25-0.344 1.626-0.229 3.242-0.552 4.847-1.032 0.98-0.292 1.939-0.657 2.877-1.094s1.855-0.98 2.7-1.626c0.844-0.646 1.626-1.418 2.272-2.293 0.323-0.438 0.615-0.907 0.865-1.397s0.459-0.99 0.636-1.511c0.344-1.032 0.532-2.106 0.594-3.169 0.021-1.032-0.021-2.106-0.208-3.169zM37.347 14.478c-0.031 0.896-0.167 1.782-0.427 2.616-0.125 0.417-0.292 0.823-0.479 1.22s-0.407 0.771-0.657 1.126c-0.5 0.719-1.115 1.365-1.814 1.928-1.397 1.126-3.106 1.928-4.899 2.522-0.896 0.302-1.814 0.542-2.752 0.75-0.928 0.208-1.876 0.375-2.835 0.511h-0.031c-0.396 0.063-0.709 0.396-0.719 0.813-0.010 0.594 0.083 1.126 0.208 1.626s0.292 0.969 0.469 1.438c0.146 0.375 0.292 0.698 0.542 1.105 0.042 0.073-0.021 0.146-0.104 0.125-1.167-0.365-2.304-0.907-3.461-1.845-1.23-0.99-1.762-1.584-2.814-2.835-0.146-0.177-0.365-0.302-0.615-0.323h-0.031c-1.908-0.188-3.805-0.479-5.629-0.98-1.814-0.5-3.565-1.199-5.055-2.22-0.74-0.511-1.407-1.105-1.97-1.772-0.563-0.678-1.022-1.418-1.355-2.231s-0.552-1.678-0.657-2.564-0.125-1.824-0.031-2.689c0.104-0.876 0.313-1.73 0.646-2.543 0.334-0.803 0.771-1.564 1.324-2.251 1.115-1.386 2.595-2.481 4.232-3.273 0.823-0.396 1.678-0.74 2.564-1.022s1.793-0.511 2.71-0.678c1.845-0.354 3.742-0.511 5.639-0.532 1.907-0.010 3.815 0.073 5.67 0.344 1.866 0.271 3.69 0.709 5.378 1.418 1.689 0.698 3.242 1.668 4.44 2.95 0.594 0.636 1.105 1.355 1.491 2.126s0.667 1.605 0.834 2.481c0.167 0.855 0.219 1.751 0.188 2.658z"></path>
+                    </svg>
+                    <span class="comment-count leading-none" v-if="record.comments_count">{{ record.comments_count }}</span>
+                </div>
+                <ClapButton @updateClap="setClap" :item="record" :appName="appName"/> 
             </div>
-           
-            <div class="post-footer-wrap">
-                <svg @click="isExpanded = !isExpanded" class="comment-icon" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 32">
-                    <path d="M10.788 8.109c1.574-0.063 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.345 0.021-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.896 0.010-0.459 0.386-0.823 0.834-0.844zM10.788 13.050c1.574-0.052 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.356 0.010-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.907 0.021-0.438 0.396-0.803 0.844-0.823zM10.788 17.991c0.74-0.052 1.491-0.083 2.231-0.104l1.115-0.031c0.375-0.010 0.74-0.010 1.115-0.010 0.74 0 1.491 0.010 2.231 0.042 0.75 0.031 1.491 0.063 2.231 0.136 0.459 0.052 0.803 0.459 0.75 0.928-0.042 0.407-0.365 0.709-0.75 0.75-0.75 0.073-1.491 0.115-2.231 0.136-0.75 0.031-1.491 0.042-2.231 0.042-0.375 0-0.74 0-1.115-0.010l-1.115-0.031c-0.74-0.021-1.491-0.052-2.231-0.104-0.479-0.042-0.844-0.459-0.803-0.938 0.031-0.427 0.375-0.771 0.803-0.803z"></path>
-                    <path d="M39.432 11.393c-0.188-1.063-0.521-2.116-0.99-3.106-0.479-0.99-1.105-1.897-1.835-2.71s-1.564-1.511-2.45-2.106c-0.886-0.594-1.835-1.084-2.794-1.501-1.939-0.813-3.95-1.313-5.973-1.605s-4.055-0.396-6.066-0.365c-2.022 0.042-4.055 0.219-6.066 0.605-2.012 0.396-4.013 1.001-5.889 1.949-0.938 0.479-1.845 1.042-2.679 1.699-0.834 0.667-1.616 1.428-2.272 2.293-0.667 0.855-1.209 1.824-1.605 2.835-0.396 1.021-0.636 2.095-0.74 3.169-0.052 0.532-0.052 1.084-0.042 1.605 0.010 0.532 0.052 1.053 0.125 1.584 0.146 1.053 0.417 2.116 0.844 3.117s1.011 1.939 1.72 2.762c0.709 0.823 1.532 1.532 2.418 2.126 1.772 1.188 3.44 1.824 5.41 2.356 1.803 0.49 3.867 0.782 5.681 0.876 0.146 0.010 0.281 0.073 0.386 0.177 0.459 0.5 0.938 1.074 1.449 1.511 0.667 0.584 1.407 1.126 2.178 1.584 0.761 0.448 1.564 0.803 2.387 1.115 0.865 0.313 2.21 0.605 2.929 0.657 0.698 0.052 0.782-0.479 0.563-0.938-0.229-0.469-0.281-0.552-0.375-0.761s-0.188-0.417-0.271-0.625-0.344-0.844-0.49-1.261c-0.115-0.344-0.292-0.938-0.386-1.407-0.031-0.167 0.083-0.323 0.25-0.344 1.626-0.229 3.242-0.552 4.847-1.032 0.98-0.292 1.939-0.657 2.877-1.094s1.855-0.98 2.7-1.626c0.844-0.646 1.626-1.418 2.272-2.293 0.323-0.438 0.615-0.907 0.865-1.397s0.459-0.99 0.636-1.511c0.344-1.032 0.532-2.106 0.594-3.169 0.021-1.032-0.021-2.106-0.208-3.169zM37.347 14.478c-0.031 0.896-0.167 1.782-0.427 2.616-0.125 0.417-0.292 0.823-0.479 1.22s-0.407 0.771-0.657 1.126c-0.5 0.719-1.115 1.365-1.814 1.928-1.397 1.126-3.106 1.928-4.899 2.522-0.896 0.302-1.814 0.542-2.752 0.75-0.928 0.208-1.876 0.375-2.835 0.511h-0.031c-0.396 0.063-0.709 0.396-0.719 0.813-0.010 0.594 0.083 1.126 0.208 1.626s0.292 0.969 0.469 1.438c0.146 0.375 0.292 0.698 0.542 1.105 0.042 0.073-0.021 0.146-0.104 0.125-1.167-0.365-2.304-0.907-3.461-1.845-1.23-0.99-1.762-1.584-2.814-2.835-0.146-0.177-0.365-0.302-0.615-0.323h-0.031c-1.908-0.188-3.805-0.479-5.629-0.98-1.814-0.5-3.565-1.199-5.055-2.22-0.74-0.511-1.407-1.105-1.97-1.772-0.563-0.678-1.022-1.418-1.355-2.231s-0.552-1.678-0.657-2.564-0.125-1.824-0.031-2.689c0.104-0.876 0.313-1.73 0.646-2.543 0.334-0.803 0.771-1.564 1.324-2.251 1.115-1.386 2.595-2.481 4.232-3.273 0.823-0.396 1.678-0.74 2.564-1.022s1.793-0.511 2.71-0.678c1.845-0.354 3.742-0.511 5.639-0.532 1.907-0.010 3.815 0.073 5.67 0.344 1.866 0.271 3.69 0.709 5.378 1.418 1.689 0.698 3.242 1.668 4.44 2.95 0.594 0.636 1.105 1.355 1.491 2.126s0.667 1.605 0.834 2.481c0.167 0.855 0.219 1.751 0.188 2.658z"></path>
-                </svg>
-                <span class="comment-count leading-none" v-if="record.comments_count">{{ record.comments_count }}</span>
-            </div>
-            <ClapButton @updateClap="setClap" :item="record" :appName="appName"/> 
         </div>
+
         <transition name="commentArea">
             <PostComment 
                 v-if="isExpanded"
@@ -192,7 +221,6 @@
 <script setup lang="ts">
 import UserPanel from '@/components/Global/UserPanel.vue'
 import PostDate from './PostDate.vue'
-import Autolinker from 'autolinker';
 import PostTag from './PostTag.vue';
 import ClapButton from './ClapButton.vue';
 import PostComment from './PostComment.vue'
@@ -206,7 +234,7 @@ import { useMessageUsers } from '@/store/messageUsers'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import PostIcon from './PostIcon.vue';
 import { DateTime } from 'luxon';
-import { amountOfMoneyParser, customParser } from '@/utils/tools';
+import { amountOfMoneyParser, customParser, oikawaMap, urlCheck } from '@/utils/tools';
 import { Post, PostEntry } from '@/interface/postInterface';
 import { User } from '@/interface/globalInterface';
 import PostEntryRecord from './PostEntryRecord.vue';
@@ -215,11 +243,17 @@ import People from '../Icons/People.vue';
 import CloseIcon from '../Form/CloseIcon.vue';
 import FileIcon from '../Board/Mixed/FileIcon.vue';
 import { useBadgeStore } from '@/store/badge';
+import Character from '@/components/Global/Character.vue';
+import { useApi } from '@/composables/api';
+import { useModal } from '@/composables/modal';
+import { PostMethods, PostMethodsKey } from '@/interface/keys';
     const messageUsers = useMessageUsers()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const responsive = useResponsive()
     const badge = useBadgeStore()
+    const api = useApi()
+    const { setEmoteUsers } = useModal()
     const props = defineProps<{
         record: Post,
         appNameJp: string,
@@ -234,6 +268,7 @@ import { useBadgeStore } from '@/store/badge';
         'deleteRecord': [Post],
         'setEntryData': [{ record: Post, editData: PostEntry | null }],
     }>()
+    const { updateRecord } = inject(PostMethodsKey) as PostMethods
     const route = useRoute()
     const maxLength = ref(200)
     const truncated = ref<{
@@ -384,20 +419,20 @@ import { useBadgeStore } from '@/store/badge';
     const body = computed(() => {           
         const text = props.record.app_type == 2 ? props.record.content_rule : props.record.content
         const truncate = cutter(text, maxLength.value, 'body')
-        const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
+        const urlParse = urlCheck(truncate)
         return urlParse          
         
     })
     const goal = computed(() => {
         const text = props.record.app_type == 2 ? props.record.content_goal : ''
         const truncate = cutter(text, maxLength.value, 'goal')
-        const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
+        const urlParse = urlCheck(truncate)
         return urlParse    
     })
     const result = computed(() => {
         const text = props.record.app_type == 2 ? props.record.result : props.record.result
         const truncate = cutter(text, maxLength.value, 'result')
-        const urlParse = Autolinker.link(truncate, {stripPrefix: false});   
+        const urlParse = urlCheck(truncate)
         return urlParse    
     })
     const updateStatus = () => {
@@ -426,6 +461,18 @@ import { useBadgeStore } from '@/store/badge';
     }
     const setClap = () => {
         emit('setClap', props.record.id)
+    }
+    const emotes = computed(() => {
+        if (!props.record.emoted_users?.length) return []
+        return props.record.emoted_users.map(item => item.pivot.emote_name)
+    })
+    const sendEmote = async (name: string) => {
+        menu.close()
+        const data = await api.post('/post_send_emote', { id: props.record.id, reaction: name })
+        updateRecord(data)
+    }
+    const emoteAction = (record: Post) => {
+        menu.setMenu({ parent: `iokawaReactionPop_${record.id}` })
     }
     const cutter = (string, len, type) => {
         if(!string){

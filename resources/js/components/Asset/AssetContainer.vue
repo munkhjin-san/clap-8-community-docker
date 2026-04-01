@@ -207,6 +207,7 @@ import { useAsset } from '@/composables/asset';
 import AssetUserPicker from './AssetUserPicker.vue';
 import { useResponsive } from '@/store/responsive';
 import { useMenuStore } from '@/store/menu';
+import { useRoute } from 'vue-router';
 
 
 const openModal = ref(false)
@@ -296,18 +297,22 @@ const tagOptions = ref<{title: string, requiredData: string}[]>([
     {title: "Times Business Card", requiredData: "カード番号"}
 ])
 const allOffices = ref<Office[]>([])
-
+const route = useRoute()
 onMounted(() => {
-
+    
     if(searchQuery.user_id.length) {
         selectedSearchQuery.value = { name: '使用者', value: 'user_id' }
     }
-    getAssets()
-    fetchAssetUsers([])
-    getOffices()
-
-
+    init()
 })
+const init = async() => {
+    await getAssets()
+    await fetchAssetUsers([])
+    await getOffices()
+    if(route.query.asset_id) {
+        toggleAssetDetail(Number(route.query.asset_id))
+    }
+}
 const exportCSV = async() => {
 
     exporting.value = true

@@ -99,7 +99,6 @@
     </div>
 </template>
 <script setup lang="ts">
-import Autolinker from 'autolinker';
 import CalendarFiles from './CalendarFiles.vue';
 import { ref, computed, onMounted, inject } from 'vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
@@ -109,7 +108,7 @@ import { useMenuStore } from "@/store/menu";
 import { useTheme } from '@/store/theme';
 import { useTempRecord } from '@/store/tempRecord';
 import ItemMenu from '@/components/Global/ItemMenu.vue';
-import { timeFormat } from '@/utils/tools';
+import { timeFormat, urlCheck } from '@/utils/tools';
 import { DateTime } from 'luxon';
 import { useCalendar } from '@/composables/calendar';
 import CommandButton from '@/components/Global/CommandButton.vue';
@@ -208,7 +207,7 @@ import CommandButton from '@/components/Global/CommandButton.vue';
 
     const remarks = computed(() => {
         const text = props.record.remarks ? props.record.remarks : ''        
-        var linkedText = Autolinker.link(text, {stripPrefix: false});              
+        var linkedText = urlCheck(text)            
         return linkedText;                
     })
     const calendarDateInstances = computed(() => {

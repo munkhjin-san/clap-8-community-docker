@@ -45,6 +45,17 @@ class PostRecord extends Model
     public function awards(){
         return $this->belongsToMany(User::class, 'post_awards', 'record_id', 'user_id')->withPivot('award_bet')->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.email']);
     }
+    public function emotedUsers()
+    {
+        return $this->morphToMany(User::class, 'stampable', 'stamps', 'stampable_id', 'user_id')
+                    ->withPivot(['emote_name'])
+                    ->withTimestamps()
+                    ->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg', 'users.deleted_at');
+    }
+    public function stamps()
+    {
+        return $this->morphMany(Stamp::class, 'stampable');
+    }
     public function entries() {
         return $this->hasMany(PostEntry::class)->with(['user' => function($query) {
             $query->select('id', 'name', 'icon_path', 'icon_bg');

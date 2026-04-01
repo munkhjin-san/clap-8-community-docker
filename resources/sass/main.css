@@ -4173,7 +4173,7 @@ input:-webkit-autofill:active {
 .post-footer {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  /* justify-content: flex-end; */
   gap: 15px;
   width: 100%;
 }

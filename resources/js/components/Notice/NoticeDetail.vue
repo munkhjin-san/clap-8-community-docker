@@ -16,7 +16,7 @@
                 </div>          
             </div>
             <div v-if="item" style="padding: 0 10px;">                
-                <p class="si-box " style="line-height: 2;white-space: break-spaces;font-size: 14px;" v-html="body"></p>
+                <p class="si-box " style="line-height: 2;white-space: break-spaces;font-size: 14px;" v-html="urlCheck(item.body)"></p>
                 <div v-if="item.files && item.files.length" class="si-box">
                     <NoticeFiles :list="item.files"/>
                 </div>
@@ -26,7 +26,6 @@
     </div>
 </template>
 <script setup>
-import Autolinker from 'autolinker';
 import NoticeFiles from './NoticeFiles.vue';
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -34,6 +33,7 @@ import { useAuthUserStore } from '@/store/auth'
 import { useBadgeStore } from '@/store/badge';
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import { useApi } from '@/composables/api';
+import { urlCheck } from '@/utils/tools';
     const badge = useBadgeStore()
     const auth = useAuthUserStore()
     const props = defineProps(['hasPrivilage', 'getNotices'])
@@ -57,8 +57,4 @@ import { useApi } from '@/composables/api';
         badge.getNoticeBadge()
 
     }
-    const body = computed(() => {                   
-        const linkedText = Autolinker.link(item.value?.body, {stripPrefix: false});   
-        return linkedText;                
-    })
 </script>
