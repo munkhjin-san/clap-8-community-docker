@@ -17,7 +17,7 @@ use App\Models\CalendarRecord;
 use App\Models\PostRecord;
 use App\Models\AssetRecord;
 use App\Models\workTemp;
-use App\Models\timeCardRecord;
+use App\Models\timecardRecord;
 use App\Models\shiftRecord;
 use App\Models\attendanceRecord;
 
@@ -224,11 +224,17 @@ class DashboardController extends Controller
         
         $user = Auth::user();
         if ($user->position_id < 6 || $user->position_id === 14) return null;
-
+        
         $previousMonth = Carbon::now()->subMonthNoOverflow()->format('Y-m');
+        $previousM = Carbon::now()->subMonthNoOverflow()->month;
+        $previousY = Carbon::now()->subMonthNoOverflow()->year;
+        $timesheets = timecardRecord::where('user_id', $user->id)
+        ->whereYear('day', $previousY)
+        ->whereMonth('day', $previousM)
+        ->exists();
         $pendingAttendance = attendanceRecord::where('user_id', $user->id)
         ->where('date_year_month', $previousMonth)->first();
-        if (!$pendingAttendance) {
+        if (!$pendingAttendance && $timesheets) {
             $data = [
                 "user_id" => $user->id,
                 "date_year_month" => $previousMonth,
