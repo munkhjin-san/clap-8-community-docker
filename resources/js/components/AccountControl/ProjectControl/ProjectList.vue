@@ -1,5 +1,5 @@
 <template>
-    <div class="scrollable project-table-container mx-5 w-[calc(100%-40px)]" style="height: calc(100% - 126px);">
+    <div class="scrollable mx-5 w-[calc(100%-40px)]" style="height: calc(100% - 126px);">
         <div class="project-table">
             <div class="project-header-row break-keep">
                 <div class="project-cell">プロジェクト名</div>

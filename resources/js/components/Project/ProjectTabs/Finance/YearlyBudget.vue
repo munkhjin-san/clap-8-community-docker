@@ -5,7 +5,7 @@
       <div class="flex flex-col">
         <h1 class="text-base font-bold">月別内訳 • プロジェクト収支</h1>
         <div class="text-xs text-[var(--primary-color)] opacity-80">
-          FY{{ fiscalYear }} (開始 {{ monthLabel(startMonth) }})
+          {{ fiscalYear }} (開始 {{ monthLabel(startMonth) }})
           <!-- FY{{ fiscalYear }} (開始 {{ monthLabel(startMonth) }}) • シナリオ: {{ activeScenarioLabel }} -->
           <span
             v-if="lockState.is_locked"
@@ -99,7 +99,7 @@
     
 
     <!-- Table -->
-    <div :style="{ height: calcHeight }" :class="['bg-[var(--background-color)] overflow-x-auto border border-solid border-[var(--normalBorder)] shadow-sm']">
+    <div v-if="fiscalYear !== currentFiscalYear" :style="{ height: calcHeight }" :class="['bg-[var(--background-color)] overflow-x-auto border border-solid border-[var(--normalBorder)] shadow-sm']">
       <table class="min-w-[1400px] w-full text-sm text-[var(--primary-color)]">
         <thead class="bg-[var(--bg3)] border-b [border-bottom-style:solid] border-[var(--normalBorder)] top-0 sticky z-[11]">
           <tr>
@@ -178,6 +178,9 @@
           </tr>
         </tfoot>
       </table>
+    </div>
+    <div v-else>
+      <p class="text-center">今年の予算が確定しています</p>
     </div>
     <!-- Toolbar -->
     <!-- <div class="flex flex-wrap gap-3 bg-[var(--background-color)] p-3 border border-[var(--normalBorder)] shadow-sm">
@@ -286,7 +289,8 @@ const lockState = reactive<{
   locked_by_user_id: null,
   locked_at: null,
 })
-
+const now = DateTime.now();
+const currentFiscalYear = now.month >= 3 ? now.year : now.year - 1;
 const isReadOnly = computed(() => lockState.is_locked && !auth.isAdmin)
 const controlRef = useTemplateRef<HTMLDivElement>('controlRef')
 const controlRefHeight = ref(0)

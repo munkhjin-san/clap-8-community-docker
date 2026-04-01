@@ -25,10 +25,9 @@
                 class="flex items-center gap-[10px] bg-[var(--background-color)] border border-solid border-[var(--calendarBorder)] px-[15px] py-[12px]"
             >
                 <span>{{ type.label }}</span>
-                <button type="button" class="ml-auto text-[12px]" @click="edit(type)">編集</button>
+                <button class="ml-auto text-[12px]" @click="edit(type)">編集</button>
                 <button
                     v-if="type.key !== 'default'"
-                    type="button"
                     class="text-[12px] text-red-500"
                     @click="remove(type.id)"
                 >
