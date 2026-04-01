@@ -99,7 +99,7 @@
     
 
     <!-- Table -->
-    <div v-if="fiscalYear !== currentFiscalYear" :style="{ height: calcHeight }" :class="['bg-[var(--background-color)] overflow-x-auto border border-solid border-[var(--normalBorder)] shadow-sm']">
+    <div v-if="fiscalYear !== currentFiscalYear || lockState.is_locked" :style="{ height: calcHeight }" :class="['bg-[var(--background-color)] overflow-x-auto border border-solid border-[var(--normalBorder)] shadow-sm']">
       <table class="min-w-[1400px] w-full text-sm text-[var(--primary-color)]">
         <thead class="bg-[var(--bg3)] border-b [border-bottom-style:solid] border-[var(--normalBorder)] top-0 sticky z-[11]">
           <tr>

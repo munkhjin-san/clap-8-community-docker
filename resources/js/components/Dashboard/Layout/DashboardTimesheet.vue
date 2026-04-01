@@ -15,6 +15,31 @@
             </svg>
         </template>
         <div class="m-5">
+            <div v-if="data.data.pendingAttendance">
+                <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                    <ExpansionPanelItem
+                        hide-actions
+                        static
+                        :tile="true"
+                        class="rm-p"
+                    >
+                        <template #title="{ expanded }">
+                            <PanelTitle :expanded="expanded">
+                                <div class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
+                                勤怠確定
+                            </PanelTitle>
+                        </template>
+                        <template #body>
+                            <PanelData>
+                                <p>{{ data.data.pendingAttendance?.date_year_month }}の勤怠を確定してください。</p>
+                                <div class="mt-3 text-right">
+                                    <router-link :to="{ name: 'timesheet', query: { user_id: data.data.pendingAttendance?.user_id, attendanceMonth: data.data.pendingAttendance?.date_year_month } }">対応</router-link>
+                                </div>
+                            </PanelData>
+                        </template>
+                    </ExpansionPanelItem>
+                </ExpansionGrid>
+            </div>
             <div v-if="data.data.pendingPlannedLeaves && data.data.pendingPlannedLeaves.length">
                 <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
                     <ExpansionPanelItem
@@ -173,6 +198,10 @@ const props = defineProps<{
             pendingTimesheets: pendingTimesheedData[],
             departuresReportUsers: [] | any[],
             pendingPlannedLeaves: [] | any[],
+            pendingAttendance: {
+                user_id: number,
+                date_year_month: string,
+            } | null
         },
         order?: number,
         type: string

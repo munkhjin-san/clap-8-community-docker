@@ -19,7 +19,7 @@ use App\Models\AssetRecord;
 use App\Models\workTemp;
 use App\Models\timeCardRecord;
 use App\Models\shiftRecord;
-
+use App\Models\attendanceRecord;
 
 
 class DashboardController extends Controller
@@ -212,11 +212,27 @@ class DashboardController extends Controller
         $pendingTimesheets = $this->pendingDailyReports();
         $departuresReportUsers = $this->departuresReportUsers();
         $pendingPlannedLeaves = $this->pendingPlannedLeaves();
+        $pendingAttendance = $this->pendingAttendance();
         return [
             "pendingTimesheets" => $pendingTimesheets,
             "departuresReportUsers" => $departuresReportUsers,
             "pendingPlannedLeaves" => $pendingPlannedLeaves,
+            "pendingAttendance" => $pendingAttendance,
         ];
+    }
+    public function pendingAttendance() {
+        $userId = Auth::id();
+        $previousMonth = Carbon::now()->subMonthNoOverflow()->format('Y-m');
+        $pendingAttendance = attendanceRecord::where('user_id', $userId)
+        ->where('date_year_month', $previousMonth)->first();
+        if (!$pendingAttendance) {
+            $data = [
+                "user_id" => $userId,
+                "date_year_month" => $previousMonth,
+            ];
+            return $data;
+        }
+        return null;
     }
     public function pendingDailyReports(){
         $date = Carbon::now();

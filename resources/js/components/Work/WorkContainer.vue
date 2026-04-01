@@ -150,18 +150,53 @@ import { useTutorialStore } from '@/store/tutorial'
     const api = useApi()
     const { ask, ping, toast } = useDialog() 
     const tutorialStore = useTutorialStore()
-    onMounted(async() => {
-        const query = route.query
-        if(query.user_id){
-            usersCheckArray.value = [Number(query.user_id)]
+    const suppressSelectionWatch = ref(false)
+    const getQueryValue = (value) => Array.isArray(value) ? value[0] : value
+    const parseAttendanceMonth = (value) => {
+        const attendanceMonth = getQueryValue(value)
+        if(!attendanceMonth) return null
+
+        const instance = DateTime.fromFormat(attendanceMonth, 'yyyy-MM')
+        return instance.isValid ? instance : null
+    }
+    const applyRouteQuery = async(query) => {
+        suppressSelectionWatch.value = true
+
+        const userId = Number(getQueryValue(query.user_id))
+        const attendanceMonth = parseAttendanceMonth(query.attendanceMonth)
+        const queryStartDate = getQueryValue(query.startDate)
+
+        if(Number.isFinite(userId) && userId > 0){
+            selectedVehicles.value = []
+            usersCheckArray.value = [userId]
         }
-        fetchDatas()
+        if(attendanceMonth){
+            selectedYear.value = attendanceMonth.year
+            selectedMonth.value = attendanceMonth.month
+        }
+        startDate.value = queryStartDate ?? ''
+
+        await nextTick()
+        suppressSelectionWatch.value = false
+
+        return {
+            openAttendanceModal: Boolean(attendanceMonth),
+            openShiftModal: Boolean(queryStartDate) && !attendanceMonth,
+        }
+    }
+    onMounted(async() => {
+        const queryState = await applyRouteQuery(route.query)
+
+        await fetchDatas()
         await fetchWorkData()
-        fetchShiftDataTable(0)
-        if(query.startDate){
-            startDate.value = query.startDate
+        await fetchShiftDataTable(0, { scrollToToday: !queryState.openAttendanceModal })
+
+        if(queryState.openAttendanceModal){
+            await confirmAttendance()
+        } else if (queryState.openShiftModal) {
             selectShift()
         }
+        
         if (tutorialStore.state.active && tutorialStore.state.name.includes('timesheet.dailyreport')) {
             setTimeout(() => {
                 console.log(recordsArray.value)
@@ -176,7 +211,7 @@ import { useTutorialStore } from '@/store/tutorial'
     })
     let isClearing = false
     watch(() => usersCheckArray.value, (newValue) => {
-        if (isClearing) return
+        if (isClearing || suppressSelectionWatch.value) return
         if (newValue.length && selectedVehicles.value.length) {
             selectedVehicles.value = []
             isClearing = true
@@ -185,7 +220,7 @@ import { useTutorialStore } from '@/store/tutorial'
     })
 
     watch(() => selectedVehicles.value, (newValue) => {
-        if (isClearing) return
+        if (isClearing || suppressSelectionWatch.value) return
         if (newValue.length && usersCheckArray.value.length) {
             usersCheckArray.value = []
             isClearing = true
@@ -193,11 +228,25 @@ import { useTutorialStore } from '@/store/tutorial'
 
         handleWatch()
     })
-    const handleWatch = () => {
+    watch(() => route.query, async(newQuery) => {
+        const queryState = await applyRouteQuery(newQuery)
+        await handleWatch({ openAttendanceModal: queryState.openAttendanceModal })
+
+        if (queryState.openShiftModal) {
+            selectShift()
+        }
+    })
+    const handleWatch = async(options = {}) => {
+        const { openAttendanceModal = false } = options
         const dataTable = document.querySelector('.v-table__wrapper')
         dataTable ? dataTable.scrollTop = 0 : ''
-        fetchShiftDataTable()
-        fetchWorkData()
+        await Promise.all([
+            fetchShiftDataTable(),
+            fetchWorkData(),
+        ])
+        if(openAttendanceModal){
+            await confirmAttendance()
+        }
         setTimeout(() => (isClearing = false), 0);
     }
     const { height } = useElementSize(headerEl)
@@ -350,11 +399,12 @@ import { useTutorialStore } from '@/store/tutorial'
             ping(e?.message || 'エラーが発生しました。') 
         }
     }
-    const fetchShiftDataTable = async(init) => {
+    const fetchShiftDataTable = async(init, options = {}) => {
+        const { scrollToToday = init == 0 } = options
         const yearMonth = DateTime.fromObject({year: selectedYear.value, month: selectedMonth.value}).toFormat('yyyy-MM')
 
         recordsArray.value = await getShiftDataTable(yearMonth, usersCheckArray.value, selectedVehicles.value)
-        if(init == 0){
+        if(init == 0 && scrollToToday){
             loading.value ++
             setTimeout(() => {
                 todayScroll()

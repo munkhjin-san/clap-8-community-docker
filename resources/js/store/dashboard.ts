@@ -10,6 +10,7 @@ import axios from "axios";
 import { DateTime } from "luxon";
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
+import { useDashboardGoalsStore } from "./dashboardGoals";
 
 export const useDashboardStore = defineStore('dashboardStore', () => {
     const collection = ref({
@@ -42,6 +43,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
             pendingTimesheets: [] as pendingTimesheedData[],
             departuresReportUsers: [] as UserWithShift[],
             pendingPlannedLeaves: [] as any[],
+            pendingAttendance: null as any,
 
         }
     })
@@ -114,7 +116,19 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         console.log('total', total)
         return total
     })
+    const { myGoals, requiredGoalData } = useDashboardGoalsStore()
+    const pulseBadgeCount = computed(() => {
+        const overdueGoals = myGoals.filter(goal => {
+            if(goal.status === 9) return false
+            const now = DateTime.local();
+            const deadline = DateTime.fromISO(goal.end_date);
+            const diffInDays = now.diff(deadline, 'days').days;
+            return diffInDays > 7;
+        })
 
+        const needed = (requiredGoalData?.this_span?.needed_count || 0) + (requiredGoalData?.previous_span?.needed_count || 0)
+        return overdueGoals.length + needed + collection.value.timesheet.pendingAttendance ? 1 : 0
+    })
     const getAnnualLeaveData = async () => {
         try {
             annualLeaveData.value.fetching = true;
@@ -136,6 +150,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         getBatchDashboardData,
         badgeCount,
         annualLeaveData,
-        getAnnualLeaveData
+        getAnnualLeaveData,
+        pulseBadgeCount
     }
 });

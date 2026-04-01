@@ -39,7 +39,7 @@
                         <path d="M14.70084,1.84271c1.77662.099,3.64147.13801,5.42106.14155,1.78553-.01092,3.64303-.03444,5.42106-.17401.3362-.02716.61253-.34857.63617-.76299.02581-.45237-.25902-.84416-.63617-.87511-1.35494-.10874-2.70952-.13808-4.0658-.16406-2.22652-.02597-4.55505.00877-6.77632.13159-.89464.0939-.895,1.61213,0,1.70303Z"/>
                     </svg>
                     <span v-if="sideMenuView.active">ダッシュボード</span>     
-                    <Badge v-if="dashboardStore.badgeCount + pulseBadgeCount + normalBadgeCount" :count="dashboardStore.badgeCount + pulseBadgeCount + normalBadgeCount" :pulse="pulseBadgeCount > 0"/>               
+                    <Badge v-if="badgeCount + pulseBadgeCount + normalBadgeCount" :count="badgeCount + pulseBadgeCount + normalBadgeCount" :pulse="pulseBadgeCount > 0"/>               
                 </div>
 
             </router-link>
@@ -167,8 +167,8 @@ import Badge from './Badge.vue';
     const props = defineProps(['session', 'auth_user', 'setActiveUser', 'switchLoader'])
     const newsList = ref([])
     const breakTimeStore = useBreakTime()
-    const { pulseBadgeCount, normalBadgeCount } = storeToRefs(useDashboardGoalsStore())
-    const dashboardStore = useDashboardStore()
+    const { normalBadgeCount } = storeToRefs(useDashboardGoalsStore())
+    const { badgeCount, pulseBadgeCount } = storeToRefs(useDashboardStore())
     onMounted(() => {
         setTimeout(() => {
             getGlowdNews()
