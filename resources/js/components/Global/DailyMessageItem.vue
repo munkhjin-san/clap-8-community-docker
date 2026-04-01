@@ -88,6 +88,7 @@ const toggleComment = () => {
                 commentBox.value.style.left = '-10px';
                 commentBox.value.style.right = 'auto';
             }
+            commentBox.value.scrollIntoView({behavior: 'smooth', block: 'center'})
         }
     })
 }
