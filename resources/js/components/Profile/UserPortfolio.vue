@@ -15,9 +15,9 @@
         </div>       
     </div>
     <div @click="toggleFull" class="jump-link" style="margin: 20px" v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == '250px' ? '続きを表示する' : '閉じる' }}</div>     
-    <div style="display: flex;justify-content: flex-end;padding: 0px 15px 15px;">   
+    <!-- <div style="display: flex;justify-content: flex-end;padding: 0px 15px 15px;">   
         <ClapButton @updateClap="emit('reload')" :item="portfolio" app-name="portfolio"/>
-    </div>    
+    </div>     -->
 </div>
 
 </template>
