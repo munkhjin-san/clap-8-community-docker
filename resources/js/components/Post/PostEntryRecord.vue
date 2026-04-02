@@ -29,7 +29,7 @@
             </svg>
             <span class="comment-count leading-none" v-if="entry.comments_count">{{ entry.comments_count }}</span>
         </div>
-        <ClapButton @updateClap="emit('setClap', entry.id)" :item="entry" appName="post_entry"/> 
+        <!-- <ClapButton @updateClap="emit('setClap', entry.id)" :item="entry" appName="post_entry"/>  -->
     </div>
     <transition name="commentArea">
         <PostComment

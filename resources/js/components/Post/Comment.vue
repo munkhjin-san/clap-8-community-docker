@@ -24,7 +24,7 @@
                 </p>
                 
             </div>  
-            <ClapButton :item="comment" @updateClap="reload()" appName="comment" customStyle="margin-left: auto; width: 20px;"/>                                                                                     
+            <!-- <ClapButton :item="comment" @updateClap="reload()" appName="comment" customStyle="margin-left: auto; width: 20px;"/>                                                                                      -->
         </div>
         <div class="clearBoth"></div>
     </div> 
