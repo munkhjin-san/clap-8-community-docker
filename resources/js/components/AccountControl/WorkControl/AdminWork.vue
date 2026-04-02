@@ -34,6 +34,7 @@
                     <tr class="border border-[#666666]">
                         <td class="admin-table-data left-item !bg-[#363636] sticky top-0 z-[4]" rowspan="2">社員名</td>
                         <td class="admin-table-data" colspan="2">勤怠</td>
+                        <td class="admin-table-data" colspan="2">申請中</td>
                         <td class="admin-table-data" rowspan="2">インシデント</td>
                         <td class="admin-table-data" rowspan="2">車両</td>
                         <td class="admin-table-data" rowspan="2">職階</td>
@@ -48,8 +49,10 @@
                         <td class="admin-table-data" rowspan="2">労働時間</td>
                     </tr>
                     <tr>
-                        <td class="admin-table-data border-l-0">確定</td>
+                        <td class="admin-table-data !border-l-0">確定</td>
                         <td class="admin-table-data">予定</td>
+                        <td class="admin-table-data">予定</td>
+                        <td class="admin-table-data">日報</td>
                         <td class="admin-table-data">1日</td>
                         <td class="admin-table-data">半日</td>
                         <td class="admin-table-data">1時間</td>
@@ -73,6 +76,8 @@
                         <td class="left-item" :style="{backgroundColor : item.attendance_records.length ? 'var(--complete)' : 'var(--bg3)'}">{{ item.name }}</td>
                         <td>{{ item.attendance_records.length ? item.attendance_records[0].month_petition : ''}}</td>
                         <td v-html="item.shift_records.length ? '済' : ''"></td>
+                        <td>{{ item.shift_records.filter(shift => shift.status_flag === 2).length }}</td>
+                        <td>{{ item.time_card_records.filter(record => record.status_flag === 1).length }}</td>
                         <td style="white-space: nowrap;" v-html="hasIncident(item)"></td>
                         <td style="white-space: nowrap;" v-html="hasVehicle(item)"></td>
                         <td style="white-space: nowrap;">{{ item.general_position }}</td>
@@ -110,6 +115,7 @@ import { useApi } from '@/composables/api';
     const attendance_record_items = ref([])
     const paid_holiday_record = ref([])
     const month_work_time = ref([])
+    const month_work_days = ref([])
     const users = ref([])
     const weather_average = ref([])
     const monthly_expenses = ref([])
@@ -285,12 +291,15 @@ import { useApi } from '@/composables/api';
         const data = []
         attendance_record_items.value.forEach(item => {     
             const shokkai = users.value.find(user => user.id == item.user_id)?.general_position ?? ''
+            const salaryUnit = users.value.find(user => user.id == item.user_id)?.salary_unit ?? ''
             const row = {
                 "従業員番号" : item.user_code,
                 "姓名" : item.name,
+                "所定労働日数(当月)": month_work_days.value[item.user_id] ? month_work_days.value[item.user_id] : '',
                 "所定労働時間(当月)" :item?.user?.position_id == 15 ? '0' : item.prescribed_working_hours,
                 "就業形態" : item.work_type,
                 "職階" : shokkai,
+                "給与区分": salaryUnit,
                 "勤怠月" : item.date_year_month,    
                 "給与支払日" : item.pay_day,
                 "確定フラグ" : item.month_petition,
@@ -360,7 +369,7 @@ import { useApi } from '@/composables/api';
         timecard_costs.value = data.timecard_costs
         departmentCount.value = data.departments
         my_car_usage.value = data.my_car_usage
-
+        month_work_days.value = data.month_work_days
     }
     const conversionTime = (value) => {
         if(value == '' || value == null){

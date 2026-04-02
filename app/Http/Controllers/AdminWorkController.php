@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use App\Services\SharedService;
 use Carbon\Carbon;
-
+use App\Infrastructure\Kintone\KintoneClient;
 
 
 class AdminWorkController extends Controller{
@@ -29,7 +29,10 @@ class AdminWorkController extends Controller{
      */
 
     protected $sharedService;
-    public function __construct(SharedService $sharedService) {
+    public function __construct(
+        SharedService $sharedService,
+        private KintoneClient $api
+    ) {
         $this->sharedService = $sharedService;
     }
 
@@ -50,7 +53,7 @@ class AdminWorkController extends Controller{
         ->with(['shift_records' => function($q) use($currentYear, $currentMonth){
             $q->whereYear('shift_day', $currentYear)
               ->whereMonth('shift_day', $currentMonth)
-              ->select('shift_day', 'shift_type', 'user_id', 'department_id')
+              ->select('shift_day', 'shift_type', 'user_id', 'department_id', 'status_flag')
               ->orderBy('shift_day', 'asc')
               ->with('shiftType')
               ->with('department');
@@ -58,7 +61,7 @@ class AdminWorkController extends Controller{
         ->with(['time_card_records' => function($q) use($currentYear, $currentMonth){
             $q->whereYear('day', $currentYear)
               ->whereMonth('day', $currentMonth)
-              ->select('work_time', 'day', 'id', 'user_id', 'work_group_id', 'car_mileage', 'car_used_project', 'gas_full_price')
+              ->select('work_time', 'day', 'id', 'user_id', 'work_group_id', 'car_mileage', 'car_used_project', 'gas_full_price', 'status_flag')
               ->orderBy('day', 'asc')
               ->with([
                 'custom_field_data_records' => function($q) {
@@ -80,13 +83,20 @@ class AdminWorkController extends Controller{
             'user_code',
             'general_position',
             'work_time_day',
-            'work_type'
+            'work_type',
+            'position_id',
             
         ]);
+        $user_codes = $all_users->pluck('user_code')->toArray();
+        $user_codes_str = implode('","', $user_codes);
+        $fields = ['基本給単位', '社員コード数値'];
+        $query = "社員コード数値 in (\"{$user_codes_str}\")";
+        $limit = 500;
+        $kin_records = $this->api->getRecords(1305, $query . " limit {$limit}", $fields); 
+        
+        $userIds = $all_users->pluck('id');
 
-        $users_ids = $all_users->pluck('id');
-
-        $holiday_shifts = shiftRecord::whereIn('user_id', $users_ids)
+        $holiday_shifts = shiftRecord::whereIn('user_id', $userIds)
         ->whereIn('shift_type', [0, 18, 19, 20, 21, 22, 23, 24, 25, 26])
             ->whereYear('shift_day', $currentYear)
             ->select('id', 'user_id', 'shift_day', 'shift_type')
@@ -106,7 +116,7 @@ class AdminWorkController extends Controller{
         }])
         ->select('id', 'date_month', 'department', 'type', 'expenses', 'user_id', 'record_id')
         ->get();
-        $userIds = $all_users->pluck('id');
+        
         
         
         $attendance_record = attendanceRecord::where('date_year_month', $month)->with([
@@ -181,12 +191,16 @@ class AdminWorkController extends Controller{
                 }
             }
         });
-            
+        $unitMap = [
+            '/日' => '日給',
+            '/月' => '月給',
+            '/時' => '時給',
+        ];   
             $new_shift_record_array = [];
             $month_work_time_array2 = [];
             $allDepartmentCounts = collect();
             $my_car_usage = [];
-            
+            $monthly_must_work_days = [];
             foreach ($all_users as $user) {
                 $shiftTypes = range(3, 17);
                 $totalPaidHours = 0;
@@ -312,10 +326,16 @@ class AdminWorkController extends Controller{
                     $user->id,
                     ($monthly_expenses->get($user->id, 0) + $total_gas_price)
                 );
+                $result = collect($kin_records)
+                    ->first(function ($record) use ($user) {
+                        return data_get($record, '社員コード数値.value') == $user->user_code;
+                    });
 
-
+                $salaryUnit = $unitMap[data_get($result, '基本給単位.value')] ?? null;
+                
                 $month_work_time_array2[$user->id] = $workTimeInMinutes + $totalPaidHours;
-
+                $userWorkTimeData = $this->sharedService->work_days_calculator($currentYear, $currentMonth, $user);
+                $monthly_must_work_days[$user->id] = $userWorkTimeData['days'];
                 $user_work_minutes_per_day = $user->work_time_day ?? 480;
 
                 $current_year_holiday_shifts = $holiday_shifts->get($user->id, collect());
@@ -336,12 +356,14 @@ class AdminWorkController extends Controller{
                 $user['work_minutes_per_day'] = $user_work_minutes_per_day;
                 $user['legal_holiday_shifts'] = $legal_holiday_shifts;
                 $user['legal_holiday_worked_time_in_minutes'] = $legal_holiday_worked_time_in_minutes;
+                $user['salary_unit'] = $salaryUnit;
             }
             $allDepartmentCountsArray = $allDepartmentCounts->values()->all();
             $responseArray = [
                 'attendance_record' => $attendance_record,
                 'paid_holiday_record' => $new_shift_record_array,
                 'month_work_time' => $month_work_time_array2,
+                'month_work_days' => $monthly_must_work_days,
                 'users' => $all_users,
                 'weather_average' => $mostCommonValuesPerUser,
                 'monthly_expenses' => $monthly_expenses,

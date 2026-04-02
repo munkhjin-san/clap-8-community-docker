@@ -117,7 +117,10 @@ class KintoneClient
             return json_decode((string) $resp->getBody(), true) ?? [];
 
         } catch (ClientException $e) {
-            throw new \RuntimeException("Kintone API request failed: {$e->getMessage()}", 0, $e);
+            $body = $e->hasResponse()
+                ? (string) $e->getResponse()->getBody()
+                : 'no response body';
+            throw new \RuntimeException("Kintone API request failed: {$e->getMessage()} | Body: {$body}", 0, $e);
         }
     }
 }
