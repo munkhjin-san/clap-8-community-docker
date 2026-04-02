@@ -1,6 +1,6 @@
 
 <template>
-    <Modal @close="emit('close', false)">
+    <Modal @close="emit('close', false)" size="large">
         <template #title>
             <p>{{ editData ? `フォームを編集する` : `フォームを作成する`}}</p>
         </template>

@@ -1,5 +1,5 @@
 <template>
-    <div class="w-full min-h-full overflow-y-auto bg-[var(--bg3)] text-[var(--primary-color)]">
+    <div class="w-full h-screen overflow-y-auto bg-[var(--bg3)] text-[var(--primary-color)]">
         <div class="max-w-[920px] mx-auto px-[20px] py-[40px]">
             <div v-if="loading" class="min-h-[280px] flex items-center justify-center">
                 <div id="loaderMini">
