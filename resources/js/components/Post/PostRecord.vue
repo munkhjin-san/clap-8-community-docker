@@ -151,6 +151,15 @@
         </div>
         <div class="post-footer">
             <div class="mt-2 flex w-fit relative items-center gap-2">
+                <Transition name="downShiftPop">
+                    <div class="w-max absolute p-4 bg-[var(--background-color)] z-10 bottom-[35px] shadow-xl" :id="`iokawaReactionPop_${record.id}`" v-if="menu.parent == `iokawaReactionPop_${record.id}`">
+                        <div class="grid grid-cols-5 gap-2">
+                            <div class="flex items-end justify-center transition-transform duration-200 ease-out hover:scale-105" v-for="oikawa in oikawaMap" :key="oikawa.name" @click="sendEmote(oikawa.name)">
+                                <Character :size="40" :emoteName="oikawa.name"/>
+                            </div>
+                        </div>
+                    </div>
+                </Transition>
                 <div
                     class="cursor-pointer"
                     @click.stop="emoteAction(record)"
@@ -188,16 +197,8 @@
                 </div>
                 <ClapButton @updateClap="setClap" :item="record" :appName="appName"/> 
             </div>
+
         </div>
-        <Transition name="downShiftPop">
-            <div class="w-max absolute p-4 bg-[var(--background-color)] z-10 bottom-[25px] shadow-xl" :id="`iokawaReactionPop_${record.id}`" v-if="menu.parent == `iokawaReactionPop_${record.id}`">
-                <div class="grid grid-cols-5 gap-2">
-                    <div class="flex items-end justify-center transition-transform duration-200 ease-out hover:scale-105" v-for="oikawa in oikawaMap" :key="oikawa.name" @click="sendEmote(oikawa.name)">
-                        <Character :size="40" :emoteName="oikawa.name"/>
-                    </div>
-                </div>
-            </div>
-        </Transition>
         <div @click="setEmoteUsers(record.emoted_users)" v-if="record.emoted_users && record.emoted_users.length">
             <div class="flex items-end cursor-pointer text-[var(--primary-color)] flex-wrap">
                 <TransitionGroup name="downShiftPop">
@@ -205,7 +206,6 @@
                 </TransitionGroup>
             </div>
         </div>
-
         <transition name="commentArea">
             <PostComment 
                 v-if="isExpanded"
@@ -214,8 +214,7 @@
                 :record="record"
             
             />
-        </transition>
-        
+        </transition>       
         
     </div>
 </template>
