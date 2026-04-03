@@ -269,6 +269,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/clap_statistics', [AdminAccountController::class, 'clap_statistics']);
         Route::post('/get_planned_shifts', [AdminWorkController::class, 'get_planned_shifts']);
         Route::post('/change_planned_shifts', [AdminWorkController::class, 'change_planned_shifts']);
+        Route::post('/one_shot_confirmation', [WorkController::class, 'one_shot_confirmation']);    
         
         //User
         Route::post('/user_generate_file_key', [UserController::class, 'generate_key']);

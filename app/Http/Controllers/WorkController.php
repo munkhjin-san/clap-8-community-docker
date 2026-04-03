@@ -31,11 +31,15 @@ use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Infrastructure\Kintone\KintoneClient;
-
+use App\Services\AutoAttendanceConfirm;
 class WorkController extends Controller
 {
     protected $sharedService;
-    public function __construct(SharedService $sharedService, private readonly KintoneClient $kintone) {
+    public function __construct(
+        SharedService $sharedService, 
+        private readonly KintoneClient $kintone,
+        private readonly AutoAttendanceConfirm $attendanceService
+    ) {
         $this->sharedService = $sharedService;
     }
     private function active_user(){
@@ -1371,184 +1375,9 @@ class WorkController extends Controller
     }
     public function getAttendanceData(Request $request){
         $user_list = $request->work_group ?? [Auth::id()];
-        [$currentYear, $currentMonth] = explode('-', $request->current_date);
-        $formattedDate = date('Y-m', strtotime($request->current_date));
-        $user = User::with([
-            'attendance_records' => function ($query) use ($formattedDate) {
-                $query->where('date_year_month', $formattedDate);
-            },
-            'shift_records' => function ($query) use ($currentYear, $currentMonth) {
-                $query->whereYear('shift_day', $currentYear)
-                    ->whereMonth('shift_day', $currentMonth)
-                    ->select('user_id', 'shift_day', 'shift_type', 'status_flag')->with([
-                        'shiftType' => function ($query) {
-                            $query->select('id', 'name', 'abbreviation', 'value', 'full_day');
-                        }
-                    ]);
-            },
-            'time_card_records' => function ($query) use ($currentYear, $currentMonth) {
-                $query->whereYear('day', $currentYear)
-                    ->whereMonth('day', $currentMonth)
-                    ->select('user_id', 'day', 'work_time', 'over_time', 'status_flag', 'late_time', 'night_over_time', 'stamp_flag', 'car_mileage', 'training_start_time', 'training_end_time');
-            },
-            'custom_field_data_records' => function ($query) use ($currentYear, $currentMonth) {
-                $query->where('type_id', 37)
-                    ->whereYear('date', $currentYear)
-                    ->whereMonth('date', $currentMonth)
-                    ->select('value_int', 'user_id', 'table_record_id');
-            }
-        ])->select('id','name','work_type', 'work_time_day', 'user_code', 'position_id')->findOrFail($user_list[0]);        
-        $monthNum = (int)$currentMonth;
-        $yearNum = (int)$currentYear;
-
-        $userWorkTimeData = $this->sharedService->work_days_calculator($yearNum, $monthNum, $user);
-        $workdayNum = $userWorkTimeData['days'];
-        $shift_work_hours = $userWorkTimeData['work_minutes'];
-
-        $hiddenAttributes = ['attendance_records', 'shift_records', 'time_card_records', 'custom_field_data_records'];
-        $userData = $user->makeHidden($hiddenAttributes);
-        $attendance = $user->attendance_records->first();
-        $working_shifts = [1, 6, 7, 8, 9, 10, 11, 12, 13];
-        $should_calculate_month_hours = $user->position_id == 12 || $user->position_id == 15;
-        $shift_count = $should_calculate_month_hours ? $user->shift_records->whereIn('shift_type', $working_shifts)->count() : $user->shift_records->whereNotIn('shift_type', [0, 18])->count();
-        $planned_work_hours = $shift_work_hours;
-        if($should_calculate_month_hours){
-            // $planned_work_shifts = $user->shift_records->whereIn('shift_type', $working_shifts)->get();
-            $planned_work_shifts = collect($user->shift_records->whereIn('shift_type', $working_shifts)->values());
-            $calculated_planned_minutes = 0;
-            $day_work_minute =  $user->work_time_day;
-            foreach ($planned_work_shifts as $shift) {
-                switch ($shift['shift_type']) {
-                    case 1:
-                        $calculated_planned_minutes += $day_work_minute;
-                        break;
-                    case 6:
-                        $calculated_planned_minutes += $day_work_minute / 2;
-                        break;
-                    default:
-                        if ($shift['shift_type'] >= 7 && $shift['shift_type'] <= 13) {
-                            $sub_time = $day_work_minute - (($shift['shift_type'] - 6) * 60);
-                            if ($sub_time > 0) {
-                                $calculated_planned_minutes += $sub_time;
-                            }
-                        }
-                        break;
-                }
-            }
-            $planned_work_hours = $calculated_planned_minutes;
-        }
-        $shift_holidays = $user->shift_records->where('shift_type', 0)->pluck('shift_day');
-        $shift_workdays = $user->shift_records->whereIn('shift_type', [1, 6, 7, 8, 9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 24, 26])->pluck('shift_day');
-        $worked_holiday_count = $user->time_card_records->whereIn('day', $shift_holidays)->where('work_time', '>', 0)->count();
-        $workedday_count = $user->position_id === 15
-        ? $user->time_card_records->where('work_time', '>', 0)->count()
-        : $user->time_card_records->whereIn('day', $shift_workdays)->where('work_time', '>', 0)->count();
-        $worked_time = $user->time_card_records->sum('work_time');
-        $holiday_worked_time = $user->time_card_records->whereIn('day', $shift_holidays)->sum('work_time');
-        $approved_count = $user->time_card_records->where('status_flag', 2)->count();
-        $unapproved_count = $user->time_card_records->where('status_flag', 1)->count();
-        $unsaved_count = $user->time_card_records->where('stamp_flag', 1)->whereIn('status_flag', [0, 10])->count();
-        $unapproved_shift_count = 0;
-        if($user->position_id !== 15){
-            $unapproved_shift_count = $user->shift_records->where('status_flag', 2)->count();
-        }
-        $night_over_time = $user->time_card_records->sum('night_over_time');
-        $shiftRecords = $user->shift_records;
-
-        $annual_leave = $shiftRecords
-            ->filter(fn($record) =>
-                $record->shiftType?->full_day === 0 &&
-                in_array($record->shift_type, [7, 8, 9, 10, 11, 12, 13])
-            )
-            ->sum(fn($record) => $record->shiftType?->value ?? 0);
-
-
-        $annual_full = $shiftRecords
-            ->filter(fn($record) => 
-                $record->shiftType?->full_day === 2 &&
-                !in_array($record->shift_type, [14, 15, 16, 17, 18])
-            )
-            ->count();
-
-        $annual_half = $shiftRecords
-            ->filter(fn($record) => $record->shiftType?->full_day === 1)
-            ->count();
-        $condolence_leave = $user->shift_records->where('shift_type', 14)->count();
-        $transfer_leave = $user->shift_records->where('shift_type', 15)->count();
-        $oda_leave = $user->shift_records->where('shift_type', 16)->count();
-        $comp_holiday = $user->shift_records->where('shift_type', 17)->count();
-        $over_time = $user->time_card_records->sum('over_time');
-        $mileage = $user->time_card_records->sum('car_mileage');
-        $annual_costs = 0;
-        $annual_incentive = 0;
-        $annual_costs = timecardCostRecord::where('user_id', $user->id)
-                                        ->where('date_month', $request->current_date)
-                                        ->select('expenses')
-                                        ->sum('expenses');
-        if($user->position_id == 15){
-            $annual_incentive = timecardIncentive::where('user_id', $user->id)
-                                        ->where('date_month', $request->current_date)
-                                        ->select('count')
-                                        ->sum('count');
-        }
-        
-        $month_over_time = 0;
-        $annual_calc = $annual_full * $user->work_time_day + $annual_half * $user->work_time_day / 2;
-        $annual_leave += $annual_calc;
-        $all_worked_time = ($worked_time + $annual_leave) + ($condolence_leave + $transfer_leave + $oda_leave + $comp_holiday) * $user->work_time_day;
-        if ($shift_work_hours < $all_worked_time) {
-            $month_over_time = $all_worked_time - $shift_work_hours - $night_over_time;
-        }
-        if ($user->work_type == 1) {
-            $month_over_time = $over_time;
-        }
-        $month_stay_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 1)->count();
-        $month_move_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 0)->count();
-        $month_waiting_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 2)->count();
-        $month_remote_personal_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 5)->count();
-        $month_remote_company_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 4)->count();
-        $month_vehicle_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 6)->count();
-        $month_special_commute_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 7)->count();
-        $attendance_flag = !empty($attendance) ? true : false;
-        $totalTrainingMinutes = $user->time_card_records->sum('training_minutes');
-        $responseArray = [
-            'user' => $userData,
-            'attendance_flag' => $attendance_flag,
-            'shift_count' => $shift_count,
-            'should_work' => $shift_work_hours,
-            'should_work_days' => $workdayNum,
-            'planned_work' => $planned_work_hours,
-            'shift_holidays' => $shift_holidays->count(),
-            'holiday_count' => $worked_holiday_count,
-            'workedday_count' => $workedday_count,
-            'approved_count' => $approved_count,
-            'unapproved_count' => $unapproved_count,
-            'unsaved_count' => $unsaved_count,
-            'annual_leave' => $annual_leave,
-            'condolence_leave' => $condolence_leave,
-            'transfer_leave' => $transfer_leave,
-            'comp_holiday' => $comp_holiday,
-            'oda_leave' => $oda_leave,
-            'month_over_time' => $month_over_time > 0 ? $month_over_time : 0,
-            'over_time' => $over_time,
-            'month_stay_allowance_count' => $month_stay_allowance_count,
-            'month_move_allowance_count' => $month_move_allowance_count,
-            'month_waiting_allowance_count' => $month_waiting_allowance_count,
-            'month_remote_personal_allowance_count' => $month_remote_personal_allowance_count,
-            'month_remote_company_allowance_count' => $month_remote_company_allowance_count,
-            'month_vehicle_allowance_count' => $month_vehicle_allowance_count,
-            'month_special_commute_allowance_count' => $month_special_commute_allowance_count,
-            'worked_time' => $worked_time,
-            'holiday_worked_time' => $holiday_worked_time,
-            'night_over_time' => $night_over_time,
-            'annual_costs' => $annual_costs,
-            'annual_incentives' => $annual_incentive,
-            'unapproved_shift_count' => $unapproved_shift_count,
-            'mileage' => $mileage,
-            'month_training_minutes' => $totalTrainingMinutes
-        ];
-
-        return response()->json($responseArray);
+        $user_id = $user_list[0];
+        $result = $this->attendanceService->build_attendance_data($user_list, $request->current_date);
+        return response()->json($result[$user_id]);
     }
     public function remandTimeCard(Request $request){
         $user = $this->active_user();
@@ -1728,6 +1557,12 @@ class WorkController extends Controller
 
         }
         return response()->json($request);
+    }
+    public function one_shot_confirmation(Request $request) {
+        $user_ids = $request->user_ids;
+        $date_year_month = $request->month;
+        $result = $this->attendanceService->confirm($user_ids, $date_year_month);
+        return response()->json($result);
     }
     public function request_overtime(Request $request){
         $request->validate([

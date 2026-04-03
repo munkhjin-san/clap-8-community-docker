@@ -17,6 +17,7 @@
                 <div class="admin-button" @click="exportCSV">勤怠CSV出力</div>
                 <div class="admin-button" @click="expenseCSV">経費CSV出力</div>
                 <div class="admin-button" @click="vehicleCSV">車両CSV出力</div>
+                <div class="admin-button" @click="oneShotConfirmation">一発承認</div>
                 <div class="admin-month-wrapper">
                     <MonthPickerNew
                         v-model:month="selectedMonth"
@@ -123,7 +124,7 @@ import { useApi } from '@/composables/api';
     const timecard_costs = ref([])
     const departmentCount = ref([])
     const responsive = useResponsive()
-    const { ping } = useDialog()
+    const { ping, ask } = useDialog()
     const api = useApi()
     const fetch = ref(0)
     const my_car_usage = ref([])
@@ -450,6 +451,27 @@ import { useApi } from '@/composables/api';
             result += `${remainingMinutes}分`;
         }
         return result;
+    }
+    const oneShotConfirmation = async () => {
+        const notConfirmed = users.value
+        .filter(user =>
+            user.attendance_records.length === 0 &&
+            user.position_id > 5 &&
+            !user.shift_records.some(shift => shift.status_flag === 2) &&
+            !user.time_card_records.some(record => record.status_flag === 1)
+        )
+        .map(user => user.id)
+        const payload = {
+            user_ids: notConfirmed,
+            month: selectedDate.value
+        }
+        const question = await ask(`${selectedDate.value}分の${notConfirmed.length}人のユーザーを一発承認しますか？`)
+        if (!question) return;
+        const data = await api.post('/one_shot_confirmation', payload)
+        if (data) {
+            ping(`${data}人のユーザーを一発承認しました。`)
+            getData()
+        }
     }
 </script>
 <style lang="scss" scoped>
