@@ -17,7 +17,7 @@
                             <input 
                                 name="asset-member-search-input" 
                                 v-model="searchName" 
-                                class="border border-solid border-[var(--formBorder)] px-3 py-2 w-full focus:border-[var(--primary-color)]" 
+                                class="border border-solid border-[var(--formBorder)] px-3 py-2 w-full focus:border-[var(--primary-color)] text-[var(--primary-color)]" 
                                 placeholder="メンバー検索" 
                                 type="text"
                                 @click.stop

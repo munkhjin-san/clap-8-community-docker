@@ -25,7 +25,7 @@
                     <input 
                         name="member-search-input" 
                         v-model="searchName" 
-                        class="border border-solid border-[var(--formBorder)] px-3 py-2 w-full focus:border-[var(--primary-color)]" 
+                        class="border border-solid border-[var(--formBorder)] px-3 py-2 w-full focus:border-[var(--primary-color)] text-[var(--primary-color)]" 
                         placeholder="メンバー検索" 
                         type="text"
                     />
@@ -144,7 +144,7 @@ const allUsersData = ref({
 
 const baseUserList = computed(() => {
     if(!selectedTab.value) return [];
-    const collection = {
+    const collection: Record<string, User[]> = {
         'self': [auth.user],
         'mentees': menteeData.value.users,
         'pms': pmsData.value.users,

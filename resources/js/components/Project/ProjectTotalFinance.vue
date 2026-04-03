@@ -37,7 +37,7 @@
                                             v-model="mobileProjectKeywords"
                                             type="text"
                                             placeholder="プロジェクト検索"
-                                            class="border border-solid border-[var(--formBorder)] px-3 py-2 text-[13px] focus:border-[var(--primary-color)]"
+                                            class="border border-solid border-[var(--formBorder)] px-3 py-2 text-[13px] focus:border-[var(--primary-color)] text-[var(--primary-color)]"
                                         />
                                         <div class="flex items-center justify-between gap-3">
                                             <span class="text-[12px] text-[gray]">{{ selectedProjects.length }}件選択中</span>
@@ -67,7 +67,7 @@
                                             v-model="mobileManagerKeywords"
                                             type="text"
                                             placeholder="PM検索"
-                                            class="border border-solid border-[var(--formBorder)] px-3 py-2 text-[13px] focus:border-[var(--primary-color)]"
+                                            class="border border-solid border-[var(--formBorder)] px-3 py-2 text-[13px] focus:border-[var(--primary-color)] text-[var(--primary-color)]"
                                         />
                                         <div class="flex items-center justify-between gap-3">
                                             <span class="text-[12px] text-[gray]">{{ selectedManagers.length }}件選択中</span>
@@ -1962,7 +1962,7 @@ const financeData = computed<YearlyFinancialData>(() => {
         ])
     ) as YearlyFinancialData
 })
-const variance = ref<Record<string, { sales: number | null; expenses: number | null; profit: number | null }>>({})
+const variance = ref<Record<string, { sales: number | null; expense: number | null; profit: number | null }>>({})
 const rawSummarizeData = ref<{
     profit: UnitData,
     yearly_plan: UnitData,
@@ -2371,7 +2371,7 @@ const fiscalSummaryEntry = (scenario: ScenarioKey, fiscalYear: number): UnitData
         scenario
     )
 }
-const commentCount = ref<Record<number, number>>({})
+const commentCount = ref<Record<string, number>>({})
 const api = useApi()
 const possibleTypes: Array<{ value: Key; label: string }> = [
     { value: 'sales', label: '売上' },

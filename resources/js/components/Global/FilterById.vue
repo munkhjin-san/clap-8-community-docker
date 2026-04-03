@@ -9,7 +9,7 @@
                     v-model="keywords"
                     :placeholder="customPlaceHolder || '検索'"
                     type="text"
-                    class="border border-solid border-[var(--formBorder)] px-3 py-2 text-[13px] focus:border-[var(--primary-color)]"
+                    class="border border-solid border-[var(--formBorder)] px-3 py-2 text-[13px] focus:border-[var(--primary-color)] text-[var(--primary-color)]"
                 />
                 <div class="flex items-center justify-between gap-3">
                     <span class="text-[12px] text-[gray]">{{ selectedCountLabel }}</span>
