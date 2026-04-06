@@ -62,7 +62,7 @@ const oikawaMap = [
   { id: 21, name: 'reaper',   size: '42px' },
   { id: 22, name: 'angel',    size: '45px' },
   { id: 23, name: 'mummy',    size: '42px' },
-  { id: 24, name: 'sumo',     size: '43px' },
+  { id: 24, name: 'sumo',     size: '40px' },
   { id: 25, name: 'samurai',  size: '45px' },
 ]
 const theme = useTheme()

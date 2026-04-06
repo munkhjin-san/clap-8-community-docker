@@ -123,7 +123,7 @@
                 </div>          
             </div>
             
-            <transition-group name="slidePop" tag="div" style="display: flex;flex-direction: column;gap: 20px;">
+            <transition-group name="slidePop" tag="div" style="display: flex;flex-direction: column;gap: 40px;">
                 <PostRecord 
                     v-for="(record, index) in records"
                     :key="`${record?.id}_${index}`"
