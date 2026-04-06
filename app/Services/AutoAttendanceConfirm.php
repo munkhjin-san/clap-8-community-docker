@@ -45,7 +45,7 @@ class AutoAttendanceConfirm
             $hours_count = 0;
             $working_hour_low = 0;
             if ($data['over_time'] > 0) {
-                $over_time = $data['over_time'] + $data['night_work_time'];
+                $over_time = $data['over_time'] + $data['night_over_time'];
             } else {
                 $over_time = $data['over_time'];
             }
