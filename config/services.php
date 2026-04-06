@@ -52,6 +52,7 @@ return [
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
         'organization' => env('OPENAI_ORGANIZATION'),
+        'compare_model' => env('OPENAI_COMPARE_SUMMARY_MODEL', 'gpt-4.1-mini'),
         'prompts' => [
             'message_correction' => env('OPENAI_PROMPT_MESSAGE_CORRECTION_ID', ''),
             'project_description_generation' => env('OPENAI_PROMPT_PROJECT_DESCRIPTION_GENERATION_ID', ''),

@@ -13,6 +13,130 @@ use OpenAI;
 use Generator;
 class OpenAiController extends Controller
 {
+    public function summarize_contract_comparison(Request $request)
+    {
+        $data = $request->validate([
+            'base_contract_name' => 'required|string|max:255',
+            'target_contract_name' => 'required|string|max:255',
+            'summary' => 'required|array',
+            'summary.added' => 'required|integer|min:0',
+            'summary.removed' => 'required|integer|min:0',
+            'summary.modified' => 'required|integer|min:0',
+            'changes' => 'required|array|max:40',
+            'changes.*.change_type' => 'required|string|in:added,removed,modified',
+            'changes.*.clause_label' => 'nullable|string|max:255',
+            'changes.*.before_text' => 'nullable|string',
+            'changes.*.after_text' => 'nullable|string',
+        ]);
+
+        $apiKey = config('services.openai.api_key');
+        abort_if(!$apiKey, 500, 'OpenAI APIキーが設定されていません。');
+
+        if (
+            ($data['summary']['added'] ?? 0) === 0
+            && ($data['summary']['removed'] ?? 0) === 0
+            && ($data['summary']['modified'] ?? 0) === 0
+        ) {
+            return response()->json([
+                'overview' => '今回の比較では、法的に意味のある差分は検出されませんでした。',
+                'legal_impact' => '追加・削除・変更はいずれも 0 件です。',
+                'key_changes' => [],
+                'negotiation_points' => [],
+                'caution_items' => [],
+            ]);
+        }
+
+        $changes = collect($data['changes'])
+            ->take(25)
+            ->map(function (array $change, int $index) {
+                return [
+                    'no' => $index + 1,
+                    'type' => $change['change_type'],
+                    'clause' => $change['clause_label'] ?? '条文名不明',
+                    'before' => Str::limit($change['before_text'] ?? '', 700, '...'),
+                    'after' => Str::limit($change['after_text'] ?? '', 700, '...'),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $client = OpenAI::client($apiKey);
+        $model = config('services.openai.compare_model', 'gpt-4.1-mini');
+
+        $response = $client->responses()->create([
+            'model' => $model,
+            'input' => [
+                [
+                    'role' => 'system',
+                    'content' => [
+                        [
+                            'type' => 'input_text',
+                            'text' => <<<TXT
+あなたは日本の契約レビュー担当者です。
+与えられた契約差分データだけを根拠に、日本語で簡潔に要約してください。
+推測しすぎず、変更が法務上どのような意味を持つかを実務的に説明してください。
+出力は必ずJSONのみで返してください。
+JSON形式:
+{
+  "overview": "比較全体の短い要約",
+  "legal_impact": "法務上の影響の要約",
+  "key_changes": ["重要な変更点1", "重要な変更点2"],
+  "negotiation_points": ["確認・交渉したい点1", "確認・交渉したい点2"],
+  "caution_items": ["追加確認が必要な点1", "追加確認が必要な点2"]
+}
+各配列は最大3件。空なら空配列。
+TXT
+                        ],
+                    ],
+                ],
+                [
+                    'role' => 'user',
+                    'content' => [
+                        [
+                            'type' => 'input_text',
+                            'text' => json_encode([
+                                'base_contract_name' => $data['base_contract_name'],
+                                'target_contract_name' => $data['target_contract_name'],
+                                'summary' => $data['summary'],
+                                'changes' => $changes,
+                            ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT),
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $text = $response->outputText ?? null;
+        if (!$text) {
+            foreach ($response->output as $output) {
+                if (($output['role'] ?? null) !== 'assistant') {
+                    continue;
+                }
+
+                foreach (($output['content'] ?? []) as $content) {
+                    $text .= $content['text'] ?? '';
+                }
+            }
+        }
+
+        $payloadText = trim((string) $text);
+        if (str_starts_with($payloadText, '```')) {
+            $payloadText = preg_replace('/^```(?:json)?\s*/', '', $payloadText) ?? $payloadText;
+            $payloadText = preg_replace('/\s*```$/', '', $payloadText) ?? $payloadText;
+        }
+
+        $json = json_decode($payloadText, true);
+        abort_if(!is_array($json), 500, '比較サマリーの生成に失敗しました。');
+
+        return response()->json([
+            'overview' => (string) ($json['overview'] ?? ''),
+            'legal_impact' => (string) ($json['legal_impact'] ?? ''),
+            'key_changes' => array_values(array_filter($json['key_changes'] ?? [], fn ($item) => is_string($item) && $item !== '')),
+            'negotiation_points' => array_values(array_filter($json['negotiation_points'] ?? [], fn ($item) => is_string($item) && $item !== '')),
+            'caution_items' => array_values(array_filter($json['caution_items'] ?? [], fn ($item) => is_string($item) && $item !== '')),
+        ]);
+    }
+
     public function prepare(Request $request)
     {
         $validated = $request->validate([

@@ -31,6 +31,7 @@ use App\Models\ProjectCheckitemCategory;
 use App\Models\ProjectCheckitemTemplate;
 use App\Models\ProjectCheckitems;
 use App\Models\ProjectRecordReadState;
+use App\Services\Contracts\ContractExtractionService;
 use App\Services\MentionAndNotify;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ProjectMention;
@@ -68,6 +69,8 @@ use Google\Service\Exception as GoogleServiceException;
 use App\Http\Requests\FinanceRequest;
 use DB;
 use Illuminate\Support\Str;
+use ZipArchive;
+
 class ProjectController extends Controller
 {
     //
@@ -87,6 +90,7 @@ class ProjectController extends Controller
         BoardController $boardController, 
         SharedService $sharedService, 
         OpenAiController $openAiController,
+        private ContractExtractionService $contractExtractionService,
         private KintoneClient $api,
         private GoogleSheetsClient $client,
         private ProjectPlanFormulaService $planFormulaService,
@@ -1449,6 +1453,38 @@ class ProjectController extends Controller
         $filename = basename($filePath);
 
         return $disk->download($filePath, $filename);
+    }
+
+    public function extract_contract(Request $request, ProjectRecord $project): JsonResponse
+    {
+        $this->ensureProjectAccess($project);
+
+        $contract = $this->resolveProjectContract($project, $request->integer('contract_id'));
+        abort_unless($contract, 404, '契約書が見つかりません。');
+
+        $filePath = $contract->file_path;
+        $disk = Storage::disk('local');
+        abort_if(!$filePath || !$disk->exists($filePath), 404, '契約書ファイルが見つかりません。');
+
+        $absolutePath = $disk->path($filePath);
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        try {
+            $documentIndex = $this->contractExtractionService->extractIndex($absolutePath, $extension);
+        } catch (\Throwable $exception) {
+            abort(422, $exception->getMessage() ?: '契約書の比較テキスト抽出に失敗しました。');
+        }
+
+        $text = trim(implode("\n\n", array_map(
+            fn (array $page) => (string) ($page['text'] ?? ''),
+            $documentIndex['pages'] ?? []
+        )));
+
+        return response()->json([
+            'contract_id' => $contract->id,
+            'extension' => $extension,
+            'text' => $text,
+            'document_index' => $documentIndex,
+        ]);
     }
 
     public function store_contract(Request $request, ProjectRecord $project)
@@ -4955,6 +4991,31 @@ class ProjectController extends Controller
         }
 
         return $query->first();
+    }
+
+    protected function extractContractTextFromDocx(string $absolutePath): string
+    {
+        $zip = new ZipArchive();
+        $opened = $zip->open($absolutePath);
+
+        abort_if($opened !== true, 422, 'DOCXファイルの読み込みに失敗しました。');
+
+        $xml = $zip->getFromName('word/document.xml');
+        $zip->close();
+
+        abort_if($xml === false, 422, 'DOCX本文を読み取れませんでした。');
+
+        $normalizedXml = str_replace(
+            ['<w:tab/>', '<w:br/>', '<w:br />', '</w:p>', '</w:tr>', '</w:tc>'],
+            ["\t", "\n", "\n", "\n", "\n", "\t"],
+            $xml
+        );
+
+        $text = strip_tags($normalizedXml);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_XML1, 'UTF-8');
+        $text = preg_replace("/\n{3,}/", "\n\n", $text ?? '');
+
+        return trim((string) $text);
     }
 
     protected function projectContractPayload(ProjectRecord $project, ProjectContract $contract): array

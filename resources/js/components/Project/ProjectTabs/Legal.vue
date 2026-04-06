@@ -67,6 +67,9 @@
                             <button type="button" class="legal-btn legal-btn--secondary" @click="toggleRenewal">
                                 {{ renewalOpen ? '追加パネルを閉じる' : 'ファイルを追加' }}
                             </button>
+                            <button type="button" class="legal-btn legal-btn--secondary" @click="toggleCompare">
+                                {{ compareOpen ? '比較を閉じる' : '比較する' }}
+                            </button>
                             <button type="button" class="legal-btn legal-btn--danger" @click="removeContract">削除</button>
                         </div>
                     </div>
@@ -321,25 +324,37 @@
                             </div>
                         </header>
 
-                        <div class="legal-review-panel__body">
-                            <section class="legal-review-panel__preview">
+                        <div class="legal-review-panel__body" :class="{ 'legal-review-panel__body--compare': compareOpen }">
+                            <section v-if="!compareOpen" class="legal-review-panel__preview">
                                 <div class="legal-review-panel__section-head">
                                     <div>
                                         <p class="legal-review-panel__section-title">契約書プレビュー</p>
                                         <p class="legal-review-panel__section-caption">
-                                            {{ canInlinePreview ? '画面内で契約書を確認できます。' : 'この形式は画面内プレビューに向いていません。' }}
+                                            抽出した条文と段落を表示し、リスク箇所をそのまま確認できます。
                                         </p>
                                     </div>
                                 </div>
 
-                                <div v-if="previewUrl && canInlinePreview" class="legal-review-panel__preview-frame">
-                                    <iframe
-                                        :src="previewUrl"
-                                        title="契約書プレビュー"
-                                        allowfullscreen
-                                    ></iframe>
+                                <div class="legal-review-panel__preview-frame legal-review-panel__preview-frame--text">
+                                    <ContractRiskReviewView
+                                        v-if="currentDocumentIndex"
+                                        :document-index="currentDocumentIndex"
+                                        :document-title="fileMeta.name"
+                                        :document-meta="`${contractTypeLabel(contract.contract_type)} / ${contract.role}`"
+                                        :focus-request="focusRequest"
+                                    />
+                                    <div
+                                        v-else-if="currentTextIndexLoading"
+                                        class="legal-review-panel__preview-empty"
+                                        aria-live="polite"
+                                        >
+                                        <p class="legal-review-panel__preview-empty-title">抽出テキストを準備しています</p>
+                                        <p class="legal-review-panel__preview-empty-text">
+                                            契約書の条文と段落を整理して、リスク箇所へ移動できるようにしています。
+                                        </p>
+                                    </div>
                                 </div>
-                                <div v-else class="legal-review-panel__preview-empty">
+                                <div v-if="!currentDocumentIndex && !currentTextIndexLoading" class="legal-review-panel__preview-empty">
                                     <p class="legal-review-panel__preview-empty-title">
                                         {{ previewUrl ? 'ダウンロードして元ファイルをご確認ください。' : 'プレビューを表示できません。' }}
                                     </p>
@@ -349,7 +364,146 @@
                                 </div>
                             </section>
 
-                            <aside class="legal-review-panel__findings">
+                            <section v-else class="legal-compare-workspace">
+                                <div class="legal-review-panel__section-head">
+                                    <div>
+                                        <p class="legal-review-panel__section-title">契約比較</p>
+                                        <p class="legal-review-panel__section-caption">
+                                            2つの契約書を並べて確認し、変更箇所を同じ位置で見比べられます。
+                                        </p>
+                                    </div>
+                                    <select v-model="compareContractId" class="legal-compare__select">
+                                        <option :value="null">比較元の契約を選択</option>
+                                        <option
+                                            v-for="item in compareCandidates"
+                                            :key="item.id"
+                                            :value="item.id"
+                                        >
+                                            {{ nameFromPath(item.file_path) }}{{ item.version ? ` / v${item.version}` : '' }}
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <template v-if="compareContract">
+                                    <div class="legal-compare__stats" v-if="comparisonResult">
+                                        <span class="legal-compare__stat-chip legal-compare__stat-chip--added">追加 {{ comparisonResult.summary.added }}</span>
+                                        <span class="legal-compare__stat-chip legal-compare__stat-chip--removed">削除 {{ comparisonResult.summary.removed }}</span>
+                                        <span class="legal-compare__stat-chip legal-compare__stat-chip--modified">変更 {{ comparisonResult.summary.modified }}</span>
+                                    </div>
+
+                                    <section v-if="compareDataReady" class="legal-compare-summary">
+                                        <div class="legal-compare-summary__head">
+                                            <div>
+                                                <p class="legal-compare-summary__title">AI比較サマリー</p>
+                                                <p class="legal-compare-summary__caption">決定的な差分結果をもとに、法務上の変更点だけを短く整理しています。</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                :class="['legal-btn', comparisonAiSummary ? 'legal-btn--secondary' : 'legal-btn--primary']"
+                                                :disabled="comparisonSummaryLoading"
+                                                @click="summarizeComparison(Boolean(comparisonAiSummary))"
+                                            >
+                                                {{ comparisonSummaryLoading ? '生成中...' : comparisonAiSummary ? '再生成' : 'AIサマリーを生成' }}
+                                            </button>
+                                        </div>
+
+                                        <p v-if="comparisonSummaryError" class="legal-compare-summary__error">{{ comparisonSummaryError }}</p>
+                                        <p v-else-if="comparisonSummaryLoading && !comparisonAiSummary" class="legal-compare-summary__loading">
+                                            AIが比較内容を要約しています...
+                                        </p>
+                                        <p v-else-if="!comparisonAiSummary" class="legal-compare-summary__empty">
+                                            必要な場合のみ AI サマリーを生成できます。条文差分を確認したうえで、法務上の要点を短く整理したいときに実行してください。
+                                        </p>
+
+                                        <template v-else-if="comparisonAiSummary">
+                                            <div class="legal-compare-summary__grid">
+                                                <article class="legal-compare-summary__card">
+                                                    <p class="legal-compare-summary__card-label">全体像</p>
+                                                    <p class="legal-compare-summary__card-text">{{ comparisonAiSummary.overview }}</p>
+                                                </article>
+                                                <article class="legal-compare-summary__card">
+                                                    <p class="legal-compare-summary__card-label">法務影響</p>
+                                                    <p class="legal-compare-summary__card-text">{{ comparisonAiSummary.legal_impact }}</p>
+                                                </article>
+                                            </div>
+
+                                            <div class="legal-compare-summary__lists">
+                                                <article v-if="comparisonAiSummary.key_changes.length" class="legal-compare-summary__list-card">
+                                                    <p class="legal-compare-summary__card-label">重要な変更点</p>
+                                                    <ul class="legal-compare-summary__list">
+                                                        <li v-for="(item, index) in comparisonAiSummary.key_changes" :key="`compare-key-${index}`">{{ item }}</li>
+                                                    </ul>
+                                                </article>
+                                                <article v-if="comparisonAiSummary.negotiation_points.length" class="legal-compare-summary__list-card">
+                                                    <p class="legal-compare-summary__card-label">確認・交渉したい点</p>
+                                                    <ul class="legal-compare-summary__list">
+                                                        <li v-for="(item, index) in comparisonAiSummary.negotiation_points" :key="`compare-negotiation-${index}`">{{ item }}</li>
+                                                    </ul>
+                                                </article>
+                                                <article v-if="comparisonAiSummary.caution_items.length" class="legal-compare-summary__list-card">
+                                                    <p class="legal-compare-summary__card-label">追加確認メモ</p>
+                                                    <ul class="legal-compare-summary__list">
+                                                        <li v-for="(item, index) in comparisonAiSummary.caution_items" :key="`compare-caution-${index}`">{{ item }}</li>
+                                                    </ul>
+                                                </article>
+                                            </div>
+                                        </template>
+                                    </section>
+
+                                    <div class="legal-compare__tabs" v-if="compareDataReady">
+                                        <button
+                                            type="button"
+                                            class="legal-compare__tab"
+                                            :class="{ 'legal-compare__tab--active': compareViewMode === 'full' }"
+                                            @click="compareViewMode = 'full'"
+                                        >
+                                            全文比較
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="legal-compare__tab"
+                                            :class="{ 'legal-compare__tab--active': compareViewMode === 'article' }"
+                                            @click="compareViewMode = 'article'"
+                                        >
+                                            条文比較
+                                        </button>
+                                    </div>
+
+                                    <ContractCompareTextView
+                                        v-if="compareDataReady && compareViewMode === 'full'"
+                                        :key="`full-${compareRenderKey}`"
+                                        :base-blocks="comparisonColumns.baseBlocks"
+                                        :target-blocks="comparisonColumns.targetBlocks"
+                                        :base-title="nameFromPath(compareContract.file_path)"
+                                        :base-meta="compareBaseMeta"
+                                        :target-title="fileMeta.name"
+                                        :target-meta="compareTargetMeta"
+                                    />
+
+                                    <ContractCompareArticleView
+                                        v-else-if="compareDataReady"
+                                        :key="`article-${compareRenderKey}`"
+                                        :rows="comparisonRows"
+                                        :base-title="nameFromPath(compareContract.file_path)"
+                                        :base-meta="compareBaseMeta"
+                                        :target-title="fileMeta.name"
+                                        :target-meta="compareTargetMeta"
+                                    />
+
+                                    <p v-else-if="compareIndexLoading" class="legal-compare__empty">
+                                        比較用の契約テキストを読み込み中...
+                                    </p>
+                                    <p v-else class="legal-compare__empty">
+                                        比較画面を準備しています...
+                                    </p>
+                                </template>
+
+                                <p v-else class="legal-compare__empty">
+                                    比較を開始するには、比較元の契約を選択してください。
+                                </p>
+                            </section>
+
+                            <aside v-if="!compareOpen" class="legal-review-panel__findings">
                                 <div class="legal-review-panel__section-head">
                                     <div>
                                         <p class="legal-review-panel__section-title">検出されたリスク</p>
@@ -360,7 +514,7 @@
                                 </div>
 
                                 <div class="legal-review-panel__findings-content">
-                                    <ContractFindings :contract="deepSummary ?? summary" />
+                                    <ContractFindings :contract="resolvedSummary" @focus-finding="focusFinding" />
                                 </div>
 
                                 <div class="legal-review-panel__footer">
@@ -398,17 +552,47 @@ import { DateTime } from 'luxon'
 import { filesize } from 'filesize'
 import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
 import Back from '@/components/Icons/Back.vue'
+import ContractCompareArticleView from '@/components/Project/Legal/ContractCompareArticleView.vue'
+import ContractCompareTextView from '@/components/Project/Legal/ContractCompareTextView.vue'
 import ContractFindings from '@/components/Project/Legal/ContractFindings.vue'
+import ContractRiskReviewView from '@/components/Project/Legal/ContractRiskReviewView.vue'
 import AiLoader from '@/components/Global/AiLoader.vue'
 import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 import { useProject } from '@/composables/project'
-import { ContractFindingSeverity, ProjectContractResponse } from '@/interface/projectInterface'
+import {
+    ContractFindingSeverity,
+    ProjectContractFinding,
+    ProjectContractResponse,
+} from '@/interface/projectInterface'
 import { contractRoleDefaults, contractTypeDefaults } from '@/utils/tools'
+import {
+    attachFindingAnchors,
+    buildContractComparisonColumns,
+    buildContractComparisonRows,
+    buildContractDocumentIndexFromText,
+    compareContractIndexes,
+    type ContractDocumentIndex,
+} from '@/utils/contractAnalysis'
 
 const props = defineProps<{
     hasPrivilage: boolean
 }>()
+
+type ContractExtractResponse = {
+    contract_id?: number
+    extension?: string
+    text?: string | null
+    document_index?: ContractDocumentIndex | null
+}
+
+type ContractComparisonAiSummary = {
+    overview: string
+    legal_impact: string
+    key_changes: string[]
+    negotiation_points: string[]
+    caution_items: string[]
+}
 
 const INLINE_PREVIEW_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt']
 const UPLOAD_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.odt,.ods,.odp'
@@ -428,6 +612,11 @@ const aiLoading = ref(false)
 const saveLoading = ref(false)
 const uploadLoading = ref(false)
 const renewalOpen = ref(false)
+const compareOpen = ref(false)
+const compareContractId = ref<number | null>(null)
+const compareViewMode = ref<'full' | 'article'>('full')
+const currentTextIndexLoading = ref(false)
+const compareTextIndexLoading = ref(false)
 const uploadDragging = ref(false)
 const uploadError = ref('')
 const uploadInput = ref<HTMLInputElement | null>(null)
@@ -435,6 +624,14 @@ const uploadFile = ref<File | null>(null)
 const uploadContractType = ref<string>(contractTypeDefaults[0]?.value ?? '')
 const uploadRole = ref('乙')
 const deepResult = ref<Record<string, any> | null>(null)
+const comparisonSummaryLoading = ref(false)
+const comparisonSummaryError = ref('')
+const comparisonAiSummary = ref<ContractComparisonAiSummary | null>(null)
+const currentDocumentIndex = ref<ContractDocumentIndex | null>(null)
+const compareDocumentIndex = ref<ContractDocumentIndex | null>(null)
+const focusRequest = ref<{ token: number; page?: number; query?: string | null; fallbackQuery?: string | null } | null>(null)
+let currentTextIndexRequestId = 0
+let compareTextIndexRequestId = 0
 
 const contracts = computed<ProjectContractResponse[]>(() => {
     if (fetchAttempted.value) {
@@ -461,6 +658,28 @@ const contract = computed<ProjectContractResponse | null>(() => {
     return contracts.value[0]
 })
 
+const extractFindingPage = (...sources: Array<string | number | null | undefined>) => {
+    for (const source of sources) {
+        if (typeof source === 'number' && Number.isFinite(source)) {
+            return source
+        }
+
+        if (typeof source !== 'string' || !source.trim()) {
+            continue
+        }
+
+        const match = source.match(/p\.?\s*(\d+)/i)
+            ?? source.match(/page\s*(\d+)/i)
+            ?? source.match(/(\d+)\s*ページ/u)
+
+        if (match?.[1]) {
+            return Number(match[1])
+        }
+    }
+
+    return undefined
+}
+
 const parseSummary = (target: { result_json?: any; overall_risk?: ContractFindingSeverity } | null) => {
     if (!target) {
         return {
@@ -476,15 +695,18 @@ const parseSummary = (target: { result_json?: any; overall_risk?: ContractFindin
     return {
         overallRisk: overall || 'unknown',
         findings: findings.map((item: any) => ({
-            section: item.section,
-            issue: item.issue ?? item.title ?? '',
-            severity: (item.severity ?? 'unknown') as ContractFindingSeverity,
-            rationale: item.rationale ?? item.reason ?? '',
+            section: item.section ?? item.clause_title ?? '',
+            location: item.clause_location ?? '',
+            issue: item.issue ?? item.risk_reason ?? item.title ?? item.clause_title ?? '',
+            severity: (item.severity ?? item.risk_level ?? 'unknown') as ContractFindingSeverity,
+            rationale: item.rationale ?? item.reason ?? item.risk_reason ?? '',
             suggestion: item.suggestion ?? item.remedy ?? '',
             category: item.category,
             score: item.score,
-            quote: item.quote ?? '',
+            quote: item.quote ?? item.clause_text ?? '',
             negotiation_tip: item.negotiation_tip ?? '',
+            page: extractFindingPage(item.page, item.section, item.clause_location),
+            anchor: item.anchor ?? null,
         })),
     }
 }
@@ -498,6 +720,10 @@ const deepSummary = computed(() => {
 
 const summary = computed(() => parseSummary(contract.value))
 const activeSummary = computed(() => deepSummary.value ?? summary.value)
+const resolvedSummary = computed(() => ({
+    overallRisk: activeSummary.value.overallRisk,
+    findings: attachFindingAnchors(activeSummary.value.findings, currentDocumentIndex.value),
+}))
 
 const createFindingCounts = (findings: Array<{ severity: ContractFindingSeverity }>) => ({
     high: findings.filter(item => item.severity === 'high').length,
@@ -600,6 +826,79 @@ const downloadUrl = computed(() => {
 })
 
 const canInlinePreview = computed(() => INLINE_PREVIEW_EXTENSIONS.includes(fileMeta.value.extension))
+const compareCandidates = computed(() => {
+    if (!contract.value) return []
+    return contracts.value.filter(item => item.id !== contract.value?.id)
+})
+const compareContract = computed<ProjectContractResponse | null>(() => {
+    if (!compareContractId.value) return null
+    return compareCandidates.value.find(item => item.id === compareContractId.value) ?? null
+})
+const comparisonRows = computed(() => buildContractComparisonRows(compareDocumentIndex.value, currentDocumentIndex.value))
+const comparisonColumns = computed(() => buildContractComparisonColumns(compareDocumentIndex.value, currentDocumentIndex.value))
+const comparisonResult = computed(() => {
+    if (!contract.value || !compareContract.value) return null
+
+    return compareContractIndexes(
+        compareDocumentIndex.value,
+        currentDocumentIndex.value,
+        compareContract.value.id,
+        contract.value.id,
+    )
+})
+const compareIndexLoading = computed(() => currentTextIndexLoading.value || compareTextIndexLoading.value)
+const compareDataReady = computed(() => Boolean(compareContract.value && currentDocumentIndex.value && compareDocumentIndex.value))
+const compareRenderKey = computed(() => {
+    const baseId = compareContract.value?.id ?? 'none'
+    const targetId = contract.value?.id ?? 'none'
+    const baseClauses = compareDocumentIndex.value?.clauses.length ?? 0
+    const targetClauses = currentDocumentIndex.value?.clauses.length ?? 0
+
+    return `${baseId}-${targetId}-${baseClauses}-${targetClauses}`
+})
+const compareBaseMeta = computed(() => {
+    if (!compareContract.value) return ''
+    const parts = [formatDate(compareContract.value.updated_at || compareContract.value.created_at || '')]
+    if (compareContract.value.version) {
+        parts.push(`v${compareContract.value.version}`)
+    }
+    return parts.filter(Boolean).join(' / ')
+})
+const compareTargetMeta = computed(() => {
+    if (!contract.value) return ''
+    const parts = [formatDate(contract.value.updated_at || contract.value.created_at || '')]
+    if (contract.value.version) {
+        parts.push(`v${contract.value.version}`)
+    }
+    return parts.filter(Boolean).join(' / ')
+})
+const shouldLoadCurrentDocumentIndex = computed(() => Boolean(
+    contract.value
+    && (
+        compareOpen.value
+        || detailOpen.value
+    )
+))
+
+const comparisonSummaryPayload = computed(() => {
+    if (!comparisonResult.value || !compareContract.value || !contract.value) {
+        return null
+    }
+
+    return {
+        base_contract_name: nameFromPath(compareContract.value.file_path),
+        target_contract_name: nameFromPath(contract.value.file_path),
+        summary: comparisonResult.value.summary,
+        changes: comparisonResult.value.changes
+            .slice(0, 25)
+            .map(change => ({
+                change_type: change.change_type,
+                clause_label: change.clause_label,
+                before_text: change.before_text ?? '',
+                after_text: change.after_text ?? '',
+            })),
+    }
+})
 
 const severityLabel = (severity: ContractFindingSeverity) => {
     switch (severity) {
@@ -644,6 +943,35 @@ const toggleRenewal = () => {
     uploadError.value = ''
 }
 
+const resetCompareState = () => {
+    compareContractId.value = null
+    compareDocumentIndex.value = null
+    compareViewMode.value = 'full'
+    comparisonAiSummary.value = null
+    comparisonSummaryError.value = ''
+}
+
+const toggleCompare = () => {
+    if (!contract.value) {
+        return
+    }
+
+    if (!compareOpen.value) {
+        if (!compareCandidates.value.length) {
+            ping('比較するには、もう1つ契約書が必要です。先に別の契約書を追加してください。')
+            return
+        }
+
+        compareOpen.value = true
+        detailOpen.value = true
+        compareContractId.value = compareContractId.value ?? compareCandidates.value[0]?.id ?? null
+        return
+    }
+
+    compareOpen.value = false
+    resetCompareState()
+}
+
 const openRenewal = () => {
     renewalOpen.value = true
     uploadError.value = ''
@@ -661,6 +989,132 @@ const openPreviewInNewTab = () => {
     }
 }
 
+const requestViewerFocus = (payload: { page?: number; query?: string | null; fallbackQuery?: string | null }) => {
+    focusRequest.value = {
+        token: Date.now(),
+        page: payload.page,
+        query: payload.query ?? null,
+        fallbackQuery: payload.fallbackQuery ?? null,
+    }
+}
+
+const focusFinding = (finding: ProjectContractFinding) => {
+    requestViewerFocus({
+        page: finding.anchor?.page ?? finding.page,
+        query: finding.anchor?.query ?? finding.quote ?? finding.section ?? null,
+        fallbackQuery: finding.anchor?.fallback_query ?? finding.section ?? finding.issue ?? null,
+    })
+}
+
+const coerceDocumentIndex = (response: ContractExtractResponse | null | undefined) => {
+    if (response?.document_index?.pages && response?.document_index?.clauses) {
+        return response.document_index
+    }
+
+    return buildContractDocumentIndexFromText(response?.text ?? '')
+}
+
+const fetchContractTextIndex = async (
+    targetContract: ProjectContractResponse,
+    loadingRef: typeof currentTextIndexLoading,
+) => {
+    if (!selectedProject.value?.id) {
+        return null
+    }
+
+    const response = await api.get(
+        `/projects/${selectedProject.value.id}/contract/extract?contract_id=${targetContract.id}`,
+        null,
+        {
+            loadingRef,
+            silent: true,
+        }
+    ) as ContractExtractResponse | null
+
+    return coerceDocumentIndex(response)
+}
+
+const summarizeComparison = async (force = false) => {
+    if (!comparisonSummaryPayload.value) {
+        comparisonAiSummary.value = null
+        return
+    }
+
+    if (comparisonSummaryLoading.value) {
+        return
+    }
+
+    if (!force && comparisonAiSummary.value) {
+        return
+    }
+
+    comparisonSummaryError.value = ''
+    comparisonSummaryLoading.value = true
+
+    try {
+        const response = await api.post('/summarize_contract_comparison', comparisonSummaryPayload.value, {
+            loadingRef: comparisonSummaryLoading,
+            silent: true,
+        }) as ContractComparisonAiSummary | null
+
+        if (response) {
+            comparisonAiSummary.value = response
+        }
+    } catch (error) {
+        comparisonSummaryError.value = resolveErrorMessage(error, '比較サマリーを生成できませんでした。')
+    } finally {
+        comparisonSummaryLoading.value = false
+    }
+}
+
+const syncCurrentDocumentIndex = async () => {
+    const targetContract = contract.value
+    const requestId = ++currentTextIndexRequestId
+
+    if (!shouldLoadCurrentDocumentIndex.value || !targetContract) {
+        return
+    }
+
+    currentDocumentIndex.value = null
+
+    try {
+        const nextIndex = await fetchContractTextIndex(targetContract, currentTextIndexLoading)
+        if (
+            requestId === currentTextIndexRequestId
+            && shouldLoadCurrentDocumentIndex.value
+            && contract.value?.id === targetContract.id
+        ) {
+            currentDocumentIndex.value = nextIndex
+        }
+    } catch (error) {
+        if (requestId === currentTextIndexRequestId) {
+            ping(resolveErrorMessage(error, '比較用の契約テキストを読み取れませんでした。'))
+        }
+    }
+}
+
+const syncBaseCompareIndex = async () => {
+    const targetContract = compareContract.value
+    const requestId = ++compareTextIndexRequestId
+
+    if (!compareOpen.value || !targetContract) {
+        return
+    }
+
+    compareDocumentIndex.value = null
+
+    try {
+        const nextIndex = await fetchContractTextIndex(targetContract, compareTextIndexLoading)
+        if (requestId === compareTextIndexRequestId && compareOpen.value && compareContract.value?.id === targetContract.id) {
+            compareDocumentIndex.value = nextIndex
+        }
+    } catch (error) {
+        if (requestId === compareTextIndexRequestId) {
+            ping(resolveErrorMessage(error, '比較元の契約テキストを読み取れませんでした。'))
+        }
+    }
+}
+
 const confirmDiscardDeepReview = async () => {
     if (!deepSummary.value) return true
     const answer = await ask('未保存のディープレビュー結果があります。破棄して契約を切り替えますか？')
@@ -673,6 +1127,11 @@ const selectContract = async (id: number) => {
 
     selectedContractId.value = id
     deepResult.value = null
+    currentDocumentIndex.value = null
+    focusRequest.value = null
+    if (compareContractId.value === id) {
+        compareContractId.value = null
+    }
 }
 
 const fetchContract = async (force = false) => {
@@ -764,10 +1223,19 @@ const saveReview = async (selected: ProjectContractResponse) => {
     }
 
     try {
+        if (!currentDocumentIndex.value) {
+            await syncCurrentDocumentIndex()
+        }
+
+        const anchoredSummary = {
+            overallRisk: deepSummary.value.overallRisk,
+            findings: attachFindingAnchors(deepSummary.value.findings, currentDocumentIndex.value),
+        }
+
         await api.post('/save_review', {
             id: selected.id,
             project_id: selectedProject.value.id,
-            summary: deepSummary.value,
+            summary: anchoredSummary,
         }, {
             toast: '保存しました。',
             loadingRef: saveLoading,
@@ -907,7 +1375,12 @@ watch(
         selectedContractId.value = null
         detailOpen.value = false
         renewalOpen.value = false
+        compareOpen.value = false
+        compareContractId.value = null
         deepResult.value = null
+        currentDocumentIndex.value = null
+        compareDocumentIndex.value = null
+        focusRequest.value = null
         fetchAttempted.value = false
         fetchError.value = ''
         clearUploadFile()
@@ -932,6 +1405,8 @@ watch(
         }
 
         deepResult.value = null
+        currentDocumentIndex.value = null
+        focusRequest.value = null
     },
     { immediate: true }
 )
@@ -953,7 +1428,48 @@ watch(
 
 watch(detailOpen, isOpen => {
     document.body.style.overflow = isOpen ? 'hidden' : ''
+
+    if (!isOpen && compareOpen.value) {
+        compareOpen.value = false
+        resetCompareState()
+    }
 })
+
+watch(compareContractId, value => {
+    compareDocumentIndex.value = null
+
+    if (!value) {
+        return
+    }
+})
+
+watch(compareRenderKey, () => {
+    comparisonAiSummary.value = null
+    comparisonSummaryError.value = ''
+})
+
+watch(
+    () => [shouldLoadCurrentDocumentIndex.value, contract.value?.id],
+    ([shouldLoad]) => {
+        if (shouldLoad && contract.value) {
+            void syncCurrentDocumentIndex()
+            return
+        }
+
+        currentDocumentIndex.value = null
+    },
+    { immediate: true }
+)
+
+watch(
+    () => [compareOpen.value, compareContract.value?.id],
+    () => {
+        if (compareOpen.value && compareContract.value) {
+            void syncBaseCompareIndex()
+        }
+    },
+    { immediate: true }
+)
 
 onBeforeUnmount(() => {
     document.body.style.overflow = ''
@@ -967,7 +1483,6 @@ onBeforeUnmount(() => {
     --legal-border: var(--calendarBorder);
     --legal-text: var(--primary-color);
     --legal-muted: var(--font-color, #666);
-    --legal-accent: var(--primary-button);
     display: flex;
     flex-direction: column;
     min-height: 100%;
@@ -1400,9 +1915,9 @@ onBeforeUnmount(() => {
 }
 
 .legal-btn--primary {
-    background: var(--legal-accent);
+    background: var(--primary-button);
     color: #fff;
-    border-color: var(--legal-accent);
+    border-color: var(--primary-button);
 }
 
 .legal-btn--secondary {
@@ -1666,6 +2181,7 @@ onBeforeUnmount(() => {
     inset: 0 0 0 0;
     display: flex;
     flex-direction: column;
+    min-height: 0;
     background: var(--background-color);
 }
 
@@ -1741,9 +2257,14 @@ onBeforeUnmount(() => {
     grid-template-columns: minmax(0, 1.45fr) minmax(420px, 0.95fr);
     gap: 14px;
     padding: 14px;
+    flex: 1;
     min-height: 0;
     height: calc(100vh - 67px);
     box-sizing: border-box;
+}
+
+.legal-review-panel__body--compare {
+    grid-template-columns: 1fr;
 }
 
 .legal-review-panel__preview,
@@ -1797,6 +2318,16 @@ onBeforeUnmount(() => {
     background: var(--background-color);
 }
 
+.legal-review-panel__preview-frame--text {
+    display: flex;
+    min-height: 0;
+}
+
+.legal-review-panel__preview-frame--text > * {
+    flex: 1;
+    min-height: 0;
+}
+
 .legal-review-panel__preview-frame iframe {
     width: 100%;
     height: 100%;
@@ -1839,6 +2370,250 @@ onBeforeUnmount(() => {
     padding-right: 2px;
 }
 
+.legal-compare-workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 18px 24px;
+    border: 1px solid var(--legal-border);
+    border-radius: 10px;
+    background: var(--legal-surface);
+    height: 100%;
+    overflow: auto;
+    box-sizing: border-box;
+    min-height: 0;
+}
+
+.legal-compare__empty {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--legal-muted);
+}
+
+.legal-compare__select {
+    min-width: 200px;
+    max-width: 100%;
+    border: 1px solid var(--calendarBorder);
+    border-radius: 8px;
+    background: var(--bg3);
+    color: var(--primary-color);
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    color-scheme: dark;
+}
+
+.legal-compare__select:focus {
+    outline: none;
+    border-color: rgba(41, 196, 122, 0.34);
+    box-shadow:
+        0 0 0 3px rgba(41, 196, 122, 0.12),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.legal-compare__select option {
+    background: var(--background-color);
+    color: var(--primary-color);
+}
+
+.legal-compare__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.legal-compare__stat-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 30px;
+    padding: 0 12px 0 10px;
+    border-radius: 999px;
+    border: 1px solid var(--legal-border);
+    background: var(--legal-surface);
+    color: var(--legal-text);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.legal-compare__stat-chip::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: currentColor;
+    flex: 0 0 auto;
+}
+
+.legal-compare__stat-chip--added {
+    color: #188f57;
+    border-color: rgba(24, 143, 87, 0.28);
+    background:
+        linear-gradient(var(--legal-surface), var(--legal-surface)) padding-box,
+        linear-gradient(90deg, rgba(24, 143, 87, 0.45), rgba(24, 143, 87, 0.12)) border-box;
+    border: 1px solid transparent;
+}
+
+.legal-compare__stat-chip--removed {
+    color: #d28308;
+    border-color: rgba(210, 131, 8, 0.28);
+    background:
+        linear-gradient(var(--legal-surface), var(--legal-surface)) padding-box,
+        linear-gradient(90deg, rgba(210, 131, 8, 0.42), rgba(210, 131, 8, 0.12)) border-box;
+    border: 1px solid transparent;
+}
+
+.legal-compare__stat-chip--modified {
+    color: var(--legal-text);
+    background:
+        linear-gradient(
+            90deg,
+            var(--legal-surface) 0%,
+            var(--legal-surface) 100%
+        ) padding-box,
+        linear-gradient(
+            90deg,
+            rgba(210, 131, 8, 0.55) 0%,
+            rgba(210, 131, 8, 0.55) 48%,
+            rgba(24, 143, 87, 0.5) 52%,
+            rgba(24, 143, 87, 0.5) 100%
+        ) border-box;
+    border: 1px solid transparent;
+}
+
+.legal-compare__stat-chip--modified::before {
+    background: linear-gradient(
+        90deg,
+        rgba(210, 131, 8, 0.95) 0%,
+        rgba(210, 131, 8, 0.95) 48%,
+        rgba(24, 143, 87, 0.9) 52%,
+        rgba(24, 143, 87, 0.9) 100%
+    );
+}
+
+.legal-compare__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.legal-compare-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--legal-border);
+    border-radius: 12px;
+    background: var(--legal-surface-muted);
+}
+
+.legal-compare-summary__head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.legal-compare-summary__title,
+.legal-compare-summary__card-label {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--legal-text);
+}
+
+.legal-compare-summary__caption,
+.legal-compare-summary__loading {
+    margin: 4px 0 0;
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--legal-muted);
+}
+
+.legal-compare-summary__empty {
+    margin: 0;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px dashed var(--legal-border);
+    background: var(--legal-surface);
+    color: var(--legal-muted);
+    font-size: 11px;
+    line-height: 1.7;
+}
+
+.legal-compare-summary__error {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(209, 67, 67, 0.22);
+    background: rgba(209, 67, 67, 0.08);
+    color: #e58d8d;
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.legal-compare-summary__grid,
+.legal-compare-summary__lists {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.legal-compare-summary__lists {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.legal-compare-summary__card,
+.legal-compare-summary__list-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: var(--legal-surface);
+}
+
+.legal-compare-summary__card-text {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.75;
+    color: var(--legal-text);
+}
+
+.legal-compare-summary__list {
+    margin: 0;
+    padding-left: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--legal-text);
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.legal-compare__tab {
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--legal-border);
+    border-radius: 999px;
+    background: var(--legal-surface-muted);
+    color: var(--legal-text);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.legal-compare__tab--active {
+    border-color: rgba(41, 196, 122, 0.36);
+    background: rgba(41, 196, 122, 0.14);
+}
+
 .legal-review-panel__footer {
     margin-top: 12px;
     padding-top: 12px;
@@ -1877,7 +2652,9 @@ onBeforeUnmount(() => {
 
     .legal-summary__stats,
     .legal-summary__details,
-    .legal-upload-panel__form {
+    .legal-upload-panel__form,
+    .legal-compare-summary__grid,
+    .legal-compare-summary__lists {
         grid-template-columns: 1fr;
     }
 
@@ -1909,7 +2686,8 @@ onBeforeUnmount(() => {
     .legal-upload-panel__head,
     .legal-review-panel__header,
     .legal-review-panel__header-left,
-    .legal-review-panel__section-head {
+    .legal-review-panel__section-head,
+    .legal-compare-summary__head {
         flex-direction: column;
         align-items: flex-start;
     }
@@ -1931,6 +2709,12 @@ onBeforeUnmount(() => {
     .legal-review-panel__body {
         grid-template-columns: 1fr;
     }
+
+    .legal-compare__select {
+        width: 100%;
+        min-width: 0;
+    }
+
 }
 
 .legal-review-panel-enter-active,

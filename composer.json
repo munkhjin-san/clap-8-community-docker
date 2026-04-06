@@ -23,8 +23,7 @@
         "minishlink/web-push": "^10.0",
         "openai-php/client": "^0.17.1",
         "predis/predis": "^3.3",
-        "pusher/pusher-php-server": "^7.2",
-        "pusher/pusher-push-notifications": "^2.0"
+        "smalot/pdfparser": "2.12"
     },
     "require-dev": {
         "laravel/pint": "^1.0",

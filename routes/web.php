@@ -623,6 +623,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/projects/{project}/contract', [ProjectController::class, 'show_contract'])->name('projects.contract.show');
         Route::get('/projects/{project}/contract/file', [ProjectController::class, 'preview_contract'])->name('projects.contract.preview');
         Route::get('/projects/{project}/contract/download', [ProjectController::class, 'download_contract'])->name('projects.contract.download');
+        Route::get('/projects/{project}/contract/extract', [ProjectController::class, 'extract_contract'])->name('projects.contract.extract');
         Route::delete('/projects/{project}/contract/{contract}', [ProjectController::class, 'delete_contract'])->name('projects.contract.delete');
         Route::post('/save_review', [ProjectController::class, 'save_review']);
 
@@ -766,6 +767,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/non_stream_prompt', [OpenAiController::class, 'non_stream_prompt']);
         Route::get('/stream_prompt', [OpenAiController::class, 'stream_prompt']);
         Route::post('/review_document', [OpenAiController::class, 'review_document']);
+        Route::post('/summarize_contract_comparison', [OpenAiController::class, 'summarize_contract_comparison']);
        
 
         Route::get('/goal_issue_comment_badge', [ProjectController::class, 'goal_issue_comment_badge']);

@@ -5,17 +5,56 @@ import { FileRecord } from "./trayInterface";
 
 export type ContractFindingSeverity = 'high' | 'medium' | 'low' | 'unknown'
 
+export interface ContractFindingAnchor {
+    clause_id?: string;
+    page?: number;
+    query?: string;
+    fallback_query?: string;
+    matched_text?: string;
+    paragraph_index?: number;
+}
+
 export interface ProjectContractFinding {
     section?: string;
+    location?: string;
     issue: string;
     severity: ContractFindingSeverity;
     rationale: string;
     suggestion: string;
+    quote?: string;
+    page?: number;
+    category?: string;
+    score?: number;
+    negotiation_tip?: string;
+    anchor?: ContractFindingAnchor | null;
 }
 
 export interface ProjectContractResult {
     overall_risk: ContractFindingSeverity;
     findings: ProjectContractFinding[];
+}
+
+export interface ContractComparisonChange {
+    id: string;
+    change_type: 'added' | 'removed' | 'modified';
+    clause_label?: string;
+    base_page?: number;
+    target_page?: number;
+    before_text?: string;
+    after_text?: string;
+    anchor_base?: ContractFindingAnchor | null;
+    anchor_target?: ContractFindingAnchor | null;
+}
+
+export interface ContractComparisonResult {
+    base_contract_id: number;
+    target_contract_id: number;
+    summary: {
+        added: number;
+        removed: number;
+        modified: number;
+    };
+    changes: ContractComparisonChange[];
 }
 
 export interface ProjectContractResponse {
@@ -37,6 +76,7 @@ export interface ProjectContractResponse {
     role: string;
     contract_type: string;
     active: boolean;
+    comparison_json?: ContractComparisonResult | null;
 }
 export interface ProjectMember extends User {
     pivot: {

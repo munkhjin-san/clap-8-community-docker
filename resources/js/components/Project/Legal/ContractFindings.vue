@@ -1,7 +1,7 @@
 <template>
     <div v-if="contract" class="contract-findings">
         <div class="contract-findings__header">
-            <span class="contract-findings__label">全体リスク</span>
+            <span class="contract-findings__label">リスク概要</span>
             <span :class="['contract-findings__badge', `contract-findings__badge--${contract.overallRisk}`]">
                 {{ severityLabel(contract.overallRisk) }}
             </span>
@@ -10,71 +10,88 @@
         <div class="contract-findings__filters">
             <button
                 class="contract-findings__filter contract-findings__filter--high"
-                :class="{'contract-findings__filter--active': activeFilter === 'high'}"
+                :class="{ 'contract-findings__filter--active': activeFilter === 'high' }"
                 @click="toggleFilter('high')"
             >
                 高 <span>{{ counts.high }}</span>
             </button>
             <button
                 class="contract-findings__filter contract-findings__filter--medium"
-                :class="{'contract-findings__filter--active': activeFilter === 'medium'}"
+                :class="{ 'contract-findings__filter--active': activeFilter === 'medium' }"
                 @click="toggleFilter('medium')"
             >
                 中 <span>{{ counts.medium }}</span>
             </button>
             <button
                 class="contract-findings__filter contract-findings__filter--low"
-                :class="{'contract-findings__filter--active': activeFilter === 'low'}"
+                :class="{ 'contract-findings__filter--active': activeFilter === 'low' }"
                 @click="toggleFilter('low')"
             >
                 低 <span>{{ counts.low }}</span>
             </button>
             <button
                 v-if="activeFilter"
+                type="button"
                 class="contract-findings__filter-reset"
                 @click="clearFilter"
             >
-                すべて表示
+                リセット
             </button>
         </div>
 
         <div v-if="filteredFindings.length" class="contract-findings__list">
             <article
                 v-for="(finding, idx) in filteredFindings"
-                :key="idx"
+                :key="`${finding.issue}-${idx}`"
                 class="contract-findings__item"
             >
                 <header class="contract-findings__item-header">
                     <div class="contract-findings__item-meta">
-                        <div class="contract-findings__item-section">{{ finding.section || '（セクション未設定）' }}</div>
-                        <button class="contract-findings__item-title" @click="toggleOpen(idx)">
+                        <button
+                            type="button"
+                            class="contract-findings__item-section"
+                            @click="focusFinding(finding, idx)"
+                        >
+                            {{ sectionLabel(finding) }}
+                        </button>
+                        <button type="button" class="contract-findings__item-title" @click="toggleOpen(idx)">
                             {{ finding.issue }}
                         </button>
                     </div>
-                    <span :class="['contract-findings__badge', `contract-findings__badge--${finding.severity}`]">
-                        {{ severityLabel(finding.severity) }}
-                    </span>
+                    <div class="contract-findings__item-actions">
+                        <button
+                            v-if="canFocusFinding(finding)"
+                            type="button"
+                            class="contract-findings__jump"
+                            @click="focusFinding(finding, idx)"
+                        >
+                            該当箇所へ移動
+                        </button>
+                        <span :class="['contract-findings__badge', `contract-findings__badge--${finding.severity}`]">
+                            {{ severityLabel(finding.severity) }}
+                        </span>
+                    </div>
                 </header>
                 <transition name="fade">
                     <div v-if="isOpen(idx)" class="contract-findings__item-body">
                         <p v-if="finding.category" class="contract-findings__item-line">
-                            <span class="contract-findings__item-label">リスク分類</span>
+                            <span class="contract-findings__item-label">カテゴリ</span>
                             <span>{{ finding.category }}</span>
                         </p>
                         <p v-if="finding.score" class="contract-findings__item-line">
-                            <span class="contract-findings__item-label">重要度スコア</span>
+                            <span class="contract-findings__item-label">スコア</span>
                             <span>{{ finding.score }}</span>
                         </p>
-                        <p class="contract-findings__item-line">
-                            <span class="contract-findings__item-label">判断理由</span>
+                        <p v-if="finding.rationale" class="contract-findings__item-line">
+                            <span class="contract-findings__item-label">理由</span>
                             <span>{{ finding.rationale }}</span>
                         </p>
-                        <p class="contract-findings__item-line">
-                            <span class="contract-findings__item-label">対応方針・修正提案</span>
+                        <p v-if="finding.suggestion" class="contract-findings__item-line">
+                            <span class="contract-findings__item-label">提案</span>
                             <span>{{ finding.suggestion }}</span>
                         </p>
                         <p v-if="finding.quote" class="contract-findings__item-line">
-                            <span class="contract-findings__item-label">該当条文抜粋</span>
+                            <span class="contract-findings__item-label">該当条文</span>
                             <span>{{ finding.quote }}</span>
                         </p>
                         <p v-if="finding.negotiation_tip" class="contract-findings__item-line">
@@ -85,9 +102,9 @@
                 </transition>
             </article>
         </div>
-        <p v-else class="contract-findings__empty">該当する懸念事項はありません。</p>
+        <p v-else class="contract-findings__empty">現在のフィルター条件に一致するリスクはありません。</p>
     </div>
-    <p v-else class="contract-findings__empty">レビュー結果がまだありません。</p>
+    <p v-else class="contract-findings__empty">レビュー結果はまだありません。</p>
 </template>
 
 <script setup lang="ts">
@@ -97,14 +114,24 @@ type Severity = 'high' | 'medium' | 'low' | 'unknown'
 
 type Finding = {
     section?: string
-    category: string
+    location?: string
+    category?: string
     issue: string
     severity: Severity
     rationale: string
     suggestion: string
-    quote: string
-    score: number
-    negotiation_tip: string
+    quote?: string
+    score?: number
+    negotiation_tip?: string
+    page?: number
+    anchor?: {
+        clause_id?: string
+        page?: number
+        query?: string
+        fallback_query?: string
+        matched_text?: string
+        paragraph_index?: number
+    } | null
 }
 
 const props = defineProps<{
@@ -112,6 +139,10 @@ const props = defineProps<{
         overallRisk: Severity
         findings: Finding[]
     } | null
+}>()
+
+const emit = defineEmits<{
+    (e: 'focus-finding', finding: Finding): void
 }>()
 
 const openItems = ref<Set<number>>(new Set())
@@ -147,6 +178,35 @@ const filteredFindings = computed(() => {
     return findings.filter(f => f.severity === activeFilter.value)
 })
 
+const isOpen = (index: number) => openItems.value.has(index)
+
+const canFocusFinding = (finding: Finding) => {
+    return Boolean(finding.anchor?.query || finding.section || finding.page)
+}
+
+const sectionLabel = (finding: Finding) => {
+    if (finding.section && finding.location) {
+        return `${finding.section} / ${finding.location}`
+    }
+    if (finding.section && finding.page) {
+        return `${finding.section} / p.${finding.page}`
+    }
+    if (finding.section) {
+        return finding.section
+    }
+    if (finding.page) {
+        return `p.${finding.page}`
+    }
+    return '関連箇所へ移動'
+}
+
+const focusFinding = (finding: Finding, index: number) => {
+    if (!openItems.value.has(index)) {
+        openItems.value.add(index)
+    }
+    emit('focus-finding', finding)
+}
+
 const toggleOpen = (index: number) => {
     if (openItems.value.has(index)) {
         openItems.value.delete(index)
@@ -154,8 +214,6 @@ const toggleOpen = (index: number) => {
         openItems.value.add(index)
     }
 }
-
-const isOpen = (index: number) => openItems.value.has(index)
 
 const toggleFilter = (severity: Severity) => {
     activeFilter.value = activeFilter.value === severity ? null : severity
@@ -221,6 +279,11 @@ const clearFilter = () => {
     background: var(--bg3);
 }
 
+.contract-findings__badge--unknown {
+    color: var(--sub-color, var(--font-color, #666));
+    background: var(--bg3);
+}
+
 .contract-findings__filters {
     display: flex;
     flex-wrap: wrap;
@@ -249,8 +312,6 @@ const clearFilter = () => {
     min-width: 18px;
     padding: 0 5px;
     border-radius: 999px;
-    /* background: var(--background-color);
-    border: 1px solid var(--calendarBorder); */
     color: inherit;
 }
 
@@ -312,6 +373,12 @@ const clearFilter = () => {
     gap: 8px;
 }
 
+.contract-findings__item-actions {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
 .contract-findings__item-meta {
     display: flex;
     flex-direction: column;
@@ -320,8 +387,18 @@ const clearFilter = () => {
 }
 
 .contract-findings__item-section {
+    width: fit-content;
+    padding: 0;
+    border: none;
+    background: transparent;
     font-size: 11px;
     color: var(--sub-color, var(--font-color, #666));
+    cursor: pointer;
+}
+
+.contract-findings__item-section:hover,
+.contract-findings__item-title:hover {
+    text-decoration: underline;
 }
 
 .contract-findings__item-title {
@@ -334,10 +411,6 @@ const clearFilter = () => {
     cursor: pointer;
     padding: 0;
     line-height: 1.4;
-}
-
-.contract-findings__item-title:hover {
-    text-decoration: underline;
 }
 
 .contract-findings__item-body {
@@ -363,6 +436,18 @@ const clearFilter = () => {
     color: var(--sub-color, var(--font-color, #666));
 }
 
+.contract-findings__jump {
+    padding: 4px 8px;
+    border: 1px solid var(--calendarBorder);
+    border-radius: 8px;
+    background: var(--bg3);
+    color: var(--primary-color);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
 .contract-findings__empty {
     font-size: 12px;
     color: var(--sub-color, var(--font-color, #666));
@@ -382,6 +467,7 @@ const clearFilter = () => {
     .contract-findings__item {
         padding: 12px 14px;
     }
+
     .contract-findings__item-title {
         font-size: 13px;
     }
