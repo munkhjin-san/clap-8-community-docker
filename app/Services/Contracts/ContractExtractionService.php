@@ -9,7 +9,7 @@ class ContractExtractionService
 {
     private const CLAUSE_REFERENCE_PATTERN = '/第\s*[0-9０-９一二三四五六七八九十百千]+条(?:\s*の\s*[0-9０-９一二三四五六七八九十百千]+)?(?:\s*第\s*[0-9０-９一二三四五六七八九十百千]+項)?/u';
     private const CLAUSE_LINE_PATTERN = '/^\s*(第\s*[0-9０-９一二三四五六七八九十百千]+条(?:\s*の\s*[0-9０-９一二三四五六七八九十百千]+)?(?:\s*第\s*[0-9０-９一二三四五六七八九十百千]+項)?)(.*)$/u';
-    private const CROSS_REFERENCE_START_PATTERN = '/^(?:[、,，.]|を|に|は|が|で|と|より|及び|又は|ならびに|並びに)/u';
+    private const CROSS_REFERENCE_START_PATTERN = '/^(?:[、,，.]|を|に|は|が|で|と|より|及び|又は|ならびに|並びに|第\s*[0-9０-９一二三四五六七八九十百千]+(?:号|項))/u';
     private const PARENTHETICAL_HEADING_PATTERN = '/^([（(][^）)]{0,40}[）)])\s*(.*)$/u';
     private const PARENTHETICAL_LINE_PATTERN = '/^[（(].+[）)]$/u';
     private const BULLET_LINE_PATTERN = '/^(?:[0-9０-９]+[.)、]|[①-⑳]|[一二三四五六七八九十]+[.)、]|[（(][0-9０-９一二三四五六七八九十]+[）)])/u';
@@ -41,10 +41,15 @@ class ContractExtractionService
         $pages = [];
 
         foreach ($document->getPages() as $pageNumber => $page) {
-            $lines = $this->buildPdfLines($page->getDataTm());
+            $dataTm = $page->getDataTm();
+            $tokenLines = $this->buildPdfLines($dataTm);
+            $plainLines = $this->splitPlainLines($page->getText());
+            $lines = $this->shouldPreferPlainTextLines($tokenLines, $plainLines, $dataTm)
+                ? $plainLines
+                : $tokenLines;
 
             if ($lines === []) {
-                $lines = $this->splitPlainLines($page->getText());
+                $lines = $plainLines;
             }
 
             $pages[] = [
@@ -107,6 +112,7 @@ class ContractExtractionService
         $currentClause = null;
         $currentBodyLines = [];
         $currentOrder = 0;
+        $pendingClauseTitle = null;
 
         $flushClause = function () use (&$clauses, &$pageClauseMap, &$currentClause, &$currentBodyLines) {
             if ($currentClause === null) {
@@ -142,23 +148,88 @@ class ContractExtractionService
 
         foreach ($pages as $page) {
             foreach ($page['lines'] as $line) {
+                $line = $this->normalizeLineText($line);
+
+                if ($line === '') {
+                    if ($pendingClauseTitle !== null) {
+                        if ($currentClause === null) {
+                            $currentOrder++;
+                            $currentClause = [
+                                'id' => 'clause-'.$currentOrder,
+                                'label' => '前文',
+                                'title' => '',
+                                'page' => $page['page'],
+                                'order' => $currentOrder,
+                            ];
+                        }
+
+                        $currentBodyLines[] = $pendingClauseTitle;
+                        $pendingClauseTitle = null;
+                    }
+
+                    $currentBodyLines[] = '';
+                    continue;
+                }
+
                 $heading = $this->parseClauseHeadingLine($line);
                 if ($heading !== null) {
                     $flushClause();
                     $currentOrder++;
+                    $title = $heading['title'];
+                    if ($title === '' && $pendingClauseTitle !== null) {
+                        $title = $pendingClauseTitle;
+                    }
+
                     $currentClause = [
                         'id' => 'clause-'.$currentOrder,
                         'label' => $heading['label'],
-                        'title' => $heading['title'],
+                        'title' => $title,
                         'page' => $page['page'],
                         'order' => $currentOrder,
                     ];
+                    $pendingClauseTitle = null;
 
                     if ($heading['inlineBody'] !== '') {
                         $currentBodyLines[] = $heading['inlineBody'];
                     }
 
                     continue;
+                }
+
+                if (preg_match(self::PARENTHETICAL_LINE_PATTERN, $line) === 1) {
+                    if ($pendingClauseTitle !== null) {
+                        if ($currentClause === null) {
+                            $currentOrder++;
+                            $currentClause = [
+                                'id' => 'clause-'.$currentOrder,
+                                'label' => '前文',
+                                'title' => '',
+                                'page' => $page['page'],
+                                'order' => $currentOrder,
+                            ];
+                        }
+
+                        $currentBodyLines[] = $pendingClauseTitle;
+                    }
+
+                    $pendingClauseTitle = $line;
+                    continue;
+                }
+
+                if ($pendingClauseTitle !== null) {
+                    if ($currentClause === null) {
+                        $currentOrder++;
+                        $currentClause = [
+                            'id' => 'clause-'.$currentOrder,
+                            'label' => '前文',
+                            'title' => '',
+                            'page' => $page['page'],
+                            'order' => $currentOrder,
+                        ];
+                    }
+
+                    $currentBodyLines[] = $pendingClauseTitle;
+                    $pendingClauseTitle = null;
                 }
 
                 if ($currentClause === null) {
@@ -355,6 +426,31 @@ class ContractExtractionService
         );
     }
 
+    private function shouldPreferPlainTextLines(array $tokenLines, array $plainLines, array $dataTm): bool
+    {
+        $countNonEmpty = static fn (array $lines) => count(array_filter(
+            $lines,
+            static fn ($line) => trim((string) $line) !== ''
+        ));
+
+        $tokenCount = $countNonEmpty($tokenLines);
+        $plainCount = $countNonEmpty($plainLines);
+
+        if ($plainCount === 0) {
+            return false;
+        }
+
+        if ($tokenCount === 0) {
+            return true;
+        }
+
+        if (count($dataTm) <= 3 && $plainCount > $tokenCount) {
+            return true;
+        }
+
+        return $tokenCount === 1 && $plainCount >= 4;
+    }
+
     private function joinLines(array $lines): string
     {
         return trim(preg_replace("/\n{3,}/u", "\n\n", implode("\n", $lines)) ?? implode("\n", $lines));
@@ -502,8 +598,13 @@ class ContractExtractionService
     {
         $value = $this->normalizeWidthVariants($value);
         $value = preg_replace('/[ \t]+/u', ' ', $value) ?? $value;
-        $value = preg_replace('/\s+([、。，．）】〉》〕］｝」』：；！？])/u', '$1', $value) ?? $value;
-        $value = preg_replace('/([（「『【〈《〔［｛])\s+/u', '$1', $value) ?? $value;
+        $value = preg_replace(
+            '/(?<=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー々〆ヶ])\s+(?=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}ー々〆ヶ])/u',
+            '',
+            $value
+        ) ?? $value;
+        $value = preg_replace('/\s+([、。，．)\]）】〉》〕］｝」』：；！？])/u', '$1', $value) ?? $value;
+        $value = preg_replace('/([(\"（「『【〈《〔［｛])\s+/u', '$1', $value) ?? $value;
         $value = preg_replace_callback(
             '/第\s*([0-9０-９一二三四五六七八九十百千 ]+)\s*(条|項)/u',
             function (array $matches) {

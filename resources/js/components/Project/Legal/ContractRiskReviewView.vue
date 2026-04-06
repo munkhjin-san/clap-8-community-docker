@@ -18,7 +18,7 @@
             >
                 <header class="contract-risk-review__section-head">
                     <h3 class="contract-risk-review__section-title">
-                        {{ clause.title || clause.label }}
+                        {{ formatClauseHeading(clause.label, clause.title) }}
                     </h3>
                     <span class="contract-risk-review__section-page">p.{{ clause.page }}</span>
                 </header>
@@ -80,6 +80,21 @@ const normalizeMatchText = (value?: string | null) => (
         .replace(/\s+/g, '')
         .toLowerCase()
 )
+
+const formatClauseHeading = (label?: string | null, title?: string | null) => {
+    const cleanLabel = normalizeContractText(label)
+    const cleanTitle = normalizeContractText(title)
+
+    if (cleanLabel && cleanTitle) {
+        if (cleanTitle.startsWith(cleanLabel)) {
+            return cleanTitle
+        }
+
+        return `${cleanLabel}${cleanTitle}`
+    }
+
+    return cleanLabel || cleanTitle
+}
 
 const resolveElement = (target: unknown) => {
     if (target instanceof HTMLElement) {
@@ -149,7 +164,7 @@ const findFocusTarget = (request?: FocusRequest | null) => {
 
     for (const query of queries) {
         for (const clause of clauses) {
-            const title = normalizeMatchText(clause.title || clause.label)
+            const title = normalizeMatchText(formatClauseHeading(clause.label, clause.title))
             if (title.includes(query)) {
                 return {
                     clauseId: clause.id,

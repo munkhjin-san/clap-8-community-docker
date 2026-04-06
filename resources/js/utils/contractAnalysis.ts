@@ -229,6 +229,21 @@ const normalizeClauseKey = (value?: string | null) => {
     return normalizeCompareText(extractClauseReference(value) || value)
 }
 
+const formatClauseHeading = (label?: string | null, title?: string | null) => {
+    const cleanLabel = normalizeContractText(label)
+    const cleanTitle = normalizeContractText(title)
+
+    if (cleanLabel && cleanTitle) {
+        if (cleanTitle.startsWith(cleanLabel)) {
+            return cleanTitle
+        }
+
+        return `${cleanLabel}${cleanTitle}`
+    }
+
+    return cleanLabel || cleanTitle
+}
+
 const shouldJoinWithoutSpace = (previousText: string, nextText: string) => {
     const previousLast = previousText.slice(-1)
     const nextFirst = nextText.slice(0, 1)
@@ -1314,7 +1329,9 @@ const buildCompareClausePairViews = (
     baseClause: ContractCompareClauseView | null
     targetClause: ContractCompareClauseView | null
 } => {
-    const titleDiff = diffTextFragments(baseClause?.title ?? '', targetClause?.title ?? '')
+    const baseHeading = formatClauseHeading(baseClause?.label, baseClause?.title)
+    const targetHeading = formatClauseHeading(targetClause?.label, targetClause?.title)
+    const titleDiff = diffTextFragments(baseHeading, targetHeading)
     const paragraphPairs = buildParagraphPairs(baseClause?.paragraphs ?? [], targetClause?.paragraphs ?? [])
 
     const createClauseView = (
@@ -1332,7 +1349,7 @@ const buildCompareClausePairViews = (
         return {
             id: clause.id,
             label: clause.label,
-            title: clause.title || clause.label,
+            title: formatClauseHeading(clause.label, clause.title),
             page: clause.page,
             changeType,
             changed: changeType !== 'unchanged',
