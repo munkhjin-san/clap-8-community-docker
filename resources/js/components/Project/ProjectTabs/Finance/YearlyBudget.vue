@@ -485,7 +485,7 @@ const evaluateFormulaAccount = (
     return 0
   }
 }
-const toInt = (val, fallback = 0) => {
+const toInt = (val: unknown, fallback = 0) => {
   const n = Number(val)
   return Number.isFinite(n) ? Math.trunc(n) : fallback
 }
@@ -852,7 +852,7 @@ const parseNumber = (s: string) => {
   return Number.isFinite(n) ? n : 0
 }
 
-const onAmountInput = (e: Event, periodIndex: number, acctId: string | number) => {
+const onAmountInput = (e: Event, periodIndex: number, acctId: number) => {
   const el = e.target as HTMLInputElement
   const cleaned = el.value.replace(/[^\d,]/g, '')
   el.value = cleaned

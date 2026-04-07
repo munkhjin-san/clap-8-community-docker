@@ -9,7 +9,7 @@ Chart.register(...registerables);
 
 const props = defineProps<{
     projectsData: YearlyFinancialData;
-    activeView: string
+    activeView: 'sales' | 'expense' | 'profit';
 }>();
 
 
@@ -59,7 +59,7 @@ const chartOptions = computed(() => {
             },
             tooltip: {
                 callbacks: {
-                    label: function (context) {
+                    label: function (context: any) {
                         let label = context.dataset.label || '';
                         if (label) {
                             label += ': ';
@@ -85,7 +85,7 @@ const chartOptions = computed(() => {
                     text: '金額 (¥)'
                 },
                 ticks: {
-                    callback: function (value) {
+                    callback: function (value: any) {
                         return new Intl.NumberFormat('ja-JP', {
                             style: 'currency',
                             currency: 'JPY',

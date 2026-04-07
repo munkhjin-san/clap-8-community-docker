@@ -94,8 +94,9 @@ import { useMessageUsers } from '@/store/messageUsers';
     const commentBody = computed(() => {
         return mentionFormatter(props.comment.comment, true)
     })
-    const mentionClick = (event) => {            
-        const target = event.target;
+    const mentionClick = (event: MouseEvent) => {            
+        const target = event.target as HTMLElement;
+        if (!target) return
         if (target.classList.contains('mntuser')) {
             const username = target.getAttribute('data-username');
             const striped = username ? username.replace(/@/g, "") : '';
