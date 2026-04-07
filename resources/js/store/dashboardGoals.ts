@@ -372,6 +372,7 @@ export function useGoalConstants() {
             assets: 'assets',
             schedules: 'schedules',
             timesheet: 'timesheet',
+            notices: 'notices',
         },
         CARD_ADMIN_DATA_KEY_BY_TYPE: {
             personnelEvaluation: 'personnelEvaluation',

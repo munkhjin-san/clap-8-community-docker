@@ -68,6 +68,7 @@ import { defineAsyncComponent, inject, nextTick, onMounted, provide, ref, useTem
 import { useMenuStore } from "@/store/menu";
 import { useApi } from '@/composables/api';
 import { PostMethods, PostMethodsKey } from '@/interface/keys';
+import Error from '@/components/Global/Error.vue'
     const menu = useMenuStore()
     const props = defineProps(['record', 'app_name'])
     const { commentCount } = inject(PostMethodsKey) as PostMethods
@@ -77,7 +78,7 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
     const fetch = ref(0)   
     const typeArea = useTemplateRef('typeArea')
     const container = useTemplateRef('container')
-    const EmojiPicker = defineAsyncComponent(() => import('vue3-emoji-picker'))
+    const EmojiPicker = defineAsyncComponent({ loader: () => import('vue3-emoji-picker'), errorComponent: Error })
     const api = useApi()
     onMounted(() => {
         load('mounted')

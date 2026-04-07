@@ -22,9 +22,10 @@ import { onMounted, ref, defineAsyncComponent, onUnmounted } from 'vue'
 import 'pdfjs-viewer-element'
 import { useAuthUserStore } from '@/store/auth'
 import { FileRecord } from '@/interface/trayInterface'
+import Error from '@/components/Global/Error.vue'
     const auth = useAuthUserStore()
     
-    const SignAction = defineAsyncComponent(() => import('./SignAction.vue'))
+    const SignAction = defineAsyncComponent({ loader: () => import('./SignAction.vue'), errorComponent: Error })
     const props = defineProps<{
         source: string, 
         file: FileRecord, 

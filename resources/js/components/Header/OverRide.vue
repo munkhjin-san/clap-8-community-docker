@@ -57,16 +57,17 @@ import { useMessageSchedule } from '@/store/messageSchedule'
 // import WeatherPopup from '../Global/WeatherPopup.vue'
 import { isTodayDone } from '@/utils/tools'
 import { useModal } from '@/composables/modal'
+import Error from '@/components/Global/Error.vue'
 // import EmoteUsers from '../Global/EmoteUsers.vue'
-const TaskUsers = defineAsyncComponent(() => import('../Board/Tray/Task/TaskUsers.vue'))
-const ProjectUsers = defineAsyncComponent(() => import('../AccountControl/ProjectControl/ProjectUsers.vue'))
-const DateTimeSelect = defineAsyncComponent(() => import('../Global/DateTimeSelect.vue'))
-const WeatherPopup = defineAsyncComponent(() => import('../Global/WeatherPopup.vue'))
-const EmoteUsers = defineAsyncComponent(() => import('../Global/EmoteUsers.vue'))
-const MessageUsers = defineAsyncComponent(() => import('../Board/Message/MessageUsers.vue'))
-const SharingData = defineAsyncComponent(() => import('../Global/SharingData.vue'))
-const FilePreview = defineAsyncComponent(() => import('../Board/Tray/File/FilePreview.vue'))
-const TaskRequest = defineAsyncComponent(() => import('../Board/Tray/Task/TaskRequest.vue'))
+const TaskUsers = defineAsyncComponent({ loader: () => import('../Board/Tray/Task/TaskUsers.vue'), errorComponent: Error })
+const ProjectUsers = defineAsyncComponent({ loader: () => import('../AccountControl/ProjectControl/ProjectUsers.vue'), errorComponent: Error })
+const DateTimeSelect = defineAsyncComponent({ loader: () => import('../Global/DateTimeSelect.vue'), errorComponent: Error })
+const WeatherPopup = defineAsyncComponent({ loader: () => import('../Global/WeatherPopup.vue'), errorComponent: Error })
+const EmoteUsers = defineAsyncComponent({ loader: () => import('../Global/EmoteUsers.vue'), errorComponent: Error })
+const MessageUsers = defineAsyncComponent({ loader: () => import('../Board/Message/MessageUsers.vue'), errorComponent: Error })
+const SharingData = defineAsyncComponent({ loader: () => import('../Global/SharingData.vue'), errorComponent: Error })
+const FilePreview = defineAsyncComponent({ loader: () => import('../Board/Tray/File/FilePreview.vue'), errorComponent: Error })
+const TaskRequest = defineAsyncComponent({ loader: () => import('../Board/Tray/Task/TaskRequest.vue'), errorComponent: Error })
     const sharingData = useSharingDataStore()
     const messageUsers = useMessageUsers()
     const taskUsers = useTaskUsers()

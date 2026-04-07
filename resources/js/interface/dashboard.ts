@@ -62,6 +62,10 @@ export type DashboardPersonnelEvaluationCard = CardBase & {
         pendingEvaluations: any[]
     }
 }
+export type DashboardNoticeCard = CardBase & {
+    layout: 'notice'
+    data: any[]
+}
 export type pendingTimesheedData = {
     overtime: number
     shift: {
@@ -95,5 +99,5 @@ export type GoalRequiredData = {
     previous_span: SpanRequiredGoalData,
 }
 
-export type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard | DashboardAssetCard | DashboardScheduleCard | DashboardPersonnelEvaluationCard | DashboardTimesheetCard  
+export type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard | DashboardAssetCard | DashboardScheduleCard | DashboardPersonnelEvaluationCard | DashboardTimesheetCard | DashboardNoticeCard 
 

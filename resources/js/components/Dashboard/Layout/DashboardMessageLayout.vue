@@ -14,12 +14,27 @@
     </template>
     <div v-if="!fullscreen" class="m-5">
         <ExpansionGrid class="gap-x-4" :col="Number(data.col.split('-')[2] ?? 1)">
-            <ExpansionPanelItem hide-actions class="rm-p" v-for="(message, index) in data.data" :key="message.id ?? index" :value="message.id ?? index">
+            <ExpansionPanelItem 
+                hide-actions 
+                class="rm-p" 
+                v-for="(message, index) in data.data" 
+                :key="message.id ?? index" 
+                :value="message.id ?? index"
+                :col="Number(data.col.split('-')[2] ?? 1)"
+            >
                 <template #title="{ expanded }">
                     <PanelTitle :expanded="expanded">
-                        <UserPanel disable-instant :user="message.user" size="25" :with-name="true" />
+                        <div class="flex gap-2 overflow-hidden text-ellipsis items-center">
+                            <UserPanel disable-instant :user="message.user" size="25" />
+                            <div class="overflow-hidden text-ellipsis w-full">{{ message.user.name }}</div>
+                        </div>
                         <span v-if="!expanded"> : </span>
                         <div v-if="!expanded" class="text-[14px] flex-1 ml-2 whitespace-nowrap overflow-hidden text-ellipsis leading-normal" v-html="mentionFormatter(message.message)"></div>
+                        <div title="リマインドから外す" @click.stop="remindRequest(message)" v-if="expanded && data.type === 'remindedMessages'" class="ml-auto boardMenuContainer">
+                            <svg xmlns="http://www.w3.org/2000/svg" height="13" class="m-auto dot-menu" viewBox="0 0 11.84 13.06">
+                                <path d="M11.42,9.04c-.31-.09-.59-.28-.84-.5-.07-.2-.12-.51-.15-.77-.1-.79-.15-1.61-.25-2.42-.1-.87-.29-1.84-.87-2.55-.47-.61-1.13-1.11-1.88-1.31-.03,0-.05-.03-.05-.06,0-.4,0-.87,0-.87,0-.31-.25-.57-.57-.57,0,0-1.78,0-1.78,0-.31,0-.57.25-.56.57v.87s-.02.06-.05.06c-.75.2-1.4.7-1.88,1.31-.84,1.07-.85,2.5-1,3.78-.04.4-.07.81-.12,1.19-.04.27-.07.52-.15.76,0,0,0,0,0,.01-.09.08-.31.25-.43.32-.13.07-.26.14-.4.18C.44,9.03,0,9.56,0,9.56c0,0,0,1.22,0,1.23,0,.29.23.51.52.51.9,0,2.42-.02,3.72-.03-.01.05-.02.1-.01.16,0,.02,0,.07.01.09.06.39.21.74.49,1.04.47.49,1.2.61,1.84.41.63-.23,1.03-.9,1.04-1.54,0-.05,0-.1,0-.14,1.3,0,2.8.02,3.7.02.29,0,.52-.23.52-.52,0,0,0-1.22,0-1.23,0,0-.44-.54-.43-.52M11.1,8.55s0,0,0,0c0,0,0,0,0,0,0,0,0,0,0,0"/>
+                            </svg>
+                        </div>
                     </PanelTitle>
                 </template>
                 <template #body>
@@ -99,7 +114,7 @@ const api = useApi()
 const { toast, ask, ping } = useDialog()
 const badge = useBadgeStore()
 const auth = useAuthUserStore()
-const reacting = ref<number | null>(null)
+const reacting = ref<number | string | null>(null)
 const emit = defineEmits<{
     refreshData: [key: string]
     resize: [type: string]
@@ -112,19 +127,19 @@ const remindRequest = async(message: Message) => {
     toast(inf)
     emit('refreshData', 'remindedMessages')
 }
-const reactOrCheck = async(msg) => {        
+const reactOrCheck = async(msg: Message) => {        
     console.log('reactOrCheck', msg)
     if(msg.user_id == auth.activeUser.id) return    
-    reacting.value = msg.reacted_users.filter(ob => ob.id == auth.activeUser.id).length ? null : msg.id    
+    reacting.value = msg.reacted_users?.filter(ob => ob.id == auth.activeUser.id).length ? null : msg.id    
 
-    const message = await api.post('/send_reaction_api', {id: msg.id})
+    const message:Message = await api.post('/send_reaction_api', {id: msg.id})
     // emit('getUncheckedMessages')
     // emit('getRemindMessages')
     const checkedMessage = message
     if(checkedMessage.check_flag == 1){
-        const checked = checkedMessage.checked_users.filter(ob => ob.id == auth.activeUser.id).length
-        const unchecked = checkedMessage.unchecked_users.filter(ob => ob.id == auth.activeUser.id).length
-        const reacted =   checkedMessage.reacted_users.filter(ob => ob.id == auth.activeUser.id).length          
+        const checked = checkedMessage?.checked_users?.filter(ob => ob.id == auth.activeUser.id).length
+        const unchecked = checkedMessage?.unchecked_users?.filter(ob => ob.id == auth.activeUser.id).length
+        const reacted =   checkedMessage?.reacted_users?.filter(ob => ob.id == auth.activeUser.id).length          
         if(unchecked && reacted){     
             const confirmed = await ask('確認済みにしますか')
             if(confirmed.value){
@@ -145,7 +160,7 @@ const reactOrCheck = async(msg) => {
         
 }  
 const menu = useMenuStore()
-const sendEmote = async(message,num) => {
+const sendEmote = async(message: Message, num: string) => {
     menu.close()
     const data = await api.post('/send_emote', {id: message.id, reaction: num})
     emit('refreshData', props.data.type)

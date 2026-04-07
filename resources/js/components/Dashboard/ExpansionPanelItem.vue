@@ -8,6 +8,9 @@
 			{ 'is-expanded': isExpanded, },
 		]"
 		v-bind="rootAttrs"
+        :style="{
+            gridColumn: isExpanded ? `span ${col}` : 'unset'
+        }"
 	>
 		<div
 			:id="titleId"
@@ -74,6 +77,7 @@ const props = withDefaults(
 
 		hideActions?: boolean
 		tile?: boolean
+        col?: number
 	}>(),
 	{
 		defaultExpanded: false,
@@ -85,6 +89,7 @@ const props = withDefaults(
 		titleClass: '',
 		hideActions: false,
 		tile: false,
+        col: 1,
 	},
 )
 

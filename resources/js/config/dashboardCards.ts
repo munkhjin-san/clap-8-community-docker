@@ -17,6 +17,7 @@ import DashboardAsset from '@/components/Dashboard/Layout/DashboardAsset.vue'
 import DashboardSchedule from '@/components/Dashboard/Layout/DashboardSchedule.vue'
 import DashboardPersonnelEvaluation from '@/components/Dashboard/Layout/Admin/DashboardPersonnelEvaluation.vue'
 import DashboardTimesheet from '@/components/Dashboard/Layout/DashboardTimesheet.vue'
+import DashboardNotice from '@/components/Dashboard/Layout/DashboardNotice.vue'
 import { useAuthUserStore } from '@/store/auth'
 
 /**
@@ -34,6 +35,7 @@ export const CARD_LAYOUTS = {
     SCHEDULES: 'schedules',
     PERSONNEL_EVALUATION: 'personnelEvaluation',
     TIMESHEET: 'timesheet',
+    NOTICE: 'notice',
 } as const
 
 /**
@@ -51,6 +53,7 @@ export const DASHBOARD_COMPONENTS: Record<string, Component> = {
     [CARD_LAYOUTS.SCHEDULES]: markRaw(DashboardSchedule),
     [CARD_LAYOUTS.PERSONNEL_EVALUATION]: markRaw(DashboardPersonnelEvaluation),
     [CARD_LAYOUTS.TIMESHEET]: markRaw(DashboardTimesheet),
+    [CARD_LAYOUTS.NOTICE]: markRaw(DashboardNotice),
 }
 
 /**
@@ -70,6 +73,7 @@ type DashboardStoreKey =
     | 'schedules'
     | 'timesheet'
     | 'personnelEvaluation'
+    | 'notices'
 
 /**
  * Maps card type to dashboard store collection key
@@ -87,6 +91,7 @@ export const CARD_DATA_KEY_BY_TYPE: Record<string, DashboardStoreKey> = {
     assets: 'assets',
     schedules: 'schedules',
     timesheet: 'timesheet',
+    notice: 'notices',
 }
 
 /**
@@ -105,6 +110,7 @@ export const CARD_REFRESH_KEYS_BY_TYPE: Record<string, DashboardStoreKey[]> = {
     assets: ['assets'],
     schedules: ['schedules'],
     timesheet: ['timesheet'],
+    notice: ['notices'],
 }
 
 /**
@@ -252,7 +258,17 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         },
         canFullscreen: false,
         canResize: true,
-    }
+    },
+    {
+        title: 'お知らせ',
+        type: 'notice',
+        layout: 'notice',
+        col: 'col-span-1',
+        order: undefined,
+        data: [],
+        canFullscreen: true,
+        canResize: true,
+    },
 ]
 
 /**

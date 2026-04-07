@@ -237,14 +237,15 @@ import { useDialog } from '@/composables/dialog';
 import { useApi } from '@/composables/api';
 import Gear from '../Icons/Gear.vue';
 import CalendarSettings from './CalendarSettings.vue';
-    const NormalHourLayout = defineAsyncComponent(() => import('./NormalHour/NormalHourLayout.vue'))
-    const NormalMonthLayout = defineAsyncComponent(() => import('./NormalMonth/NormalMonthLayout.vue'))
-    const MemberMonthLayout = defineAsyncComponent(() => import('./MemberMonth/MemberMonthLayout.vue'))
-    const MemberHourLayout = defineAsyncComponent(() => import('./MemberHour/MemberHourLayout.vue'))
-    const CalendarCreate = defineAsyncComponent(() => import('./CalendarCreate.vue'))
-    const SearchResult = defineAsyncComponent(() => import('./SearchResult.vue'))
-    const MeetingSummary = defineAsyncComponent(() => import('./MeetingSummary.vue'))
-    const TempReserve = defineAsyncComponent(() => import('./TempReserve.vue'))
+import Error from '@/components/Global/Error.vue'
+    const NormalHourLayout = defineAsyncComponent({ loader: () => import('./NormalHour/NormalHourLayout.vue'), errorComponent: Error })
+    const NormalMonthLayout = defineAsyncComponent({ loader: () => import('./NormalMonth/NormalMonthLayout.vue'), errorComponent: Error })
+    const MemberMonthLayout = defineAsyncComponent({ loader: () => import('./MemberMonth/MemberMonthLayout.vue'), errorComponent: Error })
+    const MemberHourLayout = defineAsyncComponent({ loader: () => import('./MemberHour/MemberHourLayout.vue'), errorComponent: Error })
+    const CalendarCreate = defineAsyncComponent({ loader: () => import('./CalendarCreate.vue'), errorComponent: Error })
+    const SearchResult = defineAsyncComponent({ loader: () => import('./SearchResult.vue'), errorComponent: Error })
+    const MeetingSummary = defineAsyncComponent({ loader: () => import('./MeetingSummary.vue'), errorComponent: Error })
+    const TempReserve = defineAsyncComponent({ loader: () => import('./TempReserve.vue'), errorComponent: Error })
     const { ask, ping, toast } = useDialog()
     const api = useApi()
     const viewMenu = [

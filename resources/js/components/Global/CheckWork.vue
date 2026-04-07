@@ -43,9 +43,10 @@ import { useAuthUserStore } from '@/store/auth';
 
 import { DateTime, Interval } from 'luxon';
 import { useApi } from '@/composables/api';
+import Error from '@/components/Global/Error.vue'
 // import DepartureReportSend from '../Work/DepartureReportSend.vue';
-const WorkNotSubmitted = defineAsyncComponent(() => import('../Work/WorkNotSubmitted.vue'));
-const DepartureReportSend = defineAsyncComponent(() => import('../Work/DepartureReportSend.vue'));
+const WorkNotSubmitted = defineAsyncComponent({ loader: () => import('../Work/WorkNotSubmitted.vue'), errorComponent: Error });
+const DepartureReportSend = defineAsyncComponent({ loader: () => import('../Work/DepartureReportSend.vue'), errorComponent: Error });
     const auth = useAuthUserStore()
     const shiftNotSubmittedList = ref([])
     const nextShiftNotSubmittedList = ref([])

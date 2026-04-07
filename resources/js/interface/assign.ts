@@ -66,9 +66,14 @@ export interface Notes {
   limitations: string[];
 }
 
+export interface ProjectManagerCheckItemElement {
+  value: string;
+}
+
 export interface ProjectManagerCheckItem {
-  type: "checkbox" | "shorttext" | "longtext";
+  type: "checkbox" | "singletext" | "multitext" | "shorttext" | "longtext";
   content: string;
+  custom_form_block_elements?: ProjectManagerCheckItemElement[];
   answer?: boolean | string;
 }
 
@@ -91,6 +96,10 @@ export interface AssignmentFitEvaluationResponse {
   final_judgement: FinalJudgement;
   notes: Notes;
   project_manager_check_items: ProjectManagerCheckItem[];
+  support_level: {
+    decision: "green" | "orange" | "red";
+    support_suggestions: string[];
+  };
   manager_free_notes?: string;
   "x-rules"?: XRules;
 }

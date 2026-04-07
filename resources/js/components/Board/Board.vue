@@ -109,9 +109,6 @@ import BoardList from './BoardList.vue'
 import { onMounted, onUnmounted, watch, computed, nextTick, ref, provide, onBeforeUnmount, useTemplateRef, defineAsyncComponent } from 'vue'
 import TrayComponent from './Tray.vue'
 import BoardSearchBar from './Search/BoardSearchBar.vue'
-// import InviteMember from './InviteMember.vue'
-// import BoardCreateWindow from './BoardCreateWindow.vue'
-// import BoardMembers from './BoardMembers.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
 import { useResponsive } from '@/store/responsive'
@@ -122,12 +119,6 @@ import { useUrlTask } from '@/store/urlTask'
 import { useUrlMessage } from '@/store/urlMessage'
 import { useUrlTaskEdit } from '@/store/urlTaskEdit'
 import { useBadgeStore } from '@/store/badge'
-
-// import BoardDetails from './BoardDetails.vue'
-// import SearchMessage from './Search/SearchMessage.vue'
-// import BoardEdit from './BoardEdit.vue'
-// import CopyWindow from './Message/CopyWindow.vue'
-// import ConfirmWindow from './Message/ConfirmWindow.vue'
 import { instance } from '@/utils/broadcaster'
 import { useKeyboardStore } from '@/store/keyboardStore'
 import { useApi } from '@/composables/api'
@@ -137,14 +128,18 @@ import { Board, CopyData, Message, UnreadMessages } from '@/interface/globalInte
 import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
 import { DateTime } from 'luxon'
 import { useDashboardStore } from '@/store/dashboard'
-    const BoardDetails = defineAsyncComponent(() => import('./BoardDetails.vue'))
-    const SearchMessage = defineAsyncComponent(() => import('./Search/SearchMessage.vue'))
-    const BoardEdit = defineAsyncComponent(() => import('./BoardEdit.vue'))
-    const CopyWindow = defineAsyncComponent(() => import('./Message/CopyWindow.vue'))
-    const ConfirmWindow = defineAsyncComponent(() => import('./Message/ConfirmWindow.vue'))
-    const InviteMember = defineAsyncComponent(() => import('./InviteMember.vue'))
-    const BoardCreateWindow = defineAsyncComponent(() => import('./BoardCreateWindow.vue'))
-    const BoardMembers = defineAsyncComponent(() => import('./BoardMembers.vue'))
+import Error from '@/components/Global/Error.vue'
+    const BoardDetails = defineAsyncComponent({
+        loader: () => import('./BoardDetails.vue'),
+        errorComponent: Error,
+    })
+    const SearchMessage = defineAsyncComponent({ loader: () => import('./Search/SearchMessage.vue'), errorComponent: Error })
+    const BoardEdit = defineAsyncComponent({ loader: () => import('./BoardEdit.vue'), errorComponent: Error })
+    const CopyWindow = defineAsyncComponent({ loader: () => import('./Message/CopyWindow.vue'), errorComponent: Error })
+    const ConfirmWindow = defineAsyncComponent({ loader: () => import('./Message/ConfirmWindow.vue'), errorComponent: Error })
+    const InviteMember = defineAsyncComponent({ loader: () => import('./InviteMember.vue'), errorComponent: Error })
+    const BoardCreateWindow = defineAsyncComponent({ loader: () => import('./BoardCreateWindow.vue'), errorComponent: Error })
+    const BoardMembers = defineAsyncComponent({ loader: () => import('./BoardMembers.vue'), errorComponent: Error })
     
     const badge = useBadgeStore()
     const menu = useMenuStore()

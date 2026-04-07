@@ -13,7 +13,6 @@ interface State {
         last_chargeable_ids: number[],
     }
     task: number[]
-    notice: number
     members_goals: any[]
     managers_goals: any[]
     salary_issue: any[]
@@ -177,7 +176,6 @@ export const useBadgeStore = defineStore('badge', () => {
         const data = await axios.get('/badge_summary').then(response => response.data);
         goal_issue_comment.value = data.goal_issue_comment;
         post.value = data.post;
-        notice.value = data.notice;
         members_goals.value = data.members_goals;
         managers_goals.value = data.managers_goals;
         salary_issue.value = data.salary_issue;

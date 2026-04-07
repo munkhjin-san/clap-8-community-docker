@@ -20,6 +20,7 @@ use App\Models\workTemp;
 use App\Models\timecardRecord;
 use App\Models\shiftRecord;
 use App\Models\attendanceRecord;
+use App\Models\NoticeRecord;
 
 
 class DashboardController extends Controller
@@ -574,6 +575,33 @@ class DashboardController extends Controller
                         ->orWhere('status', 9);
             }
         ])->select('id', 'name', 'icon_path', 'icon_bg')->get();
+    }
+
+    public function notices()
+    {
+        $user = $this->active_user();
+        $userId = $user->id;
+        $userCreatedAt = $user->joined_date;
+        if(!$userCreatedAt){
+            return []; // 安全策: ユーザーの作成日時が不明な場合は空を返す
+        }
+        // 1. このユーザーにとって「既読」とみなせる最新の通知を1件取得
+        $unreadNotices = NoticeRecord::
+            where('deleted_flag', 0)
+            ->where('created_at', '>=', $userCreatedAt)
+            ->whereDoesntHave('readers', function ($query) use ($userId) {
+                $query->where('users.id', $userId);
+            })
+            ->orderBy('created_at', 'desc')
+            ->select('id', 'title')
+            ->withExists([
+                'readers as read' => function ($query) use ($userId) {
+                    $query->where('users.id', $userId);
+                },
+            ])
+            ->get();
+
+        return $unreadNotices;
     }
 
 }

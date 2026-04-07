@@ -36,7 +36,7 @@
                     <div class="w-max absolute p-4 bg-[var(--background-color)] z-10 top-[35px] shadow-xl" :id="`iokawaReactionPop_comment_${comment.id}`" v-if="menu.parent == `iokawaReactionPop_comment_${comment.id}`">
                         <div class="grid grid-cols-5 gap-2">
                             <div class="flex items-end justify-center transition-transform duration-200 ease-out hover:scale-105" v-for="oikawa in oikawaMap" :key="oikawa.name" @click="sendEmote(oikawa.name)">
-                                <Character :size="40" :emoteName="oikawa.name"/>
+                                <Character  :size="40" :emoteName="oikawa.name" :multiple="multiple"/>
                             </div>
                         </div>
                     </div>
@@ -66,11 +66,16 @@ import { DateParser, urlCheck, oikawaMap } from '@/utils/tools';
 import { useApi } from '@/composables/api';
 import { useModal } from '@/composables/modal';
 import { PostComment } from '@/interface/postInterface';
+import Error from '@/components/Global/Error.vue'
     const auth = useAuthUserStore()
     const menu = useMenuStore()
     const api = useApi()
     const { setEmoteUsers } = useModal()
-    const Editor = defineAsyncComponent(() => import ('./Editor.vue'))
+    const Editor = defineAsyncComponent({ loader: () => import ('./Editor.vue'), errorComponent: Error })
+    const multiple = computed(() => {
+        if(window.innerWidth < 480) return 0.7
+        return 1
+    })
     const props = defineProps<{
         comment: PostComment
     }>()

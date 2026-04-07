@@ -130,8 +130,6 @@
                 <GlowdNews :newsItems="newsItems"/>
                      
                 <div style="width:100%;bottom: 0;left: 0;display: flex;flex-direction: column;gap:15px;padding: 10px 20px 20px 20px;">   
-                    <router-link v-if="!auth.isPartner && !auth.isRegistered" class="login-link jump-link" style="cursor: pointer;font-size: 15px;display: flex;align-items: center;" to="/notice">お知らせ<span v-if="badge.notice" style="position: unset;width: fit-content;margin-left: 5px;" class="side-notification">{{ badgeFilter(badge.notice)}}</span> </router-link>             
-                    <router-link class="login-link jump-link" style="cursor: pointer;font-size: 15px;" to="/support/faq">サポートデスク</router-link>
                     <router-link :to="adminRoute" v-if="[608, 610].includes(auth.activeUser.id) || auth.activeUser.position_id <= 6" class="login-link jump-link" style="cursor: pointer;font-size: 15px;">管理画面</router-link>
                 </div>         
                                                  

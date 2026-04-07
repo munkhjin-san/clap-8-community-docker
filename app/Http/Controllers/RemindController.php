@@ -1059,7 +1059,7 @@ class RemindController extends Controller
         ]; 
         $data = Cache::remember($cacheKey, $ttl, function () use ($user, $post_result) {
             return [
-                'notice' => $user->partner_flag === 0 && $user->position_id !== 15 ? $this->badgeService->notice($user) : 0,
+                'notice' => 0,
                 'post' => $user->partner_flag === 0 && $user->position_id !== 15 && $user->linkable === 0 ? $this->badgeService->post($user) : $post_result,
                 'members_goals' => [],
                 'managers_goals' => [],

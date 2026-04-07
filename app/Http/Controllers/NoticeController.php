@@ -26,38 +26,24 @@ class NoticeController extends Controller
     }
     public function get_notices(Request $request){
         $key = $request->keyword;
+        $user = $this->active_user();
+        $userId = $user->id;
         $notices = NoticeRecord::where('deleted_flag', 0)
         ->when($key, function($q) use($key){
             $q->whereRaw("CONCAT_WS('', title, ' ', body) LIKE ?", ['%' . $key . '%']);
         })
-        ->orderBy('created_at', 'desc')->with('files')->with('readers')->paginate(20);        
+        ->withExists([
+            'readers as read' => function ($query) use ($userId) {
+                $query->where('users.id', $userId);
+            },
+        ])
+        ->orderBy('created_at', 'desc')->with('files')->paginate(20);        
         return response()->json($notices);
     }
     public function get_notice(Request $request){
         $notice = NoticeRecord::where('id', $request->id)->where('deleted_flag', 0)->with('files')->with('readers')->first();        
         $data = !empty($notice) ? $notice : null;
         return response()->json($data);
-    }
-    public function generate_readers(){
-        $notices = NoticeRecord::where('deleted_flag', 0)->whereNotNull('read_users')->get();
-        // echo($notices);
-        $userExist = User::pluck('id')->toArray();
-        $modelCollection = collect($userExist);
-        foreach($notices as $notice){
-            // $read_list = array_map("intval", explode(",", $notice->read_users));
-            // $notice->readers()->sync($read_list);
-
-            $list = explode(',', $notice->read_users);
-            if(!empty($list)){
-                $filteredSecondArray = collect($list)->filter(function ($item) use ($modelCollection) {
-                    return $modelCollection->contains($item);
-                })->toArray();
-                // $message->reactedUsers()->sync($filteredSecondArray);     
-                echo('exists');  
-                $notice->readers()->sync($filteredSecondArray);         
-            }   
-        }
-        return;
     }
     public function notice_delete_file(Request $request){
         $validatedData = $request->validate([
@@ -182,5 +168,15 @@ class NoticeController extends Controller
             $remove->delete();
         }
         return response()->json($record);   
+    }
+    public function load_notice_body(Request $request){
+        $notice = NoticeRecord::findOrFail($request->id); 
+        $data = !empty($notice) ? $notice->body : null;
+        $active_user = $this->active_user();
+        if (!$notice->readers->contains($active_user->id)) {
+            $notice->readers()->attach($active_user->id);
+        }
+        return response()->json(['body' => $data]);
+
     }
 }

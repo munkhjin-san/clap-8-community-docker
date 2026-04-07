@@ -103,6 +103,7 @@ import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
 import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
+import Error from '@/components/Global/Error.vue'
 
 const props = defineProps<{
     data: {
@@ -117,7 +118,7 @@ const props = defineProps<{
     fullscreen: boolean
 }>()
 
-const MySurveyAnswers = defineAsyncComponent(() => import('@/components/Survey/MySurveyAnswers.vue'))
+const MySurveyAnswers = defineAsyncComponent({ loader: () => import('@/components/Survey/MySurveyAnswers.vue'), errorComponent: Error })
 const emit = defineEmits<{
     resize: [type: string]
     toggle: [el: HTMLElement | null, title: string]

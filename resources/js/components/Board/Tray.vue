@@ -23,7 +23,7 @@
                         <path d="M20.29,15.1c-1.88-.13-3.76-.16-5.64-.19-3.09-.03-6.31.01-9.39.15-1.24.11-1.24,1.86,0,1.97,2.46.11,5.05.16,7.52.16,2.48-.01,5.05-.04,7.52-.2.47-.03.85-.4.88-.88.04-.52-.36-.98-.88-1.01Z"/>
                     </svg>
                 </div>
-            </div> 
+            </div>
             <div :style="{height: 'calc(100% - 35px)'}">
                 <TaskComponent v-if="trayItemWhich == 1" :from="'board'" :board="board" :maxInterval="totalSpan"/>
                 <FileContainer v-if="trayItemWhich == 0" @jumpToMessage="jumpToMessage"/>
@@ -35,16 +35,14 @@
 </template>
 <script setup lang="ts">
 
-// import FileContainer from './Tray/File/FileContainer.vue'
 import { computed, defineAsyncComponent } from 'vue';
-// import TaskComponent from '../Task/TaskComponent.vue';
 import { useBadgeStore } from '@/store/badge'
 import { DateTime, Interval } from 'luxon'
 import { Board } from '@/interface/globalInterface';
-// import FormContainer from './Tray/Form/FormContainer.vue';
-const FileContainer = defineAsyncComponent(() => import('./Tray/File/FileContainer.vue'));
-const TaskComponent = defineAsyncComponent(() => import('../Task/TaskComponent.vue'));
-const FormContainer = defineAsyncComponent(() => import('./Tray/Form/FormContainer.vue'));
+import Error from '@/components/Global/Error.vue'
+const FileContainer = defineAsyncComponent({ loader: () => import('./Tray/File/FileContainer.vue'), errorComponent: Error });
+const TaskComponent = defineAsyncComponent({ loader: () => import('../Task/TaskComponent.vue'), errorComponent: Error });
+const FormContainer = defineAsyncComponent({ loader: () => import('./Tray/Form/FormContainer.vue'), errorComponent: Error });
     const badge = useBadgeStore()
     const props = defineProps<{
         trayItemWhich: number

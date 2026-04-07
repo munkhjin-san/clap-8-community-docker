@@ -114,11 +114,12 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue'
 import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 import { useTutorialStore } from '@/store/tutorial'
-    const WorkShifts = defineAsyncComponent(() => import('./WorkShifts.vue'));
-    const WorkAttendance = defineAsyncComponent(() => import('./WorkAttendance.vue'));
-    const WorkReport = defineAsyncComponent(() => import('./WorkReport.vue'));
-    const ShiftApproval = defineAsyncComponent(() => import('./ShiftApproval.vue'));
-    const DepartmentField = defineAsyncComponent(() => import('./DepartmentField.vue'));
+import Error from '@/components/Global/Error.vue'
+    const WorkShifts = defineAsyncComponent({ loader: () => import('./WorkShifts.vue'), errorComponent: Error });
+    const WorkAttendance = defineAsyncComponent({ loader: () => import('./WorkAttendance.vue'), errorComponent: Error });
+    const WorkReport = defineAsyncComponent({ loader: () => import('./WorkReport.vue'), errorComponent: Error });
+    const ShiftApproval = defineAsyncComponent({ loader: () => import('./ShiftApproval.vue'), errorComponent: Error });
+    const DepartmentField = defineAsyncComponent({ loader: () => import('./DepartmentField.vue'), errorComponent: Error });
     const firstUser = computed(() => {
         return auth.id == 608 || auth.id == 610 ? [] : [Number(auth.id)]
     })

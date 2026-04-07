@@ -1,10 +1,15 @@
 <template>
-    <div class="post-root" @click="keyListView = false">
-        <div class="post-header">
-            <HamBurger v-if="responsive.mobile"/>
-            <div class="post-search-wrap" style="position: relative;" @click.stop>                
-                <div style="width:100%;display:flex;">
-                    <div class="searchBarInner" style="margin: 0;width: 100%;">   
+    <div class="absolute top-0 left-0 w-full h-full bg-[var(--background-color)] z-[35]" @click="keyListView = false">
+        <div class="h-40px flex items-center px-4 min-h-[60px] justify-between">
+            <p>サポートデスク</p>
+            <button @click="router.push({name: 'dashboard'})" class="h-[60px] w-[60px] flex items-center justify-center mr-[-20px]">
+                <CloseIcon fill="gray" size="12" />
+            </button>
+        </div>
+        <div class="px-[20px]">
+            <div @click.stop class="relative max-w-[300px] under960:w-full under960:max-w-full" >                
+                <div class="w-full flex">
+                    <div class="searchBarInner m-0 w-full">   
                         <input v-model="searchWord" @focus="keyListView = true" class="searchBarArea searchInputArea memberSearch" placeholder="キーワードを入力" type="search" style="margin: 0;width:100%;"/>
                         <div style="position: absolute;left: 10px;display: flex;height: 30px;">
                             <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 32 32" style="margin: 7px auto auto auto;fill:#767676">
@@ -58,13 +63,15 @@
 </template>
 <script setup>
 import { computed, onMounted, ref } from 'vue';
-import HamBurger from '../Global/HamBurger.vue';
 import { useRoute } from 'vue-router';
 import { useResponsive } from '@/store/responsive';
 import { useAuthUserStore } from '@/store/auth';
 import { useApi } from '@/composables/api';
 import ChatBox from './Regulations/ChatBox.vue';
+import CloseIcon from '../Form/CloseIcon.vue';
+import { useRouter } from 'vue-router';
     const route = useRoute()
+    const router = useRouter()
     const responsive = useResponsive()
     const auth = useAuthUserStore()
     const qanda_info = ref([])
@@ -196,7 +203,8 @@ import ChatBox from './Regulations/ChatBox.vue';
     width: 100%;
     display: flex;
     color: var(--primary-color);
-    height: calc(100% - 60px);
+    height: calc(100% - 110px);
+    margin-top: 20px;
 }
 .support-category{
     width: 20%;
@@ -225,7 +233,7 @@ import ChatBox from './Regulations/ChatBox.vue';
     color: var(--primary-color);
 }
 .tSelected{
-    background: var(--background-color);
+    background: var(--bg3);
 
 }
 @media screen and (max-width: 959px) {

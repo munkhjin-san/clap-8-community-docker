@@ -201,6 +201,13 @@ const routes = [
                                 path: 'assign',
                                 name: 'project-member-assign',
                                 component: () => import('./components/Project/ProjectTabs/Members/Assign.vue'),
+                                children: [
+                                    {
+                                        path: ':memberId',
+                                        name: 'assign-member',
+                                        component: () => import('./components/Project/ProjectTabs/Members/Assign/AssignMember.vue'),
+                                    }
+                                ]
                             },
                             {
                                 path: 'outcomegoal/:memberId',
@@ -303,31 +310,6 @@ const routes = [
                 name: 'resource',
                 component: () => import('@/components/Project/ProjectResource.vue'),
             }
-            // {
-            //     path: 'gantt-chart',
-            //     name: 'gantt-chart',
-            //     meta: {
-            //         title: 'ガントチャート'
-            //     },
-            //     component: () => import('./components/Task/TaskComponent.vue'),
-            //     children: [
-            //         {
-            //             path: `:projectId`,
-            //             component: () => import('./components/Task/Gantt/GanttTaskPopup.vue'),
-            //             name: 'projectGanttDetail',
-            //             props: true
-            //         }
-            //     ],
-            // },
-            // {
-            //     path: 'assets',
-            //     name: 'assets',
-            //     meta: {
-            //         title: '物品'
-            //     },
-            //     
-            //     component: () => import('./components/Asset/AssetContainer.vue'),
-            // }
         ]
     },
     {
@@ -537,44 +519,21 @@ const routes = [
             }
         ]
     },
-    {
-        path: '/support',
-        name: 'support',
-        meta: {
-            title: 'サポート',
-        }, 
-        component: () => import('./components/Support/Support.vue'),
-        children: [
-            { path: 'faq', name: 'faq', component: () => import('./components/Support/Faq.vue') },
-            { path: 'regulations', name: 'regulations', component: () => import('./components/Support/Regulations/RegulationsContainer.vue') },
-            { path: 'email_consult', name: 'email_consult', component: () => import('./components/Support/MailConsult.vue') },
-            { path: 'phone_consult', name: 'phone_consult', component: () => import('./components/Support/PhoneConsult.vue') },
-            { path: 'email_inbox', name: 'email_inbox', component: () => import('./components/Support/Inbox.vue')}
-        ],
-    },
-    {
-        path: '/notice',
-        name: 'notice',
-        meta: {
-            title: 'お知らせ',
-        }, 
-        component: () => import('./components/Notice/Notice.vue'),
-        children: [
-            { 
-                path: ':noticeId',
-                name: 'notice_detail',
-                component: () => import('./components/Notice/NoticeDetail.vue'),
-                beforeEnter: (to, from, next) => {
-                    axios.get(`/get_notice?id=${to.params.noticeId}`).then(
-                    response => {
-                        to.meta.data = response.data
-                        next();
-                    })
-                    
-                }, 
-            }
-        ],
-    },
+    // {
+    //     path: '/support',
+    //     name: 'support',
+    //     meta: {
+    //         title: 'サポート',
+    //     }, 
+    //     component: () => import('./components/Support/Support.vue'),
+    //     children: [
+    //         { path: 'faq', name: 'faq', component: () => import('./components/Support/Faq.vue') },
+    //         { path: 'regulations', name: 'regulations', component: () => import('./components/Support/Regulations/RegulationsContainer.vue') },
+    //         { path: 'email_consult', name: 'email_consult', component: () => import('./components/Support/MailConsult.vue') },
+    //         { path: 'phone_consult', name: 'phone_consult', component: () => import('./components/Support/PhoneConsult.vue') },
+    //         { path: 'email_inbox', name: 'email_inbox', component: () => import('./components/Support/Inbox.vue')}
+    //     ],
+    // },
     {
         path: '/settings',
         component: () => import('./components/Settings/Settings.vue'),
@@ -845,6 +804,20 @@ const routes = [
         meta: {
             title: 'ダッシュボード',
         }, 
+        children: [
+            {
+                path: 'support',
+                name: 'dashboard-support',
+                component: () => import('./components/Support/Support.vue'),
+                children: [
+                    { path: 'faq', name: 'faq', component: () => import('./components/Support/Faq.vue') },
+                    { path: 'regulations', name: 'regulations', component: () => import('./components/Support/Regulations/RegulationsContainer.vue') },
+                    { path: 'email_consult', name: 'email_consult', component: () => import('./components/Support/MailConsult.vue') },
+                    { path: 'phone_consult', name: 'phone_consult', component: () => import('./components/Support/PhoneConsult.vue') },
+                    { path: 'email_inbox', name: 'email_inbox', component: () => import('./components/Support/Inbox.vue')}
+                ],
+            }
+        ]
     }
 
     

@@ -323,7 +323,7 @@ import PostSearchPager from '../Post/PostSearchPager.vue';
 import Back from '../Icons/Back.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useApi } from '@/composables/api';
-
+import Error from '@/components/Global/Error.vue'
 const surveys = ref<CustomForm[]>([]);
 const fetchLoader = ref(0);
 const route = useRoute()
@@ -336,7 +336,7 @@ const lastPage = ref(1);
 const expandedFormId = ref<number | null>(null);
 const fetching = ref(false);
 
-const MySurveyDetail = defineAsyncComponent(() => import('@/components/Survey/MySurveyDetail.vue'))
+const MySurveyDetail = defineAsyncComponent({ loader: () => import('@/components/Survey/MySurveyDetail.vue'), errorComponent: Error })
 onMounted(() => {
 
     getMyForms(1);

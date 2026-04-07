@@ -44,8 +44,8 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
             departuresReportUsers: [] as UserWithShift[],
             pendingPlannedLeaves: [] as any[],
             pendingAttendance: null as any,
-
-        }
+        },
+        notices: [] as any[],
     })
 
     const annualLeaveData = ref<{
@@ -101,9 +101,10 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
 
     const badgeCount = computed(() => {
         const thisMonth = DateTime.now().month
-        const ASSET_CONFIRM_DEADLINE_MONTH = 4
+        const ASSET_CONFIRM_DEADLINE_MONTH = 3
         const departuresCount = collection.value.timesheet.departuresReportUsers.filter(user => user.shift_records.some(shift => !shift.departure_report)).length
-        const inconfirmedAssets = thisMonth >= ASSET_CONFIRM_DEADLINE_MONTH ? collection.value.assets.in_use.filter(asset => !asset.confirm_logs.length).length : 0
+        // const inconfirmedAssets = thisMonth >= ASSET_CONFIRM_DEADLINE_MONTH ? collection.value.assets.in_use.filter(asset => !asset.confirm_logs.length).length : 0
+        const inconfirmedAssets = 0
         const total = departuresCount + 
         inconfirmedAssets + collection.value.assets.waiting_approval.length + 
         collection.value.challenges.length + collection.value.forms.length + 
@@ -112,13 +113,13 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         collection.value.mustCheckMessages.length + collection.value.mustSignMessages.length + 
         collection.value.unfinishedTasks.length + collection.value.untouchedTasks.length +
         collection.value.personnelEvaluation.pendingEvaluations.length + 
-        collection.value.timesheet.pendingTimesheets.length
-        console.log('total', total)
+        collection.value.timesheet.pendingTimesheets.length + 
+        collection.value.notices.length
         return total
     })
-    const { myGoals, requiredGoalData } = useDashboardGoalsStore()
+    const goalsStore = useDashboardGoalsStore()
     const pulseBadgeCount = computed(() => {
-        const overdueGoals = myGoals.filter(goal => {
+        const overdueGoals = goalsStore.myGoals.filter(goal => {
             if(goal.status === 9) return false
             const now = DateTime.local();
             const deadline = DateTime.fromISO(goal.end_date);
@@ -126,7 +127,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
             return diffInDays > 7;
         })
 
-        const needed = (requiredGoalData?.this_span?.needed_count || 0) + (requiredGoalData?.previous_span?.needed_count || 0)
+        const needed = (goalsStore.requiredGoalData?.this_span?.needed_count || 0) + (goalsStore.requiredGoalData?.previous_span?.needed_count || 0)
         return overdueGoals.length + needed + collection.value.timesheet.pendingAttendance ? 1 : 0
     })
     const getAnnualLeaveData = async () => {

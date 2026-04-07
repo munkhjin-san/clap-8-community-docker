@@ -106,7 +106,8 @@ import Badge from '../Global/Badge.vue';
     const responsive = useResponsive()
     const router = useRouter()
     const theme = useTheme()
-    const { pulseBadgeCount, normalBadgeCount } = storeToRefs(useDashboardGoalsStore())
+    const { normalBadgeCount } = storeToRefs(useDashboardGoalsStore())
+    const { pulseBadgeCount } = storeToRefs(useDashboardStore())
     const dashboardStore = useDashboardStore()
     const badgeFilter = (number) => {
         if(number == -1){
