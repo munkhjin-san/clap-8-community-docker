@@ -178,7 +178,7 @@ const UploadIcon = defineComponent({
 })
 
 type BatchCreationEmits = {
-  (e: 'files-selected', payload): void
+  (e: 'files-selected', payload: { files: File[]; type: number | null; p_type: string }): void
   (e: 'close'): void
 }
 
@@ -252,7 +252,7 @@ const formatBytes = (n?: number) => {
 const items = computed(() =>
   previews.value.map((src, i) => {
     const f = selectedFiles.value[i];
-    const name = fileNames[i] ?? (f?.name ?? `file-${i + 1}`);
+    const name = fileNames.value[i] ?? (f?.name ?? `file-${i + 1}`);
     const type = f?.type || '';
     return {
       src,
@@ -265,7 +265,7 @@ const items = computed(() =>
 );
 
 const removeAt = (i: number) => {
-  const url = previews[i];
+  const url = previews.value[i];
   previews.value.splice(i, 1);
   fileNames.value.splice(i, 1);
 

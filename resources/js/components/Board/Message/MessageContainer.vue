@@ -170,13 +170,13 @@ import { useBoardList } from "@/composables/board";
             menu.setMenu( {name: '', id: null})
         }
     }
-    const unreadJumperOn = (data) => {
+    const unreadJumperOn = (data:any) => {
         unread.value = data
     }
     const unreadJumped = () => {
         document.getElementById('unread_line_' + unread.value.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })    
     }
-    const jumpToMessage = (file) => {
+    const jumpToMessage = (file:any) => {
         emit('jumpToMessage', file)
     }     
     defineExpose({resetUnread})

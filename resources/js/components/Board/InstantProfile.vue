@@ -67,7 +67,10 @@ import { User } from '@/interface/globalInterface';
         document.addEventListener('mouseup', clickHandle)
         document.addEventListener('touchend', clickHandle)        
         const el = instantProfileWindow.value
-        await getInstantUser(el)
+        if(el){
+            await getInstantUser(el)
+        }
+        
     })
     onUnmounted(() => {
         document.removeEventListener('mouseup', clickHandle)
@@ -79,13 +82,14 @@ import { User } from '@/interface/globalInterface';
     const found = computed(() => {
         return userData.value ? userData.value.found : false
     })
-    const clickHandle = (event) => {
+    const clickHandle = (event:Event) => {
+        const target = event.target as HTMLElement  
         const cont1 = instantProfileWindow.value;    
-        if(cont1 && !cont1.contains(event.target)){
+        if(cont1 && !cont1.contains(target)){
             emit('resetInstantUser')
         } 
     }
-    const getInstantUser = async(el) => {
+    const getInstantUser = async(el: HTMLElement) => {
 
         userData.value = await api.post('/get_instant_user', {id: props.data.id, name: props.data.name})
         setTimeout(() => {

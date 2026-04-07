@@ -99,10 +99,10 @@ const align = () => {
         }
     }, 0);
 }
-const longTapAction = (event) => {
+const longTapAction = (event: MouseEvent | TouchEvent) => {
         event.stopPropagation()
-        const xPos = event.type === 'touchstart' ? Math.ceil(event.touches[0].clientX) : Math.ceil(event.clientX);
-        const yPos = event.type === 'touchstart' ? Math.ceil(event.touches[0].clientY) : Math.ceil(event.clientY);        
+        const xPos = event.type === 'touchstart' ? Math.ceil((event as TouchEvent).touches[0].clientX) : Math.ceil((event as MouseEvent).clientX);
+        const yPos = event.type === 'touchstart' ? Math.ceil((event as TouchEvent).touches[0].clientY) : Math.ceil((event as MouseEvent).clientY);        
         show()               
         nextTick(() => {
             const a = menuRef.value;                 

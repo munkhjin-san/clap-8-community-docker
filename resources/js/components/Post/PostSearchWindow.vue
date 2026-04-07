@@ -283,14 +283,14 @@ import { Post } from '@/interface/postInterface';
         }
         return name
     }
-    const sanitized = (text) => {
+    const sanitized = (text:string) => {
         const sanitizedString = text ? text.replace(/#|♯|＃/g, '') : '';
         return sanitizedString;
     }
-    const isMultipleUsers = (item) => {
+    const isMultipleUsers = (item: Post) => {
         return responsive.mobile && item && item.to_users && item.to_users.length > 1
     }
-    const status = (record) => {
+    const status = (record: Post) => {
         if (record.app_type !== 2) return;
         const statusMap = {
             0: DateTime.now() <= customParser(record.date_end) ? 'チャージ受付中' : '結果待ち',
@@ -300,7 +300,7 @@ import { Post } from '@/interface/postInterface';
             4: '不成立',
             5: 'チャレンジ進行中'
         };
-        return statusMap[record.status_flag];
+        return statusMap[record.status_flag as keyof typeof statusMap];
     }
     const tagInfinite = (event: Event) => {
         const target = event.currentTarget as HTMLElement;
@@ -351,8 +351,9 @@ import { Post } from '@/interface/postInterface';
             getPostSearch(1)
         }, 300)
     }
-    const setSelected = (event) => {
-        if(event.which === 27){
+    const setSelected = (event: KeyboardEvent) => {
+        const key = event.key
+        if(key === 'Escape'){
             isFocusing.value = 0;
             selectedHistory.value = -1;
             if(postAdvancedSearch.value){
@@ -363,30 +364,31 @@ import { Post } from '@/interface/postInterface';
             searchHistory.value = []
             return
         } 
-        if(event.which === 38 || event.which === 40){
+        if(key === 'ArrowUp' || key === 'ArrowDown'){
             event.preventDefault()            
             if(isFocusing.value){
-                if(event.which === 38){
+                if(key === 'ArrowUp'){
                     selectedHistory.value = selectedHistory.value == 0 ? searchHistory.value.length - 1 : selectedHistory.value - 1                  
                 }
-                if(event.which === 40){//dooshoo                        
+                if(key === 'ArrowDown'){                      
                     selectedHistory.value = selectedHistory.value == searchHistory.value.length - 1 ? 0 : selectedHistory.value + 1                        
                 } 
             }
             
         }
     }
-    const setKeyWord = (event) => {        
-        if(event.which === 38 || event.which === 40 || event.which === 13){
+    const setKeyWord = (event: KeyboardEvent) => {        
+        const key = event.key
+        if(key === 'ArrowUp' || key === 'ArrowDown' || key === 'Enter'){
             event.preventDefault()            
             return           
         }
         else{
-            keyword.value = event.currentTarget.value
+            keyword.value = (event.currentTarget as HTMLInputElement).value
             autoFillDebounce()
         }        
     }
-    const setKeyWordFromHistory = (val) => {
+    const setKeyWordFromHistory = (val: string) => {
         const input = postAdvancedSearch.value
         if(!input) return
         input.value = val
@@ -406,11 +408,11 @@ import { Post } from '@/interface/postInterface';
         searchHistory.value = data
         selectedHistory.value = -1      
     }
-    const setActivePage = (page) => {
+    const setActivePage = (page: number) => {
         searchPageIndex.value = page
         getPostSearch(searchPageIndex.value)
     } 
-    const setNavi = (val) => {
+    const setNavi = (val: number) => {
         searchPageIndex.value = searchPageIndex.value + val
         getPostSearch(searchPageIndex.value)
     }
@@ -418,7 +420,7 @@ import { Post } from '@/interface/postInterface';
         resultSortDateReverse.value = !resultSortDateReverse.value
         getPostSearch(1)
     }
-    const selectUser = (val) => {
+    const selectUser = (val: any) => {
         targetUsers.value = val
         getPostSearch(1)
     }
@@ -439,7 +441,7 @@ import { Post } from '@/interface/postInterface';
             getFeaturedTags([], 'first')
         }
     }
-    const getFeaturedTags = async(tags, sub_param) => {
+    const getFeaturedTags = async(tags: number[], sub_param: string) => {
         infineLock.value = true
         const inputSearch = postAdvancedSearch.value
         const text = inputSearch?.value || ''
@@ -464,7 +466,7 @@ import { Post } from '@/interface/postInterface';
         searchState.value = sub_param
 
     }
-    const referrerFilter = (link) => {
+    const referrerFilter = (link: string) => {
         var str_lenght = link.length;
         if (str_lenght > 45) {
             var sliced = link.slice(0, 45) + " ...";
@@ -477,13 +479,13 @@ import { Post } from '@/interface/postInterface';
         window.removeEventListener('click', onClickSearch);
         emit('closePostSearch')
     }
-    const searchMessageBody = (text) => {                
+    const searchMessageBody = (text: string) => {                
         const a = text?.replace(keyword.value, "<span style='background: yellow;color:var(--primary-button)'>" + keyword.value + "</span>");           
         let r = urlCheck(a);                
         return r
     }
     
-    const getPostSearch = async(index) => {
+    const getPostSearch = async(index: number) => {
         searchPageIndex.value = index
         const inputSearch = postAdvancedSearch.value
         isFocusing.value = 0
@@ -515,7 +517,7 @@ import { Post } from '@/interface/postInterface';
         fetchCount.value ++
       
     }
-    const jumpToRecord = (item) => {
+    const jumpToRecord = (item: any) => {
         let appName;
         
         appName = "post";

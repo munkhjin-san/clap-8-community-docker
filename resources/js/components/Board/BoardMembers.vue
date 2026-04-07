@@ -100,9 +100,11 @@ import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import Modal from '../Global/Modal.vue';
 import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
-import { BoardMember } from '@/interface/globalInterface';
+import { Board, BoardMember, User } from '@/interface/globalInterface';
     const auth = useAuthUserStore()
-    const props = defineProps(['board'])
+    const props = defineProps<{
+        board: Board
+    }>()
     const emit = defineEmits(['close', 'afterRequestHandled',  ])
     const searching = ref(0)
     const keyword = ref('')
@@ -121,7 +123,7 @@ import { BoardMember } from '@/interface/globalInterface';
     })
     const filteredAdmins = computed (() => {
         const searchText = keyword.value.toLowerCase();
-        return admins.value.filter(adm => adm.user.name.toLowerCase().includes(searchText));
+        return admins.value.filter(adm => adm.user.name && adm.user.name.toLowerCase().includes(searchText));
     })
     const members = computed (() => {
         return props.board && props.board.board_to_users && props.board.board_to_users.length ? 
@@ -129,7 +131,7 @@ import { BoardMember } from '@/interface/globalInterface';
     })
     const filteredMembers = computed (() => {
         const searchText = keyword.value.toLowerCase();
-        return members.value.filter(mem => mem.user.name.toLowerCase().includes(searchText));
+        return members.value.filter(mem => mem.user.name && mem.user.name.toLowerCase().includes(searchText));
     })
     const checkAdminAccess  = computed (() => {
         return props.board && props.board.board_to_users && props.board.board_to_users.length ? 
@@ -137,7 +139,7 @@ import { BoardMember } from '@/interface/globalInterface';
     })
     const createModal = ref(null)
 
-    const removeMember = async(user) => {
+    const removeMember = async(user:User) => {
         const confirmed = await ask(`<strong>${user.name}</strong> をチャットメンバーから削除してもよろしいですか?`)
         if(!confirmed.value || lock.value) return 
         lock.value = true
@@ -148,7 +150,7 @@ import { BoardMember } from '@/interface/globalInterface';
         lock.value = false
 
     }
-    const setAdmin = async (user, flag) => {
+    const setAdmin = async (user:User, flag:number) => {
         const confirmed = await ask(flag == 1 ? `<strong>${user.name}</strong> を管理者に追加してよろしいですか?` : `<strong>${user.name}</strong> を管理者から削除してもよろしいですか?`)
         if(lock.value || !confirmed.value) return
         lock.value = true
@@ -159,10 +161,10 @@ import { BoardMember } from '@/interface/globalInterface';
         lock.value = false
         
     }    
-    const startEditViewFrom = (member) => {
+    const startEditViewFrom = (member:BoardMember) => {
         editingMember.value = member
     }
-    const setMin = (member) => {
+    const setMin = (member:BoardMember) => {
         return DateTime.fromISO(member.created_at).toISODate()?.toString()
     }
     const setMax = () => {
@@ -177,7 +179,7 @@ import { BoardMember } from '@/interface/globalInterface';
         editingMember.value = null
 
     }
-    const validateDate = (member) => {
+    const validateDate = (member:BoardMember) => {
         if(!editingMember.value?.view_from) {
             invalidDate.value = true
             return

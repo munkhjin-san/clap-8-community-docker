@@ -41,7 +41,7 @@ import { useDialog } from '@/composables/dialog';
     const advancedQuotFinish = () => {
         if( !quotAreaEditor.value ) return
         var textComponent = quotAreaEditor.value
-        var selectedText;
+        var selectedText = '';
 
         if (textComponent.selectionStart !== undefined)
         {// Standards Compliant Version

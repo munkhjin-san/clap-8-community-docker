@@ -87,7 +87,7 @@ import Modal from '../Global/Modal.vue';
     const headTitle = computed(() => {
         return `<strong>"${props.item.title}"</strong>チャットにメンバーを追加する`
     })
-    const selectToUser = async(user) => {
+    const selectToUser = async(user: User) => {
         if(invalidDate.value) return
         if(lock.value) return
         lock.value = true

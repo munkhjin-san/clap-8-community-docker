@@ -147,7 +147,7 @@
                     <button id="glowlympicButton" class="chargeFormeAddButton cursor-pointer">参加期間は終了しました</button>
                 </div>  
             </div>
-            <div class="post-footer mb-2.5 text-sm justify-right" v-if="record.app_type == 2">
+            <div class="post-footer mb-2.5 text-sm justify-end" v-if="record.app_type == 2">
                 <div>現在のチャージ総額 {{ totalChargeAmmount }}円</div>
             </div>
             <div class="post-footer">           
@@ -355,7 +355,7 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
             4: '不成立',
             5: 'チャレンジ進行中'
         };
-        return statusMap[props.record.status_flag];
+        return statusMap[props.record.status_flag as keyof typeof statusMap];
     });
     const supporters = computed(() => {
         if(props.record.app_type == 2){
@@ -478,7 +478,7 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
     const emoteAction = (record: Post) => {
         menu.setMenu({ parent: `iokawaReactionPop_${record.id}` })
     }
-    const cutter = (string, len, type) => {
+    const cutter = (string: string, len: number, type: string) => {
         if(!string){
             return ''
         }

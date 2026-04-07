@@ -147,7 +147,7 @@ const checkGreaterOrLesserHit = (value: number) => {
     }
 };
 
-const stopRolling = (diceIndex) => {
+const stopRolling = (diceIndex: number) => {
     clearInterval(intervals.value[diceIndex]);
     if (diceIndex === dices.value.length - 1) {
         result.value = dices.value.reduce((sum, val) => sum + val, 0);

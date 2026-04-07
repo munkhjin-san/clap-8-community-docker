@@ -54,7 +54,7 @@ import FloatButton from '../Global/FloatButton.vue';
 import AddIcon from '../Form/AddIcon.vue';
 import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
 import { useBoardList } from '@/composables/board';
-import { Message } from '@/interface/globalInterface';
+import { Board, Message } from '@/interface/globalInterface';
 import { useRoute } from 'vue-router';
     interface Props {
         failedMessagesList: Message[];
@@ -69,7 +69,7 @@ import { useRoute } from 'vue-router';
     const responsive = useResponsive()
     const { open, create } = inject(BoardMethodsKey) as BoardMethods
     const { boardList, skeletonLoader } = useBoardList()
-    const bounceId = ref(null)
+    const bounceId = ref<number | null>(null)
     const route = useRoute()
     const panelContainer = useTemplateRef('panelContainer')
 
@@ -77,7 +77,7 @@ import { useRoute } from 'vue-router';
 
     const unPinnedBoards = computed(() => boardList.value.filter( board => board.board_to_users.find(user => user.user_id === auth.activeUser.id)?.pin_flag === 0))
      
-    const boardListDropEnterFromFile = (board) => {
+    const boardListDropEnterFromFile = (board:Board) => {
         if(responsive.mobile) return 
         bounceId.value = board.id
         if(sharingData.active && sharingData.drag){
@@ -91,7 +91,7 @@ import { useRoute } from 'vue-router';
             }
         }
     }
-    const boardListDropLeaveFromFile = (board) => {
+    const boardListDropLeaveFromFile = (board:Board) => {
         if(responsive.mobile) return 
         if(sharingData.active && sharingData.drag){
             bounceId.value = null

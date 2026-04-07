@@ -19,7 +19,7 @@
 <script setup lang="ts">
     const props = defineProps(['allHistoryData', 'selected'])
     const emit = defineEmits(['setKeyWordFromHistory'])
-    const setkey = (item) => {
+    const setkey = (item:any) => {
         emit('setKeyWordFromHistory', item.content)
     }
        

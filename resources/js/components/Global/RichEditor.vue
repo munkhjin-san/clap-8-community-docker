@@ -228,7 +228,7 @@ const autoColor = () => {
     }
     colorPickerView.value = null
 }
-const selectColor = (color) => {
+const selectColor = (color: string) => {
     console.log(color)
     if(colorPickerView.value == 55){
         editor.value?.chain().focus().setColor(color).run()

@@ -92,7 +92,7 @@ const toggleComment = () => {
         }
     })
 }
-const fastPreCheckEmote = (name) => {
+const fastPreCheckEmote = (name: string) => {
     if(!comment.value || !comment.value.emoted_users) return;
         // pretend to send emote api for fast response
     const checkExist = comment.value.emoted_users.find(ob => ob.id == auth.activeUser.id)

@@ -145,7 +145,7 @@ import { debounce } from '@/utils/tools';
         
     })
        
-    const downloadFile = (file) => {
+    const downloadFile = (file: MessageFile) => {
         let src, name;
         const path = file.board_id + '/' + file.id + '_' + file.user_id + '_' + file.message_id + '.' + file.extension        
         name = file.name
@@ -158,58 +158,38 @@ import { debounce } from '@/utils/tools';
         link.click();  
         document.body.removeChild(link); 
     }
-    const jumpToMessage = (file) => {
+    const jumpToMessage = (file: MessageFile) => {
         emit('jumpToMessage', file);
         closeMenu()
     } 
     const closeMenu = () => {
         menu.setMenu( {name: '', id: null})
     }
-    const previewFile = (file, index) => {
+    const previewFile = (file: MessageFile, index: number) => {
         let target_data = file
-        if(!target_data.removed_at){
-            const files = fileListAll.value.data.map(fileData => ({
-                ...fileData,
-                source_board_id: fileData.board_id,
-                file_path: `/cdn/shared_files/${fileData.board_id}/${fileData.id}_${fileData.user_id}_${fileData.message_id}.${fileData.extension}`,
-                doc_path: `/shared_files/${fileData.board_id}/${fileData.id}_${fileData.user_id}_${fileData.message_id}.${fileData.extension}`
-            }));
-            
-            const data = {
-                active: true,
-                files: files,
-                target: target_data,
-                source: 'message',
-                index: index,
-                message: {record_id: file.board_id},
-            }
-            filePreview.setFilePreview(data)
-        }else{
-            ping('このファイルは消去されました') 
+        const files = fileListAll.value.data.map(fileData => ({
+            ...fileData,
+            source_board_id: fileData.board_id,
+            file_path: `/cdn/shared_files/${fileData.board_id}/${fileData.id}_${fileData.user_id}_${fileData.message_id}.${fileData.extension}`,
+            doc_path: `/shared_files/${fileData.board_id}/${fileData.id}_${fileData.user_id}_${fileData.message_id}.${fileData.extension}`
+        }));
+        
+        const data = {
+            active: true,
+            files: files,
+            target: target_data,
+            source: 'message',
+            index: index,
+            message: {record_id: file.board_id},
         }
+        filePreview.setFilePreview(data)
+
     }
     const cancelSearch = () => {
         keyword.value = ''
-        searchStart(keyword.value)
+        
     }
-    const setKeyWord = (event) => { 
-        if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Enter'){
-            event.preventDefault()
-            return
-        }else{
-            keyword.value = event.currentTarget.value
-            autoFillDebounce()
-        }
-    }
-    const autoFillDebounce = () => {
-        if (timeout.value) clearTimeout(timeout.value)
-            timeout.value = setTimeout(() => {
-            searchStart(keyword.value)
-        }, 300)
-    }
-    const searchStart = (key) => {
 
-    }
     const getFileList = async(page = 1, cancel_flag = true) => {
         if(!openedBoard.value || !openedBoard.value.id) return
         const searchkeyword = keyword.value.toLowerCase().trim();
@@ -218,7 +198,7 @@ import { debounce } from '@/utils/tools';
         initialLoader.value = false          
 
     }
-    const fileSizeView = (bytes) => {
+    const fileSizeView = (bytes:number) => {
         if(bytes > 1000000) return filesize(bytes, {standard: "jedec", round: 1});
         else return filesize(bytes, {standard: "jedec", round: 0});
     }

@@ -33,7 +33,12 @@
     import { computed, onMounted } from 'vue';
     import { ref } from 'vue';
     import { useFilePreview } from '@/store/filePreview';
-    const props = defineProps(['items', 'path'])
+import { CommonFile } from '@/interface/globalInterface';
+    // const props = defineProps(['items', 'path'])
+    const props = defineProps<{
+        items: CommonFile[]
+        path?: string
+    }>()
     const path = ref(props.path ?? 'post_files')
     const filePreview = useFilePreview()
     onMounted(() => {
@@ -49,7 +54,7 @@
         return props.items.filter(ob => ob.mime_type !== 'image')
     })
                 
-    const previewFile = (file, index) => {
+    const previewFile = (file: CommonFile, index: number) => {
         const files = fileList.value.map(fileData => ({
             ...fileData,
             file_path: `/cdn/${path.value}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
@@ -66,7 +71,7 @@
         }
         filePreview.setFilePreview(data)
     }
-    const previewImage = (file, index) => {
+    const previewImage = (file: CommonFile, index: number) => {
         const files = images.value.map(fileData => ({
             ...fileData,
             file_path: `/cdn/${path.value}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
@@ -83,7 +88,7 @@
         }
         filePreview.setFilePreview(data)
     }
-    const fileNameFilter = (name, ext) => {
+    const fileNameFilter = (name: string, ext: string) => {
         var str_lenght = name.length;
         if (str_lenght > 20) {
             var sliced = name.slice(0, 20) + " ..." + ext;
@@ -92,7 +97,7 @@
         return name;
 
     }
-    const fileSize = (bytes) => {
+    const fileSize = (bytes: number) => {
         if(bytes > 1000000) return filesize(bytes, {standard: "jedec", round: 1});
         else return filesize(bytes, {standard: "jedec", round: 0});
     }

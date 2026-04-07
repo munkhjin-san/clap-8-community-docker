@@ -4337,7 +4337,6 @@ input:-webkit-autofill:active {
 .commentInner {
   min-width: 30%;
   max-width: 60%;
-  background: var(--message-background);
 }
 
 .calendar-root-header {

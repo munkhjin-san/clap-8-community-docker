@@ -58,7 +58,7 @@ const FormContainer = defineAsyncComponent(() => import('./Tray/Form/FormContain
         return  nm && nm > 99 ? '+99' : nm
     })
 
-    const jumpToMessage = (file) => {
+    const jumpToMessage = (file:any) => {
         emit('jumpToMessage', file)
     }    
     const totalSpan = computed(() => {

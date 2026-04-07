@@ -26,13 +26,15 @@
                 <ItemMenu :items="boardMenuItems" fit="searchContainer"/>
             </div>
             <div style="position:relative">
-                <span v-if="badge.activeUsersBoardBadge && badge.activeUsersBoardBadge[item.id]" class="notification" style="top: -3px;left: auto;right: -3px;">{{badgeFilter(badge.activeUsersBoardBadge[item.id])}}</span>
-             
+                <Badge v-if="badge.activeUsersBoardBadge && badge.activeUsersBoardBadge[item.id]" :count="badge.activeUsersBoardBadge[item.id]" class="activeUsersBoardBadge" style="top: -3px;left: auto;right: -3px;"/>
                 <BoardIcon :item="item"/>
             </div>
             <div @mouseenter="titleHoverIn" @mouseleave="titleHoverOut" style="width:100%;align-self: center;margin:0 10px;overflow:hidden">
-                
-                <BoardTitlePreLoad :key="item.title" :item="item" titleStyle="line-height: 1.3;font-size: 16px;transition-timing-function: linear;display:inline-block"/>
+                <div ref="titleContainer" style="overflow:hidden">
+                    <div ref="titleTrack" :style="titleTrackStyle">
+                        <BoardTitlePreLoad :key="item.title" :item="item" titleStyle="line-height: 1.3;font-size: 16px;display:inline-block"/>
+                    </div>
+                </div>
                 <div v-html="lastMessage" class="contentsText lastMessage"></div>              
                     <div @touchstart.stop @click.stop="members(item)" v-if="item.private_flag == 0" class="sm pc" style="overflow:hidden;display: flex;align-items: center;margin-top: 3px;width: fit-content;">    
                         
@@ -53,15 +55,16 @@
 import BoardIcon from './Mixed/BoardIcon.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import BoardTitlePreLoad from './Mixed/BoardTitle.vue'
-import { computed, inject } from 'vue';
+import { computed, inject, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useBadgeStore } from '@/store/badge'
 import ItemMenu from '../Global/ItemMenu.vue';
 import { mentionFormatter } from '@/utils/tools';
 import { useRoute } from 'vue-router';
 import { BoardMethodsKey, BoardMethods } from '@/interface/keys';
-import { MenuList } from '@/interface/globalInterface';
+import { BoardMember, MenuList } from '@/interface/globalInterface';
 import Edit from '../Icons/Edit.vue';
+import Badge from '../Global/Badge.vue';
     const badge = useBadgeStore()
     const auth = useAuthUserStore()
     const props = defineProps(['item', 'hasFailedMessage'])
@@ -92,7 +95,7 @@ import Edit from '../Icons/Edit.vue';
         return list
     })
     const selfMember = computed(() => {
-        return props.item.board_to_users.find(obj => obj.user_id == auth.activeUser.id)
+        return props.item.board_to_users.find((obj: BoardMember) => obj.user_id == auth.activeUser.id)
     }) 
     const lastMessage = computed(() => {
         const { last_message } = props.item;
@@ -111,27 +114,37 @@ import Edit from '../Icons/Edit.vue';
         const foundType = messageTypes.find(type => last_message[type.key]);
         return foundType ? foundType.label : '現在メッセージはありません';
     });
-    
-    const titleHoverIn = (event) => {         
-            
-        if(event.target.clientWidth < event.target.firstChild.firstChild.clientWidth){
-            const tansitionTimePerPixel = 0.01;
-            let textWidth = event.target.firstChild.firstChild.clientWidth;
-            let boxWidth = parseFloat(getComputedStyle(event.target).width);
-            let translateVal = Math.min(boxWidth - textWidth - 10, 0);
-            let translateTime = - tansitionTimePerPixel * translateVal + "s";
-            event.target.firstChild.style.transitionDuration = translateTime;
-            event.target.firstChild.style.transform = "translateX("+translateVal+"px)";
+
+    const titleContainer = ref<HTMLElement | null>(null)
+    const titleTrack = ref<HTMLElement | null>(null)
+    const titleTranslateX = ref(0)
+    const titleTransitionDuration = ref('0.3s')
+    const titleTrackStyle = computed(() => ({
+        display: 'inline-block',
+        transitionProperty: 'transform',
+        transitionTimingFunction: 'linear',
+        transitionDuration: titleTransitionDuration.value,
+        transform: `translateX(${titleTranslateX.value}px)`,
+        willChange: 'transform'
+    }))
+    const titleHoverIn = () => {
+        const containerWidth = titleContainer.value?.clientWidth ?? 0
+        const trackWidth = titleTrack.value?.scrollWidth ?? 0
+
+        if (containerWidth <= 0 || trackWidth <= containerWidth) {
+            return
         }
-        
+
+        const transitionTimePerPixel = 0.01
+        const extraOffset = 10
+        const translateDistance = trackWidth - containerWidth + extraOffset
+
+        titleTransitionDuration.value = `${translateDistance * transitionTimePerPixel}s`
+        titleTranslateX.value = -translateDistance
     }
-    const titleHoverOut = (event) => {            
-        event.target.firstChild.style.transitionDuration = "0.3s";
-        event.target.firstChild.style.transform = "translateX(0)";
-    }    
-    const badgeFilter = (number) => {      
-        return number > 99 ? '+99' : number         
-        
-    } 
+    const titleHoverOut = () => {
+        titleTransitionDuration.value = '0.3s'
+        titleTranslateX.value = 0
+    }
 
 </script>

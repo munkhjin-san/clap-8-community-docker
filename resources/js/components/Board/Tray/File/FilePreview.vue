@@ -88,8 +88,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import PdfViewer from './PdfViewer.vue'
 import Swiper from 'swiper';
-import type { Swiper as SwiperType } from 'swiper';
-import 'swiper/css/bundle';
+import 'swiper/css';
 import "swiper/css/zoom";
 import { Navigation, Zoom, Thumbs, Pagination } from 'swiper/modules';
 import 'swiper/css/navigation'
@@ -101,7 +100,7 @@ import { useMenuStore } from "@/store/menu";
 import { useSharingDataStore } from '@/store/sharingData'
 import ItemMenu from '@/components/Global/ItemMenu.vue';
 import { useApi } from '@/composables/api';
-import { MenuList } from '@/interface/globalInterface';
+import type { MenuList } from '@/interface/globalInterface';
     const sharingData = useSharingDataStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -111,7 +110,7 @@ import { MenuList } from '@/interface/globalInterface';
     const fileKey = ref(Math.floor(Math.random() * 1000))
     const docLoader = ref(false)
 
-    const topSwiper = ref<SwiperType | null>(null)
+    const topSwiper = ref<Swiper | null>(null)
     const filePreview = useFilePreview()
     const pdfKey = ref(0)
     const doc_extensions = ["xlsx", "xlsm", "xlsb", "xltx", "xls", "xml", "xlam", "xlr", "xlw", "xla",
@@ -139,7 +138,7 @@ import { MenuList } from '@/interface/globalInterface';
     const fileMenu = computed(() => {
         const file = currentFile.value
         const list:MenuList[] = []; 
-        function addItem(title, action) {
+        function addItem(title: string, action: () => void) {
             list.push({ title, action });
         }
         addItem('ダウンロード', () => downloadFile())
@@ -211,7 +210,7 @@ import { MenuList } from '@/interface/globalInterface';
             //     swiper: thumbsSwiper.value 
             // },
             on: {
-                slideChange: (swiper) => {
+                slideChange: (swiper: Swiper) => {
                     changeSwiperIndex(swiper)
                 }
             },
@@ -229,7 +228,7 @@ import { MenuList } from '@/interface/globalInterface';
     
     
     
-    const changeSwiperIndex = (swiper) => {
+    const changeSwiperIndex = (swiper: Swiper) => {
         docUrl.value = ''
         f_index.value = swiper.realIndex
         filePreview.index = swiper.realIndex
@@ -298,7 +297,7 @@ import { MenuList } from '@/interface/globalInterface';
         }
         await api.post('/drive/download_logs', payload)
     }
-    const shareTo = (to, file) => {
+    const shareTo = (to: string, file: any) => {
         let path = route.name == 'room' ? `/cdn/shared_files/${file.board_id}/${file.id}_${file.user_id}_${file.message_id}.${file.extension}` : file.file_path
         const shareData = {
             active: true,

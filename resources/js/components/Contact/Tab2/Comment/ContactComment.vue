@@ -125,7 +125,7 @@
                     </div>
                                             
                 </div>
-                <div @mousedown.prevent.stop @click="commentSendConfirm(0)" id="sendArea" class="sendAreaBox" style="display:flex;bottom:6px;"> 
+                <div @mousedown.prevent.stop @click="commentSendConfirm()" id="sendArea" class="sendAreaBox" style="display:flex;bottom:6px;"> 
                     <div style="display: flex;position: relative;">
                         <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="33" viewBox="0 0 43 32" style="margin:auto;fill: var(--third-color);">
                             <path d="M40.638 0.087c-1.842 0.361-6.097 1.292-9.435 2.047l-30.046 6.891c-0.419 0.096-0.793 0.374-1.003 0.793-0.364 0.728-0.058 1.585 0.663 2.007 2.578 1.521 10.077 5.56 10.077 5.56 0.287 0.157 0.487 0.439 0.542 0.762 0 0 0.711 4.473 0.921 5.891 0.21 1.417 0.714 4.465 1.184 6.482 0.168 0.726 0.631 1.335 1.215 1.512 0.495 0.152 1.030 0.037 1.43-0.285 1.394-1.128 5.787-5.445 7.388-7.272 0.133-0.152 0.355-0.19 0.531-0.085l6.184 3.646c0 0 0.439 0.294 0.919 0.519 1.283 0.601 2.479 0.625 3.062-0.829 0.325-0.813 4.316-12.627 4.316-12.627l4.466-13.209c0.053-0.152 0.082-0.321 0.082-0.492 0-0.844-0.654-1.675-2.496-1.312zM20.045 24.741c-0.475 0.477-1.473 1.473-2.284 2.197-0.155 0.137-0.385-0.002-0.313-0.195l1.796-4.842c0.051-0.157 0.236-0.226 0.378-0.142l1.796 1.054c0.157 0.091 0.161 0.294 0.041 0.432-0.401 0.458-0.975 1.058-1.413 1.495zM32.151 25.117c-0.106 0.325-0.482 0.47-0.777 0.301l-1.447-0.824-3.554-2.014-7.121-4.024c-0.067-0.037-0.138-0.068-0.214-0.094-0.677-0.232-1.411 0.13-1.64 0.808l-1.944 7.086c-0.053 0.166-0.229 0.143-0.251-0.046-0.13-1.23-0.328-3.178-0.467-4.759-0.13-1.459-0.366-3.357-0.494-4.434-0.111-0.931-0.427-1.423-1.131-1.837-0.704-0.415-6.489-3.354-7.668-4.049-0.241-0.142-0.166-0.415 0.065-0.463 0 0 13.334-2.689 16.022-3.304 2.689-0.617 10.513-2.447 10.513-2.447 0.103-0.025 0.152 0.118 0.056 0.161l-5.127 2.281-2.961 1.459c-0.987 0.487-7.32 3.516-9.259 4.562-0.477 0.258-0.665 0.871-0.373 1.36 0.255 0.429 0.808 0.574 1.265 0.374 2.004-0.882 16.208-7.766 17.651-8.441 0.345-0.162 0.376-0.012 0.287 0.049-0.89 0.615-9.43 6.896-10.25 7.528l-2.448 1.905c-0.432 0.342-0.519 0.976-0.173 1.42 0.335 0.432 0.965 0.497 1.413 0.183 0 0 3.766-2.665 4.603-3.274l5.008-3.66c0 0 5.775-4.365 6.187-4.682 0.166-0.128 0.397 0.033 0.331 0.234l-2.517 7.675-3.585 10.965z"></path>
@@ -212,21 +212,13 @@ const mentionAbleList = computed(() => {
     return props.item.collaborators?.filter(co => co.id !== auth.activeUser.id) ?? []
 })
 const getCharacterPrecedingCaret = () => {
-    var precedingChar = "", sel, range, precedingRange;
-    if (window.getSelection) {
-        sel = window.getSelection();
-        if (sel.rangeCount > 0) {
-            range = sel.getRangeAt(0).cloneRange();
-            range.collapse(true);
-            range.setStart(messageInputArea.value, 0);
-            precedingChar = range.toString().slice(-1);
-        }
-    } else if ( (sel = document.getSelection) && sel.type != "Control") {
-        range = sel.createRange();
-        precedingRange = range.duplicate();
-        precedingRange.moveToElementText(messageInputArea.value);
-        precedingRange.setEndPoint("EndToStart", range);
-        precedingChar = precedingRange.text.slice(-1);
+    var precedingChar = "";
+    const sel = window.getSelection();
+    if (sel && messageInputArea.value && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0).cloneRange();
+        range.collapse(true);
+        range.setStart(messageInputArea.value, 0);
+        precedingChar = range.toString().slice(-1);
     }
     if((precedingChar === '＠' || precedingChar === '@')){
         keyCharacters.value = ''
@@ -237,7 +229,7 @@ const getCharacterPrecedingCaret = () => {
         
     }
 }
-const inputKeyEventfirst = (event) => {
+const inputKeyEventfirst = (event: KeyboardEvent) => {
     startPosition.value = getCaretPosition();
     if(mentionBoxToggle.value && messageInputArea.value && messageInputArea.value.textContent){      
         if (event.key === 'Backspace' || event.key === 'Delete') {
@@ -273,10 +265,10 @@ const enterSend = (event: KeyboardEvent) => {
         event.preventDefault()
     }
     if(event.altKey){
-        commentSendConfirm(0)
+        commentSendConfirm()
     }
 }
-const mentionUser = (user, index) => {             
+const mentionUser = (user: User, index: number) => {             
     if(user && messageInputArea.value){
         const mentionSyntax = `[To:${user.name}:]`
         const text = messageInputArea.value.textContent || ''
@@ -322,7 +314,7 @@ const mentionUser = (user, index) => {
         }
     }    
 }
-const setEndOfContenteditable = (pos) => { 
+const setEndOfContenteditable = (pos: number) => { 
     if( !messageInputArea.value ) return  
     var node = messageInputArea.value
     node.focus();
@@ -336,21 +328,19 @@ const setEndOfContenteditable = (pos) => {
     sel?.removeAllRanges();
     sel?.addRange(range);
 }
-const composeUpdate = (event) => {
-    
-    if(event.data == '@' || event.data == '＠'){ 
-        keyCharacters.value = ''
-        highlighted.value = 0
-        mentionBoxToggle.value = true;
-        mentionBoxForced.value = false
-        console.log(event.data)
-    }else{
-        keyCharacters.value = event.data
-        if(!keyCharacters.value.length){
-            resetMention()
-        }
-    }                
-}
+const composeUpdate = (event: CompositionEvent) => {
+        if(event.data == '@' || event.data == '＠'){ 
+            keyCharacters.value = ''
+            highlighted.value = 0
+            mentionBoxToggle.value = true;
+            mentionBoxForced.value = false
+        }else{
+            keyCharacters.value = event.data as string
+            if(!keyCharacters.value.length){
+                resetMention()
+            }
+        }                
+    }
 const caretPos = (event: Event) => {
     const target = event.target as HTMLElement;
     var caretOffset:number | undefined = 0;
@@ -373,7 +363,7 @@ const resetMention = () => {
     mentionBoxToggle.value = false
     highlighted.value = 0
 }
-const commentSendConfirm = async(num) => {
+const commentSendConfirm = async() => {
     const text = messageInputArea.value?.textContent || ''
     if(!text.trim().length || sending.value) return
     sending.value = true
@@ -393,7 +383,7 @@ const commentSendConfirm = async(num) => {
 
 }
 
-const selectEmoji = (emoji) => {   
+const selectEmoji = (emoji: { i: string }) => {   
     if (!messageInputArea.value) return  
     var a = messageInputArea.value?.textContent;    
     var b = emoji.i;
@@ -403,12 +393,12 @@ const selectEmoji = (emoji) => {
     caretPosition.value = caretPosition.value + 2;
 }
 
-const removeAttachment = async (image) => {  
-    successUploadedFiles.value = successUploadedFiles.value.filter( ob => ob !== image )
+const removeAttachment = async (image: MessageFile) => {  
+    successUploadedFiles.value = successUploadedFiles.value.filter( ob => ob.id !== image.id )
     await api.post('/remove_temp_file', {id: image.id})        
 }
-const previewFile = (file) => {
-    let target_data = file
+const previewFile = (file: MessageFile) => {
+    let target_data: Record<string, any>  = file
     target_data['file_path'] = '/cdn/temp_upload/' + file.id + '.' + file.extension
     target_data['doc_path'] = '/temp_upload/' + file.id + '.' + file.extension
     const data = {
@@ -420,37 +410,38 @@ const previewFile = (file) => {
     }
     filePreview.setFilePreview(data)
 }
-const addAttachment = (event) => {
-    if(event.target.files && event.target.files.length){
+const addAttachment = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    if(target.files && target.files.length){
         const formData = new FormData()                  
-        for(var i in event.target.files) {                
-            if(event.target.files[i].type !== undefined){
+        for(var i in target.files) {                
+            if(target.files[i].type !== undefined){
                 var uniqueId = Math.random().toString(36).substring(5);
                 
                 var source = 'nonimagefile'
-                if(event.target.files[i].type.indexOf('image') > -1){
-                    var source = URL.createObjectURL(event.target.files[i]);
+                if(target.files[i].type.indexOf('image') > -1){
+                    var source = URL.createObjectURL(target.files[i]);
                 }               
-                const name = event.target.files[i].name;
+                const name = target.files[i].name;
                 const lastDot = name.lastIndexOf('.');
                 const fileName = name.substring(0, lastDot);
                 const extension = name.substring(lastDot + 1);
                 attachedFiles.value.push({
                     src: source,
-                    name: event.target.files[i].name,
+                    name: target.files[i].name,
                     uId: uniqueId,
                     ext: extension,
-                    file: event.target.files[i]
+                    file: target.files[i]
                 });  
-                formData.append(i, event.target.files[i])
+                formData.append(i, target.files[i])
             }               
         } 
         uploadStart(formData)
-        event.target.value = '';
+        target.value = '';
     }
     
 }   
-const uploadStart = async(formData) => {
+const uploadStart = async(formData:FormData) => {
     const files = await api.post('/attach_upload_api', formData)
 
     if(files && files.length){

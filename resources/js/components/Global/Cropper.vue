@@ -116,7 +116,7 @@ const destroy = () => {
     }
     tempImage.value = ''
 }
-const getFileExtension = (fileName) => {
+const getFileExtension = (fileName:string) => {
     const lastDotIndex = fileName.lastIndexOf('.');
     if (lastDotIndex === -1) {
         return '';

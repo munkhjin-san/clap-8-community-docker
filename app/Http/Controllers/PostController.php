@@ -464,8 +464,32 @@ class PostController extends Controller
                                 ->where('deleted_flag', 0)
                                 ->with('user')
                                 ->with('claps')
+                                ->with('emotedUsers')
                                 ->get();
         return response()->json($comments);  
+    }
+    public function comment_send_emote(Request $request)
+    {
+        $request->validate([
+            'id' => 'required',
+            'reaction' => 'required|string',
+        ]);
+
+        $activeUser = Auth::user();
+        $comment = CommentRecord::with('emotedUsers')->findOrFail($request->id);
+        $existingEmote = $comment->emotedUsers()->where('user_id', $activeUser->id)->first();
+
+        if ($existingEmote && $existingEmote->pivot->emote_name == $request->reaction) {
+            $comment->emotedUsers()->detach($activeUser->id);
+        } else if ($existingEmote) {
+            $comment->emotedUsers()->updateExistingPivot($activeUser->id, ['emote_name' => $request->reaction]);
+        } else {
+            $comment->emotedUsers()->attach($activeUser->id, ['emote_name' => $request->reaction]);
+        }
+
+        $comment->refresh();
+        $comment->load(['user', 'claps', 'emotedUsers']);
+        return response()->json($comment);
     }
     public function post_comment_add(Request $request){
         $validatedData = $request->validate([

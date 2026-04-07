@@ -19,7 +19,7 @@
             class="half-span-picker"
             flat
             tile
-            @update:modelValue="(val) => { selectedSpan = val; emit('changed') }"
+            @update:modelValue="(val:any) => { selectedSpan = val; emit('changed') }"
         >
         <template #item="{ item, props }">
             <v-list-item v-bind="props"  rounded="0" density="compact" :ripple="false" variant="flat">

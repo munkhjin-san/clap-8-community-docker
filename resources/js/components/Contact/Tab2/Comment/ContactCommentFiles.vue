@@ -43,15 +43,15 @@ import { MenuList, MessageFile } from "@/interface/globalInterface";
     const filePreview = useFilePreview()
     const file_index = ref(0)
 
-    const fileMenuItems = (file) => {
+    const fileMenuItems = (file:MessageFile) => {
         const list:MenuList[] = []; 
-        function addItem(title, action) {
+        function addItem(title: string, action: () => void) {
             list.push({ title, action });
         }
         addItem('ダウンロード', () => downloadFile(file))        
         return list
     }
-    const downloadFile = (file) => {
+    const downloadFile = (file:MessageFile) => {
         closeMenu()
         let src:string, name:string;
         const path = `${file.id}_${file.user_id}.${file.extension}`
@@ -69,7 +69,7 @@ import { MenuList, MessageFile } from "@/interface/globalInterface";
         menu.setMenu( {id: null, name: ''})
     }
 
-    const previewFile = (file, index) => {
+    const previewFile = (file:MessageFile, index: number) => {
         if(sharingData.active) return
         let file_list = [file]
         const files = file_list.map(fileData => ({
@@ -88,10 +88,10 @@ import { MenuList, MessageFile } from "@/interface/globalInterface";
         }
         filePreview.setFilePreview(data)
     }
-    const fileNameFilter = (file) => {
+    const fileNameFilter = (file:MessageFile) => {
         return file.name;
     }
-    const fileSizeView = (bytes) => {
+    const fileSizeView = (bytes:number) => {
         if(bytes > 1000000) return filesize(bytes, {standard: "jedec", round: 1});
         else return filesize(bytes, {standard: "jedec", round: 0});
     }           

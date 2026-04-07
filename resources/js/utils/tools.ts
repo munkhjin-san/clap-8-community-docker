@@ -3,7 +3,7 @@ import { DateTime } from 'luxon'
 import { customRef } from 'vue'
 import { filesize } from 'filesize';
 import { useTheme } from '@/store/theme';
-function useDebouncedRef(value:any, delay = 200) {
+function useDebouncedRef(value:string, delay = 200) {
     let timeout:ReturnType<typeof setTimeout> | number = 300;
     return customRef((track, trigger) => {
       return {
@@ -11,7 +11,7 @@ function useDebouncedRef(value:any, delay = 200) {
           track()
           return value
         },
-        set(newValue) {
+        set(newValue:string) {
           clearTimeout(timeout)
           timeout = setTimeout(() => {
             value = newValue
@@ -21,11 +21,11 @@ function useDebouncedRef(value:any, delay = 200) {
       }
     })
   }
-const parseNumber = (v) => {
+const parseNumber = (v: string | number | null | undefined) => {
     const n = parseInt(String(v ?? "").replace(/,/g, ""), 10);
     return Number.isNaN(n) ? 0 : n;
 };
-const yenFmt = (n) => (n ? `¥${Number(n).toLocaleString("ja-JP")}` : "—");
+const yenFmt = (n: number) => (n ? `¥${Number(n).toLocaleString("ja-JP")}` : "—");
 const EXPENSE_ITEMS = [
   { key: "salary", label: "給料手当" },
   { key: "outsourcing", label: "外注費" },
@@ -62,7 +62,7 @@ const oikawaMap = [
   { id: 21, name: 'reaper',   size: '42px' },
   { id: 22, name: 'angel',    size: '45px' },
   { id: 23, name: 'mummy',    size: '42px' },
-  { id: 24, name: 'sumo',     size: '40px' },
+  { id: 24, name: 'sumo',     size: '42px' },
   { id: 25, name: 'samurai',  size: '45px' },
 ]
 const theme = useTheme()
@@ -102,7 +102,7 @@ const timeFormat = (time: number) => {
 
 function debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void {
     let timeout: ReturnType<typeof setTimeout>;
-    return function(...args: Parameters<T>): void {
+    return function(this: any, ...args: Parameters<T>): void {
         const later = () => {
             clearTimeout(timeout);
             func.apply(this, args);

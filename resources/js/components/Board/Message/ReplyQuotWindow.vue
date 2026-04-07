@@ -69,7 +69,7 @@ import { useQuoteWindow } from '@/store/quoteWindow';
         }, 300);
         
     }
-    const completed = (text) => {
+    const completed = () => {
         selectionView.value = false;
         setTimeout(() => {
             quoteWindow.setQuoteWindow(false)

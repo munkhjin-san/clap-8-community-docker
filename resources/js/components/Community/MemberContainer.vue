@@ -60,7 +60,7 @@ import { useBadgeStore } from '@/store/badge';
 import FloatButton from '../Global/FloatButton.vue';
 import Comment from '../Icons/CommentIcon.vue';
 import SortIcon from '../Icons/SortIcon.vue';
-import { DailyMessageUser } from '@/interface/globalInterface';
+import { DailyMessageUser, User } from '@/interface/globalInterface';
 const keyword = ref('')
 const router = useRouter()
 const prevScrollPosition = ref(0)
@@ -83,7 +83,7 @@ const sortableList = computed(() => {
         }));
     }
     return memberList.value.map(position => {
-        const filteredEmployees = position.employees.filter(employee => {
+        const filteredEmployees = position.employees.filter((employee: User) => {
             const name = employee.name || '';
             const email = employee.work_email || '';
             const phone = employee.phone_number || '';
@@ -138,8 +138,9 @@ const getMembers = async () => {
 const markAsRead = async () => {
     await api.get('/mark_condition_asread')
 }
-const scrollListen = (event) => {
-    scrollPos.value = event.target.scrollTop
+const scrollListen = (event: Event) => {
+    const target = event.target as HTMLElement;
+    scrollPos.value = target.scrollTop;
 }
 
 onActivated(() => {

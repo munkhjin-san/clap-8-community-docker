@@ -215,15 +215,25 @@ const editData = ref<Asset | null>(null)
 const possibleProjects = ref([])
 const loading = ref(false)
 const auth = useAuthUserStore()
-const searchQuery = reactive({
+const searchQuery = reactive<{
+    item_name: string;
+    model_number: string;
+    classification: number[];
+    status: number[];
+    office_id: number[];
+    user_id: number[];
+    gl_number: string;
+    confirm_status: string[];
+    [key: string]: any;
+}>({
     item_name: '',
     model_number: '',
-    classification: <number[]>[],
-    status: <number[]>[],
-    office_id: <number[]>[],
-    user_id: <number[]>(auth.isAdmin ? [] : [auth.activeUser.id]),
+    classification: [],
+    status: [],
+    office_id: [],
+    user_id: auth.isAdmin ? [] : [auth.activeUser.id],
     gl_number: '',
-    confirm_status: <string[]>[]
+    confirm_status: []
 })
 
 const assetsData = ref<{
@@ -265,7 +275,7 @@ const selectorOptions = computed(() => {
             { name: '確認済み', value: 'confirmed' },
             { name: '未確認', value: 'unconfirmed' }
         ]
-    }
+    } as Record<string, Array<{ name: string; value: string | number }>>
 })
 
 const searchQueryOptions = [

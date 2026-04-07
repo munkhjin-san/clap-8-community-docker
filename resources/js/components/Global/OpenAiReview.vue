@@ -24,6 +24,7 @@ import LoaderButton from './LoaderButton.vue';
 import { useDialog } from '@/composables/dialog';
 import { useApi } from '@/composables/api';
 import { useSSE } from '@/composables/sse';
+import { s } from 'vue-router/dist/router-CWoNjPRp.mjs';
 const props = defineProps<{
     sourceText?: string,
     assistandId?: number,
@@ -82,7 +83,7 @@ const openAiReview = async() => {
         }
         
     }catch(e){
-        ping(e)
+        ping(e as string)
     }        
 }
 defineExpose({reviewResultRaw, loading, validate})

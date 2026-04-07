@@ -234,6 +234,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::put('/update_view_from', [BoardController::class, 'update_view_from']);
     Route::post('/send_emote', [BoardController::class, 'send_emote']);
     Route::post('/post_send_emote', [PostController::class, 'post_send_emote']);
+    Route::post('/comment_send_emote', [PostController::class, 'comment_send_emote']);
     // Task
     Route::get('/task_list', [TaskController::class, 'getTask']); 
     Route::patch('/complete_task', [TaskController::class, 'completeTask']); 
@@ -420,6 +421,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/add_assign_action', [ProjectController::class, 'add_assign_action']);
         Route::post('/update_assign_support_level', [ProjectController::class, 'update_assign_support_level']);
         Route::post('/apply_assign_data_to_hr', [ProjectController::class, 'apply_assign_data_to_hr']);
+        Route::delete('/delete_assign_record/{assignRecord}', [ProjectController::class, 'delete_assign_record']);
 
         Route::get('/get_work_data', [WorkController::class, 'getWorkData']);
         Route::get('/get_shift_data', [WorkController::class, 'get_shift_data']);
@@ -481,6 +483,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/notice_delete_file', [NoticeController::class, 'notice_delete_file']);
         Route::post('/notice_add_record', [NoticeController::class, 'notice_add_record']);
         Route::delete('/notice_delete', [NoticeController::class, 'notice_delete']);
+        Route::get('/load_notice_body', [NoticeController::class, 'load_notice_body']);
 
         // Lessons
         Route::get('/get_lessons', [LessonController::class, 'get_lessons']);

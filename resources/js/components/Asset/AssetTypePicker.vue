@@ -60,41 +60,15 @@ import { useApi } from '@/composables/api';
     const selectedTag = defineModel<string>()
     const tagSelectorRef = ref<HTMLElement | null>(null)
     const searching = ref(false)
-    // onMounted(() => {
-    //     superFetch()
-    // })
     
     const searchKey = useDebouncedRef('')
-
-    // watch(() => searchKey.value, (after) => {   
-    //     console.log(after)
-    //     after ? normalFetch(after) : superFetch()
-       
-        
-    // })
-    // const normalFetch = async (key) => {
-    //     searching.value = true
-    //     const data = await api.post('/get_asset_types', {key: key, super: false})
-    //     tagOptions.value = []
-    //     // data.forEach((element:string) => {
-    //     //     tagOptions.value.push(element)
-    //     // });
-    //     searching.value = false   
-    // }
-    // const superFetch = async() => {
-    //     const data = await api.post('/get_asset_types', {key: '', super: true,}) 
-    //     // tagOptions.value = []
-    //     // data.forEach((element:string) => {
-    //     //     tagOptions.value.push(element)
-    //     // });    
-    // }
 
     const searchResult = computed(() => {
         if(!searchKey.value) return props.options
         return props.options.filter(tag => tag.toLocaleLowerCase().includes(searchKey.value.toLocaleLowerCase()))
     })
 
-    const update = (p) => {
+    const update = (p: string) => {
         selectedTag.value = p
         console.log(p)
     }

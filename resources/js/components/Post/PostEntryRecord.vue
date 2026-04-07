@@ -67,7 +67,7 @@ const body = computed(() => {
     
 })
 
-const cutter = (string, len) => {
+const cutter = (string: string, len:number) => {
     if(!string){
         return ''
     }

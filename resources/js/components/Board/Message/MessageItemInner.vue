@@ -238,7 +238,7 @@ import { DateTime } from "luxon";
     const api = useApi()
     const { setEmoteUsers } = useModal()
 
-    const startTouch = (event) => {
+    const startTouch = (event:Event) => {
         isLongPress.value = false
 
         longPressTimer.value = setTimeout(() => {
@@ -254,7 +254,7 @@ import { DateTime } from "luxon";
     const cancelTouch = () => {
         clearTimeout(longPressTimer.value)
     }
-    const onLongPress = (event) => {
+    const onLongPress = (event: Event) => {
         showItemMenu(event)
     }
     
@@ -328,8 +328,8 @@ import { DateTime } from "luxon";
             itemMenuRef.value.longTapAction(event)
         }
     }
-    const mentionClick = (event) => {            
-        const target = event.target;
+    const mentionClick = (event: Event) => {            
+        const target = event.target as HTMLElement;
         if (target.classList.contains('mntuser')) {
             const username = target.getAttribute('data-username');
             const striped = username ? username.replace(/@/g, "") : '';
@@ -368,7 +368,7 @@ import { DateTime } from "luxon";
         }
         messageUsers.setMessageUsers(data)
     }    
-    const emoteAction = (msg) => {
+    const emoteAction = (msg: Message) => {
         if(msg.user_id == auth.activeUser.id) return
         menu.setMenu({parent: `iokawaReactionPop_${msg.id}`})
     }  

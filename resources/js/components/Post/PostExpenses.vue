@@ -108,15 +108,16 @@ import { useApi } from '@/composables/api';
         emit('removeFile', props.fieldIndex)
         fileModel.value = null
     }
-    const fileSrc = (file) => {
+    const fileSrc = (file:string) => {
         return `/cdn/post_grant_files/${file}`
     }
-    const addAttachment = (event) => {
-        if(event.target.files && event.target.files.length){
-            uploadStart(event.target.files[0])
+    const addAttachment = (event: Event) => {
+        const target = event.target as HTMLInputElement;
+        if(target.files && target.files.length){
+            uploadStart(target.files[0])
         }
     }
-    const uploadStart = async(file) => {
+    const uploadStart = async(file: File) => {
         if(file){
             const formData = new FormData()                    
                                     

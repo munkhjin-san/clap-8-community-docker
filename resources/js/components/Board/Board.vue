@@ -166,7 +166,7 @@ import { useDashboardStore } from '@/store/dashboard'
     const pageLimiter = ref(false)
     const messageList = ref<Message[]>([])
     const copyData = ref<CopyData | null>(null)
-    const checkRequestData = ref(null)
+    const checkRequestData = ref<Message | null>(null)
     const microLoader = ref(false)
     const boardLoader = ref(false)
     const currentLen = ref(0)
@@ -174,14 +174,14 @@ import { useDashboardStore } from '@/store/dashboard'
     const messageContainerKey = ref(0)
     const queuedMessages = ref<Message[]>([])
     const messageLoader = ref(true)
-    const failedMessagesList = ref([])
+    const failedMessagesList = ref<Message[]>([])
     const trayComponentKey = ref(1999)
     const searchWindowKey = ref(27000)
     const advancedSearchWord = ref('')
     const searchMessageView = ref(false)
     const listType = ref('normal')
     const privateSearch = ref(false)
-    const searchTargetId = ref(null)
+    const searchTargetId = ref<number | null>(null)
     const scrllDir = ref('up')
     const appendLock = ref(false)
     const trayItemWhich = ref(-1)
@@ -193,7 +193,7 @@ import { useDashboardStore } from '@/store/dashboard'
     })
     const listKey = ref(986)
     const searchView = ref(true)
-    const inviteTarget = ref(null)
+    const inviteTarget = ref<Board | null>(null)
     const newBoardWindow = ref(false)
     const viewingMembersOf = ref<number | null>(null)
     const requestType = ref('')
@@ -341,21 +341,18 @@ import { useDashboardStore } from '@/store/dashboard'
         badge.getTaskBadge();      
         instance.on('refresh:board', updateBoardHandler)
     })        
-    const updateBoardHandler = (data) => {
+    const updateBoardHandler = (data:any) => {
         const related = data && data.length? data[0] : []
         if(related.includes(auth.id) || related.includes(auth.activeUser.id)){
             queueBoardListRefresh()
         }
     }
-    const socketMessageHandler = (data) => {        
+    const socketMessageHandler = () => {        
         if(openedBoard.value && listType.value == 'normal'){            
             getMessageList('pusher'); 
         }       
     }
-    const onPusher = (e) => {
 
-
-    }
     const reactiveMemberList = computed(() =>{
         return filteredAllBoard.value ? filteredAllBoard.value.filter(ob => ob.id == viewingMembersOf.value)[0] : null
         
@@ -366,11 +363,11 @@ import { useDashboardStore } from '@/store/dashboard'
         return route.params.chatId ? Number(route.params.chatId) : null
     })
 
-    const keyboardHeightListener = (event) => {
+    const keyboardHeightListener = (event: any) => {
         const { height } = event.target.boundingRect;
         keyboardStore.height = height
     }
-    const boardDelete = async(item) => {       
+    const boardDelete = async(item:Board) => {       
         const data = await api.post('/board_delete', { id: item.id }, {
             ask: 'チャットを削除しますか？',
             toast: '削除しました。'
@@ -383,7 +380,7 @@ import { useDashboardStore } from '@/store/dashboard'
         refreshBoardList()
     }
 
-    const afterRequestHandled = (response, id) => {
+    const afterRequestHandled = (response: string, id?: number) => {
         if(response === 'respondDeleted'){
             closeMessageContainer()
             refreshBoardList()
@@ -399,12 +396,12 @@ import { useDashboardStore } from '@/store/dashboard'
             })
         }
     }
-    const setTrayItem = (val) => {
+    const setTrayItem = (val: number) => {
         trayItemWhich.value = val
-        localStorage.setItem('favorite_tray', val)
+        localStorage.setItem('favorite_tray', val.toString())
     }
     
-    const appendSearchResult = async(dir) => {
+    const appendSearchResult = async(dir: string) => {
         if(scrllDir.value !== dir){
             scrllDir.value = dir
             appendLock.value = false 
@@ -448,14 +445,14 @@ import { useDashboardStore } from '@/store/dashboard'
         }
         setTimeout(() => {microLoader.value = false}, 200)    
     }
-    const jumpMessageFromFile = (file) => {                  
+    const jumpMessageFromFile = (file: { message_id: number, board_id: number }) => {                  
         const target = {
             id: file.message_id,
             record_id: file.board_id
         }                  
         jumpToMessage(target)                
     }
-    const jumpToMessage = async(message) => {
+    const jumpToMessage = async(message: { id: number, record_id: number }) => {
         messageLoader.value = true
         const data = await api.post('/get_target_message', message)
         if(data){              
@@ -483,7 +480,7 @@ import { useDashboardStore } from '@/store/dashboard'
         privateSearch.value = true
         searchMessageView.value = true
     }
-    const openMessageSearch = (keyword) => {
+    const openMessageSearch = (keyword:string) => {
         privateSearch.value = false
         advancedSearchWord.value = keyword
         // document.getElementById('boardSearchArea').blur();
@@ -493,18 +490,18 @@ import { useDashboardStore } from '@/store/dashboard'
         searchMessageView.value = false
     }
 
-    const openTargetBoard = (item) => {
+    const openTargetBoard = (item: Board) => {
         openBoard(item)
         setTimeout(() =>{document.getElementById('board_item_' + item.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })  },0)       
     }
-    const removeError = (id) => {
+    const removeError = (id: number | string | null) => {
         const index = queuedMessages.value.map(e => e.id).indexOf(id);        
         if(index > -1){
             queuedMessages.value = queuedMessages.value.filter(ob => ob.id !== id)
         }
         var failedList = localStorage.getItem('failed_messages');
         if(failedList){
-            let data = JSON.parse(failedList)
+            let data: Message[] = JSON.parse(failedList)
             const index = data.map(e => e.id).indexOf(id);
             if(index > -1){
                 data = data.filter( ob => ob.id !== id)
@@ -513,12 +510,12 @@ import { useDashboardStore } from '@/store/dashboard'
             }            
         }
     }
-    const sendError = (item) => {
+    const sendError = (item: Message) => {
         let err = item
         err.error = true
         var failedList = localStorage.getItem('failed_messages');
         if(failedList){
-            let data = JSON.parse(failedList)
+            let data: Message[] = JSON.parse(failedList)
             const index = data.map(e => e.id).indexOf(item.id);
             if(index == -1){
                 data.push(err)
@@ -531,11 +528,11 @@ import { useDashboardStore } from '@/store/dashboard'
         }
         openedBoard.value && getUnsentMessages(openedBoard.value.id)        
     }
-    const sentMessage = (item, list: Message[], last_message:any) => {
+    const sentMessage = (item: Message, list: Message[], last_message: any) => {
         pageIndex.value = 1;
         pageLimiter.value = false
-        if(item){
-            removeError(item.id)
+        if(item && item.id){
+            removeError(Number(item.id))
             let box = document.getElementById('queueMessage_' + item.u_id);                       
             if(box){                            
                 box.style.display = 'none'
@@ -586,7 +583,7 @@ import { useDashboardStore } from '@/store/dashboard'
             microLoader.value = true
         }       
     }
-    const remindRequest = async(message) => {
+    const remindRequest = async(message: Message) => {
         const res = await api.post('/remind_add', { id: message.id })
         const inf = res.reminded === true ? 'リマインドしました。' : 'リマインドを取り消しました。'
         toast(inf)
@@ -594,7 +591,7 @@ import { useDashboardStore } from '@/store/dashboard'
         refreshMessages(res.data)
         
     }
-    const checkRequest = (data, request) => {
+    const checkRequest = (data: any, request: any) => {
         checkRequestData.value = data
         requestType.value = request
     }
@@ -602,7 +599,7 @@ import { useDashboardStore } from '@/store/dashboard'
     const getUnsentMessages = (id?:number) => {
         var failedList = localStorage.getItem('failed_messages');
         if(failedList){
-            let data = JSON.parse(failedList)
+            let data:Message[] = JSON.parse(failedList)
             failedMessagesList.value = data.filter(ob => ob.user_id == auth.activeUser.id)
             const failed = data.filter(ob => ob.record_id == id && ob.user_id == auth.activeUser.id)
             if(failed.length){
@@ -710,8 +707,8 @@ import { useDashboardStore } from '@/store/dashboard'
                 nextMessageCursor.value = response?.messages?.next_cursor ?? null
                 reachedMessageEnd.value = !nextMessageCursor.value
             }else if(rows.length){
-                const existingIds = new Set(messageList.value.map(ob => ob.id))
-                const freshRows = rows.filter(ob => !existingIds.has(ob.id))
+                const existingIds = new Set(messageList.value.map((ob: Message) => ob.id))
+                const freshRows = rows.filter((ob: Message) => !existingIds.has(ob.id))
                 if(freshRows.length){
                     messageList.value = freshRows.concat(messageList.value)
                 }
@@ -757,7 +754,7 @@ import { useDashboardStore } from '@/store/dashboard'
             
         }
     }
-    const boardEditFinished = (id) => {
+    const boardEditFinished = (id: number) => {
         const anchorId = getRefreshAnchorId()
         getBoardList('refresh', anchorId, false).then(() => {
             if(id){
@@ -772,7 +769,7 @@ import { useDashboardStore } from '@/store/dashboard'
             getMessageList()
         }
     }
-    const onScroll = (e) => {
+    const onScroll = (e:Event) => {
         const el = e.currentTarget as HTMLElement
         if (el.scrollTop + el.clientHeight >= el.scrollHeight - 100) {
             getBoardList('scroll')
@@ -867,7 +864,7 @@ import { useDashboardStore } from '@/store/dashboard'
         }
        
     }
-    const pinBoard = async(id) => {           
+    const pinBoard = async(id: number) => {           
         const data = await api.post('/pin_board_api', {group_id: id})
         refreshBoardList()
         if(data?.pin_flag === 1){
@@ -876,7 +873,7 @@ import { useDashboardStore } from '@/store/dashboard'
             toast('ピン留めを解除しました。')
         }
     }
-    const setNotification = async(id) => {
+    const setNotification = async(id: number) => {
       
         const response = await api.post('/notification_board', {group_id: id})
         refreshBoardList()
@@ -885,7 +882,7 @@ import { useDashboardStore } from '@/store/dashboard'
         toast(`通知設定を${flags[flag]}にしました。`)
    
     }
-    const leaveBoard = async(board) => {  
+    const leaveBoard = async(board: Board) => {  
 
         const data = await api.post('/leave_board', {id: board.id}, {
             ask: `<strong>${board.title}</strong> チャットを退出します。よろしいですか?`,
@@ -899,7 +896,7 @@ import { useDashboardStore } from '@/store/dashboard'
         removeBoardFromList(board.id)
         refreshBoardList()
     }
-    const setInvite = (item) => {
+    const setInvite = (item: Board) => {
         viewingMembersOf.value = null
         setTimeout(() => {
             inviteTarget.value = item
@@ -921,7 +918,7 @@ import { useDashboardStore } from '@/store/dashboard'
         setTrayItem(1)
         trayComponentKey.value ++
     }
-    const refreshMessages = (message, oldId?: number) => {
+    const refreshMessages = (message:Message, oldId?: number) => {
         const targetId = oldId ? oldId : message.id
         const index = messageList.value.map( ob => ob.id).indexOf(targetId)
         if (index > -1) {
@@ -961,7 +958,7 @@ import { useDashboardStore } from '@/store/dashboard'
     provide('shareToTask', shareToTask)
     provide('closeMessageContainer', closeMessageContainer)   
     provide('reload', refreshBoardList)      
-    defineExpose({getBoardList, refreshBoardList, unreadLineTrigger, getMessageList, onPusher, refreshMessages})
+    defineExpose({getBoardList, refreshBoardList, unreadLineTrigger, getMessageList, refreshMessages})
 </script>
     
     

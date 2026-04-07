@@ -9,6 +9,7 @@
                 :key="index"
                 :comment="comment"
                 @deleteComment="commentDeleteConfirm"
+                @updateComment="updateComment"
             />
             <div v-if="fetch == 0" id="loaderMini" style="position: absolute;background: var(--bg3);z-index: 5;">
                 <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
@@ -64,7 +65,6 @@
 <script setup lang="ts">
 import Comment from './Comment.vue';
 import { defineAsyncComponent, inject, nextTick, onMounted, provide, ref, useTemplateRef } from 'vue'
-import 'vue3-emoji-picker/css'
 import { useMenuStore } from "@/store/menu";
 import { useApi } from '@/composables/api';
 import { PostMethods, PostMethodsKey } from '@/interface/keys';
@@ -83,7 +83,7 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
         load('mounted')
     })
    
-    const load = async(from) => {
+    const load = async(from:string) => {
         
         const response = await api.post('get_post_comments',{ 
             record_id: props.record.id, 
@@ -109,7 +109,7 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
     }
 
 
-    const selectEmoji = (emoji) => {     
+    const selectEmoji = (emoji:{i: string}) => {     
         if(!typeArea.value) return;  
         var a = typeArea.value.textContent as string
         var b = emoji.i;
@@ -118,7 +118,7 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
         typeArea.value.textContent = output
         caretPosition.value = caretPosition.value + 2;
     }    
-    const commentDeleteConfirm = async(id) =>{        
+    const commentDeleteConfirm = async(id: number) =>{        
         await api.post('post_comment_delete', {id: id}, {
             
             ask: 'コメントを削除しますか。',
@@ -126,6 +126,12 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
 
         })
         load('')
+    }
+    const updateComment = (updated: any) => {
+        const index = comments.value.findIndex((c: any) => c.id === updated.id)
+        if (index !== -1) {
+            comments.value[index] = updated
+        }
     }  
          
             
@@ -145,7 +151,7 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
         
         caretPosition.value = caretOffset        
     }
-    const commentSend = async (recordId) => {     
+    const commentSend = async (recordId: number) => {     
         const text = typeArea.value?.textContent?.trim();
         sendLoader.value = true;         
         const params = { message : text , app_name: props.app_name, record_id: recordId}; 
@@ -157,7 +163,7 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
         load('self')     
                            
     }
-    const enterSend = (event) => {
+    const enterSend = (event: KeyboardEvent) => {
         if(event.altKey){
             commentSend(props.record.id)
         }

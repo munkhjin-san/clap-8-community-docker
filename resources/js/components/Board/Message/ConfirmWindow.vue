@@ -105,8 +105,14 @@ import { useBoardList } from '@/composables/board';
 import { DateTime } from 'luxon';
 import ShortInput from '@/components/Form/ShortInput.vue';
 import { useTheme } from '@/store/theme';
+import { Message } from '@/interface/globalInterface';
     const auth = useAuthUserStore()
-    const props = defineProps(['message', 'requestType', 'file'])
+    // const props = defineProps(['message', 'requestType', 'file'])
+    const props = defineProps<{
+        message: Message;
+        requestType: string;
+        file?: any;
+    }>()
     const emit = defineEmits(['close'])
     const processing = ref(false)
     const prepare = ref(0)
@@ -132,8 +138,8 @@ import { useTheme } from '@/store/theme';
         }
         return users
     })
-    const selectAllMembers = (event) => {     
-        if(event.target.checked){
+    const selectAllMembers = (event: Event) => {     
+        if((event.target as HTMLInputElement).checked){
             selectedMembers.value = targetUsers.value.map(ob => ob.id)
         }else{
             selectedMembers.value = []
@@ -152,7 +158,7 @@ import { useTheme } from '@/store/theme';
         const confirmed = await ask(message)
         if(!confirmed.value || processing.value) return
         processing.value = true
-        let params = {
+        let params: Record<string, any> = {
             users: selectedMembers.value,
             type: props.requestType
         }

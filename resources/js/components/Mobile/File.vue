@@ -35,11 +35,12 @@ import { inject } from 'vue';
 import { useRouter } from 'vue-router';
 import Back from '../Icons/Back.vue';
 import { useBoardList } from '@/composables/board';
+import { MessageFile } from '@/interface/globalInterface';
     const router = useRouter()
     const emit = defineEmits(['jumpToMessage'])    
     const { openedBoard } = useBoardList()
  
-    const jumpToMessage = (file) => {
+    const jumpToMessage = (file:MessageFile) => {
         emit('jumpToMessage', file)
     }
 </script>

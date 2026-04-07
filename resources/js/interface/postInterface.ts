@@ -110,6 +110,7 @@ export interface PostComment {
     user: User;
     user_id: number;
     claps: Clap[];
+    emoted_users: EmoteUser[];
 }
 export interface TopEntryUser {
     user: User;

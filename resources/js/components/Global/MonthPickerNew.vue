@@ -41,9 +41,8 @@ import { useBadgeStore } from '@/store/badge';
         min?: string;
         max?: string;
     }>()
-    
     const emit = defineEmits<{
-        (e: 'setDate', date: {year:number, month: MonthNumbers, select?:boolean, day?: DayNumbers})
+        'setDate': [{year:number, month: MonthNumbers, select?:boolean, day?: DayNumbers}]
     }>()
 
     const month = defineModel<MonthNumbers>('month')

@@ -36,7 +36,7 @@
         <div v-if="targetedSearch" style="padding: 0 20px;margin-bottom: 15px;">
             <div v-for="board in targetBoards" class="chat-search-select">
                 <BoardIcon :item="board" size="25"/>
-                <BoardTitlePreLoad style="overflow:hidden" :item="board" titleStyle="line-height: 1.3;font-size: 12px;"/>
+                <BoardTitle style="overflow:hidden" :item="board" titleStyle="line-height: 1.3;font-size: 12px;"/>
                 <span style="white-space: nowrap;font-size:12px;">({{board.occurence}}件)</span>
                 <div @click="resetTargetSearch" style="width:15px;height:15px;margin:auto 0;display: flex;cursor:pointer">
                     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 32 32" class="dot-menu" style="margin: auto;">
@@ -219,13 +219,10 @@ import { useBoardList } from '@/composables/board';
         
     })
  
-    const messageUserName = (message) => {                
+    const messageUserName = (message:MessageResult) => {                
         return message.user.deleted_at == null ? message.user.name : '非アクティブユーザー'
     }
-    const boardItem = (id:number) => {
-        return props.filteredAllBoard.filter(ob => ob.id == id)[0]
-    }
-    const getMessageSearch = async(key, val?, val2?) => {
+    const getMessageSearch = async(key: string, val?: number, val2?: boolean) => {
         if(searchLoader.value || searchMiniLoader.value || !key) return
         
         searchLoader.value = true
@@ -263,11 +260,11 @@ import { useBoardList } from '@/composables/board';
   
 
     }
-    const setActivePage = (page) => {
+    const setActivePage = (page: number) => {
         messageResult.value.currentPage = page
         getMessageSearch(keyword.value)
     }
-    const setNavi = (val) => {
+    const setNavi = (val: number) => {
         messageResult.value.currentPage = messageResult.value.currentPage + val
         getMessageSearch(keyword.value)
     }
@@ -292,7 +289,7 @@ import { useBoardList } from '@/composables/board';
 
         }
     }
-    const onClickSearch = (event) => {
+    const onClickSearch = (event: Event) => {
         const target = event.target as HTMLElement
         const el = document.getElementById('historyWrapWindow')
         const input = document.getElementById('advancedSearchInput')
@@ -342,7 +339,7 @@ import { useBoardList } from '@/composables/board';
         getMessageSearch(keyword.value, -1, true)
 
     }
-    const searchInTarget = (board) => {
+    const searchInTarget = (board: Board) => {
         targetBoards.value = [];
         targetBoards.value.push(board)
         targetedSearch.value = true
@@ -359,7 +356,7 @@ import { useBoardList } from '@/composables/board';
         searchResultGroupBy.value = boards
         resultGroupBy.value = 'board'
     }
-    const searchMessageBody = (text) => {                
+    const searchMessageBody = (text: string) => {                
         const a = text.replace(keyword.value, "<span style='background: yellow;color:#000'>" + keyword.value + "</span>");           
         let r = urlCheck(a);                
         return r

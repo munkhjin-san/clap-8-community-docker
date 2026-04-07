@@ -47,7 +47,9 @@ export interface BoardMember {
     user: User;
     user_id: number | null;
     notification: number;
-    view_from: string
+    view_from: string;
+    created_at: string;
+    updated_at: string;
 }
 export interface Tag {
     text: string;

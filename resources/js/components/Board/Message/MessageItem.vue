@@ -91,7 +91,7 @@ import { useSharingDataStore } from '@/store/sharingData';
     }   
     const shareMenuItems = computed(() => {
         const list:MenuList[]= []; 
-        function addItem(title, action) {
+        function addItem(title: string, action: () => void) {
             list.push({ title, action });
         }
         const builtInApps = [
@@ -114,7 +114,7 @@ import { useSharingDataStore } from '@/store/sharingData';
         const canConfirm = props.message.emoji_flag == 0 && openedBoard.value.private_flag !== 3
         const isDraft = props.message.draft_flag
         const list:MenuList[] = []; 
-        function addItem(title, action) {
+        function addItem(title: string, action: () => void) {
             list.push({ title, action });
         }
         if(authorized.value){
@@ -147,7 +147,7 @@ import { useSharingDataStore } from '@/store/sharingData';
 
         return list
     })
-    const replyQuotStart = (which) => { 
+    const replyQuotStart = (which: string) => { 
         const innerEl = messageBox.value
         if(!innerEl) return
         const body = innerEl.messageBoxBody
@@ -216,7 +216,7 @@ import { useSharingDataStore } from '@/store/sharingData';
         })             
     }
 
-    const deleteMessage = async (id) => {        
+    const deleteMessage = async (id: number) => {        
         const data = await api.post('/chat_delete_api', {id: id}, {
             ask: 'メッセージを削除してもよろしいですか？',
             toast: 'メッセージを削除しました。'
@@ -224,7 +224,7 @@ import { useSharingDataStore } from '@/store/sharingData';
         if (!data) return 
         refreshMessages(data)
     }
-    const markUnread = async(id) => {
+    const markUnread = async(id: number) => {
         menu.close()
         const response = await api.post('/chat_mark_unread', {
             message_id: id,
@@ -241,9 +241,9 @@ import { useSharingDataStore } from '@/store/sharingData';
         close()
 
     }
-    const reactOrCheck = async(msg) => {        
+    const reactOrCheck = async(msg: Message) => {        
         if(msg.user_id == auth.activeUser.id) return    
-        reacting.value = msg.reacted_users.filter(ob => ob.id == auth.activeUser.id).length ? false : true    
+        reacting.value = msg?.reacted_users?.filter(ob => ob.id == auth.activeUser.id).length ? false : true    
         
         const message = await api.post('/send_reaction_api', {id: msg.id})
         refreshMessages(message)
@@ -253,10 +253,10 @@ import { useSharingDataStore } from '@/store/sharingData';
         } 
            
     }   
-    const finishCheck = async(checkedMessage) => {
-        const checked = checkedMessage.checked_users.filter(ob => ob.id == auth.activeUser.id).length
-        const unchecked = checkedMessage.unchecked_users.filter(ob => ob.id == auth.activeUser.id).length
-        const reacted = checkedMessage.reacted_users.filter(ob => ob.id == auth.activeUser.id).length          
+    const finishCheck = async(checkedMessage: Message) => {
+        const checked = checkedMessage.checked_users?.filter(ob => ob.id == auth.activeUser.id).length
+        const unchecked = checkedMessage.unchecked_users?.filter(ob => ob.id == auth.activeUser.id).length
+        const reacted = checkedMessage.reacted_users?.filter(ob => ob.id == auth.activeUser.id).length          
         if(unchecked && reacted){     
             const confirmed = await ask('確認済みにしますか')
             if(confirmed.value){
@@ -270,7 +270,7 @@ import { useSharingDataStore } from '@/store/sharingData';
             ping('既に確認しています。')  
         }
     }    
-    const fastPreCheckEmote = (name) => {
+    const fastPreCheckEmote = (name: string) => {
         // pretend to send emote api for fast response
         const checkExist = props.message.emoted_users?.find(ob => ob.id == auth.activeUser.id)
         if(checkExist){
@@ -313,7 +313,7 @@ import { useSharingDataStore } from '@/store/sharingData';
             })
         }
     }
-    const sendEmote = async(name) => {
+    const sendEmote = async(name: string) => {
         menu.close()
         fastPreCheckEmote(name)
         const data = await api.post('/send_emote', {id: props.message.id, reaction: name})
@@ -339,7 +339,7 @@ import { useSharingDataStore } from '@/store/sharingData';
     }
     const shareToTask = inject<Function>('shareToTask') as Function
 
-    const shareTo = (to) => {
+    const shareTo = (to: string) => {
         if(to == 'external'){
             navigator.share({
                 text: props.message.message?.toString(),

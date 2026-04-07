@@ -289,12 +289,12 @@ export const useBadgeStore = defineStore('badge', () => {
         return (filterData: {by: string, value: any}[]) => {
             const userComments = task_comment.value;
             return userComments.filter((comment) => {
-                return filterData.every((filter) => comment[filter.by] === filter.value);
+                return filterData.every((filter) => comment[filter.by as keyof typeof comment] === filter.value);
             });
         };
     });
 
-    const financeCommentBadgeByFilter = computed(() => {
+    const financeCommentBadgeByFilter = computed(() => {``
         return (filterData: { by: string; value: any }) =>
             finance_comment.value?.projects?.find(
                 (comment) => comment.project_id === filterData.value

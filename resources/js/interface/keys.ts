@@ -52,7 +52,7 @@ type DivisionMethods = {
 
 type GanttMethods = {
     create: (args: Partial<Task>) => void
-    reload: (args) => Promise<void>;
+    reload: (args:any) => Promise<void>;
     fastCreate: (args: FastCreateData) => void
 
     jumpTo: (instance: DateTime) => void
@@ -61,7 +61,7 @@ type GanttMethods = {
 
 type GanttProjectMethods = {
     createTask: (args: Partial<Task>) => void
-    refreshProject: (args) => Promise<void>;
+    refreshProject: (args:any) => Promise<void>;
     remove: (task: Task) => void
     addSubTask: (data: SubTaskPreData) => void
 }

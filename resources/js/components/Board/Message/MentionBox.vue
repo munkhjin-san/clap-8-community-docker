@@ -18,16 +18,17 @@
     </ul>
 </template>
 <script setup lang="ts">
-import { inject, onMounted, onUnmounted, ref, computed } from 'vue';
+import { inject, onMounted, onUnmounted, ref, computed, useTemplateRef } from 'vue';
 import BoardIcon from '../Mixed/BoardIcon.vue';
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { useKeyboardStore } from '@/store/keyboardStore';
 import { useBoardList } from '@/composables/board';
+import { User } from '@/interface/globalInterface';
     const props = defineProps(['mentionAbleList', 'forced', 'fromProject'])
     const emit = defineEmits(['mentionUser', 'close'])
     const { openedBoard } = useBoardList()
     const highlighted = ref(-1)
-    const innerMention = ref(null)
+    const innerMention = useTemplateRef('innerMention')
     const keyboardStore = useKeyboardStore()
     onUnmounted(() => {
         window.removeEventListener('keydown', mentionBoxNavigation);
@@ -38,8 +39,8 @@ import { useBoardList } from '@/composables/board';
         window.addEventListener('keydown', mentionBoxNavigation);
         window.addEventListener('click', clickHandler)
     })
-    const clickHandler = (event) => {
-        if(innerMention.value && !event.target.contains(innerMention.value)){
+    const clickHandler = (event:Event) => {
+        if(innerMention.value && !innerMention.value.contains(event.target as Node)){
             emit('close')
         }
     }
@@ -86,10 +87,10 @@ import { useBoardList } from '@/composables/board';
         }
 
     }
-    const mentionUser = (user, index) => {
+    const mentionUser = (user:User, index:number | string) => {
         emit('mentionUser', user, index)
     }
-    const mentionBoxNavigation = (event) => { 
+    const mentionBoxNavigation = (event:KeyboardEvent) => { 
         if(innerMention.value && props.mentionAbleList.length){
             document.querySelectorAll("li").forEach((el) => {el.setAttribute('tabindex', '0')});
             if(event.which === 38 || event.which === 40){

@@ -94,7 +94,7 @@ import { useDashboardStore } from '@/store/dashboard';
         getBatchDashboardData(['challenges'])
         
     }
-    const selectStatus = (id) => {
+    const selectStatus = (id: number) => {
         selected.value = id
     }
 </script>

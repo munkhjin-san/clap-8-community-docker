@@ -76,7 +76,7 @@ import { validator } from '@/validation/validator';
        
         
     })
-    const normalFetch = async(key) => {
+    const normalFetch = async(key: string) => {
         searching.value = true
         const data = await api.post('/get_partners_tags', {key: key, super: false})
         tagOptions.value = []
@@ -96,7 +96,7 @@ import { validator } from '@/validation/validator';
 
 
 
-    const update = (p) => {
+    const update = (p: string[]) => {
         selectedTag.value = p
         setTimeout(() => {
             validate()

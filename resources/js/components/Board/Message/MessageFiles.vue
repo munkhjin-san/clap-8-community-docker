@@ -1,6 +1,6 @@
 <template>
     <div class="file-area-content">
-        <div class="file-wrap" draggable="true" @dragover.prevent @dragstart.prevent="fileExportStart(file, message.record_id)" v-for="(file, index) in filteredFiles" :class="{ hasMessage: (message.message && message.message.length)}">   
+        <div class="file-wrap" draggable="true" @dragover.prevent @dragstart.prevent="fileExportStart(file)" v-for="(file, index) in filteredFiles" :class="{ hasMessage: (message.message && message.message.length)}">   
             <div class="file-area-container" @click="previewFile(file, index)">
                 <div class="flex-centered">             
                     <div style="max-width:65px;height:40px;display: flex;">                   
@@ -35,7 +35,7 @@
             </div>                                             
         </div>
         <Teleport to="#override">
-            <ConfirmWindow v-if="confirmWindow" :requestType="requestType" :message="signRequestData" :file="currentFile" @close="confirmWindow = false"/>
+            <ConfirmWindow v-if="confirmWindow && signRequestData" :requestType="requestType" :message="signRequestData" :file="currentFile" @close="confirmWindow = false"/>
         </Teleport>
     </div>
 </template>
@@ -52,7 +52,7 @@ import { useMenuStore } from "@/store/menu";
 import { useMessageUsers } from '@/store/messageUsers'
 import { useSharingDataStore } from '@/store/sharingData'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
-import { MenuList, Message, MessageFile } from "@/interface/globalInterface";
+import { MenuList, Message, MessageFile, User } from "@/interface/globalInterface";
     const sharingData = useSharingDataStore()
     const messageUsers = useMessageUsers()    
     const menu = useMenuStore()
@@ -65,7 +65,7 @@ import { MenuList, Message, MessageFile } from "@/interface/globalInterface";
     }>()
     const fileMenuLayer = ref(0)
     const confirmWindow = ref(false)
-    const currentFile = ref(null)
+    const currentFile = ref<MessageFile | null>(null)
     const signRequestData = ref<Message | null>(null)
     const requestType = ref('')
     const router = useRouter()
@@ -91,9 +91,9 @@ import { MenuList, Message, MessageFile } from "@/interface/globalInterface";
         }
         return filteredFiles
     })
-    const fileMenuItems = (file) => {
+    const fileMenuItems = (file:MessageFile) => {
         const list:MenuList[] = []; 
-        function addItem(title, action) {
+        function addItem(title: string, action: () => void) {
             list.push({ title, action });
         }
         addItem('ダウンロード', () => downloadFile(file))
@@ -120,7 +120,7 @@ import { MenuList, Message, MessageFile } from "@/interface/globalInterface";
         
         return list
     }
-    const downloadFile = (file) => {
+    const downloadFile = (file:MessageFile) => {
         closeMenu()
         let src, name;               
         
@@ -138,13 +138,13 @@ import { MenuList, Message, MessageFile } from "@/interface/globalInterface";
     const closeMenu = () => {
         menu.setMenu( {id: null, name: ''})
     }
-    const signRequest = (file) => {
+    const signRequest = (file:MessageFile) => {
         signRequestData.value = props.message
         confirmWindow.value = true
         requestType.value = 'sign'
         currentFile.value = file
     }
-    const shareTo = (to, file) => {
+    const shareTo = (to: string, file:MessageFile) => {
         const shareData = {
             active: true,
             title: '',
@@ -170,7 +170,7 @@ import { MenuList, Message, MessageFile } from "@/interface/globalInterface";
         return false
         
     }
-    const viewUsersList = (users, title) => {
+    const viewUsersList = (users: User[], title: string) => {
         const data = {
             active: true,
             userList: users,
@@ -179,7 +179,7 @@ import { MenuList, Message, MessageFile } from "@/interface/globalInterface";
         messageUsers.setMessageUsers(data)
         
     }
-    const fileExportStart = (file, record_id) => {
+    const fileExportStart = (file: MessageFile) => {
         const shareData = {
             active: true,
             title: '',
@@ -191,7 +191,7 @@ import { MenuList, Message, MessageFile } from "@/interface/globalInterface";
         }
         sharingData.setSharingData(shareData)
     }
-    const multipleFile = (file, index) => {
+    const multipleFile = (file: MessageFile, index: number) => {
         let select = <MessageFile[]>[]
         const unsignedUsers = file.unsigned_users || [];
         const signedUsers = file.signed_users || [];
@@ -229,7 +229,7 @@ import { MenuList, Message, MessageFile } from "@/interface/globalInterface";
         }
         return select
     }
-    const previewFile = (file, index) => {
+    const previewFile = (file: MessageFile, index: number) => {
         if(sharingData.active) return
         let selectedItem = multipleFile(file, index)
         let file_list = selectedItem
@@ -240,7 +240,7 @@ import { MenuList, Message, MessageFile } from "@/interface/globalInterface";
             doc_path: `/shared_files/${props.message.record_id}/${fileData.id}_${fileData.user_id}_${fileData.message_id}.${fileData.extension}`
         }));
         
-        let target_data = selectedItem
+        let target_data: Record<string, any> = selectedItem
         target_data['source_board_id'] = props.message.record_id
         const data = {
             active: true,
@@ -252,10 +252,10 @@ import { MenuList, Message, MessageFile } from "@/interface/globalInterface";
         }
         filePreview.setFilePreview(data)
     }
-    const fileNameFilter = (file) => {
+    const fileNameFilter = (file: MessageFile) => {
         return file.name;
     }
-    const fileSizeView = (bytes) => {
+    const fileSizeView = (bytes: number) => {
         if(bytes > 1000000) return filesize(bytes, {standard: "jedec", round: 1});
         else return filesize(bytes, {standard: "jedec", round: 0});
     }

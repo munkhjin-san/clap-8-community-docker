@@ -75,8 +75,11 @@ import { computed, ref } from 'vue';
 import BoardTitle from './Mixed/BoardTitle.vue';
 import { DateTime } from 'luxon';
 import Modal from '../Global/Modal.vue';
+import { Board } from '@/interface/globalInterface';
 
-    const props = defineProps(['board'])
+    const props = defineProps<{
+        board: Board
+     }>()
     const emit = defineEmits(['close'])
     const admins = computed(() => {
         return props.board.board_to_users.filter( ob => ob.admin_flag).map( ob => ob.user)
