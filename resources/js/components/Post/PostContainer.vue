@@ -73,21 +73,46 @@
                         <PostIcon which="2" size="20"/>
                         {{ apps[2] }}
                     </router-link>
+                    <!-- <router-link :to="`/${appName}?app_type=6`" :class="['pt-selector']">
+                        <PostIcon which="6" size="20"/>
+                        {{ apps[6] }}
+                    </router-link> -->
                 </div>                
             </div>
             <div class="p-tag-container">
-                <div v-if="tagLoading == 0" :class="['p-tag-wrap']">
-                    <div class="tag-skeleton" :style="{width: randomWidth()}" :index="num" v-for="num in 30"></div>                    
-                </div> 
-                <div v-else :class="['p-tag-wrap', {'p-tag-expand' : topTags.expanded}]">
-                    <router-link :to="`/${String(appName)}?search_tags=${tag.text}`" class="jump-link" v-for="tag in topTags.tags">#{{ sanitized(tag.text) }} ({{ tag[`${String(appName)}_occurence_count` as keyof typeof tag] }})</router-link>
-                </div>  
-                
-                <div style="padding: 0px 20px 10px 20px;display: flex;justify-content: center;gap: 10px;align-items: center;" @click="topTags.setExpanded()">                                      
-                    <div title="すべて表示する" class="selector-accordion-el">
-                        <Back :class="['selector-accordion-inactive' , {'selector-accordion-active' : topTags.expanded}]" v-show="tagLoading > 0" size="11" fill="var(--primary-color)"/>
+                <div class="tag-strip">
+                    
+
+                    <div v-if="tagLoading == 0" class="p-tag-wrap p-tag-wrap--skeleton">
+                        <div
+                            v-for="num in skeletonCount"
+                            :key="num"
+                            class="tag-skeleton"
+                            :style="{ width: randomWidth() }"
+                        ></div>
                     </div>
-                </div>          
+
+                    <div v-else class="tag-strip__body">
+                        
+
+                        <div class="p-tag-wrap">
+                            <router-link
+                                v-for="tag in previewTags"
+                                :key="tag.id"
+                                :to="tagLink(tag.text)"
+                                :class="['tag-chip', { 'tag-chip--active': isCurrentTag(tag.text) }]"
+                            >
+                                <span>#{{ sanitized(tag.text) }}</span>
+                                <span>({{ tagCount(tag) }})</span>
+                            </router-link>
+                        </div>
+                    </div>
+                    <div class="tag-strip__footer" @click="openTagPicker">
+                        <div title="すべて見る" class="selector-accordion-el">
+                            <Back :class="['selector-accordion-inactive' , {'selector-accordion-active' : topTags.expanded}]" v-show="tagLoading > 0" size="11" fill="var(--primary-color)"/>
+                        </div>
+                    </div>
+                </div>
             </div>
             
             <transition-group name="slidePop" tag="div" style="display: flex;flex-direction: column;gap: 40px;">
@@ -150,6 +175,77 @@
         <Transition name="modalFade">
             <PostEntryRanking :ranking="topRecords" v-if="viewFullRanking" @close="viewFullRanking = false"/>
         </Transition>
+        <Transition name="modalFade">
+            <div
+                v-if="tagPickerOpen"
+                class="tag-picker-overlay"
+                @mousedown="closeTagPicker"
+            >
+                <div
+                    class="tag-picker-sheet"
+                    @mousedown.stop
+                >
+                    <div class="tag-picker-sheet__header">
+                        <div>
+                            <!-- <p class="tag-picker-sheet__eyebrow">人気タグ</p> -->
+                            <p class="tag-picker-sheet__title">タグから探す</p>
+                            <p class="tag-picker-sheet__description">投稿一覧はそのままにして、タグだけをまとめて選べます。</p>
+                        </div>
+                        <button type="button" class="tag-picker-sheet__close" @click="closeTagPicker">
+                            <CloseIcon size="12" />
+                        </button>
+                    </div>
+
+                    <div class="tag-picker-sheet__toolbar">
+                        <div v-if="currentTagLabel" class="tag-picker-sheet__active">
+                            <span class="tag-picker-sheet__active-label">選択中のタグ</span>
+                            <router-link
+                                :to="`/${String(appName)}?search_tags=${currentTagLabel}`"
+                                class="tag-chip tag-chip--active"
+                                @click="closeTagPicker"
+                            >
+                                #{{ currentTagLabel }}
+                            </router-link>
+                        </div>
+
+                        <router-link
+                            v-if="currentTagLabel"
+                            :to="`/${String(appName)}`"
+                            class="tag-picker-sheet__reset"
+                            @click="closeTagPicker"
+                        >
+                            タグ絞り込みを解除
+                        </router-link>
+                    </div>
+
+                    <div class="tag-picker-sheet__search">
+                        <input
+                            v-model="tagSearch"
+                            type="text"
+                            class="tag-picker-sheet__search-input"
+                            placeholder="タグ名で検索"
+                        >
+                    </div>
+
+                    <div class="tag-picker-sheet__body scrollable">
+                        <router-link
+                            v-for="tag in filteredTags"
+                            :key="tag.id"
+                            :to="tagLink(tag.text)"
+                            :class="['tag-picker-item', { 'tag-picker-item--active': isCurrentTag(tag.text) }]"
+                            @click="closeTagPicker"
+                        >
+                            <span class="tag-picker-item__name">#{{ sanitized(tag.text) }}</span>
+                            <span class="text-sm">({{ tagCount(tag) }})</span>
+                        </router-link>
+
+                        <div v-if="tagLoading > 0 && !filteredTags.length" class="tag-picker-sheet__empty">
+                            該当するタグがありません。
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </Transition>
     </div>
     <div v-else style="height: 100%;width: 100%;">
         <div v-if="responsive.mobile" style="min-height: 60px;display: flex;align-items: center">
@@ -170,7 +266,7 @@ import Charge from './Charge.vue';
 import Status from './Status.vue';
 import PostSearchWindow from './PostSearchWindow.vue'
 import PostIcon from './PostIcon.vue';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { LocationQueryValue, useRoute, useRouter } from 'vue-router'
 import { provide } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
@@ -180,13 +276,13 @@ import { useBadgeStore } from '@/store/badge'
 import { useTopTags } from '@/store/topTags'
 import { instance } from '@/utils/broadcaster';
 import { onUnmounted } from 'vue';
-import Back from '../Icons/Back.vue';
 import { useApi } from '@/composables/api';
 import { Post, PostEntry, PostQuery, TopEntryUser } from '@/interface/postInterface';
 import { PostMethodsKey } from '@/interface/keys';
 import PostEntryCreate from './PostEntryCreate.vue';
 import PostEntryRanking from './PostEntryRanking.vue';
-import { useTheme } from '@/store/theme';
+import CloseIcon from '../Form/CloseIcon.vue';
+import Back from '../Icons/Back.vue';
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
@@ -208,8 +304,9 @@ import { useTheme } from '@/store/theme';
     const topTags = useTopTags()
     const apps = ['ナイス', 'ナレッジ', 'チャレンジ', 'ノート', 'ヘルプ', 'グラリンピック', 'リフレッシュ']
     const api = useApi()
-    const theme = useTheme()
     const viewFullRanking = ref(false)
+    const tagPickerOpen = ref(false)
+    const tagSearch = ref('')
     const entryData = ref({
         record: <Post | null>null,
         editData: <PostEntry | null>null,
@@ -223,6 +320,26 @@ import { useTheme } from '@/store/theme';
     })
     const appNameJp = computed(() => {
         return appName.value == 'challenge' ? 'チャレンジ' : appName.value == 'post' ? 'ポスト' : ''
+    })
+    const skeletonCount = computed(() => {
+        return responsive.mobile ? 6 : 20
+    })
+    const previewTags = computed(() => {
+        return topTags.tags.slice(0, responsive.mobile ? 6 : 25)
+    })
+    const currentTagLabel = computed(() => {
+        const currentTag = getQuery.value?.search_tags
+        return currentTag ? sanitized(currentTag) : ''
+    })
+    const filteredTags = computed(() => {
+        const keyword = tagSearch.value.trim().toLowerCase()
+        if (!keyword) {
+            return topTags.tags
+        }
+
+        return topTags.tags.filter(tag =>
+            sanitized(tag.text).toLowerCase().includes(keyword)
+        )
     })
 
     onMounted(() => {
@@ -258,6 +375,10 @@ import { useTheme } from '@/store/theme';
     })
     onUnmounted(() => {
         instance.off('post:new', postSocketHandler)
+    })
+    watch(() => route.fullPath, () => {
+        tagPickerOpen.value = false
+        tagSearch.value = ''
     })
     const getTopRecords = async () => {
         const data = await api.post('/get_top_posts')
@@ -358,6 +479,14 @@ import { useTheme } from '@/store/theme';
             tagLoading.value ++
         }, 300);
     }
+    const openTagPicker = () => {
+        tagSearch.value = ''
+        tagPickerOpen.value = true
+    }
+    const closeTagPicker = () => {
+        tagPickerOpen.value = false
+        tagSearch.value = ''
+    }
     
     const postFinish = (flag: boolean, id?: number) => {
         create.value = false
@@ -425,6 +554,15 @@ import { useTheme } from '@/store/theme';
         }
         return text ? String(text).replace(/#|♯|＃/g, '') : '';
     }
+    const tagLink = (text: string) => {
+        return `/${String(appName.value)}?search_tags=${sanitized(text)}`
+    }
+    const isCurrentTag = (text: string) => {
+        return sanitized(text) === currentTagLabel.value
+    }
+    const tagCount = (tag: Record<string, any>) => {
+        return tag[`${String(appName.value)}_occurence_count` as keyof typeof tag] ?? tag.occurrence ?? 0
+    }
     const randomWidth = () => {        
         const range = (3 - 1) / 0.2;
         const index = (Math.floor(Math.random() * range) * 0.2) + 1;
@@ -459,8 +597,254 @@ import { useTheme } from '@/store/theme';
     height: 18px;
     animation: pulse-bg 2s infinite;
     border-radius: 3px;
-    
 }
+
+.p-tag-container {
+    padding: 8px 20px 4px;
+    overflow: visible;
+}
+
+.tag-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.tag-strip__footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tag-strip__eyebrow,
+.tag-picker-sheet__eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--primary-color) 60%, transparent);
+}
+
+.tag-strip__title,
+.tag-picker-sheet__title {
+    margin-top: 4px;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--primary-color);
+}
+
+.tag-strip__action,
+.tag-picker-sheet__close,
+.tag-picker-sheet__reset {
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--primary-color);
+    cursor: pointer;
+}
+
+.tag-strip__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.tag-strip__body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tag-strip__active,
+.tag-picker-sheet__active {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.tag-strip__active-label,
+.tag-picker-sheet__active-label,
+.tag-picker-sheet__description {
+    font-size: 13px;
+    line-height: 1.5;
+    color: color-mix(in srgb, var(--primary-color) 74%, transparent);
+}
+
+.p-tag-wrap {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    align-content: flex-start;
+    overflow: visible;
+    padding: 2px !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0;
+}
+
+.p-tag-wrap--skeleton {
+    gap: 8px;
+}
+
+.tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 0;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    border-radius: 6px;
+    background: transparent;
+    font-size: 13px;
+    line-height: 1.4;
+    overflow: visible;
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    text-decoration: none;
+}
+
+.tag-chip:hover,
+.tag-picker-item:hover,
+.tag-strip__action:hover,
+.tag-picker-sheet__close:hover,
+.tag-picker-sheet__reset:hover {
+    transform: translateY(-1px);
+}
+
+.tag-chip__count,
+.tag-picker-item__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 7px;
+    border-radius: 4px;
+    background: var(--calendarBorder);
+    font-size: 12px;
+    color: var(--primary-color);
+}
+
+
+.tag-picker-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    background: rgba(15, 23, 42, 0.38);
+    backdrop-filter: blur(4px);
+}
+
+.tag-picker-sheet {
+    width: min(460px, 100%);
+    height: 100%;
+    max-height: 100%;
+    box-sizing: border-box !important;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 22px;
+    background: var(--background-color);
+    color: var(--primary-color);
+    box-shadow: -24px 0 48px rgba(15, 23, 42, 0.18);
+}
+
+.tag-picker-sheet * {
+    box-sizing: border-box;
+}
+
+.tag-picker-sheet__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.tag-picker-sheet__close,
+.tag-picker-sheet__reset {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.tag-picker-sheet__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    opacity: 0.8;
+}
+
+.tag-picker-sheet__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.tag-picker-sheet__search {
+    position: relative;
+}
+
+.tag-picker-sheet__search-input {
+    width: 100%;
+    height: 44px;
+    padding: 0 14px;
+    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--primary-color) 18%, transparent);
+    background: color-mix(in srgb, var(--background-color) 92%, #ffffff 8%);
+    color: var(--primary-color);
+    font-size: 14px;
+    box-sizing: border-box !important;  
+}
+
+.tag-picker-sheet__body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-right: 4px;
+}
+
+.tag-picker-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border-radius: 6px;
+    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    text-decoration: none;
+}
+
+.tag-picker-item__name {
+    font-size: 14px;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.tag-picker-sheet__empty {
+    padding: 28px 12px;
+    text-align: center;
+    font-size: 14px;
+    color: color-mix(in srgb, var(--primary-color) 70%, transparent);
+}
+
 @keyframes pulse-bg {
     0% {
         background-color: var(--skItem1);
@@ -470,6 +854,34 @@ import { useTheme } from '@/store/theme';
     }
     100% {
         background-color: var(--skItem1);
+    }
+}
+
+@media screen and (max-width: 959px) {
+    .p-tag-container {
+        padding: 8px 14px 4px;
+    }
+
+    .tag-strip {
+        padding: 0;
+        border-radius: 0;
+    }
+
+    .tag-strip__footer,
+    .tag-picker-sheet__header,
+    .tag-picker-sheet__toolbar {
+        align-items: stretch;
+    }
+
+    .tag-picker-overlay {
+        align-items: flex-end;
+        justify-content: center;
+    }
+
+    .tag-picker-sheet {
+        width: 100%;
+        height: min(78vh, 720px);
+        box-shadow: 0 -24px 48px rgba(15, 23, 42, 0.18);
     }
 }
 </style>
