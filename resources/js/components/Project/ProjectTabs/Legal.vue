@@ -1,11 +1,8 @@
 <template>
     <div class="legal-tab">
         <div v-if="!hasPrivilage" class="legal-state-card legal-state-card--locked">
-            <p class="legal-state-card__eyebrow">契約レビュー</p>
-            <h2 class="legal-state-card__title">契約レビューにアクセスできません</h2>
-            <p class="legal-state-card__description">
-                このタブの閲覧権限がありません。管理者またはプロジェクト責任者に権限付与を依頼してください。
-            </p>
+            <p class="legal-state-card__title">権限ありません。</p>
+            
         </div>
 
         <div v-else class="legal-tab__body">
@@ -1487,6 +1484,7 @@ onBeforeUnmount(() => {
     flex-direction: column;
     min-height: 100%;
     background: var(--background-color);
+    height: 100%;
 }
 
 .legal-tab__body {
@@ -1520,9 +1518,8 @@ onBeforeUnmount(() => {
 
 .legal-state-card__title {
     margin: 0;
-    font-size: 20px;
     line-height: 1.2;
-    color: var(--legal-text);
+    color: gray;
 }
 
 .legal-state-card__description {
@@ -1951,6 +1948,7 @@ onBeforeUnmount(() => {
 .legal-state-card--locked {
     min-height: 100%;
     border: none;
+    align-items: center;
 }
 
 .legal-state-card--empty,
