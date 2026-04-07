@@ -50,8 +50,8 @@ import HasReason from './HasReason.vue';
 const props = defineProps(['material', 'summaries'])
 
 const emit = defineEmits(['close', 'updateAnswerStatus'])
-const selectedAnswer = ref({})
-const radioError = ref({})
+const selectedAnswer = ref<{ [key: string]: number }>({})
+const radioError = ref<{ [key: string]: string }>({})
 const reason = ref(false)
 const joined = ref('')
 const list = [

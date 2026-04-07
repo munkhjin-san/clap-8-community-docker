@@ -74,7 +74,7 @@ const next = (val: number) => {
 
 const completedLessonThemes = ref<string[]>([])
 
-const selectThemeConfirm = (level, theme) => {
+const selectThemeConfirm = (level: string, theme: string) => {
     selectedTheme.value = getIssues(level, theme)[0]
     next(2)
 }
@@ -104,7 +104,7 @@ const editIssue = (issue: SalaryIssue) => {
     
 }
 
-const getIssues = (level, theme) => {
+const getIssues = (level: string, theme: string) => {
     if(issueThemes){
         const foundItem = issueThemes.find((item) => item.level === level);
         if (foundItem) {

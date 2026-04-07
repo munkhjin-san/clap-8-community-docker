@@ -315,7 +315,7 @@ const checkFields = async() => {
 const saveTemplateConfirm = async() => {    
     saveTemplate(null, 0)        
 }
-const saveTemplate = async(_action, status) => {
+const saveTemplate = async(_action:any, status:number) => {
     const result = await checkFields()
     if (!result) {
         ping('必須項目が未入力です。')

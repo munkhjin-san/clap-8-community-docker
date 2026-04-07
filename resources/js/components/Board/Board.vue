@@ -95,7 +95,7 @@
                 <BoardMembers 
                     :board="reactiveMemberList"
                     @close="viewingMembersOf = null" 
-                    v-if="viewingMembersOf"
+                    v-if="viewingMembersOf && reactiveMemberList"
                     @reload="boardEditFinished"
                     @afterRequestHandled="afterRequestHandled"
                 />

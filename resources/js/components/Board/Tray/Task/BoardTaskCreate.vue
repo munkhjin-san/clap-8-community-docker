@@ -188,6 +188,7 @@ import OptionSelector from '@/components/Form/OptionSelector.vue';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
 import { useBoardList } from '@/composables/board';
+import { TaskUser, User } from '@/interface/globalInterface';
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
 
@@ -236,7 +237,7 @@ import { useBoardList } from '@/composables/board';
     const avialAbleHours =  Array.from({ length: 11 }, (_, index) => index)
     const avialAbleMinutes = [0, 15, 30, 45]
     
-    const glowdNineUsers = ref(props.editTaskData?.executors?.filter(member => member.pivot.glowd_nine === 1) ?? [])
+    const glowdNineUsers = ref(props.editTaskData?.executors?.filter((member: TaskUser) => member.pivot.glowd_nine === 1) ?? [])
     const setTaskTitle = () => {
         syncToSchedule.value ? taskTitle.value = content.value.slice(0, 10) : taskTitle.value = ''
     }
@@ -247,8 +248,8 @@ import { useBoardList } from '@/composables/board';
         },
         set(value){
             qualified_users.value = value
-            supervisors.value = supervisors.value.filter(member => 
-                !value.some(user => user.id === member.id)
+            supervisors.value = supervisors.value.filter((member: TaskUser) => 
+                !value.some((user: TaskUser) => user.id === member.id)
             )
         }
     })
@@ -258,8 +259,8 @@ import { useBoardList } from '@/composables/board';
         },
         set(value){
             supervisors.value = value
-            qualified_users.value = qualified_users.value.filter(member => 
-                !value.some(user => user.id === member.id)
+            qualified_users.value = qualified_users.value.filter((member: TaskUser) => 
+                !value.some((user: TaskUser) => user.id === member.id)
             )
         }
     })
@@ -272,13 +273,13 @@ import { useBoardList } from '@/composables/board';
         return []
     })
     const filterUsers = computed(() => {
-       return qualified_users.value.filter(user => (user.position_id < 13 || user.position_id === 16) 
+       return qualified_users.value.filter((user: TaskUser) => ((user.position_id &&  user.position_id < 13 )|| user.position_id === 16) 
        && user.id !== auth.activeUser.id) 
     })
 
     watch(qualified_users, (newVal, oldVal) => {
         const updatedUsers = filterUsers.value;
-        glowdNineUsers.value = glowdNineUsers.value.filter(user => updatedUsers.some(updatedUser => updatedUser.id === user.id));
+        glowdNineUsers.value = glowdNineUsers.value.filter((user: TaskUser) => updatedUsers.some((updatedUser: TaskUser) => updatedUser.id === user.id));
     });
     watch(glowdNine, (newVal) => {
         if(newVal){
@@ -300,17 +301,17 @@ import { useBoardList } from '@/composables/board';
         }
         if((!val.valid || dateErrors.value.length) && result) return
         const params = {            
-            qualified_users: qualified_users.value.map(ob => ob.id),
+            qualified_users: qualified_users.value.map((ob: TaskUser) => ob.id),
             remarks: content.value,
             task_end_date: isTask.value ? taskEndDate.value : '',
             board_id: openedBoard.value.id,
             edit_id: props.editTaskData ? props.editTaskData.id : null,
-            supervisors: supervisorSelected.value ? supervisors.value.map(ob => ob.id) : [],
+            supervisors: supervisorSelected.value ? supervisors.value.map((ob: TaskUser) => ob.id) : [],
             response_time: tasktime.value,
             sync_to_schedule: syncToSchedule.value,
             title: taskTitle.value,
             glowd_nine: glowdNine.value,
-            glowd_nine_users: glowdNineUsers.value ? glowdNineUsers.value.map(ob => ob.id) : [],
+            glowd_nine_users: glowdNineUsers.value ? glowdNineUsers.value.map((ob: TaskUser) => ob.id) : [],
         };
 
         await api.post('/add_board_task', params, {
@@ -320,9 +321,9 @@ import { useBoardList } from '@/composables/board';
         emit('close', true)
         
     }
-    const selectAll = (event) => {
+    const selectAll = (event: Event) => {
         if(taskMembers.value){
-            taskMembers.value.selectAll(event.target.checked)
+            taskMembers.value.selectAll((event.target as HTMLInputElement).checked)
         }
     }
 </script>

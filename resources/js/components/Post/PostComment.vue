@@ -73,7 +73,7 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
     const { commentCount } = inject(PostMethodsKey) as PostMethods
     const sendLoader = ref(false)  
     const caretPosition = ref(0)  
-    const comments = ref([])
+    const comments = ref<Array<any>>([])
     const fetch = ref(0)   
     const typeArea = useTemplateRef('typeArea')
     const container = useTemplateRef('container')

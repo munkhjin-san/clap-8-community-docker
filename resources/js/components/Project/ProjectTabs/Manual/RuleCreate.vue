@@ -187,11 +187,11 @@ const insertRisk = async() => {
         }
         const reviewRisk = aiResponse.response.risks.map(risk => risk.risk_description).join('\n')
         const reviewMeasures = aiResponse.response.risks.map(risk => risk.mitigation_measures.map(measure => measure.measure_description).join('\n')).join('\n')
-        const riskOp = {
+        const riskOp: { [key: string]: string } = {
             overwrite: reviewRisk, 
             append: params.job['リスク'] ? params.job['リスク'] + '\n' + reviewRisk : reviewRisk
         }
-        const measuresOp = {
+        const measuresOp: { [key: string]: string } = {
             overwrite: reviewMeasures, 
             append: params.job['リスク対策'] ? params.job['リスク対策'] + '\n' + reviewMeasures : reviewMeasures
         }

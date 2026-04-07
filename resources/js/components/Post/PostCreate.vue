@@ -15,30 +15,10 @@
                     <PostIcon which="0" size="20"/>
                     ナイス
                 </div>
-                <div @click="app_type = 1" :class="['pt-selector', { ptSelected: app_type == 1}]">
-                    <PostIcon which="1" size="20"/>
-                    ナレッジ
-                </div>
                 <div @click="app_type = 2" :class="['pt-selector', { ptSelected: app_type == 2}]">
                     <PostIcon which="2" size="20"/>
                     チャレンジ
                 </div>
-                <!-- <div @click="app_type = 3" :class="['pt-selector', { ptSelected: app_type == 3}]">
-                    <PostIcon which="3" size="20"/>
-                    ツィート
-                </div> -->
-                <!-- <div @click="app_type = 4" :class="['pt-selector', { ptSelected: app_type == 4}]">
-                    <PostIcon which="4" size="20"/>
-                    ヘルプ
-                </div> -->
-                <!-- <div @click="app_type = 5" :class="['pt-selector', { ptSelected: app_type == 5}]">
-                    <PostIcon which="5" size="20"/>
-                    グラリンピック
-                </div> -->
-                <!-- <div @click="app_type = 6" :class="['pt-selector', { ptSelected: app_type == 6}]">
-                    <PostIcon which="6" size="20"/>
-                    リフレッシュ
-                </div> -->
             </div>
              <div class="si-box" v-if="app_type == 2">
                 <div class="switchLabel">

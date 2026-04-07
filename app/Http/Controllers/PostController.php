@@ -71,11 +71,10 @@ class PostController extends Controller
         $record->delete();
         return response()->json($record->id);
     }
-    public function get_posts(Request $request){    
-        
-        $nameSpace = '\\App\\Models\\'; 
+    public function get_posts(Request $request){        
 
-        $model = $nameSpace . ucfirst($request->path) . 'Record'; 
+
+
         $params = $request['query'];
         $search_tags = [];
         $skip = $request->skip;
@@ -92,7 +91,7 @@ class PostController extends Controller
         $has_user = array_key_exists('member', $params) && $params['member'] !== null;
         $user = $has_user ? User::where('name', $params['member'])->first() : null;
         $target_users = $user ? [$user->id] : [];
-        $records = $model::query();
+        $records = PostRecord::query();
         $path = $request->path;
         $app_type = $params['app_type'] ?? null;
         $qr = $records->when($params, function ($query) use($params, $search_tags, $target_users, $path, $app_type) {
@@ -134,37 +133,34 @@ class PostController extends Controller
             $query->when(!is_null($app_type), function ($query) use ($app_type) {
                 $query->where('app_type', $app_type);
             });
+
+            $query->when($app_type == 2, function ($q) {
+                $q->orderByRaw('status_flag != 0')
+                ->orderBy('created_at', 'desc');
+            });
             
         })
-        
-        ->with('user')
-        ->with('tags')
-        ->with('files')
-        ->with('receipts')
-        ->withCount('comments')
-        ->with('claps')
-        ->with('to_users')
-        ->with('grants')
-        ->with(['entries' => function ($query) {
-            $query->withCount('comments')
-            ->withCount('claps')->with('claps')->orderBy('created_at', 'desc');
-        }])
-        ->when($app_type == 2, function ($q) {
-            $q->orderByRaw('status_flag != 0')
-            ->orderBy('created_at', 'desc');
-        })
-        ->orderBy('updated_at', 'desc')
-        ->with('awards')
-        ->with('result_files')
-        ->with('emotedUsers')
-        
+        ->with([
+            'user',
+            'tags',
+            'files',
+            'receipts',
+            'comments',
+            'claps',
+            'to_users',
+            'grants',
+            'entries' => fn ($query) => $query->withCount('comments')->withCount('claps')->with('claps')->orderBy('created_at', 'desc'),    
+            'awards',
+            'result_files',
+            'emotedUsers'
+        ])
         ->when(!$has_id, function ($query) use($skip) {
             $query->skip($skip);
             
         })
-        ->take(10)
+        ->orderBy('updated_at', 'desc')
+        ->take(10)        
         ->get();
-
         return response()->json($qr);
 
 
@@ -686,18 +682,17 @@ class PostController extends Controller
     }
     public function get_top_tags(Request $request){
         
-        $current_tag = $request->current_tag;     
-        $occurence_type = "{$request->app_name}Occurence";
-        $sort_value = "{$request->app_name}_occurence_count";
+        $current_tag = $request->current_tag;  
         
-        $model = "{$request->app_name}Records";
         $tagsQuery = TagRecord::where('deleted_flag', 0)
-        ->whereHas($model)
-        ->withCount($occurence_type)
-        ->orderBy($sort_value, 'desc');
+        ->whereHas('postRecords', function ($query) {
+            $query->whereNot('app_type', 1);
+        })
+        ->withCount("postOccurence")
+        ->orderBy("post_occurence_count", 'desc');
         if($current_tag) {
             $relatedTagIds = TagRecord::where('deleted_flag', 0)
-            ->whereHas($model, function ($query) use ($current_tag) {
+            ->whereHas('postRecords', function ($query) use ($current_tag) {
                 $query->whereHas('tags', function ($query) use ($current_tag) {
                     $query->where('text', $current_tag);
                 });

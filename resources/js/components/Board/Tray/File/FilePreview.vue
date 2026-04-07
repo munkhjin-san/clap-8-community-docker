@@ -19,6 +19,7 @@
                             <div class="swiper-wrapper" > 
                                 <div class="swiper-slide" style="background:none;border:none;width:100%" :key="file.id" v-for="(file, index) in filePreview.files">
                                     <div class="swiper-zoom-container">                                        
+                                        <template v-if="isSlideLoaded(index)">
                                         <img
                                             v-if="file.mime_type == 'image'"
                                             style="max-width: 100%; margin: auto; max-height: 100%;"
@@ -68,6 +69,7 @@
                                         <div v-else-if="!canPreview" class="unsupportedFileWindow">
                                             このファイルはプレビューできません
                                         </div>
+                                        </template>
                                     </div>
                                 </div>
 
@@ -93,6 +95,8 @@ import "swiper/css/zoom";
 import { Navigation, Zoom, Thumbs, Pagination } from 'swiper/modules';
 import 'swiper/css/navigation'
 import 'swiper/css/thumbs'
+import 'swiper/css/pagination'
+
 import { useRoute, useRouter } from 'vue-router';
 import { useFilePreview } from "@/store/filePreview";
 import { useAuthUserStore } from '@/store/auth'
@@ -113,6 +117,17 @@ import type { MenuList } from '@/interface/globalInterface';
     const topSwiper = ref<Swiper | null>(null)
     const filePreview = useFilePreview()
     const pdfKey = ref(0)
+    const loadedSlides = ref(new Set<number | string>())
+
+    const isSlideLoaded = (index: number | string): boolean => loadedSlides.value.has(index)
+
+    const markSlidesLoaded = (centerIndex: number) => {
+        const newSet = new Set(loadedSlides.value)
+        for (let i = Math.max(0, centerIndex - 1); i <= centerIndex + 1; i++) {
+            newSet.add(i)
+        }
+        loadedSlides.value = newSet
+    }
     const doc_extensions = ["xlsx", "xlsm", "xlsb", "xltx", "xls", "xml", "xlam", "xlr", "xlw", "xla",
         "doc", "docm", "docx", "dot", "dotx",
         "potm", "potx", "ppam", "pps", "ppsm", "ppsx", "ppt", "pptm", "pptx", "pdf"              
@@ -123,6 +138,7 @@ import type { MenuList } from '@/interface/globalInterface';
     onMounted(() => {
         
         f_index.value = filePreview.index
+        markSlidesLoaded(f_index.value)
         swiperCreate()
         if(canView.value && topSwiper.value){
             topSwiper.value.slideTo(f_index.value, 0)
@@ -209,6 +225,7 @@ import type { MenuList } from '@/interface/globalInterface';
             // thumbs: {
             //     swiper: thumbsSwiper.value 
             // },
+     
             on: {
                 slideChange: (swiper: Swiper) => {
                     changeSwiperIndex(swiper)
@@ -232,6 +249,7 @@ import type { MenuList } from '@/interface/globalInterface';
         docUrl.value = ''
         f_index.value = swiper.realIndex
         filePreview.index = swiper.realIndex
+        markSlidesLoaded(swiper.realIndex)
         pdfKey.value = 0
         const firstFile = currentFile.value                
         if(doc_extensions.indexOf(firstFile.extension) > -1){
@@ -480,6 +498,14 @@ import type { MenuList } from '@/interface/globalInterface';
         overflow: hidden;
         text-overflow: ellipsis;
         margin-right: 15px;
+    }
+    .swiper-navigation-icon{
+        fill: var(--primary-color) !important;
+        width: 30px !important;
+        height: 30px !important;
+        path{
+            fill: var(--primary-color) !important;
+        }
     }
     .swiper{
     &.gallery-top {

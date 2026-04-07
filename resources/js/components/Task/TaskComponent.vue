@@ -22,28 +22,6 @@
                 <GanttYearPicker v-if="viewType == 'month'" @setDate="setDate" :interval="maxInterval" v-model="sortData.year"/>
             </div>
         </div>
-        <GanttBody
-            :selectedMonth="sortData.month" 
-            :selectedYear="sortData.year"
-            :fromSpan="sortData.from"
-            :toSpan="sortData.to"
-            :projects="projectRecord"
-            :active-project="reactiveActiveProject"
-            :view-type="viewType"
-            :maxInterval="maxInterval"
-            @set-view-type="(type) => setViewType(type)"
-            v-if="!route.params.taskId && (from !== 'board' || !from)"
-
-        />
-
-        
-        <!-- <FastCreateButton 
-            :data="fastCreate" 
-            @close="resetFastCreate"
-            v-if="fastCreate.time && menu.name == 'taskCreateFast' && menu.id == 896"
-            @click="createTask({start_at: DateTime.fromISO(fastCreate.time).toISODate()?.toString(), end_at: DateTime.fromISO(fastCreate.time).plus({day: 1}).toISODate()?.toString()});resetFastCreate()"
-        /> -->
-
         <router-view v-if="from !== 'board'" v-slot="{ Component }">
             <component :is="Component"/>       
         </router-view>
@@ -57,7 +35,6 @@
 import GanttMonthPicker from './Gantt/GanttMonthPicker.vue';
 import { ref, computed, onMounted, provide, reactive, onUnmounted } from 'vue';
 import { Board, Task} from '@/interface/globalInterface';
-import GanttBody from './Gantt/GanttBody.vue';
 import { GanttMethodsKey} from '@/interface/keys'
 import { Project } from '@/interface/projectInterface';
 import { FastCreateData } from '@/interface/calendarInterface'

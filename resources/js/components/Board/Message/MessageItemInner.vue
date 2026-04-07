@@ -238,7 +238,7 @@ import { DateTime } from "luxon";
     const api = useApi()
     const { setEmoteUsers } = useModal()
 
-    const startTouch = (event:Event) => {
+    const startTouch = (event:MouseEvent | TouchEvent) => {
         isLongPress.value = false
 
         longPressTimer.value = setTimeout(() => {
@@ -254,7 +254,7 @@ import { DateTime } from "luxon";
     const cancelTouch = () => {
         clearTimeout(longPressTimer.value)
     }
-    const onLongPress = (event: Event) => {
+    const onLongPress = (event: MouseEvent | TouchEvent) => {
         showItemMenu(event)
     }
     
@@ -323,7 +323,7 @@ import { DateTime } from "luxon";
         return !(props.message.user_id == auth.activeUser.id && !props.message.reacted_users?.length)
     })
     
-    const showItemMenu = (event: Event) => {
+    const showItemMenu = (event: MouseEvent | TouchEvent) => {
         if(itemMenuRef.value){
             itemMenuRef.value.longTapAction(event)
         }

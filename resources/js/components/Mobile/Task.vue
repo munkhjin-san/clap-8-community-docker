@@ -21,14 +21,12 @@
                 </div>
             </div>
         </div> 
-        <GanttTaskPopup v-if="openedBoard?.project" :from="'board'" :boardProject="openedBoard?.project"/>
-        <TaskComponent v-else-if="openedBoard" :from="'board'" :board="openedBoard" :maxInterval="totalSpan"/>
+        <TaskComponent v-if="openedBoard" :board="openedBoard" :maxInterval="totalSpan"/>
     </div>
 </Transition>
 </template>
 
 <script setup lang="ts">
-import GanttTaskPopup from '../Task/Gantt/GanttTaskPopup.vue';
 import TaskComponent from '../Task/TaskComponent.vue';
 import BoardTitlePre from '../Board/Mixed/BoardTitle.vue'
 import { computed } from 'vue';

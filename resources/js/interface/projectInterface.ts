@@ -2,6 +2,7 @@ import { DateTimeUnit, Interval } from "luxon";
 import { CommonFile, MessageFile, StatusLog, Task, User } from "./globalInterface";
 import { AssignmentFitEvaluationResponse } from "./assign";
 import { FileRecord } from "./trayInterface";
+import { CustomFormBlock } from "./customFormInterface";
 
 export type ContractFindingSeverity = 'high' | 'medium' | 'low' | 'unknown'
 
@@ -86,7 +87,8 @@ export interface ProjectMember extends User {
         role_record?: MemberRole | null
         assign_data?: AssignmentFitEvaluationResponse | null
         overall_assign_score?: number | null
-    }
+    },
+    assign_records?: ProjectAssignRecord[]
 }
 export interface ProjectType {
     id: number
@@ -148,7 +150,63 @@ interface Project {
     projectType?: ProjectType | null
     project_type?: ProjectType | null
     specs?: ProjectSpecs | null
+    projectAssignRecords?: ProjectAssignRecord[]
 }
+export interface ProjectAssignRecord {
+    id: number;
+    created_user_id: number | null;
+    score: number | null;
+    assign_data: AssignmentFitEvaluationResponse | null;
+    status: string | null;
+    compatibility: string | null;
+    project_record_id: number | null;
+    user_id: number | null;
+    created_at: string;
+    updated_at: string;
+    deleted_at?: string | null;
+    created_user?: User | null;
+    support_level: 'green' | 'orange' | 'red' | null;
+    user?: User | null;
+    project_record?: Project | null;
+    status_histories?: ProjectAssignStatusHistory[];
+    questions?: CustomFormBlock[];
+    actions?: ProjectAssignAction[];
+}
+
+export interface ProjectAssignStatusHistory {
+    id: number;
+    project_assign_record_id: number;
+    project_record_id: number | null;
+    user_id: number | null;
+    from_status: string | null;
+    to_status: string;
+    changed_at: string | null;
+    created_at: string;
+    updated_at: string;
+    user?: User | null;
+}
+
+export type ProjectAssignActionAdditionalLevel = {
+    value: string;
+    label: string;
+    color: string;
+    class: string;
+};
+
+export interface ProjectAssignAction {
+    id: number;
+    project_assign_record_id: number;
+    content: string;
+    created_at: string;
+    updated_at: string;
+    user?: User | null;
+    action_type: string | null;
+    additional_data?: {
+        previous_level: ProjectAssignActionAdditionalLevel;
+        new_level: ProjectAssignActionAdditionalLevel;
+    };
+}
+
 export type ProjectCheckItem = {
     id: number
     project_record_id: number
@@ -271,7 +329,10 @@ interface SalaryIssue {
     status_logs?: StatusLog[];
     issue_notifications_count?: number;
 }
-interface SalaryIssueAction {
+export interface SalaryIssueAction {
+    id: number;
+    salary_issue_id: number;
+    user_id: number;
     content: string;
     learning_content: string;
     learning_title: string;

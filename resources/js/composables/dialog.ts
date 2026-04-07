@@ -13,7 +13,7 @@ type InputOptions = {
 const askData = ref<string|null>(null);
 const pingData = ref<string|null>(null)
 const decision = ref<DecisionOption>({value: false, label: ''});
-const toastData = ref(null)
+const toastData = ref<string|null>(null)
 const respondOptions = ref<AskOptions>({answers: []})
 const inputOptions = ref<InputOptions | null>(null);
 const inputResult = ref<string | null>(null);
@@ -83,7 +83,7 @@ export function useDialog() {
         ]}
         pingData.value = message
     }
-    const toast = (message) => {
+    const toast = (message:string) => {
         resetDialog()
         toastData.value = null
         toastData.value = message

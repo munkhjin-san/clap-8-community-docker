@@ -1,7 +1,7 @@
 <template>
     <div>
         <div v-if="block.type == 'header'" class="rich-wrapper" v-html="urlCheck(block.question)"></div>
-        <div v-else>
+        <div v-else class="leading-normal">
             {{ block.question }} <span :class="['text-[gray] text-[12px] ml-[5px]', {'text-[tomato]' : hasError}]">{{ block.is_required ? '必須' : '' }}</span> 
         </div>
         <div v-if="(block.type == 'radio' || block.type == 'checkbox') && block.elements" class="flex flex-col gap-[15px] mt-[15px]">

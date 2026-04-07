@@ -100,10 +100,10 @@ const grades = [
   { level: '5等級', self: 0, organization: 0, society: 2 },
   { level: '6等級', self: 0, organization: 0, society: 2 }
 ]
-const filteredIssues = (level, theme) => {
+const filteredIssues = (level: string, theme: string) => {
     return props.getIssues(level, theme);
 };
-const setTheme = (level, theme) => {
+const setTheme = (level: string, theme: string) => {
     if (!props.possibleThemes.includes(filteredIssues(level, theme)[0].title)) {
         ping('このテーマの受講が完了していません。')
         return;

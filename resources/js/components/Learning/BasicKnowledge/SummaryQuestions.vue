@@ -10,8 +10,8 @@
                     :answers="decidedAnswers"
                     :answer="question.answer?.answer_val"
                     :show-error="validationErrors?.[question.id]"
-                    @setValue="val => setAnswers(val, summary.id, question)"
-                    @validationError="val => handleValidationError(question.id, val)"
+                    @setValue="(val: number) => setAnswers(val, summary.id, question)"
+                    @validationError="(val: boolean) => handleValidationError(question.id, val)"
                 />
             </div>
         </div>
@@ -22,7 +22,6 @@
 import { decidedAnswers } from '@/utils/tools';
 import QuestionRadio from '../Portfolio/QuestionRadio.vue';
 import { useAuthUserStore } from '@/store/auth';
-import { ref } from 'vue';
 defineProps(['material'])
 interface SummaryAnswers {
     lesson_summary_id: number,

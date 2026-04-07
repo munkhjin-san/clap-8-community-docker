@@ -51,13 +51,14 @@ import { useTaskRequest } from '@/store/taskRequest';
 import { dateDetail } from '@/utils/workApi';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import { CommonFile, TaskUser } from '@/interface/globalInterface';
     const taskRequest = useTaskRequest()
     const auth = useAuthUserStore()
     const myTask = computed(() => {
-        return taskRequest.data.executors.find(ob => ob.id == auth.activeUser.id)
+        return taskRequest.data.executors.find((ob: TaskUser) => ob.id == auth.activeUser.id)
     })
     const file = computed(() => {
-        return taskRequest.data.files.filter(ob => ob.user_id == auth.activeUser.id)
+        return taskRequest.data.files.filter((ob: CommonFile) => ob.user_id == auth.activeUser.id)
     })
     const comment = ref(myTask.value?.pivot.comment ? myTask.value.pivot.comment : '')
     const loading = ref(false)
@@ -72,7 +73,7 @@ import { useDialog } from '@/composables/dialog';
             return
         }
         await api.put('/task_approve_request', {
-            file_ids: uploadedFiles.value ? uploadedFiles.value.map(ob => ob.id) : [],
+            file_ids: uploadedFiles.value ? uploadedFiles.value.map((ob: CommonFile) => ob.id) : [],
             comment: comment.value,
             task_id: taskRequest.data.id,
             board_id: taskRequest.data.board_id,

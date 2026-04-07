@@ -128,7 +128,7 @@
 import { useApi } from '@/composables/api';
 import { useDashboardGoalsStore } from '@/store/dashboardGoals';
 import { storeToRefs } from 'pinia';
-import { ProjectGoal, SalaryIssue } from '@/interface/projectInterface';
+import { ProjectGoal, SalaryIssue, SalaryIssueAction } from '@/interface/projectInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { computed, ref } from 'vue';
 import MessageArea from '../../MessageArea.vue';
@@ -175,7 +175,7 @@ const updateSalaryIssueStatusDirectly = async () => {
     
 }
 
-const salaryIssueActionComplete = async(record) => {
+const salaryIssueActionComplete = async(record:SalaryIssueAction) => {
     const status = record.status
     const confirmMessage = status == 1 ? '修得要件を未修得にします。よろしいですか？' : '修得要件を修得済みにします。よろしいですか？'
     const successMessage = status == 1 ? '未修得にしました。' : '修得済みしました。'

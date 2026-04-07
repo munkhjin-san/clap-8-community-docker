@@ -79,6 +79,7 @@ import { useFilePreview } from '@/store/filePreview';
 import FileIcon from '../../Mixed/FileIcon.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
+import { CommonFile } from '@/interface/globalInterface';
     const taskUsers = useTaskUsers()
     const filePreview = useFilePreview()
     const auth = useAuthUserStore()
@@ -107,7 +108,7 @@ import { useDialog } from '@/composables/dialog';
         }
         taskUsers.setTaskUsers(data)
     }
-    const taskApprove = async(userId, status, progress_flag) => {
+    const taskApprove = async(userId: number, status: number, progress_flag: number) => {
         if(!task.value) return
         if(status == 0){
             const answer = await ask('申請を差し戻しますか。差し戻した場合、申請社員に連絡してください。')
@@ -127,8 +128,8 @@ import { useDialog } from '@/composables/dialog';
         close()
 
     }
-    const viewFile = (file) => {
-        let target_data = file
+    const viewFile = (file: CommonFile) => {
+        let target_data: Record<string, any> = file
         let file_path = `/cdn/task_files/${file.id}_${file.user_id}_${file.path}.${file.extension}`
         let doc_path = `/task_files/${file.id}_${file.user_id}_${file.path}.${file.extension}`
         target_data['file_path'] = file_path

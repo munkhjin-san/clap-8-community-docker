@@ -106,7 +106,7 @@ import { useMessageUsers } from '@/store/messageUsers'
 import { useUrlTask } from '@/store/urlTask';
 import { useUrlTaskEdit } from '@/store/urlTaskEdit'
 import UserPanel from '@/components/Global/UserPanel.vue';
-import { Task, CommandButtonInterface } from '@/interface/globalInterface';
+import { Task, CommandButtonInterface, User } from '@/interface/globalInterface';
 import { timeFormat, urlCheck } from '@/utils/tools';
 import { DateTime } from 'luxon';
 import ItemMenu from '@/components/Global/ItemMenu.vue';
@@ -296,7 +296,7 @@ import { useDashboardStore } from '@/store/dashboard';
         }
         messageUsers.setMessageUsers(data)
     }
-    const viewApprovalUsers = (title, users) => {
+    const viewApprovalUsers = (title: string, users:User[]) => {
         const data = {
             active: true,
             userList: users,
@@ -305,7 +305,7 @@ import { useDashboardStore } from '@/store/dashboard';
         }
         taskUsersStore.setTaskUsers(data)
     }
-    const closeNineWindow = async (flag) => {
+    const closeNineWindow = async (flag: boolean) => {
         if (flag) {
             const answer = await ask('グラウドナインを中止しますか？\n中止した場合再度挑戦することはできません。');
             if (!answer.value) return;
@@ -313,7 +313,7 @@ import { useDashboardStore } from '@/store/dashboard';
         playNineWindow.value = false;
         updateStatus(2);
     };
-    const completeTaskBefore = (flag) => {        
+    const completeTaskBefore = (flag: number) => {        
         const userData = taskUsers.value.find(obj => obj.id == auth.activeUser.id);
         const data = {
             active: true,

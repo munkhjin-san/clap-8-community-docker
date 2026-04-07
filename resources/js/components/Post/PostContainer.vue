@@ -69,45 +69,12 @@
                         <PostIcon which="0" size="20"/>
                         {{ apps[0] }}
                     </router-link>
-                    <router-link :to="`/${appName}?app_type=1`" :class="['pt-selector']">
-                        <PostIcon which="1" size="20"/>
-                        {{ apps[1] }}
-                    </router-link>
                     <router-link :to="`/${appName}?app_type=2`" :class="['pt-selector']">
                         <PostIcon which="2" size="20"/>
                         {{ apps[2] }}
                     </router-link>
-                    <!-- <router-link :to="`/${appName}?app_type=3`" :class="['pt-selector']">
-                        <PostIcon which="3" size="20"/>
-                        {{ apps[3] }}
-                    </router-link> -->
-                    <!-- <router-link :to="`/${appName}?app_type=4`" :class="['pt-selector']">
-                        <PostIcon which="4" size="20"/>
-                        {{ apps[4] }}
-                    </router-link> -->
-                    <!-- <router-link :to="`/${appName}?app_type=5`" :class="['pt-selector']">
-                        <PostIcon which="5" size="20"/>
-                        {{ apps[5] }}
-                    </router-link> -->
-                    <!-- <router-link :to="`/${appName}?app_type=6`" :class="['pt-selector']">
-                        <PostIcon which="6" size="20"/>
-                        {{ apps[6] }}
-                    </router-link> -->
-                </div>
-                
+                </div>                
             </div>
-            <!-- <div v-if="topRecords.length" class="px-[20px] text-center text-[var(--primary-color)]">
-                <p class="mb-[15px] jump-link" @click="viewFullRanking = true">グラリンピックランキング</p>
-                <div class="flex flex-wrap justify-center items-center">
-                    <div class="px-[10px] py-[8px] flex items-center gap-[10px]" v-for="(record, index) in topRecords.filter(rec => rec.user.id !== 513).slice(0, 3)" :key="record.user.id">
-                        <div class="text-[25px]" v-if="record.award">{{ record.award }}</div>
-                        <div class="flex items-center gap-[10px] flex-wrap">
-                            <UserPanel :user="record.user" with-name disable-instant/>
-                            <div class="text-[14px]">（{{ `🔥 ${amountOfMoneyParser(record.sum_calories)} kcal` }}）</div>
-                        </div>                        
-                    </div>                    
-                </div>
-            </div> -->
             <div class="p-tag-container">
                 <div v-if="tagLoading == 0" :class="['p-tag-wrap']">
                     <div class="tag-skeleton" :style="{width: randomWidth()}" :index="num" v-for="num in 30"></div>                    
@@ -218,11 +185,8 @@ import { useApi } from '@/composables/api';
 import { Post, PostEntry, PostQuery, TopEntryUser } from '@/interface/postInterface';
 import { PostMethodsKey } from '@/interface/keys';
 import PostEntryCreate from './PostEntryCreate.vue';
-import UserPanel from '../Global/UserPanel.vue';
-import { amountOfMoneyParser } from '@/utils/tools';
 import PostEntryRanking from './PostEntryRanking.vue';
 import { useTheme } from '@/store/theme';
-import { st } from 'vue-router/dist/router-CWoNjPRp.mjs';
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
@@ -240,7 +204,6 @@ import { st } from 'vue-router/dist/router-CWoNjPRp.mjs';
     const route = useRoute()    
     const router = useRouter()
     const infiniteLoader = ref(false)
-    const tagsList = ref([])
     const tagLoading = ref(0)
     const topTags = useTopTags()
     const apps = ['ナイス', 'ナレッジ', 'チャレンジ', 'ノート', 'ヘルプ', 'グラリンピック', 'リフレッシュ']

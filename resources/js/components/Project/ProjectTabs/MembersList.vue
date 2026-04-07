@@ -18,7 +18,6 @@
                         <div class="project-cell cell-width">職務レベル</div>                        
                         <div class="project-cell cell-width">成果目標・昇給課題</div>
                         <div class="project-cell cell-width">人事考課</div>
-                        <div v-if="auth.hasPrivilage" class="project-cell cell-width">適正度</div>
                     </div>
                     <div class="project-cell-row" v-for="member in members" :key="member.id">
                         <div class="project-cell cell-width" data-label="メンバー">
@@ -54,11 +53,6 @@
                         <div class="project-cell cell-width" data-label="人事考課">
                             <div>
                                 <router-link class="user-link" :to="{name: 'evaluation', params: { projectId: route.params.projectId, memberId: member.id }}">閲覧</router-link >
-                            </div>
-                        </div>
-                        <div v-if="auth.hasPrivilage" class="project-cell cell-width" data-label="適正度">
-                            <div>
-                                <router-link class="user-link" :to="{name: 'asignment', params: { projectId: route.params.projectId, memberId: member.id }}">{{ member.pivot.compatibility_number || '未設定' }}</router-link>
                             </div>
                         </div>
                     </div>
