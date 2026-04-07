@@ -1,6 +1,6 @@
 <template>
     <div class="absolute top-0 left-0 w-full h-full bg-[var(--background-color)] z-[35]" @click="keyListView = false">
-        <div class="h-40px flex items-center px-4 min-h-[60px] justify-between">
+        <div class="h-40px flex items-center px-4 min-h-[60px] justify-between text-[var(--primary-color)]">
             <p>サポートデスク</p>
             <button @click="router.push({name: 'dashboard'})" class="h-[60px] w-[60px] flex items-center justify-center mr-[-20px]">
                 <CloseIcon fill="gray" size="12" />
