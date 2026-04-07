@@ -173,7 +173,9 @@ import NotificationGuide from './NotificationGuide.vue'
     const api = useApi()
     const guideStep = ref(0)
     const { ask, toast, ping } = useDialog()
+    const permission = ref('未許可')
     onMounted(() => {
+        permission.value = (typeof Notification !== 'undefined' && Notification.permission === 'granted') ? '許可済み' : '未許可'
         if(auth.user && auth.user.ical_key){
             icalUrl.value = {
                 status: true,
@@ -194,11 +196,14 @@ import NotificationGuide from './NotificationGuide.vue'
                 return ''
         }
     })    
-    const permission = ref(Notification.permission === 'granted' ? '許可済み' : '未許可')
+    
     const callInit = async() => {
         const data = await initPush()
         console.log(data)
         permission.value = data.ok ? '許可済み' : '未許可'
+        if(!data.ok){
+            toast(data.reason)
+        }
     }
     const dark = computed({
       get() {

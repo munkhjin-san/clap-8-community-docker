@@ -22,17 +22,17 @@ async function sha256Base64(input: string) {
 export async function initPush() {
   console.debug("initPush");
 
-  if (!("serviceWorker" in navigator)) return { ok: false, reason: "no_sw" };
-  if (!("PushManager" in window)) return { ok: false, reason: "no_push_support" };
+  if (!("serviceWorker" in navigator)) return { ok: false, reason: "サービスワーカー非対応" };
+  if (!("PushManager" in window)) return { ok: false, reason: "プッシュ通知非対応のブラウザ" };
 
   await navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
   const reg = await navigator.serviceWorker.ready;
 
-  if (Notification.permission === "denied") return { ok: false, reason: "permission_denied" };
+  if (Notification.permission === "denied") return { ok: false, reason: "通知拒否" };
 
   if (Notification.permission === "default") {
     const permission = await Notification.requestPermission();
-    if (permission !== "granted") return { ok: false, reason: permission };
+    if (permission !== "granted") return { ok: false, reason: "通知拒否" };
   }
 
   const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
