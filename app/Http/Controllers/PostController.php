@@ -145,7 +145,6 @@ class PostController extends Controller
             'tags',
             'files',
             'receipts',
-            'comments',
             'claps',
             'to_users',
             'grants',
@@ -154,6 +153,7 @@ class PostController extends Controller
             'result_files',
             'emotedUsers'
         ])
+        ->withCount('comments')
         ->when(!$has_id, function ($query) use($skip) {
             $query->skip($skip);
             
