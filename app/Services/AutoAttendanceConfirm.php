@@ -89,7 +89,7 @@ class AutoAttendanceConfirm
             $attendance_record->working_days_shift = $data['shift_count'];
             $attendance_record->normal_working_days = $data['workedday_count'];
             $attendance_record->holiday_working_days = $data['holiday_count'];
-            $attendance_record->paid_holiday_hours = $data['annual_leave'];
+            $attendance_record->paid_holiday_hours = $data['annual_leave'] / 60;
             $attendance_record->condolence_holiday = $data['condolence_leave'];
             $attendance_record->special_holiday = $data['transfer_leave'];
             $attendance_record->oda_holiday = $data['oda_leave'];
