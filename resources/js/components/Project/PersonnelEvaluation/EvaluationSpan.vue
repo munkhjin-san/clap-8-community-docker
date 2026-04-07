@@ -65,13 +65,19 @@ onMounted(() => {
 })
 const userId = Number(route.params.memberId)
 const projectId = Number(route.params.projectId)
-const dateOptions = reactive({
+type DateOption = {
+    name: string,
+    year: string,
+    which_half: string,
+    short_name: string
+}
+const dateOptions = reactive<DateOption>({
     name: '',
     year: '',
     which_half: '',
     short_name: ''
 })
-const setOption = (option) => {
+const setOption = (option: DateOption) => {
     dateOptions.name = option.name
     dateOptions.year = option.year
     dateOptions.which_half = option.which_half

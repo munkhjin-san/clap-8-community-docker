@@ -118,7 +118,7 @@ import Modal from '@/components/Global/Modal.vue';
 import EvaluationLevels from '../EvaluationLevels.vue';
 import Back from '@/components/Icons/Back.vue';
 import 'styles/customForm.css'
-import { EvaluationRecord } from '@/interface/evaluationInterface';
+import { EvaluationRecord, EvaluationSkill } from '@/interface/evaluationInterface';
 import { useProject } from '@/composables/project';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
@@ -203,7 +203,7 @@ const checkMentorSelected = async() => {
         previousStats.possible_increase_number = response.possible_increase_number
         previousStats.current_level = response.current_level
         previousStats.current_skills = response.current_skills
-        const currentSkills = response?.evaluation?.checklist?.map(ob => ob.content)
+        const currentSkills = response?.evaluation?.checklist?.map((ob: EvaluationSkill) => ob.content)
         const previousSkills = response.current_skills
         evaluationParams.children.checklist = currentSkills.length ? currentSkills : previousSkills.length ? previousSkills : []
 
@@ -214,7 +214,7 @@ const checkMentorSelected = async() => {
     }
 
 }
-const setIncrease = async(status) => {
+const setIncrease = async(status: number) => {
     if(!evaluationData.value || !evaluationData.value.id){
         ping('人事考課レコードが作成されていません。')
         return

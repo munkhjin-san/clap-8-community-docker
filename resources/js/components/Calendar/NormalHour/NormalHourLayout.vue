@@ -112,24 +112,24 @@ import { useCalendar } from '@/composables/calendar';
     const getCurrentMinute = () => {
         return DateTime.now().toFormat('HH:mm');
     }
-    const setActiveDay = (val) => {
+    const setActiveDay = (val: string | null) => {
         if(val){
             activeDay.value = DateTime.fromISO(val)
         }
     } 
-    const onMouseDown = (ev) => {
+    const onMouseDown = (ev: MouseEvent) => {
         cursorPos.value = [ev.pageX, ev.pageY];
         window.addEventListener("mousemove", onMouseHold);
     }
 
     /** @param {MouseEvent} ev */
-    const onMouseUp = (ev) => {
+    const onMouseUp = (ev: MouseEvent) => {
         window.removeEventListener("mousemove", onMouseHold);
         isDragging.value = false;
     }
 
     /** @param {MouseEvent} ev */
-    const onMouseHold = (ev) => {
+    const onMouseHold = (ev: MouseEvent) => {
         ev.preventDefault();
         if(draggingCalendar.value) return
         requestAnimationFrame(() => {
@@ -147,7 +147,7 @@ import { useCalendar } from '@/composables/calendar';
             
         });
     }
-    const orderCreator = (order, list, date) => {
+    const orderCreator = (order: number, list: CalendarRecord[], date: string) => {
         let break_point_rear = DateTime.fromFormat(date, 'yyyy-MM-dd')
         let cooked:CalendarRecord[] = [];
         let reserved:CalendarRecord[] = [];

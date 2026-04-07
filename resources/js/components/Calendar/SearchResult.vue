@@ -18,11 +18,12 @@
 </div>
 </template>
 <script setup lang="ts">
+import { CalendarRecord } from '@/interface/calendarInterface';
 import { customParser, urlCheck } from '@/utils/tools';
     const props = defineProps(['searchResult', 'searchFetch'])
     const emit = defineEmits(['jumpToRecord'])
     
-    const time = (item) => {
+    const time = (item: CalendarRecord) => {
         const from = customParser(item.date_start).toFormat('yyyy/MM/dd(EEE) H:mm')
         const to = customParser(item.date_end).toFormat('H:mm')
         return `${from} ~ ${to}`

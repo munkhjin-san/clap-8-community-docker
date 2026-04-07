@@ -20,7 +20,7 @@
                 </div>
             </div>
             <div v-if="pickerIs == 'month'" class="grid-container ">
-                <div @click.stop="setMonth(month)" :id="`m_${month}`" v-for="month in 12" class="grid-item">{{ month }}月</div>
+                <div @click.stop="setMonth(month as MonthNumbers)" :id="`m_${month}`" v-for="month in 12" class="grid-item">{{ month }}月</div>
             </div>
             <div v-if="pickerIs == 'year'" class="grid-container year-picker">
                 <div @click.stop="setYear(y)" :id="`y_${y}`" :class="{thisYear : y == year}" v-for="y in yearList" class="grid-item">{{ y }}年</div>
@@ -95,11 +95,11 @@ import { DateTime, MonthNumbers } from 'luxon';
         }
         menu.setMenu( { name: 'taskYearPicker', id: 42})
     }
-    const setYear = (y) => {
+    const setYear = (y: number) => {
         year.value = y
         pickerIs.value = 'month'
     }
-    const setMonth = (m) => {
+    const setMonth = (m: MonthNumbers) => {
         month.value = m
         pickerIs.value = 'day'
 

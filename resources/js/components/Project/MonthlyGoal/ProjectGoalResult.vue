@@ -109,7 +109,7 @@ const { ask } = useDialog()
 const stackHolderRef = ref<InstanceType<typeof LongInput> | null>(null)
 const uploadedFiles = ref<FileRecord[]>(props.chosenGoal?.files ?? [])
 const mobile = window.innerWidth <= 640;
-const tickLabel = {
+const tickLabel: Record<number, string> = {
     1: '明確に悪化',
     2: '悪化傾向',
     3: '変化なし・未確認',

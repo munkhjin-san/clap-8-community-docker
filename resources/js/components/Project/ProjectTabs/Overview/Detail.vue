@@ -18,9 +18,9 @@
                 </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div class="project-detail-header">
+                <!-- <div class="project-detail-header">
                     <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">部門</span> {{ selectedProject?.is_new ? '新規' : '既存' }}</div>
-                </div>
+                </div> -->
                 <div class="project-detail-header">
                     <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">プロジェクト種別</span> {{ selectedProject?.projectType?.label ?? selectedProject?.project_type?.label ?? '未設定' }}</div>
                 </div>

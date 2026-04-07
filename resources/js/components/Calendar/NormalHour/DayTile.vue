@@ -11,7 +11,6 @@
                         :key="record.id"
                         :record="record"
                         :day="day"
-                        @setDayIndex="val => emit('setDayIndex', val)"
                     />
                 </div>              
             </div>            
@@ -126,7 +125,7 @@ import AllDayGoogleEvent from '../AllDayGoogleEvent.vue';
             const googleEventsNum = dayGoogleEvents.value.map(ob => ob.order)
             return Math.max(...googleEventsNum) + 1
         }
-        const num = dayRecords.value.map(ob => ob.order)
+        const num = dayRecords.value.map((ob: CalendarRecord) => ob.order)
         const max = num.length ? Math.max(...num) + 1 : 0;
         return max
         
@@ -160,7 +159,7 @@ import AllDayGoogleEvent from '../AllDayGoogleEvent.vue';
         return []
     })
     const dayGoogleEvents: Ref<GoogleEventItem[]> = computed(() => {
-        const highestOrder = dayRecords.value.length ? Math.max(...dayRecords.value.map(ob => ob.order)) + 1 : 0;
+        const highestOrder = dayRecords.value.length ? Math.max(...dayRecords.value.map((ob: CalendarRecord) => ob.order)) + 1 : 0;
         const events = thisGoogleEvents.value.filter((ob: GoogleEventItem) => fullDayGoogleEvents.value.findIndex(fob => fob.id == ob.id) === -1)
         const sortedItems = events.slice().sort((a, b) => {
             const dateA = DateTime.fromFormat(`${a.start_date} ${a.start_time}`, 'yyyy-MM-dd HH:mm').toMillis();
@@ -170,10 +169,10 @@ import AllDayGoogleEvent from '../AllDayGoogleEvent.vue';
         const ordered = props.googleEventOrderCreator(highestOrder, sortedItems, props.day.full)
         return ordered
     })
-    const listView = (day) => {
+    const listView = (day: NormalHourDay) => {
         emit('setListView', day.full)
     }
-    const computedDay = (day:NormalHourDay) => {
+    const computedDay = (day: NormalHourDay) => {
         const top = DateTime.fromISO(day.full).toFormat('d')
         const bottom =  DateTime.fromISO(day.full).toFormat('ccc')
         return `<span>${top}</span><span>${bottom}</span>`
@@ -181,12 +180,12 @@ import AllDayGoogleEvent from '../AllDayGoogleEvent.vue';
     
     const hourRecords = (hour:number) => {
         if(dayRecords.value && dayRecords.value.length){               
-            return dayRecords.value.filter(ob => DateTime.fromSQL(ob.date_start).hour == hour && Math.abs(DateTime.fromSQL(ob.date_start).diff(DateTime.fromSQL(ob.date_end), 'hours').hours) < 23)
+            return dayRecords.value.filter((ob: CalendarRecord) => DateTime.fromSQL(ob.date_start).hour == hour && Math.abs(DateTime.fromSQL(ob.date_start).diff(DateTime.fromSQL(ob.date_end), 'hours').hours) < 23)
         }
         return []
     }  
     const hourGoogleEvents = (hour:number) => {
-        const items = dayGoogleEvents.value.filter(ob => ob.start_time && DateTime.fromFormat(ob.start_time, 'HH:mm').hour == hour)
+        const items = dayGoogleEvents.value.filter((ob: GoogleEventItem) => ob.start_time && DateTime.fromFormat(ob.start_time, 'HH:mm').hour == hour)
         return items
     }
 </script>

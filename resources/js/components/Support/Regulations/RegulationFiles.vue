@@ -43,6 +43,7 @@ import { useSharingDataStore } from '@/store/sharingData'
 import FileIcon from "@/components/Board/Mixed/FileIcon.vue";
 import { RegulationFiles } from "@/interface/regulationInterface";
 import CloseIcon from "@/components/Form/CloseIcon.vue";
+import { CommonFile } from "@/interface/globalInterface";
     const sharingData = useSharingDataStore()
     const props = defineProps<{
         files: RegulationFiles[]
@@ -53,7 +54,7 @@ import CloseIcon from "@/components/Form/CloseIcon.vue";
         update: [id: number, field: string, value: any]
     }>()
     const filePreview = useFilePreview()
-    const previewFile = (file, index) => {
+    const previewFile = (file: RegulationFiles[], index: number) => {
         if(sharingData.active) return
         let file_list = props.files
         const files = file_list.map(fileData => ({
@@ -73,10 +74,10 @@ import CloseIcon from "@/components/Form/CloseIcon.vue";
         filePreview.setFilePreview(data)
         
     }
-    const fileNameFilter = (file) => {
+    const fileNameFilter = (file: RegulationFiles) => {
         return file.name;
     }
-    const fileSizeView = (bytes) => {
+    const fileSizeView = (bytes: number) => {
         if(bytes > 1000000) return filesize(bytes, {standard: "jedec", round: 1});
         else return filesize(bytes, {standard: "jedec", round: 0});
     }      

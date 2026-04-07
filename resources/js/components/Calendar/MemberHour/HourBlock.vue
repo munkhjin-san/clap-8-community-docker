@@ -71,20 +71,20 @@ import GoogleEventWrap from './GoogleEventWrap.vue';
     const leave = () => {
         dragActive.value = false
     }
-    const setBeforeState = (event) => {
-        beforeState.value = event.x     
+    const setBeforeState = (event: MouseEvent | TouchEvent) => {
+        beforeState.value = event instanceof MouseEvent ? event.x : event.touches[0].clientX     
     }
     const dropFinish = inject<Function>('dropFinish') as Function
-    const gotMove = (val) => {
+    const gotMove = (val: { val: string }) => {
         if(draggingCalendar.value){
             const record = draggingCalendar.value
             setDraggingCalendar(null)
             const date = props.data.date
-            const time = props.data?.hour?.split(":") || 0;
+            const [hour] = props.data?.hour?.split(':') ?? ['0', '0']
             const min = val.val
             const merge = DateTime.fromISO(date)
             .set({ 
-                hour: Number(time[0]),
+                hour: Number(hour),
                 minute: Number(min),
                 second: 0 
             })
@@ -95,49 +95,51 @@ import GoogleEventWrap from './GoogleEventWrap.vue';
             }
         }       
     }
-    const fullDate = (val) => {
+    const fullDate = (val: { val: string }) => {
         const date = props.data.date
-        const time = props.data?.hour?.split(":") || 0;
+        const [hour] = props.data?.hour?.split(':') ?? ['0', '0']
         const min = val.val
         const merge = DateTime.fromISO(date)
             .set({ 
-                hour: Number(time[0]),
+                hour: Number(hour),
                 minute: Number(min),
                 second: 0 
             })
             .toFormat('yyyy-MM-dd HH:mm');
         return merge
     }
-    const createAtTime = (event) => {
-        if(Math.abs(event.x - beforeState.value) > 15) {
+    const createAtTime = (event: MouseEvent) => {
+        if (Math.abs(event.clientX - beforeState.value) > 15) {
             return
         }
-        const targetElement = event.target;
-        const elementWidth = targetElement.offsetWidth;
-        const clickX = event.clientX - targetElement.getBoundingClientRect().left;
-        let min = ''
-        if (clickX < elementWidth / 2) {
-            min = '00'
-        } else {
-            min = '30'
-        }
-        const date = props.data.date
-        const time = props.data?.hour?.split(":") || 0;
-        const merge = DateTime.fromISO(date)
-            .set({ 
-                hour: Number(time[0]),
-                minute: Number(min),
-                second: 0 
+
+        const targetElement = event.currentTarget as HTMLElement | null
+        if (!targetElement) return
+
+        const elementWidth = targetElement.offsetWidth
+        const clickX = event.clientX - targetElement.getBoundingClientRect().left
+        const min = clickX < elementWidth / 2 ? '00' : '30'
+
+        const [hour] = props.data?.hour?.split(':') ?? ['0', '0']
+
+        const merge = DateTime.fromISO(props.data.date)
+            .set({
+            hour: Number(hour),
+            minute: Number(min),
+            second: 0,
             })
-            .toFormat('yyyy-MM-dd HH:mm:ss');
-        const d = {
-            x: event.x,
-            y: event.y,
+            .toFormat('yyyy-MM-dd HH:mm:ss')
+
+        emit(
+            'create',
+            {
+            x: event.clientX,
+            y: event.clientY,
             time: merge,
-            stamp: DateTime.now()
-        }
-        emit('create', d, props.data.user)
-        
+            stamp: DateTime.now(),
+            },
+            props.data.user
+        )
     }
         
 

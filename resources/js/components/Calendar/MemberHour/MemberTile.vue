@@ -43,7 +43,7 @@ import UserPanel from '@/components/Global/UserPanel.vue'
 import AllDayRecord from '../AllDayRecord.vue';
 import { computed, inject } from 'vue';
 import { DateTime } from 'luxon';
-import { GoogleEventItem, MemberHourDay, NormalHourDay } from '@/interface/calendarInterface';
+import { CalendarRecord, GoogleEventItem, MemberHourDay, NormalHourDay } from '@/interface/calendarInterface';
     
     const props = defineProps<{
         userData:MemberHourDay
@@ -70,7 +70,7 @@ import { GoogleEventItem, MemberHourDay, NormalHourDay } from '@/interface/calen
         const hours:MemberHourDay[] = [];
         let currentHour = DateTime.now().startOf('day');
         for (let i = 0; i < 24; i++) {
-            const hourRecords = orderedData.value.filter(ob => DateTime.fromSQL(ob.date_start).hour === currentHour.hour)
+            const hourRecords = orderedData.value.filter((ob: CalendarRecord) => DateTime.fromSQL(ob.date_start).hour === currentHour.hour)
             const hourGoogleEvents = orderedGoogleEvents.value.filter(ob => ob.start_time && DateTime.fromISO(ob.start_time).hour === currentHour.hour)
             hours.push({hour: currentHour.toFormat('H:mm'), records: hourRecords, user: props.userData.user, date: props.userData.date, googleEvents: hourGoogleEvents});
             currentHour = currentHour.plus({ hours: 1 });
@@ -88,7 +88,7 @@ import { GoogleEventItem, MemberHourDay, NormalHourDay } from '@/interface/calen
         return ordered
     })
     const orderedGoogleEvents = computed<GoogleEventItem[]>(() => {
-        const max = orderedData.value.length ? Math.max(...orderedData.value.map(order => Number(order.order))) + 1 : 0;
+        const max = orderedData.value.length ? Math.max(...orderedData.value.map((order: CalendarRecord) => Number(order.order))) + 1 : 0;
         const eventsWithTime = props.userData.googleEvents.filter(ob => ob.all_day === false && ob.start_time)
         const ordered = props.googleEventOrderCreator(max, eventsWithTime, props.userData.date, props.userData.user.id)
         return ordered

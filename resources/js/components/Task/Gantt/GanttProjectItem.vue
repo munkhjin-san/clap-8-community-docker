@@ -70,12 +70,12 @@ const auth = useAuthUserStore()
 const beforeState = ref(0)
 const beforeLeft = ref(0)
 const mainTaskRef = useTemplateRef('mainTaskRef')
-const setBeforeState = (event) => {
+const setBeforeState = (event: MouseEvent | TouchEvent) => {
         
     const el = document.getElementById('cal_day_view')
     const left = el ? el.scrollLeft : 0
     beforeLeft.value = left
-    beforeState.value = event.x     
+    beforeState.value = (event as MouseEvent).x     
 }
 
 const calculatedDuration = computed(() => {

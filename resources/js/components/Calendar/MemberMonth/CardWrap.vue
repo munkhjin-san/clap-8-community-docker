@@ -34,7 +34,7 @@ import { OnLongPress } from '@vueuse/components'
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
-import { CalendarRecord } from '@/interface/calendarInterface';
+import { CalendarGroupUser, CalendarRecord } from '@/interface/calendarInterface';
 import { DateTime } from 'luxon';
 import { useCalendar } from '@/composables/calendar';
     const menu = useMenuStore()
@@ -58,11 +58,11 @@ import { useCalendar } from '@/composables/calendar';
         return (props.record.release_flag == 0 && props.record.members_only == 0) || editable.value
     })
     const editable = computed(() => {
-        const me = props.record.calendar_users.filter(ob => ob.id == auth.activeUser.id)
+        const me = props.record.calendar_users.filter((ob: CalendarGroupUser) => ob.id == auth.activeUser.id)
         return (me.length || props.record.edit_all || canview.value) && props.record.shift == 0
     })
     const canview = computed(() => {
-        const me = props.record.calendar_view_users.some(user => 
+        const me = props.record.calendar_view_users.some((user: CalendarGroupUser) => 
             user.id === auth.activeUser.id
         );      
         return me && props.record.shift == 0
@@ -75,13 +75,13 @@ import { useCalendar } from '@/composables/calendar';
     const expanded = computed(() => {
         return menu.parent == unique.value
     })
-    const setBeforeState = (event) => {
+    const setBeforeState = () => {
         
         const el = document.getElementById('cal_week_view')
         const left = el ? el.scrollLeft : 0
         beforeLeft.value = left          
     }
-    const dragStart = (event, record) => {
+    const dragStart = (event: MouseEvent, record: CalendarRecord) => {
         
         if(editable.value && !expanded.value){
             const el = document.getElementById('cal_week_view')
@@ -102,7 +102,7 @@ import { useCalendar } from '@/composables/calendar';
         }            
     }
 
-    const selectRecord = (event, record, from, user) => {
+    const selectRecord = (event: MouseEvent, record: CalendarRecord, from: string, user: CalendarGroupUser) => {
         
         menu.setMenu( {parent: unique.value})
         

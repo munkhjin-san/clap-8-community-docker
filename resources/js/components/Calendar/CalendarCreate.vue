@@ -382,11 +382,12 @@ import FileUploader from '../Form/FileUploader.vue';
 import { useSharingDataStore } from '@/store/sharingData'
 import ItemSelector from '../Form/ItemSelector.vue';
 import { DateTime } from 'luxon';
-import { RepeatDataType } from '@/interface/calendarInterface';
+import { CalendarGroupUser, RepeatDataType } from '@/interface/calendarInterface';
 import { useCalendar } from '@/composables/calendar';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import Modal from '../Global/Modal.vue';
+import { CommonFile } from '@/interface/globalInterface';
     const api = useApi()
     const sharingData = useSharingDataStore()
 
@@ -432,10 +433,27 @@ import Modal from '../Global/Modal.vue';
             year_to: props.editTarget && props.editTarget.repetition_type > 0 ? DateTime.fromISO(props.editTarget.expiration_start).year : DateTime.now().plus({year: 1}).year
         }
     })
-    const facility = ref({
-        qualified_institution:  ref( props.editTarget && props.editTarget.qualified_institution !== null ? props.editTarget.qualified_institution.toString() : null),
-        qualified_car: ref(props.editTarget && props.editTarget.qualified_car !== null ? props.editTarget.qualified_car.toString() : null),
-        zoom_value: ref(props.editTarget && props.editTarget.zoom_value !== null ? props.editTarget.zoom_value.toString() : null)
+    type FacilityForm = {
+        qualified_institution: string | null
+        qualified_car: string | null
+        zoom_value: string | null
+    }
+
+    type ConvertedFacilityForm = {
+        qualified_institution: number | null
+        qualified_car: number | null
+        zoom_value: number | null
+    }
+    const facility = ref<FacilityForm>({
+        qualified_institution: props.editTarget?.qualified_institution != null
+            ? props.editTarget.qualified_institution.toString()
+            : null,
+        qualified_car: props.editTarget?.qualified_car != null
+            ? props.editTarget.qualified_car.toString()
+            : null,
+        zoom_value: props.editTarget?.zoom_value != null
+            ? props.editTarget.zoom_value.toString()
+            : null,
     })
     const uploadedFiles = ref(props.editTarget && props.editTarget.files ? props.editTarget.files : [])
     const processing = ref(false)
@@ -448,7 +466,7 @@ import Modal from '../Global/Modal.vue';
         if(props.editTarget && props.editTarget.repetition_type == 1 && props.editTarget.repeat_week){
             const repeats = props.editTarget.repeat_week.split(',').map(Number);
             let pre = [false, false, false, false, false, false, false]
-            repeats.forEach(val => {                
+            repeats.forEach((val: number) => {                
                 pre[val] = true
             });
             repeat_span.value.weekly.selected_days = pre
@@ -464,8 +482,9 @@ import Modal from '../Global/Modal.vue';
             department_id.value = Number(calendarDepartment)
         }
     })
-    const setEditAllDefault = (event) => {
-        const val = event.target.checked ? 1 : 0
+    const setEditAllDefault = (event: Event) => {
+        const target = event.target as HTMLInputElement
+        const val = target.checked ? 1 : 0
         localStorage.setItem('editAllDefault', val.toString())            
     }
     
@@ -476,7 +495,7 @@ import Modal from '../Global/Modal.vue';
             time_end.value = '23:59'
         }
     }
-    const closeModal = (val) => {
+    const closeModal = (val: boolean) => {
         const shareData = {
             active: false,
             title: '',
@@ -565,16 +584,20 @@ import Modal from '../Global/Modal.vue';
         }
         processing.value = true
         
-        let convertableFacilities = {};
-        for (let key in facility.value) {
-            convertableFacilities[key] =  facility.value[key] !== null ? parseInt(facility.value[key]) : null            
+        const convertableFacilities = {} as ConvertedFacilityForm
+
+        for (const key in facility.value) {
+            const typedKey = key as keyof FacilityForm
+            const val = facility.value[typedKey]
+
+            convertableFacilities[typedKey] = val !== null ? parseInt(val, 10) : null
         }
         const params = {
             editId: props.editTarget ? props.editTarget.id : null,
             edit_repeat: props.edit_all_record,
             title: title.value,
             remarks: remarks.value,
-            users: calendar_users.value.map(ob => ob.id),
+            users: calendar_users.value.map((ob: CalendarGroupUser)  => ob.id),
             referrer: referrer.value,
             release_flag: release_flag.value,
             edit_all: !release_flag.value ? edit_all.value : false,
@@ -586,9 +609,9 @@ import Modal from '../Global/Modal.vue';
             once_date: once_date.value,
             repeat_span: repeat_span.value,
             facility: convertableFacilities,
-            file_ids: uploadedFiles.value.length ? uploadedFiles.value.map(ob => ob.id) : [],
+            file_ids: uploadedFiles.value.length ? uploadedFiles.value.map((ob: CommonFile) => ob.id) : [],
             department_id: department_id.value,
-            view_users: calendar_view_users.value.map(ob => ob.id),
+            view_users: calendar_view_users.value.map((ob: CalendarGroupUser) => ob.id),
             members_only: members_only.value
         }
         

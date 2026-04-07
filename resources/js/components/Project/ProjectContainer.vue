@@ -45,7 +45,7 @@
                         </div>
                         
                     </div>
-                    <div class="project-cell whitespace-nowrap">部門</div>
+                    <!-- <div class="project-cell whitespace-nowrap">部門</div> -->
                     <div class="project-cell cursor-pointer relative">
                         <div @click.stop="menu.setMenu({ parent: 'projectStatusSort' })" class="flex items-center gap-[5px] whitespace-nowrap">
                             ステータス
@@ -146,9 +146,9 @@
                             </div>                           
                         </div>
                     </div>
-                    <div class="project-cell pc">
+                    <!-- <div class="project-cell pc">
                         {{ project.is_new ? '新規' : '既存' }}
-                    </div>
+                    </div> -->
                     <div class="project-cell pc">
                         {{ PROJECT_STATUS_LABEL[project.status] ?? '不明' }}
                     </div> 
@@ -275,8 +275,8 @@ const router = useRouter()
 const auth = useAuthUserStore()
 const responsive = useResponsive()
 const projectUsers = useProjectUsers()
-const userList = ref([])
-const editData = ref(null)
+const userList = ref<User[]>([])
+const editData = ref<Project | null>(null)
 const createWindow = ref(false)
 const selectedManagers = ref<number[]>([])
 const selectedMembers = ref<number[]>([])
@@ -344,7 +344,7 @@ const searchResults = computed(() => {
     if(keywords.value){
         const lowSearch = keywords.value.toLowerCase()
 
-        const deepSearch = (obj) => {
+        const deepSearch: (obj: any) => boolean = (obj: any) => {
             if (typeof obj === 'string' || typeof obj === 'number') {
                 return String(obj).toLowerCase().includes(lowSearch);
             } else if (Array.isArray(obj)) {
@@ -414,9 +414,9 @@ const viewUsers = (members: User[]) => {
     
 }
 
-const sortableUsers = (which:string) => {
-    const selectable = <User[]>[]
-        projectList.value.map(project => {
+const sortableUsers = (which: 'manager' | 'members') => {
+    const selectable: User[] = []
+    projectList.value.forEach(project => {
         const targets = project[which]
         if(targets){
             targets.forEach(manager => {
@@ -493,7 +493,7 @@ const deleteProject = async(project: Project) => {
     data && getProjects()
 }
 provide('deleteProject', (rec: Project) => deleteProject(rec))
-provide('editProjects', (rec) => {editData.value = rec; createWindow.value = true})
+provide('editProjects', (rec: Project) => {editData.value = rec; createWindow.value = true})
 provide('setTotalFinanceWindow', (flag:boolean) => {totalFinanceWindow.value = flag})
 </script>
 <style scoped>

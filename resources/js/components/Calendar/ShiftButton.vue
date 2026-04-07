@@ -4,9 +4,17 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 
-    const props = defineProps(['jumpTo', 'viewType'])
+    const props = defineProps<{
+        jumpTo: 'up' | 'down' | 'left' | 'right',
+        viewType: number
+    }>()
     const emit = defineEmits(['close'])
-    const directions = ref({
+    const directions = ref<{
+        up: string,
+        down: string,
+        left: string,
+        right: string
+    }>({
         up: '前月へ',
         down: '翌月へ',
         left:  props.viewType == 3 ? '前日へ' : '前月へ' ,

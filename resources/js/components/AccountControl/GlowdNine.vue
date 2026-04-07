@@ -28,8 +28,8 @@
             <tr v-for="user in searchUsers" :key="user.id">
               <td>{{ user.name }}</td>
               <td v-for="month in months" :key="month">
-                {{ user.task_users?.find(t_user => t_user.month === month)?.total_prize ? `タスク：${user.task_users.find(t_user => t_user.month === month).total_prize}\n` : '' }}
-                {{ user.custom_form_users?.find(t_user => t_user.month === month)?.total_prize ? `フォーム：${user.custom_form_users.find(t_user => t_user.month === month).total_prize}` : '' }}
+                {{ user.task_users?.find((t_user: GlowdNineTaskUser) => t_user.month === month)?.total_prize ? `タスク：${user.task_users.find((t_user: GlowdNineTaskUser) => t_user.month === month).total_prize}\n` : '' }}
+                {{ user.custom_form_users?.find((t_user: GlowdNineTaskUser) => t_user.month === month)?.total_prize ? `フォーム：${user.custom_form_users.find((t_user: GlowdNineTaskUser) => t_user.month === month).total_prize}` : '' }}
               </td>
             </tr>
           </tbody>
@@ -45,6 +45,10 @@ import PostSearchBar from '@/components/Post/PostSearchBar.vue'
 import YearPicker from '@/components/Global/YearPicker.vue'
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
+type GlowdNineTaskUser = {
+    month: string;
+    total_prize: number;
+}
 const months = ref<string[]>([]);
 const keywords = ref('')
 const year = ref(DateTime.now().year)
@@ -53,7 +57,7 @@ const api = useApi()
 onMounted(() => {
     setDate({year: year.value})
 });
-const setDate = (val) => {
+const setDate = (val: { year: number }) => {
     year.value = val.year
     months.value = Array.from({ length: 12 }, (_, i) => {
         const month = (i + 1).toString().padStart(2, '0'); 

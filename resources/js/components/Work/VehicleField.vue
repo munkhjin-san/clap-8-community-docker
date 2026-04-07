@@ -77,13 +77,22 @@ import { User } from '@/interface/globalInterface';
 import { vehicleAsOptions } from '@/utils/workApi';
 import { useAuthUserStore } from '@/store/auth'
 const auth = useAuthUserStore()
-const vehicle = defineModel('vehicle')
-const vehicleType = ref(null)
+type VehicleFieldProps = {
+    vehicle: number | null,
+    alcohol_before_time: string | null,
+    alcohol_after_time: string | null,
+    alcohol_before_value: number | null,
+    alcohol_after_value: number | null,
+    confirm_before_user: User | null,
+    confirm_after_user: User | null
+}
+const vehicle = defineModel<VehicleFieldProps>('vehicle')
+const vehicleType = ref<null | number>(null)
 const theme = useTheme()
-const alchoholTestBefore = ref(null)
-const alchoholTestAfter = ref(null)
-const alchoholTestValueBefore = ref(null)
-const alchoholTestValueAfter = ref(null)
+const alchoholTestBefore = ref<null | string>(null)
+const alchoholTestAfter = ref<null | string>(null)
+const alchoholTestValueBefore = ref<null | number>(null)
+const alchoholTestValueAfter = ref<null | number>(null)
 const alcoholTestConfirmMember = ref<User | null>(null)
 const alcoholTestConfirmMember2 = ref<User | null>(null)
 onMounted(() => {
@@ -93,11 +102,11 @@ onMounted(() => {
         alchoholTestAfter.value = vehicle.value['alcohol_after_time']
         alchoholTestValueBefore.value = vehicle.value['alcohol_before_value']
         alchoholTestValueAfter.value = vehicle.value['alcohol_after_value']
-        alcoholTestConfirmMember.value = vehicle.value['before_user']
-        alcoholTestConfirmMember2.value = vehicle.value['after_user']
+        alcoholTestConfirmMember.value = vehicle.value['confirm_before_user']
+        alcoholTestConfirmMember2.value = vehicle.value['confirm_after_user']
     }
 })
-const vehicleChange = (type: string, value: any) => {
+const vehicleChange = (type: keyof VehicleFieldProps, value: any) => {
     if (vehicle.value && typeof vehicle.value === 'object') {
         vehicle.value[type] = value
     }

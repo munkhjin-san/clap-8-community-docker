@@ -34,12 +34,13 @@ onMounted(() => {
         }
     }
 })
-const setSubPart = (event) => {
-    const targetValue = event.target.value;
-    if(event.target.checked){
+const setSubPart = (event: Event) => {
+    const target = event.target as HTMLInputElement;
+    const targetValue = target.value;
+    if(target.checked){
         const otherParts = props.subParts.filter(part => Number(part.parts_value) !== Number(targetValue));
         otherParts.forEach(part => {
-            value.value = value.value.filter(v => Number(v) !== Number(part.parts_value));
+            value.value = value.value.filter((v: string | number) => Number(v) !== Number(part.parts_value));
         })
     }
 }

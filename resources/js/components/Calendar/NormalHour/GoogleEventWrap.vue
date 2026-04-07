@@ -92,12 +92,12 @@ import GoogleEventCard from '../GoogleEventCard.vue';
         return `calc(((${unit} - 30px) / 96 * ${steps}) + 1px)`
     })
 
-    const setBeforeState = (event) => {
+    const setBeforeState = (event: MouseEvent | TouchEvent) => {
         
         const el = document.getElementById('cal_day_view')
         const left = el ? el.scrollLeft : 0
         beforeLeft.value = left
-        beforeState.value = event.x     
+        beforeState.value = 'clientX' in event ? event.clientX : event.touches[0].clientX
     }
     const selectRecord =(event:MouseEvent) => {
         if(event && Math.abs( event.x - beforeState.value) > 15) {

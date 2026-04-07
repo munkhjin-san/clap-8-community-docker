@@ -39,7 +39,7 @@ import { DateTime, DayNumbers, MinuteNumbers, MonthNumbers } from 'luxon';
     }>()
     
     const emit = defineEmits<{
-        (e: 'setDate', date: {year:number, month: MonthNumbers, select?:boolean, day?: DayNumbers})
+        (e: 'setDate'): void
     }>()
 
     const month = defineModel<MonthNumbers>('month')
@@ -84,7 +84,7 @@ import { DateTime, DayNumbers, MinuteNumbers, MonthNumbers } from 'luxon';
         month.value = m
         pickerIs.value = ''
         menu.close()
-        emit('setDate', {year: Number(year.value), month: m as MonthNumbers, select: true})
+        emit('setDate')
 
     }
 </script>

@@ -30,7 +30,7 @@
                     </label>                    
                     <Transition name="customInputGroup">
                         <div class="mt-[10px] ml-[25px]" v-if="element.has_sub_text && (radioModel == element.id || checkboxModel.includes(element.id))">
-                            <input :class="['custom-a-input' , {'invalid-input': validateOn && element.has_sub_text_required && !sub_texts[element.id]}]" v-model="sub_texts[element.id]" :placeholder="element.placeholder ? element.placeholder : '回答'" back type="text"/>
+                            <input :class="['custom-a-input' , {'invalid-input': validateOn && element.has_sub_text_required && !sub_texts[Number(element.id)]}]" v-model="sub_texts[Number(element.id)]" :placeholder="element.placeholder ? element.placeholder : '回答'" back type="text"/>
                         </div>
                     </Transition>
                 </div>
@@ -92,7 +92,7 @@ const blockData = reactive<SurveyBlockAnswer>({
 const radioModel = ref<number | string | null>(null)
 const checkboxModel = ref<(number | string)[]>([])
 const validateOn = ref(false)
-const sub_texts = reactive({})
+const sub_texts = reactive<Record<number, string>>({})
 const theme = useTheme()
 const filePath = computed(() => props.filePath || '/survey_files')
 onMounted(() => {
@@ -182,7 +182,8 @@ const isValid = ():boolean => {
         if (!selectedElement?.has_sub_text_required) {
             return true
         }
-        return Boolean(sub_texts[selectedElement.id])
+        const id = Number(selectedElement.id)
+        return Boolean(sub_texts[id])
     }
     else{         
         let elementsValid = true
@@ -192,7 +193,8 @@ const isValid = ():boolean => {
                 elementsValid = false
                 return
             }
-            if(element.has_sub_text_required && checked.includes(element.id) && !sub_texts[element.id]){
+            const id = Number(element.id)
+            if(element.has_sub_text_required && checked.includes(element.id) && !sub_texts[id]){
                 elementsValid = false
             }
         });

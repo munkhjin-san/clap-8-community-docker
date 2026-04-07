@@ -71,7 +71,7 @@
                     公開フォームURL: <a target="_blank" :href="url">{{ url }}</a>
                 </template>
                 <template v-else>
-                    公開フォームURL: <span class="text-[gray]">未公開</span>
+                    アンケートのURL: <span class="text-[gray]">未公開</span>
                 </template>
             </div>
             <div class="mt-[30px]">
@@ -316,7 +316,7 @@ interface LinkedProject {
 const isProjectCreationForm = computed(() => props.form.usage === 'project_creation')
 const url = computed(() => {
     if (!props.form.is_public || !props.form.public_token) {
-        return ''
+        return `${window.location.origin}/survey/${props.form.id}`
     }
 
     return `${window.location.origin}/public-surveys/${props.form.public_token}`
@@ -479,9 +479,9 @@ const exportCSV = async() => {
         year: selectedDate.year,
         month: selectedDate.month
     })
-    const dataSet: any = []
+    const dataSet: Record<string, string>[] = []
     data.forEach(row => {
-        const v = {
+        const v: Record<string, string> = {
             "氏名" : row.user?.name ?? row.respondent_label
         }
         row.data.forEach(ans => {

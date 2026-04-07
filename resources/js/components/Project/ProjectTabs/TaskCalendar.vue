@@ -568,19 +568,19 @@ const linkClick = (edgeMouseEvent: EdgeMouseEvent) => {
         })
     }
 };
-const onMouseDown = (ev) => {
+const onMouseDown = (ev: MouseEvent) => {
     cursorPos.value = [ev.pageX, ev.pageY];
     beforeState.value = ev.pageX
     window.addEventListener("mousemove", onMouseHold);
 }
 
 /** @param {MouseEvent} ev */
-const onMouseUp = (ev) => {
+const onMouseUp = (ev: MouseEvent) => {
     window.removeEventListener("mousemove", onMouseHold);
 }
 
 /** @param {MouseEvent} ev */
-const onMouseHold = (ev) => {
+const onMouseHold = (ev: MouseEvent) => {
     ev.preventDefault();
 
     requestAnimationFrame(() => {

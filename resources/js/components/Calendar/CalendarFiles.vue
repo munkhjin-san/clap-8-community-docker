@@ -1,7 +1,7 @@
 <template>
     <div class="file-area-content" style="overflow: hidden;max-width: 100%;">
         <div class="file-wrap" v-for="(file, index) in list" style="max-width: 100%;">   
-            <div class="file-area-container" @click="previewFile(list, index)">
+            <div class="file-area-container" @click="previewFile(file, index)">
                 <div class="flex-centered">             
                     <div style="max-width:65px;height:40px;display: flex;">                   
                         <img
@@ -30,13 +30,14 @@ import {filesize} from "filesize";
 import FileIcon from "../Board/Mixed/FileIcon.vue";
 import { useFilePreview } from "@/store/filePreview";
 import { useSharingDataStore } from '@/store/sharingData'
+import { CommonFile } from "@/interface/globalInterface";
     const sharingData = useSharingDataStore()
     const props = defineProps(['list'])
     const filePreview = useFilePreview()
-    const previewFile = (file, index) => {
+    const previewFile = (file: CommonFile, index: number | string) => {
         if(sharingData.active) return
         let file_list = props.list
-        const files = file_list.map(fileData => ({
+        const files = file_list.map((fileData: CommonFile) => ({
             ...fileData,
             file_path: `/cdn/calendar_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
             doc_path: `/calendar_files/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`
@@ -53,10 +54,10 @@ import { useSharingDataStore } from '@/store/sharingData'
         filePreview.setFilePreview(data)
         
     }
-    const fileNameFilter = (file) => {
+    const fileNameFilter = (file: CommonFile) => {
         return file.name;
     }
-    const fileSizeView = (bytes) => {
+    const fileSizeView = (bytes: number) => {
         if(bytes > 1000000) return filesize(bytes, {standard: "jedec", round: 1});
         else return filesize(bytes, {standard: "jedec", round: 0});
     }          

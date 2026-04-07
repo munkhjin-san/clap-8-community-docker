@@ -227,7 +227,7 @@ import { useTempRecord } from '@/store/tempRecord';
 // import MeetingSummary from './MeetingSummary.vue';
 import { User } from '@/interface/globalInterface';
 import { DateTime, DayNumbers, MonthNumbers } from 'luxon';
-import { CalendarRecord, FacilityItem, FastCreateData, GoogleEventItem, NormalHourDay } from '@/interface/calendarInterface';
+import { CalendarGroupUser, CalendarRecord, FacilityItem, FastCreateData, GoogleEventItem, NormalHourDay } from '@/interface/calendarInterface';
 import MonthPickerNew from '../Global/MonthPickerNew.vue';
 import { useCalendar } from '@/composables/calendar';
 // import TempReserve from './TempReserve.vue';
@@ -272,7 +272,7 @@ import CalendarSettings from './CalendarSettings.vue';
     const activeMonth = ref(DateTime.now().month)
     const activeYear = ref(DateTime.now().year) 
     const createWindow = ref(false)
-    const editTarget = ref(null)
+    const editTarget = ref<CalendarRecord | null>(null)
     const initialLoader = ref(true)
     const viewType = ref(-1)
     const slideCount = ref(-1)
@@ -286,7 +286,7 @@ import CalendarSettings from './CalendarSettings.vue';
     const preSelected = ref('')
     const prevScrollTop = ref(0)
     const prevScrollLeft = ref(0)
-    const jumpTo = ref<string | null>(null)
+    const jumpTo = ref<'up' | 'down' | 'left' | 'right' | null>(null)
     const fastCreate = ref<FastCreateData>({
         x: 0,
         y: 0,
@@ -300,7 +300,7 @@ import CalendarSettings from './CalendarSettings.vue';
     const memberHourLayoutRef = ref<InstanceType<typeof MemberHourLayout> | null>(null)
     const memberMonthLayoutRef = ref<InstanceType<typeof MemberMonthLayout> | null>(null)
     const normalMonthLayoutRef = ref<InstanceType<typeof NormalMonthLayout> | null>(null)
-    const summeryViewing = ref(null)
+    const summeryViewing = ref<CalendarRecord | null>(null)
     const tempReserveWindow = ref(false)
     const { getFacilities, facilitiesList, departmentsList, getDepartments, selectedDepartment, setDraggingCalendar, draggingCalendar } = useCalendar()
     const layouts = computed(() => {
@@ -456,7 +456,7 @@ import CalendarSettings from './CalendarSettings.vue';
         
     }
 
-    const addRecord = (type, value, user) => {
+    const addRecord = (type: string, value: string, user: CalendarGroupUser) => {
         if(type == 'day'){
             if(user){
                 const index = preSelectedMembers.value.find(ob => ob.id == user.id)
@@ -470,7 +470,7 @@ import CalendarSettings from './CalendarSettings.vue';
             createWindow.value = true            
         }
     }
-    const deleteRecord = async(record) => {
+    const deleteRecord = async(record: CalendarRecord) => {
         let question = record.repetition_type > 0 ? '繰り返しスケジュールすべて削除しますか。' : 'スケジュールを削除しますか。'
         let answers = [{label:'すべて', value:'all'}, {label:'このスケジュールのみ', value:'single'}, {label:'キャンセル', value:false}]
         const options = {
@@ -487,7 +487,7 @@ import CalendarSettings from './CalendarSettings.vue';
         }
 
     }
-    const onKeyDown = (e) => {
+    const onKeyDown = (e: KeyboardEvent) => {
         if(e.keyCode == 27 && draggingCalendar.value){
             setDraggingCalendar(null)
         }
@@ -500,7 +500,7 @@ import CalendarSettings from './CalendarSettings.vue';
             records.value[index] = data
         }                        
     }
-    const editRecord = async(record) => {
+    const editRecord = async(record: CalendarRecord) => {
         if(record.temp_flag == 1){
             ping('仮予約のスケジュールは編集できません。')
             return
@@ -545,7 +545,7 @@ import CalendarSettings from './CalendarSettings.vue';
         }
         
     }
-    const switchView = (val) => {
+    const switchView = (val: number) => {
         menu.close()
         initialLoader.value = true
         viewType.value = val
@@ -569,7 +569,7 @@ import CalendarSettings from './CalendarSettings.vue';
         if(!dateInstance.isValid) return
         getCalendar(dateInstance.toISODate(), 'updated')
     }
-    const jumpToDate = (date) => {
+    const jumpToDate = (date: string) => {
         appendLock.value = true
         const dataDate = DateTime.fromISO(date)
         if(!dataDate.isValid) return
@@ -616,7 +616,7 @@ import CalendarSettings from './CalendarSettings.vue';
             appendLock.value = false
         }, 500);
     }
-    const slided = (realIndex, previous) => {
+    const slided = (realIndex: number, previous: number) => {
         if(!appendLock.value){
             slideCount.value ++
             if(slideCount.value > 0){
@@ -625,7 +625,7 @@ import CalendarSettings from './CalendarSettings.vue';
                 }else if(previous == 0 && realIndex == 11){
                     selectedYear.value--
                 }
-                selectedMonth.value = realIndex 
+                selectedMonth.value = realIndex as MonthNumbers
                 const dateInstance = DateTime.fromObject({year: selectedYear.value, month: selectedMonth.value, day: 1})
                 if(!dateInstance.isValid) return
                 const date = dateInstance.toISODate()
@@ -657,14 +657,14 @@ import CalendarSettings from './CalendarSettings.vue';
     const selectedDateInstance = computed(() => {
         return DateTime.fromObject({ year: selectedYear.value, month: selectedMonth.value, day: selectedDay.value})
     })
-    const jumpExecute = async(day) => {
+    const jumpExecute = async(day: string) => {
         const layout = layouts.value[viewType.value]
         if(layout){
             await layout.containerScroll(day)
         } 
         initialLoader.value = false                
     }
-    const closeCreate = (val) => {
+    const closeCreate = (val: boolean) => {
         createWindow.value = false
         tempReserveWindow.value = false
         editTarget.value = null
@@ -694,7 +694,7 @@ import CalendarSettings from './CalendarSettings.vue';
         
         
     }
-    const createAtTime = (data, user) => {      
+    const createAtTime = (data: FastCreateData, user: CalendarGroupUser) => {      
         menu.close()       
         if(user){
             const index = preSelectedMembers.value.find(ob => ob.id == user.id)
@@ -744,7 +744,7 @@ import CalendarSettings from './CalendarSettings.vue';
         }       
         
     }
-    const jumpToRecord = (record) => {
+    const jumpToRecord = (record: CalendarRecord) => {
         appendLock.value = true
         tempRecord.setTempRecord(record.id)
         const dInstance = DateTime.fromISO(record.date_start)
@@ -773,11 +773,11 @@ import CalendarSettings from './CalendarSettings.vue';
         
     }
     const getCalendar = async(day:string, method?:string, replaceId?: number) => {
-        let fac = {}
-        for(const index in facilitiesList.value){            
-            const values = facilitiesList.value[index].filter((ob: FacilityItem) => ob.selected).map((ob: FacilityItem) => ob.value)
+        let fac: Record<string, any[]> = {}
+        for(const key of Object.keys(facilitiesList.value)){
+            const values = (facilitiesList.value as Record<string, FacilityItem[]>)[key].filter((ob: FacilityItem) => ob.selected).map((ob: FacilityItem) => ob.value)
             if(values && values.length){
-                fac[index] = values
+                fac[key] = values
             } 
         }   
         
@@ -785,10 +785,10 @@ import CalendarSettings from './CalendarSettings.vue';
         const recordsList = await api.post('/get_calendar_data',{day: day, facilities: fac, view_type: viewType.value, departments: depIds})
             
         if(method == 'updated'){
-            const valid_id = recordsList.map(ob => ob.id)
+            const valid_id = recordsList.map((ob: CalendarRecord) => ob.id)
             records.value = records.value.filter(ob => valid_id.includes(ob.id))
         }
-        recordsList.forEach(item => {
+        recordsList.forEach((item: CalendarRecord) => {
             const existingIndex = records.value.findIndex(record => record.id === item.id);
             if (existingIndex === -1) {
                 records.value.push(item);
@@ -806,7 +806,7 @@ import CalendarSettings from './CalendarSettings.vue';
             setTimeout(() => {
                 let date = DateTime.now().toISODate()       
                 if(tempRecord.id){
-                    const target = recordsList.find(ob => ob.id == tempRecord.id)
+                    const target = recordsList.find((ob: CalendarRecord) => ob.id == tempRecord.id)
                     const instance = DateTime.fromISO(target.date_start)
                     if(target && instance.isValid){
                         date = instance.toISODate()
@@ -823,7 +823,7 @@ import CalendarSettings from './CalendarSettings.vue';
                 if(jumpTo.value == 'up'){
                     create = aInstance.endOf('month').toISODate()                          
                 }    
-                jumpExecute(create)                                               
+                if (create) jumpExecute(create)                                               
                 initialLoader.value = false        
                 jumpTo.value = null                
             })                    
@@ -840,7 +840,7 @@ import CalendarSettings from './CalendarSettings.vue';
     
 
     }
-    const setSummaryViewing = (record) => {
+    const setSummaryViewing = (record: CalendarRecord | null) => {
         summeryViewing.value = record
     }
 

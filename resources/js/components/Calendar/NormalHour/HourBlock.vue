@@ -49,23 +49,24 @@ import GoogleEventWrap from './GoogleEventWrap.vue';
         ]
     })   
 
-    const setBeforeState = (event) => {
-        beforeState.value = event.x   
+    const setBeforeState = (event: MouseEvent | TouchEvent) => {
+        beforeState.value = 'clientX' in event ? event.clientX : event.touches[0].clientX
     }
 
-    const createAtTime = (event) => {
+    const createAtTime = (event: MouseEvent) => {
         if(Math.abs(event.x - beforeState.value) > 15) {
             return
         }
-        const targetElement = event.target;
+        const targetElement = event.currentTarget as HTMLElement | null
+        if (!targetElement) return
         const elementWidth = targetElement.offsetWidth;
         const clickX = event.clientX - targetElement.getBoundingClientRect().left       
         const min = (clickX < elementWidth / 2) ? 0 : 30
         const date = props.day.full
-        const time = props.hour.split(":");
+        const [hour] = props.hour?.split(':') ?? ['0', '0']
         const merge = DateTime.fromISO(date)
             .set({ 
-                hour: Number(time[0]),
+                hour: Number(hour),
                 minute: min,
                 second: 0 
             }).toFormat('yyyy-MM-dd HH:mm:ss');

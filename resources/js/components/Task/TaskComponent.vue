@@ -123,11 +123,18 @@ const isBoard = computed(() => {
 })
 const spanBuilder = async(date: DateTime) => {   
     if(!date.isValid) return
-    const units = { 
-        year:'year',
+    const units: Record<DateTimeUnit, DateTimeUnit> = {
+        year: 'year',
+        quarter: 'year',
         month: 'year',
-        day: 'month'
+        week: 'month',
+        day: 'month',
+        hour: 'day',
+        minute: 'hour',
+        second: 'minute',
+        millisecond: 'second',
     }
+
     let from = date.startOf(units[viewType.value])
     let to = date.endOf(units[viewType.value])
     if(viewType.value == 'year' && props.maxInterval.isValid && props.maxInterval.start?.isValid && props.maxInterval.end?.isValid){

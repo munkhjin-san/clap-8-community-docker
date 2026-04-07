@@ -86,7 +86,7 @@
         let groups : any
        
         groups = props.workGroups
-        .flatMap(workGroup => [
+        .flatMap((workGroup: any) => [
             ...workGroup.members, // Add members
             ...workGroup.manager || [], // Add manager if it exists
         ])

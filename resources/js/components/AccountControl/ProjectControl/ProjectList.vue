@@ -3,7 +3,7 @@
         <div class="project-table">
             <div class="project-header-row break-keep">
                 <div class="project-cell">プロジェクト名</div>
-                <div class="project-cell">部門</div>
+                <!-- <div class="project-cell">部門</div> -->
                 <div class="project-cell">期間</div>
                 <!-- <div class="project-cell">サービスカテゴリ</div>
                 <div class="project-cell">顧客企業</div>
@@ -20,11 +20,11 @@
                         {{ project.name }}
                     </div>
                 </div>
-                <div class="project-cell whitespace-nowrap">
+                <!-- <div class="project-cell whitespace-nowrap">
                     <div>
                         {{ project.is_new ? '新規' : '既存' }}
                     </div>
-                </div>
+                </div> -->
                 <div class="project-cell pc">
                     <div v-if="project?.date_start">{{ DateTime.fromISO(project.date_start).toLocaleString(DateTime.DATE_SHORT) }} ~ {{ DateTime.fromISO(project.date_end).toLocaleString(DateTime.DATE_SHORT) }}</div>
                 </div>
@@ -152,10 +152,10 @@
                         <p class="font-bold text-base">{{selectedProject.name}}</p>
                         <CloseIcon class="cursor-pointer" size="12" @click="selectedProject = null"/>
                     </div>
-                    <div class="flex gap-3 text-sm items-center">
+                    <!-- <div class="flex gap-3 text-sm items-center">
                         <p class="bg-[var(--bg3)] p-1">部門</p>
                         <p>{{selectedProject.is_new ? '新規' : '既存'}}</p>
-                    </div>
+                    </div> -->
                     <div class="flex gap-3 text-sm items-center">
                         <p class="bg-[var(--bg3)] p-1">プロジェクト種別</p>
                         <p>{{ selectedProject.projectType?.label ?? selectedProject.project_type?.label ?? '未設定' }}</p>
@@ -344,7 +344,7 @@ const searchResults = computed(() => {
 
     if(props.keywords){
         const lowSearch = props.keywords.toLowerCase()
-        const deepSearch = (obj) => {
+        const deepSearch: (obj: Project) => boolean = (obj: Project) => {
             if (typeof obj === 'string' || typeof obj === 'number') {
                 return String(obj).toLowerCase().includes(lowSearch);
             } else if (Array.isArray(obj)) {

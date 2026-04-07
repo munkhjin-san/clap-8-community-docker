@@ -148,8 +148,7 @@ import { computed, ref, watch } from 'vue';
 import { onMounted } from 'vue';
 import FloatButton from '@/components/Global/FloatButton.vue';
 import CustomFormCreate from './CustomFormCreate.vue';
-import { useRoute } from 'vue-router';
-import router from '@/router';
+import { useRoute, useRouter } from 'vue-router';
 import ItemMenu from '@/components/Global/ItemMenu.vue';
 import UserPanel from '@/components/Global/UserPanel.vue';
 import Modal from '@/components/Global/Modal.vue';
@@ -161,6 +160,7 @@ const api = useApi()
 let keywordSearchTimer: ReturnType<typeof setTimeout> | null = null
 const viewUsers = ref<{title: string, users: CustomFormUser[]}>({title: '', users: []})
 const route = useRoute()
+const router = useRouter()
 const forms = ref<CustomForm[]>([])
 const projectTypes = ref<ProjectType[]>([])
 const openModal = ref(false)

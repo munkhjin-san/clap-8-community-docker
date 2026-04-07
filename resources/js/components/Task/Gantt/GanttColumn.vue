@@ -33,7 +33,7 @@ const props = defineProps<{
 }>()
 const {fastCreate, jumpTo} = inject(GanttMethodsKey) as GanttMethods
 
-const createTask = (event) => {
+const createTask = (event: { x: number; y: number }) => {
     menu.close()
     fastCreate({time: props.day.date_full, x: event.x, y:event.y, stamp: DateTime.now()})
 }

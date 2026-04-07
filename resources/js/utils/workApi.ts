@@ -7,7 +7,7 @@ export const getWorkGroup = async () => {
         const auth = useAuthUserStore()
         const response = await axios.post('/get_work_group', {id: auth.activeUser.id})
         return response.data
-    } catch (e) {
+    } catch (e: any) {
         throw new Error(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 }
@@ -19,7 +19,7 @@ export const getCustomFields = async () => {
         };
         const response = await axios.post('/custom_field_data', params)
         return response.data
-    } catch (e) {
+    } catch (e: any) {
         throw new Error(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 }
@@ -33,7 +33,7 @@ const fetchData = async(url: string, yearMonth: string, checkedUsers: number[], 
         }
         const response = await axios.get(url, {params: params})
         return response.data
-    } catch (e) {
+    } catch (e: any) {
         throw new Error(e.response?.data.message || e?.message || 'エラーが発生しました。')
     }
 }

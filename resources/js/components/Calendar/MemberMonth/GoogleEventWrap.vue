@@ -54,13 +54,13 @@ import { User } from '@/interface/globalInterface';
     const expanded = computed(() => {
         return menu.parent == unique.value
     })
-    const setBeforeState = (event) => {
+    const setBeforeState = () => {
         
         const el = document.getElementById('cal_week_view')
         const left = el ? el.scrollLeft : 0
         beforeLeft.value = left          
     }
-    const dragStart = (event, record) => {
+    const dragStart = (event: MouseEvent, record: GoogleEventItem) => {
         
         if(!expanded.value ){
             const el = document.getElementById('cal_week_view')
@@ -68,13 +68,6 @@ import { User } from '@/interface/globalInterface';
             if(left !== beforeLeft.value) {
                 return
             }
-            const width = weekRecord?.value?.$el?.clientWidth
-            let rec = props.record
-            rec['width'] = width
-            rec['x'] = event.x
-            rec['y'] = event.y
-            rec['from'] = 'day'
-            rec['active_user_id'] = props.user.id
             menu.setMenu( {id: null, name: ''})
             
         }            

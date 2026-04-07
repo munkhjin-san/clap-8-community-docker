@@ -285,7 +285,8 @@ interface Evaluation {
     after_salary_rank: string;
     mentor: User
     general_position: number;
-    current_level: string
+    current_level: string;
+    candidate: Candidate[];
 }
 interface Increase {
     id: number;
@@ -387,5 +388,6 @@ export type {
     QuickEditText,
     SubTaskPreData,
     ProjectGoalStep,
-    ProjectGoalReport
+    ProjectGoalReport,
+    Candidate
 }

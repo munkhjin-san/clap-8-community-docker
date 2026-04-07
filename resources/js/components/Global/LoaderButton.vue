@@ -11,9 +11,12 @@
     </div>
 </template>
 
-<script setup>
+<script lang="ts" setup>
     const props = defineProps(['loading', 'content'])
     const emit = defineEmits(['triggered'])
+    defineSlots<{
+        icon?: () => unknown
+    }>()
     const clickHandler = () => {
         if(props.loading) return
         emit('triggered')

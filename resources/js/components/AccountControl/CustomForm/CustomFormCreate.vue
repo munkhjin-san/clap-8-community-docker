@@ -504,7 +504,7 @@ watch(
 useSortable(sortParent, params.blocks, {
     animation: 150,
     handle: '.handler',
-    onUpdate: (e) => {
+    onUpdate: (e: { oldIndex: number; newIndex: number }) => {
             console.log(e)
         // do something
         moveArrayElement(params.blocks, e.oldIndex, e.newIndex, e)

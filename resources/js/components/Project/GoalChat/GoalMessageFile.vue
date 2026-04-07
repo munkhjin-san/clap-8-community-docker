@@ -34,7 +34,7 @@ import { useFilePreview } from "@/store/filePreview";
 import { useMenuStore } from "@/store/menu";
 import { useSharingDataStore } from '@/store/sharingData'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
-import { MenuList, MessageFile } from "@/interface/globalInterface";
+import { CommonFile, MenuList, MessageFile } from "@/interface/globalInterface";
     const sharingData = useSharingDataStore()    
     const menu = useMenuStore()
     const props = defineProps<{
@@ -44,15 +44,15 @@ import { MenuList, MessageFile } from "@/interface/globalInterface";
     const filePreview = useFilePreview()
     const file_index = ref(0)
 
-    const fileMenuItems = (file) => {
+    const fileMenuItems = (file: CommonFile) => {
         const list:MenuList[] = []; 
-        function addItem(title, action) {
+        function addItem(title: string, action:  () => void) {
             list.push({ title, action });
         }
         addItem('ダウンロード', () => downloadFile(file))        
         return list
     }
-    const downloadFile = (file) => {
+    const downloadFile = (file: CommonFile) => {
         closeMenu()
         let src:string, name:string;
         const path = `${file.id}_${file.user_id}.${file.extension}`
@@ -70,7 +70,7 @@ import { MenuList, MessageFile } from "@/interface/globalInterface";
         menu.setMenu( {id: null, name: ''})
     }
 
-    const previewFile = (file, index) => {
+    const previewFile = (file: CommonFile, index: number) => {
         if(sharingData.active) return
         let file_list = [file]
         const files = file_list.map(fileData => ({
@@ -89,10 +89,10 @@ import { MenuList, MessageFile } from "@/interface/globalInterface";
         }
         filePreview.setFilePreview(data)
     }
-    const fileNameFilter = (file) => {
+    const fileNameFilter = (file: CommonFile) => {
         return file.name;
     }
-    const fileSizeView = (bytes) => {
+    const fileSizeView = (bytes: number) => {
         if(bytes > 1000000) return filesize(bytes, {standard: "jedec", round: 1});
         else return filesize(bytes, {standard: "jedec", round: 0});
     }           

@@ -181,7 +181,7 @@ const save = async() => {
         })
         toast('保存しました。')
         emit('close', true)
-    } catch (error) {
+    } catch (error: any) {
         ping(error.response?.data.message || error?.message || 'エラーが発生しました。')
     } finally {
         loading.value = false
@@ -207,7 +207,7 @@ const disconnectGoogleCalendar = async() => {
         await axios.post('/disconnect_google_calendar')
         toast('連携を解除しました。')
         emit('close', true)
-    } catch (error) {
+    } catch (error: any) {
         ping(error.response?.data.message || error?.message || 'エラーが発生しました。')
     } finally {
         syncing.value = false

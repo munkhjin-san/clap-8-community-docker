@@ -44,7 +44,7 @@ import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
 import { DateTime } from 'luxon';
-import { CalendarRecord } from '@/interface/calendarInterface';
+import { CalendarGroupUser, CalendarRecord } from '@/interface/calendarInterface';
 import { useCalendar } from '@/composables/calendar';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -64,11 +64,11 @@ import { useCalendar } from '@/composables/calendar';
             return draggingCalendar.value && draggingCalendar.value.id == props.record.id ? '0.5' : '1'
         })
         const editable = computed(() => {
-            const me = props.record.calendar_users.filter(ob => ob.id == auth.activeUser.id)
+            const me = props.record.calendar_users.filter((ob: CalendarGroupUser) => ob.id == auth.activeUser.id)
             return (me.length || props.record.edit_all || canview.value) && props.record.shift == 0
         })
         const canview = computed(() => {
-            const me = props.record.calendar_view_users.some(user => 
+            const me = props.record.calendar_view_users.some((user: CalendarGroupUser) => 
                 user.id === auth.activeUser.id
             );      
             return me && props.record.shift == 0
@@ -103,14 +103,14 @@ import { useCalendar } from '@/composables/calendar';
         })
 
 
-        const setBeforeState = (event) => {
+        const setBeforeState = (event: MouseEvent) => {
             
             const el = document.getElementById('cal_list_view')
             const left = el ? el.scrollLeft : 0
             beforeLeft.value = left
             beforeState.value = event.x     
         }
-        const dragStart = (event) => {
+        const dragStart = (event: MouseEvent) => {
             if(editable.value && !expanded.value){
                 const el = document.getElementById('cal_list_view')
                 const left = el ? el.scrollLeft : 0
@@ -128,7 +128,7 @@ import { useCalendar } from '@/composables/calendar';
                 emit('setParentDroppable')
             }            
         }
-        const selectRecord = (event, record) => {
+        const selectRecord = (event: MouseEvent, record: CalendarRecord) => {
             if(event && Math.abs(event.x - beforeState.value) > 15) {
                 return
             }

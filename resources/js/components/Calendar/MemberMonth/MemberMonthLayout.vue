@@ -126,7 +126,7 @@ import { useAuthUserStore } from '@/store/auth';
         const lastDay = thisMonth.endOf("month").plus({days: index});
         let calendar:MemberMonthDay[] = [];
         for (let i = firstDay; i <= lastDay; i = i.plus({days: 1})) {
-            const holiday = holidays?.value.find(h => DateTime.fromISO(h.date.toISOString()).hasSame(i, 'day'));
+            const holiday = holidays?.value.find((h: { date: { toISOString: () => any; }; }) => DateTime.fromISO(h.date.toISOString()).hasSame(i, 'day'));
             const records = props.records.filter(ob => DateTime.fromSQL(ob.date_start).hasSame(i, 'day'))
             
             calendar.push({ 
@@ -154,12 +154,12 @@ import { useAuthUserStore } from '@/store/auth';
         }
     })
 
-    const handleTouchStart = (event) => {
+    const handleTouchStart = (event: TouchEvent) => {
         startX.value = event.touches[0].clientX;
         startY.value = event.touches[0].clientY;
         isHorizontalScroll.value = false;
     }
-    const handleTouchMove = (event) => {
+    const handleTouchMove = (event: TouchEvent) => {
         if (isHorizontalScroll.value === false) {
             const deltaX = Math.abs(event.touches[0].clientX - startX.value);
             const deltaY = Math.abs(event.touches[0].clientY - startY.value);
@@ -169,7 +169,7 @@ import { useAuthUserStore } from '@/store/auth';
             }
         }
     }
-    const determineScrollDirection = (deltaX, deltaY) => {
+    const determineScrollDirection = (deltaX: number, deltaY: number) => {
         const scrollThreshold = 5;
         if (deltaX > deltaY && deltaX > scrollThreshold) {
             isHorizontalScroll.value = true;
@@ -186,28 +186,28 @@ import { useAuthUserStore } from '@/store/auth';
         emit('resetFastCreate')
         emit('scrollHorizontal', event)
     }
-    const shiftToListView = (event, date) => {
+    const shiftToListView = (event: MouseEvent, date: string) => {
         if(Math.abs(event.pageX - beforeState.value) > 15) {
             return
         }
         emit('setListView', date)
         
     }
-    const isSaturday = (day) => {
+    const isSaturday = (day: MemberMonthDay) => {
         return DateTime.fromFormat(day.day_full, 'yyyy-MM-dd').weekday === 6
     }
-    const specialDay = (day) => {
+    const specialDay = (day: MemberMonthDay) => {
         return DateTime.fromFormat(day.day_full, 'yyyy-MM-dd').weekday === 7 || day.day_holiday
     }
-    const isPastDay = (day) => {
+    const isPastDay = (day: MemberMonthDay) => {
         return DateTime.fromISO(day.day_full).diff(DateTime.now(), 'day').as('days') < 0
     }
-    const isToday = (day) => {
+    const isToday = (day: MemberMonthDay) => {
         const givenDate = DateTime.fromISO(day.day_full).startOf('day');
         const today = DateTime.now().startOf('day');
         return givenDate.equals(today);
     }
-    const dayTitle = (day) => {
+    const dayTitle = (day: MemberMonthDay) => {
         const dayDate = DateTime.fromISO(day.day_full);
         const selectedDate = DateTime.fromObject({year: props.selectedYear, month: props.selectedMonth});
         const format = dayDate.hasSame(selectedDate, 'month')
@@ -219,14 +219,14 @@ import { useAuthUserStore } from '@/store/auth';
     }
 
     const monthLayout = useTemplateRef('monthLayout')
-    const onMouseDown = (ev) => {
+    const onMouseDown = (ev: MouseEvent) => {
         cursorPos.value = [ev.pageX, ev.pageY];
         beforeState.value = ev.pageX
         window.addEventListener("mousemove", onMouseHold);
     }
 
     /** @param {MouseEvent} ev */
-    const onMouseUp = (ev) => {
+    const onMouseUp = () => {
         window.removeEventListener("mousemove", onMouseHold);
     }
 
@@ -251,7 +251,7 @@ import { useAuthUserStore } from '@/store/auth';
             
         });
     }
-    const containerScroll = async(day) => {
+    const containerScroll = async(day: string) => {
         const block = dayHeader.value?.find(ob => ob.id ==`day_val_w_${day}`)
         const index = dayHeader.value?.findIndex(ob => ob.id ==`day_val_w_${day}`)      
         if(block && monthLayout.value && index && index > -1){

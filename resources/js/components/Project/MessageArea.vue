@@ -39,7 +39,7 @@
                 <MentionBox
                     style="position: fixed;" 
                     :forced="false"
-                    v-if="keyCharacters.length || mentionBoxToggle" 
+                    v-if="(keyCharacters && keyCharacters.length) || mentionBoxToggle" 
                     :mentionAbleList="mentionAbleList"
                     @mentionUser="mentionUser"
                     @close="mentionBoxToggle = false;keyCharacters = ''"
@@ -161,7 +161,7 @@ import { useTemplateRef, ref, computed, onMounted, watch, onUnmounted } from 'vu
 import MentionBox from '../Board/Message/MentionBox.vue';
 import { useMenuStore } from '@/store/menu';
 import EmojiPicker from 'vue3-emoji-picker'
-import { MessageFile, UploadingFile } from '@/interface/globalInterface';
+import { CommonFile, MessageFile, UploadingFile, User } from '@/interface/globalInterface';
 import { useFilePreview } from '@/store/filePreview';
 import AiCorrection from '../Global/AiCorrection.vue';
 import AiIcon from '../Icons/AiIcon.vue';
@@ -189,7 +189,7 @@ const mentionBox = useTemplateRef('mentionBox')
 const mentionBoxForce = useTemplateRef('mentionBoxForce')
 const messageInputArea = useTemplateRef('messageInputArea')
 const messageContainer = useTemplateRef('messageContainer')
-const keyCharacters = ref('')
+const keyCharacters = ref<string | null>('')
 const mentionBoxToggle = ref(false)
 const mentionBoxForced = ref(false)
 const caretPosition = ref(0)
@@ -242,32 +242,36 @@ const inputKeyEventSecond = () => {
 
 }
 const getCharacterPrecedingCaret = () => {
-    var precedingChar = "", sel, range, precedingRange;
-    if (window.getSelection) {
-        sel = window.getSelection();
-        if (sel.rangeCount > 0) {
-            range = sel.getRangeAt(0).cloneRange();
-            range.collapse(true);
-            range.setStart(messageInputArea.value, 0);
-            precedingChar = range.toString().slice(-1);
-        }
-    } else if ( (sel = document.getSelection) && sel.type != "Control") {
-        range = sel.createRange();
-        precedingRange = range.duplicate();
-        precedingRange.moveToElementText(messageInputArea.value);
-        precedingRange.setEndPoint("EndToStart", range);
-        precedingChar = precedingRange.text.slice(-1);
+    let precedingChar = "";
+
+    const sel = window.getSelection();
+    const inputEl = messageInputArea.value;
+
+    if (!sel || !inputEl || sel.rangeCount === 0) {
+        mentionBoxToggle.value = false;
+        return;
     }
-    if((precedingChar === '＠' || precedingChar === '@')){
-        keyCharacters.value = ''
-        highlighted.value = 0
+
+    const range = sel.getRangeAt(0).cloneRange();
+    range.collapse(true);
+
+    try {
+        range.setStart(inputEl, 0);
+        precedingChar = range.toString().slice(-1);
+    } catch {
+        mentionBoxToggle.value = false;
+        return;
+    }
+
+    if (precedingChar === "＠" || precedingChar === "@") {
+        keyCharacters.value = "";
+        highlighted.value = 0;
         mentionBoxToggle.value = true;
-    }else{
-        mentionBoxToggle.value = false;                   
-        
+    } else {
+        mentionBoxToggle.value = false;
     }
-}
-const inputKeyEventfirst = (event) => {
+};
+const inputKeyEventfirst = (event: KeyboardEvent) => {
     startPosition.value = getCaretPosition();
     if(mentionBoxToggle.value && messageInputArea.value && messageInputArea.value.textContent){      
         if (event.key === 'Backspace' || event.key === 'Delete') {
@@ -306,7 +310,7 @@ const enterSend = (event: KeyboardEvent) => {
         commentSendConfirm(0)
     }
 }
-const mentionUser = (user, index) => {             
+const mentionUser = (user: User, index: number) => {             
     if(user && messageInputArea.value){
         const mentionSyntax = `[To:${user.name}:]`
         const text = messageInputArea.value.textContent || ''
@@ -335,7 +339,7 @@ const mentionUser = (user, index) => {
             setEndOfContenteditable(newPosition)
             mentionBoxForced.value = false
         }
-        else if(keyCharacters.value.length && text){             
+        else if(keyCharacters.value && keyCharacters.value.length && text){             
             let searchText = keyCharacters.value
             let replacement = mentionSyntax
             const lastIndex = text.lastIndexOf(searchText);
@@ -352,7 +356,7 @@ const mentionUser = (user, index) => {
         }
     }    
 }
-const setEndOfContenteditable = (pos) => { 
+const setEndOfContenteditable = (pos: number) => { 
     if( !messageInputArea.value ) return  
     var node = messageInputArea.value
     node.focus();
@@ -366,7 +370,7 @@ const setEndOfContenteditable = (pos) => {
     sel?.removeAllRanges();
     sel?.addRange(range);
 }
-const composeUpdate = (event) => {
+const composeUpdate = (event: CompositionEvent) => {
     
     if(event.data == '@' || event.data == '＠'){ 
         keyCharacters.value = ''
@@ -376,7 +380,7 @@ const composeUpdate = (event) => {
         console.log(event.data)
     }else{
         keyCharacters.value = event.data
-        if(!keyCharacters.value.length){
+        if(keyCharacters.value && !keyCharacters.value.length){
             resetMention()
         }
     }                
@@ -403,7 +407,7 @@ const resetMention = () => {
     mentionBoxToggle.value = false
     highlighted.value = 0
 }
-const commentSendConfirm = async(num) => {
+const commentSendConfirm = async(num: number) => {
     const text = messageInputArea.value?.textContent || ''
     if(!text.trim().length || sending.value) return
     sending.value = true
@@ -425,7 +429,7 @@ const commentSendConfirm = async(num) => {
 
 }
 
-const selectEmoji = (emoji) => {   
+const selectEmoji = (emoji: { i: string }) => {   
     if (!messageInputArea.value) return  
     var a = messageInputArea.value?.textContent;    
     var b = emoji.i;
@@ -435,12 +439,12 @@ const selectEmoji = (emoji) => {
     caretPosition.value = caretPosition.value + 2;
 }
 
-const removeAttachment = async (image) => {  
+const removeAttachment = async (image: CommonFile) => {  
     successUploadedFiles.value = successUploadedFiles.value.filter( ob => ob !== image )
     await api.post('/remove_temp_file', {id: image.id})        
 }
-const previewFile = (file) => {
-    let target_data = file
+const previewFile = (file: CommonFile) => {
+    let target_data: any = file
     target_data['file_path'] = '/cdn/temp_upload/' + file.id + '.' + file.extension
     target_data['doc_path'] = '/temp_upload/' + file.id + '.' + file.extension
     const data = {
@@ -452,37 +456,38 @@ const previewFile = (file) => {
     }
     filePreview.setFilePreview(data)
 }
-const addAttachment = (event) => {
-    if(event.target.files && event.target.files.length){
+const addAttachment = (event: Event) => {
+    const target = event.target as HTMLInputElement
+    if(target.files && target.files.length){
         const formData = new FormData()                  
-        for(var i in event.target.files) {                
-            if(event.target.files[i].type !== undefined){
+        for(var i in target.files) {                
+            if(target.files[i].type !== undefined){
                 var uniqueId = Math.random().toString(36).substring(5);
                 
                 var source = 'nonimagefile'
-                if(event.target.files[i].type.indexOf('image') > -1){
-                    var source = URL.createObjectURL(event.target.files[i]);
+                if(target.files[i].type.indexOf('image') > -1){
+                    var source = URL.createObjectURL(target.files[i]);
                 }               
-                const name = event.target.files[i].name;
+                const name = target.files[i].name;
                 const lastDot = name.lastIndexOf('.');
                 const fileName = name.substring(0, lastDot);
                 const extension = name.substring(lastDot + 1);
                 attachedFiles.value.push({
                     src: source,
-                    name: event.target.files[i].name,
+                    name: target.files[i].name,
                     uId: uniqueId,
                     ext: extension,
-                    file: event.target.files[i]
+                    file: target.files[i]
                 });  
-                formData.append(i, event.target.files[i])
+                formData.append(i, target.files[i])
             }               
         } 
         uploadStart(formData)
-        event.target.value = '';
+        target.value = '';
     }
     
 }   
-const uploadStart = async(formData) => {
+const uploadStart = async(formData: FormData) => {
     const files = await api.post('/attach_upload_api', formData)
 
     if(files && files.length){

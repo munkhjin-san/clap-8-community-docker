@@ -61,7 +61,7 @@ import { useCalendar } from '@/composables/calendar';
         window.removeEventListener('mouseup', onReset);
     })
 
-        const onReset = (e) => {        
+        const onReset = () => {        
             if(draggingCalendar.value)    
             setDraggingCalendar(null)         
         }

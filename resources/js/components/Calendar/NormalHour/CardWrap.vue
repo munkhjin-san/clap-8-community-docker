@@ -109,14 +109,14 @@ import { useCalendar } from '@/composables/calendar';
         return `calc(((${unit} - 30px) / 96 * ${steps}) + 1px)`
     })
 
-    const setBeforeState = (event) => {
+    const setBeforeState = (event: MouseEvent) => {
         
         const el = document.getElementById('cal_day_view')
         const left = el ? el.scrollLeft : 0
         beforeLeft.value = left
         beforeState.value = event.x     
     }
-    const dragStart = (event) => {
+    const dragStart = (event: MouseEvent) => {
         if(editable.value && !expanded.value && draggingCalendar){
             const el = document.getElementById('cal_day_view')
             const left = el ? el.scrollLeft : 0
@@ -132,7 +132,7 @@ import { useCalendar } from '@/composables/calendar';
             emit('setParentDroppable')
         }            
     }
-    const selectRecord =(event, record) => {
+    const selectRecord =(event: MouseEvent, record: CalendarRecord) => {
         if(event && Math.abs( event.x - beforeState.value) > 15) {
             return
         }

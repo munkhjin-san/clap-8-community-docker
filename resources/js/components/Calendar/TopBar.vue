@@ -59,7 +59,7 @@
             <div v-if="menu.parent == 'calendarMemberSelector'" id="calendarMemberSelector" class="calendarMemberSelector" @click="menu.name = ''">
                 <div id="checkUserSelecter" style=" max-height: 50vh; overflow-y: auto;color: var(--primary-color);">   
                     <div @click="createWindow = true, addUsersWindow = true" class="groupCreateButton">
-                        <div v-html="getIcon('plus')"></div>
+                        <AddIcon :size="12"/>
                         <p>グループ追加</p>                        
                     </div> 
                     <div v-if="myGroups.length">
@@ -160,11 +160,11 @@ import { useMenuStore } from "@/store/menu";
 import { useAuthUserStore } from '../../store/auth'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import PostSearchBar from '../Post/PostSearchBar.vue'
-import { getIcon } from 'assets/icons'
-import { CalendarGroup, FacilityData } from '@/interface/calendarInterface'
+import { CalendarGroup, CalendarGroupUser, FacilityData } from '@/interface/calendarInterface'
 import Back from '../Icons/Back.vue'
 import { useCalendar } from '@/composables/calendar'
 import { useApi } from '@/composables/api'
+import AddIcon from '../Form/AddIcon.vue'
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const api = useApi()
@@ -205,17 +205,17 @@ import { useApi } from '@/composables/api'
         return departmentsList.value
     })
 
-    const editGroupStart = (group) => {
+    const editGroupStart = (group: CalendarGroup) => {
         tempGroup.value = group
         title.value = group.name
         editingUserList.value = group.users
         addUsersWindow.value = true
     }
-    const allSelected = (group) => {
-        const hasUnselected = group.users.map( ob=> ob.pivot ).filter(ob => ob.selected_as_calendar_member == 0 || ob.selected_as_calendar_member == false)
+    const allSelected = (group: CalendarGroup) => {
+        const hasUnselected = group.users.map( ob=> ob.pivot ).filter(ob => ob.selected_as_calendar_member == 0)
         return !hasUnselected.length
     }
-    const facilityTitle = (index) => {
+    const facilityTitle = (index: string) => {
         if(index == 'qualified_institution'){
             return '施設'
         }else 
@@ -240,7 +240,7 @@ import { useApi } from '@/composables/api'
             throw error; 
         }               
     }
-    const deleteExecute = async(group) => {
+    const deleteExecute = async(group: CalendarGroup) => {
         if(!group) return
         const data = await api.post('/delete_my_group', {id: group.id}, {toast: '削除しました。', ask: 'グループを削除しますか。'} )
         data && completed()        
@@ -292,9 +292,9 @@ import { useApi } from '@/composables/api'
         myWorkGroupList.value = data.my_work_groups
         allMembers.value = data.all_members
         const uniqueUserIds = new Set();
-        const memberList:CalendarGroup[] = [];
-        selectedUsers.value.forEach((group:any) => {
-            group.users.forEach(user => {
+        const memberList:CalendarGroupUser[] = [];
+        selectedUsers.value.forEach((group: CalendarGroup) => {
+            group.users.forEach((user: CalendarGroupUser) => {
                 if (!uniqueUserIds.has(user.id) && user.pivot && user.pivot.selected_as_calendar_member) {
                     uniqueUserIds.add(user.id);
                     memberList.push(user);
@@ -306,14 +306,14 @@ import { useApi } from '@/composables/api'
             loading.value = false                    
         }
     }
-    const update = (event, group) => {
-        
-        const val = event.target.checked
-        const id = event.target.value
-        updateSelectedUsers(id, val, group.id, 'byMember')
+    const update = (event: Event, group: CalendarGroup) => {
+        const target = event.target as HTMLInputElement
+        const val = target.checked
+        const id = target.value
+        updateSelectedUsers(Number(id), val, group.id, 'byMember')
     }
-    const selectAll = (event, group, by) => {
-        const target = event.target
+    const selectAll = (event: Event, group: CalendarGroup, by: string) => {
+        const target = event.target as HTMLInputElement
         group.users.forEach(item => {
             item.pivot.selected_as_calendar_member = target.checked ? 1 : 0
         });
@@ -321,7 +321,7 @@ import { useApi } from '@/composables/api'
         const user_id = -1
         updateSelectedUsers(user_id, val, group.id, by)
     }
-    const updateSelectedUsers = async(user_id, val, group_id, by) => {
+    const updateSelectedUsers = async(user_id: number, val: boolean, group_id: number, by: string) => {
 
         await api.post('/update_selected_calendar_members', { user_id: user_id, value: val, group_id: group_id, by: by })
         emit('updated')
@@ -334,7 +334,7 @@ import { useApi } from '@/composables/api'
         setFacility(index, sub_index, checked)
         emit('refresh')
     }
-    const updateDepartment = (id) => {
+    const updateDepartment = (id: number) => {
         setSelectedDepartment(id)
         emit('refresh')
     }

@@ -85,7 +85,7 @@ import { useAuthUserStore } from '@/store/auth';
             }, 300);
         }
     })
-    const orderCreator = (order, list, date, user_id) => {
+    const orderCreator = (order: number, list: CalendarRecord[], date: string, user_id: string) => {
         
         
         let break_point_rear = DateTime.fromFormat(date, 'yyyy-MM-dd').startOf('day')
@@ -190,12 +190,12 @@ import { useAuthUserStore } from '@/store/auth';
         }, 600000);      
     })
 
-    const handleTouchStart = (event) => {
+    const handleTouchStart = (event: TouchEvent) => {
         startX.value = event.touches[0].clientX;
         startY.value = event.touches[0].clientY;
         isHorizontalScroll.value = false;
     }
-    const handleTouchMove = (event) => {
+    const handleTouchMove = (event: TouchEvent) => {
         if (isHorizontalScroll.value === false) {
             const deltaX = Math.abs(event.touches[0].clientX - startX.value);
             const deltaY = Math.abs(event.touches[0].clientY - startY.value);
@@ -205,7 +205,7 @@ import { useAuthUserStore } from '@/store/auth';
             }
         }
     }
-    const determineScrollDirection = (deltaX, deltaY) => {
+    const determineScrollDirection = (deltaX: number, deltaY: number) => {
         const scrollThreshold = 5;
         if (deltaX > deltaY && deltaX > scrollThreshold) {
             isHorizontalScroll.value = true;
@@ -213,7 +213,7 @@ import { useAuthUserStore } from '@/store/auth';
             isHorizontalScroll.value = false;
         }
     }
-    const scrollListen = (event) => {            
+    const scrollListen = (event: Event) => {            
         if(responsive.mobile && !lockScroll.value && isHorizontalScroll.value){
             hideName.value = true
             lockScroll.value = true
@@ -221,18 +221,18 @@ import { useAuthUserStore } from '@/store/auth';
         emit('resetFastCreate')
         emit('scrollHorizontal', event)
     }
-    const onMouseDown = (ev) => {
+    const onMouseDown = (ev: MouseEvent) => {
         cursorPos.value = [ev.pageX, ev.pageY];
         window.addEventListener("mousemove", onMouseHold);
     }
 
     /** @param {MouseEvent} ev */
-    const onMouseUp = (ev) => {
+    const onMouseUp = (ev: MouseEvent) => {
         window.removeEventListener("mousemove", onMouseHold);
     }
 
     /** @param {MouseEvent} ev */
-    const onMouseHold = (ev) => {
+    const onMouseHold = (ev: MouseEvent) => {
         ev.preventDefault();
         if(draggingCalendar.value) return
         requestAnimationFrame(() => {

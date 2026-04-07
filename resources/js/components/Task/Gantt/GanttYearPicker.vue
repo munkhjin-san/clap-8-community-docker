@@ -21,7 +21,7 @@ const props = defineProps<{
     interval: Interval
 }>()
 const emit = defineEmits<{
-    (e: 'setDate', year: number )
+    (e: 'setDate'): void
 }>()
 
 const year = defineModel()
@@ -35,10 +35,10 @@ const yearList = computed(() => {
     return Array.from({ length: end - start + 1 }, (_, i) => start + i);
 });
 
-const setYear = (y) => {
+const setYear = (y: number) => {
     menu.close()
     year.value = y
-    emit('setDate', y)
+    emit('setDate')
 }
 
 const openYearPicker = () => {

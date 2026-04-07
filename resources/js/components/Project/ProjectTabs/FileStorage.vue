@@ -467,12 +467,14 @@ const constructedPath = computed(() => {
     }
     return path.value
 })
-const onBackgroundClick = (e) => {
-    const hitItem = e.target.closest('[data-item]');
+const onBackgroundClick = (e: MouseEvent) => {
+    const target = e.target as HTMLElement
+    const hitItem = target.closest('[data-item]');
     if (!hitItem) selected.value.clear();
 }
-const startMarquee = (e) => {
-    if (e.target.closest('[data-item]')) return;
+const startMarquee = (e: MouseEvent) => {
+    const target = e.target as HTMLElement
+    if (target.closest('[data-item]')) return;
     if (!grid.value) return
     const rect = grid.value.getBoundingClientRect();
     if (!rect) return
@@ -533,7 +535,7 @@ const applyMarqueeSelection = () => {
 
     selected.value = temp;
 }
-const getItemIdFromVNode = (card) => {
+const getItemIdFromVNode = (card: any) => {
     const raw = card.getAttribute('data-id');
     return raw ? Number.isNaN(+raw) ? raw : +raw : null;
 }
@@ -546,7 +548,7 @@ const normRect = (m: any) => {
     return { left, top, right, bottom };
 }
 
-const intersects = (a, b) => {
+const intersects = (a: { left: number; top: number; right: number; bottom: number }, b: { left: number; top: number; right: number; bottom: number }) => {
     return !(b.left > a.right || b.right < a.left || b.top > a.bottom || b.bottom < a.top);
 }
 const onUp = () => {
@@ -810,7 +812,7 @@ const removeSelected = async(menu_id?: string) => {
     working.value = false
 }
 const filePreview = useFilePreview()
-const previewFile = (index) => {
+const previewFile = (index: number) => {
     let file_list = filtered.value.filter(i => i.type === 'file')
     const files = file_list.map(fileData => ({
         ...fileData,

@@ -16,7 +16,7 @@
                     @scroll="emit('scroll', $event)"
                 >
                     <div id="weekdayhead" class="weekday-header" style="position: sticky;top: 0;">
-                        <div class="weekday-header-item" v-for="num in 7">{{ weekDay(num) }}</div>
+                        <div class="weekday-header-item" v-for="num in 7">{{ weekDay(num as WeekdayNumbers) }}</div>
                     </div>
                     <div id="cal_month_inner" style="height:calc(100% - 40px);color: var(--primary-color);">
                         <div v-for="(week, index) in calendarData" :key="index" class="calendar-week-wrapper" ref="weekHeader">                
@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import DayBlock from './DayBlock.vue';
 import { computed, ComputedRef, inject, onMounted, ref, useTemplateRef} from 'vue';
-import { DateTime } from 'luxon';
+import { DateTime, WeekdayNumbers } from 'luxon';
 import { CalendarRecord, GoogleEventItem, NormalMonthDay, WeeksArray } from '@/interface/calendarInterface';
 
     const props = defineProps<{
@@ -72,7 +72,7 @@ import { CalendarRecord, GoogleEventItem, NormalMonthDay, WeeksArray } from '@/i
         while(firstDay <= lastDay){
             const week: NormalMonthDay[] = [];
             for (let i = 0; i < 7; i++) {
-                const holiday = holidays?.value.find(h => {
+                const holiday = holidays?.value.find((h: { date: Date }) => {
                     const holidayDate = DateTime.fromISO(h.date.toISOString());
                     return holidayDate.hasSame(firstDay, 'day');
                 });
@@ -104,12 +104,12 @@ import { CalendarRecord, GoogleEventItem, NormalMonthDay, WeeksArray } from '@/i
         return calendar
     })
 
-    const weekDay = (num) => {
+    const weekDay = (num: WeekdayNumbers) => {
         return DateTime.now()
         .set({ weekday: num }) 
         .toFormat('ccc');
     }
-    const dayRecords = (day) => {        
+    const dayRecords = (day: NormalMonthDay) => {        
         return props.records.filter((ob) => DateTime.fromSQL(ob.date_start).hasSame(DateTime.fromISO(day.day_full), 'day'))
         .sort((a, b) => {
             const dateA = new Date(a.date_start);

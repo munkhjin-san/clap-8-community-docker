@@ -195,7 +195,7 @@ const passingData = {
     file_path: 'project_goal_report_files'
 }
 const router = useRouter()   
-const scoreMap = {
+const scoreMap: Record<number, string> = {
     1: '明確に悪化',
     2: '悪化傾向',
     3: '変化なし・未確認',
@@ -280,11 +280,11 @@ const refresh = () => {
 const back = () => {
     router.back()
 }
-const loaderBank = ref<any>({})
+const loaderBank = ref<Record<number, boolean>>({})
 
 const updateGoalStatus = async(status: number, action: string) => {
     
-    loaderBank[status] = true
+    loaderBank.value[status] = true
     const params = {
         id: props.goal.id,
         params: {
@@ -296,7 +296,7 @@ const updateGoalStatus = async(status: number, action: string) => {
         ask: `${action}してもよろしいですか？`,
         
     })
-    loaderBank[status] = false
+    loaderBank.value[status] = false
     if(!result) return
     refresh()
 

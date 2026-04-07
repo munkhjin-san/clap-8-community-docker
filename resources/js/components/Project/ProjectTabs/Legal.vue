@@ -1950,6 +1950,7 @@ onBeforeUnmount(() => {
 
 .legal-state-card--locked {
     min-height: 100%;
+    border: none;
 }
 
 .legal-state-card--empty,

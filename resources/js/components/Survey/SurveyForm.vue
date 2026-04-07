@@ -102,9 +102,9 @@ const answer = ref<SurveyAnswer>({
     target_date: props.survey.repeat_setting == 1 ? DateTime.now().startOf('month').toISODate() : null,
 })
 
-const loading = reactive({
-    1: ref(false), // 一時保存
-    2: ref(false), // 送信
+const loading = reactive<Record<number, boolean>>({
+    1: false, // 一時保存
+    2: false, // 送信
 })
 const forceRefresh = ref(0)
 const selections = reactive<Record<number, { type: 'radio' | 'checkbox'; elementIds: number[] }>>({})

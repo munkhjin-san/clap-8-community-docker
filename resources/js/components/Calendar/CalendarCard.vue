@@ -112,6 +112,7 @@ import { timeFormat, urlCheck } from '@/utils/tools';
 import { DateTime } from 'luxon';
 import { useCalendar } from '@/composables/calendar';
 import CommandButton from '@/components/Global/CommandButton.vue';
+import { CalendarGroupUser, CalendarRecord } from '@/interface/calendarInterface';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const tempRecord = useTempRecord()
@@ -140,7 +141,7 @@ import CommandButton from '@/components/Global/CommandButton.vue';
     
     const remove = inject<Function>('deleteCalendar') as Function
 
-    const removeItem = (rec) => {        
+    const removeItem = (rec: CalendarRecord) => {        
         remove(rec)        
     }
     const edit = inject<Function>('editRecord') as Function
@@ -155,14 +156,14 @@ import CommandButton from '@/components/Global/CommandButton.vue';
         if(selectedFacility.value.length || selectedDepartment.value){
             return '#606060'
         }
-        const me = props.record.calendar_users.filter(ob => ob.id == auth.id)
+        const me = props.record.calendar_users.filter((ob: CalendarGroupUser) => ob.id == auth.id)
         const colorIndex = auth.user && auth.user.color ? auth.user.color : 0
         return me.length ? colors[colorIndex]?.light : 'var(--task-background)'
     })
 
     const selectedFacilityExpaned = computed(() => {
         const selected:string[] = []
-        for(const index in facilitiesList.value){
+        for(const index of Object.keys(facilitiesList.value) as (keyof typeof facilitiesList.value)[]){
             const rec_check = props.record[index]
             if(rec_check !== null && facilitiesList.value[index][rec_check]){
                 selected.push(facilitiesList.value[index][rec_check].label)
@@ -173,7 +174,7 @@ import CommandButton from '@/components/Global/CommandButton.vue';
 
     const selectedFacility = computed(() => {
         const selected:string[] = []
-        for(const index in facilitiesList.value){
+        for(const index of Object.keys(facilitiesList.value) as (keyof typeof facilitiesList.value)[]){
             const rec_check = props.record[index]
             if(rec_check !== null && facilitiesList.value[index][rec_check] && facilitiesList.value[index][rec_check].selected == true){
                 selected.push(facilitiesList.value[index][rec_check].label)
@@ -201,7 +202,7 @@ import CommandButton from '@/components/Global/CommandButton.vue';
         if(selectedDepartment.value){
             return '#fff'
         }
-        const me = props.record.calendar_users.filter(ob => ob.id == auth.activeUser.id)
+        const me = props.record.calendar_users.filter((ob: CalendarGroupUser) => ob.id == auth.activeUser.id)
         return me.length && theme.dark ? 'var(--background-color)' : 'var(--primary-color)'
     })
 
@@ -273,7 +274,7 @@ import CommandButton from '@/components/Global/CommandButton.vue';
         return projectSetting.color   
 
     })
-    const openOrClose = (event) => {
+    const openOrClose = (event: Event) => {
         if(menu.parent === props.uniqueId){
             menu.close()
         }else{

@@ -98,12 +98,15 @@ const props = defineProps<{
 const openSet = ref<Set<number>>(new Set())
 const activeFilter = ref<null | 'high' | 'medium' | 'low'>(null)
 
-const severityLabel = (s: string) => ({
-  high: '高',
-  medium: '中',
-  low: '低',
-  unknown: '不明'
-}[s as keyof any] || '不明')
+const severityLabel = (s: string) => {
+  const labels: Record<string, string> = {
+    high: '高',
+    medium: '中',
+    low: '低',
+    unknown: '不明'
+  }
+  return labels[s] || '不明'
+}
 
 const badgeClass = (s: string) => {
   switch (s) {

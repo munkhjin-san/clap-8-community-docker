@@ -126,7 +126,7 @@
                                     </label>
                                 </div>
                             </div>
-                            <div class="si-box">
+                            <!-- <div class="si-box">
                                 <p class="text-[14px]">部門</p>
                                 <div class="mt-[15px] flex flex-wrap gap-[15px]">
                                     <label v-for="rp in [{value: 1, label: '新規'}, {value: 0, label: '既存'}]" class="flex items-center gap-[10px] text-[12px] user-select-none cursor-pointer" :key="rp.value">
@@ -134,7 +134,7 @@
                                         {{ rp.label }}
                                     </label>
                                 </div>
-                                <!-- <div class="si-box" v-if="projectParams.is_new">
+                                <div class="si-box" v-if="projectParams.is_new">
                                     <p class="text-[14px]">既存扱い開始日</p>
                                     <div class="mt-[15px] flex">
                                         <ShortInput 
@@ -145,9 +145,9 @@
                                             v-model="projectParams.transitioned_at"
                                         />
                                     </div>
-                                </div> -->
+                                </div>
                                 
-                            </div>
+                            </div> -->
                         </div>
                         <div v-if="fullAccess" id="projectCreateAchievements" class="mb-[60px] section-hd">
                             <p class="mb-[20px]"><strong>実績管理機能</strong></p>
@@ -736,7 +736,7 @@ import { useTutorialStore } from '@/store/tutorial';
 import ProjectCreationForm from '@/components/Project/ProjectTabs/Overview/ProjectCreationForm.vue';
 import { validator } from '@/validation/validator';
 import type { ProjectCreationSpecData } from '@/components/Project/ProjectTabs/Overview/projectCreationForm';
-import type { ProjectType } from '@/interface/projectInterface';
+import type { ProjectActualStatus, ProjectType } from '@/interface/projectInterface';
 
 type ProjectStatus = 'draft' | 'creating' | 'pending_director' | 'director_approved' | 'running' | 'returned'
 
@@ -853,8 +853,8 @@ const { startTour, stopTour } = useTour()
 const tutorialStore = useTutorialStore()
 const hydrateStatusRows = () => {
     if (props.editData?.actual_statuses && Array.isArray(props.editData.actual_statuses)) {
-        statusRows.value = props.editData.actual_statuses.map((status, idx) => ({
-            status_id: status.status_id ?? status.id ?? null,
+        statusRows.value = props.editData.actual_statuses.map((status: ProjectActualStatus, idx: number) => ({
+            status_id: status.status_id ?? null,
             label: status.label ?? status.custom_label ?? '',
             selected: true,
             sort_order: status.sort_order ?? idx + 1,
@@ -1410,7 +1410,7 @@ const deleteTask = (id: number) => {
         });
     }
 }
-const onScroll = (event) => {
+const onScroll = (event: Event) => {
     const target = event.target as HTMLElement
     const sections = document.querySelectorAll(".section-hd");
     let currentSection = "";
@@ -1435,7 +1435,7 @@ const jumpTo = (hash:string) => {
     }
 }
 
-const updateTask = (data) => {
+const updateTask = (data: { id: number; column: 'remarks'; value: string }) => {
     const task = generatedTasks.value.find(task => task.id === data.id)
     if (task) {
         task[data.column] = data.value

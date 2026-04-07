@@ -43,6 +43,7 @@ import { useMenuStore } from "@/store/menu";
 import { useResponsive } from '@/store/responsive';
 import { DateTime } from 'luxon';
 import { useCalendar } from '@/composables/calendar';
+import { CalendarGroupUser } from '@/interface/calendarInterface';
     const responsive = useResponsive()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
@@ -63,11 +64,11 @@ import { useCalendar } from '@/composables/calendar';
         return ( draggingCalendar.value && draggingCalendar.value.id == props.record.id ) ? '0.5' : '1'
     })
     const editable = computed(() => {
-        const me = props.record.calendar_users.filter(ob => ob.id == auth.activeUser.id)
+        const me = props.record.calendar_users.filter((ob: CalendarGroupUser) => ob.id == auth.activeUser.id)
         return (me.length || props.record.edit_all || canview.value) && props.record.shift == 0
     })
     const canview = computed(() => {
-        const me = props.record.calendar_view_users.some(user => user.id === auth.activeUser.id)   
+        const me = props.record.calendar_view_users.some((user: CalendarGroupUser) => user.id === auth.activeUser.id)   
         return me && props.record.shift == 0
     })
     const maxHeight = computed(() => {
@@ -84,13 +85,13 @@ import { useCalendar } from '@/composables/calendar';
 
 
 
-    const setBeforeState = (event) => {            
+    const setBeforeState = () => {            
         const el = document.getElementById('cal_month_view')
         const left = el ? el.scrollTop : 0
         beforeLeft.value = left          
     }
     const sCard = useTemplateRef('sCard')
-    const dragStart = (event) => {
+    const dragStart = (event: MouseEvent) => {
         if(editable.value && !expanded.value){
             const el = document.getElementById('cal_month_view')
             const left = el ? el.scrollTop : 0

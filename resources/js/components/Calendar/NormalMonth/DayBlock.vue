@@ -21,7 +21,6 @@
                 v-for="record in records"
                 :record="record"
                 :key="record.id"
-                @fromMonth="val => emit('fromMonth', val)"                
             />
         </transition-group>    
         <transition-group name="modalFade" tag="div" style="display: flex;flex-direction: column;gap: 10px;padding: 0 0 10px 0;">
@@ -102,7 +101,7 @@ import { CalendarRecord, GoogleEventItem, NormalMonthDay } from '@/interface/cal
         dragActive.value = false
     }
 
-    const createAtTime = (event) => {                
+    const createAtTime = (event: MouseEvent) => {                
         const date = props.day.day_full
         const time = DateTime.now().plus({hours: 1}).startOf('hour').toFormat('HH:mm:ss')
         const merge = `${date} ${time}`

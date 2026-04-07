@@ -24,7 +24,7 @@ const props = defineProps(['userId'])
 const paidHolidays = ref<Shift[]>([])
 const emit = defineEmits(['close'])
 const api = useApi()
-const setDate = (val) => {
+const setDate = (val: {year: number}) => {
     year.value = val.year
     getPlannedLeaves()
 }

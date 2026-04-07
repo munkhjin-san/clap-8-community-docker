@@ -386,7 +386,7 @@ const year = ref<number>(periodEnd.value.year)
 const month = ref<MonthNumbers>(periodEnd.value.month as MonthNumbers)
 
 
-const commentCount = ref(0)
+const commentCount = ref<Record<string, number>>()
 
 interface BalanceColumn {
     sales: number | null;
