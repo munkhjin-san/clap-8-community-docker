@@ -392,7 +392,12 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
         if (props.record.app_type !== 2) {
             return null
         }
-
+        if (props.record.status_flag == 2 || props.record.status_flag == 3 || props.record.status_flag == 4) {
+            return {
+                progress: 0,
+                label: status.value
+            }
+        }
         const start = DateTime.fromISO(props.record.date_start)
         const end = DateTime.fromISO(props.record.date_end)
         const now = DateTime.now()
