@@ -21,7 +21,7 @@
                 </div>
             </div>
         </div> 
-        <TaskComponent v-if="openedBoard" :board="openedBoard" :maxInterval="totalSpan"/>
+        <TaskComponent v-if="openedBoard" :from="'board'" :board="openedBoard" :maxInterval="totalSpan"/>
     </div>
 </Transition>
 </template>
