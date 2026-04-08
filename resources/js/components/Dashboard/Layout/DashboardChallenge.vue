@@ -29,19 +29,22 @@
                 >
                     <template #title="{ expanded }">
                         <PanelTitle :expanded="expanded">
-                            <div v-if="challenge.attention_is_overdue" class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
-                            <div class="overflow-hidden text-ellipsis">
-                                {{ isNiceReminder(challenge) ? `${challenge.user?.name ?? '誰か'} からナイスが届きました` : challenge.title }}
+                            <div class="flex gap-2 items-center">
+                                <div v-if="challenge.attention_is_overdue" class="mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
+                                <Nice v-if="isNiceReminder(challenge)" size="16"/>
+                                <Challenge v-else size="16"/>
+                                <div class="overflow-hidden text-ellipsis">
+                                    
+                                    {{ isNiceReminder(challenge) ? `${challenge.user?.name ?? '誰か'}さんからナイスが届きました` : challenge.title }}
+                                </div>
                             </div>
+                            
                         </PanelTitle>
                     </template>
                     <template #body>
                         <PanelData v-if="isNiceReminder(challenge)">
                             <p class="text-[12px]" :class="challenge.attention_is_overdue ? 'text-[tomato]' : 'text-[gray]'">
-                                {{ challenge.user?.name ?? '誰か' }} からナイスが届きました。1週間以内にナイスを送ってください。
-                            </p>
-                            <p v-if="challenge.attention_deadline" class="mt-2 text-[11px] text-[gray]">
-                                締切: {{ formatDeadline(challenge.attention_deadline) }}
+                                {{ challenge.user?.name ?? '誰か' }}さんからナイスが届きました。1週間以内にナイスを送ってみましょう。
                             </p>
                             <div class="mt-3 flex items-center justify-end gap-3 text-right">
                                 <router-link :to="{ name: 'post', query: { id: challenge.id, app_type: 0 } }">見る</router-link>
@@ -78,6 +81,8 @@ import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
 import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
+import Nice from '@/components/Icons/Nice.vue';
+import Challenge from '@/components/Icons/Challenge.vue';
 
 type DashboardPostReminder = Post & {
     attention_type?: 'nice_follow_up' | 'progress_need' | 'update_need'

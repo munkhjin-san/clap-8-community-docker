@@ -161,7 +161,7 @@
                             v-for="category in challengeCategories"
                             :key="category.label"
                             type="button"
-                            :class="['challenge-category-chip', { active: selectedChallengeMainCategory === category.label }]"
+                            :class="['challenge-category-chip', { active: selectedChallengeMainCategory == category.label }]"
                             @click="selectChallengeMainCategory(category.label, true)"
                         >
                             {{ category.label }}
@@ -175,7 +175,7 @@
                             v-for="subcategory in activeChallengeCategory.subcategories"
                             :key="subcategory"
                             type="button"
-                            :class="['challenge-category-chip', 'sub', { active: selectedChallengeSubCategory === subcategory }]"
+                            :class="['challenge-category-chip', 'sub', { active: selectedChallengeSubCategory == subcategory }]"
                             @click="selectChallengeSubCategory(subcategory, true)"
                         >
                             {{ subcategory }}
@@ -240,7 +240,7 @@
             
             <div class="si-box" v-if="app_type == 6">
                 <ShortInput 
-                    placeHolder="額 (必須)"
+                    placeHolder="金額 (必須)"
                     :rules="'required'"
                     customClass="full"
                     ref="refreshAmountRef"
@@ -269,7 +269,7 @@
             </div>
             <div class="si-box" v-if="app_type == 6">
                 <FileUploader 
-                    customPlaceHolder="領収（必須）" 
+                    customPlaceHolder="領収（必須）（未公開）" 
                     v-model="uploadedReceipts" 
                     path="/post_receipts"
                     rules="required"
@@ -399,7 +399,7 @@ import {
             // npoRef.value,
             uploadedReceiptsRef.value,
             refreshAmountRef.value,
-            app_type.value === 6 ? uploadedRefreshRef.value : null
+            app_type.value == 6 ? uploadedRefreshRef.value : null
         ]
     })
     const costs = reactive<{
@@ -409,10 +409,10 @@ import {
     }[]>([])
 
     const refreshPlaceholder = computed(() => {
-        return app_type.value === 6 ? 'リフレッシュ写真（必須）' : 'ファイル'
+        return app_type.value == 6 ? 'リフレッシュ写真（必須）（公開）' : 'ファイル'
     })
     const activeChallengeCategory = computed(() => {
-        return challengeCategories.find(category => category.label === selectedChallengeMainCategory.value) ?? null
+        return challengeCategories.find(category => category.label == selectedChallengeMainCategory.value) ?? null
     })
     const suggestedChallengeCategory = computed<ChallengeCategorySuggestion | null>(() => {
         const sourceText = `${title.value}\n${content_rule.value}\n${content_goal.value}`
@@ -492,7 +492,7 @@ import {
         selectChallengeSubCategory(suggestedChallengeCategory.value.sub, markTouched)
     }
     const possiblePath = computed(() => {
-        return app_type.value === 2 ? 'post_get_challenge_users' : `post_get_post_users`
+        return app_type.value == 2 ? 'post_get_challenge_users' : `post_get_post_users`
     })
     const dateComparsionError = computed(() =>{
         const duration = (DateTime.fromISO(date_end.value).diff(DateTime.fromISO(date_start.value), 'days').toObject().days ?? 0)
@@ -571,10 +571,11 @@ import {
         challengeCategoryValidationError.value = false
     })
     const loadRefreshSummary = async() => {
-        if(app_type.value !== 6){
+
+        if(app_type.value != 6){
             return
         }
-
+        
         const data = await api.get('/refresh/me/summary', null, {
             loadingRef: refreshSummaryLoading,
             silent: true
@@ -648,12 +649,12 @@ import {
             ping('入力内容に不備があります。')
             return
         }
-        if (app_type.value === 2 && (!selectedChallengeMainCategory.value || !selectedChallengeSubCategory.value)) {
+        if (app_type.value == 2 && (!selectedChallengeMainCategory.value || !selectedChallengeSubCategory.value)) {
             challengeCategoryValidationError.value = true
             ping('チャレンジカテゴリを選択してください。')
             return
         }
-        if (app_type.value === 2) {
+        if (app_type.value == 2) {
             const confirm = await ask('入力内容には間違いないかを確認してください。\n作成後は編集できません。')
             if (!confirm.value) return
         }
@@ -684,8 +685,8 @@ import {
             donatable: donatable.value,
             donation_target: selectedNpo.value,
             refresh_amount: refresh_amount.value,
-            challenge_main_category: app_type.value === 2 ? selectedChallengeMainCategory.value : null,
-            challenge_sub_category: app_type.value === 2 ? selectedChallengeSubCategory.value : null,
+            challenge_main_category: app_type.value == 2 ? selectedChallengeMainCategory.value : null,
+            challenge_sub_category: app_type.value == 2 ? selectedChallengeSubCategory.value : null,
             grants: costs
         }
 
