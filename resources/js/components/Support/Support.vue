@@ -48,6 +48,7 @@
                             :tagList="tagList" 
                             @setChatBoxWindow="val => chatBoxWindow = val"
                             @setKeyWord="setKeyWord"
+                            @refresh="getSupportData"
                         />
                     </transition>
                 </router-view> 

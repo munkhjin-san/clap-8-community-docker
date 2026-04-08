@@ -6,6 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class questionAndAnswerRecord extends Model
 {  
+    protected $fillable = [
+        'user_id',
+        'question',
+        'answer',
+        'content',
+        'tag_text',
+        'deleted_flag',
+        'useful_count',
+    ];
     public function user(){
         return $this->belongsTo(User::class);
     }

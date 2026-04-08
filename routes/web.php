@@ -470,6 +470,10 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/support_Regulation_list', [SupportController::class, 'support_Regulation_list']);
         Route::post('/support_feedback', [SupportController::class, 'support_feedback']);
         Route::post('/support_resolve_decision', [SupportController::class, 'support_resolve_decision']);
+        Route::post('/faq_add_record', [SupportController::class, 'faq_add_record']);
+        Route::post('/faq_delete_record', [SupportController::class, 'faq_delete_record']);
+        Route::post('/faq_tag_save', [SupportController::class, 'faq_tag_save']);
+        Route::post('/faq_tag_delete', [SupportController::class, 'faq_tag_delete']);
         Route::post('/support_add_consult', [SupportController::class, 'support_add_consult']);
         Route::get('/get_recieved_consults', [SupportController::class, 'get_recieved_consults']);
         Route::post('/add_memo_to_consult', [SupportController::class, 'add_memo_to_consult']);

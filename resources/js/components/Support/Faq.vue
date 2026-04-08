@@ -1,18 +1,81 @@
 <template>
 <div class="support-content">
     <div class="support-title">よくある質問</div>
+
+    <!-- Tag Category Selector -->
     <div class="support-content-inner">
-        <div style="margin-bottom: 20px;">カテゴリーから選ぶ</div>
+        <div style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+            <span>カテゴリーから選ぶ</span>
+        </div>
         <div class="support-tag-selector">
-            <div @click="setText(item)" :class="['support-tag', {'tag-selected' : selectedTag == item.id}]" v-for="item in tagList">{{ item.text }}</div>
+            <template v-for="item in tagList" :key="item.id">
+                <!-- Tag in edit mode (admin only) -->
+                <div v-if="auth.isAdmin && editingTagId === item.id" class="support-tag" style="display: flex; align-items: center; gap: 6px; padding: 6px 10px;">
+                    <input
+                        v-model="editingTagText"
+                        @keydown.enter="saveTag"
+                        @keydown.esc="cancelEditTag"
+                        style="width: 80px; background: transparent; border: none; border-bottom: 1px solid var(--primary-color); outline: none; color: inherit; font-size: inherit;"
+                        autofocus
+                    />
+                    <span @click="saveTag" style="cursor: pointer; font-size: 12px;">✓</span>
+                    <span @click="cancelEditTag" style="cursor: pointer; font-size: 12px; color: gray;">✗</span>
+                </div>
+                <!-- Normal tag view -->
+                <div v-else style="display: flex; align-items: center; gap: 2px;">
+                    <div
+                        @click="setText(item)"
+                        :class="['support-tag', {'tag-selected': selectedTag == item.id}]"
+                    >{{ item.text }}</div>
+                    <ItemMenu
+                        v-if="auth.isAdmin && item.id !== 0"
+                        :items="[
+                            {title: '編集する', action: () => startEditTag(item)},
+                            {title: '削除する', action: () => deleteTag(item)}
+                        ]"
+                    />
+                </div>
+            </template>
+
+            <!-- Admin: add new tag -->
+            <template v-if="auth.isAdmin">
+                <div v-if="addingTag" class="support-tag" style="display: flex; align-items: center; gap: 6px; padding: 6px 10px;">
+                    <input
+                        v-model="newTagText"
+                        @keydown.enter="createTag"
+                        @keydown.esc="addingTag = false; newTagText = ''"
+                        placeholder="タグ名"
+                        style="width: 80px; background: transparent; border: none; border-bottom: 1px solid var(--primary-color); outline: none; color: inherit; font-size: inherit;"
+                        autofocus
+                    />
+                    <span @click="createTag" style="cursor: pointer; font-size: 12px;">✓</span>
+                    <span @click="addingTag = false; newTagText = ''" style="cursor: pointer; font-size: 12px; color: gray;">✗</span>
+                </div>
+                <div v-else class="support-tag" @click="addingTag = true" style="cursor: pointer; opacity: 0.6;">
+                    + タグ追加
+                </div>
+            </template>
         </div>
     </div>
-    <div class="support-content-inner" style="margin-top: 20px;padding: 0;">
-        <div @click="selectedItem = item" v-for="item in qaList" class="qandaContent">
-            <div><strong>Q : {{ item.question }}</strong></div>
-            <div style="margin-top: 10px;">A : {{ item.answer }}</div>
+
+    <!-- FAQ List -->
+    <div class="support-content-inner" style="margin-top: 20px; padding: 0;">
+        <div v-for="item in qaList" :key="item.id" class="qandaContent" style="display: flex; align-items: flex-start; gap: 8px;">
+            <div @click="selectedItem = item" style="flex: 1; cursor: pointer;">
+                <div><strong>Q : {{ item.question }}</strong></div>
+                <div style="margin-top: 10px;">A : {{ item.answer }}</div>
+            </div>
+            <ItemMenu
+                v-if="auth.isAdmin"
+                :items="[
+                    {title: '編集する', action: () => openEdit(item)},
+                    {title: '削除する', action: () => deleteFaq(item)}
+                ]"
+            />
         </div>
     </div>
+
+    <!-- FAQ Detail Modal -->
     <Transition name="modalFade">
         <div class="overlay" v-if="selectedItem" @mousedown="reset">
             <div class="chatCreate scrollable" @mousedown.stop>
@@ -53,31 +116,68 @@
                         <LoaderButton content="送信する" @triggered="sendFeedBack" :loading="sending"/>
                     </div>
                 </div>
-                
             </div>
         </div>
     </Transition>
+
+    <!-- FAQ Create / Edit Modal -->
+    <Transition name="modalFade">
+        <FaqCreate
+            v-if="showFaqCreate"
+            :editTarget="editTarget"
+            :tagList="tagList"
+            @close="onFaqCreateClose"
+        />
+    </Transition>
+
+    <!-- Float button for create (admin only) -->
+    <FloatButton
+        v-if="auth.isAdmin"
+        class="fixed"
+        @action="openCreate"
+        title="FAQを作成する"
+    >
+        <template #icon>
+            <AddIcon />
+        </template>
+    </FloatButton>
 </div>
-            
-
-        
-
 </template>
 <script setup>
 import { ref } from 'vue';
-import LoaderButton from '../Global/LoaderButton.vue'
+import LoaderButton from '../Global/LoaderButton.vue';
 import LongInput from '../Form/LongInput.vue';
+import FaqCreate from './FaqCreate.vue';
+import FloatButton from '../Global/FloatButton.vue';
+import ItemMenu from '../Global/ItemMenu.vue';
+import AddIcon from '../Form/AddIcon.vue';
 import { useApi } from '@/composables/api';
+import { useAuthUserStore } from '@/store/auth';
+
     const props = defineProps(['qaList', 'tagList'])
-    const emit = defineEmits(['setKeyWord'])
+    const emit = defineEmits(['setKeyWord', 'refresh'])
+    const auth = useAuthUserStore()
+    const api = useApi()
+
+    // FAQ list state
     const selectedTag = ref(0)
     const selectedItem = ref(null)
     const advancedFeedBack = ref(false)
     const advancedFeedBackRef = ref(null)
     const sending = ref(false)
     const feedBackContent = ref('')
-    const api = useApi()
-  
+
+    // FAQ create/edit state
+    const showFaqCreate = ref(false)
+    const editTarget = ref(null)
+
+    // Tag management state
+    const editingTagId = ref(null)
+    const editingTagText = ref('')
+    const addingTag = ref(false)
+    const newTagText = ref('')
+
+    // --- FAQ list handlers ---
     const reset = () => {
         selectedItem.value = null
         advancedFeedBack.value = false
@@ -89,23 +189,20 @@ import { useApi } from '@/composables/api';
         const text = item.id == 0 ? '' : item.text
         emit('setKeyWord', text)
     }
-    const feedBack = async(value) => {
-        if(value == false){
+    const feedBack = async (value) => {
+        if (value == false) {
             advancedFeedBack.value = true
             setTimeout(() => {
-                advancedFeedBackRef.value?.scrollIntoView({ behavior: "smooth", block: "center"})
-            }, 0);
-        }else{
-   
-            await api.post('/support_resolve_decision', {id: selectedItem.value.id }, {
+                advancedFeedBackRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            }, 0)
+        } else {
+            await api.post('/support_resolve_decision', { id: selectedItem.value.id }, {
                 toast: '送信しました。'
             })
             reset()
-
         }
     }
-    const sendFeedBack = async() => {
-
+    const sendFeedBack = async () => {
         await api.post('/support_feedback', {
             consultation_content: feedBackContent.value,
             contact_address: null,
@@ -115,6 +212,65 @@ import { useApi } from '@/composables/api';
             toast: '送信しました。'
         })
         reset()
+    }
 
+    // --- FAQ create/edit ---
+    const openCreate = () => {
+        editTarget.value = null
+        showFaqCreate.value = true
+    }
+    const openEdit = (item) => {
+        editTarget.value = item
+        showFaqCreate.value = true
+    }
+    const onFaqCreateClose = (refreshNeeded) => {
+        showFaqCreate.value = false
+        editTarget.value = null
+        if (refreshNeeded) {
+            emit('refresh')
+        }
+    }
+    const deleteFaq = async (item) => {
+        await api.post('/faq_delete_record', { id: item.id }, {
+            toast: '削除しました。',
+            ask: '本当に削除しますか？'
+        })
+        emit('refresh')
+    }
+
+    // --- Tag management ---
+    const startEditTag = (item) => {
+        editingTagId.value = item.id
+        editingTagText.value = item.text
+    }
+    const cancelEditTag = () => {
+        editingTagId.value = null
+        editingTagText.value = ''
+    }
+    const saveTag = async () => {
+        const text = editingTagText.value.trim()
+        if (!text) return
+        await api.post('/faq_tag_save', { id: editingTagId.value, text }, {
+            toast: '更新しました。'
+        })
+        cancelEditTag()
+        emit('refresh')
+    }
+    const createTag = async () => {
+        const text = newTagText.value.trim()
+        if (!text) return
+        await api.post('/faq_tag_save', { text }, {
+            toast: 'タグを追加しました。'
+        })
+        addingTag.value = false
+        newTagText.value = ''
+        emit('refresh')
+    }
+    const deleteTag = async (item) => {
+        await api.post('/faq_tag_delete', { id: item.id }, {
+            toast: '削除しました。',
+            ask: '本当に削除しますか？'
+        })
+        emit('refresh')
     }
 </script>

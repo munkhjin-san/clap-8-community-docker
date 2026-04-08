@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 
 class qandaTagRecord extends Model{
+    protected $fillable = ['text', 'deleted_flag'];
 
     public function qanda_use_tags(){
         return $this->hasMany(qandaUseTag::class, 'id');
