@@ -12,6 +12,8 @@ use App\Models\taskUser;
 use App\Models\CustomFormUser;
 use Carbon\Carbon;
 use DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class RefreshAutoAllocation implements ShouldQueue
 {
@@ -40,7 +42,8 @@ class RefreshAutoAllocation implements ShouldQueue
         $expiresAt = $grantDate->copy()->addYear();
         $periodKey = $lastMonth->format('Y-m');
         $periodLabel = $lastMonth->format('Y年m月');
-
+        $runId = (string) Str::uuid();
+        $start = microtime(true);
         $taskQuery = taskUser::select(
                 'user_id',
                 DB::raw('SUM(prize) as total_prize')
@@ -217,6 +220,13 @@ class RefreshAutoAllocation implements ShouldQueue
                 );
             }
         });
+        Log::info('refresh-auto-allocation:glowd-nine challenges', [
+            'run_id' => $runId,
+            'glowdNine' => $glowdNineTotals,
+            'challengeAwards' => $challengeAwards,
+            'challengeGrants' => $challengeGrants,
+            'duration_ms' => (int) ((microtime(true) - $start) * 1000),
+        ]);
     }
 
     private function upsertGrant(

@@ -48,6 +48,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('logs:prune-activity-logs')->quarterly();
         $schedule->command('goals:check-alert-streak')->dailyAt('02:00');
         $schedule->command('app:auto-attendance-confirm')->monthlyOn(3, '08:00');
+        $schedule->command('app:refresh-automation')->monthlyOn(3, '08:00');
     }
 
     /**
