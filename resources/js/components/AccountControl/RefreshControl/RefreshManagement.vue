@@ -262,7 +262,7 @@
 
                         <label>
                             <span>付与日</span>
-                            <input v-model="draft.grantDate" type="date" :disabled="saving">
+                            <input v-model="draft.grantDate" :class="[{ 'date-color': theme.dark }]" type="date" :disabled="saving">
                         </label>
 
                         <label>
@@ -338,6 +338,7 @@ import { useApi } from '@/composables/api';
 import { DateTime } from 'luxon';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { User } from '@/interface/globalInterface';
+import { useTheme } from '@/store/theme';
 
 type EmployeeStatus = 'ready' | 'review' | 'done';
 type QueueFilter = 'all' | EmployeeStatus;
@@ -452,7 +453,7 @@ const grantTypeOptions: { value: GrantType; label: string }[] = [
     { value: 'annual', label: '年次付与' },
     { value: 'adjustment', label: '手動調整' },
 ];
-
+const theme = useTheme()
 const api = useApi();
 const loading = ref(false);
 const saving = ref(false);
