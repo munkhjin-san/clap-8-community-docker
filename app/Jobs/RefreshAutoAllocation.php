@@ -85,7 +85,7 @@ class RefreshAutoAllocation implements ShouldQueue
         $uncompleted_grants = PostRecord::where('app_type', 2)
             ->whereYear('date_end', $lastMonth->year)
             ->whereMonth('date_end', $lastMonth->month)
-            ->whereNotIn('status_flag', [1, 4])
+            ->whereNotIn('status_flag', [1, 2])
             ->whereHas('grants', function ($query) {
                 $query->where('expenses', '>', 0);
             })
