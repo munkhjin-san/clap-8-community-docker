@@ -49,6 +49,7 @@ class User extends Authenticatable
         'partner_flag' => 'int',
         'award_charge' => 'int'
     ];
+   
     public function friends()
     {
         return $this->belongsToMany(User::class, 'friends', 'user_id', 'friend_id')->select('users.id', 'users.name', 'users.icon_path','users.icon_bg', 'users.q_token');
@@ -257,4 +258,39 @@ class User extends Authenticatable
     {
         return $this->hasMany(ProjectMemberRole::class, 'user_id', 'id');
     }
+    public function refreshAccount()
+    {
+        return $this->hasOne(RefreshAccount::class, 'user_id', 'id');
+    }
+    public function refreshAnnualReviews()
+    {
+        return $this->hasManyThrough(
+            RefreshAnnualReview::class,
+            RefreshAccount::class,
+            'user_id',
+            'refresh_account_id',
+            'id',
+            'id',
+        );
+    }
+    public function activeLeaveRecord()
+    {
+        return $this->hasOne(UserLeaveRecord::class, 'user_id', 'id')
+            ->where('active', 1);
+    }
+    public function getRefreshCurrentBalanceAttribute(): int
+    {
+        $refreshAccount = $this->refreshAccount;
+
+        if (!$refreshAccount) {
+            return 0;
+        }
+
+        $grantRemaining = $refreshAccount->grants
+            ->whereNotNull('remaining_amount')
+            ->sum(fn (RefreshGrant $grant) => (int) $grant->remaining_amount);
+
+        return (int) ($refreshAccount->opening_remaining_amount ?? 0) + (int) $grantRemaining;
+    }
+    
 }

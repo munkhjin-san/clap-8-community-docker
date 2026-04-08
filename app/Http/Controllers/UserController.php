@@ -18,12 +18,16 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use App\Events\MessageSent;
 use App\Services\SharedService;
+use App\Services\RefreshService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
 class UserController extends Controller{
     protected $sharedService;
     
-    public function __construct(SharedService $sharedService)
+    public function __construct(
+        SharedService $sharedService,
+        private RefreshService $refreshService
+    )
     {
         $this->sharedService = $sharedService;
     }
@@ -297,9 +301,9 @@ class UserController extends Controller{
             ->where('date', '<', $today)
             ->orderBy('date', 'desc')
             ->limit(5);
-        }])->with(['portfolio', 'linked', 'project_settings'])
+        }])->with(['portfolio', 'linked', 'project_settings', 'refreshAccount.grants'])
         ->first();         
-
+        $list->append('refresh_current_balance');
         return response()->json($list);
         
     }  

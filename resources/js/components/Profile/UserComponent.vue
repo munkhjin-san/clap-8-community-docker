@@ -1,5 +1,5 @@
 <template>
-    <div style="width: 100%;height:100%;" class="user-conteiner-inner relative" :class="{scrollable : !showModalContent && !showSettingModalContent && !introUpload}">   
+    <div style="width: 100%;height:100%;" class="user-conteiner-inner relative" :class="{scrollable : !showModalContent && !showSettingModalContent }">   
         <Transition name="modalFade">
             <div class="work-loader" style="height: 100%; z-index: 2" v-if="loading">
                 <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
@@ -23,6 +23,7 @@
                             :movExist="movExist"
                             :key="movExist.length"
                             @updateUser="updateUser"
+                            @openHistory="showRefreshHistory = true"
                         />
                         
                         <div v-if="UserAllData" class="second-bar">
@@ -35,6 +36,9 @@
                                     <p class="record-inner title">営業所</p>
                                     <p class="record-inner record" v-if="UserAllData.offices !== null">{{UserAllData.offices.name}}</p>
                                 </div>
+                                <!-- <div v-if="canViewRefreshHistory" style="margin-bottom: 14px;">
+                                    <button class="refresh-history-button" @click="showRefreshHistory = true">リフレッシュ履歴</button>
+                                </div> -->
                                 <div v-if="UserAllData.motto !== null">
                                     <p class="record-inner title">好きな言葉</p>
                                     <p class="record-inner record">{{UserAllData.motto}}</p>
@@ -79,6 +83,13 @@
         <Transition name="modalFade">
             <UserPortfolioEdit v-if="editingPortfolio" :editTarget="editingPortfolio" @close="portfolioEditComplete"/>
         </Transition> 
+        <Transition name="modalFade">
+            <UserRefreshHistoryModal
+                v-if="showRefreshHistory && UserAllData"
+                :user-id="UserAllData.id"
+                @close="showRefreshHistory = false"
+            />
+        </Transition>
         
     </div>
     
@@ -95,6 +106,7 @@ import { useAuthUserStore } from '@/store/auth'
 import { useResponsive } from '@/store/responsive';
 import UserPortfolio from './UserPortfolio.vue';
 import UserPortfolioEdit from './UserPortfolioEdit.vue';
+import UserRefreshHistoryModal from './UserRefreshHistoryModal.vue';
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import { urlCheck } from '@/utils/tools';
 import { useApi } from '@/composables/api';
@@ -107,8 +119,10 @@ import { useApi } from '@/composables/api';
     const UserAllData = ref(null)
     const clapData = ref(null)
     const editingPortfolio = ref(null)
+    const showRefreshHistory = ref(false)
     const api = useApi()
     const loading = ref(true)
+    
     const userPortfolio = computed(() => {
         return UserAllData.value.portfolio.filter(data => data.status == 3)
     })
@@ -163,6 +177,18 @@ import { useApi } from '@/composables/api';
 }
 .recordFile-inner{
     overflow: hidden;
+}
+.refresh-history-button{
+    padding: 7px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--calendarBorder);
+    background: var(--bg3);
+    color: var(--primary-color);
+    font-size: 12px;
+    line-height: 1.2;
+}
+.refresh-history-button:hover{
+    opacity: 0.9;
 }
 .private-wrapper{
     width: 100%;

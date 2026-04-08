@@ -471,25 +471,25 @@ const routes = [
                 
             //     component: () => import('@/components/AccountControl/AssetControl/AssetControl.vue'),
             // },
-            // {
-            //     path: 'refresh-control',
-            //     name: 'refresh-control',
-            //     meta: { head: 'リフレッシュ' },
-            //     redirect: { name: 'applications' },
-            //     component: () => import('@/components/AccountControl/RefreshControl/RefreshControl.vue'),
-            //     children: [
-            //         {
-            //             path: 'management',
-            //             name: 'management',
-            //             component: () => import('@/components/AccountControl/RefreshControl/RefreshManagement.vue'),
-            //         },
-            //         {
-            //             path: 'applications',
-            //             name: 'applications',
-            //             component: () => import('@/components/AccountControl/RefreshControl/RefreshApplications.vue'),
-            //         }
-            //     ]
-            // },
+            {
+                path: 'refresh-control',
+                name: 'refresh-control',
+                meta: { head: 'リフレッシュ' },
+                redirect: { name: 'applications' },
+                component: () => import('@/components/AccountControl/RefreshControl/RefreshControl.vue'),
+                children: [
+                    {
+                        path: 'management',
+                        name: 'management',
+                        component: () => import('@/components/AccountControl/RefreshControl/RefreshManagement.vue'),
+                    },
+                    {
+                        path: 'applications',
+                        name: 'applications',
+                        component: () => import('@/components/AccountControl/RefreshControl/RefreshApplications.vue'),
+                    }
+                ]
+            },
             {
                 path: 'offices',
                 name: 'admin-offices',

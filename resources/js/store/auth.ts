@@ -64,6 +64,7 @@ export const useAuthUserStore = defineStore('authUser', () => {
 
     const isMentor = computed(() => activeUser.value && (activeUser.value.general_position && activeUser.value.general_position !== '一般社員') || isBoss.value)
 
+    const isEmployee = computed(() => activeUser.value && (activeUser.value.positions && (activeUser.value.positions.sort_flag > 6 && activeUser.value.positions.sort_flag <= 14)))
     return {
         name,
         id,
@@ -80,6 +81,7 @@ export const useAuthUserStore = defineStore('authUser', () => {
         isAdmin,
         isBoss,
         isPM,
-        isMentor
+        isMentor,
+        isEmployee
     }
 })

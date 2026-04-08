@@ -331,6 +331,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::prefix('/refresh')->group(function () {
             Route::get('/posts', [RefreshController::class, 'indexPosts']);
             Route::patch('/posts/{id}/approve', [RefreshController::class, 'approvePost']);
+            Route::patch('/usages/{id}/confirm', [RefreshController::class, 'confirmPendingUsage']);
             Route::delete('/posts/{id}', [RefreshController::class, 'destroyPost']);
             Route::get('/kintone', [RefreshController::class, 'kintoneRecords']);
             Route::post('/kintone/sync', [RefreshController::class, 'syncKintone']);
