@@ -9,6 +9,8 @@ interface State {
         changed: number,
         created: number,
         changed_ids: number[],
+        progress_report: number,
+        progress_report_ids: number[],
         last_chargeable: number,
         last_chargeable_ids: number[],
     }
@@ -52,6 +54,8 @@ export const useBadgeStore = defineStore('badge', () => {
         changed: 0,
         created: 0,
         changed_ids: [] as number[],
+        progress_report: 0,
+        progress_report_ids: [] as number[],
         last_chargeable: 0,
         last_chargeable_ids: [] as number[],
     });

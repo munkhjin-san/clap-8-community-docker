@@ -19,6 +19,10 @@
                     <PostIcon which="2" size="20"/>
                     チャレンジ
                 </div>
+                <div @click="app_type = 6" :class="['pt-selector', { ptSelected: app_type == 6}]">
+                    <PostIcon which="6" size="20"/>
+                    リフレッシュ
+                </div>
             </div>
              <div class="si-box" v-if="app_type == 2">
                 <div class="switchLabel">
@@ -105,7 +109,6 @@
                     v-model="to_users"
                 />
             </div>
-
             <div v-if="appName == 'challenge' || app_type == 2" class="si-box">   
                 <LongInput
                     v-model="content_rule"  
@@ -135,6 +138,53 @@
                     name="recordRule"
                     rules="required|max:2000"
                 /> 
+            </div>
+            <div class="si-box" v-if="app_type == 2">
+                <div class="challenge-category-header">
+                    <p class="form-lbl challenge-category-label">チャレンジカテゴリ</p>
+                    <button
+                        v-if="shouldShowSuggestedCategoryAction"
+                        type="button"
+                        class="challenge-category-suggest-button"
+                        @click="applySuggestedCategory(true)"
+                    >
+                        提案を適用
+                    </button>
+                </div>
+                <p v-if="suggestedChallengeCategoryLabel" class="challenge-category-hint">
+                    入力内容から「{{ suggestedChallengeCategoryLabel }}」を提案しています。
+                </p>
+                <div class="challenge-category-section">
+                    <p class="challenge-category-section-title">メインカテゴリ</p>
+                    <div class="challenge-category-grid">
+                        <button
+                            v-for="category in challengeCategories"
+                            :key="category.label"
+                            type="button"
+                            :class="['challenge-category-chip', { active: selectedChallengeMainCategory === category.label }]"
+                            @click="selectChallengeMainCategory(category.label, true)"
+                        >
+                            {{ category.label }}
+                        </button>
+                    </div>
+                </div>
+                <div v-if="activeChallengeCategory" class="challenge-category-section">
+                    <p class="challenge-category-section-title">サブカテゴリ</p>
+                    <div class="challenge-category-grid">
+                        <button
+                            v-for="subcategory in activeChallengeCategory.subcategories"
+                            :key="subcategory"
+                            type="button"
+                            :class="['challenge-category-chip', 'sub', { active: selectedChallengeSubCategory === subcategory }]"
+                            @click="selectChallengeSubCategory(subcategory, true)"
+                        >
+                            {{ subcategory }}
+                        </button>
+                    </div>
+                </div>
+                <p v-if="challengeCategoryValidationError" class="challenge-category-error">
+                    チャレンジカテゴリとサブカテゴリを選択してください。
+                </p>
             </div>
             <div class="si-box" v-if="app_type == 2">
                 <p class="form-lbl" style="font-size: 14px;">必要経費</p>
@@ -197,13 +247,24 @@
                     type="number"
                     v-model="refresh_amount"
                 />
+                <div class="refresh-balance-panel">
+                    <div class="refresh-balance-row">
+                        <span>現在保有額</span>
+                        <strong v-if="!refreshSummaryLoading">{{ formatCurrency(refreshCurrentBalance) }}</strong>
+                        <strong v-else>確認中...</strong>
+                    </div>
+                    <p v-if="!refreshSummaryLoading" class="refresh-balance-note">申請時点で使える残高です。</p>
+                    <p v-if="refreshBalanceWarning" class="refresh-balance-warning">{{ refreshBalanceWarning }}</p>
+                </div>
             </div>
             <div class="si-box">
                 <FileUploader
                     :customPlaceHolder="refreshPlaceholder"
                     v-model="uploadedFiles"
                     path="/post_files"
+                    :rules="app_type == 6 ? 'required' : ''"
                     :key="`file-uploader-${app_type}`"
+                    ref="uploadedRefreshRef"
                 />
             </div>
             <div class="si-box" v-if="app_type == 6">
@@ -254,6 +315,11 @@ import { useDialog } from '@/composables/dialog'
 import PostExpenses from './PostExpenses.vue'
 import ItemSelector from '../Form/ItemSelector.vue'
 import { User } from '@/interface/globalInterface'
+import {
+    challengeCategories,
+    challengeSuggestionRules,
+    type ChallengeCategorySuggestion
+} from '@/utils/challengeCategory'
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
 
@@ -272,6 +338,8 @@ import { User } from '@/interface/globalInterface'
     const content = ref(props.editTarget && props.editTarget.content ? props.editTarget.content : "")
     const content_rule = ref(props.editTarget && props.editTarget.content_rule ? props.editTarget.content_rule : "")
     const content_goal = ref(props.editTarget && props.editTarget.content_goal ? props.editTarget.content_goal : "")
+    const selectedChallengeMainCategory = ref(props.editTarget?.challenge_main_category ?? '')
+    const selectedChallengeSubCategory = ref(props.editTarget?.challenge_sub_category ?? '')
     const to_users = ref<User[]>(props.editTarget && props.editTarget.to_users ? props.editTarget.to_users : [])
     const referrer = ref(props.editTarget && props.editTarget.referrer ? props.editTarget.referrer : "")
     const refresh_amount = ref(props.editTarget && props.editTarget.refresh_amount ? props.editTarget.refresh_amount : "")
@@ -291,6 +359,7 @@ import { User } from '@/interface/globalInterface'
     const recordDateEnd = useTemplateRef('recordDateEnd')
     const recordDateStart = useTemplateRef('recordDateStart')
     const uploadedReceiptsRef = useTemplateRef('uploadedReceiptsRef')
+    const uploadedRefreshRef = useTemplateRef('uploadedRefreshRef')
     // const npoRef = useTemplateRef('npoRef')
     const selectedNpo = ref(props.editTarget && props.editTarget.donation_target ? props.editTarget.donation_target : null)
     const chargeable = ref(true)
@@ -314,6 +383,10 @@ import { User } from '@/interface/globalInterface'
     ]
     const api = useApi()
     const { ping, ask } = useDialog()
+    const refreshSummary = ref<{ current_balance: number } | null>(null)
+    const refreshSummaryLoading = ref(false)
+    const challengeCategoryTouched = ref(Boolean(selectedChallengeMainCategory.value || selectedChallengeSubCategory.value))
+    const challengeCategoryValidationError = ref(false)
     const validateTargets = computed(() => {
         return [
             recordTitle.value,
@@ -325,7 +398,8 @@ import { User } from '@/interface/globalInterface'
             recordDateStart.value,
             // npoRef.value,
             uploadedReceiptsRef.value,
-            refreshAmountRef.value
+            refreshAmountRef.value,
+            app_type.value === 6 ? uploadedRefreshRef.value : null
         ]
     })
     const costs = reactive<{
@@ -335,13 +409,94 @@ import { User } from '@/interface/globalInterface'
     }[]>([])
 
     const refreshPlaceholder = computed(() => {
-        return app_type.value === 6 ? 'リフレッシュ写真' : 'ファイル'
+        return app_type.value === 6 ? 'リフレッシュ写真（必須）' : 'ファイル'
     })
+    const activeChallengeCategory = computed(() => {
+        return challengeCategories.find(category => category.label === selectedChallengeMainCategory.value) ?? null
+    })
+    const suggestedChallengeCategory = computed<ChallengeCategorySuggestion | null>(() => {
+        const sourceText = `${title.value}\n${content_rule.value}\n${content_goal.value}`
+
+        for (const rule of challengeSuggestionRules) {
+            if (rule.pattern.test(sourceText)) {
+                return {
+                    main: rule.main,
+                    sub: rule.sub
+                }
+            }
+        }
+
+        return null
+    })
+    const suggestedChallengeCategoryLabel = computed(() => {
+        if (!suggestedChallengeCategory.value || app_type.value !== 2) {
+            return ''
+        }
+
+        return `${suggestedChallengeCategory.value.main} / ${suggestedChallengeCategory.value.sub}`
+    })
+    const shouldShowSuggestedCategoryAction = computed(() => {
+        if (app_type.value !== 2 || !suggestedChallengeCategory.value) {
+            return false
+        }
+
+        return (
+            selectedChallengeMainCategory.value !== suggestedChallengeCategory.value.main
+            || selectedChallengeSubCategory.value !== suggestedChallengeCategory.value.sub
+        )
+    })
+    const refreshCurrentBalance = computed(() => {
+        return Number(refreshSummary.value?.current_balance ?? 0)
+    })
+    const refreshBalanceWarning = computed(() => {
+        const requestedAmount = Number(refresh_amount.value || 0)
+
+        if (app_type.value !== 6 || requestedAmount <= 0) {
+            return ''
+        }
+
+        if (requestedAmount > refreshCurrentBalance.value) {
+            return '現在保有額を超えています。承認時に残高までで調整される場合があります。'
+        }
+
+        return ''
+    })
+    const selectChallengeMainCategory = (categoryLabel: string, markTouched = false) => {
+        selectedChallengeMainCategory.value = categoryLabel
+
+        if (!activeChallengeCategory.value?.subcategories.includes(selectedChallengeSubCategory.value)) {
+            selectedChallengeSubCategory.value = ''
+        }
+
+        if (markTouched) {
+            challengeCategoryTouched.value = true
+        }
+
+        challengeCategoryValidationError.value = false
+    }
+    const selectChallengeSubCategory = (subcategory: string, markTouched = false) => {
+        selectedChallengeSubCategory.value = subcategory
+
+        if (markTouched) {
+            challengeCategoryTouched.value = true
+        }
+
+        challengeCategoryValidationError.value = false
+    }
+    const applySuggestedCategory = (markTouched = false) => {
+        if (!suggestedChallengeCategory.value) {
+            return
+        }
+
+        selectChallengeMainCategory(suggestedChallengeCategory.value.main, markTouched)
+        selectChallengeSubCategory(suggestedChallengeCategory.value.sub, markTouched)
+    }
     const possiblePath = computed(() => {
         return app_type.value === 2 ? 'post_get_challenge_users' : `post_get_post_users`
     })
     const dateComparsionError = computed(() =>{
         const duration = (DateTime.fromISO(date_end.value).diff(DateTime.fromISO(date_start.value), 'days').toObject().days ?? 0)
+        console.log(duration)
         if (!DateTime.fromISO(date_start.value).isValid || !DateTime.fromISO(date_end.value).isValid) {
             return {
                 hasError: false,
@@ -354,9 +509,9 @@ import { User } from '@/interface/globalInterface'
                 message: '終了日は開始日より前にすることはできません。'
             }                      
 
-        } else if (duration <= 14) {
+        } else if (duration < 14) {
             return {
-                hasError: duration <= 14,
+                hasError: duration < 14,
                 message: '実施期間は最低14日間以上必要です。'
             }
         } else {
@@ -375,6 +530,7 @@ import { User } from '@/interface/globalInterface'
             }
         }
         costsFill()
+        loadRefreshSummary()
 
     })
     watch(donatable, (newVal) => {
@@ -382,6 +538,17 @@ import { User } from '@/interface/globalInterface'
             confirmDonate()
         }
     })
+    watch([title, content_rule, content_goal, app_type], () => {
+        if (app_type.value !== 2) {
+            return
+        }
+
+        if (challengeCategoryTouched.value) {
+            return
+        }
+
+        applySuggestedCategory(false)
+    }, { immediate: true })
     watch(app_type, (newVal) => {
         if(newVal == 0 && auth.user){
             to_users.value = to_users.value.filter(user => user && user.id != auth.id)
@@ -391,7 +558,35 @@ import { User } from '@/interface/globalInterface'
                 to_users.value.push(auth.user as unknown as User)
             }
         }
+        if(newVal == 6){
+            loadRefreshSummary()
+        }else{
+            refreshSummary.value = null
+        }
     })
+    watch(selectedChallengeMainCategory, () => {
+        challengeCategoryValidationError.value = false
+    })
+    watch(selectedChallengeSubCategory, () => {
+        challengeCategoryValidationError.value = false
+    })
+    const loadRefreshSummary = async() => {
+        if(app_type.value !== 6){
+            return
+        }
+
+        const data = await api.get('/refresh/me/summary', null, {
+            loadingRef: refreshSummaryLoading,
+            silent: true
+        })
+
+        if(data){
+            refreshSummary.value = data
+        }
+    }
+    const formatCurrency = (value: number) => {
+        return `${Number(value || 0).toLocaleString()}円`
+    }
     const confirmDonate = async() => {
         if(donatable.value){
             const result = await ask('必要経費以外のチャージ総額はNPOに寄付します。よろしいでしょうか?')
@@ -453,6 +648,11 @@ import { User } from '@/interface/globalInterface'
             ping('入力内容に不備があります。')
             return
         }
+        if (app_type.value === 2 && (!selectedChallengeMainCategory.value || !selectedChallengeSubCategory.value)) {
+            challengeCategoryValidationError.value = true
+            ping('チャレンジカテゴリを選択してください。')
+            return
+        }
         if (app_type.value === 2) {
             const confirm = await ask('入力内容には間違いないかを確認してください。\n作成後は編集できません。')
             if (!confirm.value) return
@@ -484,6 +684,8 @@ import { User } from '@/interface/globalInterface'
             donatable: donatable.value,
             donation_target: selectedNpo.value,
             refresh_amount: refresh_amount.value,
+            challenge_main_category: app_type.value === 2 ? selectedChallengeMainCategory.value : null,
+            challenge_sub_category: app_type.value === 2 ? selectedChallengeSubCategory.value : null,
             grants: costs
         }
 
@@ -511,6 +713,102 @@ import { User } from '@/interface/globalInterface'
         emit('postFinish',flag, id);          
     }
 </script>
+<style scoped>
+.challenge-category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.challenge-category-label {
+    font-size: 14px;
+}
+
+.challenge-category-hint {
+    margin: 10px 0 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--sub-color);
+}
+
+.challenge-category-section {
+    margin-top: 14px;
+}
+
+.challenge-category-section-title {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: var(--sub-color);
+}
+
+.challenge-category-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.challenge-category-chip,
+.challenge-category-suggest-button {
+    border: 1px solid var(--check-inactive);
+    background: transparent;
+    color: var(--primary-color);
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 8px 12px;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.challenge-category-chip.sub {
+    font-size: 12px;
+}
+
+.challenge-category-chip.active,
+.challenge-category-suggest-button {
+    border-color: var(--primary-color);
+    background: var(--bg3);
+}
+
+.challenge-category-error {
+    margin: 10px 0 0;
+    font-size: 12px;
+    color: tomato;
+}
+
+.refresh-balance-panel {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--bg3);
+    color: var(--primary-color);
+}
+
+.refresh-balance-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.refresh-balance-row + .refresh-balance-row {
+    margin-top: 4px;
+}
+
+.refresh-balance-note {
+    margin: 6px 0 0;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--sub-color);
+}
+
+.refresh-balance-warning {
+    margin: 8px 0 0;
+    font-size: 12px;
+    line-height: 1.45;
+    color: #c45a3a;
+}
+</style>
     
     
     

@@ -23,7 +23,6 @@ use App\Jobs\PostStatusChangeNotification;
 use App\Services\BadgeService;
 use Illuminate\Support\Facades\Auth;
 
-
 class PostController extends Controller
 {
     protected $badgeService;
@@ -376,8 +375,12 @@ class PostController extends Controller
                 $record->grantable = $request->grantable;
                 $record->donatable = $request->donatable;
                 $record->donation_target = $request->donation_target;
+                $record->challenge_main_category = $request->challenge_main_category;
+                $record->challenge_sub_category = $request->challenge_sub_category;
             }else{
                 $record->content = $request->post_content;
+                $record->challenge_main_category = null;
+                $record->challenge_sub_category = null;
             }    
             // if($request->app_type == 5 ){
             //     $record->donation_target = $request->donation_target;
@@ -491,12 +494,16 @@ class PostController extends Controller
         $validatedData = $request->validate([
             'app_name' => 'required',
             'record_id' => 'required',
-            'message' => 'required'
+            'message' => 'required',
+            'comment_type' => 'nullable|string',
+            'progress_checkpoint' => 'nullable|integer'
         ]);
         $comment = new CommentRecord;
         $comment->app_name = $request->app_name;
         $comment->record_id = $request->record_id;
         $comment->messages = $request->message;
+        $comment->comment_type = $request->comment_type ?? 'normal';
+        $comment->progress_checkpoint = $request->progress_checkpoint;
         $comment->user_id = Auth::id();
         $comment->emoji_flag = $this->containsOnlyEmojis($request->message);
         $comment->save();
@@ -522,7 +529,6 @@ class PostController extends Controller
                 }
             }
         }
-        
         if($owner_id !== Auth::id()){
             $current_commenters_id_unique[] = $owner_id;
         }    
@@ -751,7 +757,7 @@ class PostController extends Controller
             });
             if(!empty($request->key_list)){
                 foreach($request->key_list as $key){ 
-                    $query->whereRaw("CONCAT_WS('', title, ' ', content,' ',content_rule, ' ', content_goal, ' ', key_users, ' ', key_tags, ' ', result) LIKE ?", ['%' . $key . '%']);
+                    $query->whereRaw("CONCAT_WS('', title, ' ', content, ' ', content_rule, ' ', content_goal, ' ', challenge_main_category, ' ', challenge_sub_category, ' ', key_users, ' ', key_tags, ' ', result) LIKE ?", ['%' . $key . '%']);
                     
                 }
             }
@@ -866,7 +872,7 @@ class PostController extends Controller
         });
         foreach($request->key_list as $key){ 
             $query->when(($path == 'post'), function($q) use($key){
-                $q->whereRaw("CONCAT_WS('', title, ' ', content,' ',content_rule, ' ', content_goal, ' ', key_users, ' ', key_tags, ' ', result) LIKE ?", ['%' . $key . '%']);
+                $q->whereRaw("CONCAT_WS('', title, ' ', content, ' ', content_rule, ' ', content_goal, ' ', challenge_main_category, ' ', challenge_sub_category, ' ', key_users, ' ', key_tags, ' ', result) LIKE ?", ['%' . $key . '%']);
             });
                     
         }                   
@@ -1018,35 +1024,4 @@ class PostController extends Controller
         }    
         return $iconId;
     }
-    public function get_refresh_post(Request $request){
-        $status = $request->status ?? [];
-        $posts = PostRecord::query();
-        if (!empty($status)) {
-            $posts->whereIn('status_flag', $status);
-        }
-        $posts->where('app_type', 6)
-            ->where('refresh_amount', '>', 0)
-            ->with('receipts')
-            ->with('files')
-            ->with('user')
-            ->get();
-        $data = $posts
-                ->orderBy('created_at', 'desc')
-                ->orderBy('status_flag', 'asc');
-        return response()->json($data->paginate(30));
-    }
-    public function post_refresh_approve(string $id)
-    {
-        $post = PostRecord::findOrFail($id);
-        $post->status_flag = 1;
-        $post->save();
-
-        return response()->json($post);
-    }
-    public function post_refresh_delete(string $id)
-    {
-        PostRecord::findOrFail($id)->delete();
-        return response()->json(['message' => 'Successfully deleted']);
-    }
-
 }

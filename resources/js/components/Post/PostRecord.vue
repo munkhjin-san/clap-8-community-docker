@@ -1,15 +1,16 @@
 <template>
     <div :id="`record-${record.id}`" v-if="record">
-        <div class="post-item-outer">
+        <div class="post-item-outer post-record-shell">
             <div class="post-item-header-wrap">
                 <div class="flex gap-2.5 items-center">
-                    <PostIcon v-if="appName == 'post' && record.app_type != 6" :which="record.app_type" size="20"/>
+                    <PostIcon v-if="appName == 'post'" :which="record.app_type" size="20"/>
                     <div v-html="title" class="post-title"></div>
                 </div>
                 <ItemMenu v-if="isOwner || auth.id === 516" :items="postMenu"/> 
             </div>
-            <div class="post-second-wrap">
-                <div :class="['post-user-wrap', {'post-users-wrap' : isMultipleUsers}]">
+            <div class="post-second-wrap post-meta-grid">
+                <div class="post-meta-main">
+                    <div :class="['post-user-wrap', 'post-user-wrap-tight', {'post-users-wrap' : isMultipleUsers}]">
                     <RouterLink class="user-link flex items-center cursor-pointer" :to="`${appName}?member=${record.user.name}`" v-if="record.app_type !== 2">
                         <UserPanel :user="record.user" :disableInstant="true" imgClass="userNormalIcon" size="30"/>
                         <p class="userName">{{ record.user ? record.user.name : '' }}</p>
@@ -35,47 +36,70 @@
                         </div> 
                     </div>
                 </div>
-                <div class="flex flex-col items-end gap-4 flex-wrap justify-end"> 
-                    <div @click="updateStatus()" v-if="record.app_type == 2" class="text-sm whitespace-nowrap cursor-pointer">
+                    <div v-if="record.app_type == 2 && (record.challenge_main_category || record.challenge_sub_category || record.donation_target)" class="post-meta-notes">
+                        <div v-if="record.challenge_main_category || record.challenge_sub_category" class="flex flex-wrap gap-2 text-xs">
+                            <span v-if="record.challenge_main_category" class="post-meta-chip post-meta-chip-main">
+                                {{ record.challenge_main_category }}
+                            </span>
+                            <span v-if="record.challenge_sub_category" class="post-meta-chip post-meta-chip-sub">
+                                {{ record.challenge_sub_category }}
+                            </span>
+                        </div>
+                        <div v-if="record.donation_target" class="post-meta-note">
+                            寄付先: {{ record.donation_target }}
+                        </div>
+                    </div>
+                </div>
+                <div class="post-meta-side"> 
+                    <div @click="updateStatus()" v-if="record.app_type == 2" class="text-sm whitespace-nowrap cursor-pointer post-status-row">
                         <span v-once v-if="badge.post.changed_ids && badge.post.changed_ids.includes(record.id)" title="ステータスが更新されました" class="w-[10px] h-[10px] bg-[tomato] rounded-full inline-block mx-1"></span>
                         {{ status }}
                     </div>
-                    <div class="flex items-center text-sm gap-2">
+                    <div class="flex items-center text-sm gap-2 whitespace-nowrap">
                         <p v-if="record.app_type == 2">実施期間：</p>
                         <PostDate :record="record" which="period"/>
                     </div>           
-                    <div v-if="record.app_type == 2" class="flex items-center text-sm gap-2">
+                    <div v-if="record.app_type == 2 && challengeProgressMeta" class="w-full min-w-[220px] max-w-[320px] post-progress-block">
+                        <div class="mb-1 flex items-center justify-between gap-3 text-[12px] text-[var(--sub-color)]">
+                            <span>進捗 {{ challengeProgressMeta.progress }}%</span>
+                            <span>{{ challengeProgressMeta.label }}</span>
+                        </div>
+                        <div class="h-[8px] overflow-hidden bg-[var(--bg3)]">
+                            <div
+                                class="h-full bg-[var(--primary-color)] transition-[width] duration-500 ease-out"
+                                :style="{ width: `${challengeProgressMeta.progress}%` }"
+                            />
+                        </div>
+                    </div>
+                    <div v-if="record.app_type == 2" class="flex items-center text-sm gap-2 whitespace-nowrap">
                         <p>チャージ受付期間：</p>
                         <PostDate :record="record" which="charge_period"/>
                     </div>
                     <span v-once v-if="badge.post.last_chargeable_ids.some(id => id === record.id)" class="text-sm text-[tomato] inline-block mx-1">チャージする最終日</span>   
                 </div>
             </div>
-            <div v-if="record.app_type == 2 && record.donation_target">
-                <p>寄付先: {{ record.donation_target }}</p>
-            </div>
-            <div>
+            <div class="post-content-stack">
                 <div>
                     <div class="record-content" v-html="body"></div>
                     <span @click="showAll('body')" class="jump-link" v-if="truncated.find(t => t.type === 'body')?.active">{{ truncated.find(t => t.type === 'body')?.expand ? '閉じる' : '続きを表示する' }}</span>
                 </div>
-                <div v-if="goal" class="mt-4">
+                <div v-if="goal">
                     <div class="post-separetor">
                         <div>達 成 条 件</div>
                     </div>
                     <div class="record-content" v-html="goal"></div>
                     <span @click="showAll('goal')" class="jump-link" v-if="truncated.find(t => t.type === 'goal')?.active">{{ truncated.find(t => t.type === 'goal')?.expand ? '閉じる' : '続きを表示する' }}</span>
                 </div>
-                <PostFiles class="mt-4" v-if="record.files.length" :items="record.files"/>
-                <div v-if="result" class="mt-4">
+                <PostFiles v-if="record.files.length" :items="record.files"/>
+                <div v-if="result">
                     <div class="post-separetor">
                         <div>{{ record.status_flag == 5 ? '進 捗 状 況' : '結 果 発 表'}}</div>
                     </div>
                     <div class="record-content" v-html="result"></div>
                     <span @click="showAll('result')" class="jump-link" v-if="truncated.find(t => t.type === 'result')?.active">{{ truncated.find(t => t.type === 'result')?.expand ? '閉じる' : '続きを表示する' }}</span>
                 </div>
-                <PostFiles class="mt-4" v-if="record.result_files && record.result_files.length" :items="record.result_files"/>
-                <div class="mt-4 mb-4" v-if="record.grants && record.grants.length && record.grantable && totalExpenses > 0">
+                <PostFiles v-if="record.result_files && record.result_files.length" :items="record.result_files"/>
+                <div v-if="record.grants && record.grants.length && record.grantable && totalExpenses > 0">
                     <div class="post-separetor">
                         <div>必 要 経 費</div>
                     </div>
@@ -95,11 +119,11 @@
                     </div>
                 
                 </div>
-                <div v-if="record.app_type == 6 && (auth.activeUser.id == 610 || record.user_id == auth.id)" class="mt-4">
+                <div v-if="record.app_type == 6 && (auth.activeUser.id == 610 || record.user_id == auth.id)">
                     <div class="post-separetor">
                         <div>領収（非公開）</div>
                     </div>
-                    <PostFiles class="mt-4" path="/post_receipts" v-if="record.receipts.length" :items="record.receipts"/>
+                    <PostFiles path="/post_receipts" v-if="record.receipts.length" :items="record.receipts"/>
                 </div>
 
                 <div class="post-url" v-if="record.referrer">
@@ -112,7 +136,7 @@
                         :key="tag.id"
                     />
                 </div>
-                <div class="my-5 flex flex-col gap-5 bg-[var(--bg2)] p-2" v-if="record.entries?.length && viewEntries">
+                <div class="post-entries-panel" v-if="record.entries?.length && viewEntries">
                     <div class="bg-[var(--bg2)] flex justify-between sticky top-0 z-10 p-2 items-center cursor-pointer">
                         <div class="text-[14px] cursor-pointer" @click="viewParticipants">参加者 {{ participants.length }}人</div>
                         <CloseIcon size="12" @click="closeAndScroll(record.id)"/>
@@ -139,7 +163,7 @@
                         </button>
                     </div> -->
                 </div>
-                <div class="flex flex-col justify-center items-center gap-2 my-10 mx-auto" v-if="challengeButtonView"> 
+                <div class="flex flex-col justify-center items-center gap-2 my-6 mx-auto w-full" v-if="challengeButtonView"> 
                     <button @click="emit('setChargeTarget', record.id)" v-if="challengeButtonSwitch" id="chargeAddButton" class="chargeFormeAddButton cursor-pointer">チャレンジにチャージする</button>
                     <button v-else class="chargeFormeAddButton" disabled>{{canNotCharge}}</button>
                 </div>  
@@ -147,11 +171,11 @@
                     <button id="glowlympicButton" class="chargeFormeAddButton cursor-pointer">参加期間は終了しました</button>
                 </div>  
             </div>
-            <div class="post-footer mb-2.5 text-sm justify-end" v-if="record.app_type == 2">
+            <div class="post-footer mb-1 text-sm justify-end" v-if="record.app_type == 2">
                 <div>現在のチャージ総額 {{ totalChargeAmmount }}円</div>
             </div>
-            <div class="post-footer">           
-                <div class="flex items-center gap-4 ml-auto">            
+            <div class="post-footer post-footer-main">           
+                <div class="flex items-center gap-3 ml-auto flex-wrap justify-end">           
                     <div class="post-footer-wrap" v-if="record.app_type == 2 && record.grantable && totalExpenses > 0">
                         <div class="text-[14px]">経費合計: {{ amountOfMoneyParser(totalExpenses) }}円</div>
                     </div>
@@ -170,11 +194,18 @@
                     </div>
                 
                     <div class="post-footer-wrap">
-                        <svg @click="isExpanded = !isExpanded" class="comment-icon" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 32">
+                        <div
+                            class="post-comment-trigger"
+                            :title="hasProgressReportBadge ? '新しい進捗報告があります' : undefined"
+                            @click="isExpanded = !isExpanded"
+                        >
+                        <span v-if="hasProgressReportBadge" class="post-comment-badge custom-heartbeat" aria-hidden="true"></span>
+                        <svg class="comment-icon" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 32">
                             <path d="M10.788 8.109c1.574-0.063 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.345 0.021-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.896 0.010-0.459 0.386-0.823 0.834-0.844zM10.788 13.050c1.574-0.052 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.356 0.010-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.907 0.021-0.438 0.396-0.803 0.844-0.823zM10.788 17.991c0.74-0.052 1.491-0.083 2.231-0.104l1.115-0.031c0.375-0.010 0.74-0.010 1.115-0.010 0.74 0 1.491 0.010 2.231 0.042 0.75 0.031 1.491 0.063 2.231 0.136 0.459 0.052 0.803 0.459 0.75 0.928-0.042 0.407-0.365 0.709-0.75 0.75-0.75 0.073-1.491 0.115-2.231 0.136-0.75 0.031-1.491 0.042-2.231 0.042-0.375 0-0.74 0-1.115-0.010l-1.115-0.031c-0.74-0.021-1.491-0.052-2.231-0.104-0.479-0.042-0.844-0.459-0.803-0.938 0.031-0.427 0.375-0.771 0.803-0.803z"></path>
                             <path d="M39.432 11.393c-0.188-1.063-0.521-2.116-0.99-3.106-0.479-0.99-1.105-1.897-1.835-2.71s-1.564-1.511-2.45-2.106c-0.886-0.594-1.835-1.084-2.794-1.501-1.939-0.813-3.95-1.313-5.973-1.605s-4.055-0.396-6.066-0.365c-2.022 0.042-4.055 0.219-6.066 0.605-2.012 0.396-4.013 1.001-5.889 1.949-0.938 0.479-1.845 1.042-2.679 1.699-0.834 0.667-1.616 1.428-2.272 2.293-0.667 0.855-1.209 1.824-1.605 2.835-0.396 1.021-0.636 2.095-0.74 3.169-0.052 0.532-0.052 1.084-0.042 1.605 0.010 0.532 0.052 1.053 0.125 1.584 0.146 1.053 0.417 2.116 0.844 3.117s1.011 1.939 1.72 2.762c0.709 0.823 1.532 1.532 2.418 2.126 1.772 1.188 3.44 1.824 5.41 2.356 1.803 0.49 3.867 0.782 5.681 0.876 0.146 0.010 0.281 0.073 0.386 0.177 0.459 0.5 0.938 1.074 1.449 1.511 0.667 0.584 1.407 1.126 2.178 1.584 0.761 0.448 1.564 0.803 2.387 1.115 0.865 0.313 2.21 0.605 2.929 0.657 0.698 0.052 0.782-0.479 0.563-0.938-0.229-0.469-0.281-0.552-0.375-0.761s-0.188-0.417-0.271-0.625-0.344-0.844-0.49-1.261c-0.115-0.344-0.292-0.938-0.386-1.407-0.031-0.167 0.083-0.323 0.25-0.344 1.626-0.229 3.242-0.552 4.847-1.032 0.98-0.292 1.939-0.657 2.877-1.094s1.855-0.98 2.7-1.626c0.844-0.646 1.626-1.418 2.272-2.293 0.323-0.438 0.615-0.907 0.865-1.397s0.459-0.99 0.636-1.511c0.344-1.032 0.532-2.106 0.594-3.169 0.021-1.032-0.021-2.106-0.208-3.169zM37.347 14.478c-0.031 0.896-0.167 1.782-0.427 2.616-0.125 0.417-0.292 0.823-0.479 1.22s-0.407 0.771-0.657 1.126c-0.5 0.719-1.115 1.365-1.814 1.928-1.397 1.126-3.106 1.928-4.899 2.522-0.896 0.302-1.814 0.542-2.752 0.75-0.928 0.208-1.876 0.375-2.835 0.511h-0.031c-0.396 0.063-0.709 0.396-0.719 0.813-0.010 0.594 0.083 1.126 0.208 1.626s0.292 0.969 0.469 1.438c0.146 0.375 0.292 0.698 0.542 1.105 0.042 0.073-0.021 0.146-0.104 0.125-1.167-0.365-2.304-0.907-3.461-1.845-1.23-0.99-1.762-1.584-2.814-2.835-0.146-0.177-0.365-0.302-0.615-0.323h-0.031c-1.908-0.188-3.805-0.479-5.629-0.98-1.814-0.5-3.565-1.199-5.055-2.22-0.74-0.511-1.407-1.105-1.97-1.772-0.563-0.678-1.022-1.418-1.355-2.231s-0.552-1.678-0.657-2.564-0.125-1.824-0.031-2.689c0.104-0.876 0.313-1.73 0.646-2.543 0.334-0.803 0.771-1.564 1.324-2.251 1.115-1.386 2.595-2.481 4.232-3.273 0.823-0.396 1.678-0.74 2.564-1.022s1.793-0.511 2.71-0.678c1.845-0.354 3.742-0.511 5.639-0.532 1.907-0.010 3.815 0.073 5.67 0.344 1.866 0.271 3.69 0.709 5.378 1.418 1.689 0.698 3.242 1.668 4.44 2.95 0.594 0.636 1.105 1.355 1.491 2.126s0.667 1.605 0.834 2.481c0.167 0.855 0.219 1.751 0.188 2.658z"></path>
                         </svg>
                         <span class="comment-count leading-none" v-if="record.comments_count">{{ record.comments_count }}</span>
+                        </div>
                     </div>
                     <ClapButton @updateClap="setClap" :item="record" :appName="appName"/> 
                 </div>
@@ -190,8 +221,8 @@
                 />
             </transition>  
         </div>
-        <div class="flex w-fit relative items-center gap-2 ml-[20px]">
-            <div class="mt-2 flex w-fit relative items-center gap-2">
+        <div class="post-reaction-row">
+            <div class="flex w-fit relative items-center gap-2">
                 <Transition name="downShiftPop">
                     <div class="w-max absolute p-4 bg-[var(--background-color)] z-10 bottom-[35px] shadow-xl" :id="`iokawaReactionPop_${record.id}`" v-if="menu.parent == `iokawaReactionPop_${record.id}`">
                         <div class="grid grid-cols-5 gap-2">
@@ -211,7 +242,7 @@
                 </div>
                 
             </div>
-            <div class="mt-3" @click="setEmoteUsers(record.emoted_users)" v-if="record.emoted_users && record.emoted_users.length">
+            <div @click="setEmoteUsers(record.emoted_users)" v-if="record.emoted_users && record.emoted_users.length">
                 <div class="flex items-end cursor-pointer text-[var(--primary-color)] flex-wrap">
                     <TransitionGroup name="downShiftPop">
                         <Character v-for="emote in emotes" :key="emote" :size="40" :emoteName="emote"/>
@@ -357,6 +388,46 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
         };
         return statusMap[props.record.status_flag as keyof typeof statusMap];
     });
+    const challengeProgressMeta = computed(() => {
+        if (props.record.app_type !== 2) {
+            return null
+        }
+
+        const start = DateTime.fromISO(props.record.date_start)
+        const end = DateTime.fromISO(props.record.date_end)
+        const now = DateTime.now()
+
+        if (!start.isValid || !end.isValid || end <= start) {
+            return null
+        }
+
+        const totalMillis = end.toMillis() - start.toMillis()
+        const elapsedMillis = now.toMillis() - start.toMillis()
+        const rawProgress = (elapsedMillis / totalMillis) * 100
+        const progress = Math.max(0, Math.min(100, Math.round(rawProgress)))
+
+        if (now < start) {
+            return {
+                progress: 0,
+                label: `${Math.max(0, Math.ceil(start.diff(now, 'days').days ?? 0))}日後に開始`
+            }
+        }
+
+        if (now > end) {
+            return {
+                progress: 100,
+                label: '期間終了'
+            }
+        }
+
+        return {
+            progress,
+            label: `残り${Math.max(0, Math.ceil(end.diff(now, 'days').days ?? 0))}日`
+        }
+    })
+    const hasProgressReportBadge = computed(() => {
+        return badge.post.progress_report_ids?.includes(props.record.id) ?? false
+    })
     const supporters = computed(() => {
         if(props.record.app_type == 2){
             const amounts = props.record.awards
@@ -518,7 +589,129 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
         }, 0);
     });
 </script>
-<style>
+<style scoped>
+.post-record-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
 
+.post-meta-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--calendarBorder);
+}
 
+.post-meta-main {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.post-user-wrap-tight {
+    min-width: 0;
+}
+
+.post-meta-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+}
+
+.post-status-row {
+    margin-bottom: 2px;
+}
+
+.post-progress-block {
+    margin: 2px 0;
+}
+
+.post-meta-notes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.post-meta-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+}
+
+.post-meta-chip-main {
+    background: var(--bg2);
+    color: var(--primary-color);
+}
+
+.post-meta-chip-sub {
+    background: var(--bg3);
+    color: var(--sub-color);
+}
+
+.post-meta-note {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--sub-color);
+}
+
+.post-content-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.post-entries-panel {
+    margin: 4px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: var(--bg2);
+    padding: 12px;
+}
+
+.post-footer-main {
+    margin-top: -2px;
+}
+
+.post-reaction-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    margin-left: 20px;
+    width: calc(100% - 20px);
+}
+
+.post-comment-trigger {
+    position: relative;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    gap: 5px;
+}
+
+.post-comment-badge {
+    top: 1px;
+    right: -1px;
+    width: 9px;
+    height: 9px;
+    background: #d97706;
+    border-radius: 9999px;
+}
+
+@media (min-width: 768px) {
+    .post-meta-grid {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+    }
+
+    .post-meta-side {
+        align-items: flex-end;
+    }
+}
 </style>

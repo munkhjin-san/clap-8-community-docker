@@ -30,7 +30,7 @@ class CommentRecord extends Model
     protected $casts = [
         'user_id' => 'int',  
         'record_id' => 'int',
-        'comment_id' => 'int',      
-        
+        'comment_id' => 'int',
+        'progress_checkpoint' => 'int',
     ];
 }

@@ -73,10 +73,10 @@
                         <PostIcon which="2" size="20"/>
                         {{ apps[2] }}
                     </router-link>
-                    <!-- <router-link :to="`/${appName}?app_type=6`" :class="['pt-selector']">
+                    <router-link :to="`/${appName}?app_type=6`" :class="['pt-selector']">
                         <PostIcon which="6" size="20"/>
                         {{ apps[6] }}
-                    </router-link> -->
+                    </router-link>
                 </div>                
             </div>
             <div class="p-tag-container">
@@ -367,6 +367,8 @@ import Back from '../Icons/Back.vue';
         }, 2000);
         if(sharingData.active){
             newRecord()
+        } else {
+            openCreateFromRoute()
         }
         getTopTags()
         // getTopRecords()
@@ -377,6 +379,11 @@ import Back from '../Icons/Back.vue';
     watch(() => route.fullPath, () => {
         tagPickerOpen.value = false
         tagSearch.value = ''
+    })
+    watch(() => route.query.create, (value, oldValue) => {
+        if(value && value !== oldValue){
+            openCreateFromRoute()
+        }
     })
     const getTopRecords = async () => {
         const data = await api.post('/get_top_posts')
@@ -500,6 +507,11 @@ import Back from '../Icons/Back.vue';
     }
     const newRecord = () => {
         create.value = true
+    }
+    const openCreateFromRoute = () => {
+        if(route.query.create && !create.value){
+            newRecord()
+        }
     }
     const fetchPosts = async (query: Record<string, any>, replace?:number) => {
         const data = await api.post('/get_posts', {

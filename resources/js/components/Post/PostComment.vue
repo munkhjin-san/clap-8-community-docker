@@ -64,7 +64,7 @@
     
 <script setup lang="ts">
 import Comment from './Comment.vue';
-import { defineAsyncComponent, inject, nextTick, onMounted, provide, ref, useTemplateRef } from 'vue'
+import { defineAsyncComponent, inject, nextTick, onMounted, provide, ref, useTemplateRef, watch } from 'vue'
 import { useMenuStore } from "@/store/menu";
 import { useApi } from '@/composables/api';
 import { PostMethods, PostMethodsKey } from '@/interface/keys';
@@ -82,6 +82,13 @@ import Error from '@/components/Global/Error.vue'
     const api = useApi()
     onMounted(() => {
         load('mounted')
+    })
+    watch(() => props.record.comments_count, (nextCount, prevCount) => {
+        if (typeof nextCount !== 'number' || nextCount <= comments.value.length || nextCount === prevCount) {
+            return
+        }
+
+        load('')
     })
    
     const load = async(from:string) => {

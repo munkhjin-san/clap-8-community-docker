@@ -5,7 +5,12 @@
                 <div class="message-top-block" style="margin-bottom: 0;">      
                     <div style="display: flex;align-items: center;gap:10px">
                         <UserPanel size="30" :user="comment.user" imgClass="userNormalIcon"/>                   
-                        <div @click.stop="pushInstantUser($event, comment.user_id)" class="cursor-pointer" style="font-size: 14px;">{{ comment?.user?.name }}</div>     
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <div @click.stop="pushInstantUser($event, comment.user_id)" class="cursor-pointer" style="font-size: 14px;">{{ comment?.user?.name }}</div>
+                            <span v-if="comment.comment_type === 'progress_report'" class="progress-report-label">
+                                進捗報告
+                            </span>
+                        </div>
                     </div>     
                     <div class="m-date">{{DateParser(comment.created_at)}}</div> 
                     <div class="messageIconContainer">
@@ -105,3 +110,14 @@ import Error from '@/components/Global/Error.vue'
     }
 
 </script>
+<style scoped>
+.progress-report-label {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--sub-color);
+    background: var(--bg3);
+}
+</style>

@@ -158,7 +158,7 @@ class AutoAttendanceConfirm
             $working_shifts = [1, 6, 7, 8, 9, 10, 11, 12, 13];
             $should_calculate_month_hours = $user->position_id == 12 || $user->position_id == 15;
             $shift_count = $should_calculate_month_hours ? $user->shift_records->whereIn('shift_type', $working_shifts)->count() : $user->shift_records->whereNotIn('shift_type', [0, 18])->count();
-            $planned_work_hours = $shift_work_hours;
+            $planned_work_hours = $shift_count * $user->work_time_day;
             if($should_calculate_month_hours){
                 // $planned_work_shifts = $user->shift_records->whereIn('shift_type', $working_shifts)->get();
                 $planned_work_shifts = collect($user->shift_records->whereIn('shift_type', $working_shifts)->values());

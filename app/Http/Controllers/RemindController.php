@@ -1054,6 +1054,8 @@ class RemindController extends Controller
             'created' => 0,
             'changed' => 0,
             'changed_ids' => [],
+            'progress_report' => 0,
+            'progress_report_ids' => [],
             'last_chargeable' => 0,
             'last_chargeable_ids' => [],
         ]; 

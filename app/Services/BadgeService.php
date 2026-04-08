@@ -46,6 +46,16 @@ final class BadgeService
             }) 
             ->pluck('id')->toArray();
 
+            $progress_reports = PostRecord::where('app_type', 2)
+                ->whereHas('awards', function($q) use($user){
+                    $q->where('users.id', $user->id);
+                })
+                ->whereHas('progressReports', function($q) use($list){
+                    $q->where('created_at', '>', $list->updated_at ?? now());
+                })
+                ->pluck('id')
+                ->toArray();
+
             $date = Carbon::now()->startOfDay();
             $targetEnd = $date->copy()->addDays(8);
             $chargeEnd = $date->copy()->addDays(7);
@@ -70,6 +80,8 @@ final class BadgeService
                 'created' => $created,
                 'changed' => count($changed),
                 'changed_ids' => $changed,
+                'progress_report' => count($progress_reports),
+                'progress_report_ids' => $progress_reports,
                 'last_chargeable' => count($last_chargeable),
                 'last_chargeable_ids' => $last_chargeable,
             ];       

@@ -1,42 +1,65 @@
 <template>
     <BaseLayout
-        :title="data.title" 
-        :count="0" 
-        :fullscreen="fullscreen" 
-        :type="data.type" 
+        :title="data.title"
+        :count="data.data.length"
+        :fullscreen="fullscreen"
+        :type="data.type"
         :can-resize="data.canResize"
         :can-fullscreen="data.canFullscreen"
-        @toggle="(el, title) =>emit('toggle', el, data.type)" 
+        :pulse="hasOverdueNiceReminder"
+        @toggle="(el, title) => emit('toggle', el, data.type)"
         @resize="emit('resize', data.type)"
-    >   
-    <template #icon>
-        <svg class="side-app-icon mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21.76 21.79" style="width: auto; height: 16px; min-width: 17px;">
-            <path d="m21.54.32c-.25-.3-.67-.39-1.04-.25h0c-.84.33-1.68.66-2.51,1-.84.34-1.67.68-2.5,1.02-1.67.68-3.33,1.38-4.99,2.07l-4.99,2.08L.52,8.35c-.27.11-.48.37-.52.71s.18.7.51.84h.01c.69.31,1.39.6,2.08.89l2.09.86c.7.28,3.95,1.5,4.24,1.6s.6.06.86-.17,6.1-6.39,6.1-6.39c.23-.23.22-.61-.02-.83s-.6-.2-.83.02l-5.71,5.43c-.16.15-.39.19-.59.1-.42-.19-4.51-1.88-5.16-2.14-.16-.06-.16-.28,0-.35l2.59-1.04,5.01-2.02c1.67-.68,3.34-1.35,5.01-2.03.59-.24,1.74-.72,2.42-1,.2-.08.4.12.31.31l-3.04,7.42-2.04,5.01c-.36.9-.73,1.79-1.09,2.69-.06.15-.28.16-.34,0l-1.52-3.53c-.15-.31-.56-.46-.92-.32s-.5.5-.37.81l2.22,6c.1.26.33.48.65.54.39.07.78-.16.94-.53h0c.7-1.67,1.39-3.33,2.08-4.99l2.07-4.99L21.69,1.26c.12-.29.09-.66-.15-.95Z"></path>
-        </svg>
-    </template>
+    >
+        <template #icon>
+            <svg class="side-app-icon mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21.76 21.79" style="width: auto; height: 16px; min-width: 17px;">
+                <path d="m21.54.32c-.25-.3-.67-.39-1.04-.25h0c-.84.33-1.68.66-2.51,1-.84.34-1.67.68-2.5,1.02-1.67.68-3.33,1.38-4.99,2.07l-4.99,2.08L.52,8.35c-.27.11-.48.37-.52.71s.18.7.51.84h.01c.69.31,1.39.6,2.08.89l2.09.86c.7.28,3.95,1.5,4.24,1.6s.6.06.86-.17,6.1-6.39,6.1-6.39c.23-.23.22-.61-.02-.83s-.6-.2-.83.02l-5.71,5.43c-.16.15-.39.19-.59.1-.42-.19-4.51-1.88-5.16-2.14-.16-.06-.16-.28,0-.35l2.59-1.04,5.01-2.02c1.67-.68,3.34-1.35,5.01-2.03.59-.24,1.74-.72,2.42-1,.2-.08.4.12.31.31l-3.04,7.42-2.04,5.01c-.36.9-.73,1.79-1.09,2.69-.06.15-.28.16-.34,0l-1.52-3.53c-.15-.31-.56-.46-.92-.32s-.5.5-.37.81l2.22,6c.1.26.33.48.65.54.39.07.78-.16.94-.53h0c.7-1.67,1.39-3.33,2.08-4.99l2.07-4.99L21.69,1.26c.12-.29.09-.66-.15-.95Z"></path>
+            </svg>
+        </template>
         <div v-if="!fullscreen" class="m-5">
-            <p class="mb-3 text-[13px]">進捗・結果報告依頼（{{ data.data.length }}件）</p>
+            <p class="mb-3 text-[13px]">{{ summaryText }}</p>
             <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
                 <ExpansionPanelItem
+                    v-for="(challenge, index) in data.data"
+                    :key="challenge.id ?? index"
+                    :value="challenge.id ?? index"
                     hide-actions
                     static
                     :tile="true"
                     class="rm-p"
-                    v-for="(challenge, index) in data.data"
-                    :key="challenge.id ?? index"
-                    :value="challenge.id ?? index"
                 >
                     <template #title="{ expanded }">
                         <PanelTitle :expanded="expanded">
-                            <div class="overflow-hidden text-ellipsis">{{ challenge.title }}</div>
+                            <div v-if="challenge.attention_is_overdue" class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
+                            <div class="overflow-hidden text-ellipsis">
+                                {{ isNiceReminder(challenge) ? `${challenge.user?.name ?? '誰か'} からナイスが届きました` : challenge.title }}
+                            </div>
                         </PanelTitle>
                     </template>
                     <template #body>
-                        <PanelData>
-                            <p v-if="isOverdue(challenge)" class="text-[12px] text-[tomato]">チャレンジ期間が終了しました。結果を入力してください。</p>
-                            <p v-else class="text-[12px] text-[gray]">チャレンジの締切が近づいています。進捗を入力してください。</p>
+                        <PanelData v-if="isNiceReminder(challenge)">
+                            <p class="text-[12px]" :class="challenge.attention_is_overdue ? 'text-[tomato]' : 'text-[gray]'">
+                                {{ challenge.user?.name ?? '誰か' }} からナイスが届きました。1週間以内にナイスを送ってください。
+                            </p>
+                            <p v-if="challenge.attention_deadline" class="mt-2 text-[11px] text-[gray]">
+                                締切: {{ formatDeadline(challenge.attention_deadline) }}
+                            </p>
+                            <div class="mt-3 flex items-center justify-end gap-3 text-right">
+                                <router-link :to="{ name: 'post', query: { id: challenge.id, app_type: 0 } }">見る</router-link>
+                                <router-link :to="{ name: 'post', query: { app_type: 0, create: '1' } }">作成</router-link>
+                            </div>
+                        </PanelData>
+                        <PanelData v-else>
+                            <p v-if="isUpdateNeed(challenge)" class="text-[12px] text-[tomato]">チャレンジ期間が終了しました。結果を入力してください。</p>
+                            <p v-else-if="isProgressNeed(challenge)" class="text-[12px] text-[gray]">チャレンジが {{ challenge.attention_checkpoint }}% のチェックポイントを通過しました。進行状況の報告を提出してください。</p>
+                            <p v-else class="text-[12px] text-[gray]">このチャレンジはあなたの注意が必要です。</p>
+                            <p v-if="isProgressNeed(challenge) && challenge.attention_progress_percent" class="mt-2 text-[11px] text-[gray]">
+                                進行状況: {{ challenge.attention_progress_percent }}%
+                            </p>
+                            <p v-if="challenge.attention_deadline" class="mt-1 text-[11px] text-[gray]">
+                                締切: {{ formatDeadline(challenge.attention_deadline) }}
+                            </p>
                             <div class="mt-3 text-right">
-                                <router-link :to="{ name: 'post', query: { id: challenge.id, status: 5 } }">対応</router-link>
+                                <router-link :to="{ name: 'post', query: { id: challenge.id, status: isProgressNeed(challenge) ? 5 : undefined, progress_checkpoint: challenge.attention_checkpoint } }">対応</router-link>
                             </div>
                         </PanelData>
                     </template>
@@ -50,15 +73,24 @@
 import { Post } from '@/interface/postInterface';
 import BaseLayout from './BaseLayout.vue';
 import { DateTime } from 'luxon';
+import { computed } from 'vue';
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
 import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 
+type DashboardPostReminder = Post & {
+    attention_type?: 'nice_follow_up' | 'progress_need' | 'update_need'
+    attention_checkpoint?: number
+    attention_deadline?: string | null
+    attention_is_overdue?: boolean
+    attention_progress_percent?: number
+}
+
 const props = defineProps<{
     data: {
         title: string,
-        data: Post[],
+        data: DashboardPostReminder[],
         order?: number,
         type: string
         canResize?: boolean
@@ -73,16 +105,46 @@ const emit = defineEmits<{
     toggle: [el: HTMLElement | null, title: string]
 }>()
 
-const isOverdue = (challenge: Post) => {
+const isNiceReminder = (challenge: DashboardPostReminder) => challenge.attention_type === 'nice_follow_up'
+const isProgressNeed = (challenge: DashboardPostReminder) => challenge.attention_type === 'progress_need'
+const isUpdateNeed = (challenge: DashboardPostReminder) => challenge.attention_type === 'update_need'
+
+const isOverdue = (challenge: DashboardPostReminder) => {
     const endData = DateTime.fromISO(challenge.date_end);
     const now = DateTime.local();
     const diff = endData.diff(now, 'days').days;
     return diff < 0;
 }
-  
+
+const hasOverdueNiceReminder = computed(() => {
+    return props.data.data.some(challenge => isNiceReminder(challenge) && challenge.attention_is_overdue)
+})
+
+const summaryText = computed(() => {
+    const niceReminderCount = props.data.data.filter(isNiceReminder).length
+    const challengeReminderCount = props.data.data.length - niceReminderCount
+
+    if (niceReminderCount && challengeReminderCount) {
+        return `ナイスリレー・進捗・結果報告依頼 (${props.data.data.length})`
+    }
+
+    if (niceReminderCount) {
+        return `ナイスリレー (${niceReminderCount})`
+    }
+
+    return `進捗・結果報告依頼（${challengeReminderCount}件）`
+})
+
+const formatDeadline = (deadline?: string | null) => {
+    if (!deadline) {
+        return ''
+    }
+
+    const parsed = DateTime.fromISO(deadline)
+    return parsed.isValid ? parsed.toFormat('yyyy/MM/dd') : ''
+}
 
 defineExpose({
     cardType: props.data.type,
 })
 </script>
-

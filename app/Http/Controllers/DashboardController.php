@@ -391,43 +391,129 @@ class DashboardController extends Controller
     {
         $now = now();
         $active_user = $this->active_user();
+        $niceReminders = $this->niceFollowUpReminders($active_user->id, $now);
         $challengesQuery = PostRecord::query()
-        ->where('app_type', 2)            
-        ->whereHas('to_users', function ($q) use ($active_user) {
-            $q->where('users.id', $active_user->id);
-        })            
-        ->whereNotNull('date_start')
-        ->whereNotNull('date_end') 
-        ->orderByDesc('date_start');
+            ->where('app_type', 2)
+            ->whereHas('to_users', function ($q) use ($active_user) {
+                $q->where('users.id', $active_user->id);
+            })
+            ->whereNotNull('date_start')
+            ->whereNotNull('date_end')
+            ->with(['progressReports' => function ($query) {
+                $query->select('id', 'record_id', 'created_at', 'progress_checkpoint')
+                    ->orderByDesc('created_at');
+            }])
+            ->orderByDesc('date_start');
 
-        $progressNeed = (clone $challengesQuery)->where('status_flag', 0)->where('date_start', '<=', $now)
-        ->where('date_end', '>=', $now) 
-        ->get();
-        // if (!$challenges->count()) {
-        //     return [];
-        // }
-
+        $progressNeed = (clone $challengesQuery)
+            ->whereIn('status_flag', [0, 5])
+            ->where('date_start', '<=', $now)
+            ->where('date_end', '>=', $now)
+            ->get();
+        
         $updateNeed = (clone $challengesQuery)->where('date_end', '<=', $now)->whereIn('status_flag', [0, 5])->get();
         $data = $progressNeed->map(function ($challenge) use ($now) {
             $start = Carbon::parse($challenge->date_start);
-            $end   = Carbon::parse($challenge->date_end);
+            $end = Carbon::parse($challenge->date_end);
+            $checkpoint = $this->latestReachedProgressCheckpoint($start, $end, $now);
+            
+            if (!$checkpoint) {
+                return null;
+            }
 
             $elapsed = $start->diffInSeconds($now);
-            $total   = max(1, $start->diffInSeconds($end));
-            $pct     = (int) round(($elapsed / $total) * 100);
-            $pct     = max(0, min(100, $pct));
-            if ($pct < 50) {
-                return null; // skip if less than 50%
+            $total = max(1, $start->diffInSeconds($end));
+            $pct = (int) round(($elapsed / $total) * 100);
+            $pct = max(0, min(100, $pct));
+            $checkpointDate = $this->progressCheckpointDate($start, $end, $checkpoint);
+            $latestProgressReport = optional($challenge->progressReports)->sortByDesc('created_at')->first();
+
+            if ($latestProgressReport && Carbon::parse($latestProgressReport->created_at)->greaterThanOrEqualTo($checkpointDate)) {
+                return null;
             }
+
             $challenge['attention_type'] = 'progress_need';
+            $challenge['attention_checkpoint'] = $checkpoint;
+            $challenge['attention_progress_percent'] = $pct;
+            $challenge['attention_deadline'] = Carbon::parse($challenge->date_end)->toIso8601String();
             return $challenge;
         })->filter()->values();
+       
         $updateNeed->each(function ($challenge) {
             $challenge['attention_type'] = 'update_need';
+            $challenge['attention_deadline'] = Carbon::parse($challenge->date_end)->toIso8601String();
         });
         $final = $data->concat($updateNeed)->sortBy('date_start')->values();
-        return $final;
 
+        return $niceReminders->concat($final)->values();
+
+    }
+    private function latestReachedProgressCheckpoint(Carbon $start, Carbon $end, Carbon $now): ?int
+    {
+        
+        foreach ([75, 50] as $checkpoint) {
+            if ($now->greaterThanOrEqualTo($this->progressCheckpointDate($start, $end, $checkpoint))) {
+                return $checkpoint;
+            }
+        }
+
+        return null;
+    }
+    private function progressCheckpointDate(Carbon $start, Carbon $end, int $checkpoint): Carbon
+    {
+        $startDay = $start->copy()->startOfDay();
+        $endDay = $end->copy()->startOfDay();
+        $totalDays = max(1, $startDay->diffInDays($endDay));
+        $checkpointDays = (int) floor($totalDays * ($checkpoint / 100));
+
+        return $startDay->copy()->addDays($checkpointDays);
+    }
+    private function niceFollowUpReminders(int $userId, Carbon $now)
+    {
+        $niceReminderStartDate = Carbon::create(2026, 4, 1)->startOfDay();
+
+        $receivedNicePosts = PostRecord::query()
+            ->where('app_type', 0)
+            ->where('user_id', '!=', $userId)
+            ->where('created_at', '>=', $niceReminderStartDate)
+            ->whereHas('to_users', function ($q) use ($userId) {
+                $q->where('users.id', $userId);
+            })
+            ->with(['user', 'to_users'])
+            ->orderByDesc('created_at')
+            ->get();
+
+        if ($receivedNicePosts->isEmpty()) {
+            return collect();
+        }
+
+        $sentNicePosts = PostRecord::query()
+            ->where('app_type', 0)
+            ->where('user_id', $userId)
+            ->orderBy('created_at')
+            ->get(['id', 'created_at']);
+
+        return $receivedNicePosts
+            ->filter(function ($post) use ($sentNicePosts) {
+                return !$sentNicePosts->contains(function ($sentPost) use ($post) {
+                    return $sentPost->created_at->gt($post->created_at);
+                });
+            })
+            ->map(function ($post) use ($now) {
+                $deadline = Carbon::parse($post->created_at)->addWeek();
+                $post['attention_type'] = 'nice_follow_up';
+                $post['attention_deadline'] = $deadline->toIso8601String();
+                $post['attention_is_overdue'] = $now->gt($deadline);
+
+                return $post;
+            })
+            ->sortByDesc(function ($post) {
+                return optional($post->created_at)->timestamp ?? 0;
+            })
+            ->sortByDesc(function ($post) {
+                return $post['attention_is_overdue'] ? 1 : 0;
+            })
+            ->values();
     }
     public function departuresReportUsers($badge = false) {
         if(!in_array(Auth::id(), [833,832])){

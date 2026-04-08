@@ -32,6 +32,8 @@ export interface Post{
     user: User;
     award_entry: number
     donation_target: string | null;
+    challenge_main_category: string | null;
+    challenge_sub_category: string | null;
     receipts: CommonFile[]
     refresh_amount: string;
     grants: PostGrant[];
@@ -102,10 +104,12 @@ export interface PostSearchHistory {
 }
 export interface PostComment {
     app_name: string;
+    comment_type?: string | null;
     created_at: string;
     emoji_flag: number;
     id: number;
     messages: string;
+    progress_checkpoint?: number | null;
     record_id: number;
     user: User;
     user_id: number;

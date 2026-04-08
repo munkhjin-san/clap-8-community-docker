@@ -39,6 +39,13 @@ class PostRecord extends Model
     public function comments(){
         return $this->hasMany(CommentRecord::class, 'record_id')->where('app_name', 'post')->where('deleted_flag', 0);
     }
+    public function progressReports()
+    {
+        return $this->hasMany(CommentRecord::class, 'record_id')
+            ->where('app_name', 'post')
+            ->where('deleted_flag', 0)
+            ->where('comment_type', 'progress_report');
+    }
     public function claps(){
         return $this->hasMany(ClapRecord::class, 'record_id')->where('app_name', 'post')->where('deleted_flag', 0)->select('record_id', 'from_user');;
     }
@@ -63,6 +70,10 @@ class PostRecord extends Model
     }
     public function grants() {
         return $this->hasMany(PostGrant::class);
+    }
+    public function refreshUsage()
+    {
+        return $this->hasOne(RefreshUsage::class, 'post_record_id', 'id');
     }
     protected $guarded = [];
 
