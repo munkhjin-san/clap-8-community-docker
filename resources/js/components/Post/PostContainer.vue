@@ -187,9 +187,7 @@
                 >
                     <div class="tag-picker-sheet__header">
                         <div>
-                            <!-- <p class="tag-picker-sheet__eyebrow">人気タグ</p> -->
                             <p class="tag-picker-sheet__title">タグから探す</p>
-                            <p class="tag-picker-sheet__description">投稿一覧はそのままにして、タグだけをまとめて選べます。</p>
                         </div>
                         <button type="button" class="tag-picker-sheet__close" @click="closeTagPicker">
                             <CloseIcon size="12" />
@@ -594,7 +592,7 @@ import Back from '../Icons/Back.vue';
 
 .tag-skeleton{
     overflow: hidden;
-    height: 18px;
+    height: 22px;
     animation: pulse-bg 2s infinite;
     border-radius: 3px;
 }
@@ -705,10 +703,8 @@ import Back from '../Icons/Back.vue';
     min-height: 0;
     padding: 8px 10px;
     box-sizing: border-box;
-    border-radius: 6px;
     background: transparent;
     font-size: 13px;
-    line-height: 1.4;
     overflow: visible;
     transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
     text-decoration: none;
@@ -744,8 +740,7 @@ import Back from '../Icons/Back.vue';
     display: flex;
     align-items: flex-end;
     justify-content: flex-end;
-    background: rgba(15, 23, 42, 0.38);
-    backdrop-filter: blur(4px);
+    background-color: var(--overlay);
 }
 
 .tag-picker-sheet {
@@ -805,7 +800,6 @@ import Back from '../Icons/Back.vue';
     width: 100%;
     height: 44px;
     padding: 0 14px;
-    border-radius: 6px;
     border: 1px solid color-mix(in srgb, var(--primary-color) 18%, transparent);
     background: color-mix(in srgb, var(--background-color) 92%, #ffffff 8%);
     color: var(--primary-color);
@@ -817,7 +811,6 @@ import Back from '../Icons/Back.vue';
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 10px;
     padding-right: 4px;
 }
 
@@ -825,7 +818,6 @@ import Back from '../Icons/Back.vue';
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
     padding: 14px 16px;
     border-radius: 6px;
     transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
