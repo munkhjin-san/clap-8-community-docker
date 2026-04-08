@@ -13,7 +13,14 @@ class RefreshController extends Controller
         private RefreshService $refreshService,
     ) {
     }
-
+    private function active_user(){
+        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
+        if($sub){
+            return $sub;
+        }else{
+            return Auth::user();
+        }
+    }
     public function indexPosts(Request $request)
     {
         return response()->json(
@@ -84,7 +91,7 @@ class RefreshController extends Controller
 
     public function userHistory(string $id)
     {
-        $actor = Auth::user();
+        $actor = $this->active_user();
         $targetUserId = (int) $id;
         $positionId = $actor?->position_id;
         $isPrivileged = (is_numeric($positionId) && (int) $positionId <= 6)
