@@ -66,6 +66,66 @@ class SupportController extends Controller
         $incement = questionAndAnswerRecord::findOrFail($request->id)->increment('useful_count');
         return response()->json($incement);
     }
+    public function faq_add_record(Request $request){
+        $adminIds = [608, 610];
+        $user_id = $this->active_user()->id;
+        if (!in_array($user_id, $adminIds)) {
+            abort(403);
+        }
+        $request->validate([
+            'question' => 'required|string|max:200',
+            'answer'   => 'required|string|max:500',
+            'content'  => 'nullable|string',
+            'tag_text' => 'nullable|string|max:500',
+        ]);
+        $record = questionAndAnswerRecord::updateOrCreate(
+            ['id' => $request->id ?? null],
+            [
+                'user_id'       => $user_id,
+                'question'      => $request->question,
+                'answer'        => $request->answer,
+                'content'       => $request->content ?? '',
+                'tag_text'      => $request->tag_text ?? '',
+                'deleted_flag'  => 0,
+            ]
+        );
+        return response()->json($record);
+    }
+    public function faq_delete_record(Request $request){
+        $adminIds = [608, 610];
+        $user_id = $this->active_user()->id;
+        if (!in_array($user_id, $adminIds)) {
+            abort(403);
+        }
+        $request->validate(['id' => 'required|integer']);
+        questionAndAnswerRecord::findOrFail($request->id)->update(['deleted_flag' => 1]);
+        return response()->json(['success' => true]);
+    }
+    public function faq_tag_save(Request $request){
+        $adminIds = [608, 610];
+        $user_id = $this->active_user()->id;
+        if (!in_array($user_id, $adminIds)) {
+            abort(403);
+        }
+        $request->validate([
+            'text' => 'required|string|max:100',
+        ]);
+        $tag = qandaTagRecord::updateOrCreate(
+            ['id' => $request->id ?? null],
+            ['text' => $request->text, 'deleted_flag' => 0]
+        );
+        return response()->json($tag);
+    }
+    public function faq_tag_delete(Request $request){
+        $adminIds = [608, 610];
+        $user_id = $this->active_user()->id;
+        if (!in_array($user_id, $adminIds)) {
+            abort(403);
+        }
+        $request->validate(['id' => 'required|integer']);
+        qandaTagRecord::findOrFail($request->id)->update(['deleted_flag' => 1]);
+        return response()->json(['success' => true]);
+    }
     public function support_add_consult(Request $request){
         $user_id = $this->active_user()->id;
         $create = SupportMailFormRecord::create([
