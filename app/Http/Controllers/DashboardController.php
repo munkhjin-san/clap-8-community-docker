@@ -87,7 +87,34 @@ class DashboardController extends Controller
         return $tasks['untouchedTasks'];
     }
 
+    public function pendingProjects()
+    {
+        $activeUser = $this->active_user();
+        
+        return match (true) {
+            in_array($activeUser->id, [608, 610], true) => ProjectRecord::select('id', 'status', 'name', 'contract_started_at', 'category', 'date_start', 'date_end')
+            ->whereIn('status', [
+                'pending_director',
+                'director_approved'
+            ])
+            ->with(['manager' => fn($q) => $q->select('users.name')  ])
+            ->get(),
 
+            $activeUser->position_id < 6 => ProjectRecord::select('id', 'status', 'name', 'contract_started_at', 'category', 'date_start', 'date_end')
+                ->where('status', 'pending_director')
+                ->with(['manager' => fn($q) => $q->select('users.name')  ])
+                ->get(),
+
+            $activeUser->position_id === 6 => ProjectRecord::select('id', 'status', 'name', 'contract_started_at', 'category', 'date_start', 'date_end')
+                ->where('status', 'returned')
+                ->whereHas('manager', function ($q) use ($activeUser) {
+                    $q->where('users.id', $activeUser->id);
+                })
+                ->get(),
+
+            default => collect(),
+        };
+    }
 
     public function forms() {
         $active_user = $this->active_user();

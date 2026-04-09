@@ -148,6 +148,7 @@ import { useApi } from '@/composables/api';
 import { useRoute } from 'vue-router';
 import { EXPENSE_ITEMS, parseNumber, PROJECT_STATUS_LABEL, yenFmt } from '@/utils/tools';
 import { useBadgeStore } from '@/store/badge';
+import { useDashboardStore } from '@/store/dashboard';
     const props = defineProps(['hasPrivilage'])
     const editProjects = inject('editProjects') as (project: any) => void
     const deleteProject = inject('deleteProject') as (project: Project | null) => void
@@ -161,6 +162,7 @@ import { useBadgeStore } from '@/store/badge';
         const saveText = DOMPurify.sanitize(markedText)
         return saveText
     }
+    const { getBatchDashboardData } = useDashboardStore()
     const fullHtml = computed(() => sanitized(selectedProject?.value?.private_memo ?? ''));
     const isExpanded = ref(false);
     const isTruncated = ref(false);
@@ -322,6 +324,7 @@ import { useBadgeStore } from '@/store/badge';
         })
         updateProject([{name: 'status'}])
         badge.clearProjectConfirmBadge()
+        getBatchDashboardData(['pendingProjects'])
     }
 </script>
 <style scoped>

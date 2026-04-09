@@ -2,6 +2,7 @@ import { Asset } from "./assetInterface"
 import { CalendarRecord } from "./calendarInterface"
 import { Message, Task, User } from "./globalInterface"
 import { Post } from "./postInterface"
+import { Project } from "./projectInterface"
 import { Shift } from "./workInterface"
 
 export type UserWithShift = User & {
@@ -36,7 +37,10 @@ export type DashboardOverdueGoalCard = CardBase & {
     layout: 'monthly_goals'
     data: any
 }
-
+export type DashboardProjectCard = CardBase & {
+    layout: 'project'
+    data: Project[]
+}
 export type DashboardChallengeCard = CardBase & {
     layout: 'challenge'
     data: Post[]
@@ -99,5 +103,5 @@ export type GoalRequiredData = {
     previous_span: SpanRequiredGoalData,
 }
 
-export type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard | DashboardAssetCard | DashboardScheduleCard | DashboardPersonnelEvaluationCard | DashboardTimesheetCard | DashboardNoticeCard 
+export type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard | DashboardAssetCard | DashboardScheduleCard | DashboardPersonnelEvaluationCard | DashboardTimesheetCard | DashboardNoticeCard | DashboardProjectCard 
 

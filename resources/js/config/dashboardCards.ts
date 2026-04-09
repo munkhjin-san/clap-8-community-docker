@@ -18,7 +18,9 @@ import DashboardSchedule from '@/components/Dashboard/Layout/DashboardSchedule.v
 import DashboardPersonnelEvaluation from '@/components/Dashboard/Layout/Admin/DashboardPersonnelEvaluation.vue'
 import DashboardTimesheet from '@/components/Dashboard/Layout/DashboardTimesheet.vue'
 import DashboardNotice from '@/components/Dashboard/Layout/DashboardNotice.vue'
+import DashboardProject from '@/components/Dashboard/Layout/DashboardProject.vue'
 import { useAuthUserStore } from '@/store/auth'
+import { Project } from '@/interface/projectInterface'
 
 /**
  * Layout type constants
@@ -36,6 +38,7 @@ export const CARD_LAYOUTS = {
     PERSONNEL_EVALUATION: 'personnelEvaluation',
     TIMESHEET: 'timesheet',
     NOTICE: 'notice',
+    PROJECT: 'project',
 } as const
 
 /**
@@ -54,6 +57,7 @@ export const DASHBOARD_COMPONENTS: Record<string, Component> = {
     [CARD_LAYOUTS.PERSONNEL_EVALUATION]: markRaw(DashboardPersonnelEvaluation),
     [CARD_LAYOUTS.TIMESHEET]: markRaw(DashboardTimesheet),
     [CARD_LAYOUTS.NOTICE]: markRaw(DashboardNotice),
+    [CARD_LAYOUTS.PROJECT]: markRaw(DashboardProject),
 }
 
 /**
@@ -74,6 +78,7 @@ type DashboardStoreKey =
     | 'timesheet'
     | 'personnelEvaluation'
     | 'notices'
+    | 'pendingProjects'
 
 /**
  * Maps card type to dashboard store collection key
@@ -92,6 +97,7 @@ export const CARD_DATA_KEY_BY_TYPE: Record<string, DashboardStoreKey> = {
     schedules: 'schedules',
     timesheet: 'timesheet',
     notice: 'notices',
+    pendingProjects: 'pendingProjects',
 }
 
 /**
@@ -111,6 +117,7 @@ export const CARD_REFRESH_KEYS_BY_TYPE: Record<string, DashboardStoreKey[]> = {
     schedules: ['schedules'],
     timesheet: ['timesheet'],
     notice: ['notices'],
+    pendingProjects: ['pendingProjects'],
 }
 
 /**
@@ -212,6 +219,16 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         canResize: true,
     },
     {
+        title: 'プロジェクト',
+        type: 'pendingProjects',
+        layout: 'project',
+        col: 'col-span-1',
+        order: undefined,
+        data: [] as Project[],
+        canFullscreen: false,
+        canResize: true,
+    },
+    {
         title: 'ポスト',
         type: 'challenges',
         layout: 'challenge',
@@ -305,9 +322,9 @@ export function getDefaultDashboardCards(): DashboardCard[] {
  */
 export function shouldShowCard(card: DashboardCard): boolean {
     const { layout, data } = card
-
+    const shownWithDataCards = ['message', 'task', 'challenge', 'project']
     // Cards with v-show based on data length
-    if (layout === 'message' || layout === 'task' || layout === 'challenge') {
+    if (shownWithDataCards.includes(layout)) {
         return Array.isArray(data) && data.length > 0
     }
 

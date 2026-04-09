@@ -4,7 +4,7 @@ import { CustomForm } from "@/interface/customFormInterface";
 import { pendingTimesheedData, UserWithShift } from "@/interface/dashboard";
 import { Message, Task, User } from "@/interface/globalInterface";
 import { Post } from "@/interface/postInterface";
-import { Evaluation } from "@/interface/projectInterface";
+import { Evaluation, Project } from "@/interface/projectInterface";
 import { Shift, WorkItem } from "@/interface/workInterface";
 import axios from "axios";
 import { DateTime } from "luxon";
@@ -45,6 +45,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
             pendingPlannedLeaves: [] as any[],
             pendingAttendance: null as any,
         },
+        pendingProjects: [] as Project[],
         notices: [] as any[],
     })
 
@@ -114,7 +115,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         collection.value.unfinishedTasks.length + collection.value.untouchedTasks.length +
         collection.value.personnelEvaluation.pendingEvaluations.length + 
         collection.value.timesheet.pendingTimesheets.length + 
-        collection.value.notices.length
+        collection.value.notices.length + collection.value.pendingProjects.length
         return total
     })
     const goalsStore = useDashboardGoalsStore()

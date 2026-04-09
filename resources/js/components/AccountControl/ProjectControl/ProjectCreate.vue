@@ -737,10 +737,12 @@ import ProjectCreationForm from '@/components/Project/ProjectTabs/Overview/Proje
 import { validator } from '@/validation/validator';
 import type { ProjectCreationSpecData } from '@/components/Project/ProjectTabs/Overview/projectCreationForm';
 import type { ProjectActualStatus, ProjectType } from '@/interface/projectInterface';
+import { useDashboardStore } from '@/store/dashboard';
+import { useBadgeStore } from '@/store/badge';
 
 type ProjectStatus = 'draft' | 'creating' | 'pending_director' | 'director_approved' | 'running' | 'returned'
 
-
+const { getBatchDashboardData } = useDashboardStore()
 const emit = defineEmits(['close', 'getProjects'])
 const props = defineProps(['userList', 'editData'])
 const api = useApi()
@@ -1243,11 +1245,14 @@ const saveDraftFromProjectCreationForm = () => {
     const specs = getProjectCreationPayload()
     createProject(status, specs)
 }
+const badge = useBadgeStore()
 const submitFromProjectCreationForm = () => {
     const result = projectCreationFormRef.value?.validate?.()
     if (!result?.valid || !result.payload) return
     projectCreationPayload.value = result.payload
     createProject('pending_director', result.payload)
+    getBatchDashboardData(['pendingProjects'])
+    badge.clearProjectConfirmBadge()
 }
 const contractPayload = computed(() => {
     const c = contract.value

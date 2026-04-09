@@ -517,12 +517,11 @@ final class BadgeService
     public function checkItemConfirm(Authenticatable $user): array
     {
         $query = ProjectRecord::query();
-
-        if ($user->position_id < 6) {
+        if (in_array($user->id, [610, 608], true)) {
+            $query->whereIn('status', ['pending_director', 'director_approved']);
+        } elseif ($user->position_id < 6) {
             $query->where('status', 'pending_director');
-        } elseif (in_array($user->id, [610, 608], true)) {
-            $query->whereIn('status', ['pending_director']);
-        } else {
+        }  else {
             $query->whereHas('manager', fn ($q) => $q->whereKey($user->id))
                 ->where('status', 'returned');
         }
