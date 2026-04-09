@@ -721,6 +721,72 @@ class RefreshService
         });
     }
 
+    public function expireElapsedGrants(?Carbon $runDate = null): array
+    {
+        $runDate = ($runDate ?? now())->copy()->startOfDay();
+
+        $grantIds = RefreshGrant::query()
+            ->whereNotNull('expires_at')
+            ->whereNotNull('remaining_amount')
+            ->where('remaining_amount', '>', 0)
+            ->whereDate('expires_at', '<', $runDate->toDateString())
+            ->orderBy('expires_at')
+            ->orderBy('id')
+            ->pluck('id');
+
+        $expiredGrantCount = 0;
+        $expiredAmountTotal = 0;
+
+        foreach ($grantIds as $grantId) {
+            DB::transaction(function () use ($grantId, $runDate, &$expiredGrantCount, &$expiredAmountTotal) {
+                /** @var RefreshGrant|null $grant */
+                $grant = RefreshGrant::query()
+                    ->lockForUpdate()
+                    ->find($grantId);
+
+                if (! $grant || $grant->remaining_amount === null || (int) $grant->remaining_amount <= 0) {
+                    return;
+                }
+
+                if (! $grant->expires_at || ! $grant->expires_at->lt($runDate)) {
+                    return;
+                }
+
+                $expiredAmount = (int) $grant->remaining_amount;
+
+                RefreshExpiration::query()->updateOrCreate(
+                    [
+                        'refresh_grant_id' => $grant->id,
+                        'expired_at' => $grant->expires_at->toDateString(),
+                    ],
+                    [
+                        'refresh_account_id' => $grant->refresh_account_id,
+                        'amount' => $expiredAmount,
+                        'note' => '月次自動失効',
+                        'source_system' => 'glowd',
+                        'source_key' => $this->buildSourceKey([
+                            'monthly_expiration',
+                            $grant->id,
+                            $grant->expires_at->toDateString(),
+                        ]),
+                    ]
+                );
+
+                $grant->remaining_amount = 0;
+                $grant->save();
+
+                $expiredGrantCount++;
+                $expiredAmountTotal += $expiredAmount;
+            });
+        }
+
+        return [
+            'run_date' => $runDate->toDateString(),
+            'expired_grants' => $expiredGrantCount,
+            'expired_amount_total' => $expiredAmountTotal,
+        ];
+    }
+
     private function normalizeKintoneRecord(array $record): array
     {
         $tableRows = [];

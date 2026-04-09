@@ -16,10 +16,35 @@
                 <div @click="on_leave = 1, retire = 0" :class="['sub-tab-item', { 'selected-sub-tab': on_leave == 1 && retire == 0}]">休職者</div>
                 <div @click="retire = 1, on_leave = 0" :class="['sub-tab-item', { 'selected-sub-tab': retire == 1 && on_leave == 0}]">退職者</div>                
             </div>    
-            <PostSearchBar 
-                className="newChatMemberSearch" 
-                @search-start="(word) => {keywords = word}"
-            />     
+            <div class="account-filter-row">
+                <PostSearchBar 
+                    :key="searchBarKey"
+                    className="newChatMemberSearch" 
+                    @search-start="(word) => {keywords = word}"
+                />
+                <select v-model="selectedPositionId" class="account-filter-select">
+                    <option value="">役職: すべて</option>
+                    <option v-for="position in positions" :key="position.id" :value="String(position.id)">
+                        {{ position.name }}
+                    </option>
+                </select>
+                <select v-model="selectedOfficeId" class="account-filter-select">
+                    <option value="">営業所: すべて</option>
+                    <option v-for="office in offices" :key="office.id" :value="String(office.id)">
+                        {{ office.name }}
+                    </option>
+                </select>
+                <select v-model="selectedWorkType" class="account-filter-select">
+                    <option value="">雇用形態: すべて</option>
+                    <option v-for="workType in workTypeOptions" :key="workType.value" :value="String(workType.value)">
+                        {{ workType.label }}
+                    </option>
+                </select>
+                <button type="button" class="account-filter-reset" @click="resetFilters">フィルタ解除</button>
+            </div>
+            <p class="account-count-summary">
+                表示 {{ filteredUsers.length }}件 / 現在タブ {{ tabUsers.length }}件 / 全体 {{ usersList.length }}件
+            </p>
         </div>
         
         <div style="flex: 1;overflow: hidden;">
@@ -87,12 +112,20 @@ import { useApi } from '@/composables/api';
     const retire = ref(0)
     const on_leave = ref(0)
     const keywords = ref('')
+    const searchBarKey = ref(0)
+    const selectedPositionId = ref('')
+    const selectedOfficeId = ref('')
+    const selectedWorkType = ref('')
     const usersList = ref([])
     const fetch = ref(0)
     const workGroups = ref([])
     const linkables = ref([])
     const positions = ref([])
     const offices = ref([])
+    const workTypeOptions = [
+        { value: 0, label: 'フレックス' },
+        { value: 1, label: '通常' },
+    ]
     const api = useApi()
 
     onMounted(async() => {
@@ -107,8 +140,25 @@ import { useApi } from '@/composables/api';
         positions.value = p
         offices.value = o
     }
+    const tabUsers = computed(() => {
+        return usersList.value.filter(user => user.retire == retire.value && user.on_leave == on_leave.value)
+    })
     const filteredUsers = computed(() => {
-        const filtered = usersList.value.filter(user => user.retire == retire.value && user.on_leave == on_leave.value)
+        const filtered = tabUsers.value.filter(user => {
+            if (selectedPositionId.value && String(user.position_id ?? '') !== selectedPositionId.value) {
+                return false
+            }
+
+            if (selectedOfficeId.value && String(user.office_id ?? '') !== selectedOfficeId.value) {
+                return false
+            }
+
+            if (selectedWorkType.value && String(user.work_type ?? '') !== selectedWorkType.value) {
+                return false
+            }
+
+            return true
+        })
         if(keywords.value){
             let lowSearch = keywords.value.toLowerCase()
             return filtered.filter(user => Object.values(user).some(val => 
@@ -119,6 +169,14 @@ import { useApi } from '@/composables/api';
             return filtered
         }
     })
+
+    const resetFilters = () => {
+        keywords.value = ''
+        selectedPositionId.value = ''
+        selectedOfficeId.value = ''
+        selectedWorkType.value = ''
+        searchBarKey.value++
+    }
 
      
     const postFinish = () => {
@@ -176,7 +234,50 @@ import { useApi } from '@/composables/api';
         padding: 0 20px;
     }
 
+    .account-filter-row{
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .account-filter-select{
+        min-width: 160px;
+        height: 35px;
+        padding: 0 12px;
+        border: solid thin var(--calendarBorder);
+        background: var(--background-color);
+        color: inherit;
+    }
+
+    .account-filter-reset{
+        height: 35px;
+        padding: 0 14px;
+        border: solid thin var(--calendarBorder);
+        background: var(--background-color);
+        color: inherit;
+        white-space: nowrap;
+    }
+
+    .account-count-summary{
+        margin-top: 10px;
+        font-size: 13px;
+        color: var(--gray-text, inherit);
+    }
+
     @media screen and (max-width: 959px) {
+        .account-filter-row{
+            align-items: stretch;
+        }
+
+        .account-filter-select{
+            width: 100%;
+        }
+
+        .account-filter-reset{
+            width: 100%;
+        }
+
         .user-record-parent{
             grid-template-columns: 100%;
         }

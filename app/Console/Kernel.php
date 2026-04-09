@@ -47,6 +47,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('alerts:variance --period='.now()->toDateString())->monthlyOn(20, '18:00');
         $schedule->command('logs:prune-activity-logs')->quarterly();
         $schedule->command('goals:check-alert-streak')->dailyAt('02:00');
+        $schedule->command('refresh:expire')->monthlyOn(2, '08:00');
         $schedule->command('app:auto-attendance-confirm')->monthlyOn(3, '08:00');
         $schedule->command('app:refresh-automation')->monthlyOn(3, '08:00');
     }
