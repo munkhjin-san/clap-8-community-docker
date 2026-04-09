@@ -1,7 +1,7 @@
 <template>
     
         <div style="display:flex;gap:20px;background:inherit;margin-top:15px;align-items: center;flex-wrap:wrap;">
-            <select class="dropDownSelector taskDateTimePicker" v-model="type" name="costType">
+            <select class="optionPicker" v-model="type" name="costType">
                 <option :key="index" v-for="(item , index) in costOptions" :value="item.value">{{ item.label }}</option>
             </select>
             <OptionSelector 

@@ -30,11 +30,17 @@
         </div>
     </td>
     <td v-if="!responsive.mobile"></td>
-    <td v-if="!responsive.mobile && hasHeader('経費')">{{ data?.mont_total_costs ? `${data?.mont_total_costs}円` : ''}}</td>
-    <td v-if="!responsive.mobile"></td>
+    <td v-if="!responsive.mobile && hasHeader('経費')">{{ data?.month_total_costs ? `${data?.month_total_costs}円` : ''}}</td>
+    <td v-if="!responsive.mobile">
+        <div v-if="data?.month_total_results.length">
+            <div v-for="(result, index) in data.month_total_results" :key="index">
+                {{ result.total_amount }}{{ unitLabel(result.unit_id) }}
+            </div>
+        </div>
+    </td>
     <td v-if="!responsive.mobile"></td>
     <td id="carMileage" v-if="!responsive.mobile">{{ data?.month_mileage ? `${data?.month_mileage}km` : '' }}</td>
-    <td v-if="!responsive.mobile && hasHeader('インセンティブ')">{{ data?.mont_total_incentive ? `${data?.mont_total_incentive}件` : ''}}</td>
+    <td v-if="!responsive.mobile && hasHeader('インセンティブ')">{{ data?.month_total_incentive ? `${data?.month_total_incentive}件` : ''}}</td>
     <td v-if="!responsive.mobile"></td>
     <td v-if="!responsive.mobile"></td>
 </tr>
@@ -50,6 +56,12 @@ const props = defineProps({
 })
 const emit = defineEmits(['csvGenerate'])
 const responsive = useResponsive()
+const unitLabel = (unitCode) => {
+    if (unitCode === 'COUNT') return '件';
+    if (unitCode === 'HOUR') return '時間';
+    if (unitCode === 'CUSTOM') return selectedProject.value?.custom_unit_label || '単位';
+    return '円';
+};
 const showOverTime = computed(() => {
     const monthAvg = props.data
     if(monthAvg){

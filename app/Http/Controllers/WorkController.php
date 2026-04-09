@@ -164,6 +164,25 @@ class WorkController extends Controller
         ->orderBy('user_id')
         ->get()
         ->pluck('total_incentives', 'user_id');
+        $monthly_result = ProjectCase::query()
+        ->selectRaw("
+            project_cases.user_id,
+            project_records.unit_id,
+            project_records.custom_unit_label,
+            SUM(project_cases.amount) as total_amount
+        ")
+        ->join('project_records', 'project_records.id', '=', 'project_cases.project_record_id')
+        ->whereIn('project_cases.user_id', $users_list)
+        ->whereYear('project_cases.report_date', $currentYear)
+        ->whereMonth('project_cases.report_date', $currentMonth)
+        ->groupBy(
+            'project_cases.user_id',
+            'project_records.unit_id',
+            'project_records.custom_unit_label'
+        )
+        ->orderBy('project_cases.user_id')
+        ->get()
+        ->groupBy('user_id');
         $annual_calc = [];
         foreach($user_record as $user){
             
@@ -192,8 +211,19 @@ class WorkController extends Controller
                 'month_achievement_average' => $mostCommonAchievementPerUser[$user->id] ?? null,
                 'month_should_work_time' => $shift_work_hours,
                 'month_annual_leave' => $annual_leave[$user->id] ?? null,
-                'mont_total_costs' => $annual_costs[$user->id] ?? null,
-                'mont_total_incentive' => $annual_incentive[$user->id] ?? null,
+                'month_total_costs' => $annual_costs[$user->id] ?? null,
+                'month_total_incentive' => $annual_incentive[$user->id] ?? null,
+                'month_total_results' => ($monthly_result[$user->id] ?? collect())
+                ->map(function ($row) {
+                    return [
+                        'total_amount' => $row->total_amount,
+                        'unit_id' => $row->unit_id,
+                        'unit_label' => $row->unit_id === 'CUSTOM'
+                            ? $row->custom_unit_label
+                            : $row->unit_id,
+                    ];
+                })
+                ->values(),
                 'user_name' => $user->name,
                 'user_id' => $user->id,
                 'work_type' => $user->work_type,
@@ -1736,7 +1766,7 @@ class WorkController extends Controller
                 ->with(['custom_field_data_records' => function ($q) {
                     $q->whereIn('type_id', [37, 40, 39, 41, 42])->orderBy('created_at', 'desc')->select('id', 'table_record_id', 'type_id', 'value_text', 'value_int', 'date', 'label', 'user_id');
                 }])
-                ->with(['timecard_costs', 'timecard_incentives', 'department'])
+                ->with(['timecard_costs', 'timecard_incentives', 'department', 'project_case.project:id,unit_id,custom_unit_label'])
                 ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'car_mileage', 'work_group_id');
         }])->with(['shift_records' => function ($q) use($year, $month) {
             $q->whereYear('shift_day', $year)->whereMonth('shift_day', $month)
@@ -1754,6 +1784,12 @@ class WorkController extends Controller
         $insentive_user = $users->where('position_id', 15)->first();
         $insentive_exists = !empty($insentive_user); 
         $recordList = [];
+        $unitLabel = [
+            'COUNT' => '件',
+            'HOUR' => '時間',
+            'JPY' => '円',
+            'CUSTOM' => ''
+        ];
         $conditions = ['🌈','☀️','☁️','☂️','⚡','☃️'];
         for ($day = 1; $day <= cal_days_in_month(CAL_GREGORIAN, $month, $year); $day++) {
             $date = Carbon::create($year, $month, $day);
@@ -1810,12 +1846,25 @@ class WorkController extends Controller
                     '経費' => $costFormatted,
                     'マイカー走行距離' => empty($time_card_record) ? '' : $time_card_record->car_mileage
                 ];
-                if($insentive_exists){
-                    
-                    $incentives = $isRegistered && !empty($time_card_record) ? $time_card_record->timecard_incentives : [];
-                    $totalIncentive = collect($incentives)->sum('count');
-                    $data['インセンティブ'] = $totalIncentive ? $totalIncentive . "件" : '';
+                if (!empty($time_card_record->department) && $time_card_record->department->has_actual_func) {
+                    $data['実績'] = collect($time_card_record->project_case)
+                        ->filter(fn ($c) => filled($c->amount))
+                        ->map(function ($c) use ($unitLabel) {
+                            $unitId = $c->project->unit_id ?? null;
+                            $label = $unitId === 'CUSTOM'
+                                ? ($c->project->custom_unit_label ?? '')
+                                : ($unitLabel[$unitId] ?? '');
+
+                            return ($c->status ?? '実績') . ': ' . $c->amount . $label;
+                        })
+                        ->join("\n");
                 }
+                // if($insentive_exists){
+                    
+                //     $incentives = $isRegistered && !empty($time_card_record) ? $time_card_record->timecard_incentives : [];
+                //     $totalIncentive = collect($incentives)->sum('count');
+                //     $data['インセンティブ'] = $totalIncentive ? $totalIncentive . "件" : '';
+                // }
                 array_push($recordList, $data);
             }
         }

@@ -46,14 +46,19 @@
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 20px;">
                         <table>
-                            <tr>
-                                <th>計画付与日</th>
-                                <th>変更前（旧日付）</th>
-                            </tr>
-                            <tr v-for="shift in editUser.shift_records" :key="shift.id">
-                                <td><input class="taskDateTimePicker" :class="[{'date-color' : theme.dark }]"  :value="shift.shift_day" type="date" @input="getShift($event.target.value, shift.id)"></td>
-                                <td>{{ shift?.old_shift?.shift_day }}</td>
-                            </tr>
+                            <thead>
+                                <tr>
+                                    <th>計画付与日</th>
+                                    <th>変更前（旧日付）</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="shift in editUser.shift_records" :key="shift.id">
+                                    <td><input class="taskDateTimePicker" :class="[{'date-color' : theme.dark }]"  :value="shift.shift_day" type="date" @input="getShift($event.target.value, shift.id)"></td>
+                                    <td>{{ shift?.old_shift?.shift_day }}</td>
+                                </tr>
+                            </tbody>
+                            
                         </table>
                     </div>
                 </div>

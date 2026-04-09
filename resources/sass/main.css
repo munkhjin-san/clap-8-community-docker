@@ -512,7 +512,21 @@ progress {
   width: -moz-fit-content;
   font-size: small;
 }
-
+.optionPicker {
+  line-height: 36px;
+  border: 1px solid var(--primary-color);
+  cursor: pointer;
+  padding: 0 15px;
+  color: var(--primary-color);
+  max-width: 120px;
+  min-height: 40px;
+  width: fit-content;
+  width: -moz-fit-content;
+  font-size: 13px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
 .boardTypeArea {
   padding: 5px 10px 0 5px;
   width: calc(100% - 15px);

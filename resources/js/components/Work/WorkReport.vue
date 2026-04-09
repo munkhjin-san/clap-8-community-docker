@@ -7,7 +7,7 @@
             <div class="report-wrapper" style="background:inherit;">
                 <div class="report-field" id="timesheetProjectSelect">
                     <p class="report-header">プロジェクト</p>
-                    <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="todayWorkGroup">
+                    <select class="optionPicker" style="max-width: 100%;" v-model="todayWorkGroup">
                         <option v-for="group in workGroupAsOptions" :value="group.id">{{ group.name }}</option>
                     </select>
                 </div>
@@ -59,7 +59,7 @@
                 <div v-if="includesWorkHours" class="report-field">
                     <p class="report-header">休憩時間</p>
                     <div class="report-input">
-                        <select class="dropDownSelector taskDateTimePicker" v-model="breakTimeSelect" name="breakTimeSelect">
+                        <select class="optionPicker" v-model="breakTimeSelect" name="breakTimeSelect">
                             <option :key="index" v-for="(item , index) in breakTimeOptions" :value="item.value">{{ item.label }}</option>
                         </select>
                     </div>
@@ -87,7 +87,7 @@
                 <div class="report-field !mb-[35px]">
                     <p class="report-header !mb-4">マイカーの走行距離（往復）</p>
                     <div class="flex gap-4 items-center flex-wrap">
-                        <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" v-model="car_used_project">
+                        <select class="optionPicker" style="max-width: 100%;" v-model="car_used_project">
                             <option v-for="group in workGroupAsOptions" :value="group.id">{{ group.name }}</option>
                         </select>
                         <div class="relative w-fit">
