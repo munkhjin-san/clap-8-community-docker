@@ -54,7 +54,8 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         '結果をメンターに申請中（メンター対応中）', // 7
         '結果を差戻中（本人対応中）', // 8
         '結果を人事に申請中（人事対応中）', // 9
-        '昇給達成（完了）or 未達成（完了）' // 10
+        '昇給達成（完了）', // 10
+        '未達成（完了）' // 11
     ]
 
     // Actions

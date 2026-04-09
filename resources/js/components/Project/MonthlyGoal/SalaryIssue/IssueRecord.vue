@@ -88,6 +88,14 @@
             <Files style="margin-top: 15px;" v-if="issue?.files?.length" :items="issue?.files" :path="'project_files'"/>
         </div>
         <MessageArea which="salary_issue" :item="issue" :passing-data="passingData" :key="`message-area-goal-${goal.id}`" @refresh="() => refresh()"/>
+        <div v-if="auth.isAdmin && issue?.status == 9">
+            <select class="optionPicker" style="max-width: 100%;" v-model="finalStatus">
+                <option v-for="option in [
+                    {label: '昇給達成（完了）', value: 10},
+                    {label: '未達成（完了）', value: 11}
+                ]" :value="option.value">{{ option.label }}</option>
+            </select>
+        </div>
         <div v-if="issue.status < 2 && (auth.id === goal.user_id || evaluationData?.mentor_id === auth.id)" class="flex gap-5 mb-3 justify-center">
             <LoaderButton style="margin: 0;" @click="emit('edit', issue)" content="編集"/>
             <LoaderButton style="margin: 0;" @click="deleteIssue(issue)" :content="'削除'"/>
@@ -102,7 +110,7 @@
         </div>
         <div v-if="auth.isAdmin && issue?.status == 9" class="flex gap-5 mb-3 justify-center">
             <LoaderButton style="margin: 0;" @click="updateSalaryIssueStatus(6, '結果人事差戻')" :content="'結果人事差戻'"/>
-            <LoaderButton style="margin: 0;" @click="updateSalaryIssueStatus(10, '結果人事承認')" :content="'結果人事承認'"/>
+            <LoaderButton style="margin: 0;" @click="updateSalaryIssueStatus(finalStatus, '結果人事承認')" :content="'結果人事承認'"/>
         </div>
         <div v-if="(auth.isAdmin || evaluationData?.mentor_id === auth.id) && issue?.status === 7" class="si-box" style="display: flex; gap: 20px; justify-content: center;">
             <LoaderButton style="margin: 0;" content="報告差戻" @triggered="updateSalaryIssueStatus(8, '報告差戻')"/>
@@ -152,7 +160,7 @@ const emit = defineEmits<{
 const auth = useAuthUserStore()
 const goalsStore = useDashboardGoalsStore()
 const { evaluationData } = storeToRefs(goalsStore)
-
+const finalStatus = ref<number>(10)
 const selectedSalaryIssueStatus = ref<number | null>(null)
 
 const api = useApi()
