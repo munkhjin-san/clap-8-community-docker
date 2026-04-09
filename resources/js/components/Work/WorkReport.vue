@@ -298,40 +298,39 @@ import { useTour } from '@/composables/useTour';
     // watch(selectedProject, (newVal) => {
     //     actualRows.value = [{ status: null, value: null }]
     // })
-    const buildRowsFromStatuses = () => {
+    const buildRows = () => {
+        const cases = timeCard.value?.project_case ?? []
         const statuses = selectedProject.value?.actual_statuses ?? []
 
-        if (statuses.length) {
-            actualRows.value = statuses.map((s) => ({
-            status: s.label ?? s.custom_label ?? null,
-            value: null,
-            }))
-        } else {
-            actualRows.value = [{ status: null, value: null }]
-        }
-    }
-    watch(
-        () => selectedProject.value?.actual_statuses,
-        () => buildRowsFromStatuses(),
-        { immediate: true, deep: true }
-    )
-    watch(
-        () => timeCard.value?.project_case,
-        (cases) => {
-            const list = cases || [];
-
-            if (!list.length) {
-                actualRows.value = [{ status: null, value: null }];
-                return;
-            }
-
-            actualRows.value = list.map(c => ({
+        if (cases.length > 0) {
+            actualRows.value = cases.map(c => ({
                 status: c.status ?? null,
                 value: c.amount ?? null,
-            }));
-        },
+            }))
+            return
+        }
+
+        if (statuses.length > 0) {
+            actualRows.value = statuses.map(s => ({
+                status: s.label ?? s.custom_label ?? null,
+                value: null,
+            }))
+            return
+        }
+
+        actualRows.value = [{ status: null, value: null }]
+    }
+
+    watch(
+        [
+            () => selectedProject.value?.id,
+            () => selectedProject.value?.actual_statuses?.length,
+            () => timeCard.value?.id,
+            () => timeCard.value?.project_case?.length,
+        ],
+        buildRows,
         { immediate: true }
-    );
+    )
     watch(hasTraining, (val) => {
         if (val) {
             editStartTime.value = '00:00:00'
