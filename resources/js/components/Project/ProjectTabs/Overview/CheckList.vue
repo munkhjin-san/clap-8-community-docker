@@ -213,6 +213,7 @@ import { useBadgeStore } from '@/store/badge';
 import UserPanel from '@/components/Global/UserPanel.vue';
 import { useRoute } from 'vue-router';
 import { getProjectCreationActiveCategoryIds, getProjectCreationActiveCategories } from './projectCreationForm';
+import { useDashboardStore } from '@/store/dashboard';
 
 const { selectedProject, updateProject } = useProject()
 const api = useApi()
@@ -342,6 +343,9 @@ const toggleCheck = async (it: ProjectCheckItem, nextStatus: 'pending' | 'done' 
         setUpdating(it.id, false)
     }
 }
+const { getBatchDashboardData } = useDashboardStore()
+const badge = useBadgeStore()
+const route = useRoute()
 const confirm = async(status: string) => {
     await api.patch('/project_change_status', {
         status: status,
@@ -350,9 +354,10 @@ const confirm = async(status: string) => {
         toast: '確定しました'
     }) 
     updateProject([{name: 'status'}])
+    badge.clearProjectConfirmBadge()
+    getBatchDashboardData(['pendingProjects'])
 }
-const badge = useBadgeStore()
-const route = useRoute()
+
 const read = async(type: string) => {
     if (seen.value[type] > 0) return
     await api.post('/mark_as_seen', {
