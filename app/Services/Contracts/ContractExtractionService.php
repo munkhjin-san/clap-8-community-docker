@@ -667,7 +667,9 @@ class ContractExtractionService
     private function collapseRepeatedSingleCharacterToken(string $value): string
     {
         $chars = preg_split('//u', $value, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        if (count($chars) < 2) {
+        $count = count($chars);
+
+        if ($count < 2) {
             return $value;
         }
 
@@ -678,7 +680,15 @@ class ContractExtractionService
             }
         }
 
-        return $first;
+        if (preg_match('/^\d$/u', $first) === 1) {
+            return $count >= 3 ? $first : $value;
+        }
+
+        if (preg_match(self::JAPANESE_CHAR_PATTERN, $first) === 1) {
+            return $count >= 5 ? str_repeat($first, 2) : $value;
+        }
+
+        return $value;
     }
 
     private function collapseRepeatedPhraseToken(string $value): string
