@@ -694,7 +694,12 @@ class CustomFormController extends Controller
                     $q->where('status', 2)->when($repeat == 1, function($q) use($target_date){
                         $q->where('target_date', $target_date);
                     });
-                })->with(['user', 'files'])->orderBy('created_at', 'desc');                    
+                })->with([
+                    'user',
+                    'files',
+                    'survey_answer:id,user_id',
+                    'survey_answer.user:id,name',
+                ])->orderBy('created_at', 'desc');                    
             }])
             ->with(['elements' => function($q)  {
                 $q->with(['answers' => function($q)  {
@@ -702,7 +707,12 @@ class CustomFormController extends Controller
                         $q->whereHas('survey_answer', function($q){
                             $q->where('status', 2);
                         });
-                    })->with('user')->orderBy('created_at', 'desc'); ;                    
+                    })->with([
+                        'user',
+                        'survey_block_answer:id,survey_answer_id',
+                        'survey_block_answer.survey_answer:id,user_id',
+                        'survey_block_answer.survey_answer.user:id,name',
+                    ])->orderBy('created_at', 'desc');                  
                 }]);
             }])->where('type', '!=', 'header');
         }])->findOrFail($request->custom_form_id);

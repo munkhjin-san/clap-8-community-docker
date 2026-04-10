@@ -97,6 +97,7 @@ export interface SurveyBlockAnswer{
     custom_form_block_id?: number
     user?: User
     files: FileRecord[]
+    survey_answer?: SurveyAnswer
 }
 
 export interface SurverBlockElementAnswer{
@@ -108,4 +109,5 @@ export interface SurverBlockElementAnswer{
     sub_text?: string
     checked: boolean
     user?: User
+    survey_block_answer?: SurveyBlockAnswer 
 }

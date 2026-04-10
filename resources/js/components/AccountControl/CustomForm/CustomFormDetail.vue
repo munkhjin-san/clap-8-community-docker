@@ -191,8 +191,12 @@
                                                         <div class="text-[13px] mt-[5px] ml-[10px] color-[gray]">{{ answer.text_answer }}</div>
                                                     </template>
                                                 </UserPanel>
+                                                <div v-else>
+                                                    <p v-if="answer.survey_answer">{{ answer.survey_answer.respondent_label }}</p>
+                                                    <div class="ml-[10px] mt-[5px] text-[13px]">{{ answer.text_answer }}</div>
+                                                </div>
                                             </div>
-                                            <!-- <div class="ml-[10px] text-[13px]">{{ answer.text_answer }}</div> -->
+                                            
                                             <Files v-if="block.type == 'file'" :items="answer.files" :path="'survey_files'"/>
                                         </div>
                                     </div>
@@ -208,6 +212,12 @@
                                                             <div class="text-[13px] mt-[5px] ml-[10px] color-[gray]">{{ el_answer.sub_text }}</div>
                                                         </template>
                                                    </UserPanel>
+                                                   <div v-else>
+                                                        <p v-if="el_answer.survey_block_answer?.survey_answer">{{ el_answer.survey_block_answer.survey_answer.respondent_label }}</p>
+                                                        <div v-if="el_answer.sub_text">
+                                                            <div class="text-[13px] mt-[5px] ml-[10px] color-[gray]">{{ el_answer.sub_text }}</div>
+                                                        </div>
+                                                   </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -230,6 +240,9 @@
                                     <div class="flex items-center cursor-pointer" v-if="element.answers" @click="setViewUsers({title: element.value, users: element.answers.map( a => a.user) as User[]})">
                                         <div v-for="el_answer in element.answers?.slice(0,3)" class="flex items-center gap-[10px]">
                                             <UserPanel v-if="el_answer.user" size="20" :user="el_answer.user" disable-instant/>
+                                            <div v-else>
+                                                <p v-if="el_answer.survey_block_answer?.survey_answer">{{ el_answer.survey_block_answer.survey_answer.respondent_label }}</p>
+                                            </div>
                                         </div>
                                         <p class="ml-[3px]" v-if="element.answers && element.answers?.length > 3">{{ `...(${element.answers?.length}人)` }}</p>
                                     </div>
