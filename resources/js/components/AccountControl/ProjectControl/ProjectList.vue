@@ -171,7 +171,7 @@
             </Transition>
             <Transition name="smLoad" >
                 <div @mousedown="selectedProject = null" class="gantt-overlay" v-if="selectedProject">
-                    <div @mousedown.stop class="text-sm gantt-overlay-inner space-y-5 p-8 h-[calc(100%-64px)] w-1/2 overflow-auto">
+                    <div @mousedown.stop class="text-sm gantt-overlay-inner space-y-5 !p-8 !h-[calc(100%-64px)] !w-1/2 overflow-auto">
                         <div class="flex justify-between items-center">
                             <p class="font-bold text-base">{{selectedProject.name}}</p>
                             <CloseIcon class="cursor-pointer" size="12" @click="selectedProject = null"/>
