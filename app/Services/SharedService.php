@@ -19,6 +19,7 @@ use App\Models\taskUser;
 use App\Models\CalendarRecord;
 use App\Models\shiftRecord;
 use App\Models\shiftType;
+use App\Models\timecardRecord;
 use App\Events\Message;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -531,5 +532,31 @@ class SharedService
             ->map(fn ($id) => (int) $id)
             ->values()
             ->all();
+    }
+    public function collectWorkTimePerProject($projectId, $membersId, $year, $month): int
+    {
+        
+        $records = timecardRecord::where('work_group_id', $projectId)
+            ->whereIn('user_id', $membersId)
+            ->whereYear('day', $year)
+            ->whereMonth('day', $month)
+            ->get(['work_time', 'over_time']);
+
+        $totalWorkTime = $records->sum(function ($record) {
+            $workTime = (float) $record->work_time;
+            $overtime = 0;
+
+            if (!empty($record->over_time)) {
+                if (is_numeric($record->over_time)) {
+                    $overtime = (float) $record->over_time;
+                } elseif (preg_match('/^(\d{1,2}):(\d{2})$/', $record->over_time, $matches)) {
+                    $overtime = (int)$matches[1] + ((int)$matches[2] / 60);
+                }
+            }
+
+            return $workTime + $overtime;
+        });
+
+        return $totalWorkTime;
     }
 }

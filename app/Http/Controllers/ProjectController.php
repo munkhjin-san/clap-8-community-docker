@@ -175,14 +175,25 @@ class ProjectController extends Controller
             'checkitems.children',
             'checkitems.children.categoryRecord',
             'reports.user',
-            'reports.files'
+            'reports.files'        
         ])
         ->get();
-        
+        $now = Carbon::now();
+        $selectedMonth = $request['selectedMonth'] ?? $now->month;
+        $selectedYear = $request['selectedYear'] ?? $now->year;
         // Load role_record for members and managers pivots
-        $projects->each(function ($p) use ($confirmBadgeMap, $commentBadgeMap) {
+        $projects->each(function ($p) use ($confirmBadgeMap, $commentBadgeMap, $selectedYear, $selectedMonth) {
             $p->loadMemberRoles();
             
+            $allMemberIds = $p->manager()
+                ->pluck('users.id')
+                ->merge($p->members()->pluck('users.id'))
+                ->unique()
+                ->values()
+                ->toArray();
+            
+            $totalWorkTimePerProject = $this->sharedService->collectWorkTimePerProject($p->id, $allMemberIds, $selectedYear, $selectedMonth);
+            $p->total_work_time = $totalWorkTimePerProject;
             $p->has_confirm_badge = isset($confirmBadgeMap[$p->id]);
             $p->has_comment_badge = isset($commentBadgeMap[$p->id]);
         });

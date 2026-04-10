@@ -151,6 +151,7 @@ interface Project {
     project_type?: ProjectType | null
     specs?: ProjectSpecs | null
     projectAssignRecords?: ProjectAssignRecord[]
+    total_work_time?: number
 }
 export interface ProjectAssignRecord {
     id: number;

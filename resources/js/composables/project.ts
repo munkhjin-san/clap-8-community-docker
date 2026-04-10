@@ -21,7 +21,7 @@ export function useProject() {
         list.value = projects;
     };
 
-    const getProjects = async (start?: DateTime, end?: DateTime, id?: number) => {
+    const getProjects = async (start?: DateTime, end?: DateTime, id?: number, selectedMonth?: number, selectedYear?: number) => {
         try {
             const today = DateTime.now()
             const which_half = today.month >= 3 && today.month <= 9 ? 'first' : 'second'
@@ -31,7 +31,9 @@ export function useProject() {
                 which_half: which_half,
                 start: start,
                 end: end,
-                id: id
+                id: id,
+                selectedMonth: selectedMonth,
+                selectedYear: selectedYear
             }
             const response = await axios.get('/get_projects', { params: params });
             if(id && response.data.length > 0) {
