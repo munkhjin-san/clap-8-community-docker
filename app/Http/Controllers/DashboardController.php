@@ -728,6 +728,7 @@ class DashboardController extends Controller
         $unreadNotices = NoticeRecord::
             where('deleted_flag', 0)
             ->where('created_at', '>=', $userCreatedAt)
+            ->where('created_at', '>=', '2026-04-01')
             ->whereDoesntHave('readers', function ($query) use ($userId) {
                 $query->where('users.id', $userId);
             })
