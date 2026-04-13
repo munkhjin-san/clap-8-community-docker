@@ -182,6 +182,7 @@ import { useApi } from '@/composables/api';
     justify-content: center;
     min-height: 98px;
     overflow: hidden;
+    line-height: normal;
 }
 .topic-item:hover{
   background-color: var(--primary-color);
