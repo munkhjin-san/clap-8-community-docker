@@ -324,7 +324,7 @@ import { useDashboardStore } from '@/store/dashboard';
         })
         updateProject([{name: 'status'}])
         badge.clearProjectConfirmBadge()
-        getBatchDashboardData(['pendingProjects'])
+        getBatchDashboardData(['projects'])
     }
 </script>
 <style scoped>

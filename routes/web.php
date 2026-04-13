@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AssetController;
+use App\Http\Controllers\AssetCategoryController;
 use App\Http\Controllers\CustomFormController;
 use App\Http\Controllers\ProjectController;
 use Illuminate\Support\Facades\Route;
@@ -422,6 +423,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/add_assign_action', [ProjectController::class, 'add_assign_action']);
         Route::post('/update_assign_support_level', [ProjectController::class, 'update_assign_support_level']);
         Route::post('/apply_assign_data_to_hr', [ProjectController::class, 'apply_assign_data_to_hr']);
+        Route::post('/apply_assign_data_to_member', [ProjectController::class, 'apply_assign_data_to_member']);
+        Route::post('/confirm_assign_record', [ProjectController::class, 'confirm_assign_record']);
+        Route::post('/reapply_assign_data_to_member', [ProjectController::class, 'reapply_assign_data_to_member']);
         Route::delete('/delete_assign_record/{assignRecord}', [ProjectController::class, 'delete_assign_record']);
 
         Route::get('/get_work_data', [WorkController::class, 'getWorkData']);
@@ -722,9 +726,26 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/export_asset_csv', [AssetController::class, 'export_asset_csv']);
         Route::post('/confirm_asset', [AssetController::class, 'confirm_asset']);
         Route::post('/asset_decision', [AssetController::class, 'asset_decision']);
+        Route::get('/asset_reveal_password', [AssetController::class, 'asset_reveal_password']);
 
         Route::post('/get_asset_types', [AssetController::class, 'get_asset_types']);
         Route::get('/get_asset_badge', [ProjectController::class, 'get_asset_badge']);
+
+        // Asset category items (single layer)
+        Route::get('/get_asset_category_items', [AssetCategoryController::class, 'get_asset_category_items']);
+        // Backward-compatible alias
+        Route::get('/get_asset_categories', [AssetCategoryController::class, 'get_asset_categories']);
+
+        Route::post('/create_asset_category_item', [AssetCategoryController::class, 'create_asset_category_item']);
+        Route::put('/update_asset_category_item', [AssetCategoryController::class, 'update_asset_category_item']);
+        Route::delete('/delete_asset_category_item', [AssetCategoryController::class, 'delete_asset_category_item']);
+        Route::post('/duplicate_asset_category_item', [AssetCategoryController::class, 'duplicate_asset_category_item']);
+        Route::post('/reorder_asset_category_items', [AssetCategoryController::class, 'reorder_asset_category_items']);
+
+        Route::post('/create_asset_category_item_field', [AssetCategoryController::class, 'create_asset_category_item_field']);
+        Route::put('/update_asset_category_item_field', [AssetCategoryController::class, 'update_asset_category_item_field']);
+        Route::delete('/delete_asset_category_item_field', [AssetCategoryController::class, 'delete_asset_category_item_field']);
+        Route::post('/reorder_asset_category_item_fields', [AssetCategoryController::class, 'reorder_asset_category_item_fields']);
 
         Route::get('/db_structure', [AutoJobController::class, 'db_structure']);
 

@@ -5,15 +5,20 @@ namespace App\Http\Controllers;
 use App\Exports\AssetData;
 use App\Imports\AssetImport;
 use App\Models\AssetRecord;
+use App\Models\AssetRecordFieldValue;
 use App\Models\AssetRequest;
 use App\Models\AssetRequestStep;
 use App\Models\AssetType;
+use App\Models\AssetCategoryItem;
 use App\Models\officeRecord;
 use App\Models\ProjectRecord;
 use App\Models\User;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Services\AccountVault;
+
 
 class AssetController extends Controller
 {
@@ -65,10 +70,81 @@ class AssetController extends Controller
     {
         $id = $request->id ?? null;
         $params = $request->params;
+        $fieldValues = $request->field_values ?? null;
+        $assetCategoryItemId = $request->asset_category_item_id ?? ($params['asset_category_item_id'] ?? null);
+
+        // Legacy columns were removed from asset_records; ignore if still sent.
+        if (is_array($params)) {
+            unset($params['type'], $params['account_name'], $params['password_encrypted']);
+        }
+
+        $isUpdate = $id !== null;
+
         if($id == null){
             $params['created_by'] = $this->active_user()->id;
         }
         $asset = AssetRecord::findOrNew($id);
+
+        // Dynamic category-item based fields (optional; backward compatible)
+        $categoryItem = null;
+        $isAccountLike = null;
+        if ($assetCategoryItemId) {
+            $categoryItem = AssetCategoryItem::with(['fields'])->findOrFail($assetCategoryItemId);
+            $params['asset_category_item_id'] = $categoryItem->id;
+            $params['item_name'] = $categoryItem->title;
+
+            $isAccountLike = $categoryItem->fields->contains(fn ($f) => $f->input_type === 'password');
+        }
+
+        // Prepare dynamic field values (validate required, encrypt password fields, sync legacy columns)
+        $preparedFieldValues = [];
+        if ($categoryItem && is_array($fieldValues)) {
+            $accountVault = new AccountVault();
+
+            $firstNonPasswordValue = null;
+            $firstPasswordStoredValue = null;
+
+            foreach ($categoryItem->fields as $field) {
+                $value = $fieldValues[$field->id] ?? null;
+
+                $rules = $field->rules ?? '';
+                $isRequired = is_string($rules) && str_contains($rules, 'required');
+
+                if ($isUpdate && $field->input_type === 'password' && ($value === null || $value === '')) {
+                    continue;
+                }
+
+                if ($isRequired && ($value === null || $value === '')) {
+                    throw new HttpResponseException(response()->json([
+                        'message' => '必須項目を入力してください。',
+                    ], 422));
+                }
+
+                $storedValue = $value;
+                if ($field->input_type === 'password' && $value) {
+                    $storedValue = $accountVault->encrypt($value);
+                }
+
+                if ($field->input_type !== 'password' && $firstNonPasswordValue === null) {
+                    $firstNonPasswordValue = $value;
+                }
+                if ($field->input_type === 'password' && $firstPasswordStoredValue === null && $storedValue !== null && $storedValue !== '') {
+                    $firstPasswordStoredValue = $storedValue;
+                }
+
+                $preparedFieldValues[] = [
+                    'field_id' => $field->id,
+                    'stored_value' => $storedValue,
+                ];
+            }
+
+            // Legacy column fallbacks (for search/export/UI compatibility)
+            if ($isAccountLike === false) {
+                if ($firstNonPasswordValue !== null && $firstNonPasswordValue !== '') {
+                    $params['model_number'] = $firstNonPasswordValue;
+                }
+            }
+        }
 
         $owner_changed = ($asset->user_id ?? null) !== ($params['user_id'] ?? null)
               || ($asset->external_user ?? null) !== ($params['external_user'] ?? null);
@@ -88,8 +164,22 @@ class AssetController extends Controller
                 'approved_at' => now()
             ]);
         }
-        
         $update = $asset->fill($params)->save();
+
+        // If dynamic values were posted, persist them now that asset has an id.
+        if (!empty($preparedFieldValues)) {
+            foreach ($preparedFieldValues as $prepared) {
+                AssetRecordFieldValue::updateOrCreate(
+                    [
+                        'asset_record_id' => $asset->id,
+                        'asset_category_item_field_id' => $prepared['field_id'],
+                    ],
+                    [
+                        'value' => $prepared['stored_value'],
+                    ]
+                );
+            }
+        }
 
         // $asset = AssetRecord::firstOr
         // $asset = AssetRecord::updateOrCreate(["id" => $id], $params);
@@ -97,6 +187,47 @@ class AssetController extends Controller
         
 
         return response()->json($update);
+    }
+    public function asset_reveal_password(Request $request){
+        $request->validate([
+            'id' => 'required|integer',
+            'field_id' => 'nullable|integer'
+        ]);
+
+        $asset = AssetRecord::findOrFail($request->id);
+
+        $activeUser = $this->active_user();
+        $isAdmin = in_array($activeUser->id, [608, 610], true);
+        if (! $isAdmin && ($asset->user_id ?? null) !== $activeUser->id) {
+            abort(403, 'Forbidden');
+        }
+
+        $fieldId = $request->field_id;
+
+        $query = AssetRecordFieldValue::query()
+            ->with(['field'])
+            ->where('asset_record_id', $asset->id)
+            ->whereHas('field', fn ($q) => $q->where('input_type', 'password'));
+
+        if ($fieldId) {
+            $query->where('asset_category_item_field_id', $fieldId);
+        }
+
+        /** @var AssetRecordFieldValue|null $fv */
+        $fv = $query->orderBy('id')->first();
+
+        if (! $fv || ! $fv->value) {
+            return response()->json(['plain_password' => null]);
+        }
+
+        $accountVault = new AccountVault();
+        try {
+
+            $plain_password = $accountVault->decrypt($fv->value);
+            return response()->json(['plain_password' => $plain_password]);
+        } catch (\Exception $e) {
+            return response()->json(['plain_password' => null]);
+        }
     }
     public function admin_asset_list(Request $request) 
     {
@@ -200,6 +331,7 @@ class AssetController extends Controller
                 }])->orderBy('created_at', 'desc');
             },
             'current_office',
+            'field_values',
             'confirm_logs' => function ($query) {
                 $query->with(['user', 'files'])->orderBy('created_at', 'desc');
             }
@@ -218,6 +350,26 @@ class AssetController extends Controller
         }
         else{
             $data = $data->paginate(30);
+        }
+
+        $maskPasswordValues = function ($asset) {
+            if (!isset($asset->field_values)) {
+                return $asset;
+            }
+
+            foreach ($asset->field_values as $fv) {
+                if (($fv->field->input_type ?? null) === 'password') {
+                    $fv->value = null;
+                }
+            }
+
+            return $asset;
+        };
+
+        if ($mode === 'export') {
+            $data = $data->map($maskPasswordValues);
+        } else {
+            $data->setCollection($data->getCollection()->map($maskPasswordValues));
         }
 
         return response()->json($data);

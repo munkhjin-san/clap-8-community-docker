@@ -21,6 +21,23 @@ export interface Asset {
     confirm_logs: AssetConfirmLog[]
     office_id: number | null
     office: Office | null
+
+    asset_category_item_id?: number | null
+    field_values?: Array<{
+        id: number
+        asset_record_id: number
+        asset_category_item_field_id: number
+        value: string | null
+        field?: {
+            id: number
+            asset_category_item_id: number
+            key: string | null
+            label: string | null
+            input_type: 'shorttext' | 'longtext' | 'password'
+            placeholder: string | null
+            rules: string | null
+        }
+    }>
 }
 
 export interface AssetUser {

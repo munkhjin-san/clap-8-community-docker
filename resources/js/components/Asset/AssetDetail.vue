@@ -3,8 +3,30 @@
     <div>  
         <div class="flex flex-col gap-[15px]">
             <div>
-                <p>{{ detailTitle }}</p>
+                <p>詳細（スペックなど）</p>
                 <p class="whitespace-break-spaces leading-normal mt-2" v-html="urlCheck(asset.specs)"></p>
+                <div v-if="displayFieldValues.length" class="my-5">
+                    <div v-for="fv in displayFieldValues" :key="fv.id" class="mb-3">
+                        <div class="text-[gray] mb-3">{{ fieldLabel(fv) }}</div>
+
+                        <div v-if="fv.field?.input_type === 'password'">
+                            <span v-if="!revealedPasswords[fv.asset_category_item_field_id]" class="text-[gray] mr-2">********</span>
+                            <span v-else class="mr-2">{{ revealedPasswords[fv.asset_category_item_field_id] }}</span>
+                            <span
+                                v-if="auth.isAdmin || auth.id === asset.current_user?.id"
+                                class="jump-link"
+                                @click="toggleReveal(fv.asset_category_item_field_id)"
+                            >
+                                {{ revealedPasswords[fv.asset_category_item_field_id] ? '非表示' : '表示' }}
+                            </span>
+                        </div>
+                        <div
+                            v-else
+                            class="whitespace-break-spaces leading-normal"
+                            v-html="urlCheck((fv.value ?? '') as any)"
+                        ></div>
+                    </div>
+                </div>
                 <p class="mt-3 text-[gray]">登録日 : {{ customParser(asset.created_at).toFormat('yyyy/M/d HH:mm') }}</p>
             </div>
             <div class="flex gap-3">
@@ -119,7 +141,7 @@
             ]"
         />      
         <CommandButton 
-            v-if="auth.isAdmin"
+            v-if="auth.isAdmin || auth.id === asset.current_user?.id"
             :buttons="[
                 {title: '編集', action: () => editAsset(asset)},
                 {title: '削除', action: () => removeAsset(asset.id)},
@@ -277,6 +299,7 @@ const externalUserNameRef = useTemplateRef('externalUserNameRef')
 const memberSelectRef = useTemplateRef('memberSelectRef')
 const { ping } = useDialog()
 const confirmView = ref(false)
+const revealedPasswords = ref<Record<number, string>>({})
 const moveTarget = reactive({
     title: '',
     active: false
@@ -385,5 +408,44 @@ const closeMoveModal = () => {
     notBroken.value = false
     asset_files.value = []
     reciever.value = undefined
+}
+
+type FieldValue = NonNullable<Asset['field_values']>[number]
+
+const displayFieldValues = computed(() => {
+    const values = (props.asset.field_values ?? []) as FieldValue[]
+    return values
+        .filter(fv => !!fv.field)
+        .slice()
+        .sort((a, b) => (a.field?.id ?? 0) - (b.field?.id ?? 0))
+})
+
+const fieldLabel = (fv: FieldValue) => {
+    return fv.field?.label || fv.field?.key || '項目'
+}
+
+const toggleReveal = async (fieldId: number) => {
+    if (!(auth.isAdmin || auth.id === props.asset.current_user?.id)) {
+        ping('パスワードを表示できるのは管理者と使用者本人のみです。')
+        return
+    }
+
+    if (revealedPasswords.value[fieldId]) {
+        const next = { ...revealedPasswords.value }
+        delete next[fieldId]
+        revealedPasswords.value = next
+        return
+    }
+
+    const res = await api.get(`/asset_reveal_password`, { id: props.asset.id, field_id: fieldId })
+    if (res && res.plain_password) {
+        revealedPasswords.value = {
+            ...revealedPasswords.value,
+            [fieldId]: res.plain_password,
+        }
+        return
+    }
+
+    ping('パスワードを取得できませんでした。')
 }
 </script>

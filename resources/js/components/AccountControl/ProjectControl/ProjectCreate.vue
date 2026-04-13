@@ -1251,7 +1251,7 @@ const submitFromProjectCreationForm = () => {
     if (!result?.valid || !result.payload) return
     projectCreationPayload.value = result.payload
     createProject('pending_director', result.payload)
-    getBatchDashboardData(['pendingProjects'])
+    getBatchDashboardData(['projects'])
     badge.clearProjectConfirmBadge()
 }
 const contractPayload = computed(() => {

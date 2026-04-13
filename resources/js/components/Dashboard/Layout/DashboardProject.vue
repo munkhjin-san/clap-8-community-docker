@@ -1,7 +1,7 @@
 <template>
     <BaseLayout 
         :title="`プロジェクト`" 
-        :count="data.data.length" 
+        :count="data.data.officer_approval_waiting.length + data.data.assign_approval_waiting.length" 
         :fullscreen="fullscreen" 
         :type="data.type"
         :can-resize="data.canResize"
@@ -16,7 +16,7 @@
         </template>
         <template #default>
             <div v-if="!fullscreen" class="m-5">
-                <div v-if="data.data.length" class="mb-3">
+                <div v-if="data.data.officer_approval_waiting.length" class="mb-3">
                     <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
                         <ExpansionPanelItem
                             selected-class="selected-panel-item"
@@ -24,7 +24,7 @@
                             static
                             :tile="true"
                             class="rm-p"
-                            v-for="(project, index) in data.data"
+                            v-for="(project, index) in data.data.officer_approval_waiting"
                             :key="project.id ?? index"
                             :value="project.id ?? index"
                             :col="Number(data.col?.split('-')[2] ?? 1)"
@@ -70,6 +70,78 @@
                         </ExpansionPanelItem>
                     </ExpansionGrid>
                 </div>
+
+                <div v-if="data.data.assign_approval_waiting.length" class="mt-6">
+                    <div class="text-[14px] font-bold mb-3">確認待ち</div>
+                    <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                        <ExpansionPanelItem
+                            selected-class="selected-panel-item"
+                            hide-actions
+                            static
+                            :tile="true"
+                            class="rm-p"
+                            v-for="(record, index) in data.data.assign_approval_waiting"
+                            :key="record.id ?? index"
+                            :value="record.id ?? index"
+                            :col="Number(data.col?.split('-')[2] ?? 1)"
+                        >
+                            <template #title="{ expanded }">
+                                <PanelTitle :expanded="expanded">
+                                    <div class="text-[14px] flex-1 whitespace-nowrap overflow-hidden text-ellipsis leading-normal flex items-center">
+                                        <div class="text-[14px] flex-1 whitespace-nowrap overflow-hidden text-ellipsis leading-normal">
+                                            {{ record.project_record?.name ?? 'プロジェクト' }}
+                                        </div>
+                                    </div>                                
+                                </PanelTitle>
+                            </template>
+                            <template #body>
+                                <PanelData class="px-4 py-4 pt-1 space-y-4 flex flex-col">
+                                    <!-- HR's confirmation items -->
+                                    <div class="space-y-4" v-if="record.actions?.length && record.actions.filter((a: any) => a.action_type === 'member_confirmation_items').length">
+                                        <div v-for="action in record.actions.filter((a: any) => a.action_type === 'member_confirmation_items')" class="whitespace-pre-wrap text-[13px] leading-normal">
+                                            {{ action.content }}
+                                        </div>
+                                    </div>
+
+                                    <!-- Member comment input -->
+                                    <div class="flex">
+                                        <!-- <textarea
+                                            :key="`comment-${record.id}`"
+                                            v-model="memberComments[record.id]"
+                                            class="text-[var(--primary-color)] border border-solid border-[var(--formBorder)] px-3 py-2 text-sm w-full rounded"
+                                            rows="3"
+                                            placeholder="コメント（理由がある場合に記入）"
+                                        ></textarea> -->
+                                        <LongInput 
+                                            class="w-full bg-[var(--background-color)]"
+                                            :key="`comment-${record.id}`"
+                                            v-model="memberComments[record.id]"
+                                            :placeHolder="'コメント（理由がある場合に記入）'"
+                                        />
+                                    </div>
+
+                                    <!-- Decision buttons -->
+                                    <div class="flex gap-3 justify-end">
+                                        <button
+                                            @click="approveRecord(record)"
+                                            :disabled="loadingRecords[record.id]"
+                                            class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                                        >
+                                            {{ loadingRecords[record.id] ? '処理中...' : '承認する' }}
+                                        </button>
+                                        <button
+                                            @click="rejectRecord(record)"
+                                            :disabled="loadingRecords[record.id]"
+                                            class="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                                        >
+                                            {{ loadingRecords[record.id] ? '処理中...' : '取り下げする' }}
+                                        </button>
+                                    </div>
+                                </PanelData>
+                            </template>
+                        </ExpansionPanelItem>
+                    </ExpansionGrid>
+                </div>
             </div>
             
         </template>
@@ -79,23 +151,18 @@
 import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import BaseLayout from './BaseLayout.vue';
-import { Project } from '@/interface/projectInterface';
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
-import UserPanel from '@/components/Global/UserPanel.vue';
 import { DateTime } from 'luxon';
 import { PROJECT_STATUS_LABEL } from '@/utils/tools';
+import { DashboardProjectCard } from '@/interface/dashboard';
+import { reactive, ref } from 'vue';
+import { useApi } from '@/composables/api';
+import { useDashboardStore } from '@/store/dashboard';
+import LongInput from '@/components/Form/LongInput.vue';
 
 const props = defineProps<{
-    data: {
-        title: string,
-        data: Project[],
-        order?: number,
-        type: string
-        canResize?: boolean
-        canFullscreen?: boolean
-        col: string
-    },
+    data: DashboardProjectCard,
     fullscreen: boolean
 }>()
 
@@ -104,6 +171,60 @@ const emit = defineEmits<{
     toggle: [el: HTMLElement | null, title: string]
 }>()
 
+const api = useApi();
+const dashboardStore = useDashboardStore();
+const memberComments = reactive<Record<number, string>>({});
+const loadingRecords = reactive<Record<number, boolean>>({});
+
+const getMemberConfirmationItems = (record: any): string => {
+    if (!record.actions) return '';
+    const action = record.actions.find((a: any) => a.action_type === 'member_confirmation_items');
+    return action?.content || '';
+};
+
+const approveRecord = async (record: any) => {
+    if (loadingRecords[record.id]) return;
+    loadingRecords[record.id] = true;
+    
+    try {
+        await api.post('/confirm_assign_record', {
+            assign_record_id: record.id,
+            decision: 'approved',
+            member_comment: memberComments[record.id] || '',
+        }, {
+            toast: '承認しました。',
+        });
+        
+        // Refresh dashboard data
+        await dashboardStore.getBatchDashboardData(['projects']);
+    } catch (error) {
+        console.error('Failed to approve record:', error);
+    } finally {
+        loadingRecords[record.id] = false;
+    }
+};
+
+const rejectRecord = async (record: any) => {
+    if (loadingRecords[record.id]) return;
+    loadingRecords[record.id] = true;
+    
+    try {
+        await api.post('/confirm_assign_record', {
+            assign_record_id: record.id,
+            decision: 'rejected',
+            member_comment: memberComments[record.id] || '',
+        }, {
+            toast: '取り下げしました。',
+        });
+        
+        // Refresh dashboard data
+        await dashboardStore.getBatchDashboardData(['projects']);
+    } catch (error) {
+        console.error('Failed to reject record:', error);
+    } finally {
+        loadingRecords[record.id] = false;
+    }
+};
 
 defineExpose({
     cardType: props.data.type,

@@ -1,235 +1,364 @@
 <template>
     <Teleport to="body">
-        <Modal @close="close">
+        <Transition name="modalFade">            
+        <Modal @close="close" size="large">
             <template #title>
-                メンバー詳細
+                メンバーの役割と適合評価
             </template>
             <template #content>
                 <Teleport to="body">
-                    <AiLoader v-if="loading" message="適正評価中...この処理には数分かかる場合があります" />
+                    <AiLoader v-if="loading" message="適合評価中...この処理には数分かかる場合があります" />
                 </Teleport>
-                <UserPanel :user="member" :size="30" with-name/>
-                <div class="mt-5 flex items-center">
-                    役割: 
-                    <select v-model="selectedRole" @change="saveRole" class="text-[var(--primary-color)] border border-solid border-[var(--formBorder)] ml-3 px-2 py-1">
-                        <option :value="null">未割当</option>
-                        <option v-for="role in roles" :key="role.id" :value="role.id">
-                            {{ role.title }}
-                        </option>
-                    </select>
-                    <div v-if="savingRole" class="ml-3">
-                        <div class="spinner-nano" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <UserPanel :user="member" :size="30" with-name/>
+                    <div class="mt-5 flex items-center">
+                        役割: 
+                        <select v-model="selectedRole" @change="saveRole" class="text-[var(--primary-color)] border border-solid border-[var(--formBorder)] ml-3 px-2 py-1">
+                            <option :value="null">未割当</option>
+                            <option v-for="role in roles" :key="role.id" :value="role.id">
+                                {{ role.title }}
+                            </option>
+                        </select>
+                        <div v-if="savingRole" class="ml-3">
+                            <div class="spinner-nano" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                        </div>
                     </div>
                 </div>
-                <div class="mt-5 flex items-center">
-                    適正度: {{ member?.pivot?.compatibility_number || '未評価' }} 
-                    <span class="text-[11px] text-[gray] ml-2 mt-1" v-if="!member?.pivot?.role_record">(役割を設定してください)</span>
-                    
+                <div v-if="!assignData" class="flex flex-col w-full items-center bg-[var(--bg3)] my-6 rounded py-6 justify-center gap-4">                
+                    <div class="flex items-center text-sm text-[gray]">                        
+                        現在、適合評価データがありません。                        
+                    </div>
+                    <div class="mt-2">
+                        <LoaderButton @click="evaluateMember" v-if="member?.pivot?.role_record" class="!m-0" content="評価を行う" :loading="loading">
+                            <template #icon>
+                                <AiIcon class="mr-2" fill="currentColor"/>
+                            </template>
+                        </LoaderButton>
+                        <div v-else class="text-sm text-[gray]">
+                            適合評価を行うには、まず役割を割り当ててください。
+                        </div>
+                    </div>
                 </div>
-                <div class="mt-2">
-                    <LoaderButton @click="evaluateMember" v-if="member?.pivot?.role_record" class="!m-0" content="評価する" :loading="loading">
-                        <template #icon>
-                            <AiIcon class="mr-2" fill="var(--primary-color)"/>
-                        </template>
-                    </LoaderButton>
-                </div>
-                <div v-if="asignEvaluationResult" class="mt-5 border border-solid border-[var(--formBorder)] rounded-lg p-4 bg-[var(--background-color)]">
-                    <!-- ヘッダー -->
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-bold">適正評価結果</h3>
-                        <span class="text-xs text-gray-500">v{{ asignEvaluationResult.version }}</span>
-                    </div>
-
-                    <!-- 対象者・配属情報 -->
-                    <div class="grid grid-cols-2 gap-4 mb-4 text-sm">
-                        <div>
-                            <span class="text-gray-500">対象者:</span>
-                            <span class="ml-2 font-medium">{{ asignEvaluationResult.employee.name }}</span>
-                            <span v-if="asignEvaluationResult.employee.employee_id" class="ml-1 text-gray-400">({{ asignEvaluationResult.employee.employee_id }})</span>
-                        </div>
-                        <div>
-                            <span class="text-gray-500">配属先:</span>
-                            <span class="ml-2 font-medium">{{ asignEvaluationResult.assignment.project_name }} / {{ asignEvaluationResult.assignment.role_name }}</span>
-                        </div>
-                    </div>
-
-                    <!-- 総合スコア・最終判定 -->
-                    <div class="flex items-center gap-4 mb-4 p-3 rounded-lg" :class="getDecisionClass(asignEvaluationResult.final_judgement.decision)">
-                        <div class="text-center">
-                            <div class="text-3xl font-bold">{{ asignEvaluationResult.overall.score.toFixed(1) }}</div>
-                            <div class="text-xs text-gray-500">総合スコア</div>
-                        </div>
-                        <div class="flex-1">
-                            <div class="text-lg font-bold">{{ asignEvaluationResult.final_judgement.decision }}</div>
-                            <div class="text-sm mt-1">{{ asignEvaluationResult.final_judgement.rationale }}</div>
-                        </div>
-                    </div>
-
-                    <!-- 条件（条件付き適正の場合） -->
-                    <div v-if="asignEvaluationResult.final_judgement.conditions?.length" class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <div class="font-medium text-yellow-800 mb-2">条件事項</div>
-                        <ul class="list-disc list-inside text-sm text-yellow-700 space-y-1">
-                            <li v-for="(condition, index) in asignEvaluationResult.final_judgement.conditions" :key="index">
-                                <span class="font-medium">{{ condition.title }}:</span> {{ condition.detail }}
-                            </li>
-                        </ul>
-                    </div>
-
-                    <!-- 評価項目一覧 -->
-                    <div class="mb-4">
-                        <h4 class="font-medium mb-3">評価項目</h4>
-                        <div class="space-y-3">
-                            <!-- 必須条件 -->
-                            <div class="border border-solid border-[var(--formBorder)] rounded p-3">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="font-medium">必須条件</span>
-                                    <span class="px-2 py-1 rounded text-sm font-bold" :class="getScoreClass(asignEvaluationResult.evaluations.must_conditions.score)">
-                                        {{ asignEvaluationResult.evaluations.must_conditions.score }}/10
-                                    </span>
-                                </div>
-                                <p class="text-sm">{{ asignEvaluationResult.evaluations.must_conditions.reason }}</p>
-                                <div v-if="asignEvaluationResult.evaluations.must_conditions.evidence?.length" class="mt-2">
-                                    <div class="text-xs text-gray-500">根拠:</div>
-                                    <ul class="list-disc list-inside text-xs text-gray-500">
-                                        <li v-for="(ev, i) in asignEvaluationResult.evaluations.must_conditions.evidence" :key="i">{{ ev }}</li>
-                                    </ul>
-                                </div>
+                <div v-if="assignData" class="my-6 bg-[var(--background-color)]">                  
+                    <div v-if="assignData.assign_data" class="mt-5">
+                        <div class="flex items-center flex-wrap justify-between mb-4 gap-2">   
+                            <div class="text-right">
+                                <span class="text-sm text-[gray]">ステータス:</span>
+                                <span class="ml-2 px-2 py-1 rounded text-sm font-bold" :class="{
+                                    'bg-green-100 text-green-800': assignData.status === '完了',
+                                    'bg-yellow-100 text-yellow-800': assignData.status === '作成中',
+                                    'bg-gray-100 text-gray-800': assignData.status === '人事対応中',
+                                    'bg-blue-100 text-blue-800': assignData.status === '本人確認中',
+                                    'bg-red-100 text-red-800': assignData.status === '本人取り下げ',
+                                }">
+                                    {{ assignData.status }}
+                                </span>
                             </div>
-
-                            <!-- 職務適合性 -->
-                            <div class="border border-solid border-[var(--formBorder)] rounded p-3">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="font-medium">職務適合性</span>
-                                    <span class="px-2 py-1 rounded text-sm font-bold" :class="getScoreClass(asignEvaluationResult.evaluations.job_fit.score)">
-                                        {{ asignEvaluationResult.evaluations.job_fit.score }}/10
-                                    </span>
-                                </div>
-                                <p class="text-sm">{{ asignEvaluationResult.evaluations.job_fit.reason }}</p>
-                                <div v-if="asignEvaluationResult.evaluations.job_fit.evidence?.length" class="mt-2">
-                                    <div class="text-xs text-gray-500">根拠:</div>
-                                    <ul class="list-disc list-inside text-xs text-gray-500">
-                                        <li v-for="(ev, i) in asignEvaluationResult.evaluations.job_fit.evidence" :key="i">{{ ev }}</li>
-                                    </ul>
-                                </div>
+                            <div class="flex gap-3 items-center">
+                                <label :for="`sel-input=${assignData.id}`" class="text-xs cursor-pointer text-[gray]">評価日時:
+                                    <span class="ml-2">{{ DateTime.fromISO(assignData.created_at).toLocaleString(DateTime.DATETIME_MED) }}</span>
+                                </label>
+                                <button
+                                    type="button"
+                                    @click="removeAssignment"
+                                    :disabled="removingAssignment"
+                                    class="py-1 px-3 bg-[var(--bg3)] rounded text-xs text-[gray] cursor-pointer border-none disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    <Trash size="15"/>
+                                </button>
                             </div>
-
-                            <!-- パフォーマンス履歴 -->
-                            <div class="border border-solid border-[var(--formBorder)] rounded p-3">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="font-medium">パフォーマンス履歴</span>
-                                    <span class="px-2 py-1 rounded text-sm font-bold" :class="getScoreClass(asignEvaluationResult.evaluations.performance_history.score)">
-                                        {{ asignEvaluationResult.evaluations.performance_history.score }}/10
-                                    </span>
-                                </div>
-                                <p class="text-sm">{{ asignEvaluationResult.evaluations.performance_history.reason }}</p>
-                                <div v-if="asignEvaluationResult.evaluations.performance_history.evidence?.length" class="mt-2">
-                                    <div class="text-xs text-gray-500">根拠:</div>
-                                    <ul class="list-disc list-inside text-xs text-gray-500">
-                                        <li v-for="(ev, i) in asignEvaluationResult.evaluations.performance_history.evidence" :key="i">{{ ev }}</li>
-                                    </ul>
-                                </div>
+                            
+                        </div>             
+                        <div class="post-separetor"><div>AIによる評価結果</div></div>        
+                        <div class="flex items-center gap-4 mb-7 p-3 rounded-lg" :class="getDecisionClass(assignData.assign_data.final_judgement.decision)">
+                            <div class="text-center">
+                                <div class="text-3xl font-bold">{{ assignData.assign_data.overall.score.toFixed(1) }}</div>
+                                <div class="text-xs text-[gray]">総合スコア</div>
                             </div>
-
-                            <!-- リスク履歴 -->
-                            <div class="border border-solid border-[var(--formBorder)] rounded p-3">
-                                <div class="flex items-center justify-between mb-2">
-                                    <span class="font-medium">リスク履歴</span>
-                                    <span class="px-2 py-1 rounded text-sm font-bold" :class="getScoreClass(asignEvaluationResult.evaluations.risk_history.score)">
-                                        {{ asignEvaluationResult.evaluations.risk_history.score }}/10
-                                    </span>
-                                </div>
-                                <p class="text-sm">{{ asignEvaluationResult.evaluations.risk_history.reason }}</p>
-                                <div v-if="asignEvaluationResult.evaluations.risk_history.evidence?.length" class="mt-2">
-                                    <div class="text-xs text-gray-500">根拠:</div>
-                                    <ul class="list-disc list-inside text-xs text-gray-500">
-                                        <li v-for="(ev, i) in asignEvaluationResult.evaluations.risk_history.evidence" :key="i">{{ ev }}</li>
-                                    </ul>
-                                </div>
+                            <div class="flex-1">
+                                <div class="text-lg font-bold">{{ assignData.assign_data.final_judgement.decision }}</div>
+                                <div class="text-sm mt-1">{{ assignData.assign_data.final_judgement.rationale }}</div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- 重み配分 -->
-                    <div class="mb-4 text-xs text-gray-500">
-                        <span>重み配分: </span>
-                        <span>必須条件 {{ asignEvaluationResult.overall.weights.must_conditions * 100 }}% / </span>
-                        <span>職務適合性 {{ asignEvaluationResult.overall.weights.job_fit * 100 }}% / </span>
-                        <span>パフォーマンス {{ asignEvaluationResult.overall.weights.performance_history * 100 }}% / </span>
-                        <span>リスク {{ asignEvaluationResult.overall.weights.risk_history * 100 }}%</span>
-                    </div>
+                        <!-- 条件（条件付き適合の場合） -->
+                        <div v-if="assignData.assign_data.final_judgement.conditions?.length" class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div class="font-medium text-yellow-800 mb-2">条件事項</div>
+                            <ul class="list-disc list-inside text-sm text-yellow-700 space-y-1">
+                                <li v-for="(condition, index) in assignData.assign_data.final_judgement.conditions" :key="index">
+                                    <span class="font-medium">{{ condition.title }}:</span> {{ condition.detail }}
+                                </li>
+                            </ul>
+                        </div>
+                        
 
-                    <!-- 注意事項 -->
-                    <div v-if="asignEvaluationResult.notes.limitations?.length" class="text-xs text-gray-400 border-t border-[var(--formBorder)] pt-3">
-                        <div class="font-medium mb-1">注意事項:</div>
-                        <ul class="list-disc list-inside space-y-1">
-                            <li v-for="(limitation, index) in asignEvaluationResult.notes.limitations" :key="index">{{ limitation }}</li>
-                        </ul>
-                    </div>
-
-                    <!-- プロジェクトマネジャー確認項目 -->
-                    <div v-if="asignEvaluationResult.project_manager_check_items?.length" class="pt-4 mt-4">
-                        <h4 class="font-medium mb-3">確認項目</h4>
-                        <div class="space-y-4">
-                            <div v-for="(item, index) in asignEvaluationResult.project_manager_check_items" :key="index" class="p-3">
-                                <!-- Checkbox Type -->
-                                <div v-if="item.type === 'checkbox'" class="flex items-start gap-3">
-                                    <input type="checkbox" v-model="item.answer" class="mt-1 w-4 h-4 cursor-pointer" />
-                                    <label class="w-full text-[13px] leading-normal flex-1 cursor-pointer">{{ item.content }}</label>
+                        <!-- 評価項目一覧 -->
+                        <div class="mb-4">
+                            <div class="space-y-7">
+                                <!-- 必須条件 -->
+                                <div class="border border-solid border-[var(--formBorder)] rounded p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-medium">必須条件</span>
+                                        <span class="px-2 py-1 rounded text-sm font-bold" :class="getScoreClass(assignData.assign_data.evaluations.must_conditions.score)">
+                                            {{ assignData.assign_data.evaluations.must_conditions.score }}/10
+                                        </span>
+                                    </div>
+                                    <p class="text-sm">{{ assignData.assign_data.evaluations.must_conditions.reason }}</p>
+                                    <div v-if="assignData.assign_data.evaluations.must_conditions.evidence?.length" class="mt-2">
+                                        <div class="text-xs text-[gray]">根拠:</div>
+                                        <ul class="list-disc list-inside text-xs text-[gray]">
+                                            <li v-for="(ev, i) in assignData.assign_data.evaluations.must_conditions.evidence" :key="i">{{ ev }}</li>
+                                        </ul>
+                                    </div>
                                 </div>
+
+                                <!-- 職務適合性 -->
+                                <div class="border border-solid border-[var(--formBorder)] rounded p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-medium">職務適合性</span>
+                                        <span class="px-2 py-1 rounded text-sm font-bold" :class="getScoreClass(assignData.assign_data.evaluations.job_fit.score)">
+                                            {{ assignData.assign_data.evaluations.job_fit.score }}/10
+                                        </span>
+                                    </div>
+                                    <p class="text-sm">{{ assignData.assign_data.evaluations.job_fit.reason }}</p>
+                                    <div v-if="assignData.assign_data.evaluations.job_fit.evidence?.length" class="mt-2">
+                                        <div class="text-xs text-[gray]">根拠:</div>
+                                        <ul class="list-disc list-inside text-xs text-[gray]">
+                                            <li v-for="(ev, i) in assignData.assign_data.evaluations.job_fit.evidence" :key="i">{{ ev }}</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <!-- パフォーマンス履歴 -->
+                                <div class="border border-solid border-[var(--formBorder)] rounded p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-medium">パフォーマンス履歴</span>
+                                        <span class="px-2 py-1 rounded text-sm font-bold" :class="getScoreClass(assignData.assign_data.evaluations.performance_history.score)">
+                                            {{ assignData.assign_data.evaluations.performance_history.score }}/10
+                                        </span>
+                                    </div>
+                                    <p class="text-sm">{{ assignData.assign_data.evaluations.performance_history.reason }}</p>
+                                    <div v-if="assignData.assign_data.evaluations.performance_history.evidence?.length" class="mt-2">
+                                        <div class="text-xs text-[gray]">根拠:</div>
+                                        <ul class="list-disc list-inside text-xs text-[gray]">
+                                            <li v-for="(ev, i) in assignData.assign_data.evaluations.performance_history.evidence" :key="i">{{ ev }}</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <!-- リスク履歴 -->
+                                <div class="border border-solid border-[var(--formBorder)] rounded p-3">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="font-medium">リスク履歴</span>
+                                        <span class="px-2 py-1 rounded text-sm font-bold" :class="getScoreClass(assignData.assign_data.evaluations.risk_history.score)">
+                                            {{ assignData.assign_data.evaluations.risk_history.score }}/10
+                                        </span>
+                                    </div>
+                                    <p class="text-sm">{{ assignData.assign_data.evaluations.risk_history.reason }}</p>
+                                    <div v-if="assignData.assign_data.evaluations.risk_history.evidence?.length" class="mt-2">
+                                        <div class="text-xs text-[gray]">根拠:</div>
+                                        <ul class="list-disc list-inside text-xs text-[gray]">
+                                            <li v-for="(ev, i) in assignData.assign_data.evaluations.risk_history.evidence" :key="i">{{ ev }}</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 重み配分 -->
+                        <div class="mb-4 text-xs text-[gray]">
+                            <span>重み配分: </span>
+                            <span>必須条件 {{ assignData.assign_data.overall.weights.must_conditions * 100 }}% / </span>
+                            <span>職務適合性 {{ assignData.assign_data.overall.weights.job_fit * 100 }}% / </span>
+                            <span>パフォーマンス {{ assignData.assign_data.overall.weights.performance_history * 100 }}% / </span>
+                            <span>リスク {{ assignData.assign_data.overall.weights.risk_history * 100 }}%</span>
+                        </div>
+
+                        <!-- 注意事項 -->
+                        <div v-if="assignData.assign_data.notes.limitations?.length" class="text-xs text-[gray] border-t border-[var(--formBorder)] pt-3">
+                            <div class="font-medium mb-1">注意事項:</div>
+                            <ul class="list-disc list-inside space-y-1">
+                                <li v-for="(limitation, index) in assignData.assign_data.notes.limitations" :key="index">{{ limitation }}</li>
+                            </ul>
+                        </div>
+                        
+                       <ManagerArea 
+                            v-if="assignData"
+                            :assign-data="assignData" 
+                            @update="emit('update')"
+                        />
+                        <!-- 対応レベル -->
+                        <div class="post-separetor mt-5"><div>人事対応</div></div>  
+                        <div v-if="auth.isAdmin" class="mb-4 p-5 bg-[var(--selected-background)] border border-blue-200 rounded-lg">
+                            
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="font-medium">対応必要性</span>
+                                <select
+                                    @change="updateSupportLevel"
+                                    :disabled="!auth.isAdmin"
+                                    class="px-2 py-1 rounded text-sm font-bold focus:outline-none min-w-[90px] cursor-pointer"
+                                    :class="{
+                                        'bg-green-100 text-green-800 border border-green-200': assignData.support_level === 'green',
+                                        'bg-orange-100 text-orange-800 border border-orange-200': assignData.support_level === 'orange',
+                                        'bg-red-100 text-red-800 border border-red-200': assignData.support_level === 'red',
+                                    }"
+                                >
+                                    <option value="green">対応不要</option>
+                                    <option value="orange">要対応</option>
+                                    <option value="red">要強対応</option>
+                                </select>
+                            </div>
+                            <div>
+                                <span class="text-sm">対応提案:</span>
+                                <ul v-if="assignData.assign_data.support_level?.support_suggestions?.length" class="list-disc list-inside text-[13px] leading-normal text-[gray] mt-1 space-y-1">
+                                    <li v-for="(suggestion, idx) in assignData.assign_data.support_level?.support_suggestions" :key="idx">
+                                        {{ suggestion }}
+                                    </li>
+                                </ul>
+                                <span v-else class="text-xs text-[gray] ml-2">特に提案はありません</span>
+                            </div>
+                            <div class="mb-4">対応履歴（非公開）</div>
+                            <div v-if="assignData.actions?.length" class="my-4">
                                 
-                                <!-- Short Text Type -->
-                                <div v-else-if="item.type === 'shorttext'" class="flex flex-col gap-2">
-                                    <p class="text-[13px] leading-normal w-full mb-2">{{ item.content }}</p>
-                                    <input type="text" v-model="item.answer" class="text-[var(--primary-color)] border border-solid border-[var(--formBorder)] px-3 py-2 text-sm" placeholder="具体的な対応策を入力してください" />
+                                <div class="space-y-4 text-sm">
+                                    <div v-for="message in assignData.actions">
+                                        <div class="bg-[var(--message-background)] w-fit p-4"  v-if="message.action_type === 'message'">
+                                            <div class="flex gap-4 flex-wrap items-center">
+                                                <UserPanel v-if="message.user" :user="message.user" with-name />
+                                                <div class="text-[12px] text-[gray]">{{ DateParser(message.created_at) }}</div>
+                                            </div>
+                                            
+                                            <div v-if="message.action_type === 'message'" class="mt-2">
+                                                <p class="whitespace-pre" v-html="urlCheck(message.content)"></p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div v-else-if="message.action_type === 'support_level_change'" class="mt-2 text-[12px]">
+                                            <p v-if="message.additional_data">
+                                                <span>【{{DateParser(message.created_at)}}】</span>
+                                                <span class="text-[gray]">対応レベルが <span :class="message.additional_data.previous_level.class">{{ message.additional_data.previous_level.label }}</span> から <span :class="message.additional_data.new_level.class">{{ message.additional_data.new_level.label }}</span> に変更されました。</span>
+                                                <span>【{{message.user?.name}}】</span>
+                                            </p>
+                                        </div>
+
+                                        <div v-else-if="message.action_type === 'member_confirmation_items'" class="mt-2 text-[12px]">
+                                            <p>
+                                                <span>【{{DateParser(message.created_at)}}】</span>
+                                                <span class="text-[gray]">本人確認事項を本人へ申請しました（本人共有）。</span>
+                                                <span>【{{message.user?.name}}】</span>
+                                            </p>
+                                            <div class="mt-2 bg-[var(--message-background)] w-fit p-4">
+                                                <p class="whitespace-pre" v-html="urlCheck(message.content)"></p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                
-                                <!-- Long Text Type -->
-                                <div v-else-if="item.type === 'longtext'" class="flex flex-col gap-2">
-                                    <p class="text-[13px] leading-normal w-full mb-2">{{ item.content }}</p>
-                                    <textarea :value="(item.answer as string) || ''" @input="item.answer = ($event.target as HTMLTextAreaElement).value" class="text-[var(--primary-color)] border border-solid border-[var(--formBorder)] px-3 py-2 text-sm" rows="3" placeholder="具体的な対応策を入力してください"></textarea>
+                            </div>
+                            <div class="flex items-end">
+                                <textarea
+                                    v-model="actionText"
+                                    :disabled="!auth.isAdmin"
+                                    class="text-[var(--primary-color)] border border-solid border-[var(--formBorder)] px-3 py-2 text-sm mt-3 w-full"
+                                    rows="4"
+                                    placeholder="具体的な対応策を入力（非公開）"
+                                ></textarea>
+                                <button @click="addAction" class="bg-inherit ml-2">
+                                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="33" viewBox="0 0 43 32" style="margin: auto; fill: var(--third-color);">
+                                        <path d="M40.638 0.087c-1.842 0.361-6.097 1.292-9.435 2.047l-30.046 6.891c-0.419 0.096-0.793 0.374-1.003 0.793-0.364 0.728-0.058 1.585 0.663 2.007 2.578 1.521 10.077 5.56 10.077 5.56 0.287 0.157 0.487 0.439 0.542 0.762 0 0 0.711 4.473 0.921 5.891 0.21 1.417 0.714 4.465 1.184 6.482 0.168 0.726 0.631 1.335 1.215 1.512 0.495 0.152 1.030 0.037 1.43-0.285 1.394-1.128 5.787-5.445 7.388-7.272 0.133-0.152 0.355-0.19 0.531-0.085l6.184 3.646c0 0 0.439 0.294 0.919 0.519 1.283 0.601 2.479 0.625 3.062-0.829 0.325-0.813 4.316-12.627 4.316-12.627l4.466-13.209c0.053-0.152 0.082-0.321 0.082-0.492 0-0.844-0.654-1.675-2.496-1.312zM20.045 24.741c-0.475 0.477-1.473 1.473-2.284 2.197-0.155 0.137-0.385-0.002-0.313-0.195l1.796-4.842c0.051-0.157 0.236-0.226 0.378-0.142l1.796 1.054c0.157 0.091 0.161 0.294 0.041 0.432-0.401 0.458-0.975 1.058-1.413 1.495zM32.151 25.117c-0.106 0.325-0.482 0.47-0.777 0.301l-1.447-0.824-3.554-2.014-7.121-4.024c-0.067-0.037-0.138-0.068-0.214-0.094-0.677-0.232-1.411 0.13-1.64 0.808l-1.944 7.086c-0.053 0.166-0.229 0.143-0.251-0.046-0.13-1.23-0.328-3.178-0.467-4.759-0.13-1.459-0.366-3.357-0.494-4.434-0.111-0.931-0.427-1.423-1.131-1.837-0.704-0.415-6.489-3.354-7.668-4.049-0.241-0.142-0.166-0.415 0.065-0.463 0 0 13.334-2.689 16.022-3.304 2.689-0.617 10.513-2.447 10.513-2.447 0.103-0.025 0.152 0.118 0.056 0.161l-5.127 2.281-2.961 1.459c-0.987 0.487-7.32 3.516-9.259 4.562-0.477 0.258-0.665 0.871-0.373 1.36 0.255 0.429 0.808 0.574 1.265 0.374 2.004-0.882 16.208-7.766 17.651-8.441 0.345-0.162 0.376-0.012 0.287 0.049-0.89 0.615-9.43 6.896-10.25 7.528l-2.448 1.905c-0.432 0.342-0.519 0.976-0.173 1.42 0.335 0.432 0.965 0.497 1.413 0.183 0 0 3.766-2.665 4.603-3.274l5.008-3.66c0 0 5.775-4.365 6.187-4.682 0.166-0.128 0.397 0.033 0.331 0.234l-2.517 7.675-3.585 10.965z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div class="mt-10" v-if="assignData.status === '人事対応中'" >
+                                <div class="post-separetor mt-5"><div>本人確認事項</div></div>
+                                <LongInput v-model="memberConfirmationItems" place-holder="本人に確認事項を入力してください"/>
+                                <div class="flex justify-center gap-5 flex-wrap mt-5 mb-3">
+                                    <LoaderButton style="margin:0" @triggered="applyToMember" :loading="savingAssignData" content="本人へ申請する" /> 
+                                </div>
+                            </div>
+
+                            <div class="mt-10" v-if="assignData.status === '本人取り下げ'" >
+                                <div class="post-separetor mt-5"><div>本人からの回答</div></div>
+                                <div v-if="memberDecision" class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span class="font-bold text-yellow-800">
+                                            {{ memberDecision.decision === 'rejected' ? '申請内容を取り下げました' : '' }}
+                                        </span>
+                                    </div>
+                                    <div v-if="memberDecision.comment" class="text-sm text-yellow-700 whitespace-pre-wrap">
+                                        <span class="font-semibold">取り下げ理由:</span>
+                                        {{ memberDecision.comment }}
+                                    </div>
+                                </div>
+                                <div class="post-separetor mt-5"><div>本人確認事項（修正用）</div></div>
+                                <LongInput v-model="memberConfirmationItems" place-holder="修正内容を入力して再申請してください"/>
+                                <div class="flex justify-center gap-5 flex-wrap mt-5 mb-3">
+                                    <LoaderButton style="margin:0" @triggered="reapplyToMember" :loading="savingAssignData" content="再申請する" /> 
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div>
-                        <LoaderButton @triggered="saveAssignData" :loading="savingAssignData" content="この内容で保存" />
+                        
                     </div>
                 </div>
             </template>
         </Modal>
+        </Transition>   
     </Teleport>
 </template>
 <script setup lang="ts">
-import { ProjectMember } from "@/interface/projectInterface";
+import { ProjectAssignRecord, ProjectMember } from "@/interface/projectInterface";
 import Modal from '@/components/Global/Modal.vue';
 import UserPanel from "@/components/Global/UserPanel.vue";
 import { useProject } from "@/composables/project";
-import { computed, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import { useApi } from "@/composables/api";
 import LoaderButton from "@/components/Global/LoaderButton.vue";
 import AiIcon from "@/components/Icons/AiIcon.vue";
-import { AssignmentFitEvaluationResponse, Decision, Score1to10 } from "@/interface/assign";
+import { Decision, Score1to10 } from "@/interface/assign";
 import { useDialog } from "@/composables/dialog";
 import AiLoader from "@/components/Global/AiLoader.vue";
+import { DateTime } from "luxon";
+import { useAuthUserStore } from "@/store/auth";
+import { DateParser, urlCheck } from "@/utils/tools";
+import ManagerArea from "./ManagerArea.vue";
+import Trash from "@/components/Icons/Trash.vue";
+import LongInput from "@/components/Form/LongInput.vue";
 
 const props = defineProps<{
     member: ProjectMember
+    assignData: ProjectAssignRecord | null
 }>();
 
 const emit = defineEmits<{
     close: [flag:boolean]
+    update: []
 }>();
-
+const auth = useAuthUserStore()
 const { selectedProject, refreshProject } = useProject()
 const selectedRole = ref<number | null>(props.member?.pivot?.role_record?.id || null);
-const asignEvaluationResult = ref<AssignmentFitEvaluationResponse | null>(props.member?.pivot?.assign_data || null);
 const savingAssignData = ref(false);
 const changedAssignData = ref<boolean>(false);
 const safeExit = ref(true)
+const actionText = ref('');
+const removingAssignment = ref(false);
+const memberConfirmationItems = ref('');
+
+
 
 const roles = computed(() => {
     return selectedProject.value?.member_roles || [];
+})
+
+const memberDecision = computed(() => {
+    if (!props.assignData?.actions) return null;
+    const action = props.assignData.actions.find(a => a.action_type === 'member_decision');
+    if (!action) return null;
+    try {
+        return JSON.parse(action.content);
+    } catch {
+        return null;
+    }
 })
 
 const api = useApi()
@@ -237,14 +366,9 @@ const { ask, ping, toast } = useDialog()
 const savingRole = ref(false);
 const loading = ref(false);
 const close = async () => {
-    if (!safeExit.value) {
-        const confirmed = await ask('評価データが保存されていません。本当に閉じますか？')
-        if(confirmed.value) {
-            emit('close', true);
-        }
-    } else {
+    
         emit('close', true);
-    }
+    
 };
 const saveRole = async (event: Event) => {
     const target = event.target as HTMLSelectElement;
@@ -258,11 +382,16 @@ const saveRole = async (event: Event) => {
         toast: '役割を更新しました。',
         loadingRef: savingRole
     });
-    refreshProject()
-    
+    refreshProject()    
 };
 
 const evaluateMember = async () => {
+    if(props.assignData){
+        const reEvaluate = await ask('既に適合評価データがあります。再評価を行うと上書きされますが、よろしいですか？');
+        if(!reEvaluate.value){
+            return;
+        }
+    }
     loading.value = true;
     try {
         const data = await api.post('/evaluate_member', {
@@ -270,9 +399,10 @@ const evaluateMember = async () => {
             user_id: props.member.id,
             role_id: selectedRole.value
         });
-        const parsedData = JSON.parse(data);
-        asignEvaluationResult.value = parsedData;
-        console.log(parsedData);
+        if(data !== null){
+            toast('適合評価が完了しました。');
+            emit('update');
+        }
         // refreshProject();
     } finally {
         loading.value = false;
@@ -281,6 +411,50 @@ const evaluateMember = async () => {
     }
 };
 
+const removeAssignment = async () => {
+    if (!props.assignData) {
+        ping('削除対象の評価データがありません。');
+        return;
+    }
+
+    const confirmed = await ask('この適合評価データを削除しますか？');
+    if (!confirmed.value) {
+        return;
+    }
+
+    try {
+        const res = await api.del(`/delete_assign_record/${props.assignData.id}`, null, {
+            toast: '適合評価データを削除しました。',
+            loadingRef: removingAssignment,
+        });
+
+        if (res !== null) {
+            safeExit.value = true;
+            await refreshProject();
+            emit('update');
+            emit('close', true);
+        }
+    } catch (error) {
+        console.error('Failed to delete assignment record:', error);
+    }
+};
+
+const updateSupportLevel = async (event: Event) => {
+    const target = event.target as HTMLSelectElement;
+    const value = target.value as 'green' | 'orange' | 'red';
+    if(!props.assignData) return;
+    try {
+        await api.post('/update_assign_support_level', {
+            assign_record_id: props.assignData.id,
+            support_level: value
+        }, {
+            toast: '対応必要性を更新しました。'
+        });
+        emit('update');
+    } catch (error) {
+        console.error('Failed to update support level:', error);
+    }
+};
 const getScoreClass = (score: Score1to10): string => {
     if (score >= 8) return 'bg-green-100 text-green-800';
     if (score >= 6) return 'bg-blue-100 text-blue-800';
@@ -303,27 +477,93 @@ const getDecisionClass = (decision: Decision): string => {
     }
 };
 
-const saveAssignData = async () => {
-    if (!asignEvaluationResult.value) return;
-    savingAssignData.value = true;
 
-    console.log('Saving assign data:', asignEvaluationResult.value);
+const addAction = async () => {
+    if(!actionText.value.trim()) {
+        ping('対応策を入力してください。');
+        return;
+    }
+    if(!props.assignData) return;
     try {
-        const res = await api.post('/save_member_assign_data', {
-            project_id: selectedProject.value?.id,
-            user_id: props.member.id,
-            assign_data: asignEvaluationResult.value
+        await api.post('/add_assign_action', {
+            assign_record_id: props.assignData.id,
+            content: actionText.value
         }, {
-            toast: '保存しました。'
+            toast: '保存しました'
         });
-        refreshProject();
-        if(res){
-            toast('保存しました。');
-        }        
-    } finally {
-        savingAssignData.value = false;
-        safeExit.value = true;
-        changedAssignData.value = false;
+        actionText.value = '';
+        emit('update');
+    } catch (error) {
+        console.error('Failed to add action:', error);
+    }
+};
+
+const applyToMember = async () => {
+    if (!props.assignData) return;
+    if (props.assignData.status !== '人事対応中') {
+        ping('現在のステータスでは申請できません。');
+        return;
+    }
+    if (!memberConfirmationItems.value.trim()) {
+        ping('本人に共有する確認事項を入力してください。');
+        return;
+    }
+
+    try {
+        await api.post('/apply_assign_data_to_member', {
+            assign_record_id: props.assignData.id,
+            member_confirmation_items: memberConfirmationItems.value,
+        }, {
+            toast: '本人へ申請しました。',
+            loadingRef: savingAssignData,
+        });
+        memberConfirmationItems.value = '';
+        emit('update');
+    } catch (error) {
+        console.error('Failed to apply assignment to member:', error);
+    }
+};
+
+const reapplyToMember = async () => {
+    if (!props.assignData) return;
+    if (props.assignData.status !== '本人取り下げ') {
+        ping('現在のステータスでは再申請できません。');
+        return;
+    }
+    if (!memberConfirmationItems.value.trim()) {
+        ping('修正内容を入力してください。');
+        return;
+    }
+
+    try {
+        await api.post('/reapply_assign_data_to_member', {
+            assign_record_id: props.assignData.id,
+            member_confirmation_items: memberConfirmationItems.value,
+        }, {
+            toast: '本人へ再申請しました。',
+            loadingRef: savingAssignData,
+        });
+        memberConfirmationItems.value = '';
+        emit('update');
+    } catch (error) {
+        console.error('Failed to reapply assignment to member:', error);
     }
 };
 </script>
+<style scoped>
+.support_green{
+    background-color: rgb(220 252 231);
+    color: rgb(21 128 61);
+    padding: 3px 8px;
+}
+.support_orange{
+    background-color: rgb(255 243 224);
+    color: rgb(194 65 12);
+    padding: 3px 8px;
+}
+.support_red{
+    background-color: rgb(254 226 226);
+    color: rgb(153 27 27);
+    padding: 3px 8px;
+}
+</style>

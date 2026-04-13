@@ -164,6 +164,7 @@ export interface ProjectAssignRecord {
     user_id: number | null;
     created_at: string;
     updated_at: string;
+    confirmed_at?: string | null;
     deleted_at?: string | null;
     created_user?: User | null;
     support_level: 'green' | 'orange' | 'red' | null;

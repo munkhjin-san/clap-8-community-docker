@@ -29,6 +29,12 @@ class ProjectRecord extends Model
         ->withPivot(['project_member_role_id', 'authority', 'assign_data', 'overall_assign_score'])
         ->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.user_code', 'users.work_authority', 'users.position_id', 'users.icon_bg', 'users.general_position', 'users.work_type', 'users.work_time_day'])->withPivot(['authority', 'id', 'compatibility_number', 'review'])->with(['positions:id,name']);
     }
+    public function members_and_managers(){
+        return $this->belongsToMany(User::class, 'project_members', 'project_id', 'user_id')
+        ->using(ProjectMember::class)
+        ->withPivot(['project_member_role_id', 'authority', 'assign_data', 'overall_assign_score'])
+        ->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.user_code', 'users.work_authority', 'users.position_id', 'users.icon_bg', 'users.general_position', 'users.work_type', 'users.work_time_day'])->withPivot(['authority', 'id', 'compatibility_number', 'review'])->with(['positions:id,name']);
+    }
 
     public function director(){
         return $this->hasOne(User::class, 'id', 'director_id')->select('id', 'name', 'icon_path', 'icon_bg');
@@ -58,6 +64,18 @@ class ProjectRecord extends Model
     public function contracts()
     {
         return $this->hasMany(ProjectContract::class)->orderByDesc('updated_at');
+    }
+
+    public function projectAssignRecords()
+    {
+        return $this->hasMany(ProjectAssignRecord::class, 'project_record_id');
+    }
+
+    public function projectAssignStatusHistories()
+    {
+        return $this->hasMany(ProjectAssignStatusHistory::class, 'project_record_id')
+            ->orderByDesc('changed_at')
+            ->orderByDesc('id');
     }
 
     public function memberRoles()

@@ -172,15 +172,37 @@
                 <AddIcon size="15" fill="black"/>
             </template>
         </FloatButton>  
+
+        <FloatButton
+            v-if="auth.isAdmin"
+            class="fixed"
+            title="設定"
+            :order="2"
+            @action="categoryManagerOpen = true"
+        >
+            <template #icon>
+                <Gear fill="black" size="18" />
+            </template>
+        </FloatButton>
         <Teleport to="body">
             <Transition name="modalFade">                
                 <AssetCreate 
                     v-if="openModal" 
                     :edit-data="editData"
                     :all-projects="possibleProjects"
-                    :tagOptions="tagOptions"
+                    :items="categoryItems"
                     :offices="allOffices"
                     @close="closeModal"
+                />
+            </Transition>
+        </Teleport>
+
+        <Teleport to="body">
+            <Transition name="modalFade">
+                <AssetCategoryManager
+                    v-if="categoryManagerOpen"
+                    @close="categoryManagerOpen = false"
+                    @updated="setCategoryItems"
                 />
             </Transition>
         </Teleport>
@@ -200,6 +222,7 @@ import AssetTableHeader from './AssetTableHeader.vue';
 import { Office, User } from '@/interface/globalInterface';
 import AddIcon from '../Form/AddIcon.vue';
 import Back from '../Icons/Back.vue';
+import Gear from '../Icons/Gear.vue';
 import { useApi } from '@/composables/api';
 import LoaderButton from '../Global/LoaderButton.vue';
 import { DateTime } from 'luxon';
@@ -208,10 +231,12 @@ import AssetUserPicker from './AssetUserPicker.vue';
 import { useResponsive } from '@/store/responsive';
 import { useMenuStore } from '@/store/menu';
 import { useRoute } from 'vue-router';
+import AssetCategoryManager from './AssetCategoryManager.vue';
 
 
 const openModal = ref(false)
 const editData = ref<Asset | null>(null)
+const categoryManagerOpen = ref(false)
 const possibleProjects = ref([])
 const loading = ref(false)
 const auth = useAuthUserStore()
@@ -267,6 +292,23 @@ const selectedSearchQuery = ref({
     value: 'gl_number'
 })
 
+type AssetCategoryItemResponse = {
+    id: number
+    type?: 'asset' | 'account' | null
+    title: string
+    required_data: string | null
+    fields?: Array<{
+        id: number
+        key?: string | null
+        label: string | null
+        input_type: 'shorttext' | 'longtext' | 'password'
+        placeholder: string | null
+        rules: string | null
+    }>
+}
+
+const categoryItems = ref<AssetCategoryItemResponse[]>([])
+
 const selectorOptions = computed(() => {
     return {
         office_id: allOffices.value.map(office => ({ name: office.name, value: office.id })),
@@ -293,19 +335,28 @@ const getOptionLabel = (queryKey: string, value: number | string) => {
     const option = options.find((opt: { name: string, value: number | string }) => opt.value === value)
     return option ? option.name : value
 }
-const tagOptions = ref<{title: string, requiredData: string}[]>([
-    {title: "ノートPC", requiredData: "メーカー・OS・バージョン"},
-    {title: "デスクトップ", requiredData: "メーカー・OS・バージョン"},
-    {title: "業務端末（本体）", requiredData: "メーカー"},
-    {title: "SIM", requiredData: "電話番号"},
-    {title: "事務所キー", requiredData: "キー番号"},
-    {title: "ロッカーキー", requiredData: "キー番号"},
-    {title: "ETCカード", requiredData: "カード番号"},
-    {title: "ガソリンカード", requiredData: "カード番号・TFC番号"},
-    {title: "レンタカーカード", requiredData: "カード番号"},
-    {title: "ICカード", requiredData: "カード番号"},
-    {title: "Times Business Card", requiredData: "カード番号"}
-])
+const tagOptions = ref<{title: string, requiredData: string}[]>([])
+
+const placeholderFromItem = (item: AssetCategoryItemResponse, fallback: string) => {
+    const firstNonPassword = item.fields?.find(f => f.input_type !== 'password')
+    return firstNonPassword?.placeholder ?? item.required_data ?? fallback
+}
+
+const setCategoryItems = (next: AssetCategoryItemResponse[]) => {
+    categoryItems.value = next
+
+    // Used only for display labels in detail; keep a single list (no type split)
+    tagOptions.value = next
+        .map(item => ({
+            title: item.title,
+            requiredData: placeholderFromItem(item, '詳細（スペックなど）')
+        }))
+}
+
+const loadAssetCategories = async () => {
+    const data = await api.get('/get_asset_category_items')
+    setCategoryItems((data ?? []) as AssetCategoryItemResponse[])
+}
 const allOffices = ref<Office[]>([])
 const route = useRoute()
 onMounted(() => {
@@ -317,6 +368,7 @@ onMounted(() => {
 })
 const init = async() => {
     await getAssets()
+    await loadAssetCategories()
     await fetchAssetUsers([])
     await getOffices()
     if(route.query.asset_id) {

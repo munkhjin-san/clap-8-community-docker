@@ -20,7 +20,7 @@ import DashboardTimesheet from '@/components/Dashboard/Layout/DashboardTimesheet
 import DashboardNotice from '@/components/Dashboard/Layout/DashboardNotice.vue'
 import DashboardProject from '@/components/Dashboard/Layout/DashboardProject.vue'
 import { useAuthUserStore } from '@/store/auth'
-import { Project } from '@/interface/projectInterface'
+import { Project, ProjectAssignRecord } from '@/interface/projectInterface'
 
 /**
  * Layout type constants
@@ -78,7 +78,7 @@ type DashboardStoreKey =
     | 'timesheet'
     | 'personnelEvaluation'
     | 'notices'
-    | 'pendingProjects'
+    | 'projects'
 
 /**
  * Maps card type to dashboard store collection key
@@ -97,7 +97,7 @@ export const CARD_DATA_KEY_BY_TYPE: Record<string, DashboardStoreKey> = {
     schedules: 'schedules',
     timesheet: 'timesheet',
     notice: 'notices',
-    pendingProjects: 'pendingProjects',
+    projects: 'projects',
 }
 
 /**
@@ -117,7 +117,7 @@ export const CARD_REFRESH_KEYS_BY_TYPE: Record<string, DashboardStoreKey[]> = {
     schedules: ['schedules'],
     timesheet: ['timesheet'],
     notice: ['notices'],
-    pendingProjects: ['pendingProjects'],
+    projects: ['projects'],
 }
 
 /**
@@ -220,11 +220,14 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
     },
     {
         title: 'プロジェクト',
-        type: 'pendingProjects',
+        type: 'projects',
         layout: 'project',
         col: 'col-span-1',
         order: undefined,
-        data: [] as Project[],
+        data: {
+            officer_approval_waiting: [] as Project[],
+            assign_approval_waiting: [] as ProjectAssignRecord[],
+        },
         canFullscreen: false,
         canResize: true,
     },
@@ -298,7 +301,8 @@ export const ADMIN_PERSONNEL_EVALUATION_CARD: DashboardCard = {
     col: 'col-span-1',
     order: undefined,
     data: {
-        pendingEvaluations: [] as any[]
+        pendingEvaluations: [] as any[],
+        pendingAssignments: [] as any[],
     },
     canFullscreen: false,
     canResize: true,
@@ -322,7 +326,7 @@ export function getDefaultDashboardCards(): DashboardCard[] {
  */
 export function shouldShowCard(card: DashboardCard): boolean {
     const { layout, data } = card
-    const shownWithDataCards = ['message', 'task', 'challenge', 'project']
+    const shownWithDataCards = ['message', 'task', 'challenge',]
     // Cards with v-show based on data length
     if (shownWithDataCards.includes(layout)) {
         return Array.isArray(data) && data.length > 0
@@ -331,6 +335,8 @@ export function shouldShowCard(card: DashboardCard): boolean {
     // Schedules card
     if (layout === 'schedules') {
         return (data as any)?.temp_schedules?.length > 0
+    } else if (layout === 'project') {
+        return (data as any)?.officer_approval_waiting?.length > 0 || (data as any)?.assign_approval_waiting?.length > 0
     }
 
     // All other cards show by default

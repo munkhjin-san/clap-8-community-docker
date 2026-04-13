@@ -19,7 +19,8 @@
                     @update:modelValue="update"
                     @update:search="search"
                     :model-value="selectedTag"
-                    :no-filter="true"             
+                    :no-filter="true"     
+                    name="asset-type-picker"        
                     
                 >
                     <template v-slot:chip="{ props, item }">

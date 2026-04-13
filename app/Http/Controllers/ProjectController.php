@@ -31,6 +31,7 @@ use App\Models\ProjectCheckitemCategory;
 use App\Models\ProjectCheckitemTemplate;
 use App\Models\ProjectCheckitems;
 use App\Models\ProjectRecordReadState;
+use App\Models\ProjectAssignRecord;
 use App\Services\Contracts\ContractExtractionService;
 use App\Services\MentionAndNotify;
 use Illuminate\Support\Facades\Mail;
@@ -5589,6 +5590,39 @@ class ProjectController extends Controller
 
         $data = $result->getData();
 
+        $json_result = json_decode($data ?? '{}', true);
+
+
+        $assignRecord = $project->projectAssignRecords()->create([
+            'user_id' => $user->id,
+            'created_user_id' => Auth::id(),
+            'score' => $json_result['overall']['score'] ?? null,
+            'assign_data' => $json_result,
+            'status' => '作成中',
+            'support_level' => $json_result['support_level']['decision'] ?? null,
+        ]);
+        
+        $questions = $json_result['project_manager_check_items'] ?? [];
+        foreach($questions as $index => $question){
+            $block = $assignRecord->questions()->create([
+                'type' => $this->normalizeAssignQuestionType($question['type'] ?? null),
+                'question' => $question['content'] ?? null,
+                'placeholder' => '対応策を入力してください',
+                'is_required' => true,
+                'order_number' => $index,
+            ]);
+
+            $elements = $question['options'] ?? [];
+            foreach($elements as $elementIndex => $element){
+                $block->elements()->create([
+                    'value' => $element ?? '',
+                    'has_sub_text' => false,
+                    'has_sub_text_required' => false,
+                    'is_required' => false,
+                ]);
+            }
+        }
+
         
 
         
@@ -5749,11 +5783,278 @@ class ProjectController extends Controller
 
         return $data;
     }
+    public function get_members_assign_data(Request $request){
+        $request->validate([
+            'project_id' => 'required|integer|exists:project_records,id',
+        ]);
+
+        $project = ProjectRecord::findOrFail($request->project_id);
+        $assignRecords = $project->projectAssignRecords()
+        ->with(['questions.elements', 'questions.answers.element_answers', 'actions.user', 'actions.actualUser'])
+        ->orderBy('created_at', 'desc')
+        ->get();
+        // $members = $project->members_and_managers()->with('pivot')->get();
+
+        
+
+        return response()->json($assignRecords);
+    }
+    public function update_assign_support_level(Request $request){
+        $user = $this->active_user();
+        $request->validate([
+            'assign_record_id' => 'required|integer|exists:project_assign_records,id',
+            'support_level' => 'required|string',
+        ]);
+
+
+        $assignRecord = ProjectAssignRecord::findOrFail($request->assign_record_id);
+        $previous_level = $assignRecord->support_level;
+        $assignRecord->update([
+            'support_level' => $request->support_level,
+        ]);
+        if($previous_level !== $request->support_level){
+            $color_map = [
+                'red' => ['label' => '要強対応', 'color' => '#FF0000', 'class' => 'support_red'],
+                'orange' => ['label' => '要対応', 'color' => '#FFA500', 'class' => 'support_orange'],
+                'green' => ['label' => '対応不要', 'color' => '#00FF00', 'class' => 'support_green'],
+            ];
+            $data = [
+                'previous_level' => [
+                    'value' => $previous_level,
+                    'label' => $color_map[$previous_level]['label'] ?? $previous_level,
+                    'color' => $color_map[$previous_level]['color'] ?? '#000000',
+                    'class' => $color_map[$previous_level]['class'] ?? '',
+                ],
+                'new_level' => [
+                    'value' => $request->support_level,
+                    'label' => $color_map[$request->support_level]['label'] ?? $request->support_level,
+                    'color' => $color_map[$request->support_level]['color'] ?? '#000000',
+                    'class' => $color_map[$request->support_level]['class'] ?? '',
+                ]
+            ];
+            $action = $assignRecord->actions()->create([
+                'additional_data' => $data,
+                'user_id' => $user->id,
+                'actual_user_id' => Auth::id(),
+                'action_type' => 'support_level_change'
+            ]);
+        }
+
+        return response()->json($assignRecord);
+    }
+    public function apply_assign_data_to_hr(Request $request){
+        $request->validate([
+            'assign_record_id' => 'required|integer|exists:project_assign_records,id',
+            'block_answers'    => 'required|array',
+        ]);
+
+        $assignRecord = ProjectAssignRecord::findOrFail($request->assign_record_id);
+
+        foreach($request->block_answers as $blockAnswer){
+            $blockId = $blockAnswer['custom_form_block_id'] ?? null;
+            if(!$blockId) continue;
+
+            /** @var \App\Models\CustomFormBlock|null $block */
+            $block = $assignRecord->questions()->find($blockId);
+            if(!$block) continue;
+
+            $answer = $block->answers()->create([
+                'user_id'    => Auth::id(),
+                'text_answer' => $blockAnswer['text_answer'] ?? null,
+            ]);
+
+            foreach($blockAnswer['element_answers'] ?? [] as $elementAnswer){
+                $answer->element_answers()->create([
+                    'user_id'                      => Auth::id(),
+                    'custom_form_block_element_id' => $elementAnswer['custom_form_block_element_id'] ?? null,
+                    'checked'                      => $elementAnswer['checked'] ?? false,
+                    'sub_text'                     => $elementAnswer['sub_text'] ?? null,
+                ]);
+            }
+        }
+
+        $assignRecord->update([
+            'status' => '人事対応中',
+        ]);
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    public function apply_assign_data_to_member(Request $request)
+    {
+        $request->validate([
+            'assign_record_id' => 'required|integer|exists:project_assign_records,id',
+            'member_confirmation_items' => 'required|string',
+        ]);
+
+        $activeUser = $this->active_user();
+        if (!in_array((int) ($activeUser?->id ?? 0), [608, 610], true)) {
+            return response()->json(['error' => '権限がありません。'], 403);
+        }
+
+        $assignRecord = ProjectAssignRecord::findOrFail($request->assign_record_id);
+
+        if ($assignRecord->status !== '人事対応中') {
+            return response()->json([
+                'error' => '現在のステータスでは申請できません。',
+                'status' => $assignRecord->status,
+            ], 422);
+        }
+
+        $assignRecord->actions()->create([
+            'content' => $request->member_confirmation_items,
+            'actual_user_id' => Auth::id(),
+            'user_id' => $activeUser?->id,
+            'action_type' => 'member_confirmation_items',
+        ]);
+
+        $assignRecord->update([
+            'status' => '本人確認中',
+        ]);
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    public function delete_assign_record(ProjectAssignRecord $assignRecord){
+        $assignRecord->delete();
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    private function normalizeAssignQuestionType($type): ?string
+    {
+        return match ($type) {
+            'shorttext' => 'singletext',
+            'longtext' => 'multitext',
+            default => $type,
+        };
+    }
+
+    private function normalizeAssignQuestionAnswer(?string $type, $answer): ?string
+    {
+        if (in_array($type, ['checkbox'], true)) {
+            return filter_var($answer, FILTER_VALIDATE_BOOLEAN) ? '1' : '0';
+        }
+
+        if (is_null($answer)) {
+            return null;
+        }
+
+        return (string) $answer;
+    }
+
+    public function add_assign_action(Request $request){
+        $user = $this->active_user();
+        $request->validate([
+            'assign_record_id' => 'required|integer|exists:project_assign_records,id',
+            'content' => 'required|string',
+        ]);
+
+        $assignRecord = ProjectAssignRecord::findOrFail($request->assign_record_id);
+        $action = $assignRecord->actions()->create([
+            'content' => $request->content,
+            'actual_user_id' => Auth::id(),
+            'user_id' => $user->id,
+            'action_type' => 'message'
+        ]);
+
+        return response()->json($action);
+    }
     public function clear_project_confirm_badge(){
         $user = $this->active_user();
 
         $data = $this->badgeService->checkItemConfirm($user);
 
         return $data;
+    }
+
+    public function confirm_assign_record(Request $request)
+    {
+        $request->validate([
+            'assign_record_id' => 'required|integer|exists:project_assign_records,id',
+            'decision' => 'required|in:approved,rejected',
+            'member_comment' => 'nullable|string',
+        ]);
+
+        $activeUser = $this->active_user();
+        $assignRecord = ProjectAssignRecord::findOrFail($request->assign_record_id);
+
+        // Guard: member can only confirm their own record
+        if ($assignRecord->user_id !== $activeUser->id) {
+            return response()->json(['error' => '権限がありません。'], 403);
+        }
+
+        // Guard: status must be 本人確認中
+        if ($assignRecord->status !== '本人確認中') {
+            return response()->json([
+                'error' => '現在のステータスでは決定できません。',
+                'status' => $assignRecord->status,
+            ], 422);
+        }
+
+        // Store member decision as ProjectAssignAction
+        $assignRecord->actions()->create([
+            'content' => json_encode([
+                'decision' => $request->decision,
+                'comment' => $request->member_comment ?? '',
+            ]),
+            'actual_user_id' => Auth::id(),
+            'user_id' => $activeUser->id,
+            'action_type' => 'member_decision',
+        ]);
+
+        // Update status based on decision
+        if ($request->decision === 'approved') {
+            $assignRecord->update([
+                'status' => '完了',
+                'confirmed_at' => now(),
+            ]);
+        } else {
+            $assignRecord->update([
+                'status' => '本人取り下げ',
+            ]);
+        }
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    public function reapply_assign_data_to_member(Request $request)
+    {
+        $request->validate([
+            'assign_record_id' => 'required|integer|exists:project_assign_records,id',
+            'member_confirmation_items' => 'required|string',
+        ]);
+
+        $activeUser = $this->active_user();
+        
+        // Guard: admin only (HR)
+        if (!in_array((int) ($activeUser?->id ?? 0), [608, 610], true)) {
+            return response()->json(['error' => '権限がありません。'], 403);
+        }
+
+        $assignRecord = ProjectAssignRecord::findOrFail($request->assign_record_id);
+
+        // Guard: status must be 本人取り下げ
+        if ($assignRecord->status !== '本人取り下げ') {
+            return response()->json([
+                'error' => '現在のステータスでは再申請できません。',
+                'status' => $assignRecord->status,
+            ], 422);
+        }
+
+        // Store re-apply as ProjectAssignAction
+        $assignRecord->actions()->create([
+            'content' => $request->member_confirmation_items,
+            'actual_user_id' => Auth::id(),
+            'user_id' => $activeUser->id,
+            'action_type' => 'member_confirmation_items',
+        ]);
+
+        // Update status back to 本人確認中
+        $assignRecord->update([
+            'status' => '本人確認中',
+        ]);
+
+        return response()->json(['status' => 'ok']);
     }
 }

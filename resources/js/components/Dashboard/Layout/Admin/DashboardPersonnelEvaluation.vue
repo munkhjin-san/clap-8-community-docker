@@ -1,6 +1,6 @@
 <template>
     <BaseLayout
-        :title="'【管理者】人事考課'" 
+        :title="'【管理者】'" 
         :count="0"
         :fullscreen="fullscreen" 
         :type="data.type" 
@@ -9,41 +9,110 @@
         @toggle="(el, title) =>emit('toggle', el, data.type)" 
         @resize="emit('resize', data.type)"
     >
-        <div>
-            <div v-if="data.data.pendingEvaluations.length == 0" class="p-5 text-center">
-                対象の人事評価はありません
-            </div>
-            <div v-else class="p-3 flex flex-col gap-2">  
-                <p class="text-sm mb-3">人事承認待ち{{ data.data.pendingEvaluations.length }}件</p>          
-                <div v-for="(evaluation, index) in data.data.pendingEvaluations" :key="index">
-                    <div class="flex items-center gap-3 mb-2">
-                        <UserPanel :user="evaluation.user" size="30" with-name disable-instant>
-                            <template #details>
-                                <div class="ml-3 mt-1 text-[11px] text-[gray]">メンター：{{ evaluation?.mentor?.name }}</div>
+        <template #default>
+            <div class="m-5">
+                <div v-if="data.data.pendingEvaluations.length" >
+                    <div class="text-[14px] font-bold mb-3">承認待ち人事考課（{{ data.data.pendingEvaluations.length }}）</div>
+                    <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                        <ExpansionPanelItem
+                            selected-class="selected-panel-item"
+                            hide-actions
+                            static
+                            :tile="true"
+                            class="rm-p"
+                            v-for="(record, index) in data.data.pendingEvaluations"
+                            :key="record.id ?? index"
+                            :value="record.id ?? index"
+                            :col="Number(data.col?.split('-')[2] ?? 1)"
+                        >
+                            <template #title="{ expanded }">
+                                <PanelTitle :expanded="expanded">
+                                    <div class="flex items-center gap-3">
+                                        <UserPanel :user="record.user" size="30" with-name disable-instant>
+                                            <template #details>
+                                                <div class="ml-3 mt-1 text-[11px] text-[gray]">メンター：{{ record?.mentor?.name }}</div>
+                                            </template>
+                                        </UserPanel>
+                                    </div>
+                                </PanelTitle>
                             </template>
-                        </UserPanel>
-                        <CommandButton
-                            :buttons="[
-                                {title: '対応', action: () => setDetail(evaluation)}
-                            ]"
+                            <template #body>
+                                <PanelData class="px-4 py-4 pt-0">
+                                    <div>
+                                        <p class="text-sm text-[gray] mb-2">評価期間：{{ record.year }}年 {{ record.which_half === 1 ? '上期' : '下期' }}</p>
+                                        <div class="mt-3 ml-auto w-fit">
+                                            <span @click="setDetail(record)" class="jump-link">対応</span>
+                                        </div>
+                                    </div>
+                                </PanelData>
+                            </template>
+                        </ExpansionPanelItem>
+                    </ExpansionGrid>
+                </div>
+                <div v-else class="text-sm text-[gray] mb-3 text-center">
+                    対象の人事評価はありません
+                </div>
+            
+                <Modal v-if="detailedData" @close="detailedData = null">
+                    <template #title>
+                        <p>{{ `${detailedData?.memberData?.name} ~ ${detailedData?.date?.short_name}` }}</p>
+                    </template>
+                    <template #content>
+                        <EvaluationDetail 
+                            :member-data-remind="detailedData?.memberData" 
+                            :date="detailedData?.date" 
+                            @reload="{emit('refreshData', data.type); detailedData = null}"
                         />
-                    </div>
+                    </template> 
+                </Modal>
+
+
+
+                <div v-if="data.data.pendingAssignments.length" class="mt-5">
+                    <div class="text-[14px] font-bold mb-3">対応待ち適合評価（{{ data.data.pendingAssignments.length }}）</div>
+                    <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                        <ExpansionPanelItem
+                            selected-class="selected-panel-item"
+                            hide-actions
+                            static
+                            :tile="true"
+                            class="rm-p"
+                            v-for="(record, index) in data.data.pendingAssignments"
+                            :key="record.id ?? index"
+                            :value="record.id ?? index"
+                            :col="Number(data.col?.split('-')[2] ?? 1)"
+                        >
+                            <template #title="{ expanded }">
+                                <PanelTitle :expanded="expanded">
+                                    <div class="flex items-center gap-3">
+                                        <UserPanel v-if="record.user" :user="record.user" size="30" with-name disable-instant></UserPanel>
+                                    </div>
+                                </PanelTitle>
+                            </template>
+                            <template #body>
+                                <PanelData class="px-4 py-4 pt-0">
+                                    <div>
+                                        <div>プロジェクト: {{ record.project_record?.name }}</div>
+                                        <div>スコア: {{ record.score }}</div>
+                                        <div>サポートレベル: 
+                                            <span class="p-1 rounded-md" :class="{
+                                                'bg-green-100 text-green-800 border border-green-200': record.support_level === 'green',
+                                                'bg-orange-100 text-orange-800 border border-orange-200': record.support_level === 'orange',
+                                                'bg-red-100 text-red-800 border border-red-200': record.support_level === 'red',
+                                            }">{{ record.support_level ? levelMap[record.support_level] : '' }}</span>
+                                        </div>
+                                        <div class="mt-3 ml-auto w-fit">
+                                            <router-link :to="{name: 'assign-member', params: { projectId: record.project_record?.id, memberId: record.user?.id }}">詳細</router-link>
+                                        </div>
+
+                                    </div>
+                                </PanelData>
+                            </template>
+                        </ExpansionPanelItem>
+                    </ExpansionGrid>
                 </div>
             </div>
-
-        </div>
-        <Modal v-if="detailedData" @close="detailedData = null">
-             <template #title>
-                <p>{{ `${detailedData?.memberData?.name} ~ ${detailedData?.date?.short_name}` }}</p>
-            </template>
-            <template #content>
-                <EvaluationDetail 
-                    :member-data-remind="detailedData?.memberData" 
-                    :date="detailedData?.date" 
-                    @reload="{emit('refreshData', data.type); detailedData = null}"
-                />
-            </template> 
-        </Modal>
+        </template>
     </BaseLayout>
 </template>
 <script setup lang="ts">
@@ -56,20 +125,22 @@ import { User } from '@/interface/globalInterface';
 import { detailedDateOptions } from '@/utils/tools';
 import Modal from '@/components/Global/Modal.vue';
 import EvaluationDetail from '@/components/Project/PersonnelEvaluation/EvaluationDetail.vue';
+import ExpansionGrid from '../../ExpansionGrid.vue';
+import ExpansionPanelItem from '../../ExpansionPanelItem.vue';
+import { DashboardPersonnelEvaluationCard } from '@/interface/dashboard';
+import PanelTitle from '../PanelTitle.vue';
+import PanelData from '../PanelData.vue';
 
 const props = defineProps<{
-    data: {
-        title: string,
-        data: {
-            pendingEvaluations: EvaluationRecord[]
-        }
-        order?: number,
-        type: string
-        canResize?: boolean
-        canFullscreen?: boolean
-    }
+    data: DashboardPersonnelEvaluationCard
     fullscreen: boolean
 }>()
+
+const levelMap = {
+    green: '対応不要',
+    orange: '要対応',
+    red: '要強対応'
+}
 
 const emit = defineEmits<{
     resize: [type: string]

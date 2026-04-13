@@ -2,7 +2,7 @@ import { Asset } from "./assetInterface"
 import { CalendarRecord } from "./calendarInterface"
 import { Message, Task, User } from "./globalInterface"
 import { Post } from "./postInterface"
-import { Project } from "./projectInterface"
+import { Project, ProjectAssignRecord } from "./projectInterface"
 import { Shift } from "./workInterface"
 
 export type UserWithShift = User & {
@@ -39,7 +39,10 @@ export type DashboardOverdueGoalCard = CardBase & {
 }
 export type DashboardProjectCard = CardBase & {
     layout: 'project'
-    data: Project[]
+    data: {
+        officer_approval_waiting: Project[],
+        assign_approval_waiting: ProjectAssignRecord[],
+    }
 }
 export type DashboardChallengeCard = CardBase & {
     layout: 'challenge'
@@ -63,7 +66,8 @@ export type DashboardScheduleCard = CardBase & {
 export type DashboardPersonnelEvaluationCard = CardBase & {
     layout: 'personnelEvaluation'
     data: {
-        pendingEvaluations: any[]
+        pendingEvaluations: any[],
+        pendingAssignments: ProjectAssignRecord[],
     }
 }
 export type DashboardNoticeCard = CardBase & {

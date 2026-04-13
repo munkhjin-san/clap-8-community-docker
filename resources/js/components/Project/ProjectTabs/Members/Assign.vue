@@ -1,8 +1,11 @@
 <template>
-    <div class="w-full h-[calc(100%-75px)] bg-[var(--background-color)]" v-if="selectedProject && hasPrivilage">
+    <div class="w-full h-[calc(100%-75px)] bg-[var(--background-color)] relative" v-if="selectedProject && hasPrivilage">
+        <div class="absolute inset-0 m-auto w-fit h-fit z-[10]" v-if="fetching">
+            <div class="spinner-mini"></div>
+        </div>
         <VueFlow
-            :nodes="rNodes.nodes"
-            :edges="rNodes.edges"
+            v-model:nodes="flowNodes"
+            v-model:edges="flowEdges"
             :default-viewport="{ x: 0, y: 0, zoom: 1 }"
             :min-zoom="1"
             :max-zoom="1"
@@ -25,8 +28,8 @@
                 
                 <!-- Core node handles: top and bottom only -->
                 <template v-if="nodeProps.data.projectData">
-                    <Handle v-for="num in rNodes.topHandleCount" :key="'top-'+num" :id="`source-handle-top-${num}`" type="source" :position="Position.Top" :connectable="true" />
-                    <Handle v-for="num in rNodes.bottomHandleCount" :key="'bottom-'+num" :id="`source-handle-bottom-${num}`" type="source" :position="Position.Bottom" :connectable="true" />
+                    <Handle v-for="num in topHandleCount" :key="'top-'+num" :id="`source-handle-top-${num}`" type="source" :position="Position.Top" :connectable="true" />
+                    <Handle v-for="num in bottomHandleCount" :key="'bottom-'+num" :id="`source-handle-bottom-${num}`" type="source" :position="Position.Bottom" :connectable="true" />
                 </template>
                 <div class="bg-[var(--bg3)] h-full w-full flex items-center justify-center rounded-xl text-[14px] leading-normal" v-if="nodeProps.data.projectData">
                     <div class="px-3 w-[130%] text-center">{{ nodeProps.data.projectData.name }}</div>
@@ -39,111 +42,157 @@
         <component :is="'style'">
         {{ handlePositionStyles }}
         </component>
-        <AsignMember v-if="activeMember" :member="activeMember" @close="activeMemberId = null"/>
+        <div class="bg-[var(--background-color)] absolute bottom-4 border border-solid border-[var(--formBorder)] left-4 z-[10] bg-[var(--background-color)]/95 px-4 py-3 text-xs">
+    
+            <div class="space-y-2 text-[gray]">
+                <div class="flex items-center gap-2">
+                    <span class="legend-line legend-line-dashed"></span>
+                    <span>役割未割当</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="legend-line legend-line-solid"></span>
+                    <span>役割割当済</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="legend-line legend-line-green"></span>
+                    <span>対応不要</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="legend-line legend-line-orange"></span>
+                    <span>要対応</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="legend-line legend-line-red"></span>
+                    <span>要強対応</span>
+                </div>
+            </div>
+        </div>
+        <router-view v-slot="{ Component }">
+        <component 
+            :is="Component"
+            v-if="activeMember" 
+            :member="activeMember" 
+            :assign-data="activeMemberAssignData" 
+            @close="router.back()"
+            @update="fetchMembersAssignData"
+        />
+        </router-view>
     </div>
     <div v-else class="text-center text-[gray] mt-10">権限がありません。</div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { type Node, type Edge, VueFlow, Position, Handle } from '@vue-flow/core';
 import { useProject } from "@/composables/project";
 import UserPanel from "@/components/Global/UserPanel.vue";
-import { ProjectMember } from "@/interface/projectInterface";
-import AsignMember from "./Assign/AssignMember.vue";
+import { ProjectAssignRecord, ProjectMember } from "@/interface/projectInterface";
 import { useAuthUserStore } from "@/store/auth";
+import { useApi } from "@/composables/api";
+import { useRoute, useRouter } from "vue-router";
 const { selectedProject, isManager } = useProject()
-const activeMemberId = ref<number | null>(null);
+const fetching = ref(false);
+const api = useApi()
+const assignDataList = ref<ProjectAssignRecord[]>([])
+const flowNodes = ref<Node[]>([])
+const flowEdges = ref<Edge[]>([])
+const handlePositions = ref<{ handleId: string; leftPx: number }[]>([])
+const topHandleCount = ref(0)
+const bottomHandleCount = ref(0)
+const router = useRouter()
+const route = useRoute()
+onMounted(() => {
+    fetchMembersAssignData()
+})
+
+const fetchMembersAssignData = async () => {
+    if (!selectedProject.value) return;
+    fetching.value = true;
+    try {
+        const response = await api.get('/get_members_assign_data', {           
+            project_id: selectedProject.value.id,            
+        })
+        assignDataList.value = response || [];
+    } catch (error) {
+        console.error("Failed to fetch members for assignment:", error);
+    } finally {
+        fetching.value = false;
+    }
+}
 
 const auth = useAuthUserStore()
 const activeMember = computed(() => {
-    if (!activeMemberId.value) return null;
-    return allMembers.value.find(m => m.id === activeMemberId.value) || null;
+    const memberId = route.params.memberId;
+    if (!memberId) return null;
+    return allMembers.value.find(m => m.id === Number(memberId)) || null;
+})
+
+const activeMemberAssignData = computed(() => {
+    if (!activeMember.value) return [];
+    const list = assignDataList.value.filter(m => m.user_id === activeMember.value?.id);
+    return list && list.length > 0 ? list[0] : null;
 })
 
 const allMembers = computed(() => {
     return [...selectedProject.value?.manager || [], ...selectedProject.value?.members || []];
 })
 
-const rNodes = computed(() => {
-    const nodes: Node[] = [];
-    const edges: Edge[] = [];
-    const members = allMembers.value;
-    const size = 30
-    
-    // Core position and size
-    const coreWidth = 180
-    const coreHeight = 60
-    const coreCenterX = 450
-    const coreCenterY = 270
-    const coreX = coreCenterX - coreWidth / 2
-    const coreY = coreCenterY - coreHeight / 2
-    
-    // Ellipse parameters
-    const ellipseRadiusX = 180 + members.length * 6 // Grow with member count
-    const ellipseRadiusY = 120 + members.length * 5
-    
-    const strokeStyle = {
-        valid: {
-            stroke: "#10B981",
-        },
-        invalid: {            
-            strokeDasharray: "5,5",
-            stroke: "#9CA3AF",            
-        }
-    }
-    
-    // Track members by position (above or below core)
-    const aboveMembers: { member: typeof members[0]; x: number }[] = []
-    const belowMembers: { member: typeof members[0]; x: number }[] = []
+const FLOW = {
+    size: 30,
+    coreWidth: 180,
+    coreHeight: 60,
+    coreCenterX: 450,
+    coreCenterY: 270,
+}
 
-    const labelStyle = {
-        labelBgStyle: { fill: "var(--bg3)", fillOpacity: 1, borderRadius: 4, color: "var(--primary-color)" },                
-        labelBgPadding: [8, 4] as [number, number],
-        labelBgBorderRadius: 4,
-        labelStyle: {
-            fill: 'var(--primary-color)',
-        }
+const strokeStyle = {
+    invalid: {
+        strokeDasharray: "5,5",
+        stroke: "#9CA3AF",
+    },
+}
+
+const labelStyle = {
+    labelBgStyle: { fill: "var(--bg3)", fillOpacity: 1, borderRadius: 4, color: "var(--primary-color)" },
+    labelBgPadding: [8, 4] as [number, number],
+    labelBgBorderRadius: 4,
+    labelStyle: {
+        fill: 'var(--primary-color)',
     }
-    
-    // Distribute members around ellipse
+}
+
+const buildMemberPosition = (index: number, total: number) => {
+    const ellipseRadiusX = 180 + total * 6
+    const ellipseRadiusY = 120 + total * 5
+    const angle = (index / Math.max(total, 1)) * 2 * Math.PI - Math.PI / 2
+
+    return {
+        x: FLOW.coreCenterX + ellipseRadiusX * Math.cos(angle) - FLOW.size / 2,
+        y: FLOW.coreCenterY + ellipseRadiusY * Math.sin(angle) - FLOW.size / 2,
+    }
+}
+
+const syncNodes = () => {
+    const members = allMembers.value
+    const existingNodeEntries: Array<[string, Node]> = flowNodes.value.map((node) => [node.id, node])
+    const existingNodeMap = new Map<string, Node>(existingNodeEntries)
+    const nodes: Node[] = []
+
     members.forEach((member, index) => {
-        // Distribute evenly around the ellipse, starting from top
-        const angle = (index / members.length) * 2 * Math.PI - Math.PI / 2
-        
-        // Add small random offset to angle for organic feel
-        const angleOffset = (Math.random() - 0.5) * 0.3
-        const finalAngle = angle + angleOffset
-        
-        // Calculate position on ellipse
-        const x = coreCenterX + ellipseRadiusX * Math.cos(finalAngle) - size / 2
-        const y = coreCenterY + ellipseRadiusY * Math.sin(finalAngle) - size / 2
-        
-        // Add small random offset for bubble tea effect
-        const xOffset = (Math.random() - 0.5) * 20
-        const yOffset = (Math.random() - 0.5) * 20
-        
-        const finalX = x + xOffset
-        const finalY = y + yOffset
-        
-        // Determine if member is above or below core center
-        const isAbove = finalY + size / 2 < coreCenterY
-        
-        if (isAbove) {
-            aboveMembers.push({ member, x: finalX })
-        } else {
-            belowMembers.push({ member, x: finalX })
-        }
-        
+        const nodeId = `member-${member.id}`
+        const existingNode = existingNodeMap.get(nodeId)
+        const position = existingNode?.position ?? buildMemberPosition(index, members.length)
+        const isAbove = position.y + FLOW.size / 2 < FLOW.coreCenterY
+
         nodes.push({
-            id: `member-${member.id}`,
+            id: nodeId,
             type: "custom",
-            position: { x: finalX, y: finalY },
+            position,
             draggable: true,
             selectable: false,
             style: {
-                width: `${size}px`,
-                height: `${size}px`,
+                width: `${FLOW.size}px`,
+                height: `${FLOW.size}px`,
                 borderRadius: "9999px",
                 background: "#F3F4F6",
                 display: "flex",
@@ -157,97 +206,122 @@ const rNodes = computed(() => {
             }
         })
     })
-    
-    // Sort by x position for handle ordering
-    aboveMembers.sort((a, b) => a.x - b.x)
-    belowMembers.sort((a, b) => a.x - b.x)
-    
-    const core: Node = {
+
+    nodes.push({
         id: "core",
         type: "custom",
-        position: { x: coreX, y: coreY },
+        position: {
+            x: FLOW.coreCenterX - FLOW.coreWidth / 2,
+            y: FLOW.coreCenterY - FLOW.coreHeight / 2,
+        },
         draggable: false,
         selectable: false,
         style: {
-            width: `${coreWidth}px`,
-            height: `${coreHeight}px`,
+            width: `${FLOW.coreWidth}px`,
+            height: `${FLOW.coreHeight}px`,
         },
         data: {
             projectData: selectedProject.value,
         }
-    }
-    
-    // Calculate handle positions (evenly distributed)
-    const handlePositions: { handleId: string; leftPx: number }[] = []
-    
-    // Create edges for above members (top handles)
-    aboveMembers.forEach((item, handleIndex) => {
-        const role = item.member.pivot?.role_record
-        const handleId = `source-handle-top-${handleIndex + 1}`
-        
-        // Evenly distribute handles across core width
-        const leftPx = aboveMembers.length > 1 
-            ? (coreWidth / (aboveMembers.length + 1)) * (handleIndex + 1)
-            : coreWidth / 2
-        
-        handlePositions.push({ handleId, leftPx })
-        
+    })
+
+    flowNodes.value = nodes
+    syncEdges()
+}
+
+const syncEdges = () => {
+    const memberNodes = flowNodes.value.filter((node): node is Node => node.id !== 'core')
+    const assignDataMap = new Map(assignDataList.value.map(assign => [assign.user_id, assign]))
+    const aboveMembers: { member: ProjectMember; x: number }[] = []
+    const belowMembers: { member: ProjectMember; x: number }[] = []
+
+    memberNodes.forEach((node) => {
+        const member = node.data.memberData as ProjectMember | undefined
+        if (!member) return
+
+        const isAbove = node.position.y + FLOW.size / 2 < FLOW.coreCenterY
+        node.data = {
+            ...node.data,
+            isAbove,
+            memberData: member,
+        }
+
+        if (isAbove) {
+            aboveMembers.push({ member, x: node.position.x })
+        } else {
+            belowMembers.push({ member, x: node.position.x })
+        }
+    })
+
+    aboveMembers.sort((a, b) => a.x - b.x)
+    belowMembers.sort((a, b) => a.x - b.x)
+
+    const nextHandlePositions: { handleId: string; leftPx: number }[] = []
+    const edges: Edge[] = []
+
+    const pushEdge = (member: ProjectMember, handleId: string, leftPx: number) => {
+        const memberAssignData = assignDataMap.get(member.id) || null
+        const role = member.pivot?.role_record
+
+        nextHandlePositions.push({ handleId, leftPx })
         edges.push({
-            id: `edge-core-member-${item.member.id}`,
+            id: `edge-core-member-${member.id}`,
             source: "core",
-            target: `member-${item.member.id}`,
+            target: `member-${member.id}`,
             sourceHandle: handleId,
             type: "smoothstep",
-            style: role ? strokeStyle.valid : strokeStyle.invalid,
-            label: role && role.title ? role.title : "",
+            // style: memberAssignData ? { stroke: memberAssignData.support_level || strokeStyle.invalid.stroke } : strokeStyle.invalid,
+            style: {
+                strokeDasharray: role ? undefined : strokeStyle.invalid.strokeDasharray,
+                stroke: role ? (memberAssignData?.support_level || "#D1D5DB") : strokeStyle.invalid.stroke, 
+            },
+            label: role?.title || "",
             ...labelStyle
         })
-    })
-    
-    // Create edges for below members (bottom handles)
-    belowMembers.forEach((item, handleIndex) => {
-        const role = item.member.pivot?.role_record
-        const handleId = `source-handle-bottom-${handleIndex + 1}`
-        
-        // Evenly distribute handles across core width
-        const leftPx = belowMembers.length > 1 
-            ? (coreWidth / (belowMembers.length + 1)) * (handleIndex + 1)
-            : coreWidth / 2
-        
-        handlePositions.push({ handleId, leftPx })
-        
-        edges.push({
-            id: `edge-core-member-${item.member.id}`,
-            source: "core",
-            target: `member-${item.member.id}`,
-            sourceHandle: handleId,
-            type: "smoothstep",
-            style: role ? strokeStyle.valid : strokeStyle.invalid,
-            label: role && role.title ? role.title : "",
-            ...labelStyle
-        })
-    })
-    
-    nodes.push(core)
-    return {
-        nodes, 
-        edges, 
-        handlePositions,
-        topHandleCount: aboveMembers.length,
-        bottomHandleCount: belowMembers.length,
     }
-})
+
+    aboveMembers.forEach((item, index) => {
+        const handleId = `source-handle-top-${index + 1}`
+        const leftPx = aboveMembers.length > 1
+            ? (FLOW.coreWidth / (aboveMembers.length + 1)) * (index + 1)
+            : FLOW.coreWidth / 2
+
+        pushEdge(item.member, handleId, leftPx)
+    })
+
+    belowMembers.forEach((item, index) => {
+        const handleId = `source-handle-bottom-${index + 1}`
+        const leftPx = belowMembers.length > 1
+            ? (FLOW.coreWidth / (belowMembers.length + 1)) * (index + 1)
+            : FLOW.coreWidth / 2
+
+        pushEdge(item.member, handleId, leftPx)
+    })
+
+    handlePositions.value = nextHandlePositions
+    topHandleCount.value = aboveMembers.length
+    bottomHandleCount.value = belowMembers.length
+    flowEdges.value = edges
+}
+
+watch([allMembers, selectedProject], () => {
+    syncNodes()
+}, { immediate: true })
+
+watch(assignDataList, () => {
+    syncEdges()
+}, { deep: true })
+
 const hasPrivilage = computed(() => { 
 
-    return auth.isBoss || auth.isAdmin || isManager.value
+    return auth.isBoss || auth.isAdmin || isManager.value || auth.isPM
 })
 
 
 const handlePositionStyles = computed(() => {
     const styles: string[] = []
-    const { handlePositions } = rNodes.value
-    
-    handlePositions.forEach(({ handleId, leftPx }) => {
+
+    handlePositions.value.forEach(({ handleId, leftPx }) => {
         styles.push(`
             .vue-flow__handle[data-handleid=${handleId}] {
                 left: ${leftPx}px;
@@ -262,8 +336,9 @@ const handlePositionStyles = computed(() => {
 
 
 const userSelect = (member: ProjectMember) => {
-    console.log("Selected member:", member)
-    activeMemberId.value = member.id;
+    // console.log("Selected member:", member)
+    // activeMemberId.value = member.id;
+    router.push({ name: 'assign-member', params: { memberId: member.id } })
 }
 </script>
 
@@ -276,5 +351,35 @@ const userSelect = (member: ProjectMember) => {
 /* Optional: hide selection outlines / handles if any appear */
 .vueflow .vue-flow__node.selected {
   box-shadow: none !important;
+}
+
+.legend-line {
+  display: inline-block;
+  width: 28px;
+  border-top: 2px solid #9ca3af;
+  flex-shrink: 0;
+}
+
+.legend-line-dashed {
+  border-top-style: dashed;
+}
+
+.legend-line-solid {
+  border-top-style: solid;
+}
+
+.legend-line-green {
+  border-top-style: solid;
+  border-top-color: green;
+}
+
+.legend-line-orange {
+  border-top-style: solid;
+  border-top-color: orange;
+}
+
+.legend-line-red {
+  border-top-style: solid;
+  border-top-color: red;
 }
 </style>

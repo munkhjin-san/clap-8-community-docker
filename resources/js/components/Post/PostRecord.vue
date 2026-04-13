@@ -207,7 +207,7 @@
                         <span class="comment-count leading-none" v-if="record.comments_count">{{ record.comments_count }}</span>
                         </div>
                     </div>
-                    <ClapButton @updateClap="setClap" :item="record" :appName="appName"/> 
+                    <ClapButton v-if="clapButtonView" @updateClap="setClap" :item="record" :appName="appName"/> 
                 </div>
 
             </div>
@@ -339,6 +339,9 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
             }           
         }  
     })  
+    const clapButtonView = computed(() => {
+        return props.record.created_at && DateTime.fromISO(props.record.created_at) > DateTime.fromISO('2026-04-12') ? false : true
+    })
     const showAll = (type: string) => {
         const item = truncated.value.find(t => t.type === type)
         if (item) item.expand = !item.expand        

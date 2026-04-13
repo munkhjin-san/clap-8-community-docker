@@ -42,4 +42,14 @@ class AssetRecord extends Model
     {
         return $this->hasMany(AssetConfirmLog::class, 'asset_record_id')->with(['files', 'user']);
     }
+
+    public function category_item()
+    {
+        return $this->belongsTo(AssetCategoryItem::class, 'asset_category_item_id');
+    }
+
+    public function field_values()
+    {
+        return $this->hasMany(AssetRecordFieldValue::class, 'asset_record_id')->with('field');
+    }
 }

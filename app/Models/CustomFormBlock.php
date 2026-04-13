@@ -25,6 +25,11 @@ class CustomFormBlock extends Model
         return $this->hasMany(SurveyBlockAnswer::class);
     }
 
+    public function projectAssignRecord()
+    {
+        return $this->belongsTo(ProjectAssignRecord::class, 'project_assign_record_id');
+    }
+
     public function checkitemCategories()
     {
         return $this->belongsToMany(

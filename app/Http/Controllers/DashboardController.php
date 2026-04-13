@@ -11,6 +11,7 @@ use App\Models\CustomForm;
 use App\Models\User;
 use App\Models\EvaluationRecord;
 use App\Models\ProjectGoal;
+use App\Models\ProjectAssignRecord;
 use Carbon\Carbon;
 use App\Models\ProjectRecord;
 use App\Models\CalendarRecord;
@@ -87,11 +88,11 @@ class DashboardController extends Controller
         return $tasks['untouchedTasks'];
     }
 
-    public function pendingProjects()
+    public function projects()
     {
         $activeUser = $this->active_user();
         
-        return match (true) {
+        $officer_approval_waiting = match (true) {
             in_array($activeUser->id, [608, 610], true) => ProjectRecord::select('id', 'status', 'name', 'contract_started_at', 'category', 'date_start', 'date_end')
             ->whereIn('status', [
                 'pending_director',
@@ -114,6 +115,24 @@ class DashboardController extends Controller
 
             default => collect(),
         };
+
+        $assign_approval_waiting = ProjectAssignRecord::where('user_id', $activeUser->id)
+            ->where('status', '本人確認中')
+            ->whereNull('confirmed_at')
+            ->select('id', 'project_record_id', 'status', 'created_at', 'updated_at', 'confirmed_at') // make sure to include confirmed_at for the frontend to know it's pending
+            ->with([
+                'projectRecord:id,name,date_start,date_end,category',
+                'projectRecord.manager:users.id,users.name',
+                'questions.elements',
+                'questions.answers.element_answers',
+                'actions' => fn($q) => $q->where('action_type', 'member_confirmation_items'),
+            ])
+            ->get();
+        
+        return [
+            'officer_approval_waiting' => $officer_approval_waiting,
+            'assign_approval_waiting' => $assign_approval_waiting,
+        ];
     }
 
     public function forms() {
@@ -647,8 +666,15 @@ class DashboardController extends Controller
             ->where('created_at', '>', Carbon::now()->subMonths(3))
             ->with('user.positions', 'checklist', 'candidate', 'mentor')
             ->get();
+
+        $assigns = ProjectAssignRecord::where('status', '人事対応中')
+            ->whereNull('confirmed_at')
+            ->with(['user.positions', 'projectRecord' => fn($query) => $query->select(['id', 'name']), 'createdUser'])
+            ->select('id', 'user_id', 'project_record_id', 'status', 'created_at', 'updated_at', 'confirmed_at', 'score', 'support_level')
+            ->get();
         return [
-            'pendingEvaluations' => $evaluations
+            'pendingEvaluations' => $evaluations,
+            'pendingAssignments' => $assigns,
         ];
     }
     private function getAdminMembers() {
