@@ -1,7 +1,7 @@
 <template>
     <Modal size="large" @close="emit('close')">
         <template #title>
-            <p>カテゴリ管理</p>
+            <p>物品名管理</p>
         </template>
 
         <template #content>

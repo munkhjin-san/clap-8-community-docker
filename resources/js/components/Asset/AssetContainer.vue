@@ -55,7 +55,8 @@
 
                         
                     </div>    
-                    <div v-if="auth.isAdmin" class="flex justify-end ml-auto mr-[20px]">
+                    <div v-if="auth.isAdmin" class="flex justify-end ml-auto gap-5 flex-wrap">
+                        <LoaderButton content="物品名設定" style="margin: 0" :loading="false" @triggered="categoryManagerOpen = true"/>
                         <LoaderButton content="CSV出力" style="margin: 0" :loading="exporting" @triggered="exportCSV"/>
                     </div>                
                 </div>
@@ -173,7 +174,7 @@
             </template>
         </FloatButton>  
 
-        <FloatButton
+        <!-- <FloatButton
             v-if="auth.isAdmin"
             class="fixed"
             title="設定"
@@ -183,7 +184,7 @@
             <template #icon>
                 <Gear fill="black" size="18" />
             </template>
-        </FloatButton>
+        </FloatButton> -->
         <Teleport to="body">
             <Transition name="modalFade">                
                 <AssetCreate 
