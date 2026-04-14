@@ -56,7 +56,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
 import { storeToRefs } from 'pinia';
 import { Project, ProjectGoal } from '@/interface/projectInterface';
 import MonthlyGoalItem from './MonthlyGoalItem.vue';
-import { computed, onMounted, ref, useTemplateRef } from 'vue';
+import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import MonthlyGoalMoreDetail from './MonthlyGoalMoreDetail.vue';
 import MonthlyGoalCreate from './MonthlyGoalCreate.vue';
@@ -92,7 +92,6 @@ const createWindow = ref(false)
 const searching = ref(false)
 const scrollParentLocal = useTemplateRef('scrollParentLocal')
 onMounted(() => {   
-
     if(activeProjectId.value && activeSpan.value && activeUser.value){
         const [ year, span ] = activeSpan.value.split('-') 
         if(year && span){
@@ -145,6 +144,15 @@ const deny = () => {
     ping('権限がありません。')
 }
 
-
+watch(() => route.query.span, (newVal) => {
+    if(newVal && activeUser.value){
+        const [ year, span ] = String(newVal).split('-') 
+        if(year && span){
+            getGoals(activeUser.value , Number(year), span)
+        }        
+    }else {
+        getGoals(activeUser.value!, Number(activeSpan.value?.split('-')[0]), activeSpan.value?.split('-')[1]!)
+    }
+})
 
 </script>
