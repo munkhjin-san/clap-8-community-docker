@@ -168,7 +168,7 @@ const fetchExam = async() => {
 
 const goBack = () => {
     validate.value = true
-    if (!complete.value) return
+    if (!complete.value && !examPassed.value) return
     router.push({name: 'basic', params: {lessonThemeId: route.params.lessonThemeId}})
 }
 
