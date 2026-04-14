@@ -5604,6 +5604,7 @@ class ProjectController extends Controller
             'assign_data' => $json_result,
             'status' => '作成中',
             'support_level' => $json_result['support_level']['decision'] ?? null,
+            'project_member_role_id' => $role->id,
         ]);
         
         $questions = $json_result['project_manager_check_items'] ?? [];
@@ -5813,9 +5814,7 @@ class ProjectController extends Controller
 
         $assignRecord = ProjectAssignRecord::findOrFail($request->assign_record_id);
         $previous_level = $assignRecord->support_level;
-        $assignRecord->update([
-            'support_level' => $request->support_level,
-        ]);
+        
         if($previous_level !== $request->support_level){
             $color_map = [
                 'red' => ['label' => '要強対応', 'color' => '#FF0000', 'class' => 'support_red'],
@@ -5843,7 +5842,9 @@ class ProjectController extends Controller
                 'action_type' => 'support_level_change'
             ]);
         }
-
+        $assignRecord->update([
+            'support_level' => $request->support_level,
+        ]);
         return response()->json($assignRecord);
     }
     public function apply_assign_data_to_hr(Request $request){
@@ -5998,10 +5999,10 @@ class ProjectController extends Controller
 
         // Store member decision as ProjectAssignAction
         $assignRecord->actions()->create([
-            'content' => json_encode([
+            'additional_data' => [
                 'decision' => $request->decision,
                 'comment' => $request->member_comment ?? '',
-            ]),
+            ],
             'actual_user_id' => Auth::id(),
             'user_id' => $activeUser->id,
             'action_type' => 'member_decision',

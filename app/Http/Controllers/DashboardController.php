@@ -119,12 +119,13 @@ class DashboardController extends Controller
         $assign_approval_waiting = ProjectAssignRecord::where('user_id', $activeUser->id)
             ->where('status', '本人確認中')
             ->whereNull('confirmed_at')
-            ->select('id', 'project_record_id', 'status', 'created_at', 'updated_at', 'confirmed_at') // make sure to include confirmed_at for the frontend to know it's pending
+            ->select('id', 'project_record_id','project_member_role_id', 'status', 'created_at', 'updated_at', 'confirmed_at') // make sure to include confirmed_at for the frontend to know it's pending
             ->with([
                 'projectRecord:id,name,date_start,date_end,category',
                 'projectRecord.manager:users.id,users.name',
                 'questions.elements',
                 'questions.answers.element_answers',
+                'projectMemberRole:id,title,description', // Include the project member role relationship
                 'actions' => fn($q) => $q->where('action_type', 'member_confirmation_items'),
             ])
             ->get();
@@ -667,7 +668,7 @@ class DashboardController extends Controller
             ->with('user.positions', 'checklist', 'candidate', 'mentor')
             ->get();
 
-        $assigns = ProjectAssignRecord::where('status', '人事対応中')
+        $assigns = ProjectAssignRecord::whereIn('status', ['人事対応中', '本人取り下げ'])
             ->whereNull('confirmed_at')
             ->with(['user.positions', 'projectRecord' => fn($query) => $query->select(['id', 'name']), 'createdUser'])
             ->select('id', 'user_id', 'project_record_id', 'status', 'created_at', 'updated_at', 'confirmed_at', 'score', 'support_level')

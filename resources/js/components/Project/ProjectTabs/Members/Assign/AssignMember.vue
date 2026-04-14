@@ -220,11 +220,11 @@
                             <div class="mb-4">対応履歴（非公開）</div>
                             <div v-if="assignData.actions?.length" class="my-4">
                                 
-                                <div class="space-y-4 text-sm">
+                                <div class="space-y-9 text-sm">
                                     <div v-for="message in assignData.actions">
-                                        <div class="bg-[var(--message-background)] w-fit p-4"  v-if="message.action_type === 'message'">
+                                        <div class="bg-[var(--message-background)] p-4"  v-if="message.action_type === 'message'">
                                             <div class="flex gap-4 flex-wrap items-center">
-                                                <UserPanel v-if="message.user" :user="message.user" with-name />
+                                                <UserPanel size="20" v-if="message.user" :user="message.user" with-name />
                                                 <div class="text-[12px] text-[gray]">{{ DateParser(message.created_at) }}</div>
                                             </div>
                                             
@@ -241,15 +241,42 @@
                                             </p>
                                         </div>
 
-                                        <div v-else-if="message.action_type === 'member_confirmation_items'" class="mt-2 text-[12px]">
+                                        <div v-else-if="message.action_type === 'member_confirmation_items'" class="mt-2 text-[12px] bg-[var(--message-background)] p-4">
                                             <p>
                                                 <span>【{{DateParser(message.created_at)}}】</span>
                                                 <span class="text-[gray]">本人確認事項を本人へ申請しました（本人共有）。</span>
                                                 <span>【{{message.user?.name}}】</span>
                                             </p>
-                                            <div class="mt-2 bg-[var(--message-background)] w-fit p-4">
+                                            <div class="mt-2 ">
                                                 <p class="whitespace-pre" v-html="urlCheck(message.content)"></p>
                                             </div>
+                                        </div>
+                                        <div v-else-if="message.action_type === 'member_decision'">
+                                            <div v-if="message.additional_data.decision == 'rejected'" class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                                                <div class="mb-2 text-[gray] text-[12px]">{{DateParser(message.created_at)}}</div>
+                                                <div class="flex items-center gap-3 mb-2">
+                                                    <span class="font-bold text-yellow-800">
+                                                        {{ message.additional_data.decision == 'rejected' ? '申請内容を取り下げました' : '' }}
+                                                    </span>
+                                                </div>
+                                                <div v-if="message.additional_data.comment" class="text-sm text-yellow-700 whitespace-pre-wrap">
+                                                    <span class="font-semibold">取り下げ理由:</span>
+                                                    {{ message.additional_data.comment }}
+                                                </div>
+                                            </div> 
+                                            <div v-else-if="message.additional_data.decision == 'approved'" class="mb-6 p-4 bg-green-50 border border-green-200 rounded">
+                                                <div class="mb-2 text-[gray] text-[12px]">{{DateParser(message.created_at)}}</div>
+                                                <div class="flex items-center gap-3 mb-2">
+                                                    <span class="font-bold text-green-800">
+                                                        {{ message.additional_data.decision == 'approved' ? '本人が申請内容を承認しました' : '' }}
+                                                    </span>
+                                                </div>
+                                                <div v-if="message.additional_data.comment" class="text-sm text-green-700 whitespace-pre-wrap">
+                                                    <span class="font-semibold">本人コメント:</span>
+                                                    {{ message.additional_data.comment }}
+                                                </div>
+                                            </div>
+
                                         </div>
                                     </div>
                                 </div>
@@ -278,8 +305,8 @@
                             </div>
 
                             <div class="mt-10" v-if="assignData.status === '本人取り下げ'" >
-                                <div class="post-separetor mt-5"><div>本人からの回答</div></div>
-                                <div v-if="memberDecision" class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
+                                <!-- <div class="post-separetor mt-5"><div>本人からの回答</div></div>
+                                <div v-if="memberDecisions.length" class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
                                     <div class="flex items-center gap-3 mb-2">
                                         <span class="font-bold text-yellow-800">
                                             {{ memberDecision.decision === 'rejected' ? '申請内容を取り下げました' : '' }}
@@ -289,7 +316,7 @@
                                         <span class="font-semibold">取り下げ理由:</span>
                                         {{ memberDecision.comment }}
                                     </div>
-                                </div>
+                                </div> -->
                                 <div class="post-separetor mt-5"><div>本人確認事項（修正用）</div></div>
                                 <LongInput v-model="memberConfirmationItems" place-holder="修正内容を入力して再申請してください"/>
                                 <div class="flex justify-center gap-5 flex-wrap mt-5 mb-3">
@@ -350,15 +377,16 @@ const roles = computed(() => {
     return selectedProject.value?.member_roles || [];
 })
 
-const memberDecision = computed(() => {
-    if (!props.assignData?.actions) return null;
-    const action = props.assignData.actions.find(a => a.action_type === 'member_decision');
-    if (!action) return null;
-    try {
-        return JSON.parse(action.content);
-    } catch {
-        return null;
-    }
+const memberDecisions = computed(() => {
+    return props.assignData?.actions?.filter(a => a.action_type === 'member_decision') || [];
+    // if (!props.assignData?.actions) return null;
+    // const action = props.assignData.actions.find(a => a.action_type === 'member_decision');
+    // if (!action) return null;
+    // try {
+    //     return JSON.parse(action.content);
+    // } catch {
+    //     return null;
+    // }
 })
 
 const api = useApi()

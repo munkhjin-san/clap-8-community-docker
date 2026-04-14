@@ -44,6 +44,10 @@ class ProjectAssignRecord extends Model
             ->orderBy('order_number')
             ->orderBy('id');
     }
+    public function projectMemberRole()
+    {
+        return $this->belongsTo(ProjectMemberRole::class);
+    }
 
     /**
      * Get the actions for this assign record.

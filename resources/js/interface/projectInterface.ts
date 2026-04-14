@@ -173,6 +173,7 @@ export interface ProjectAssignRecord {
     status_histories?: ProjectAssignStatusHistory[];
     questions?: CustomFormBlock[];
     actions?: ProjectAssignAction[];
+    project_member_role?: MemberRole | null;
 }
 
 export interface ProjectAssignStatusHistory {
@@ -203,10 +204,7 @@ export interface ProjectAssignAction {
     updated_at: string;
     user?: User | null;
     action_type: string | null;
-    additional_data?: {
-        previous_level: ProjectAssignActionAdditionalLevel;
-        new_level: ProjectAssignActionAdditionalLevel;
-    };
+    additional_data?: any;
 }
 
 export type ProjectCheckItem = {
