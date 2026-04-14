@@ -132,8 +132,8 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
             return diffInDays > 7;
         })
 
-        const needed = (goalsStore.requiredGoalData?.this_span?.needed_count || 0) + (goalsStore.requiredGoalData?.previous_span?.needed_count || 0)
-        return overdueGoals.length + needed + collection.value.timesheet.pendingAttendance ? 1 : 0
+        const needed = (goalsStore.requiredGoalData?.this_span?.needed_count || 0) + (goalsStore.requiredGoalData?.previous_span?.needed_count || 0) + (goalsStore.unfinishedPreviousSpanGoals.length ?? 0)
+        return overdueGoals.length + needed + collection.value.timesheet.pendingAttendance 
     })
     const getAnnualLeaveData = async () => {
         try {

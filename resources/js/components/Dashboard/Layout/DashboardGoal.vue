@@ -117,6 +117,53 @@
                             </ExpansionPanelItem>
                         </ExpansionGrid>
                     </div>
+
+
+                    <div v-if="unfinishedPreviousSpanGoals.length" class="mt-6">
+                        <div class="flex text-sm my-2 flex-wrap gap-2 items-center">
+                            <p class="ml-auto text-[12px] text-[gray]">期間：{{ unfinishedPreviousSpanGoals[0]?.year }}年{{ unfinishedPreviousSpanGoals[0]?.which_half == 'first' ? '上期' : '下期' }}</p>
+                        </div>                        
+                        <ExpansionGrid class="gap-x-4" :col="Number(data.col.split('-')[2] ?? 1)">
+                            <ExpansionPanelItem
+                                hide-actions
+                                static
+                                :tile="true"
+                                class="rm-p"
+                                v-for="goal in unfinishedPreviousSpanGoals"
+                                :key="goal.id"
+                                :value="goal.id"
+                            >
+                                <template #title="{ expanded }">
+                                    <PanelTitle :expanded="expanded">
+                                        <div class="flex items-center h-full text-[13px] leading-normal overflow-hidden whitespace-nowrap">
+                                            <div class="mr-1 ml-[-5px]" v-if="goal.status === 9">
+                                                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="13" viewBox="0 0 38 32" style="fill: rgb(100, 188, 68);; margin-left: 4px;">
+                                                    <path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path>
+                                                </svg>
+                                            </div>
+                                            <div v-if="goalIsOverWeek(goal)" class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
+                                            <div class="overflow-hidden whitespace-nowrap text-ellipsis">{{ goal.title || goal.outcome_goal }}</div>
+                                            <div class="flex items-center gap-1 ml-2">
+                                                <div v-if="goal.user_id == auth.activeUser.id && (goal.status == 1 || goal.status == 8 || goal?.salary_issue?.status == 1 || goal?.salary_issue?.status == 8)" class="text-[11px] bg-[tomato] text-[white] px-1 rounded-full">差戻中</div>
+                                                <div class="relative flex" v-if="goal?.goal_notifications_count || goal?.salary_issue?.issue_notifications_count">
+                                
+                                                    <svg fill="orange" xmlns="http://www.w3.org/2000/svg" height="18" viewBox="0 0 30.88051 24.9735">
+                                                    <path d="M30.72814,8.8769c-.14532-.82959-.40253-1.64972-.77496-2.4184-.37347-.76801-.86078-1.48114-1.43018-2.11041-.56958-.63019-1.21985-1.17505-1.91077-1.64008-.69165-.46552-1.42749-.84625-2.17938-1.16577-1.5072-.63647-3.08105-1.02167-4.65607-1.25201C18.1997.06067,16.61914-.02142,15.04528.00464c-1.57648.02826-3.16119.16687-4.73059.47339-1.56677.30853-3.12598.77979-4.58923,1.52222-.73016.37158-1.43451.81073-2.08917,1.32697-.65393.51624-1.25677,1.11188-1.7735,1.78302-.51813.66943-.9433,1.41797-1.25366,2.21051-.31232.7923-.4989,1.63013-.57269,2.46863-.03809.41821-.04175.84344-.03156,1.24939.01123.41052.04254.82294.0976,1.23492.11224.82324.32281,1.6463.65656,2.427.33209.7807.78845,1.51337,1.34021,2.15607.55261.64252,1.19427,1.19592,1.88171,1.6568,1.37878.92578,2.68457,1.41705,4.21594,1.83752,1.40436.38562,3.01337.61237,4.42383.68085.11499.00562.22223.05609.29999.14099.35828.39093.73218.8374,1.12903,1.18121.52246.45294,1.09735.87909,1.70001,1.23297.59595.34991,1.21814.62427,1.8606.87347.67725.2442,1.7251.4682,2.2804.51007.54651.0412.61255-.37128.435-.73407s-.21918-.43036-.29242-.58905c-.07404-.16064-.14563-.32257-.21429-.48541-.13745-.3255-.26355-.65436-.37738-.98267-.09088-.26556-.22833-.73004-.30035-1.09607-.02545-.12921.06171-.25269.19214-.27081,1.26611-.17621,2.52991-.42755,3.77478-.80463.76044-.23096,1.51337-.50958,2.24554-.85553.73206-.34485,1.44232-.76208,2.10303-1.26599.65881-.50543,1.26453-1.10352,1.7677-1.78918.25061-.34308.4754-.70667.67157-1.0849.19421-.37921.35907-.77295.49432-1.17499.26868-.80518.41492-1.64044.46771-2.46826.05145-.82404.01685-1.66162-.12994-2.49219Z" />
+                                                    </svg>
+                                                    <div class="text-[white] absolute top-0 left-0 right-0 text-[10px] w-fit mx-auto">{{ (goal?.goal_notifications_count ?? 0) + (goal?.salary_issue?.issue_notifications_count ?? 0) }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </PanelTitle>
+                                </template>
+                                <template #body>
+                                    <PanelData>
+                                        <MonthlyGoalItemCompact :goal="goal" />
+                                    </PanelData>
+                                </template>
+                            </ExpansionPanelItem>
+                        </ExpansionGrid>
+                    </div>
                     <div v-else class="text-center text-sm text-[gray] py-3">
                         成果目標が設定されていません。
                     </div>
@@ -205,7 +252,7 @@ const emit = defineEmits<{
 }>()
 
 const goalsStore = useDashboardGoalsStore()
-const {totalOverallScore, loading, pendingMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals, requiredGoalData } = storeToRefs(goalsStore)
+const {totalOverallScore, loading, pendingMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals, requiredGoalData, unfinishedPreviousSpanGoals } = storeToRefs(goalsStore)
 const { getGoals } = goalsStore
 
 const auth = useAuthUserStore()

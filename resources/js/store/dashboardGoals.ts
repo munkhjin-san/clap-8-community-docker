@@ -18,6 +18,7 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
     // State
     const goals = ref<ProjectGoal[]>([])
     const myGoals = ref<ProjectGoal[]>([])
+    const unfinishedPreviousSpanGoals = ref<ProjectGoal[]>([])
     const pendingMembers = ref<UserWithGoals[]>([])
     const managersGoals = ref<UserWithGoals[]>([])
     const adminApprovalNeededGoalsWithSalaryIssue = ref<UserWithGoals[]>([])
@@ -77,6 +78,7 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
             adminApprovalNeededGoalsWithSalaryIssue.value = data.admin_approval_needed_goals_with_salary_issue ?? []
             mentorApprovalNeededGoalsWithSalaryIssue.value = data.mentor_approval_needed_goals_with_salary_issue ?? []
             adminApprovalNeededGoals.value = data.admin_approval_needed_goals ?? []
+            unfinishedPreviousSpanGoals.value = data.unfinished_previous_span_goals ?? []
             requiredGoalData.value = data.goal_required_data ?? null
         } finally {
             loading.value = false
@@ -196,7 +198,7 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
             return diffInDays > 7;
         })
 
-        const needed = (requiredGoalData.value?.this_span?.needed_count || 0) + (requiredGoalData.value?.previous_span?.needed_count || 0)
+        const needed = (requiredGoalData.value?.this_span?.needed_count || 0) + (requiredGoalData.value?.previous_span?.needed_count || 0) + (unfinishedPreviousSpanGoals.value.length || 0)
         return overdueGoals.length + needed
     })
     const normalBadgeCount = computed(() => {
@@ -225,6 +227,7 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         // State
         goals,
         myGoals,
+        unfinishedPreviousSpanGoals,
         pendingMembers,
         managersGoals,
         adminApprovalNeededGoalsWithSalaryIssue,

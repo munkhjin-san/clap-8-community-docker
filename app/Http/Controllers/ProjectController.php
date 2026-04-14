@@ -498,6 +498,9 @@ class ProjectController extends Controller
         }
 
         $project_goals = $this->goalLoader($user->id, $target_user_id, $year, $which_half);
+        $previous_span_goals = $this->goalLoader($user->id, $target_user_id, $goal_required_data['previous_span']['year'], $goal_required_data['previous_span']['half']);
+        $unfinished_previous_span_goals = collect($previous_span_goals)->where('status', '!=', 9);
+
         $my_goals = $target_user_id == $user->id ? $project_goals : $this->goalLoader($user->id, $user->id, $year, $which_half);
 
         $evalutaionRecord = EvaluationRecord::where('year', $year)
@@ -511,6 +514,7 @@ class ProjectController extends Controller
             'evaluation' => $evalutaionRecord,
             'members_goals' => $members_goals,
             'my_goals' => $my_goals,
+            'unfinished_previous_span_goals' => $unfinished_previous_span_goals->values()->all(),
             'managers_goals' => $managers_goals,
             'mentor_approval_needed_goals_with_salary_issue' => $mentor_approval_needed_goals_with_salary_issue,
             'admin_approval_needed_goals_with_salary_issue' => $admin_approval_needed_goals_with_salary_issue,
