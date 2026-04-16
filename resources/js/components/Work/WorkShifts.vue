@@ -525,11 +525,17 @@ import { useDashboardStore } from '@/store/dashboard';
                 if(type_id == 3 && existingShift.type == 3){
                     remainingDays.value++
                 }
+                if(type_id == 27 && existingShift.type == 27){
+                    remainingSpecialHoliday.value++
+                }
             }
         } else {
             selectedShifts.value.push({date: date.day_full, type: type_id, status_flag: status_flag, planned_year: type_id === 3 ? plannedLeaveTargetYear.value : shiftYear.value});
             if(val && type_id == 3){
                 remainingDays.value--
+            }
+            if (val && type_id == 27){
+                remainingSpecialHoliday.value--
             }
             if(type_id == 3){
                 const previousPeriodStart = DateTime.fromISO(tempStartDate.value).minus({ years: 1 });
