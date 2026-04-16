@@ -5813,9 +5813,9 @@ class ProjectController extends Controller
         
         if($previous_level !== $request->support_level){
             $color_map = [
-                'red' => ['label' => '要強対応', 'color' => '#FF0000', 'class' => 'support_red'],
-                'orange' => ['label' => '要対応', 'color' => '#FFA500', 'class' => 'support_orange'],
-                'green' => ['label' => '対応不要', 'color' => '#00FF00', 'class' => 'support_green'],
+                'red' => ['label' => '重点対応', 'color' => '#FF0000', 'class' => 'support_red'],
+                'orange' => ['label' => '通常対応', 'color' => '#FFA500', 'class' => 'support_orange'],
+                'green' => ['label' => '対応完了', 'color' => '#00FF00', 'class' => 'support_green'],
             ];
             $data = [
                 'previous_level' => [

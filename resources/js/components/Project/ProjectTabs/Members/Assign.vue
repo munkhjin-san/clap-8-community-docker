@@ -6,9 +6,9 @@
         <div class="px-5 relative z-[5]">
             <div>
                 <p class="text-[12px] text-[gray] leading-normal">適合評価を開始するには、メンバーアイコンをクリックしてメンバーを選択してください。<br>
-                プロジェクメンバーでないユーザーを追加したい場合は、「ノンメンバーを追加」から可能です。
+                プロジェクメンバーでないユーザーを追加したい場合は、「アサインメンバー選択」から可能です。
                 </p>
-                <button class="mt-4 text-[12px] px-2 py-1 bg-[var(--bg3)]" @click.stop="selectNonMember">ノンメンバーを追加</button>
+                <button class="mt-4 text-[12px] px-2 py-1 bg-[var(--bg3)]" @click.stop="selectNonMember">アサインメンバー選択</button>
             </div>
             <Transition name="slidePop">
                 <div @click.stop @touchstart.stop id="p-user-pick" v-if="menu.parent == 'p-user-pick'" class="max-w-[80vw] left-[20px] absolute top-full w-max max-h-[400px] bg-[var(--background-color)] border border-solid border-[var(--secondary-background)] shadow-lg rounded-md overflow-auto z-[4]">
@@ -90,19 +90,19 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="legend-line legend-line-dashed"></span>
-                    <span>ノンメンバー</span>
+                    <span>メンバーでないユーザー</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="legend-line legend-line-green"></span>
-                    <span>対応不要</span>
+                    <span>対応完了</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="legend-line legend-line-orange"></span>
-                    <span>要対応</span>
+                    <span>通常対応</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="legend-line legend-line-red"></span>
-                    <span>要強対応</span>
+                    <span>重点対応</span>
                 </div>
             </div>
         </div>

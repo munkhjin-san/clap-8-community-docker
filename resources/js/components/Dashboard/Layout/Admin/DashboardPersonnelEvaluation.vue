@@ -137,9 +137,9 @@ const props = defineProps<{
 }>()
 
 const levelMap = {
-    green: '対応不要',
-    orange: '要対応',
-    red: '要強対応'
+    green: '対応完了',
+    orange: '通常対応',
+    red: '重点対応'
 }
 
 const emit = defineEmits<{

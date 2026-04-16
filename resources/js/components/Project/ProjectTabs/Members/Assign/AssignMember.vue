@@ -213,9 +213,9 @@
                                         'bg-red-100 text-red-800 border border-red-200': assignData.support_level === 'red',
                                     }"
                                 >
-                                    <option value="green">対応不要</option>
-                                    <option value="orange">要対応</option>
-                                    <option value="red">要強対応</option>
+                                    <option value="green">対応完了</option>
+                                    <option value="orange">通常対応</option>
+                                    <option value="red">重点対応</option>
                                 </select>
                             </div>
                             <div>
