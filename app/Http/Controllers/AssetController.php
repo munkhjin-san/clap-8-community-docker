@@ -611,11 +611,6 @@ class AssetController extends Controller
     {
         $assets = $this->get_assets($request);
         $assets = $assets->getData();
-        $classification = [
-            1 => "資産", 
-            2 => "消耗品" ,
-            3 => "重要資産" 
-        ];
         $statuses = [
             1 => "使用中" ,
             2 => "返却" ,
@@ -625,29 +620,65 @@ class AssetController extends Controller
             6 => "故障" 
         ];
         $currentYear = now()->year;
-        $rawData = collect($assets)->map(function ($asset) use ($classification, $statuses, $currentYear) {
+
+        // Collect all distinct field labels (non-password) across all category items,
+        // preserving first-seen order so columns are stable.
+        $dynamicLabels = \App\Models\AssetCategoryItemField::query()
+            ->where('input_type', '!=', 'password')
+            ->whereNotNull('label')
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->pluck('label')
+            ->unique()
+            ->values()
+            ->toArray();
+
+        $rawData = collect($assets)->map(function ($asset) use ($statuses, $currentYear, $dynamicLabels) {
             
             $gl_number = 'GL' . str_pad($asset->id, 5, '0', STR_PAD_LEFT);
-            $confirmCondition = '';
             $confirmedThisYear = collect($asset->confirm_logs ?? [])->filter(function ($log) use ($currentYear) {
                 return date('Y', strtotime($log->created_at)) == $currentYear;
             });
-            
-            return [
+
+            // Build a map of label -> value from this asset's dynamic field_values (non-password only).
+            // When multiple fields share the same label, join non-empty values with ' / '.
+            $labelValueMap = [];
+            foreach ($asset->field_values ?? [] as $fv) {
+                $fieldLabel = $fv->field->label ?? null;
+                $inputType  = $fv->field->input_type ?? null;
+                if (!$fieldLabel || $inputType === 'password') {
+                    continue;
+                }
+                $val = $fv->value ?? '';
+                if (isset($labelValueMap[$fieldLabel]) && $labelValueMap[$fieldLabel] !== '') {
+                    if ($val !== '') {
+                        $labelValueMap[$fieldLabel] .= ' / ' . $val;
+                    }
+                } else {
+                    $labelValueMap[$fieldLabel] = $val;
+                }
+            }
+
+            $row = [
                 "GL番号" => $gl_number,
                 "品名" => $asset->item_name,
-                "詳細" => $asset->model_number,
-                "使用者" => $asset->external_user ?? $asset->current_user?->name,
-                "責任者" => $asset->current_user?->name,
-                "ステータス" => $statuses[$asset->status] ?? null,
-                "使用場所" => $asset->current_office?->name,
-                "確認状況" => $confirmedThisYear->isEmpty() ? "未確認" : "確認済み",
-                "確認者" => $confirmedThisYear->first()?->user?->name ?? null,
-                "確認日時" => $confirmedThisYear->first() ? date('Y-m-d H:i', strtotime($confirmedThisYear->first()->created_at)) : null,
             ];
+
+            foreach ($dynamicLabels as $label) {
+                $row[$label] = $labelValueMap[$label] ?? null;
+            }
+
+            $row["使用者"]   = $asset->external_user ?? $asset->current_user?->name;
+            $row["責任者"]   = $asset->current_user?->name;
+            $row["ステータス"] = $statuses[$asset->status] ?? null;
+            $row["使用場所"] = $asset->current_office?->name;
+            $row["確認状況"] = $confirmedThisYear->isEmpty() ? "未確認" : "確認済み";
+            $row["確認者"]   = $confirmedThisYear->first()?->user?->name ?? null;
+            $row["確認日時"] = $confirmedThisYear->first() ? date('Y-m-d H:i', strtotime($confirmedThisYear->first()->created_at)) : null;
+
+            return $row;
         })->toArray();
         return Excel::download(new AssetData($rawData), 'user_data.xlsx');
-        // return response()->json($rawData);
     }
     public function get_asset_users(Request $request) 
     {
