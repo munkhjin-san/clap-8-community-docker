@@ -138,6 +138,14 @@
                             <span>{{ attendanceData.comp_holiday + '日' }}</span>
                         </div>
                     </div>
+                    <div class="attendance-row" v-if="isPrivilegedPosition">
+                        <div class="attendance-title">
+                            <span>特別休暇</span>
+                        </div>
+                        <div class="attendance-value">
+                            <span>{{ attendanceData.special_holiday + '日' }}</span>
+                        </div>
+                    </div>
                     <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
                             <span>残業</span>
@@ -269,7 +277,7 @@ import { useDashboardStore } from '@/store/dashboard';
             return '今月の勤怠を確定する'
         }
     })
-
+    const isPrivilegedPosition = computed(() => ['C', 'D', 'E', 'F', 'G'].includes(attendanceData.value.user.general_position))
     const deleteAttendance = async() => {
         const date = dateInstance.value.toFormat('yyyy-MM')
         const params = {
@@ -380,33 +388,9 @@ import { useDashboardStore } from '@/store/dashboard';
             result = await ask(`${monthFormat.value}は当月の勤怠です。勤怠を確定してもよろしいですか？`)
         }
         if (!result.value) return
-        const workTime = attendanceData.value.user.position_id !== 15 ? attendanceData.value.should_work : attendanceData.value.planned_work
         const params = {
             date_year_month: yearMonth,
-            user: attendanceData.value.user,
-            shift_working_hours: workTime,
-            shift_working_days: attendanceData.value.shift_count,
-            worked_days: attendanceData.value.workedday_count,
-            holiday_worked_days: attendanceData.value.holiday_count,
-            annual_leave: attendanceData.value.annual_leave/60,
-            condolence_leave: attendanceData.value.condolence_leave,
-            transfer_leave: attendanceData.value.transfer_leave,
-            oda_leave: attendanceData.value.oda_leave,
-            worked_hours: attendanceData.value.worked_time,
-            worked_hours_no_over_time: noOverTimeHours.value,
-            over_time: attendanceData.value.month_over_time,
-            night_work_time: attendanceData.value.night_over_time,
-            stay_pay: attendanceData.value.month_stay_allowance_count,
-            move_pay: attendanceData.value.month_move_allowance_count,
-            waiting_pay: attendanceData.value.month_waiting_allowance_count,
-            vehicle_pay: attendanceData.value.month_vehicle_allowance_count,
-            special_commute_pay: attendanceData.value.month_special_commute_allowance_count,
-            remote_personal_pay: attendanceData.value.month_remote_personal_allowance_count,
-            remote_company_pay: attendanceData.value.month_remote_company_allowance_count,
-            expenses: attendanceData.value.annual_costs,
-            incentive: attendanceData.value.annual_incentives,
-            mileage: attendanceData.value.mileage,
-            training_time: attendanceData.value.month_training_minutes
+            user_id: props.usersCheckArray,
         }
  
         sending.value = true

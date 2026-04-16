@@ -69,7 +69,7 @@
                                 >
                                 <span class="work-check-mark" style="top: 13px;"></span>
                                 <div class="left-panel-items selector-row-copy" style="width: auto; padding: 5px 0; margin: 0; user-select: none; cursor: pointer; background: inherit;">
-                                    <p class="userName overflow-hidden text-ellipsis" style="line-height: 30px; margin-left: 0;">{{ group.name }}</p>
+                                    <p class="userName overflow-hidden text-ellipsis max-w-[250px]" style="line-height: 30px; margin-left: 0;">{{ group.name }}</p>
                                 </div>
                             </label>
                             <template v-if="selectedGroups.includes(group.id)">

@@ -251,29 +251,17 @@ class ProjectController extends Controller
         }
         return response()->json($projects);
     }
-    public function requiredGoalData()
+    public function requiredGoalData(int $year, string $which_half)
     {
         $active_user = $this->active_user();
         $userId = $active_user->id;
 
-        $now = Carbon::now();
-
-        $fiscalYear = $now->month >= 4 ? $now->year : $now->year - 1;
-
-        $firstStart = Carbon::create($fiscalYear, 4, 1)->startOfDay();
-        $firstEnd   = Carbon::create($fiscalYear, 9, 30)->endOfDay();
-
-        $current_half = $now->between($firstStart, $firstEnd) ? 'first' : 'second';
-        $previous_half = $current_half === 'first' ? 'second' : 'first';
-        $previous_year = $current_half === 'first' ? $fiscalYear - 1 : $fiscalYear;
-        // dd([
-        //     "this_span" =>  "$fiscalYear-$current_half",
-        //     "previous_span" => "$previous_year-$previous_half",
-        // ]);
-
+        $previous_half = $which_half === 'first' ? 'second' : 'first';
+        $previous_year = $which_half === 'first' ? $year - 1 : $year;
+    
         $thisEvaluation = EvaluationRecord::where('user_id', $userId)
-            ->where('year', $fiscalYear)
-            ->where('which_half', $current_half)
+            ->where('year', $year)
+            ->where('which_half', $which_half)
             ->first();
 
         $previousEvaluation = EvaluationRecord::where('user_id', $userId)
@@ -288,8 +276,8 @@ class ProjectController extends Controller
         $data = [
             'user' => $active_user->only('id', 'name', 'icon_path', 'icon_bg', 'position_id'),
             'this_span' => [
-                'year' => $fiscalYear,
-                'half' => $current_half,
+                'year' => $year,
+                'half' => $which_half,
                 'total_slots' => $thisSpanTotal,
                 'created_count' => 0,
                 'needed_count' => 0,
@@ -315,8 +303,8 @@ class ProjectController extends Controller
             ->count();
         $thisGoalsCount = $goalsQuery->clone()
             ->where('status', '>', 0)
-            ->where('year', $fiscalYear)
-            ->where('which_half', $current_half)
+            ->where('year', $year)
+            ->where('which_half', $which_half)
             ->count();
 
         $data['this_span']['created_count'] = $thisGoalsCount;
@@ -423,7 +411,7 @@ class ProjectController extends Controller
 
         $admin_approval_needed_goals = [];
 
-        $goal_required_data = $this->requiredGoalData();
+        $goal_required_data = $this->requiredGoalData($year, $which_half);
 
         if($is_mentor){
             $mentor_approval_needed_goals_with_salary_issue = User::whereNot('id', $user->id)
@@ -433,7 +421,7 @@ class ProjectController extends Controller
                     $q->whereIn('status', [2, 7])->whereHas('evaluation', function ($subQuery) use ($user) {
                         $subQuery->where('mentor_id', $user->id);
                     });
-                })->select('id', 'user_id', 'status', 'year', 'which_half');
+                })->select('id', 'user_id', 'status', 'year', 'which_half', 'end_date');
             }])
             ->whereHas('outcome_goals', function ($q) use ($user) {
                 $q->whereHas('salaryIssue', function ($q) use ($user){                
@@ -448,7 +436,7 @@ class ProjectController extends Controller
             ->with(['outcome_goals' => function ($q) use ($user) {
                 $q->whereHas('salaryIssue', function ($q) use ($user){                
                     $q->whereIn('status', [3, 4, 9]);
-                })->select('id', 'user_id', 'status', 'year', 'which_half');
+                })->select('id', 'user_id', 'status', 'year', 'which_half', 'end_date');
             }])
             ->whereHas('outcome_goals', function ($q) use ($user) {
                 $q->whereHas('salaryIssue', function ($q) use ($user){                
@@ -457,7 +445,7 @@ class ProjectController extends Controller
             })->get();
 
             $admin_approval_needed_goals = User::select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
-            ->with(['outcome_goals' => fn ($q) => $q->whereIn('status', [3, 4])->select('id', 'user_id', 'status', 'year', 'which_half')])
+            ->with(['outcome_goals' => fn ($q) => $q->whereIn('status', [3, 4])->select('id', 'user_id', 'status', 'year', 'which_half', 'end_date')])
             ->whereHas('outcome_goals', function ($q) use ($user) {
                 $q->whereIn('status', [3, 4]);
             })->get();
@@ -478,7 +466,7 @@ class ProjectController extends Controller
                 ->whereHas('project.members', function ($memberQuery) {
                     $memberQuery->whereColumn('users.id', 'project_goals.user_id');
                 })
-            ->select('id', 'user_id', 'status', 'year', 'which_half')])->get();
+            ->select('id', 'user_id', 'status', 'year', 'which_half', 'end_date')])->get();
         }
         if($is_boss){
             
@@ -494,7 +482,7 @@ class ProjectController extends Controller
                 ->whereDoesntHave('project.members', function ($memberQuery) {
                     $memberQuery->whereColumn('users.id', 'project_goals.user_id');
                 })
-                ->select('id', 'user_id', 'status', 'year', 'which_half')])->get();
+                ->select('id', 'user_id', 'status', 'year', 'which_half', 'end_date')])->get();
         }
 
         $project_goals = $this->goalLoader($user->id, $target_user_id, $year, $which_half);

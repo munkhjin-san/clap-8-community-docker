@@ -11,6 +11,7 @@ use Illuminate\Queue\SerializesModels;
 use App\Models\timecardCostRecord;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\File;
 
 class RemoveFile implements ShouldQueue
 {
@@ -52,6 +53,34 @@ class RemoveFile implements ShouldQueue
             $unused_files = timecardCostRecord::where('deleted_at', '<=', $line)->onlyTrashed()->get();
             foreach($unused_files as $file){           
                 Storage::disk('local')->delete("timecard_files/{$file->file_path}");        
+            }
+        } else if ($this->type == 'timecard_orphaned') {
+            $directory = 'timecard_files';
+            $disk = Storage::disk('local');
+
+            if (!$disk->exists($directory)) {
+                return;
+            }
+
+            $thresholdTimestamp = now()->subDays(7)->timestamp;
+            $attachedFilePaths = timecardCostRecord::withTrashed()
+                ->whereNotNull('file_path')
+                ->pluck('file_path')
+                ->filter()
+                ->all();
+            $attachedLookup = array_fill_keys($attachedFilePaths, true);
+            $files = $disk->files($directory);
+
+            foreach ($files as $file) {
+                $relativePath = File::basename($file);
+                if (isset($attachedLookup[$relativePath])) {
+                    continue;
+                }
+
+                $fileTimestamp = $disk->lastModified($file);
+                if ($fileTimestamp <= $thresholdTimestamp) {
+                    $disk->delete($file);
+                }
             }
         }
     }

@@ -332,7 +332,7 @@
                                     </div>
                                 </div>
 
-                                <div class="legal-review-panel__preview-frame legal-review-panel__preview-frame--text">
+                                <div class="legal-review-panel__preview-frame legal-review-panel__preview-frame--text" v-if="currentDocumentIndex || currentTextIndexLoading">
                                     <ContractRiskReviewView
                                         v-if="currentDocumentIndex"
                                         :document-index="currentDocumentIndex"

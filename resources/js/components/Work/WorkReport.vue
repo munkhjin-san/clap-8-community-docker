@@ -7,7 +7,7 @@
             <div class="report-wrapper" style="background:inherit;">
                 <div class="report-field" id="timesheetProjectSelect">
                     <p class="report-header">プロジェクト</p>
-                    <select class="optionPicker" style="max-width: 100%;" v-model="todayWorkGroup">
+                    <select class="optionPicker" style="max-width: 100%;" v-model="todayWorkGroup" :disabled="isLocked">
                         <option v-for="group in workGroupAsOptions" :value="group.id">{{ group.name }}</option>
                     </select>
                 </div>
@@ -15,15 +15,15 @@
                     <!-- <p class="report-header">出席タイプ</p> -->
                     <div class="report-input">
                         <div class="report-input-wrapper">
-                            <input id="attendanceWorkOnly" name="attendanceMode" type="radio" v-model="attendanceMode" value="work_only">
+                            <input id="attendanceWorkOnly" name="attendanceMode" type="radio" v-model="attendanceMode" value="work_only" :disabled="isLocked">
                             <label for="attendanceWorkOnly">就業</label>
                         </div>
                         <div class="report-input-wrapper">
-                            <input id="attendanceWorkTraining" name="attendanceMode" type="radio" v-model="attendanceMode" value="work_and_training">
+                            <input id="attendanceWorkTraining" name="attendanceMode" type="radio" v-model="attendanceMode" value="work_and_training" :disabled="isLocked">
                             <label for="attendanceWorkTraining">就業 + 研修</label>
                         </div>
                         <div class="report-input-wrapper">
-                            <input id="attendanceTrainingOnly" name="attendanceMode" type="radio" v-model="attendanceMode" value="training_only">
+                            <input id="attendanceTrainingOnly" name="attendanceMode" type="radio" v-model="attendanceMode" value="training_only" :disabled="isLocked">
                             <label for="attendanceTrainingOnly">研修</label>
                         </div>
                     </div>
@@ -33,11 +33,11 @@
                     
                     <div class="report-input-time">
                         <div>
-                            <input name="workStartTime" class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="editStartTime" step="900">
+                            <input name="workStartTime" class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="editStartTime" step="900" :disabled="isLocked">
                         </div>
                         <div class="between-line">～</div>
                         <div>
-                            <input name="workEndTime" class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="editEndTime" step="900">
+                            <input name="workEndTime" class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="editEndTime" step="900" :disabled="isLocked">
                         </div>
                     </div>
                     <div v-if="shift?.overtime_request" style="font-size: 12px;line-height:1.5">
@@ -48,18 +48,18 @@
                     <p class="report-header">研修時間</p>
                     <div class="report-input-time">
                         <div>
-                            <input name="trainingStartTime" class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="trainingStartTime" step="900">
+                            <input name="trainingStartTime" class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="trainingStartTime" step="900" :disabled="isLocked">
                         </div>
                         <div class="between-line">～</div>
                         <div>
-                            <input name="trainingEndTime" class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="trainingEndTime" step="900">
+                            <input name="trainingEndTime" class="taskDateTimePicker" :class="{'clock-color' : theme.dark == true }" type="time" v-model="trainingEndTime" step="900" :disabled="isLocked">
                         </div>
                     </div>
                 </div>
                 <div v-if="includesWorkHours" class="report-field">
                     <p class="report-header">休憩時間</p>
                     <div class="report-input">
-                        <select class="optionPicker" v-model="breakTimeSelect" name="breakTimeSelect">
+                        <select class="optionPicker" v-model="breakTimeSelect" name="breakTimeSelect" :disabled="isLocked">
                             <option :key="index" v-for="(item , index) in breakTimeOptions" :value="item.value">{{ item.label }}</option>
                         </select>
                     </div>
@@ -73,11 +73,30 @@
                         v-model:department="cost.department"
                         v-model:content="cost.content"
                         v-model:type="cost.type"
+                        v-model:transport_type="cost.transport_type"
+                        v-model:departure_place="cost.departure_place"
+                        v-model:arrival_place="cost.arrival_place"
                         v-model:expenses="cost.expenses"
                         v-model:file_path="cost.file_path"
+                        v-model:draft_uuid="cost.draft_uuid"
+                        v-model:merchant_name="cost.merchant_name"
+                        v-model:receipt_date="cost.receipt_date"
+                        v-model:currency="cost.currency"
+                        v-model:receipt_source_type="cost.receipt_source_type"
+                        v-model:file_original_name="cost.file_original_name"
+                        v-model:file_mime_type="cost.file_mime_type"
+                        v-model:file_size_bytes="cost.file_size_bytes"
+                        v-model:file_sha256="cost.file_sha256"
+                        v-model:file_uploaded_at="cost.file_uploaded_at"
+                        v-model:ocr_run_id="cost.ocr_run_id"
+                        v-model:ocr_applied_fields="cost.ocr_applied_fields"
                         :workGroupAsOptions="workGroupAsOptions.map(ob => ob.name)"
                         :fieldIndex="index"
                         :isRegistered="item.position_id === 15"
+                        :subjectUserId="props.item?.user_id"
+                        :timecardRecordId="timeCard?.id"
+                        :timecardCostRecordId="cost.id"
+                        :locked="isLocked"
                         @addCostField="addCostField"
                         @removeCostField="removeCostField"
                         @removeFile="removeFile"
@@ -87,11 +106,11 @@
                 <div class="report-field !mb-[35px]">
                     <p class="report-header !mb-4">マイカーの走行距離（往復）</p>
                     <div class="flex gap-4 items-center flex-wrap">
-                        <select class="optionPicker" style="max-width: 100%;" v-model="car_used_project">
+                        <select class="optionPicker" style="max-width: 100%;" v-model="car_used_project" :disabled="isLocked">
                             <option v-for="group in workGroupAsOptions" :value="group.id">{{ group.name }}</option>
                         </select>
                         <div class="relative w-fit">
-                            <input type="number" style="padding: 0px 40px 0 10px;height: 38px;border: 1px solid var(--primary-color);color: var(--primary-color);max-width: 100px;" name="work-mileage" v-model="car_mileage" min="0">
+                            <input type="number" style="padding: 0px 40px 0 10px;height: 38px;border: 1px solid var(--primary-color);color: var(--primary-color);max-width: 100px;" name="work-mileage" v-model="car_mileage" min="0" :disabled="isLocked">
                             <span data-v-73d35938="" style="position: absolute; height: 100%; top: 0px; right: 5px; line-height: 38px;">km</span>
                         </div>
                     </div>
@@ -113,6 +132,7 @@
                                 type="number"
                                 style="padding: 0px 10px; height:38px; width: 100px; border:1px solid var(--primary-color); color:var(--primary-color);"
                                 v-model.number="row.value"
+                                :disabled="isLocked"
                             />
                         </div>
 
@@ -149,8 +169,11 @@
                     ref="customFieldRef"
                 />              
                 <div id="saveButton" class="si-box" style="display: flex; justify-content: center; gap: 20px;">
-                    <LoaderButton style="margin: 0" :loading="loading[0]" content="一時保存" @triggered="saveTimeCard(0)" />
-                    <LoaderButton style="margin: 0" :loading="loading[1]" content="申請する" @triggered="saveTimeCard(1)" />
+                    <template v-if="!isLocked">
+                        <LoaderButton style="margin: 0" :loading="loading[0]" content="一時保存" @triggered="saveTimeCard(0)" />
+                        <LoaderButton style="margin: 0" :loading="loading[1]" content="申請する" @triggered="saveTimeCard(1)" />
+                    </template>
+                    <p v-else style="margin: 0; font-size: 13px;">承認済みの日報は編集できません。</p>
                 </div>
             </div>
         </template>
@@ -162,7 +185,6 @@ import LoaderButton from '../Global/LoaderButton.vue';
 import { useTheme } from '@/store/theme';
 import CustomField from './CustomField.vue'
 import CostField from './CostField.vue';
-import IncentiveField from './IncentiveField.vue'
 import { useAuthUserStore } from '../../store/auth';
 import Modal from '../Global/Modal.vue';
 import { DateTime } from 'luxon';
@@ -203,6 +225,7 @@ import { useTour } from '@/composables/useTour';
     const timeCard = computed(() => {
         return props.item?.time_card
     })
+    const isLocked = computed(() => timeCard.value?.status_flag === 2)
     const vehicleData = ref(timeCard.value?.vehicle_data ? timeCard.value.vehicle_data : {
         vehicle: null,
         alcohol_before_time: null,
@@ -278,7 +301,54 @@ import { useTour } from '@/composables/useTour';
     })
     const hasTraining = ref(timeCard.value ? (timeCard.value.training_start_time ? 1 : 0) : undefined)
     const api = useApi()
-    const { ask, ping, toast } = useDialog()
+    const { ask, ping } = useDialog()
+    const generateDraftUuid = () => {
+        if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            return crypto.randomUUID()
+        }
+
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => {
+            const random = Math.floor(Math.random() * 16)
+            const value = char === 'x' ? random : (random & 0x3) | 0x8
+            return value.toString(16)
+        })
+    }
+    const normalizeReceiptDate = (value) => {
+        if (!value) return null
+        return String(value).split('T')[0]
+    }
+    const buildEmptyCost = () => ({
+        department: costDepartment.value ?? '',
+        content: '',
+        type: props.item.position_id == 15 ? 1 : 4,
+        transport_type: props.item.position_id == 15 ? null : 1,
+        departure_place: '',
+        arrival_place: '',
+        expenses: null,
+        file_path: null,
+        draft_uuid: generateDraftUuid(),
+        merchant_name: '',
+        receipt_date: null,
+        currency: 'JPY',
+        receipt_source_type: 'paper_scan',
+        file_original_name: null,
+        file_mime_type: null,
+        file_size_bytes: null,
+        file_sha256: null,
+        file_uploaded_at: null,
+        ocr_run_id: null,
+        ocr_applied_fields: [],
+    })
+    const clearReceiptFields = (cost) => {
+        cost.file_path = null
+        cost.file_original_name = null
+        cost.file_mime_type = null
+        cost.file_size_bytes = null
+        cost.file_sha256 = null
+        cost.file_uploaded_at = null
+        cost.ocr_run_id = null
+        cost.ocr_applied_fields = []
+    }
     watch(car_mileage, (after) => {
         if (after) {
             getMyCarData()
@@ -349,13 +419,7 @@ import { useTour } from '@/composables/useTour';
             ping('上限は10個です。')
             return
         }
-        costs.push({
-            department: costDepartment.value ?? '',
-            content: '',
-            type: props.item.position_id == 15 ? 1 : 4,
-            expenses: null,
-            file_path: null,
-        })
+        costs.push(buildEmptyCost())
     }
     const removeCostField = async(index) => {
         costs.splice(index, 1)
@@ -364,7 +428,19 @@ import { useTour } from '@/composables/useTour';
         }
     }
     const removeFile = async(index) => {
-        costs[index].file_path = null
+        const targetCost = costs[index]
+        if (!targetCost?.file_path) return
+
+        const response = await api.post('/work_file_delete', {
+            draft_uuid: targetCost.draft_uuid,
+            file_path: targetCost.file_path,
+            subject_user_id: props.item?.user_id,
+            timecard_record_id: timeCard.value?.id,
+            timecard_cost_record_id: targetCost.id,
+        })
+        if (!response) return
+
+        clearReceiptFields(targetCost)
     }
     const getMyCarData = async() => {
         if (car_mileage.value < 2) return
@@ -417,7 +493,13 @@ import { useTour } from '@/composables/useTour';
     const costsFill = () => {
         if(timeCard.value?.timecard_costs?.length){
             timeCard.value.timecard_costs.forEach(cost => {
-                const boil = { ...cost}
+                const boil = {
+                    ...buildEmptyCost(),
+                    ...cost,
+                    draft_uuid: cost.draft_uuid ?? generateDraftUuid(),
+                    receipt_date: normalizeReceiptDate(cost.receipt_date),
+                    ocr_applied_fields: Array.isArray(cost.ocr_applied_fields) ? cost.ocr_applied_fields : [],
+                }
                 costs.push(boil)
             });
         }
@@ -614,7 +696,7 @@ import { useTour } from '@/composables/useTour';
                 const workedOverTime = shift.value?.overtime_request.minutes - (overtime - diffInMinutes.value)
                 resolve(await ask(`時間外は<strong>${workedOverTime < 0 ? 0 : workedOverTime}分</strong>になります。よろしいですか。`))               
             } else {
-                resolve(await ask('日報を申請します。申請後は修正できません。よろしいですか。'))
+                resolve(await ask('日報を申請します。承認までは修正できます。よろしいですか。'))
             }
         })
     }
@@ -646,6 +728,10 @@ import { useTour } from '@/composables/useTour';
         })
     }
     const saveTimeCard = async(status_flag) => {
+        if (isLocked.value) {
+            ping('承認済みの日報は編集できません。')
+            return
+        }
         const validate = await showToastIfEmpty()
         if(!validate) return
         if (includesWorkHours.value && (isInvalidTime(formatTime(editStartTime.value)) || isInvalidTime(formatTime(editEndTime.value)))) {
@@ -657,7 +743,7 @@ import { useTour } from '@/composables/useTour';
             if(!confirm.value) return            
         } else if(includesWorkHours.value && status_flag === 1){
             await fifteenMinuteCalc()
-            const answer = await ask('日報を申請します。申請後は修正できません。よろしいですか。')
+            const answer = await ask('日報を申請します。承認までは修正できます。よろしいですか。')
             if(!answer.value) return
         }
         if (actualRows.value.some(a => a.status == 'インセンティブ')) {

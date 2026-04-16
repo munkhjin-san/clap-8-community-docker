@@ -11,4 +11,7 @@ class shiftType extends Model
     use SoftDeletes;
 
     use HasFactory;
+
+    public const LEGAL_HOLIDAY_ID = 18;
+    
 }

@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\timecardCostRecord;
 use App\Models\timecardIncentive;
+use App\Models\TimecardAuditEvent;
+use App\Models\TimecardAuditEventProjection;
+use App\Models\TimecardCostOcrRun;
 use App\Models\User;
 
 use App\Models\attendanceRecord;
@@ -15,6 +18,7 @@ use App\Models\shiftRecord;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use App\Services\SharedService;
 use Carbon\Carbon;
@@ -376,6 +380,135 @@ class AdminWorkController extends Controller{
 
         return response()->json($responseArray);
 
+    }
+    public function work_audit_logs(Request $request)
+    {
+        $validated = $request->validate([
+            'month' => 'nullable|date_format:Y-m',
+            'user_id' => 'nullable|integer',
+            'event_type' => 'nullable|string',
+            'merchant' => 'nullable|string',
+            'receipt_date_from' => 'nullable|date_format:Y-m-d',
+            'receipt_date_to' => 'nullable|date_format:Y-m-d',
+            'amount_min' => 'nullable|numeric',
+            'amount_max' => 'nullable|numeric',
+            'approval_state' => 'nullable|integer',
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+        ]);
+
+        $perPage = (int) ($validated['per_page'] ?? 50);
+        $merchant = trim((string) ($validated['merchant'] ?? ''));
+
+        $query = TimecardAuditEventProjection::query()
+            ->with([
+                'actor',
+                'subject',
+            ]);
+
+        if (!empty($validated['month'])) {
+            [$year, $month] = explode('-', $validated['month']);
+            $query->where(function ($query) use ($year, $month) {
+                $query
+                    ->whereYear('timecard_day', $year)
+                    ->whereMonth('timecard_day', $month)
+                    ->orWhere(function ($fallbackQuery) use ($year, $month) {
+                        $fallbackQuery->whereNull('timecard_day')
+                            ->whereYear('occurred_at', $year)
+                            ->whereMonth('occurred_at', $month);
+                    });
+            });
+        }
+
+        $query
+            ->when(!empty($validated['user_id']), fn ($query) => $query->where('subject_user_id', $validated['user_id']))
+            ->when(!empty($validated['event_type']), fn ($query) => $query->where('event_type', $validated['event_type']))
+            ->when(array_key_exists('approval_state', $validated) && $validated['approval_state'] !== null, fn ($query) => $query->where('approval_state', $validated['approval_state']))
+            ->when($merchant !== '', fn ($query) => $query->where('merchant_name', 'like', "%{$merchant}%"))
+            ->when(!empty($validated['receipt_date_from']), fn ($query) => $query->whereDate('receipt_date', '>=', $validated['receipt_date_from']))
+            ->when(!empty($validated['receipt_date_to']), fn ($query) => $query->whereDate('receipt_date', '<=', $validated['receipt_date_to']))
+            ->when(array_key_exists('amount_min', $validated) && $validated['amount_min'] !== null, fn ($query) => $query->where('expenses', '>=', $validated['amount_min']))
+            ->when(array_key_exists('amount_max', $validated) && $validated['amount_max'] !== null, fn ($query) => $query->where('expenses', '<=', $validated['amount_max']))
+            ->orderByDesc('occurred_at')
+            ->orderByDesc('timecard_audit_event_id');
+
+        $paginated = $query->paginate($perPage);
+
+        $events = $paginated->getCollection()->map(function (TimecardAuditEventProjection $projection) {
+            return [
+                'id' => $projection->timecard_audit_event_id,
+                'event_type' => $projection->event_type,
+                'target_type' => $projection->target_type,
+                'occurred_at' => $projection->occurred_at?->toDateTimeString(),
+                'actor' => $projection->actor,
+                'subject' => $projection->subject,
+                'timecard_day' => $projection->timecard_day?->toDateString(),
+                'approval_state' => $projection->approval_state,
+                'merchant_name' => $projection->merchant_name,
+                'expenses' => $projection->expenses,
+                'department' => $projection->department,
+                'receipt_preview_path' => $projection->file_path ? "/cdn/timecard_files/{$projection->file_path}" : null,
+                'draft_uuid' => $projection->draft_uuid,
+            ];
+        })->values();
+
+        return response()->json([
+            'data' => $events,
+            'meta' => [
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+            ],
+        ]);
+    }
+    public function work_audit_log_detail(TimecardAuditEvent $event)
+    {
+        $event->load([
+            'actor',
+            'subject',
+            'timecard:id,day,status_flag,user_id,approved_by,work_group_id,start_time,end_time',
+            'timecardCost:id,record_id,merchant_name,receipt_date,expenses,file_path,currency,receipt_source_type,department,content,type,transport_type,departure_place,arrival_place',
+        ]);
+
+        $metadata = $event->metadata ?? [];
+        $ocrRun = null;
+        if (!empty($metadata['ocr_run_id'])) {
+            $ocrRun = TimecardCostOcrRun::with(['executedBy', 'appliedBy'])->find($metadata['ocr_run_id']);
+        }
+
+        $cost = $event->timecardCost;
+        $filePath = $cost?->file_path
+            ?? Arr::get($event->after_state, 'file_path')
+            ?? Arr::get($event->before_state, 'file_path')
+            ?? Arr::get($metadata, 'file_path');
+
+        return response()->json([
+            'id' => $event->id,
+            'event_type' => $event->event_type,
+            'target_type' => $event->target_type,
+            'occurred_at' => $event->occurred_at?->toDateTimeString(),
+            'actor' => $event->actor,
+            'subject' => $event->subject,
+            'timecard' => $event->timecard,
+            'timecard_cost' => $cost,
+            'before_state' => $event->before_state,
+            'after_state' => $event->after_state,
+            'metadata' => $metadata,
+            'receipt_preview_path' => $filePath ? "/cdn/timecard_files/{$filePath}" : null,
+            'ocr_run' => $ocrRun ? [
+                'id' => $ocrRun->id,
+                'provider' => $ocrRun->provider,
+                'model' => $ocrRun->model,
+                'status' => $ocrRun->status,
+                'normalized_result' => $ocrRun->normalized_result,
+                'raw_response' => $ocrRun->raw_response,
+                'error_message' => $ocrRun->error_message,
+                'executed_by' => $ocrRun->executedBy,
+                'applied_by' => $ocrRun->appliedBy,
+                'applied_at' => $ocrRun->applied_at?->toDateTimeString(),
+            ] : null,
+        ]);
     }
     
 

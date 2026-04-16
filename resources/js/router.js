@@ -401,6 +401,11 @@ const routes = [
                         component: () => import('./components/AccountControl/WorkControl/AdminWork.vue')
                     },
                     {
+                        path: 'receipt-audit',
+                        name: 'receipt-audit',
+                        component: () => import('./components/AccountControl/WorkControl/AdminReceiptAudit.vue')
+                    },
+                    {
                         path: 'paidholiday',
                         name: 'paidholiday',
                         

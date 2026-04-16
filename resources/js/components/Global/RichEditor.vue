@@ -53,7 +53,7 @@
                             <CommandButton :buttons="[{title: 'auto', action: () => {autoColor()}}]"/>     
                         </div>
                            
-                        <div v-for="row in colorShadesArray" :key="row[0]" class="color-row">
+                        <div v-for="row in displayedColorShadesArray" :key="row[0]" class="color-row">
                             <div 
                             v-for="color in row"
                                 :key="color"
@@ -155,7 +155,7 @@ import { Color } from '@tiptap/extension-color'
 import TextStyle from '@tiptap/extension-text-style'
 import Highlight from '@tiptap/extension-highlight'
 import Image from '@tiptap/extension-image'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import CommandButton from './CommandButton.vue'
 import PostSearchPager from '@/components/Post/PostSearchPager.vue'
 import { useApi } from '@/composables/api'
@@ -198,8 +198,8 @@ const totalPages = ref(1)
 const perPage = ref(10)
 const api = useApi()
 defineExpose({editor})
-const colorShadesArray = [
-  ['#000000', '#666666', '#999999', '#cccccc', '#d9d9d9', '#f3f3f3', '#ffffff'],
+const baseColorShadesArray = [
+  ['var(--primary-color)', '#666666', '#999999', '#cccccc', '#d9d9d9', '#f3f3f3', '#ffffff'],
   ['#980000', '#ff9900', '#ffff00', '#00ffff', '#4a86e8', '#9900ff', '#ff00ff'],
   ['#e6b8af', '#fce5cd', '#fff2cc', '#d0e0e3', '#c9daf8', '#d9d2e9', '#ead1dc'],
   ['#dd7e6b', '#f9cb9c', '#ffe599', '#a2c4c9', '#a4c2f4', '#b4a7d6', '#d5a6bd'],
@@ -207,7 +207,19 @@ const colorShadesArray = [
   ['#a61c00', '#e69138', '#f1c232', '#45818e', '#3c78d8', '#674ea7', '#a64d79'],
   ['#85200c', '#b45f06', '#bf9000', '#134f5c', '#1155cc', '#351c75', '#741b47'],
   ['#5b0f00', '#783f04', '#7f6000', '#0c343d', '#1c4587', '#20124d', '#4c1130']
-];
+]
+
+const displayedColorShadesArray = computed(() => {
+  const copied = baseColorShadesArray.map(row => [...row])
+
+  if (colorPickerView.value === 55) {
+    copied[0][0] = 'var(--primary-color)'
+  } else if (colorPickerView.value === 20) {
+    copied[0][0] = '#000000'
+  }
+
+  return copied
+})
 
 const uploadStart = () => {
     filePicker.value?.click()

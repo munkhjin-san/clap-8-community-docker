@@ -267,6 +267,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/work_group_delete', [AdminAccountController::class, 'workgroupDelete']);
         // Admin Panel Work
         Route::post('/get_admin_work', [AdminWorkController::class, 'get_admin_work']);
+        Route::get('/work_audit_logs', [AdminWorkController::class, 'work_audit_logs']);
+        Route::get('/work_audit_logs/{event}', [AdminWorkController::class, 'work_audit_log_detail']);
         // Admin clap statistics
         Route::post('/clap_statistics', [AdminAccountController::class, 'clap_statistics']);
         Route::post('/get_planned_shifts', [AdminWorkController::class, 'get_planned_shifts']);
@@ -454,6 +456,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::delete('/work_incentive_delete', [WorkController::class, 'work_incentive_delete']);
         Route::post('/work_file_upload', [WorkController::class, 'work_file_upload']);
         Route::post('/work_file_delete', [WorkController::class, 'work_file_delete']);
+        Route::post('/work_receipt_ocr', [WorkController::class, 'work_receipt_ocr']);
         Route::get('/next_month_shift', [WorkController::class, 'next_month_shift']);
         Route::get('/get_shift_with_work_group', [WorkController::class, 'get_shift_with_work_group']);
         Route::get('/work_generate_csv', [WorkController::class, 'work_generate_csv']);
@@ -797,7 +800,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/stream_prompt', [OpenAiController::class, 'stream_prompt']);
         Route::post('/review_document', [OpenAiController::class, 'review_document']);
         Route::post('/summarize_contract_comparison', [OpenAiController::class, 'summarize_contract_comparison']);
-       
+        Route::post('/suggest_challenge', [OpenAiController::class, 'suggest_challenge']);
+        Route::get('/lunch_challenge_popup', [OpenAiController::class, 'lunch_challenge_popup']);
 
         Route::get('/goal_issue_comment_badge', [ProjectController::class, 'goal_issue_comment_badge']);
         Route::post('/clear_goal_issue_badge', [ProjectController::class, 'clear_goal_issue_badge']);

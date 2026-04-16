@@ -91,7 +91,7 @@ class ProcessContactBatch implements ShouldQueue
         $payload = [
             'batch' => [
                 'displayName' => 'contact-scan-' . now()->format('YmdHis'),
-                'model' => 'models/gemini-2.5-flash-lite',
+                'model' => 'models/gemini-3-flash-preview',
                 'inputConfig' => [
                     'requests' => [
                         'requests' => $requests,
@@ -100,9 +100,9 @@ class ProcessContactBatch implements ShouldQueue
             ],
         ];
 
-        $this->logEntry($batch, 'scan_submit', 'Submitting scan batch.', ['request_count' => count($requests)], 'models/gemini-2.5-flash-lite');
+        $this->logEntry($batch, 'scan_submit', 'Submitting scan batch.', ['request_count' => count($requests)], 'models/gemini-3-flash-preview');
 
-        $operation = $this->startGeminiBatch($batch, $apiKey, 'models/gemini-2.5-flash-lite', $payload);
+        $operation = $this->startGeminiBatch($batch, $apiKey, 'models/gemini-3-flash-preview', $payload);
 
         $batch->update([
             'status' => ContactBatch::STATUS_SCANNING,

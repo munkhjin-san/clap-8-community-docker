@@ -48,6 +48,7 @@ return [
             'spreadsheet_id' => env('GOOGLE_SHEETS_SPREADSHEET_ID'),
             'gemini_api_key' => env('GEMINI_API_KEY'),
             'gemini_url' => env('GEMINI_URL'),
+            'receipt_ocr_model' => env('GEMINI_RECEIPT_OCR_MODEL', 'models/gemini-3-flash-preview'),
     ],
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
@@ -65,7 +66,9 @@ return [
             'project_risk_assessment_generation' => env('OPENAI_PROMPT_PROJECT_RISK_ASSESSMENT_GENERATION_ID', ''),
             'lesson_portfolio_review' => env('OPENAI_PROMPT_LESSON_PORTFOLIO_REVIEW_ID', ''),
             'legal_quick_review' => env('OPENAI_PROMPT_LEGAL_QUICK_REVIEW_ID'),
-            'legal_deep_review' => env('OPENAI_PROMPT_LEGAL_DEEP_REVIEW_ID') 
+            'legal_deep_review' => env('OPENAI_PROMPT_LEGAL_DEEP_REVIEW_ID'),
+            'challenge_suggestion' => env('OPENAI_PROMPT_CHALLENGE_SUGGESTION'),
+            'project_member_assign_evaluation' => env('OPENAI_PROMPT_PROJECT_MEMBER_ASSIGN_EVALUATION'),
         ]
     ],
     'VAPID' => [

@@ -1,12 +1,13 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\TimeSheet;
 use App\Services\SharedService;
 use App\Models\User;
 use App\Models\timecardCostRecord;
 use App\Models\timecardIncentive;
 use App\Models\shiftRecord;
 use App\Models\attendanceRecord;
+use Illuminate\Support\Facades\Auth;
 class AutoAttendanceConfirm
 {
     protected $sharedService;
@@ -14,18 +15,29 @@ class AutoAttendanceConfirm
     {
         $this->sharedService = $sharedService;
     }
+    private function active_user(){
+        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
+        if($sub){
+            return $sub;
+        }else{
+            return Auth::user();
+        }
+    }
     public function confirm($user_list, $currentDate)
     {   
+        $active_user = $this->active_user();
         $attendanceDatas = $this->build_attendance_data($user_list, $currentDate);
         [$currentYear, $currentMonth] = explode('-', $currentDate);
         foreach($attendanceDatas as $userid => $data){
             $workTime = $data['user']['position_id'] !== 15 ? $data['should_work'] : $data['planned_work'];
             $noOverTimeHours = 0;
+            
             if ($data['worked_time'] > $data['should_work']) {
                 $noOverTimeHours = $data['worked_time'] - $data['month_over_time'] - $data['night_over_time'];
             } else {
                 $noOverTimeHours = $data['worked_time'];
             }
+            
             $shift_records = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
                         ->where('user_id', $userid)->get();
@@ -61,6 +73,8 @@ class AutoAttendanceConfirm
             $oda_hours = $user_work_time_day * $data['oda_leave'];
             $transfer_hours = $user_work_time_day * $data['transfer_leave'];
             $closed_hours = $user_work_time_day * $closed_day;
+            $special_hours = $user_work_time_day * $data['special_holiday'];
+            $special_holiday = $data['transfer_leave'] + $data['special_holiday'];
             $absence_days = ($working_hour_low - $data['workedday_count']) + $data['holiday_count'];
             $attendance_record = new attendanceRecord;
             $attendance_record->half_day_holiday = $half_day_holiday;
@@ -75,11 +89,12 @@ class AutoAttendanceConfirm
             $attendance_record->petitionType1_count = $petitionType1_count;
             $attendance_record->closed_day = $closed_day;
             $attendance_record->absence_days = $absence_days >= 0 ? $absence_days : 0;
-            $absence_hours = $workTime - ($data['annual_leave'] * 60 + $condolence_hours + $transfer_hours + $closed_hours + $data['worked_time'] + $oda_hours);
+            $absence_hours = $workTime - (
+                $data['annual_leave'] + $condolence_hours + $transfer_hours + $closed_hours + $data['worked_time'] + $oda_hours + $special_hours);
             $attendance_record->absence_hour = $absence_hours >= 0 ? $absence_hours : 0;
             $attendance_record->date_year_month = $currentDate;
             $attendance_record->user_id = $userid;
-            $attendance_record->confirmed_by = 610;
+            $attendance_record->confirmed_by = $active_user->id;
             $attendance_record->user_code = $data['user']['user_code'];
             $attendance_record->name = $data['user']['name'];
             $attendance_record->pay_day = 20;
@@ -91,7 +106,7 @@ class AutoAttendanceConfirm
             $attendance_record->holiday_working_days = $data['holiday_count'];
             $attendance_record->paid_holiday_hours = $data['annual_leave'] / 60;
             $attendance_record->condolence_holiday = $data['condolence_leave'];
-            $attendance_record->special_holiday = $data['transfer_leave'];
+            $attendance_record->special_holiday = $special_holiday;
             $attendance_record->oda_holiday = $data['oda_leave'];
             $attendance_record->comp_holiday = $comp_holiday;
             $attendance_record->working_hours = $data['worked_time'];
@@ -143,7 +158,7 @@ class AutoAttendanceConfirm
                     ->whereMonth('date', $currentMonth)
                     ->select('value_int', 'user_id', 'table_record_id');
             }
-        ])->select('id','name','work_type', 'work_time_day', 'user_code', 'position_id')->whereIn('id', $user_list)->get();        
+        ])->select('id','name','work_type', 'work_time_day', 'user_code', 'position_id', 'general_position')->whereIn('id', $user_list)->get();        
         $monthNum = (int)$currentMonth;
         $yearNum = (int)$currentYear;
         $responseArray = [];
@@ -213,7 +228,7 @@ class AutoAttendanceConfirm
             $annual_full = $shiftRecords
                 ->filter(fn($record) => 
                     $record->shiftType?->full_day === 2 &&
-                    !in_array($record->shift_type, [14, 15, 16, 17, 18])
+                    !in_array($record->shift_type, [14, 15, 16, 17, 18, 27])
                 )
                 ->count();
 
@@ -224,6 +239,7 @@ class AutoAttendanceConfirm
             $transfer_leave = $user->shift_records->where('shift_type', 15)->count();
             $oda_leave = $user->shift_records->where('shift_type', 16)->count();
             $comp_holiday = $user->shift_records->where('shift_type', 17)->count();
+            $spec_holiday = $user->shift_records->where('shift_type', 27)->count();
             $over_time = $user->time_card_records->sum('over_time');
             $mileage = $user->time_card_records->sum('car_mileage');
             $annual_costs = 0;
@@ -275,6 +291,7 @@ class AutoAttendanceConfirm
                 'condolence_leave' => $condolence_leave,
                 'transfer_leave' => $transfer_leave,
                 'comp_holiday' => $comp_holiday,
+                'special_holiday' => $spec_holiday,
                 'oda_leave' => $oda_leave,
                 'month_over_time' => $month_over_time > 0 ? $month_over_time : 0,
                 'over_time' => $over_time,

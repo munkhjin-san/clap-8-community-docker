@@ -20,7 +20,10 @@ use App\Models\workTemp;
 use App\Models\attendanceRecord;
 use App\Models\ShiftOvertimeRequest;
 use App\Models\ProjectCase;
+use App\Models\TimecardCostOcrRun;
 use App\Services\SharedService;
+use App\Services\TimeSheet\TimecardAuditLogService;
+use App\Services\TimeSheet\WorkReceiptOcrService;
 use Illuminate\Support\Facades\File; 
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Http\Request;
@@ -30,15 +33,21 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use App\Infrastructure\Kintone\KintoneClient;
-use App\Services\AutoAttendanceConfirm;
+use App\Services\TimeSheet\AutoAttendanceConfirm;
+use App\Services\TimeSheet\ShiftService;
 class WorkController extends Controller
 {
     protected $sharedService;
     public function __construct(
         SharedService $sharedService, 
         private readonly KintoneClient $kintone,
-        private readonly AutoAttendanceConfirm $attendanceService
+        private readonly AutoAttendanceConfirm $attendanceService,
+        private readonly TimecardAuditLogService $timecardAuditLogService,
+        private readonly WorkReceiptOcrService $workReceiptOcrService,
+        private readonly ShiftService $shiftService
     ) {
         $this->sharedService = $sharedService;
     }
@@ -279,7 +288,28 @@ class WorkController extends Controller
                     },
                     'timecard_costs' => function ($q) {
                         $q->with('file')
-                        ->select('content', 'type', 'expenses', 'record_id', 'file_path', 'id', 'department');
+                        ->select(
+                            'content',
+                            'type',
+                            'transport_type',
+                            'departure_place',
+                            'arrival_place',
+                            'expenses',
+                            'record_id',
+                            'file_path',
+                            'id',
+                            'department',
+                            'draft_uuid',
+                            'receipt_date',
+                            'merchant_name',
+                            'currency',
+                            'receipt_source_type',
+                            'file_original_name',
+                            'file_mime_type',
+                            'file_size_bytes',
+                            'file_sha256',
+                            'file_uploaded_at'
+                        );
                     },
                     'timecard_incentives' => function ($q) {
                         $q->with('file')
@@ -443,7 +473,8 @@ class WorkController extends Controller
         $isTodayOrPast = date('Y-m-d') >= $day->format('Y-m-d');
         $create = !$timecardExist && !$has_attendace && $valid_shift && $isTodayOrPast && ($user->id == $active_user->id || $active_user->id == 610 || $active_user->id == 608);
         $status = $time_card->status_flag ?? -1;
-        $modify = $timecardExist && !$has_attendace && (($status == 10 || $status == 0 && $user->id == $active_user->id) || (($active_user->id == 610 || $active_user->id == 608) && $status !== 2));
+        $ownEditable = in_array($status, [0, 1, 10], true) && $user->id == $active_user->id;
+        $modify = $timecardExist && !$has_attendace && ($ownEditable || (($active_user->id == 610 || $active_user->id == 608) && $status !== 2));
         $start_stamp = !$timecardExist && !$has_attendace && $valid_shift && $isToday && $user->id == $active_user->id; 
         $end_stamp = $timecardExist && !$has_attendace && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $valid_shift && $isToday && $user->id == $active_user->id;
         $break_stamp = $timecardExist && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $user->id == $active_user->id; 
@@ -457,103 +488,27 @@ class WorkController extends Controller
         return $valid_shift && !$timecardExist && $isTodayOrPast && $access && !$has_attendace;
     }
     // Shift Functions
-    public function get_shift_data(Request $request){
-        $users_list = $request->work_group ?? [Auth::id()];
-        [$currentYear, $currentMonth] = explode('-', $request->current_date);
+    public function get_shift_data(Request $request)
+    {
+        $request->validate([
+            'current_date' => ['required', 'date_format:Y-m-d'],
+            'shift_type' => ['nullable', 'integer'],
+            'work_group' => ['nullable', 'array'],
+        ]);
 
-        $currentMonth >= 2 && $currentMonth <= 7 ? $evaluationDate = "$currentYear-02-01" : $evaluationDate = "$currentYear-08-01";
-        $shift_type = $request->shift_type;
-        $user = User::with(['evaluation' => function ($query) use($evaluationDate) {
-                        $query->where('date', $evaluationDate);
-                    }])
-                    ->select('user_code', 'position_id', 'id', 'general_position', 'work_type', 'work_time_day')->findOrFail($users_list[0]);
-        $user_code = $user->user_code;
-        $general_position = $user->general_position ?? null;
-        $shift_record = shiftRecord::whereYear('shift_day', $currentYear)
-                        ->whereMonth('shift_day', $currentMonth)
-                        ->where('user_id', $users_list[0])
-                        ->when($shift_type == 3, fn ($q) =>
-                            $q->where('shift_type', 3)
-                        )
-                        ->with([
-                            'shiftType' => function ($query) {
-                                $query->select('id', 'name', 'abbreviation', 'value');
-                            },
-                            'old_shift' => function ($query) {
-                                $query->withTrashed()->select('id', 'shift_day', 'shift_type');
-                                $query->with([
-                                    'shiftType' => function ($subQuery) {
-                                        $subQuery->select('id', 'name', 'abbreviation', 'value');
-                                    }
-                                ]);
-                            }
-                        ])
-                        ->orderBy('created_at', 'desc')
-                        ->get();
-        $odaCheck = shiftRecord::where('user_id', $users_list[0])
-            ->where('shift_type', 16)
-            ->whereYear('shift_day', $currentYear)
-            ->exists();
-        
-        $shift_type = shiftType::when(
-            $user->position_id == 15,
-            fn ($query) => $query->whereIn('id', [5, 1]),
-            fn ($query) => $query->when(
-                $user->position_id <= 11 || $user->position_id == 16,
-                fn ($query) => $general_position > 'B' && $general_position != '一般職' 
-                    ? $query 
-                    : $query->where('id', '!=', 17),
-                fn ($query) => $query->whereNotIn('id', [14, 15, 16, 17])
-            )
-            
-        )->when(
-            $user->work_type == 0,
-            fn ($query) => $query->whereNot('name', '法定休日')
-        )->when($user->position_id == 12, fn ($query) => $query->whereNotIn('id', [19,20,21,22,23,24,25,26]))
-        ->get();
-    
-        
-        
-        // $shift_type = $user->position_id <= 11 || $user->position_id == 16
-        //               ? $general_position > 'B' && $general_position != '一般職' ? 
-        //               shiftType::get()
-        //               : shiftType::whereNot('id', 17)->get()
-        //               : shiftType::whereNotIn('id', [14, 15, 16, 17])->get();
+        $userIds = $request->work_group ?? [Auth::id()];
+        $targetUserId = $userIds[0];
 
-        $current_year_holiday_shifts = shiftRecord::where('user_id', $users_list[0])
-        ->whereYear('shift_day', $currentYear)
-        ->whereMonth('shift_day',  '!=' , $currentMonth)
-        ->whereIn('shift_type', [0, 18, 19, 20, 21, 22, 23, 24, 25, 26])
-        ->with('shiftType')
-        ->get();
-        $user_work_minutes_per_day = $user->work_time_day;
+        [$year, $month] = array_map('intval', explode('-', $request->current_date));
 
-        $total_holidays = $current_year_holiday_shifts->sum(function ($shift) use ($user_work_minutes_per_day) {
-            $is_full_day = $shift->shiftType->full_day == 2 || $shift->shiftType->id == 0;
-            $is_half_day = $shift->shiftType->full_day == 1;
-            if($is_full_day){
-                return $user_work_minutes_per_day;
-            } elseif($is_half_day) {
-                return $user_work_minutes_per_day / 2;
-            } else {
-                return $shift->shiftType->value;
-            }
-        });
-        
-        $userWorkTimeData = $this->sharedService->work_days_calculator($currentYear, $currentMonth, $user);
-        $data = [
-            "shift_record" => $shift_record,
-            "shift_type" => $shift_type,
-            "odaCheck" => $odaCheck,
-            "user_work_minutes_per_day" => $user_work_minutes_per_day,
-            "total_holidays" => $total_holidays,
-            "work_time_data" => $userWorkTimeData,
-        ];
-        
-
-        return response()->json(
-            $data
+        $data = $this->shiftService->getShiftData(
+            userId: $targetUserId,
+            year: $year,
+            month: $month,
+            requestedShiftType: (int) $request->shift_type
         );
+
+        return response()->json($data);
     }
     public function get_work_temp(Request $request) {
         $data = $request->validate([
@@ -1101,6 +1056,13 @@ class WorkController extends Controller
         }
         DB::beginTransaction();
         try {
+            $existingTimecard = timecardRecord::where('day', $request->day)
+                ->where('user_id', $request->userId)
+                ->first();
+            $this->ensureEditableTimecard($existingTimecard);
+            $beforeTimecardState = $this->timecardAuditLogService->trackedTimecardState($existingTimecard);
+            $previousStatus = $existingTimecard?->status_flag;
+
             $is_exist = timecardRecord::firstOrCreate([
                 'day' => $request->day,
                 'user_id' => $request->userId
@@ -1195,6 +1157,28 @@ class WorkController extends Controller
             if($request->overTimeMinute){
                 $this->overTimeCheck($request, $overtimeMinutes);
             }
+            $afterTimecardState = $this->timecardAuditLogService->trackedTimecardState($is_exist->fresh());
+            $timecardChanged = $this->statesDiffer($beforeTimecardState, $afterTimecardState);
+            $isSubmitted = (int) $request->status_flag === 1;
+            $wasExistingTimecard = $existingTimecard !== null;
+
+            if ($isSubmitted && $previousStatus !== 1) {
+                $this->timecardAuditLogService->logTimecardEvent(
+                    'timecard_submitted',
+                    $is_exist,
+                    (int) $request->userId,
+                    $beforeTimecardState,
+                    $afterTimecardState
+                );
+            } elseif ($timecardChanged) {
+                $this->timecardAuditLogService->logTimecardEvent(
+                    $wasExistingTimecard ? 'timecard_updated' : 'timecard_saved_draft',
+                    $is_exist,
+                    (int) $request->userId,
+                    $beforeTimecardState,
+                    $afterTimecardState
+                );
+            }
             DB::commit();
             return response()->json(['success' => 'success'], 200);
         } catch (\Exception $e) {
@@ -1278,53 +1262,103 @@ class WorkController extends Controller
 
         $filteredCosts = array_values(array_filter($request->costsValues, function ($cost) {
             return !(
-                ($cost['content'] ?? null) === null &&
-                ($cost['expenses'] ?? null) === null &&
-                ($cost['file_path'] ?? null) === null
+                blank($cost['content'] ?? null) &&
+                blank($cost['expenses'] ?? null) &&
+                blank($cost['file_path'] ?? null) &&
+                blank($cost['departure_place'] ?? null) &&
+                blank($cost['arrival_place'] ?? null)
             );
         }));
 
-        $this->validateCost($filteredCosts);
+        $this->validateCost($filteredCosts, (int) $request->status_flag);
 
-        $incomingIds = collect($filteredCosts)
-            ->pluck('id')->filter()->values();
+        $existingCosts = $timecard->timecard_costs()->get();
+        $existingById = $existingCosts->keyBy('id');
+        $existingByDraftUuid = $existingCosts->filter(fn ($cost) => filled($cost->draft_uuid))->keyBy('draft_uuid');
+        $keptIds = [];
 
-        $timecard->timecard_costs()
-            ->when($incomingIds->count() > 0, fn($q) => $q->whereNotIn('id', $incomingIds))
-            ->when($incomingIds->count() === 0, fn($q) => $q->delete(), fn($q) => $q->delete());
+        foreach ($filteredCosts as $cost) {
+            $matchedCost = null;
+            $incomingId = Arr::get($cost, 'id');
+            $draftUuid = Arr::get($cost, 'draft_uuid');
 
-        $rows = collect($filteredCosts)->map(function ($cost) use ($request, $timecard, $yearMonth) {
-            return [
-                'id'         => $cost['id'] ?? null, // null => insert
-                'record_id'  => $timecard->id,
-                'user_id'    => $request->userId,
-                'file_path'  => $cost['file_path'] ?? null,
-                'type'       => $cost['type'] ?? null,
-                'date_month' => $yearMonth,
-                'content'    => $cost['content'] ?? null,
-                'expenses'   => $cost['expenses'] ?? null,
-                'department' => $cost['department'] ?? null,
-                'updated_at' => now(),
-                'created_at' => now(),
-            ];
-        })->values()->all();
+            if ($incomingId && $existingById->has($incomingId)) {
+                $matchedCost = $existingById->get($incomingId);
+            } elseif ($draftUuid && $existingByDraftUuid->has($draftUuid)) {
+                $matchedCost = $existingByDraftUuid->get($draftUuid);
+            }
 
-        timecardCostRecord::upsert(
-            $rows,
-            ['id'],
-            ['file_path','type','date_month','content','expenses','department','user_id','record_id','updated_at']
-        );
+            $attributes = $this->mapIncomingCostAttributes($cost, $request, $timecard, $yearMonth);
+
+            if ($matchedCost) {
+                $beforeState = $this->timecardAuditLogService->trackedCostState($matchedCost);
+                $matchedCost->fill($attributes);
+                $matchedCost->save();
+                $matchedCost->refresh();
+                $afterState = $this->timecardAuditLogService->trackedCostState($matchedCost);
+                if ($beforeState !== $afterState) {
+                    $this->timecardAuditLogService->logCostEvent(
+                        'cost_updated',
+                        $timecard,
+                        $matchedCost,
+                        (int) $request->userId,
+                        $beforeState,
+                        $afterState
+                    );
+                }
+                $this->syncAppliedOcrRun($cost, $matchedCost, $timecard, (int) $request->userId, $beforeState, $afterState);
+                $keptIds[] = $matchedCost->id;
+                continue;
+            }
+
+            $newCost = new timecardCostRecord();
+            $newCost->fill($attributes);
+            $newCost->save();
+            $newCost->refresh();
+            $afterState = $this->timecardAuditLogService->trackedCostState($newCost);
+            $this->timecardAuditLogService->logCostEvent(
+                'cost_created',
+                $timecard,
+                $newCost,
+                (int) $request->userId,
+                null,
+                $afterState
+            );
+            $this->syncAppliedOcrRun($cost, $newCost, $timecard, (int) $request->userId, null, $afterState);
+            $keptIds[] = $newCost->id;
+        }
+
+        $costsToDelete = $existingCosts->filter(fn ($cost) => !in_array($cost->id, $keptIds, true));
+        foreach ($costsToDelete as $costToDelete) {
+            $beforeState = $this->timecardAuditLogService->trackedCostState($costToDelete);
+            $costToDelete->delete();
+            $this->timecardAuditLogService->logCostEvent(
+                'cost_deleted',
+                $timecard,
+                $costToDelete,
+                (int) $request->userId,
+                $beforeState,
+                null
+            );
+        }
     }
 
-    private function validateCost($costs){
+    private function validateCost($costs, int $statusFlag){
         foreach($costs as $move){
             if($move['department'] == null ){
                 throw ValidationException::withMessages(['message' => '部門に割り当ててください。']);
             }
-            if($move['content'] !== null ){
-                if($move['expenses'] === null){
+            if(filled($move['content'] ?? null) || filled($move['departure_place'] ?? null) || filled($move['arrival_place'] ?? null)){
+                if(blank($move['expenses'] ?? null)){
                     throw ValidationException::withMessages(['message' => '経費必須です。']);
                 }
+            }
+            if (
+                $statusFlag === 1 &&
+                !empty($move['file_path']) &&
+                (empty($move['merchant_name']) || empty($move['receipt_date']))
+            ) {
+                throw ValidationException::withMessages(['message' => '領収書がある経費は、申請時に取引先と領収書日付が必須です。']);
             }
         }   
     }
@@ -1390,6 +1424,19 @@ class WorkController extends Controller
         $is_exist = timecardRecord::where('day', $request->date)->where('user_id', $request->userId)->first();
         $over_time = ShiftOvertimeRequest::where('overtime_day', $request->date)->where('user_id', $request->userId)->first();
         if($is_exist){
+            $this->ensureEditableTimecard($is_exist);
+            $costsToDelete = $is_exist->timecard_costs()->get();
+            foreach ($costsToDelete as $costToDelete) {
+                $this->timecardAuditLogService->logCostEvent(
+                    'cost_deleted',
+                    $is_exist,
+                    $costToDelete,
+                    (int) $request->userId,
+                    $this->timecardAuditLogService->trackedCostState($costToDelete),
+                    null,
+                    ['source' => 'timecard_deleted']
+                );
+            }
             $is_exist->custom_field_data_records()->delete();
             $is_exist->timecard_costs()->delete();
             $is_exist->timecard_incentives()->delete();
@@ -1421,8 +1468,17 @@ class WorkController extends Controller
         //     $this->respond_overtime(new Request ($data));
         // }
         if(!empty($time_card_record)){
+            $beforeState = $this->timecardAuditLogService->trackedTimecardState($time_card_record);
             $time_card_record->status_flag = 10;
             $time_card_record->save();
+            $this->timecardAuditLogService->logTimecardEvent(
+                'timecard_remanded',
+                $time_card_record,
+                (int) $request->user_id,
+                $beforeState,
+                $this->timecardAuditLogService->trackedTimecardState($time_card_record),
+                ['actor_id' => $user->id]
+            );
         }
 
         return response()->json($time_card_record);
@@ -1440,9 +1496,18 @@ class WorkController extends Controller
             $this->respond_overtime(new Request ($data));
         }
         if(!empty($time_card_record)){
+            $beforeState = $this->timecardAuditLogService->trackedTimecardState($time_card_record);
             $time_card_record->approved_by = $user->id;
             $time_card_record->status_flag = 2;
             $time_card_record->save();
+            $this->timecardAuditLogService->logTimecardEvent(
+                'timecard_approved',
+                $time_card_record,
+                (int) $request->user_id,
+                $beforeState,
+                $this->timecardAuditLogService->trackedTimecardState($time_card_record),
+                ['actor_id' => $user->id]
+            );
         }
 
         return response()->json($time_card_record);
@@ -1455,9 +1520,18 @@ class WorkController extends Controller
         $time_card_record = timecardRecord::where('user_id', $request->user_id )->where('day', $request->record_day )->first();
 
         if(!empty($time_card_record)){
+            $beforeState = $this->timecardAuditLogService->trackedTimecardState($time_card_record);
             $time_card_record->approved_by = $active_user->id;
             $time_card_record->status_flag = 1;
             $time_card_record->save();
+            $this->timecardAuditLogService->logTimecardEvent(
+                'timecard_approval_cancelled',
+                $time_card_record,
+                (int) $request->user_id,
+                $beforeState,
+                $this->timecardAuditLogService->trackedTimecardState($time_card_record),
+                ['actor_id' => $active_user->id]
+            );
         }
         
 
@@ -1465,96 +1539,12 @@ class WorkController extends Controller
 
     }
     public function attendanceConfirm(Request $request){
-        if(!empty($request)){
-            $active_user = $this->active_user();
-            [$currentYear, $currentMonth] = explode('-', $request->date_year_month);
-            $shift_records = shiftRecord::whereYear('shift_day', $currentYear)
-                            ->whereMonth('shift_day', $currentMonth)
-                            ->where('user_id', $request->user['id'])->get();
-            $user_work_time_day = $request->user['work_time_day'];
-            $half_day_holiday = $shift_records->where('shift_type', 6)->count();
-            $planned_paid_holiday = $shift_records->where('shift_type', 3)->count();
-            $petitionType8_count = $shift_records->where('shift_type', 5)->count();
-            $petitionType7_count = $shift_records->where('shift_type', 13)->count();
-            $petitionType6_count = $shift_records->where('shift_type', 12)->count();
-            $petitionType5_count = $shift_records->where('shift_type', 11)->count();
-            $petitionType4_count = $shift_records->where('shift_type', 10)->count();
-            $petitionType3_count = $shift_records->where('shift_type', 9)->count();
-            $petitionType2_count = $shift_records->where('shift_type', 8)->count();
-            $petitionType1_count = $shift_records->where('shift_type', 7)->count();
-            $comp_holiday = $shift_records->where('shift_type', 17)->count();
-            $shiftTypes = [13, 12, 11, 10, 9, 8, 7, 6];
-            $hours_count = 0;
-            $working_hour_low = 0;
-            if ($request->over_time > 0) {
-                $over_time = $request->over_time + $request->night_work_time;
-            } else {
-                $over_time = $request->over_time;
-            }
-            foreach ($shiftTypes as $type) {
-                $count = $shift_records->where('shift_type', $type)->count();
-                $hours_count += $type === 6 ? $count * 0.5 : $count;
-                if ($type !== 6) {
-                    $working_hour_low += $count;
-                }
-            }
-            $closed_day = $shift_records->where('shift_type', 2)->count();
-            $condolence_hours = $user_work_time_day * $request->condolence_leave;
-            $oda_hours = $user_work_time_day * $request->oda_leave;
-            $transfer_hours = $user_work_time_day * $request->transfer_leave;
-            $closed_hours = $user_work_time_day * $closed_day;
-            $absence_days = ($working_hour_low - $request->worked_days) + $request->holiday_worked_days;
-            $attendance_record = new attendanceRecord;
-            $attendance_record->half_day_holiday = $half_day_holiday;
-            $attendance_record->planned_paid_holiday = $planned_paid_holiday;
-            $attendance_record->petitionType8_count = $petitionType8_count;
-            $attendance_record->petitionType7_count = $petitionType7_count;
-            $attendance_record->petitionType6_count = $petitionType6_count;
-            $attendance_record->petitionType5_count = $petitionType5_count;
-            $attendance_record->petitionType4_count = $petitionType4_count;
-            $attendance_record->petitionType3_count = $petitionType3_count;
-            $attendance_record->petitionType2_count = $petitionType2_count;
-            $attendance_record->petitionType1_count = $petitionType1_count;
-            $attendance_record->closed_day = $closed_day;
-            $attendance_record->absence_days = $absence_days >= 0 ? $absence_days : 0;
-            $absence_hours = $request->shift_working_hours - ($request->annual_leave * 60 + $condolence_hours + $transfer_hours + $closed_hours + $request->worked_hours + $oda_hours);
-            $attendance_record->absence_hour = $absence_hours >= 0 ? $absence_hours : 0;
-            $attendance_record->date_year_month = $request->date_year_month;
-            $attendance_record->user_id = $request->user['id'];
-            $attendance_record->confirmed_by = $active_user->id;
-            $attendance_record->user_code = $request->user['user_code'];
-            $attendance_record->name = $request->user['name'];
-            $attendance_record->pay_day = 20;
-            $attendance_record->month_petition = '済';
-            $attendance_record->prescribed_working_hours = $request->shift_working_hours / 60;
-            $attendance_record->work_type = $request->user['work_type'] == 0 ? 'フレックス' : '通常';
-            $attendance_record->working_days_shift = $request->shift_working_days;
-            $attendance_record->normal_working_days = $request->worked_days;
-            $attendance_record->holiday_working_days = $request->holiday_worked_days;
-            $attendance_record->paid_holiday_hours = $request->annual_leave;
-            $attendance_record->condolence_holiday = $request->condolence_leave;
-            $attendance_record->special_holiday = $request->transfer_leave;
-            $attendance_record->oda_holiday = $request->oda_leave;
-            $attendance_record->comp_holiday = $comp_holiday;
-            $attendance_record->working_hours = $request->worked_hours;
-            $attendance_record->working_hours_no_over = $request->worked_hours_no_over_time;
-            $attendance_record->over_time = $over_time;
-            $attendance_record->night_work_time = $request->night_work_time;
-            $attendance_record->stay_pay = $request->stay_pay;
-            $attendance_record->move_pay = $request->move_pay;
-            $attendance_record->waiting_pay = $request->waiting_pay;
-            $attendance_record->vehicle_pay = $request->vehicle_pay;
-            $attendance_record->special_commute_pay = $request->special_commute_pay;
-            $attendance_record->remote_company_pay = $request->remote_company_pay;
-            $attendance_record->remote_personal_pay = $request->remote_personal_pay;
-            $attendance_record->expenses = $request->expenses;
-            $attendance_record->incentive = $request->incentive;
-            $attendance_record->mileage = $request->mileage;
-            $attendance_record->training_time = $request->training_time;
-            $attendance_record->save();
-
-            return response()->json($attendance_record);
-        }
+        
+        $user_list = $request->user_id ?? [Auth::id()];
+        $date = $request->date_year_month;
+            
+        $result = $this->attendanceService->confirm($user_list, $date);
+        return response()->json($result);
         
     }
     public function attendanceDelete(Request $request){
@@ -1679,11 +1669,171 @@ class WorkController extends Controller
         }    
         return $iconId;
     }
+    private function ensureEditableTimecard(?timecardRecord $timecard): void
+    {
+        if ($timecard && (int) $timecard->status_flag === 2) {
+            throw ValidationException::withMessages(['message' => '承認済みの日報は編集できません。']);
+        }
+    }
+
+    private function statesDiffer(?array $beforeState, ?array $afterState): bool
+    {
+        return json_encode($beforeState, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            !== json_encode($afterState, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function normalizeReceiptDateValue(mixed $rawReceiptDate): ?string
+    {
+        if (blank($rawReceiptDate)) {
+            return null;
+        }
+
+        $value = trim((string) $rawReceiptDate);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return $value;
+        }
+
+        if (preg_match('/(\d{4}-\d{2}-\d{2})/', $value, $matches)) {
+            return $matches[1];
+        }
+
+        try {
+            return Carbon::parse($value)->toDateString();
+        } catch (\Throwable $exception) {
+            throw ValidationException::withMessages(['message' => '領収書日付の形式が不正です。']);
+        }
+    }
+
+    private function mapIncomingCostAttributes(array $cost, Request $request, timecardRecord $timecard, string $yearMonth): array
+    {
+        $receiptDate = $this->normalizeReceiptDateValue(Arr::get($cost, 'receipt_date'));
+        $draftUuid = Arr::get($cost, 'draft_uuid') ?: (string) Str::uuid();
+        $transportType = Arr::get($cost, 'transport_type');
+        $departurePlace = trim((string) Arr::get($cost, 'departure_place', ''));
+        $arrivalPlace = trim((string) Arr::get($cost, 'arrival_place', ''));
+        $content = Arr::get($cost, 'content');
+
+        if ((int) Arr::get($cost, 'type') === 4) {
+            $content = $this->buildTransportContent($transportType, $departurePlace, $arrivalPlace);
+        }
+
+        return [
+            'record_id' => $timecard->id,
+            'user_id' => $request->userId,
+            'draft_uuid' => $draftUuid,
+            'file_path' => Arr::get($cost, 'file_path'),
+            'type' => Arr::get($cost, 'type'),
+            'transport_type' => $transportType ?: null,
+            'departure_place' => $departurePlace ?: null,
+            'arrival_place' => $arrivalPlace ?: null,
+            'date_month' => $yearMonth,
+            'content' => $content ?: null,
+            'expenses' => Arr::get($cost, 'expenses'),
+            'department' => Arr::get($cost, 'department'),
+            'merchant_name' => Arr::get($cost, 'merchant_name'),
+            'receipt_date' => $receiptDate,
+            'currency' => Arr::get($cost, 'currency', 'JPY') ?: 'JPY',
+            'receipt_source_type' => Arr::get($cost, 'receipt_source_type', 'paper_scan') ?: 'paper_scan',
+            'file_original_name' => Arr::get($cost, 'file_original_name'),
+            'file_mime_type' => Arr::get($cost, 'file_mime_type'),
+            'file_size_bytes' => Arr::get($cost, 'file_size_bytes'),
+            'file_sha256' => Arr::get($cost, 'file_sha256'),
+            'file_uploaded_at' => Arr::get($cost, 'file_uploaded_at'),
+        ];
+    }
+
+    private function buildTransportContent($transportType, string $departurePlace, string $arrivalPlace): ?string
+    {
+        $route = collect([$departurePlace, $arrivalPlace])
+            ->filter(fn ($value) => filled($value))
+            ->implode(' → ');
+
+        if ($route === '') {
+            return null;
+        }
+
+        $transportLabels = [
+            1 => '電車のみ',
+            2 => '電車・バス',
+            3 => 'タクシー',
+            4 => '飛行機',
+            5 => 'その他',
+        ];
+
+        $transportLabel = $transportLabels[(int) $transportType] ?? null;
+        if ($transportLabel) {
+            return "{$transportLabel} / {$route}";
+        }
+
+        return $route;
+    }
+    private function syncAppliedOcrRun(array $cost, timecardCostRecord $savedCost, timecardRecord $timecard, int $subjectUserId, ?array $beforeState, ?array $afterState): void
+    {
+        $ocrRunId = Arr::get($cost, 'ocr_run_id');
+        $appliedFields = array_values(array_filter(Arr::wrap(Arr::get($cost, 'ocr_applied_fields', []))));
+        if (!$ocrRunId || empty($appliedFields)) {
+            return;
+        }
+
+        $ocrRun = TimecardCostOcrRun::find($ocrRunId);
+        if (!$ocrRun) {
+            return;
+        }
+
+        $alreadyApplied = $ocrRun->applied_at !== null;
+        $ocrRun->timecard_record_id = $timecard->id;
+        $ocrRun->timecard_cost_record_id = $savedCost->id;
+        if (!$alreadyApplied) {
+            $ocrRun->applied_by_user_id = Auth::id();
+            $ocrRun->applied_at = now();
+        }
+        $ocrRun->save();
+
+        if ($alreadyApplied) {
+            return;
+        }
+
+        $fieldLevelBefore = $beforeState ? Arr::only($beforeState, $appliedFields) : [];
+        $fieldLevelAfter = $afterState ? Arr::only($afterState, $appliedFields) : [];
+        $this->timecardAuditLogService->logOcrEvent(
+            'ocr_applied',
+            $ocrRun,
+            $subjectUserId,
+            $timecard,
+            $savedCost,
+            $fieldLevelBefore ?: null,
+            $fieldLevelAfter ?: null,
+            ['applied_fields' => $appliedFields]
+        );
+    }
+    private function fileHash(string $filePath): ?string
+    {
+        $storagePath = storage_path("app/timecard_files/{$filePath}");
+        if (!file_exists($storagePath)) {
+            return null;
+        }
+
+        return hash_file('sha256', $storagePath) ?: null;
+    }
     public function work_file_upload(Request $request){
+        $request->validate([
+            'file' => 'required|file|mimes:jpeg,jpg,png,gif,webp,svg,pdf|max:10240',
+            'draft_uuid' => 'required|uuid',
+            'subject_user_id' => 'nullable|integer',
+            'timecard_record_id' => 'nullable|integer',
+        ]);
+
+        $timecard = $request->timecard_record_id ? timecardRecord::find($request->timecard_record_id) : null;
+        $this->ensureEditableTimecard($timecard);
         $path = '/timecard_files';
         $fileContent = $request->file('file');
         $file_path = $this->path_generator();           
         $file_extension = $fileContent->getClientOriginalExtension();
+        $originalName = $fileContent->getClientOriginalName();
             
         $mime_type = $fileContent->getMimeType();
         $mime_type_array = explode('/',$mime_type);
@@ -1702,18 +1852,160 @@ class WorkController extends Controller
                 $path, $fileContent, $file_path
             );
         }
+        $storedPath = "timecard_files/{$file_path}";
+        $subjectUserId = (int) ($request->subject_user_id ?: Auth::id());
+        $metadata = [
+            'file_path' => $file_path,
+            'file_original_name' => $originalName,
+            'file_mime_type' => Storage::disk('local')->mimeType($storedPath) ?: $mime_type,
+            'file_size_bytes' => Storage::disk('local')->size($storedPath),
+            'file_sha256' => $this->fileHash($file_path),
+            'file_uploaded_at' => now()->toDateTimeString(),
+        ];
+        $this->timecardAuditLogService->logReceiptEvent(
+            'receipt_uploaded',
+            $subjectUserId,
+            $request->draft_uuid,
+            $timecard,
+            null,
+            null,
+            ['file_path' => $file_path],
+            $metadata
+        );
         $data = [
             "file_path" => $file_path,
             "file_type" => $file_type,
-            "file_extension" => $file_extension
+            "file_extension" => $file_extension,
+            "file_original_name" => $metadata['file_original_name'],
+            "file_mime_type" => $metadata['file_mime_type'],
+            "file_size_bytes" => $metadata['file_size_bytes'],
+            "file_sha256" => $metadata['file_sha256'],
+            "file_uploaded_at" => $metadata['file_uploaded_at'],
         ];
         return response()->json($data); 
+    }
+    public function work_file_delete(Request $request)
+    {
+        $request->validate([
+            'draft_uuid' => 'required|uuid',
+            'file_path' => 'required|string',
+            'subject_user_id' => 'nullable|integer',
+            'timecard_record_id' => 'nullable|integer',
+            'timecard_cost_record_id' => 'nullable|integer',
+        ]);
+
+        $timecard = $request->timecard_record_id ? timecardRecord::find($request->timecard_record_id) : null;
+        $cost = $request->timecard_cost_record_id ? timecardCostRecord::find($request->timecard_cost_record_id) : null;
+        $this->ensureEditableTimecard($timecard ?: $cost?->timecard);
+
+        $subjectUserId = (int) ($request->subject_user_id ?: Auth::id());
+        $beforeState = ['file_path' => $request->file_path];
+        $this->timecardAuditLogService->logReceiptEvent(
+            'receipt_removed',
+            $subjectUserId,
+            $request->draft_uuid,
+            $timecard ?: $cost?->timecard,
+            $cost,
+            $beforeState,
+            ['file_path' => null],
+            ['file_path' => $request->file_path]
+        );
+
+        return response()->json(['success' => true]);
+    }
+    public function work_receipt_ocr(Request $request)
+    {
+        $validated = $request->validate([
+            'draft_uuid' => 'required|uuid',
+            'file_path' => 'required|string',
+            'subject_user_id' => 'nullable|integer',
+            'timecard_record_id' => 'nullable|integer',
+            'timecard_cost_record_id' => 'nullable|integer',
+        ]);
+
+        $timecard = !empty($validated['timecard_record_id']) ? timecardRecord::find($validated['timecard_record_id']) : null;
+        $cost = !empty($validated['timecard_cost_record_id']) ? timecardCostRecord::find($validated['timecard_cost_record_id']) : null;
+        $this->ensureEditableTimecard($timecard ?: $cost?->timecard);
+
+        $subjectUserId = (int) ($validated['subject_user_id'] ?? Auth::id());
+        $ocrRun = new TimecardCostOcrRun([
+            'timecard_record_id' => $timecard?->id ?? $cost?->record_id,
+            'timecard_cost_record_id' => $cost?->id,
+            'draft_uuid' => $validated['draft_uuid'],
+            'source_file_path' => $validated['file_path'],
+            'source_file_sha256' => $this->fileHash($validated['file_path']),
+            'executed_by_user_id' => Auth::id(),
+        ]);
+
+        try {
+            $ocrResponse = $this->workReceiptOcrService->extract($validated['file_path']);
+            $ocrRun->fill([
+                'provider' => Arr::get($ocrResponse, 'provider', 'gemini'),
+                'model' => Arr::get($ocrResponse, 'model'),
+                'status' => 'completed',
+                'normalized_result' => Arr::get($ocrResponse, 'normalized_result'),
+                'raw_response' => Arr::get($ocrResponse, 'raw_response'),
+            ]);
+            $ocrRun->save();
+
+            $this->timecardAuditLogService->logOcrEvent(
+                'ocr_extracted',
+                $ocrRun,
+                $subjectUserId,
+                $timecard ?: $cost?->timecard,
+                $cost,
+                null,
+                Arr::get($ocrResponse, 'normalized_result')
+            );
+
+            return response()->json([
+                'ocr_run_id' => $ocrRun->id,
+                'suggestions' => Arr::get($ocrResponse, 'normalized_result', []),
+                'multiple_receipts_detected' => Arr::get($ocrResponse, 'multiple_receipts_detected', false),
+                'status' => 'completed',
+            ]);
+        } catch (\Throwable $exception) {
+            $ocrRun->fill([
+                'provider' => 'gemini',
+                'model' => config('services.google.receipt_ocr_model'),
+                'status' => 'failed',
+                'error_message' => $exception->getMessage(),
+            ]);
+            $ocrRun->save();
+
+            $this->timecardAuditLogService->logOcrEvent(
+                'ocr_failed',
+                $ocrRun,
+                $subjectUserId,
+                $timecard ?: $cost?->timecard,
+                $cost,
+                null,
+                null,
+                ['error_message' => $exception->getMessage()]
+            );
+
+            throw $exception;
+        }
     }
     public function work_cost_delete(Request $request){
         $request->validate([
             'id' => 'required',
         ]);
-        $workCost = timecardCostRecord::findOrFail($request->id)->delete();
+        $workCost = timecardCostRecord::with('timecard')->findOrFail($request->id);
+        $this->ensureEditableTimecard($workCost->timecard);
+        $beforeState = $this->timecardAuditLogService->trackedCostState($workCost);
+        $workCost->delete();
+        if ($workCost->timecard) {
+            $this->timecardAuditLogService->logCostEvent(
+                'cost_deleted',
+                $workCost->timecard,
+                $workCost,
+                (int) $workCost->user_id,
+                $beforeState,
+                null,
+                ['source' => 'work_cost_delete']
+            );
+        }
 
         return response()->json($workCost);
     }
@@ -1973,4 +2265,3 @@ class WorkController extends Controller
         return response()->json($remaining_days);
     }
 }
-

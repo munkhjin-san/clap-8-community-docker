@@ -67,10 +67,11 @@
                             </div>
                             
                             <div class="shift-holiday">
-                                <div v-if="selectedShiftType !== 3">年間休日取得数（現時点）: <strong>{{ displayTotalHolidays }}</strong></div>
-                                <p v-if="zan_nissu && selectedShiftType !== 3">有給残日数: <strong>{{ zan_nissu?.days ?? 0 }}</strong>日</p>
+                                <div v-if="selectedShiftType !== 3 && selectedShiftType !== 27">年間休日取得数（現時点）: <strong>{{ displayTotalHolidays }}</strong></div>
+                                <p v-if="zan_nissu && selectedShiftType !== 3 && selectedShiftType !== 27">有給残日数: <strong>{{ zan_nissu?.days ?? 0 }}</strong>日</p>
                                 <p v-if="selectedShiftType == 3">計画有給: <strong>{{ remainingDays }}</strong>日</p>
-                                <p v-if="selectedShiftType !== 3">休日数: <strong>{{ holidayCount }}</strong>日／所定休日数: <strong>{{ shouldHoliday }}</strong>日</p>
+                                <p v-if="selectedShiftType !== 3 && selectedShiftType !== 27">休日数: <strong>{{ holidayCount }}</strong>日／所定休日数: <strong>{{ shouldHoliday }}</strong>日</p>
+                                <p v-if="selectedShiftType == 27">特別休暇: <strong>{{ remainingSpecialHoliday }}</strong>日</p>
                             </div>
                         </div>
                         
@@ -244,6 +245,7 @@ import { useDashboardStore } from '@/store/dashboard';
     const odaCheck = ref([])
     const badge = useBadgeStore()
     const processing = ref(true)
+    const remainingSpecialHoliday = ref(0)
     const weekHeaderArray = [
         { id: 1, name: '月' },
         { id: 2, name: '火' },
@@ -335,6 +337,7 @@ import { useDashboardStore } from '@/store/dashboard';
         totalHolidayInYearByMinutes.value = shiftData.total_holidays
         userWorkMinutesPerDay.value = shiftData.user_work_minutes_per_day
         workTimeData.value = shiftData.work_time_data
+        remainingSpecialHoliday.value = shiftData.remaining_special_holiday
         processing.value = false
     }
     const getRemainingDays = async() => {

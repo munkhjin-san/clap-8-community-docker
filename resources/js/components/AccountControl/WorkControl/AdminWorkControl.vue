@@ -3,6 +3,7 @@
         <div class="admin-command-bar" style="margin: 20px 20px 0 20px;">            
             <div class="sub-tab-container">
                 <div @click="router.push({name: 'attendance'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'attendance'}]">勤怠管理</div>
+                <div @click="router.push({name: 'receipt-audit'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'receipt-audit'}]">領収書監査</div>
                 <!-- <div @click="router.push({name: 'workgroup'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'workgroup'}]">グループ管理 </div>                 -->
                 <div @click="router.push({name: 'paidholiday'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name == 'paidholiday'}]">計画有給管理</div>
             </div>    

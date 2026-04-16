@@ -2,11 +2,12 @@
     <div class="locale-selector" style="width: fit-content;position:relative;height:40px;">
 
         <select 
-            class="dropDownSelector cursor-pointer"
-            :class="[{'date-color' : theme.dark }]" 
+            class="optionPicker"
+            :class="[{'date-color' : theme.dark }, { 'cursor-not-allowed opacity-60': disabled, 'cursor-pointer': !disabled }]" 
             :name="name" 
             :rules="rules" 
             v-model="value"
+            :disabled="disabled"
             style="height: 40px; font-size: 14px; border: solid 1px var(--primary-color);"
         >
         <option :value="option" v-for="option in options" v-html="`${option}${unit}`"></option>
@@ -23,7 +24,8 @@ import { ref } from 'vue';
         name: String,
         rules: String,
         options: null,
-        unit: String
+        unit: String,
+        disabled: Boolean,
     })
     const value = defineModel()
     const error = ref('')
