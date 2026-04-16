@@ -14,7 +14,13 @@ class AssetCategoryItemField extends Model
         'input_type',
         'placeholder',
         'rules',
+        'visible',
+        'editable',
         'sort_order',
+    ];
+
+    protected $casts = [
+        'editable' => 'boolean',
     ];
 
     public function item(): BelongsTo

@@ -5784,7 +5784,14 @@ class ProjectController extends Controller
 
         $project = ProjectRecord::findOrFail($request->project_id);
         $assignRecords = $project->projectAssignRecords()
-        ->with(['questions.elements', 'questions.answers.element_answers', 'actions.user', 'actions.actualUser'])
+        ->with([
+            'questions.elements', 
+            'questions.answers.element_answers', 
+            'actions.user', 
+            'actions.actualUser',
+            'user:id,name,icon_path,icon_bg,position_id',
+            'projectMemberRole:id,title'
+        ])
         ->orderBy('created_at', 'desc')
         ->get();
         // $members = $project->members_and_managers()->with('pivot')->get();
@@ -6050,5 +6057,37 @@ class ProjectController extends Controller
         ]);
 
         return response()->json(['status' => 'ok']);
+    }
+    public function get_non_member_users(Request $request){
+        $project = ProjectRecord::findOrFail($request->project_id);
+        $memberIds = $project->members()->pluck('users.id')->toArray();
+        $users = User::where('retire', 0)
+        ->where('id', '>', 105)
+        ->where('partner_flag', 0)
+        ->where('hide_flag', 0)
+        ->whereNotIn('id', $memberIds)
+        ->select('id', 'name', 'position_id', 'icon_path', 'icon_bg')
+        ->get();
+        return response()->json($users);
+    }
+    public function get_non_member_assign_data(Request $request){
+        $request->validate([
+            'project_id' => 'required|integer|exists:project_records,id',
+            'user_id' => 'required|integer|exists:users,id',
+        ]);
+        $userId = $request->user_id;
+        $project = ProjectRecord::findOrFail($request->project_id);
+        $assignRecords = $project->projectAssignRecords()
+        ->where('user_id', $userId)
+        ->with(['questions.elements', 'questions.answers.element_answers', 'actions.user', 'actions.actualUser'])
+        ->orderBy('created_at', 'desc')
+        ->first();
+
+        $targetUser = User::select('id', 'name', 'position_id', 'icon_path', 'icon_bg')->findOrFail($userId);
+
+        return response()->json([
+            'assign_records' => $assignRecords,
+            'user' => $targetUser,
+        ]);
     }
 }

@@ -10,21 +10,35 @@
                         <div class="text-[gray] mb-3">{{ fieldLabel(fv) }}</div>
 
                         <div v-if="fv.field?.input_type === 'password'">
-                            <span v-if="!revealedPasswords[fv.asset_category_item_field_id]" class="text-[gray] mr-2">********</span>
-                            <span v-else class="mr-2">{{ revealedPasswords[fv.asset_category_item_field_id] }}</span>
-                            <span
-                                v-if="auth.isAdmin || auth.id === asset.current_user?.id"
-                                class="jump-link"
-                                @click="toggleReveal(fv.asset_category_item_field_id)"
-                            >
-                                {{ revealedPasswords[fv.asset_category_item_field_id] ? '非表示' : '表示' }}
-                            </span>
+                            <template v-if="canViewField(fv)">
+                                <span v-if="!revealedPasswords[fv.asset_category_item_field_id]" class="text-[gray] mr-2">********</span>
+                                <span v-else class="mr-2">{{ revealedPasswords[fv.asset_category_item_field_id] }}</span>
+                                <span
+                                    v-if="auth.isAdmin || auth.id === asset.current_user?.id"
+                                    class="jump-link"
+                                    @click="toggleReveal(fv.asset_category_item_field_id)"
+                                >
+                                    {{ revealedPasswords[fv.asset_category_item_field_id] ? '非表示' : '表示' }}
+                                </span>
+                                <span
+                                    v-if="revealedPasswords[fv.asset_category_item_field_id]"
+                                    class="jump-link ml-2"
+                                    @click="copyToClipboard(revealedPasswords[fv.asset_category_item_field_id])"
+                                >
+                                    コピー
+                                </span>
+                            </template>
+                            <span v-else class="text-[gray] text-[12px]">閲覧権限がありません</span>
                         </div>
                         <div
                             v-else
                             class="whitespace-break-spaces leading-normal"
-                            v-html="urlCheck((fv.value ?? '') as any)"
-                        ></div>
+                        >
+                            <template v-if="canViewField(fv)">
+                                <span v-html="urlCheck((fv.value ?? '') as any)"></span>
+                            </template>
+                            <span v-else class="text-[gray] text-[12px]">閲覧権限がありません</span>
+                        </div>
                     </div>
                 </div>
                 <p class="mt-3 text-[gray]">登録日 : {{ customParser(asset.created_at).toFormat('yyyy/M/d HH:mm') }}</p>
@@ -283,7 +297,7 @@ const emit = defineEmits<{
     edit: [asset: Asset]    
 }>()
 const api = useApi()
-const { ask } = useDialog()
+const { ask, toast } = useDialog()
 const reciever = ref<User>()
 const { userList } = useAsset()
 watch(() => reciever.value, () => {
@@ -424,7 +438,28 @@ const fieldLabel = (fv: FieldValue) => {
     return fv.field?.label || fv.field?.key || '項目'
 }
 
+const canViewField = (fv: FieldValue): boolean => {
+    const visible = fv.field?.visible ?? 'public'
+    if (visible === 'public') return true
+    if (visible === 'private') return auth.isAdmin
+    // 'user': admin or asset owner
+    return auth.isAdmin || auth.id === props.asset.current_user?.id
+}
+
+const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+        toast('コピーしました。')
+    }).catch(() => {
+        toast('コピーに失敗しました。')
+    })
+}
+
 const toggleReveal = async (fieldId: number) => {
+    const fv = (props.asset.field_values ?? []).find(f => f.asset_category_item_field_id === fieldId)
+    if (fv && !canViewField(fv)) {
+        ping('閲覧権限がありません。')
+        return
+    }
     if (!(auth.isAdmin || auth.id === props.asset.current_user?.id)) {
         ping('パスワードを表示できるのは管理者と使用者本人のみです。')
         return

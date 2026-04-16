@@ -114,6 +114,8 @@ class AssetCategoryController extends Controller
             'input_type' => ['required', 'string', 'in:shorttext,longtext,password'],
             'placeholder' => ['nullable', 'string', 'max:255'],
             'rules' => ['nullable', 'string', 'max:255'],
+            'visible' => ['nullable', 'string', 'in:public,private,user'],
+            'editable' => ['nullable', 'boolean'],
         ]);
 
         $maxSort = AssetCategoryItemField::query()
@@ -123,6 +125,8 @@ class AssetCategoryController extends Controller
 
         $field = AssetCategoryItemField::create([
             ...$validated,
+            'visible' => $validated['visible'] ?? 'public',
+            'editable' => $validated['editable'] ?? true,
             'sort_order' => $nextSort,
         ]);
         return response()->json($field);
@@ -195,6 +199,8 @@ class AssetCategoryController extends Controller
             'input_type' => ['required', 'string', 'in:shorttext,longtext,password'],
             'placeholder' => ['nullable', 'string', 'max:255'],
             'rules' => ['nullable', 'string', 'max:255'],
+            'visible' => ['nullable', 'string', 'in:public,private,user'],
+            'editable' => ['nullable', 'boolean'],
         ]);
 
         $field = AssetCategoryItemField::findOrFail($validated['id']);
@@ -205,6 +211,8 @@ class AssetCategoryController extends Controller
             'input_type' => $validated['input_type'],
             'placeholder' => $validated['placeholder'],
             'rules' => $validated['rules'],
+            'visible' => $validated['visible'] ?? 'public',
+            'editable' => $validated['editable'] ?? true,
         ]);
 
         return response()->json($field);
@@ -257,6 +265,8 @@ class AssetCategoryController extends Controller
                     'input_type' => $field->input_type,
                     'placeholder' => $field->placeholder,
                     'rules' => $field->rules,
+                    'visible' => $field->visible,
+                    'editable' => $field->editable,
                     'sort_order' => $field->sort_order,
                 ]);
             }

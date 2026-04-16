@@ -641,6 +641,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/projects/{project}/contract/extract', [ProjectController::class, 'extract_contract'])->name('projects.contract.extract');
         Route::delete('/projects/{project}/contract/{contract}', [ProjectController::class, 'delete_contract'])->name('projects.contract.delete');
         Route::post('/save_review', [ProjectController::class, 'save_review']);
+        Route::post('/get_non_member_users', [ProjectController::class, 'get_non_member_users']);
+        Route::post('/get_non_member_assign_data', [ProjectController::class, 'get_non_member_assign_data']);
 
         Route::get('/get_gantt_tasks', [TaskController::class, 'get_gantt_tasks']);
         Route::get('/get_gantt_projects', [TaskController::class, 'get_gantt_projects']);

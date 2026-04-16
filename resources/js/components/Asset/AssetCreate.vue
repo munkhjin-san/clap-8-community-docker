@@ -42,9 +42,10 @@
                             ref="dynamicFieldRefs"
                             :name="`asset-field-${field.id}`"
                             :place-holder="field.placeholder ?? ''"
-                            :rules="field.rules ?? ''"
+                            :rules="isFieldLocked(field) ? '' : (field.rules ?? '')"
                             custom-class="full"
                             :type="'text'"
+                            :disabled="isFieldLocked(field)"
                             v-model="dynamicFieldValues[field.id]"
                         />
                         <LongInput
@@ -52,7 +53,8 @@
                             ref="dynamicFieldRefs"
                             :name="`asset-field-${field.id}`"
                             :place-holder="field.placeholder ?? ''"
-                            :rules="field.rules ?? ''"
+                            :rules="isFieldLocked(field) ? '' : (field.rules ?? '')"
+                            :disabled="isFieldLocked(field)"
                             v-model="dynamicFieldValues[field.id]"
                         />
                     </div>
@@ -176,6 +178,7 @@ type AssetCategoryItemField = {
     input_type: 'shorttext' | 'longtext' | 'password'
     placeholder: string | null
     rules: string | null
+    editable: boolean
 }
 
 type AssetCategoryItem = {
@@ -194,6 +197,13 @@ const selectedFields = computed(() => selectedItem.value?.fields ?? [])
 
 const dynamicFieldValues = ref<Record<number, any>>({})
 const dynamicFieldRefs = ref<any[]>([])
+
+// A field is locked when editing an existing asset, editable === false, and the user is not an admin
+const isFieldLocked = (field: AssetCategoryItemField): boolean => {
+    if (!props.editData) return false
+    if (auth.isAdmin) return false
+    return field.editable === false
+}
 
 
 const api = useApi()
@@ -259,7 +269,12 @@ const createAsset = async() => {
         validTargets.push(externalUserNameRef.value)
     }
 
-    for (const target of (dynamicFieldRefs.value ?? [])) {
+    // Only validate editable fields; locked fields are read-only and their rules are suppressed
+    const editableFieldRefs = (dynamicFieldRefs.value ?? []).filter((_, i) => {
+        const field = selectedFields.value[i]
+        return field ? !isFieldLocked(field) : true
+    })
+    for (const target of editableFieldRefs) {
         validTargets.push(target)
     }
 

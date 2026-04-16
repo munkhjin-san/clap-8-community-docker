@@ -3,42 +3,81 @@
         <div class="absolute inset-0 m-auto w-fit h-fit z-[10]" v-if="fetching">
             <div class="spinner-mini"></div>
         </div>
-        <VueFlow
-            v-model:nodes="flowNodes"
-            v-model:edges="flowEdges"
-            :default-viewport="{ x: 0, y: 0, zoom: 1 }"
-            :min-zoom="1"
-            :max-zoom="1"
-            :nodes-draggable="true"
-            :nodes-connectable="false"
-            :elements-selectable="false"
-            :zoom-on-scroll="false"
-            :pan-on-scroll="true"
-            :fit-view-on-init="true"
-            :style="{
-                height: '100%',
-                width: '100%',
-            }"
-            class="vueflow"
-        >
-            <template #node-custom="nodeProps">
-                <!-- Member node handle: bottom if above core, top if below core -->
-                <Handle v-if="nodeProps.data.memberData && nodeProps.data.isAbove" type="target" :position="Position.Bottom" :connectable="true" />
-                <Handle v-if="nodeProps.data.memberData && !nodeProps.data.isAbove" type="target" :position="Position.Top" :connectable="true" />
-                
-                <!-- Core node handles: top and bottom only -->
-                <template v-if="nodeProps.data.projectData">
-                    <Handle v-for="num in topHandleCount" :key="'top-'+num" :id="`source-handle-top-${num}`" type="source" :position="Position.Top" :connectable="true" />
-                    <Handle v-for="num in bottomHandleCount" :key="'bottom-'+num" :id="`source-handle-bottom-${num}`" type="source" :position="Position.Bottom" :connectable="true" />
+        <div class="px-5 relative z-[5]">
+            <div>
+                <p class="text-[12px] text-[gray] leading-normal">適合評価を開始するには、メンバーアイコンをクリックしてメンバーを選択してください。<br>
+                プロジェクメンバーでないユーザーを追加したい場合は、「ノンメンバーを追加」から可能です。
+                </p>
+                <button class="mt-4 text-[12px] px-2 py-1 bg-[var(--bg3)]" @click.stop="selectNonMember">ノンメンバーを追加</button>
+            </div>
+            <Transition name="slidePop">
+                <div @click.stop @touchstart.stop id="p-user-pick" v-if="menu.parent == 'p-user-pick'" class="max-w-[80vw] left-[20px] absolute top-full w-max max-h-[400px] bg-[var(--background-color)] border border-solid border-[var(--secondary-background)] shadow-lg rounded-md overflow-auto z-[4]">
+                    <div class="sticky top-0 bg-[var(--background-color)] z-[2] p-3">                
+                        <div class="flex w-full ">
+                            <input 
+                                name="asset-member-search-input" 
+                                v-model="searchName" 
+                                class="border border-solid border-[var(--formBorder)] px-3 py-2 w-full focus:border-[var(--primary-color)] text-[var(--primary-color)]" 
+                                placeholder="メンバー検索" 
+                                type="text"
+                                @click.stop
+                            />
+                        </div>
+                    </div>
+                    <div class="px-3 pb-3">
+                        <div>
+                            <div v-if="searchResult.length">
+                                <div @click="selectMember(resultUser)" v-for="resultUser in searchResult" :key="resultUser.id" class="cursor-pointer hover:bg-[var(--secondary-background)] p-2 flex items-center gap-2 rounded-md" >
+                                    <UserPanel size="25" disable-instant :user="resultUser" with-name/>
+                                </div>
+                            </div>
+                            <div v-else>
+                                <div class="text-sm text-[gray] py-3 text-center">該当するメンバーが見つかりません</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Transition>
+        </div>
+        <div class="w-full h-full mt-[-50px]">
+            <VueFlow
+                v-model:nodes="flowNodes"
+                v-model:edges="flowEdges"
+                :default-viewport="{ x: 0, y: 0, zoom: 1 }"
+                :min-zoom="1"
+                :max-zoom="1"
+                :nodes-draggable="true"
+                :nodes-connectable="false"
+                :elements-selectable="false"
+                :zoom-on-scroll="false"
+                :pan-on-scroll="true"
+                :fit-view-on-init="true"
+                :style="{
+                    height: '100%',
+                    width: '100%',
+                }"
+                class="vueflow"
+            >
+                <template #node-custom="nodeProps">
+                    <!-- Member node handle: bottom if above core, top if below core -->
+                    <Handle v-if="nodeProps.data.memberData && nodeProps.data.isAbove" type="target" :position="Position.Bottom" :connectable="true" />
+                    <Handle v-if="nodeProps.data.memberData && !nodeProps.data.isAbove" type="target" :position="Position.Top" :connectable="true" />
+                    
+                    <!-- Core node handles: top and bottom only -->
+                    <template v-if="nodeProps.data.projectData">
+                        <Handle v-for="num in topHandleCount" :key="'top-'+num" :id="`source-handle-top-${num}`" type="source" :position="Position.Top" :connectable="true" />
+                        <Handle v-for="num in bottomHandleCount" :key="'bottom-'+num" :id="`source-handle-bottom-${num}`" type="source" :position="Position.Bottom" :connectable="true" />
+                    </template>
+                    <div class="bg-[var(--bg3)] h-full w-full flex items-center justify-center rounded-xl text-[14px] leading-normal" v-if="nodeProps.data.projectData">
+                        <div class="px-3 w-[130%] text-center">{{ nodeProps.data.projectData.name }}</div>
+                    </div>
+                    <div class="u-round-wrap" v-if="nodeProps.data.memberData" @click="userSelect(nodeProps.data.memberData)">
+                        <UserPanel disable-instant :user="nodeProps.data.memberData" />
+                        <div class="u-chip absolute whitespace-nowrap text-[11px] mx-auto bottom-[-20px] left-1/2 transform -translate-x-1/2 bg-[var(--primary-color)] text-[var(--background-color)] px-2 rounded py-1">{{ nodeProps.data.memberData.name }}</div>
+                    </div>
                 </template>
-                <div class="bg-[var(--bg3)] h-full w-full flex items-center justify-center rounded-xl text-[14px] leading-normal" v-if="nodeProps.data.projectData">
-                    <div class="px-3 w-[130%] text-center">{{ nodeProps.data.projectData.name }}</div>
-                </div>
-                <div v-if="nodeProps.data.memberData" @click="userSelect(nodeProps.data.memberData)">
-                    <UserPanel disable-instant :user="nodeProps.data.memberData" />
-                </div>
-            </template>
-        </VueFlow>
+            </VueFlow>
+        </div>
         <component :is="'style'">
         {{ handlePositionStyles }}
         </component>
@@ -46,12 +85,12 @@
     
             <div class="space-y-2 text-[gray]">
                 <div class="flex items-center gap-2">
-                    <span class="legend-line legend-line-dashed"></span>
-                    <span>役割未割当</span>
+                    <span class="legend-line legend-line-solid"></span>
+                    <span>プロジェクトメンバー</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span class="legend-line legend-line-solid"></span>
-                    <span>役割割当済</span>
+                    <span class="legend-line legend-line-dashed"></span>
+                    <span>ノンメンバー</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <span class="legend-line legend-line-green"></span>
@@ -70,9 +109,6 @@
         <router-view v-slot="{ Component }">
         <component 
             :is="Component"
-            v-if="activeMember" 
-            :member="activeMember" 
-            :assign-data="activeMemberAssignData" 
             @close="router.back()"
             @update="fetchMembersAssignData"
         />
@@ -90,6 +126,8 @@ import { ProjectAssignRecord, ProjectMember } from "@/interface/projectInterface
 import { useAuthUserStore } from "@/store/auth";
 import { useApi } from "@/composables/api";
 import { useRoute, useRouter } from "vue-router";
+import CommandButton from "@/components/Global/CommandButton.vue";
+import { useMenuStore } from "@/store/menu";
 const { selectedProject, isManager } = useProject()
 const fetching = ref(false);
 const api = useApi()
@@ -101,10 +139,19 @@ const topHandleCount = ref(0)
 const bottomHandleCount = ref(0)
 const router = useRouter()
 const route = useRoute()
+const nonMemberUsers = ref<ProjectMember[]>([])
+const menu = useMenuStore()
+const searchName = ref<string>('');
 onMounted(() => {
     fetchMembersAssignData()
 })
-
+const searchResult = computed(() => {
+    if(!searchName.value.length) return nonMemberUsers.value;
+    const totalList:ProjectMember[] = nonMemberUsers.value;
+    if(!searchName.value.length) return [];
+    const lowerSearch = searchName.value.toLowerCase();
+    return totalList.filter(user => user.name?.toLowerCase().includes(lowerSearch))
+})  
 const fetchMembersAssignData = async () => {
     if (!selectedProject.value) return;
     fetching.value = true;
@@ -173,15 +220,31 @@ const buildMemberPosition = (index: number, total: number) => {
 }
 
 const syncNodes = () => {
-    const members = allMembers.value
+    
+    const members = allMembers.value 
+    const nonMembers = assignDataList.value.filter(assign => !members.some(member => member.id === assign.user_id)).map(assign => {
+        return {
+            id: assign.user_id,
+            name: assign.user?.name || "Unknown User",
+            icon_path: assign.user?.icon_path || "",
+            icon_bg: assign.user?.icon_bg || "#000000",
+            pivot: {
+                role_record: assign.project_member_role || null,
+            }
+        } as ProjectMember
+    })
+
+    const mergedMembers = [...members, ...nonMembers]
+    const existingMemberNodeCount = (flowNodes.value as { id: string }[]).filter(n => n.id !== 'core').length
+    const countChanged = existingMemberNodeCount !== mergedMembers.length
     const existingNodeEntries: Array<[string, Node]> = flowNodes.value.map((node) => [node.id, node])
     const existingNodeMap = new Map<string, Node>(existingNodeEntries)
     const nodes: Node[] = []
 
-    members.forEach((member, index) => {
+    mergedMembers.forEach((member, index) => {
         const nodeId = `member-${member.id}`
-        const existingNode = existingNodeMap.get(nodeId)
-        const position = existingNode?.position ?? buildMemberPosition(index, members.length)
+        const existingNode = countChanged ? undefined : existingNodeMap.get(nodeId)
+        const position = existingNode?.position ?? buildMemberPosition(index, mergedMembers.length)
         const isAbove = position.y + FLOW.size / 2 < FLOW.coreCenterY
 
         nodes.push({
@@ -232,6 +295,7 @@ const syncNodes = () => {
 const syncEdges = () => {
     const memberNodes = flowNodes.value.filter((node): node is Node => node.id !== 'core')
     const assignDataMap = new Map(assignDataList.value.map(assign => [assign.user_id, assign]))
+    const projectMemberIds = new Set(allMembers.value.map(m => m.id))
     const aboveMembers: { member: ProjectMember; x: number }[] = []
     const belowMembers: { member: ProjectMember; x: number }[] = []
 
@@ -261,6 +325,7 @@ const syncEdges = () => {
 
     const pushEdge = (member: ProjectMember, handleId: string, leftPx: number) => {
         const memberAssignData = assignDataMap.get(member.id) || null
+        const isProjectMember = projectMemberIds.has(member.id)
         const role = member.pivot?.role_record
 
         nextHandlePositions.push({ handleId, leftPx })
@@ -270,10 +335,9 @@ const syncEdges = () => {
             target: `member-${member.id}`,
             sourceHandle: handleId,
             type: "smoothstep",
-            // style: memberAssignData ? { stroke: memberAssignData.support_level || strokeStyle.invalid.stroke } : strokeStyle.invalid,
             style: {
-                strokeDasharray: role ? undefined : strokeStyle.invalid.strokeDasharray,
-                stroke: role ? (memberAssignData?.support_level || "#D1D5DB") : strokeStyle.invalid.stroke, 
+                strokeDasharray: isProjectMember ? undefined : strokeStyle.invalid.strokeDasharray,
+                stroke: memberAssignData?.support_level || strokeStyle.invalid.stroke,
             },
             label: role?.title || "",
             ...labelStyle
@@ -304,7 +368,7 @@ const syncEdges = () => {
     flowEdges.value = edges
 }
 
-watch([allMembers, selectedProject], () => {
+watch([allMembers, selectedProject, assignDataList], () => {
     syncNodes()
 }, { immediate: true })
 
@@ -339,6 +403,31 @@ const userSelect = (member: ProjectMember) => {
     // console.log("Selected member:", member)
     // activeMemberId.value = member.id;
     router.push({ name: 'assign-member', params: { memberId: member.id } })
+}
+const selectMember = (member: ProjectMember) => {
+    menu.close()
+    router.push({ name: 'assign-member', params: { memberId: member.id } })
+}
+
+const selectNonMember = () => {
+    menu.setMenu({parent: 'p-user-pick'})
+    if(nonMemberUsers.value.length === 0){
+        fetchNonMembers()
+    }
+}
+const fetchNonMembers = async () => {
+    if (!selectedProject.value) return;
+    fetching.value = true;
+    try {
+        const response = await api.post('/get_non_member_users', {           
+            project_id: selectedProject.value.id,            
+        })
+        nonMemberUsers.value = response || [];
+    } catch (error) {
+        console.error("Failed to fetch non-member users:", error);
+    } finally {
+        fetching.value = false;
+    }
 }
 </script>
 
@@ -381,5 +470,18 @@ const userSelect = (member: ProjectMember) => {
 .legend-line-red {
   border-top-style: solid;
   border-top-color: red;
+}
+.u-round-wrap{
+    position: relative;
+    display: inline-block;
+}
+.u-chip {
+    visibility: hidden;
+    opacity: 0;
+}
+.u-round-wrap:hover .u-chip {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.2s ease-in-out;
 }
 </style>

@@ -36,6 +36,8 @@ export interface Asset {
             input_type: 'shorttext' | 'longtext' | 'password'
             placeholder: string | null
             rules: string | null
+            visible: 'public' | 'private' | 'user'
+            editable: boolean
         }
     }>
 }
