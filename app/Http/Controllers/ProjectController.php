@@ -309,6 +309,7 @@ class ProjectController extends Controller
 
         $data['this_span']['created_count'] = $thisGoalsCount;
         $data['previous_span']['created_count'] = $previousGoalsCount;
+        $now = Carbon::now();
         //if after 20th, add 1 or keep curreent month 
         $targetMonth = $now->copy()->day >= 20 ? $now->month + 1 : $now->month;
         
