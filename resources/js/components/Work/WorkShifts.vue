@@ -537,6 +537,11 @@ import { useDashboardStore } from '@/store/dashboard';
             if (val && type_id == 27){
                 remainingSpecialHoliday.value--
             }
+            if (type_id == 27 && remainingSpecialHoliday.value < 0){
+                remainingSpecialHoliday.value = 0
+                selectedShifts.value.pop()
+                ping('特別休暇日数が足りない。これ以上選択できません。')
+            }
             if(type_id == 3){
                 const previousPeriodStart = DateTime.fromISO(tempStartDate.value).minus({ years: 1 });
                 const previousPeriodEnd = DateTime.fromISO(tempStartDate.value);
