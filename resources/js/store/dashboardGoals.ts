@@ -14,6 +14,16 @@ import type { GoalRequiredData } from '@/interface/dashboard'
  */
 export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
     const api = useApi()
+
+    const isGoalOverWeek = (goal: ProjectGoal): boolean => {
+        if (goal.status === 9 || !goal.end_date) return false
+        const now = DateTime.local()
+        const deadline = DateTime.fromISO(goal.end_date)
+
+        if (!deadline.isValid) return false
+
+        return now.diff(deadline, 'days').days > 7
+    }
     
     // State
     const goals = ref<ProjectGoal[]>([])
@@ -190,22 +200,34 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
 
 
     const pulseBadgeCount = computed(() => {
-        const overdueGoals = myGoals.value.filter(goal => {
-            if(goal.status === 9) return false
-            const now = DateTime.local();
-            const deadline = DateTime.fromISO(goal.end_date);
-            const diffInDays = now.diff(deadline, 'days').days;
-            return diffInDays > 7;
-        })
+        const overdueGoals = myGoals.value.filter(isGoalOverWeek)
+
+        const overdueApprovalGoalsCount =
+            pendingMembers.value.flatMap(user => user.outcome_goals ?? []).filter(isGoalOverWeek).length +
+            managersGoals.value.flatMap(user => user.outcome_goals ?? []).filter(isGoalOverWeek).length
 
         const needed = (requiredGoalData.value?.this_span?.needed_count || 0) + (requiredGoalData.value?.previous_span?.needed_count || 0) + (unfinishedPreviousSpanGoals.value.length || 0)
-        return overdueGoals.length + needed
+        return overdueGoals.length + overdueApprovalGoalsCount + needed
+    })
+    const isGoalWithinDuePlus7 = (goal: ProjectGoal) => {
+        if (!goal.due_plus_7) return false
+
+        const now = DateTime.local()
+        const duePlus7 = DateTime.fromISO(goal.due_plus_7).endOf('day')
+
+        return duePlus7.isValid && duePlus7 > now
+    }
+
+    const managerNormalGoals = computed(() => {
+        return managersGoals.value.filter((manager) =>
+            manager.outcome_goals.some(isGoalWithinDuePlus7)
+        )
     })
     const normalBadgeCount = computed(() => {
         const attentionNeededMyGoals = myGoals.value.filter(goal => goal.status == 1 || goal.status == 8 || (goal.salary_issue && (goal.salary_issue.status == 1 || goal.salary_issue.status == 8)))
 
         return pendingMembers.value.length +
-        managersGoals.value.length +
+        managerNormalGoals.value.length +
         adminApprovalNeededGoalsWithSalaryIssue.value.length +
         mentorApprovalNeededGoalsWithSalaryIssue.value.length +
         adminApprovalNeededGoals.value.length +
@@ -254,6 +276,7 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         kpiCalculation,
         overallScore,
         markAsRead,
+        isGoalOverWeek,
 
         // Computed
         totalOverallScore,

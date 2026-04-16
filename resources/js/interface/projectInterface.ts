@@ -296,6 +296,7 @@ interface ProjectGoal {
     user: User;
     goal_notifications_count?: number;
     status_logs?: StatusLog[];
+    due_plus_7?: string
 }
 interface ProjectGoalReport {
     content: string;

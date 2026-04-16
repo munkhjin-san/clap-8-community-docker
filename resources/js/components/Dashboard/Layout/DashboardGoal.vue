@@ -33,7 +33,7 @@
                 </div>
                 <div v-if="!fullscreen" class="m-5">
                     <div v-for="item in approvaNeeded" class="mb-4">
-                        <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis">
+                        <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis flex items-center gap-2">
                             <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 py-0.5">{{ item.chip }}</span>
                             {{ item.title }} ({{ item.users.length }})
                         </p>
@@ -49,6 +49,7 @@
                             >
                                 <template #title="{ expanded }">
                                     <PanelTitle :expanded="expanded">
+                                        <div v-if="approvalUserHasOverWeekGoal(member)" class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
                                         <UserPanel size="25" :user="member" disable-instant/>
                                         <div class="overflow-hidden whitespace-nowrap text-ellipsis ml-2">{{ member.name }}</div>
                                         <div class="ml-1 text-[12px] text-[gray] whitespace-nowrap">({{ member.outcome_goals.length }}件)</div>                       
@@ -61,7 +62,7 @@
                                             :key="`${group.year}-${group.which_half}`"
                                             class="mb-2"
                                         >
-                                            <div class="text-[12px] text-[gray] mb-1 flex gap-1 justify-between">
+                                            <div :class="['text-[12px] text-[gray] mb-1 flex gap-1 justify-between', {'text-[tomato]' : approvalGroupHasOverWeekGoal(group)}]">
                                                 {{ group.label }}（{{ group.goals.length }}件）
                                                 <div class="jump-link ml-auto whitespace-nowrap" @click="jumpToGoal(member, group, parentElement)">対応</div>
                                             </div>
@@ -325,11 +326,13 @@ const approvaNeeded = computed(() => {
 
 })
 const goalIsOverWeek = (goal: ProjectGoal) => {
-    if(goal.status === 9) return false
-    const now = DateTime.local();
-    const deadline = DateTime.fromISO(goal.end_date);
-    const diffInDays = now.diff(deadline, 'days').days;
-    return diffInDays > 7
+    return goalsStore.isGoalOverWeek(goal)
+}
+const approvalGroupHasOverWeekGoal = (group: OutcomeGoalGroup) => {
+    return (group.goals ?? []).some(goalIsOverWeek)
+}
+const approvalUserHasOverWeekGoal = (user: UserWithGoals) => {
+    return (user.outcome_goals ?? []).some(goalIsOverWeek)
 }
 
 const halfLabel = (whichHalf: string) => {

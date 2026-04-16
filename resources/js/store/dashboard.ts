@@ -124,16 +124,15 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
     })
     const goalsStore = useDashboardGoalsStore()
     const pulseBadgeCount = computed(() => {
-        const overdueGoals = goalsStore.myGoals.filter(goal => {
-            if(goal.status === 9) return false
-            const now = DateTime.local();
-            const deadline = DateTime.fromISO(goal.end_date);
-            const diffInDays = now.diff(deadline, 'days').days;
-            return diffInDays > 7;
-        })
+        const overdueGoals = goalsStore.myGoals.filter(goalsStore.isGoalOverWeek)
+
+        const overdueApprovalGoalsCount =
+            goalsStore.pendingMembers.flatMap(user => user.outcome_goals ?? []).filter(goalsStore.isGoalOverWeek).length +
+            goalsStore.managersGoals.flatMap(user => user.outcome_goals ?? []).filter(goalsStore.isGoalOverWeek).length
 
         const needed = (goalsStore.requiredGoalData?.this_span?.needed_count || 0) + (goalsStore.requiredGoalData?.previous_span?.needed_count || 0) + (goalsStore.unfinishedPreviousSpanGoals.length ?? 0)
-        return overdueGoals.length + needed + collection.value.timesheet.pendingAttendance 
+        const pendingAttendanceCount = collection.value.timesheet.pendingAttendance ? 1 : 0
+        return overdueGoals.length + overdueApprovalGoalsCount + needed + pendingAttendanceCount
     })
     const getAnnualLeaveData = async () => {
         try {
