@@ -6,7 +6,8 @@
                 @input="validate(true, $event)"
                 v-model="value" 
                 :name="inputName" 
-                :class="['g-text-long', customClass, {'date-color' : theme.dark }]"                 
+                :disabled="disabled"
+                :class="['g-text-long', customClass, {'date-color' : theme.dark }, {'!bg-[var(--bg3)] opacity-80 !cursor-not-allowed' : disabled}]"                
             ></textarea>
             <label v-if="placeHolder" :class="['form-plc', {centerLabel: !modelValue}]">{{placeHolder}}</label> 
 
@@ -31,12 +32,14 @@
         rules?: string
         customClass?: string
         initialValue?: string
+        disabled?: boolean
     }>(), {
         name: '',
         placeHolder: '',
         rules: '',
         customClass: '',
-        initialValue: ''
+        initialValue: '',
+        disabled: false,
     })
     const inputName = computed(() => props.name ? props.name : `long-input-${Math.random().toString(36).substring(2, 15)}`)
     const value = defineModel<any>()

@@ -166,6 +166,20 @@
                                     必須
                                 </label>
 
+                                <select
+                                    v-model="field.visible"
+                                    class="p-2 border border-solid border-[var(--formBorder)] bg-[var(--background-color)] text-[var(--primary-color)] rounded"
+                                >
+                                    <option value="public">全員</option>
+                                    <option value="user">管理者・オーナー</option>
+                                    <option value="private">管理者のみ</option>
+                                </select>
+
+                                <label class="flex items-center gap-2 text-[13px] text-[gray]">
+                                    <input type="checkbox" v-model="field.editable" />
+                                    編集可
+                                </label>
+
                                 <button
                                     class="px-3 py-2 rounded bg-[var(--background-color)] text-[var(--primary-color)] border border-solid border-[var(--formBorder)]"
                                     @click="updateField(activeItem, field)"
@@ -211,6 +225,20 @@
                             <label class="flex items-center gap-2 text-[13px] text-[gray]">
                                 <input type="checkbox" v-model="fieldDraft(activeItem.id).required" />
                                 必須
+                            </label>
+
+                            <select
+                                v-model="fieldDraft(activeItem.id).visible"
+                                class="p-2 border border-solid border-[var(--formBorder)] bg-[var(--background-color)] text-[var(--primary-color)] rounded"
+                            >
+                                <option value="public">全員</option>
+                                <option value="user">管理者・オーナー</option>
+                                <option value="private">管理者のみ</option>
+                            </select>
+
+                            <label class="flex items-center gap-2 text-[13px] text-[gray]">
+                                <input type="checkbox" v-model="fieldDraft(activeItem.id).editable" />
+                                編集可
                             </label>
 
                             <button
@@ -261,6 +289,8 @@ type UiField = {
     input_type: 'shorttext' | 'longtext' | 'password'
     placeholder: string
     required: boolean
+    visible: 'public' | 'private' | 'user'
+    editable: boolean
 }
 
 type UiItem = {
@@ -298,6 +328,8 @@ const fieldDrafts = reactive<
             input_type: UiField['input_type']
             placeholder: string
             required: boolean
+            visible: UiField['visible']
+            editable: boolean
         }
     >
 >({})
@@ -309,6 +341,8 @@ const fieldDraft = (itemId: number) => {
             input_type: 'shorttext',
             placeholder: '',
             required: false,
+            visible: 'public',
+            editable: true,
         }
     }
     return fieldDrafts[itemId]
@@ -323,6 +357,8 @@ const toUiItems = (data: ApiAssetCategoryItem[]): UiItem[] => {
             input_type: field.input_type,
             placeholder: field.placeholder ?? '',
             required: isRequired(field.rules),
+            visible: (field as any).visible ?? 'public',
+            editable: (field as any).editable !== false,
         }))
 
         return {
@@ -554,6 +590,8 @@ const createField = async (item: UiItem) => {
             input_type: draft.input_type,
             placeholder: draft.placeholder.trim() || null,
             rules: draft.required ? 'required' : null,
+            visible: draft.visible,
+            editable: draft.editable,
         },
         { toast: '追加しました' }
     )
@@ -562,6 +600,8 @@ const createField = async (item: UiItem) => {
     draft.input_type = 'shorttext'
     draft.placeholder = ''
     draft.required = false
+    draft.visible = 'public'
+    draft.editable = true
 
     await fetchItems()
 }
@@ -576,6 +616,8 @@ const updateField = async (item: UiItem, field: UiField) => {
             input_type: field.input_type,
             placeholder: field.placeholder.trim() || null,
             rules: field.required ? 'required' : null,
+            visible: field.visible,
+            editable: field.editable,
         },
         { toast: '保存しました' }
     )

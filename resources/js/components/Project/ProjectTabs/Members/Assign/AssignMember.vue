@@ -1,7 +1,7 @@
 <template>
     <Teleport to="body">
         <Transition name="modalFade">            
-        <Modal @close="close" size="large">
+        <Modal @close="close" size="large" :loader="initializing">
             <template #title>
                 メンバーの役割と適合評価
             </template>
@@ -9,8 +9,17 @@
                 <Teleport to="body">
                     <AiLoader v-if="loading" message="適合評価中...この処理には数分かかる場合があります" />
                 </Teleport>
+                <Teleport to="body">
+                    <div v-if="refreshing" class="fixed inset-0 flex items-center justify-center z-50">
+                        <div class="spinner-mini"></div>
+                    </div>
+                </Teleport>
                 <div class="flex items-center justify-between flex-wrap gap-2">
-                    <UserPanel :user="member" :size="30" with-name/>
+                    <UserPanel v-if="member" :user="member" :size="30" with-name>
+                        <template #details>
+                            <p class="ml-2 text-[tomato] text-[11px] mt-1" v-if="!isProjectMember">プロジェクトメンバーでないユーザーです</p>
+                        </template>
+                    </UserPanel>
                     <div class="mt-5 flex items-center">
                         役割: 
                         <select v-model="selectedRole" @change="saveRole" class="text-[var(--primary-color)] border border-solid border-[var(--formBorder)] ml-3 px-2 py-1">
@@ -29,7 +38,7 @@
                         現在、適合評価データがありません。                        
                     </div>
                     <div class="mt-2">
-                        <LoaderButton @click="evaluateMember" v-if="member?.pivot?.role_record" class="!m-0" content="評価を行う" :loading="loading">
+                        <LoaderButton @click="evaluateMember" v-if="member && selectedRole" class="!m-0" content="評価を行う" :loading="loading">
                             <template #icon>
                                 <AiIcon class="mr-2" fill="currentColor"/>
                             </template>
@@ -185,7 +194,7 @@
                        <ManagerArea 
                             v-if="assignData"
                             :assign-data="assignData" 
-                            @update="emit('update')"
+                            @update="refreshData"
                         />
                         <!-- 対応レベル -->
                         <div class="post-separetor mt-5"><div>人事対応</div></div>  
@@ -194,6 +203,7 @@
                             <div class="flex items-center gap-3 mb-2">
                                 <span class="font-medium">対応必要性</span>
                                 <select
+                                    v-model="assignData.support_level"
                                     @change="updateSupportLevel"
                                     :disabled="!auth.isAdmin"
                                     class="px-2 py-1 rounded text-sm font-bold focus:outline-none min-w-[90px] cursor-pointer"
@@ -305,27 +315,13 @@
                             </div>
 
                             <div class="mt-10" v-if="assignData.status === '本人取り下げ'" >
-                                <!-- <div class="post-separetor mt-5"><div>本人からの回答</div></div>
-                                <div v-if="memberDecisions.length" class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded">
-                                    <div class="flex items-center gap-3 mb-2">
-                                        <span class="font-bold text-yellow-800">
-                                            {{ memberDecision.decision === 'rejected' ? '申請内容を取り下げました' : '' }}
-                                        </span>
-                                    </div>
-                                    <div v-if="memberDecision.comment" class="text-sm text-yellow-700 whitespace-pre-wrap">
-                                        <span class="font-semibold">取り下げ理由:</span>
-                                        {{ memberDecision.comment }}
-                                    </div>
-                                </div> -->
                                 <div class="post-separetor mt-5"><div>本人確認事項（修正用）</div></div>
                                 <LongInput v-model="memberConfirmationItems" place-holder="修正内容を入力して再申請してください"/>
                                 <div class="flex justify-center gap-5 flex-wrap mt-5 mb-3">
                                     <LoaderButton style="margin:0" @triggered="reapplyToMember" :loading="savingAssignData" content="再申請する" /> 
                                 </div>
                             </div>
-                        </div>
-
-                        
+                        </div>                        
                     </div>
                 </div>
             </template>
@@ -338,7 +334,7 @@ import { ProjectAssignRecord, ProjectMember } from "@/interface/projectInterface
 import Modal from '@/components/Global/Modal.vue';
 import UserPanel from "@/components/Global/UserPanel.vue";
 import { useProject } from "@/composables/project";
-import { computed, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { useApi } from "@/composables/api";
 import LoaderButton from "@/components/Global/LoaderButton.vue";
 import AiIcon from "@/components/Icons/AiIcon.vue";
@@ -351,19 +347,18 @@ import { DateParser, urlCheck } from "@/utils/tools";
 import ManagerArea from "./ManagerArea.vue";
 import Trash from "@/components/Icons/Trash.vue";
 import LongInput from "@/components/Form/LongInput.vue";
-
-const props = defineProps<{
-    member: ProjectMember
-    assignData: ProjectAssignRecord | null
-}>();
+import { useRoute } from "vue-router";
 
 const emit = defineEmits<{
     close: [flag:boolean]
     update: []
 }>();
+
+const assignData = ref<ProjectAssignRecord | null>(null);
+const member = ref<ProjectMember | null>(null);
 const auth = useAuthUserStore()
 const { selectedProject, refreshProject } = useProject()
-const selectedRole = ref<number | null>(props.member?.pivot?.role_record?.id || null);
+const selectedRole = ref<number | null>(null);
 const savingAssignData = ref(false);
 const changedAssignData = ref<boolean>(false);
 const safeExit = ref(true)
@@ -377,34 +372,59 @@ const roles = computed(() => {
     return selectedProject.value?.member_roles || [];
 })
 
-const memberDecisions = computed(() => {
-    return props.assignData?.actions?.filter(a => a.action_type === 'member_decision') || [];
-    // if (!props.assignData?.actions) return null;
-    // const action = props.assignData.actions.find(a => a.action_type === 'member_decision');
-    // if (!action) return null;
-    // try {
-    //     return JSON.parse(action.content);
-    // } catch {
-    //     return null;
-    // }
+const isProjectMember = computed(() => {
+    if(!member.value || !selectedProject.value) return false;
+    return selectedProject.value.members.some(m => m.id === member.value?.id);
 })
 
 const api = useApi()
 const { ask, ping, toast } = useDialog()
 const savingRole = ref(false);
 const loading = ref(false);
-const close = async () => {
-    
-        emit('close', true);
-    
+const initializing = ref(true);
+const refreshing = ref(false);
+const route = useRoute();
+onMounted(() => {
+    console.log(route.params.memberId)
+    if(route.params.memberId){
+        initialize(Number(route.params.memberId));
+    }
+});
+const initialize = async(memberId: number) => {
+    if(!memberId || !selectedProject.value) return;
+    refreshing.value = true;
+    await getMemberData();
+    refreshing.value = false;
+    initializing.value = false;
+}
+const getMemberData = async () => {
+    if(!selectedProject.value) return;
+    try {
+        const data = await api.post('/get_non_member_assign_data', {
+
+            project_id: selectedProject.value.id,
+            user_id: Number(route.params.memberId)
+        });
+
+        member.value = data.user;
+        assignData.value = data.assign_records;
+        
+    } catch (error) {
+        console.error('Failed to fetch non-member assign data:', error);
+    }
+};
+
+const close = async () => {    
+    emit('close', true);    
 };
 const saveRole = async (event: Event) => {
+    if(!member.value || !isProjectMember.value) return;
     const target = event.target as HTMLSelectElement;
     const value = target.value;
     const roleId = target.value ? parseInt(target.value) : null;
     await api.post('/update_project_member_role', {
         project_id: selectedProject.value?.id,
-        user_id: props.member.id,
+        user_id: member.value.id,
         role_id: roleId
     }, {
         toast: '役割を更新しました。',
@@ -414,7 +434,8 @@ const saveRole = async (event: Event) => {
 };
 
 const evaluateMember = async () => {
-    if(props.assignData){
+    if(!member.value) return;
+    if(assignData.value){
         const reEvaluate = await ask('既に適合評価データがあります。再評価を行うと上書きされますが、よろしいですか？');
         if(!reEvaluate.value){
             return;
@@ -424,12 +445,12 @@ const evaluateMember = async () => {
     try {
         const data = await api.post('/evaluate_member', {
             project_id: selectedProject.value?.id,
-            user_id: props.member.id,
+            user_id: member.value.id,
             role_id: selectedRole.value
         });
         if(data !== null){
             toast('適合評価が完了しました。');
-            emit('update');
+            refreshData();          
         }
         // refreshProject();
     } finally {
@@ -440,7 +461,7 @@ const evaluateMember = async () => {
 };
 
 const removeAssignment = async () => {
-    if (!props.assignData) {
+    if (!assignData.value) {
         ping('削除対象の評価データがありません。');
         return;
     }
@@ -451,7 +472,7 @@ const removeAssignment = async () => {
     }
 
     try {
-        const res = await api.del(`/delete_assign_record/${props.assignData.id}`, null, {
+        const res = await api.del(`/delete_assign_record/${assignData.value.id}`, null, {
             toast: '適合評価データを削除しました。',
             loadingRef: removingAssignment,
         });
@@ -459,7 +480,8 @@ const removeAssignment = async () => {
         if (res !== null) {
             safeExit.value = true;
             await refreshProject();
-            emit('update');
+            
+            refreshData();
             emit('close', true);
         }
     } catch (error) {
@@ -470,15 +492,15 @@ const removeAssignment = async () => {
 const updateSupportLevel = async (event: Event) => {
     const target = event.target as HTMLSelectElement;
     const value = target.value as 'green' | 'orange' | 'red';
-    if(!props.assignData) return;
+    if(!assignData.value) return;
     try {
         await api.post('/update_assign_support_level', {
-            assign_record_id: props.assignData.id,
+            assign_record_id: assignData.value.id,
             support_level: value
         }, {
             toast: '対応必要性を更新しました。'
         });
-        emit('update');
+        refreshData();
     } catch (error) {
         console.error('Failed to update support level:', error);
     }
@@ -511,24 +533,24 @@ const addAction = async () => {
         ping('対応策を入力してください。');
         return;
     }
-    if(!props.assignData) return;
+    if(!assignData.value) return;
     try {
         await api.post('/add_assign_action', {
-            assign_record_id: props.assignData.id,
+            assign_record_id: assignData.value.id,
             content: actionText.value
         }, {
             toast: '保存しました'
         });
         actionText.value = '';
-        emit('update');
+        refreshData();
     } catch (error) {
         console.error('Failed to add action:', error);
     }
 };
 
 const applyToMember = async () => {
-    if (!props.assignData) return;
-    if (props.assignData.status !== '人事対応中') {
+    if (!assignData.value) return;
+    if (assignData.value.status !== '人事対応中') {
         ping('現在のステータスでは申請できません。');
         return;
     }
@@ -539,22 +561,22 @@ const applyToMember = async () => {
 
     try {
         await api.post('/apply_assign_data_to_member', {
-            assign_record_id: props.assignData.id,
+            assign_record_id: assignData.value.id,
             member_confirmation_items: memberConfirmationItems.value,
         }, {
             toast: '本人へ申請しました。',
             loadingRef: savingAssignData,
         });
         memberConfirmationItems.value = '';
-        emit('update');
+        refreshData();
     } catch (error) {
         console.error('Failed to apply assignment to member:', error);
     }
 };
 
 const reapplyToMember = async () => {
-    if (!props.assignData) return;
-    if (props.assignData.status !== '本人取り下げ') {
+    if (!assignData.value) return;
+    if (assignData.value.status !== '本人取り下げ') {
         ping('現在のステータスでは再申請できません。');
         return;
     }
@@ -565,18 +587,25 @@ const reapplyToMember = async () => {
 
     try {
         await api.post('/reapply_assign_data_to_member', {
-            assign_record_id: props.assignData.id,
+            assign_record_id: assignData.value.id,
             member_confirmation_items: memberConfirmationItems.value,
         }, {
             toast: '本人へ再申請しました。',
             loadingRef: savingAssignData,
         });
         memberConfirmationItems.value = '';
-        emit('update');
+        refreshData();
     } catch (error) {
         console.error('Failed to reapply assignment to member:', error);
     }
 };
+const refreshData = async () => {
+    emit('update');
+    if(member.value){
+        await initialize(member.value.id);
+    }
+
+}
 </script>
 <style scoped>
 .support_green{
