@@ -38,7 +38,7 @@ class ContactBatchMonitorService
 
         $state = data_get($payload, 'metadata.state');
 
-        if (in_array($state, ['BATCH_STATE_FAILED', 'BATCH_STATE_CANCELLED'], true)) {
+        if (in_array($state, ['BATCH_STATE_FAILED', 'BATCH_STATE_CANCELLED', 'BATCH_STATE_EXPIRED'], true)) {
             $this->markBatchFailed(
                 $batch,
                 (string) data_get($payload, 'error.message', 'Gemini batch did not complete successfully.')
