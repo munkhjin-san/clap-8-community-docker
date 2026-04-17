@@ -616,7 +616,7 @@ const chartOptions = computed(() => {
 <style scoped>
 .case-line-chart {
   width: 100%;
-  min-height: 260px;
+  min-height: 480px;
   margin-top: 20px;
 }
 </style>
