@@ -34,7 +34,7 @@ class ContactScanService
             'fax' => $normalized['fax'] ?? null,
             'url' => $normalized['url'] ?? null,
             'description' => 'Geminiバッチで処理された名刺' . now()->toDateTimeString(),
-            'data' => $normalized['company_info'],
+            'data' => $normalized['company_info'] ?? null,
             'contact_type_id' => $batch->contact_type_id,
             'strategy' => null,
             'card_path' => $cardPath,

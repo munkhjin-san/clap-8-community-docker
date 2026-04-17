@@ -34,10 +34,10 @@
             <p style="color: darkgray;font-size: 15px;">このメッセージは削除されました</p>
         </div>      
         <div v-else class="quotBody">
-            <div v-if="which == 'reply'" :style="{height: `${dynamicHeight}`, overflow: 'hidden', transition: 'height 0.1s ease'}">
-                <p ref="replyBody" style="line-height: 1.5;white-space: pre-line;" v-html="messageBody"></p>
+            <div v-if="which == 'reply'" :class="{ 'line-clamp-2': !isExpanded }">
+                <p ref="replyBody" style="line-height: 1.5;white-space: pre-line;vertical-align: middle;" v-html="messageBody"></p>
             </div>            
-            <div @click="toggleFull" class="jump-link" style="margin-top:10px" v-if="dynamicHeight !== 'auto' && which == 'reply'">{{ dynamicHeight == '42px' ? '続きを表示する' : '閉じる' }}</div>
+            <div @click="toggleFull" class="jump-link" style="margin-top:10px" v-if="isClamped && which == 'reply'">{{ isExpanded ? '閉じる' : '続きを表示する' }}</div>
             <p @click.stop="mentionClick" v-if="which == 'forward'" style="line-height:1.5;white-space:pre-line;" v-html="messageBody"></p>
             <p @click.stop="mentionClick" v-if="which == 'quot' && quotMessage" style="line-height:1.5;white-space:pre-line;" v-html="messageBody"></p>
             <MessageFiles 
@@ -51,32 +51,74 @@
 </div>
 </template>
 <script setup lang="ts">
-import { computed, inject, onMounted, ref, useTemplateRef } from "vue";
+import { computed, inject, nextTick, onMounted, ref, useTemplateRef, watch } from "vue";
 import MessageFiles from "./MessageFiles.vue";
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { mentionFormatter } from "@/utils/tools";
     const props = defineProps(['which', 'message', 'quotMessage', 'mentionClick'])
     const pushInstantUser = inject('pushInstantUser') as Function
     const replyBody = useTemplateRef('replyBody')
-    const dynamicHeight = ref('auto')
+    const isExpanded = ref(false)
+    const isClamped = ref(false)
 
-    onMounted(() => {
+    const checkIfClamped = async () => {
         if(props.which == 'reply' && replyBody.value){
-            if(replyBody.value?.clientHeight > 42){
-                dynamicHeight.value = '42px'
+            await nextTick()
+            // Check if text overflows beyond 2 lines
+            // Add extra buffer (25px) to account for emoji/sticker heights that can vary
+            const lineHeight = parseFloat(window.getComputedStyle(replyBody.value).lineHeight)
+            const maxHeight = lineHeight * 2 + 25
+            const contentHeight = replyBody.value.scrollHeight
+            
+            console.log('Content height:', contentHeight, 'Max height (2 lines + buffer):', maxHeight)
+            if(contentHeight > maxHeight){
+                isClamped.value = true
+            } else {
+                isClamped.value = false
             }
         }        
-    })
+    }
+
+    onMounted(checkIfClamped)
+
     const messageBody = computed(() => {
         const t_text = props.which == 'quot' ? String(props.quotMessage) : props.message.message
         return mentionFormatter(t_text, true)
     })
+
+    // Watch messageBody changes and recalculate clamping
+    watch(messageBody, checkIfClamped)
     const messageUserName = computed(() => {                
         return props.message.user && props.message.user.deleted_at == null
         ? props.message.user.name
         : '非アクティブユーザー';
     })
     const toggleFull = () => {
-        dynamicHeight.value = dynamicHeight.value == '42px' ? `${replyBody.value?.clientHeight}px` : '42px'
+        isExpanded.value = !isExpanded.value
     }
 </script>
+
+<style scoped>
+.line-clamp-2 {
+    display: -webkit-box;              /* required for WebKit */
+    -webkit-box-orient: vertical;      /* required for WebKit */
+    overflow: hidden;
+
+    /* Standard property */
+    line-clamp: 2;
+
+    /* Vendor-prefixed fallback */
+    -webkit-line-clamp: 2;
+}
+
+.line-clamp-2 p {
+    margin: 0;
+    display: block;
+}
+
+.line-clamp-2 p img,
+.line-clamp-2 p svg {
+    vertical-align: middle;
+    max-height: 1.5em;  /* Keep emoji/stickers within line-height */
+}
+</style>
