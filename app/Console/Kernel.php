@@ -51,6 +51,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('refresh:expire')->monthlyOn(2, '08:00');
         $schedule->command('app:auto-attendance-confirm')->monthlyOn(3, '08:00');
         $schedule->command('app:refresh-automation')->monthlyOn(3, '08:00');
+        $schedule->command('contact-batches:poll')->everyFifteenMinutes();
     }
 
     /**

@@ -23,6 +23,7 @@ interface State {
     finance_comment: {total_unread: number, projects: {project_id: number, total_unread: number, period_counts: {[period: string]: number}}[]},
     goal_issue_comment: [],
     contact_comment: [],
+    contact_batch_notification_count: number,
     boardBadgeFetchedAt: number | null,
     boardBadgeRequest: Promise<void> | null,
     communityBadge: boolean;
@@ -69,6 +70,7 @@ export const useBadgeStore = defineStore('badge', () => {
     const finance_comment = ref<{total_unread: number, projects: {project_id: number, total_unread: number, period_counts: {[period: string]: number}}[]}>({total_unread: 0, projects: []});
     const goal_issue_comment = ref<any[]>([]);
     const contact_comment = ref<any[]>([]);
+    const contact_batch_notification_count = ref(0);
     const boardBadgeFetchedAt = ref<number | null>(null);
     const boardBadgeRequest = ref<Promise<void> | null>(null);
     const communityBadge = ref(false);
@@ -188,6 +190,7 @@ export const useBadgeStore = defineStore('badge', () => {
         finance_comment.value = data.finance_comment;
         goal_issue_comment.value = data.goal_issue_comment;
         contact_comment.value = data.contact_comment;
+        contact_batch_notification_count.value = data.contact_batch_notification_count ?? 0;
         communityBadge.value = data.today_readable.has_unread;
         project_report.value = data.project_report;
         check_item_confirm.value = data.check_item_confirm;
@@ -257,7 +260,7 @@ export const useBadgeStore = defineStore('badge', () => {
         const projectBadge = projectTotal.value + projectCommentTotal.value;
         // const remindBadge = remind.total
         const postBadge = auth.activeUser?.linkable || auth.user?.linkable ? 0 : (post.value.changed + post.value.created + post.value.last_chargeable);
-        sum = sum + postBadge + projectBadge;
+        sum = sum + postBadge + projectBadge + contact_batch_notification_count.value;
         return sum;
     });
 
@@ -324,6 +327,9 @@ export const useBadgeStore = defineStore('badge', () => {
     const contactBadge = computed(() => {
         return contact_comment.value;
     });
+    const contactBatchNotificationCount = computed(() => {
+        return contact_batch_notification_count.value;
+    });
 
     const communityBadgeStatus = computed(() => {
         return communityBadge.value;
@@ -376,6 +382,7 @@ export const useBadgeStore = defineStore('badge', () => {
         finance_comment,
         goal_issue_comment,
         contact_comment,
+        contact_batch_notification_count,
         boardBadgeFetchedAt,
         boardBadgeRequest,
         communityBadge,
@@ -416,6 +423,7 @@ export const useBadgeStore = defineStore('badge', () => {
         assetsBadgeByFilter,
         goalIssueCommentBadgeByFilter,
         contactBadge,
+        contactBatchNotificationCount,
         communityBadgeStatus,
         projectReportMap,
         projectReportMapByType,

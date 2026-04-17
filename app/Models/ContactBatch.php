@@ -19,6 +19,7 @@ class ContactBatch extends Model
         'scan_completed_at' => 'datetime',
         'enrich_requested_at' => 'datetime',
         'enrich_completed_at' => 'datetime',
+        'dismissed_at' => 'datetime',
     ];
 
     public const STATUS_QUEUED = 'queued';

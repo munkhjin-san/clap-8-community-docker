@@ -20,29 +20,45 @@
                 {{ type.title }}
             </label>
         </div>
-        <div v-if="batchData" class="mb-[20px] ml-[20px] max-w-3xl">
-            <div class="bg-[var(--background-color)] p-4">
+        <div v-if="batchNotifications.length" class="mb-[20px] ml-[20px] max-w-3xl space-y-3">
+            <div v-for="notification in batchNotifications" :key="notification.id" class="bg-[var(--background-color)] p-4 border-l-4 border-[var(--primary-color)]">
                 <div class="flex items-start justify-between gap-4">
                     <div>
-                        <p class="text-xs text-[gray]">名刺一括処理 #{{ batchData.id }}</p>
-                        <p class="text-base font-semibold text-[var(--primary-color)]">{{ batchStatusLabel }}</p>
-                        <p class="text-xs text-[gray] mt-1" v-if="batchData.scan_attempts !== undefined">
-                            スキャン試行: {{ batchData.scan_attempts }} / 情報収集試行: {{ batchData.enrich_attempts ?? 0 }}
+                        <p class="text-sm font-semibold text-[var(--primary-color)]">{{ notification.title }}</p>
+                        <p class="text-[13px] text-[gray] mt-1 leading-5">{{ notification.message }}</p>
+                    </div>
+                    <button class="text-xs text-white bg-[var(--primary-button)] p-1 underline whitespace-nowrap" @click="markBatchNotificationRead(notification.id)">
+                        確認しました
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div v-if="trackedBatches.length" class="mb-[20px] ml-[20px] max-w-3xl space-y-3">
+            <div v-for="batch in trackedBatches" :key="batch.id" class="bg-[var(--background-color)] p-4">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <p class="text-xs text-[gray]">名刺の取り込み状況 #{{ batch.id }}</p>
+                        <p class="text-base font-semibold text-[var(--primary-color)]">{{ batchStatusLabel(batch) }}</p>
+                        <p class="text-xs text-[gray] mt-1">
+                            {{ batchStatusGuide(batch) }}
                         </p>
-                        <p class="text-[11px] text-[gray]" v-if="batchData.scan_requested_at">
-                            スキャン開始: {{ formatDate(batchData.scan_requested_at) }}
+                        <p class="text-[11px] text-[gray] leading-normal" v-if="batch.duration_seconds !== undefined && batch.duration_seconds !== null">
+                            経過時間: {{ formatDuration(batch.duration_seconds) }}
                         </p>
-                        <p class="text-[11px] text-[gray]" v-if="batchData.enrich_requested_at">
-                            情報収集開始: {{ formatDate(batchData.enrich_requested_at) }}
+                        <p class="text-[11px] text-[gray] leading-normal" v-if="batch.scan_requested_at">
+                            スキャン開始: {{ formatDate(batch.scan_requested_at) }}
+                        </p>
+                        <p class="text-[11px] text-[gray] leading-normal" v-if="batch.enrich_requested_at">
+                            情報収集開始: {{ formatDate(batch.enrich_requested_at) }}
                         </p>
                     </div>
                     <div class="text-right text-sm">
-                        <p class="text-[gray]">完了 {{ batchData.counts?.completed ?? 0 }} / {{ batchData.counts?.total ?? 0 }}</p>
-                        <p v-if="batchData.error" class="text-xs text-red-400 mt-1 max-w-[220px] truncate">{{ batchData.error }}</p>
+                        <p class="text-[gray]">完了 {{ batch.counts?.completed ?? 0 }} / {{ batch.counts?.total ?? 0 }}</p>
+                        <p v-if="batch.error" class="text-xs text-red-400 mt-1 max-w-[220px] truncate">{{ batch.error }}</p>
                     </div>
                 </div>
                 <ul class="mt-3 space-y-1 max-h-48 overflow-y-auto pr-1">
-                    <li v-for="item in batchData.items" :key="item.id" class="flex justify-between text-sm text-[gray] gap-4">
+                    <li v-for="item in batch.items" :key="item.id" class="flex justify-between text-sm text-[gray] gap-4">
                         <span class="truncate">{{ item.original_filename }}</span>
                         <span class="flex items-center gap-2">
                             <span :class="batchItemStatusClass(item.status)">{{ batchItemStatusLabel(item.status) }}</span>
@@ -50,8 +66,8 @@
                         </span>
                     </li>
                 </ul>
-                <div v-if="['completed','failed'].includes(batchData.status)" class="mt-3 text-right">
-                    <button class="text-xs text-white bg-[var(--primary-button)] p-1 underline" @click="clearBatchTracking">履歴を閉じる</button>
+                <div v-if="isTerminalBatchStatus(batch.status)" class="mt-3 text-right">
+                    <button class="text-xs text-white bg-[var(--primary-button)] p-1" @click="clearBatchTracking(batch.id)">表示を閉じる</button>
                 </div>
             </div>
         </div>
@@ -125,13 +141,14 @@
 import { useResponsive } from '@/store/responsive';
 import FloatButton from '@/components/Global/FloatButton.vue';
 import ContactCreate from './ContactCreate.vue';
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue';
-import { BatchPayload, Collaborator, ContactBatchSummary, ContactRecord, ContactType, DuplicateSummary } from '@/interface/contactInterface';
+import { ref, computed, onMounted, nextTick } from 'vue';
+import { BatchPayload, Collaborator, ContactBatchNotificationSummary, ContactBatchSummary, ContactRecord, ContactType, DuplicateSummary } from '@/interface/contactInterface';
 import GridLayout from './Grid/GridLayout.vue';
 import TableLayout from './Table/TableLayout.vue';
 import { useRoute, useRouter } from 'vue-router';
 import ContactViewToggle from './ContactViewToggle.vue';
 import { useAuthUserStore } from '@/store/auth';
+import { useBadgeStore } from '@/store/badge';
 import AddIcon from '@/components/Form/AddIcon.vue';
 import { useApi } from '@/composables/api';
 import BatchCreation from './BatchCreation.vue';
@@ -150,6 +167,7 @@ const props = defineProps<{
 const router = useRouter();
 const responsive = useResponsive();
 const auth = useAuthUserStore();
+const badge = useBadgeStore();
 const dialog = useDialog();
 const api = useApi();
 
@@ -164,10 +182,8 @@ const route = useRoute();
 
 const batchWindow = ref(false);
 const uploadingBatch = ref(false);
-const batchData = ref<ContactBatchSummary | null>(null);
-const currentBatchId = ref<number | null>(null);
-const batchPollTimer = ref<number | null>(null);
-const batchNotified = ref(false);
+const trackedBatchData = ref<ContactBatchSummary[]>([]);
+const batchNotifications = ref<ContactBatchNotificationSummary[]>([]);
 const duplicates = ref<DuplicateSummary[]>([]);
 const duplicateModalOpen = ref(false);
 const duplicateLoading = ref(false);
@@ -177,6 +193,20 @@ const memoTarget = ref<ContactRecord | null>(null);
 const memoDraft = ref('');
 const memoSaving = ref(false);
 const viewerId = computed(() => auth.user?.id ?? null);
+
+const isTerminalBatchStatus = (status: string) => ['completed', 'failed'].includes(status);
+
+const trackedBatches = computed(() => {
+    return [...trackedBatchData.value].sort((left, right) => {
+        const leftRank = isTerminalBatchStatus(left.status) ? 1 : 0;
+        const rightRank = isTerminalBatchStatus(right.status) ? 1 : 0;
+        if (leftRank !== rightRank) {
+            return leftRank - rightRank;
+        }
+        return right.id - left.id;
+    });
+});
+
 const openCandidateDetails = (id: number) => {
     if (!id) return;
     duplicateModalOpen.value = false;
@@ -265,12 +295,21 @@ const handleMemoSave = async (memoValue: string) => {
 };
 
 const batchStatusMessages: Record<string, string> = {
-    queued: 'アップロードを受け付けました。順番待ちです。',
-    scanning: '名刺画像を解析しています。',
-    scanned: '解析結果を整理しています。',
-    enriching: '企業情報を収集中です。',
-    completed: 'すべての処理が完了しました。',
-    failed: '処理に失敗しました。内容をご確認ください。',
+    queued: '受付が完了しました。',
+    scanning: '名刺を読み取り中です。',
+    scanned: '読み取り結果を確認しています。',
+    enriching: '登録内容を仕上げています。',
+    completed: '取り込みが完了しました。',
+    failed: '取り込みを完了できませんでした。',
+};
+
+const batchStatusGuides: Record<string, string> = {
+    queued: '順番に処理します。このまま別の作業をして大丈夫です。',
+    scanning: '完了通知は最大15分ほど遅れる場合があります。この画面を閉じても大丈夫です。',
+    scanned: '登録前の最終確認中です。完了通知は最大15分ほど遅れる場合があります。',
+    enriching: '会社情報を補足しています。このまま待たなくても大丈夫です。',
+    completed: '下のコンタクト一覧に反映されています。内容をご確認ください。',
+    failed: '画像が読みにくい場合があります。画像を確認して、もう一度お試しください。',
 };
 
 const batchItemStatusMessages: Record<string, string> = {
@@ -282,10 +321,13 @@ const batchItemStatusMessages: Record<string, string> = {
     failed: '失敗',
 };
 
-const batchStatusLabel = computed(() => {
-    if (!batchData.value) return '';
-    return batchStatusMessages[batchData.value.status] ?? '処理状況を確認しています。';
-});
+const batchStatusLabel = (batch: ContactBatchSummary) => {
+    return batchStatusMessages[batch.status] ?? '処理状況を確認しています。';
+};
+
+const batchStatusGuide = (batch: ContactBatchSummary) => {
+    return batchStatusGuides[batch.status] ?? 'このまま別の作業をしても大丈夫です。';
+};
 
 const batchItemStatusLabel = (status: string) => {
     return batchItemStatusMessages[status] ?? status;
@@ -314,10 +356,10 @@ const duplicateButtonLabel = computed(() => {
 });
 
 const commandButtons = computed(() => [
-    // {
-    //     title: '名刺を一括登録',
-    //     action: () => openBatchModal(),
-    // },
+    {
+        title: '取り込み状況を更新',
+        action: () => refreshBatchArea(),
+    },
     {
         title: duplicateButtonLabel.value,
         action: () => openDuplicateModal(),
@@ -335,75 +377,64 @@ const formatDate = (iso: string) => {
     return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
 };
 
+const formatDuration = (durationSeconds: number | null | undefined) => {
+    if (durationSeconds == null || Number.isNaN(durationSeconds)) return '-';
+
+    if (durationSeconds < 60) {
+        return `${durationSeconds}秒`;
+    }
+
+    const hours = Math.floor(durationSeconds / 3600);
+    const minutes = Math.floor((durationSeconds % 3600) / 60);
+    const seconds = durationSeconds % 60;
+
+    if (hours > 0) {
+        return `${hours}時間${minutes}分${seconds}秒`;
+    }
+
+    return `${minutes}分${seconds}秒`;
+};
+
 const openBatchModal = () => {
     batchWindow.value = true;
 };
 
-const stopBatchPolling = () => {
-    if (batchPollTimer.value !== null) {
-        window.clearInterval(batchPollTimer.value);
-        batchPollTimer.value = null;
-    }
-};
+const upsertBatchData = (batch: ContactBatchSummary) => {
+    const index = trackedBatchData.value.findIndex(entry => entry.id === batch.id);
 
-const clearBatchTracking = () => {
-    stopBatchPolling();
-    currentBatchId.value = null;
-    batchData.value = null;
-    batchNotified.value = false;
-    localStorage.removeItem('contact_batch_id');
-};
-
-const fetchBatch = async (batchId: number) => {
-    const data = await api.get('/get_batch_results', { batch_id: batchId }, { silent: true });
-    if (data) {
-        batchData.value = data;
-        const status = data.status;
-        if (status === 'completed') {
-            stopBatchPolling();
-            localStorage.removeItem('contact_batch_id');
-            currentBatchId.value = null;
-            if (!batchNotified.value) {
-                dialog.toast('名刺の取り込みが完了しました。');
-                batchNotified.value = true;
-            }
-            await getContacts();
-            await loadDuplicates();
-        } else if (status === 'failed') {
-            stopBatchPolling();
-            localStorage.removeItem('contact_batch_id');
-            currentBatchId.value = null;
-            if (!batchNotified.value) {
-                dialog.ping('名刺の取り込みに失敗しました。');
-                batchNotified.value = true;
-            }
-            await loadDuplicates();
-        }
-    }
-};
-
-const startBatchPolling = (batchId: number, initial: ContactBatchSummary | null = null) => {
-    currentBatchId.value = batchId;
-    batchNotified.value = false;
-    if (initial) {
-        batchData.value = initial;
-    }
-    localStorage.setItem('contact_batch_id', String(batchId));
-    stopBatchPolling();
-    const poll = () => fetchBatch(batchId);
-    batchPollTimer.value = window.setInterval(poll, 8000);
-    window.setTimeout(poll, initial ? 3000 : 0);
-};
-
-const resumeBatch = () => {
-    const stored = localStorage.getItem('contact_batch_id');
-    if (!stored) return;
-    const batchId = Number(stored);
-    if (Number.isNaN(batchId)) {
-        localStorage.removeItem('contact_batch_id');
+    if (index === -1) {
+        trackedBatchData.value.push(batch);
         return;
     }
-    startBatchPolling(batchId);
+
+    trackedBatchData.value[index] = batch;
+};
+
+const clearBatchTracking = async (batchId: number) => {
+    await api.post(`/contact_batches/${batchId}/dismiss`, {}, { silent: true });
+    trackedBatchData.value = trackedBatchData.value.filter(batch => batch.id !== batchId);
+    batchNotifications.value = batchNotifications.value.filter(notification => notification.batch?.id !== batchId);
+    await badge.getbadgeSummary();
+};
+
+const loadRecentBatches = async () => {
+    const data = await api.get('/contact_batches', null, { silent: true });
+    trackedBatchData.value = Array.isArray(data) ? data : [];
+};
+
+const loadBatchNotifications = async () => {
+    const data = await api.get('/contact_batch_notifications', null, { silent: true });
+    batchNotifications.value = Array.isArray(data) ? data : [];
+};
+
+const markBatchNotificationRead = async (notificationId: number) => {
+    await api.post(`/contact_batch_notifications/${notificationId}/read`, {}, { silent: true });
+    batchNotifications.value = batchNotifications.value.filter(notification => notification.id !== notificationId);
+    await badge.getbadgeSummary();
+};
+
+const refreshBatchArea = async () => {
+    await Promise.all([loadRecentBatches(), loadBatchNotifications(), badge.getbadgeSummary(), getContacts(), loadDuplicates()]);
 };
 
 const getTypes = async () => {
@@ -445,15 +476,15 @@ const fileupload = async (payload: BatchPayload) => {
     }
     
     const data = await api.post('/scan_batch_cards', formData, {
-        toast: '名刺の取り込みを開始しました。',
+        toast: '名刺の取り込みを受け付けました。完了通知は最大15分ほど遅れる場合があります。',
         loadingRef: uploadingBatch,
     }, {
         headers: { 'Content-Type': 'multipart/form-data' },
     });
     if (data) {
         batchWindow.value = false;
-        startBatchPolling(Number(data.id), data);
-        await loadDuplicates();
+        upsertBatchData(data);
+        await Promise.all([loadDuplicates(), loadRecentBatches()]);
     }
     const el = props.container
     if (!el) return
@@ -512,12 +543,9 @@ onMounted(() => {
     }
     getContacts();
     getTypes();
-    resumeBatch();
+    loadRecentBatches();
+    loadBatchNotifications();
     loadDuplicates();
-});
-
-onBeforeUnmount(() => {
-    stopBatchPolling();
 });
 
 const openDuplicateModal = async () => {
@@ -553,9 +581,7 @@ const resolveDuplicate = async ({ contactId, action, targetId }: { contactId: nu
         });
 
         await Promise.all([getContacts(), loadDuplicates()]);
-        if (currentBatchId.value) {
-            await fetchBatch(currentBatchId.value);
-        }
+        await loadRecentBatches();
 
         if (!duplicates.value.length) {
             duplicateModalOpen.value = false;

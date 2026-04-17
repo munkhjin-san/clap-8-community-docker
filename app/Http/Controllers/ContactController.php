@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SendContactEmail;
-use App\Jobs\ProcessContactBatch;
 use App\Models\ContactBatch;
 use App\Models\ContactBatchItem;
+use App\Models\ContactBatchNotification;
 use App\Models\ContactRecord;
 use App\Models\ContactType;
 use App\Models\User;
@@ -16,10 +16,12 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\File;
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Services\ContactScanService; 
+use App\Services\ContactBatchSubmissionService;
+use App\Services\ContactBatchMonitorService;
+use App\Services\ContactBatchNotificationService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
@@ -28,11 +30,22 @@ class ContactController extends Controller
 
     protected $gemini_url;
     protected $contactScanService;
+    protected $contactBatchSubmissionService;
+    protected $contactBatchMonitorService;
+    protected $contactBatchNotificationService;
 
-    public function __construct(ContactScanService $contactScanService)
+    public function __construct(
+        ContactScanService $contactScanService,
+        ContactBatchSubmissionService $contactBatchSubmissionService,
+        ContactBatchMonitorService $contactBatchMonitorService,
+        ContactBatchNotificationService $contactBatchNotificationService
+    )
     {
         $this->gemini_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
         $this->contactScanService = $contactScanService;
+        $this->contactBatchSubmissionService = $contactBatchSubmissionService;
+        $this->contactBatchMonitorService = $contactBatchMonitorService;
+        $this->contactBatchNotificationService = $contactBatchNotificationService;
     }
     public function get_contact_types(){
         $types = ContactType::all();
@@ -225,7 +238,7 @@ class ContactController extends Controller
             throw ValidationException::withMessages(['message' => '画像ファイルがありません。']);
         }
 
-        ProcessContactBatch::dispatchSync($batch);
+        $this->contactBatchSubmissionService->submit($batch);
 
         return response()->json($this->transformBatch($batch->fresh('items.contactRecord.collaborators')));
     }
@@ -240,6 +253,108 @@ class ContactController extends Controller
 
         return response()->json($this->transformBatch($batch));
     }
+    public function contact_batches()
+    {
+        $batches = ContactBatch::query()
+            ->ownedBy(Auth::id())
+            ->where(function ($query) {
+                $query->whereNull('dismissed_at')
+                    ->orWhereIn('status', [
+                        ContactBatch::STATUS_QUEUED,
+                        ContactBatch::STATUS_SCANNING,
+                        ContactBatch::STATUS_ENRICHING,
+                    ]);
+            })
+            ->where(function ($query) {
+                $query->where('updated_at', '>=', now()->subDays(14))
+                    ->orWhereIn('status', [
+                        ContactBatch::STATUS_QUEUED,
+                        ContactBatch::STATUS_SCANNING,
+                        ContactBatch::STATUS_ENRICHING,
+                    ]);
+            })
+            ->with(['items.contactRecord.collaborators'])
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        $batches = $batches->map(function (ContactBatch $batch) {
+            if (!in_array($batch->status, [
+                ContactBatch::STATUS_QUEUED,
+                ContactBatch::STATUS_SCANNING,
+                ContactBatch::STATUS_ENRICHING,
+            ], true)) {
+                return $batch;
+            }
+
+            $batch = $this->contactBatchMonitorService->refresh($batch);
+            $this->contactBatchNotificationService->notifyIfNeeded($batch);
+
+            return $batch;
+        })->filter(function (ContactBatch $batch) {
+            return !$batch->dismissed_at || in_array($batch->status, [
+                ContactBatch::STATUS_QUEUED,
+                ContactBatch::STATUS_SCANNING,
+                ContactBatch::STATUS_ENRICHING,
+            ], true);
+        })->values();
+
+        return response()->json(
+            $batches->map(fn (ContactBatch $batch) => $this->transformBatch($batch))->values()
+        );
+    }
+    public function contact_batch_notifications()
+    {
+        $notifications = ContactBatchNotification::query()
+            ->where('user_id', Auth::id())
+            ->whereNull('read_at')
+            ->with(['batch.items.contactRecord.collaborators'])
+            ->latest()
+            ->limit(10)
+            ->get();
+
+        return response()->json(
+            $notifications->map(fn (ContactBatchNotification $notification) => $this->transformBatchNotification($notification))->values()
+        );
+    }
+    public function contact_batch_notification_read(ContactBatchNotification $notification)
+    {
+        $this->assertBatchNotificationOwner($notification);
+
+        if (!$notification->read_at) {
+            $notification->forceFill([
+                'read_at' => now(),
+            ])->save();
+        }
+
+        return response()->json(['ok' => true]);
+    }
+    public function dismiss_contact_batch(ContactBatch $batch)
+    {
+        $this->assertBatchOwner($batch);
+
+        if (!in_array($batch->status, [ContactBatch::STATUS_COMPLETED, ContactBatch::STATUS_FAILED], true)) {
+            return response()->json([
+                'message' => '進行中の取り込み状況は閉じられません。',
+            ], 422);
+        }
+
+        if (!$batch->dismissed_at) {
+            $batch->forceFill([
+                'dismissed_at' => now(),
+            ])->save();
+        }
+
+        ContactBatchNotification::query()
+            ->where('user_id', Auth::id())
+            ->where('contact_batch_id', $batch->id)
+            ->whereNull('read_at')
+            ->update([
+                'read_at' => now(),
+            ]);
+
+        return response()->json(['ok' => true]);
+    }
     protected function transformBatch(ContactBatch $batch): array
     {
         $batch->loadMissing('items.contactRecord.collaborators');
@@ -251,10 +366,30 @@ class ContactController extends Controller
             ContactBatchItem::STATUS_COMPLETED => $items->where('status', ContactBatchItem::STATUS_COMPLETED)->count(),
             ContactBatchItem::STATUS_FAILED => $items->where('status', ContactBatchItem::STATUS_FAILED)->count(),
         ];
+
+        $startedAt = $batch->scan_requested_at ?? $batch->created_at;
+        $finishedAt = $batch->enrich_completed_at ?? $batch->scan_completed_at;
+        $durationSeconds = $startedAt
+            ? $startedAt->diffInSeconds($finishedAt ?? now())
+            : null;
+
         return [
             'id' => $batch->id,
             'status' => $this->mapBatchStatus($batch->status),
+            'scan_operation' => $batch->scan_operation,
+            'enrich_operation' => $batch->enrich_operation,
+            'scan_attempts' => $batch->scan_attempts,
+            'enrich_attempts' => $batch->enrich_attempts,
+            'scan_requested_at' => optional($batch->scan_requested_at)->toIso8601String(),
+            'scan_completed_at' => optional($batch->scan_completed_at)->toIso8601String(),
+            'enrich_requested_at' => optional($batch->enrich_requested_at)->toIso8601String(),
+            'enrich_completed_at' => optional($batch->enrich_completed_at)->toIso8601String(),
+            'dismissed_at' => optional($batch->dismissed_at)->toIso8601String(),
+            'created_at' => optional($batch->created_at)->toIso8601String(),
+            'updated_at' => optional($batch->updated_at)->toIso8601String(),
+            'duration_seconds' => $durationSeconds,
             'counts' => $statusCounts,
+            'error' => $batch->error,
             'items' => $items->map(function (ContactBatchItem $item) {
                 $contact = $item->contactRecord;
 
@@ -263,14 +398,21 @@ class ContactController extends Controller
                     'original_filename' => $item->original_filename,
                     'index' => $item->index,
                     'status' => $this->mapItemStatus($item->status),
+                    'error' => $item->error,
+                    'scan_result' => $item->scan_result,
+                    'enrich_result' => $item->enrich_result,
                     'needs_review' => (bool) $item->needs_review,
                     'card_hash' => $item->card_hash,
                     'duplicate_candidates' => $item->duplicate_candidates,
                     'contact_record_id' => $item->contact_record_id,
+                    'created_at' => optional($item->created_at)->toIso8601String(),
+                    'updated_at' => optional($item->updated_at)->toIso8601String(),
                     'contact' => $contact ? [
                         'id' => $contact->id,
                         'name' => $contact->name,
                         'company_name' => $contact->company_name,
+                        'position' => $contact->position,
+                        'card_hash' => $contact->card_hash,
                         'is_duplicate' => (bool) $contact->is_duplicate,
                         'duplicate_of' => $contact->duplicate_of,
                         'card_path' => $contact->card_path,
@@ -282,10 +424,28 @@ class ContactController extends Controller
             })->all(),
         ];
     }
+    protected function transformBatchNotification(ContactBatchNotification $notification): array
+    {
+        $notification->loadMissing('batch.items.contactRecord.collaborators');
+
+        return [
+            'id' => $notification->id,
+            'title' => $notification->title,
+            'message' => $notification->message,
+            'status' => $notification->status,
+            'url' => $notification->url,
+            'read_at' => optional($notification->read_at)->toIso8601String(),
+            'created_at' => optional($notification->created_at)->toIso8601String(),
+            'batch' => $notification->batch ? $this->transformBatch($notification->batch) : null,
+        ];
+    }
 
     private function mapBatchStatus(string $status): string
     {
         return match ($status) {
+            ContactBatch::STATUS_QUEUED => 'queued',
+            ContactBatch::STATUS_SCANNING => 'scanning',
+            ContactBatch::STATUS_ENRICHING => 'enriching',
             ContactBatch::STATUS_COMPLETED => 'completed',
             ContactBatch::STATUS_FAILED => 'failed',
             default => 'scanning',
@@ -295,6 +455,10 @@ class ContactController extends Controller
     private function mapItemStatus(string $status): string
     {
         return match ($status) {
+            ContactBatchItem::STATUS_QUEUED => 'queued',
+            ContactBatchItem::STATUS_SCANNING => 'scanning',
+            ContactBatchItem::STATUS_SCANNED => 'scanned',
+            ContactBatchItem::STATUS_ENRICHING => 'enriching',
             ContactBatchItem::STATUS_COMPLETED => 'completed',
             ContactBatchItem::STATUS_FAILED => 'failed',
             default => 'scanning',
@@ -308,6 +472,12 @@ class ContactController extends Controller
             abort(403, '指定されたバッチにはアクセスできません。');
         }
     }
+    protected function assertBatchNotificationOwner(ContactBatchNotification $notification): void
+    {
+        if ($notification->user_id !== Auth::id()) {
+            abort(403, '指定された通知にはアクセスできません。');
+        }
+    }
     public function get_batch_results(Request $request)
     {
         $validated = $request->validate([
@@ -318,96 +488,8 @@ class ContactController extends Controller
             'items.contactRecord.collaborators',
         ])->findOrFail($validated['batch_id']);
         $this->assertBatchOwner($batch);
-        $apiKey = config('services.google.gemini_api_key');
-        if (empty($apiKey)) {
-            throw ValidationException::withMessages(['message' => 'APIキーが設定されていません。']);
-        }
-        if ($batch->scan_operation) {
-            $operationName = $batch->scan_operation;
-            $url = "https://generativelanguage.googleapis.com/v1beta/{$operationName}?key={$apiKey}";
-            $response = Http::get($url);
-
-            if ($response->failed()) {
-                throw new \RuntimeException('Failed to poll Gemini batch: ' . $response->body());
-            }
-            $state = data_get($response, 'metadata.state');
-            if ($state !== 'BATCH_STATE_SUCCEEDED') {
-                return response()->json($this->transformBatch($batch));
-            }
-            $contactRecord = null;
-            if ($state === 'BATCH_STATE_SUCCEEDED') {
-                $items = $batch->items()->get()->keyBy('id');
-                
-                $inlineResponses = data_get($response, 'response.inlinedResponses.inlinedResponses', []);
-                foreach ($inlineResponses as $inline) {
-                    $itemId = data_get($inline, 'metadata.batch_item_id');
-                    if (!$itemId || !$items->has($itemId)) {
-                        continue;
-                    }
-
-                    /** @var ContactBatchItem $item */
-                    $item = $items->get($itemId);
-
-                    if (isset($inline['error'])) {
-                        $message = data_get($inline, 'error.message', 'Unknown error during scan stage.');
-                        $item->update([
-                            'status' => ContactBatchItem::STATUS_FAILED,
-                            'error' => $message,
-                        ]);
-                        continue;
-                    }
-
-                    $rawText = data_get($inline, 'response.candidates.0.content.parts.0.text');
-
-                    if (!$rawText) {
-                        $item->update([
-                            'status' => ContactBatchItem::STATUS_FAILED,
-                            'error' => 'Scan response did not include text content.',
-                        ]);
-                        continue;
-                    }
-
-                    $parsed = $this->contactScanService->decodeJsonText($rawText);
-
-                    if ($parsed === null) {
-                        $item->update([
-                            'status' => ContactBatchItem::STATUS_FAILED,
-                            'error' => 'Scan response JSON could not be decoded.',
-                            'scan_result' => [
-                                'raw_text' => $rawText,
-                            ],
-                        ]);
-                        continue;
-                    }
-                    $scanData = $this->contactScanService->normalizeParsedContacts($parsed)[0];
-                    $contactRecord = $this->contactScanService->storeContactRecord($batch, $item, $scanData);
-                    $item->update([
-                        'status' => ContactBatchItem::STATUS_COMPLETED,
-                        'contact_record_id' => $contactRecord?->id
-                    ]);
-                }
-                $batch->update([
-                    'status' => ContactBatch::STATUS_COMPLETED,
-                    'error' => null,
-                ]);
-                $items->each(function (ContactBatchItem $item) {
-                    if ($item->status === ContactBatchItem::STATUS_SCANNING) {
-                        $item->update([
-                            'status' => ContactBatchItem::STATUS_FAILED,
-                            'error' => 'Scan result was not returned for this item.',
-                        ]);
-                    }
-                });
-                return response()->json(
-                    $this->transformBatch(
-                        $batch->fresh(['items.contactRecord.collaborators'])
-                    )
-                );
-
-            }
-            return $response->json();
-        }
-        
+        $batch = $this->contactBatchMonitorService->refresh($batch);
+        $this->contactBatchNotificationService->notifyIfNeeded($batch);
 
         return response()->json($this->transformBatch($batch));
     }

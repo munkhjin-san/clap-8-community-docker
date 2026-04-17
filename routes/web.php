@@ -680,6 +680,10 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/contact/{contact}/comment_read', [ContactController::class, 'contact_comment_read']);
         Route::get('get_contact_comment_badge', [ContactController::class, 'get_contact_comment_badge']);
         Route::delete('/unfollow_contact/{contact}', [ContactController::class, 'unfollow_contact']);
+        Route::get('/contact_batches', [ContactController::class, 'contact_batches']);
+        Route::post('/contact_batches/{batch}/dismiss', [ContactController::class, 'dismiss_contact_batch']);
+        Route::get('/contact_batch_notifications', [ContactController::class, 'contact_batch_notifications']);
+        Route::post('/contact_batch_notifications/{notification}/read', [ContactController::class, 'contact_batch_notification_read']);
         
         // Remind
         Route::get('/remind_attendance', [RemindController::class, 'remind_attendance']);

@@ -1,7 +1,7 @@
 <template>
     <Modal @close="emit('close')">
         <template #title>
-            <p>{{ `新しいコンタクトを作成する`}}</p>
+            <p>名刺を取り込む</p>
         </template>
         <template #content>
             <div>
@@ -146,7 +146,7 @@
                 </ul>
               </div>
               <div class="si-box">
-                <LoaderButton :loading="isProcessing" @triggered="execute" content="実行する"/>
+                <LoaderButton :loading="isProcessing" @triggered="execute" content="取り込みを開始"/>
               </div>
             </div>
         </template>

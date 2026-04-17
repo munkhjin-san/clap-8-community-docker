@@ -1071,6 +1071,7 @@ class RemindController extends Controller
                 'finance_comment' => $user->position_id <= 6 || in_array($user->id, [610,608]) ? $this->badgeService->financeComment($user) : ['total_unread' => 0, 'projects' => []],
                 'goal_issue_comment' => [],
                 'contact_comment' => $this->badgeService->contactComment($user),
+                'contact_batch_notification_count' => $this->badgeService->contactBatchNotification($user),
                 'today_readable' => $this->badgeService->todayReadable($user),
                 'project_report' => $this->badgeService->getProjectUnreadCount($user),
                 'check_item_confirm' => $this->badgeService->checkItemConfirm($user),

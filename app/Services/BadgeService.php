@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\ProjectMemberReportNotification;
+use App\Models\ContactBatchNotification;
 use App\Models\PostRecord;
 use App\Models\NoticeRecord;
 use App\Models\taskRecord;
@@ -395,6 +396,13 @@ final class BadgeService
         ])->values();
 
         return $data;
+    }
+    public function contactBatchNotification(User $user): int
+    {
+        return ContactBatchNotification::query()
+            ->where('user_id', $user->id)
+            ->whereNull('read_at')
+            ->count();
     }
     public function todayReadable(User $user) {
         $now = Carbon::now()->format('Y-m-d');

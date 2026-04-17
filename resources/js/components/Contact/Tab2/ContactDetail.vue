@@ -1,5 +1,5 @@
 <template>
-<Modal @close="router.push({name: 'contact'})">
+<Modal @close="router.push({name: 'contact'})" size="large">
     <template #title>
         <div class="sub-tab-container">
             <div @click="activeTab = 'detail'" :class="['sub-tab-item', { 'selected-sub-tab': activeTab == 'detail'}]">基本情報</div>
@@ -90,7 +90,7 @@
                 <tr>
                     <td colspan="2" style="white-space: normal;">
                         <h3 class="mb-[15px]">名刺データ</h3>
-                        <img v-if="contact.card_path" :src="`/cdn/${contact.card_path}`"/>
+                        <img style="max-height: 500px;" v-if="contact.card_path" :src="`/cdn/${contact.card_path}`"/>
                         <p v-else>名刺データはありません。</p>
                     </td>
                 </tr>

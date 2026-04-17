@@ -93,6 +93,8 @@ export interface ContactBatchSummary {
     error: string | null;
     created_at?: string | null;
     updated_at?: string | null;
+    dismissed_at?: string | null;
+    duration_seconds?: number | null;
     counts: Record<string, number>;
     items: ContactBatchItemSummary[];
     logs?: Array<{
@@ -103,6 +105,17 @@ export interface ContactBatchSummary {
         context: unknown;
         created_at: string | null;
     }>;
+}
+
+export interface ContactBatchNotificationSummary {
+    id: number;
+    title: string;
+    message: string;
+    status: string;
+    url?: string | null;
+    read_at?: string | null;
+    created_at?: string | null;
+    batch: ContactBatchSummary | null;
 }
 export interface BatchPayload {
     files: File[];

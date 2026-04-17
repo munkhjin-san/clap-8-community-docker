@@ -26,10 +26,20 @@ trait HandlesContactBatch
 
     protected function markBatchFailed(ContactBatch $batch, string $message): void
     {
-        $batch->update([
+        $attributes = [
             'status' => ContactBatch::STATUS_FAILED,
             'error' => $message,
-        ]);
+        ];
+
+        if ($batch->status === ContactBatch::STATUS_SCANNING && !$batch->scan_completed_at) {
+            $attributes['scan_completed_at'] = now();
+        }
+
+        if ($batch->status === ContactBatch::STATUS_ENRICHING && !$batch->enrich_completed_at) {
+            $attributes['enrich_completed_at'] = now();
+        }
+
+        $batch->update($attributes);
 
         $this->logEntry($batch, 'failed', $message);
 

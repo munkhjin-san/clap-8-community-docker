@@ -1,37 +1,17 @@
 <?php
 
-namespace App\Jobs;
+namespace App\Services;
 
 use App\Jobs\Concerns\HandlesContactBatch;
 use App\Models\ContactBatch;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
 
-class ProcessContactBatch implements ShouldQueue
+class ContactBatchSubmissionService
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
     use HandlesContactBatch;
 
-    public const QUEUE_NAME = 'contact-batches';
-    public const MAX_SCAN_ATTEMPTS = 32;
-    public const POLL_DELAY_SECONDS = 15;
-
-    public int $batchId;
-
-    public function __construct(ContactBatch $batch)
+    public function submit(ContactBatch $batch): void
     {
-        $this->batchId = $batch->id;
-    }
-
-    public function handle(): void
-    {
-        $batch = ContactBatch::with('items')->find($this->batchId);
-        if (!$batch) {
-            return;
-        }
+        $batch->loadMissing('items');
 
         if ($batch->status !== ContactBatch::STATUS_QUEUED) {
             return;
@@ -53,10 +33,9 @@ class ProcessContactBatch implements ShouldQueue
 
     protected function submitScan(ContactBatch $batch, string $apiKey): void
     {
-        $instruction = $this->propmt();
+        $instruction = $this->prompt();
 
         $generationConfig = [
-            
             'responseSchema' => [
                 'type' => 'ARRAY',
                 'items' => [
@@ -82,7 +61,7 @@ class ProcessContactBatch implements ShouldQueue
         ];
 
         $requests = $this->buildScanRequests($batch, $instruction, $generationConfig);
-        
+
         if (empty($requests)) {
             $this->markBatchFailed($batch, 'No valid batch requests could be created.');
             return;
@@ -112,13 +91,9 @@ class ProcessContactBatch implements ShouldQueue
             'scan_completed_at' => null,
             'error' => null,
         ]);
-        
-        // PollContactBatchScanJob::dispatch($batch->id, 0)
-        //     ->onQueue(self::QUEUE_NAME)
-        //     ->delay(self::POLL_DELAY_SECONDS);
     }
 
-    protected function propmt(): string 
+    protected function prompt(): string
     {
         return <<<EOD
             あなたは厳密なデータ抽出者かつウェブリサーチャーです。次の2つを行ってください。
