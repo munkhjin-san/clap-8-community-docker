@@ -375,6 +375,12 @@ const routes = [
                                 path: 'case-study',
                                 name: 'case-study',
                                 component: () => import('./components/AccountControl/LearningControl/CaseStudyControl.vue')
+                            },
+                            {
+                                
+                                path: 'non-trainee',
+                                name: 'non-trainee',
+                                component: () => import('./components/AccountControl/LearningControl/NonTraineeControl.vue')
                             }
                             
                         ]

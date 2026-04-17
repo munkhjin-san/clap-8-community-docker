@@ -8,6 +8,7 @@
             <div @click="router.push({name: 'content'})" :class="['sub-tab-item', {'selected-sub-tab' : route && route.name == 'content'}]">コンテンツ</div>
             <div v-if="theme?.has_case_study" @click="router.push({name: 'case-study'})" :class="['sub-tab-item', {'selected-sub-tab' : route && route.name == 'case-study'}]">参加者</div>
             <div v-else @click="router.push({name: 'trainee'})" :class="['sub-tab-item', {'selected-sub-tab' : route && route.name == 'trainee'}]">参加者</div>
+            <div @click="router.push({name: 'non-trainee'})" :class="['sub-tab-item', {'selected-sub-tab' : route && route.name == 'non-trainee'}]">未参加者</div>
             <div @click="router.push({name: 'assistant'})" :class="['sub-tab-item', {'selected-sub-tab' : route && route.name == 'assistant'}]">AIアシスタント</div>
         </div>
         <div style="height: calc(100% - 110px);" v-if="theme">

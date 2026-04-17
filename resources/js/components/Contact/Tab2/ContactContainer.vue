@@ -51,7 +51,7 @@
                     </li>
                 </ul>
                 <div v-if="['completed','failed'].includes(batchData.status)" class="mt-3 text-right">
-                    <button class="text-xs text-[var(--primary-color)] bg-[var(--primary-button)] p-1 underline" @click="clearBatchTracking">履歴を閉じる</button>
+                    <button class="text-xs text-white bg-[var(--primary-button)] p-1 underline" @click="clearBatchTracking">履歴を閉じる</button>
                 </div>
             </div>
         </div>

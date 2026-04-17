@@ -1494,6 +1494,7 @@ onBeforeUnmount(() => {
     padding: 16px;
     height: 100%;
     box-sizing: border-box;
+    overflow: auto;
 }
 
 .legal-files,
@@ -2401,6 +2402,7 @@ onBeforeUnmount(() => {
     font-weight: 600;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
     color-scheme: dark;
+    box-sizing: border-box !important;
 }
 
 .legal-compare__select:focus {
@@ -2654,7 +2656,7 @@ onBeforeUnmount(() => {
     .legal-upload-panel__form,
     .legal-compare-summary__grid,
     .legal-compare-summary__lists {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .legal-upload-panel,
