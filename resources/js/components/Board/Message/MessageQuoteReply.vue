@@ -64,13 +64,24 @@ import { mentionFormatter } from "@/utils/tools";
     const checkIfClamped = async () => {
         if(props.which == 'reply' && replyBody.value){
             await nextTick()
-            // Check if text overflows beyond 2 lines
-            // Add extra buffer (25px) to account for emoji/sticker heights that can vary
+
+            // Wait for all images inside to finish loading (emojis/stickers)
+            const images = Array.from(replyBody.value.querySelectorAll('img'))
+            if(images.length > 0){
+                await Promise.all(
+                    images
+                        .filter(img => !img.complete)
+                        .map(img => new Promise(resolve => {
+                            img.addEventListener('load', resolve, { once: true })
+                            img.addEventListener('error', resolve, { once: true })
+                        }))
+                )
+            }
+
             const lineHeight = parseFloat(window.getComputedStyle(replyBody.value).lineHeight)
             const maxHeight = lineHeight * 2 + 25
             const contentHeight = replyBody.value.scrollHeight
             
-            console.log('Content height:', contentHeight, 'Max height (2 lines + buffer):', maxHeight)
             if(contentHeight > maxHeight){
                 isClamped.value = true
             } else {
@@ -86,8 +97,7 @@ import { mentionFormatter } from "@/utils/tools";
         return mentionFormatter(t_text, true)
     })
 
-    // Watch messageBody changes and recalculate clamping
-    watch(messageBody, checkIfClamped)
+    
     const messageUserName = computed(() => {                
         return props.message.user && props.message.user.deleted_at == null
         ? props.message.user.name
