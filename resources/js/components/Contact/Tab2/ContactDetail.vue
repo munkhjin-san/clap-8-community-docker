@@ -90,7 +90,7 @@
                 <tr>
                     <td colspan="2" style="white-space: normal;">
                         <h3 class="mb-[15px]">名刺データ</h3>
-                        <img style="max-height: 500px;" v-if="contact.card_path" :src="`/cdn/${contact.card_path}`"/>
+                        <img style="max-height: 500px;" loading="lazy" v-if="contact.card_path" :src="`/cdn/${contact.card_path}`"/>
                         <p v-else>名刺データはありません。</p>
                     </td>
                 </tr>
