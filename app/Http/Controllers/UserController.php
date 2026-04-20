@@ -21,6 +21,7 @@ use App\Services\SharedService;
 use App\Services\RefreshService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redis;
+use App\Jobs\SocketEmitter;
 class UserController extends Controller{
     protected $sharedService;
     
@@ -405,9 +406,10 @@ class UserController extends Controller{
             )            
         );
 
-        // event(new MessageSent($rebound));
-        return response()->json(["socket" => $rebound, "user" => $updated->original]);
-
+        SocketEmitter::dispatchAfterResponse([
+            [ "event" => "switch:".Auth::id(), "data" => ["to" => $request->id]]
+        ]);
+        return response()->json(["user" => $updated->original]);
         
     }
     public function get_random_member_data(Request $request){

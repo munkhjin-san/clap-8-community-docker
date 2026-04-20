@@ -34,6 +34,7 @@ use App\Jobs\SendNotification;
 use App\Jobs\SendEmail;
 use App\Jobs\IncrementUnreadCount;
 use Illuminate\Support\Facades\Cache;
+use App\Jobs\SocketEmitter;
 use DB;
 class BoardController extends Controller
 {
@@ -290,16 +291,16 @@ class BoardController extends Controller
                             'deleted_status' => 0,
                             'created_at' => now()
                         ]);     
-                        $socket = array();
-                        $related_members = $checkCurrentBoard->board_to_users()->pluck('user_id')->toArray();
-                        array_push($socket, ["event" => 'refresh:badge', "data" => $related_members]);
-                        array_push($socket, ["event" => 'refresh:board', "data" => $related_members]);                 
+                        $related_members = $checkCurrentBoard->board_to_users()->pluck('user_id');       
+                        SocketEmitter::dispatchAfterResponse([
+                            ["event" => 'refresh:badge', "data" => $related_members],
+                            ["event" => 'refresh:board', "data" => $related_members]
+                        ]);       
                         $arr = [
                             "restored" => $restoreUsers,
                             "message" => $restoreUsers ? "作成しました。" : "チャットがすでに存在します。",
                             "success" => true,
                             "data" => $checkCurrentBoard,
-                            "socket" => $socket
                         ];   
                         $checkCurrentBoard->touch(); 
                         return response()->json($arr);
@@ -350,43 +351,17 @@ class BoardController extends Controller
                 }
 
             }            
-           
-            // if(empty($file_id_array) && $request->private_flag !== 1){
-            //     try {
-            //         $createIcon = $this->sharedService->createBoardDefaultIcon($board, $active_user->id);             
-                   
-            //         if ($createIcon) {
-            //             $board->save();
-            //         } else {
-            //             $board->delete();
-            //             throw ValidationException::withMessages(['message' => $createIcon]);
-            //         }   
-            //     } catch (\Exception $e) {           
-            //         $board->delete();       
-            //         throw ValidationException::withMessages(['message' => $createIcon]);
-            //     }               
 
-            // }
-            // if(!empty($file_id_array)){
-            //     $board->icon_path = $request->icon_path;
-            // } else {
-            //     $board->icon_text = $request->icon_text;
-            // }      
-            // $board->save();
-            
-
-
-            $socket = array();
-            $related_members = $board->board_to_users()->pluck('user_id')->toArray();
-            array_push($socket, ["event" => 'refresh:badge', "data" => $related_members]);
-            array_push($socket, ["event" => 'refresh:board', "data" => $related_members]);   
+            $related_members = $board->board_to_users()->pluck('user_id');  
+            SocketEmitter::dispatchAfterResponse([
+                ["event" => 'refresh:badge', "data" => $related_members],
+                ["event" => 'refresh:board', "data" => $related_members]
+            ]);
             $arr = [
                 "message" => "作成しました。",
                 "success" => true,
                 "data" => $board,
-                "socket" => $socket
             ];  
-            // event(new MessageSent($rebound));
             return response()->json($arr);
             
         }else{
@@ -420,15 +395,12 @@ class BoardController extends Controller
          
         
         $board->timestamps = true;       
-
-        $socket = array();
-        $related_members = $board->board_to_users()->pluck('user_id')->toArray();
-        array_push($socket, ["event" => 'refresh:badge', "data" => $related_members]);
-        array_push($socket, ["event" => 'refresh:board', "data" => $related_members]); 
-        // event(new MessageSent($rebound));
-        return response()->json([
-            "socket" => $socket
-        ]);       
+        $related_members = $board->board_to_users()->pluck('user_id');
+        SocketEmitter::dispatchAfterResponse([
+            ["event" => 'refresh:badge', "data" => $related_members],
+            ["event" => 'refresh:board', "data" => $related_members]
+        ]);
+        return response()->json($board);       
     }
     public function board_delete(Request $request){
         
@@ -915,15 +887,15 @@ class BoardController extends Controller
             if(!$request->override_user_id){
                 boardToUser::where('record_id', $request->record_id)->where('user_id', $auth_user_id)->update(["last_message" => $chat->id]);
             }  
-            $socket = array();
-            array_push($socket, ["event" => "board:{$request->record_id}", "data" => []]);
-            array_push($socket, ["event" => 'refresh:badge', "data" => $related_members]);
-            array_push($socket, ["event" => 'refresh:board', "data" => $related_members]);
+            SocketEmitter::dispatchAfterResponse([
+                [ "event" => "board:{$request->record_id}", "data" => []],
+                ["event" => 'refresh:badge', "data" => $related_members],
+                ["event" => 'refresh:board', "data" => $related_members]
+            ]);
             $data = [
                 "success" => true,
                 "u_id" => $request->u_id,
                 "data" => $chat,
-                "socket" => $socket,
                 "message" => $messageRecord->original,
                 "notified" => $not,
                 "last_message" => $last_message,
@@ -1004,15 +976,16 @@ class BoardController extends Controller
         $boardRecord = $result['new']['board_record'];
         $boardRefresh = $boardRecord->load('last_message');
         $last_message = $boardRefresh->last_message;
-        $socket[] = ["event" => "board:{$result['record_id']}", "data" => []];
-        $socket[] = ["event" => 'refresh:badge', "data" => $result['related_members']];
-        $socket[] = ["event" => 'refresh:board', "data" => $result['related_members']];
+        SocketEmitter::dispatchAfterResponse([
+            ["event" => "board:{$result['record_id']}", "data" => []],
+            ["event" => 'refresh:badge', "data" => $result['related_members']],
+            ["event" => 'refresh:board', "data" => $result['related_members']]
+        ]);
         $mutatedMessage = $this->message_refresh($result['new']);
         $data = [
             "success" => true,
             "u_id" => $result['sender_id'],
             "data" => $result['new'],
-            "socket" => $socket,
             "message" => $messageRecord?->original,
             "mutated" => $mutatedMessage,
             "last_message" => $last_message,
@@ -1072,13 +1045,8 @@ class BoardController extends Controller
         // } 
         $related_members = [];
         $related_members[] = $auth_user_id;
-        $rebound = array(
-            "board_members" => $related_members
-        );
-        // event(new MessageSent($rebound));
         $mutatedMessage = $this->message_refresh($message_record);
         return response()->json([
-            "socket" => $rebound,
             "message" => $mutatedMessage
         ]);
         
@@ -1792,13 +1760,11 @@ class BoardController extends Controller
                     
                 }
                 $related_id = $checkBoard->board_to_users()->pluck('user_id')->toArray();
-                $socket = array();
-                array_push($socket, ["event" => 'refresh:badge', "data" => $related_id]);
-                array_push($socket, ["event" => 'refresh:board', "data" => $related_id]); 
-                // event(new MessageSent($rebound));
-                return response()->json([
-                    "socket" => $socket
+                SocketEmitter::dispatchAfterResponse([
+                    ["event" => 'refresh:badge', "data" => $related_id],
+                    ["event" => 'refresh:board', "data" => $related_id]
                 ]);
+                return response()->json("complete", 200);
             }
             throw ValidationException::withMessages(['message' => 'commonError']);
         }
@@ -1831,13 +1797,11 @@ class BoardController extends Controller
                 }
         
                 $related_id = $checkBoard->board_to_users()->pluck('user_id')->toArray();
-                $socket = array();
-                array_push($socket, ["event" => 'refresh:badge', "data" => $related_id]);
-                array_push($socket, ["event" => 'refresh:board', "data" => $related_id]); 
-                // event(new MessageSent($rebound));
-                return response()->json([
-                    "socket" => $socket
+                SocketEmitter::dispatchAfterResponse([
+                    ["event" => 'refresh:badge', "data" => $related_id],
+                    ["event" => 'refresh:board', "data" => $related_id]
                 ]);
+                return response()->json("complete", 200);
             }
         }
         throw ValidationException::withMessages(['message' => 'commonError']);
@@ -1984,15 +1948,12 @@ class BoardController extends Controller
                 ]);
         });      
       
-        $related_id = $checkBoard->board_to_users()->pluck('user_id')->toArray();
-        $socket = array();
-        array_push($socket, ["event" => 'refresh:badge', "data" => $related_id]);
-        array_push($socket, ["event" => 'refresh:board', "data" => $related_id]);  
-
-        // event(new MessageSent($rebound));    
-        return response()->json([
-            "socket" => $socket
-        ]);
+        $related_id = $checkBoard->board_to_users()->pluck('user_id')->toArray();  
+        SocketEmitter::dispatchAfterResponse([
+            ["event" => 'refresh:badge', "data" => $related_id],
+            ["event" => 'refresh:board', "data" => $related_id]
+        ]);  
+        return response()->json("complete", 200);
         
     }
     public function update_view_from(Request $request) {

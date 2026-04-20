@@ -22,6 +22,7 @@ use App\Events\MessageSent;
 use App\Jobs\PostStatusChangeNotification;
 use App\Services\BadgeService;
 use Illuminate\Support\Facades\Auth;
+use App\Jobs\SocketEmitter;
 
 class PostController extends Controller
 {
@@ -419,21 +420,12 @@ class PostController extends Controller
                 "record_id" => $record->id,
             );
             $socket = array();
-            array_push($socket, ["event" => 'post:new', "data" => $data]);
-            array_push($socket, ["event" => 'post:badge', "data" => []]);  
-
-            // $socket = array(
-            //     array(
-            //         "event" => "post:new",
-            //         "data" => array(
-            //             "app_name" => $request->path,
-            //             "record_id" => $record->id,
-            //         )
-            //     )
-            // );
-            // event(new MessageSent($rebound));            
+            
+            SocketEmitter::dispatchAfterResponse([
+                ["event" => 'post:new', "data" => $data],
+                ["event" => 'post:badge', "data" => []]
+            ]);
             return response()->json([
-                "socket" => $socket,
                 "record" => $record
             ]);
         }

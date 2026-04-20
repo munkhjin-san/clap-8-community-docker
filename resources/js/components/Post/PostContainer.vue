@@ -391,7 +391,7 @@ import Back from '../Icons/Back.vue';
     }
     const postSocketHandler = (data:any) =>{
         console.log(data)
-        const payload = data && data.length ? data[0] : null
+        const payload = data
       
         if(payload && payload?.app_name == appName.value && !hasQuery.value){
             console.log('payload', payload)

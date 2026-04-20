@@ -337,7 +337,7 @@ import Error from '@/components/Global/Error.vue'
         instance.on('refresh:board', updateBoardHandler)
     })        
     const updateBoardHandler = (data:any) => {
-        const related = data && data.length? data[0] : []
+        const related = data && data.length? data : []
         if(related.includes(auth.id) || related.includes(auth.activeUser.id)){
             queueBoardListRefresh()
         }

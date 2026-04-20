@@ -2,7 +2,6 @@
 // window._ = _;
 
 // import 'bootstrap';
-import { instance } from '@/utils/broadcaster'
 /**
  * We'll load the axios HTTP library which allows us to easily issue requests
  * to our Laravel back-end. This library automatically handles sending the
@@ -15,17 +14,6 @@ window.axios = axios;
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 window.axios.interceptors.response.use(
     response => {
-
-        if(response?.data?.socket && instance && instance?.connected){
-            const emits = response.data.socket
-            console.log('catchSocket', instance.connected)
-            if(emits && Array.isArray(emits) && typeof emits[Symbol.iterator] === 'function'){
-                emits.forEach(emitData => {
-                    instance.emit(emitData?.event, emitData?.data)
-                });
-            }
-            
-        }
         return response
     },
     error => {

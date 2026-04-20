@@ -196,6 +196,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
     }
 
     const postHandler = () => {
+        console.debug('post:badge event received, refreshing board badge')
         if(!auth.isPartner){
             badge.getbadgeSummary()
         }
@@ -213,7 +214,8 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         return badgeCount + space + name   
     })
     const boardBadgeHandler = (data) => {
-        const related = data && data.length? data[0] : []
+        console.log('refresh:board event received', data)
+        const related = data && data.length? data : []
         if(related.includes(auth.id) || related.includes(auth.activeUser.id)){
             queueBoardBadgeRefresh()
         }
@@ -244,11 +246,9 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         socket.off("refresh:task_comment", taskCommentBadgeHandler)
     }
     const taskCommentBadgeHandler = (data) => {
-        if(data && data.length && data[0].members){
-            const related = data[0].members
-            if(related.includes(auth.id) || related.includes(auth.activeUser.id)){
-                badge.getTaskCommentBadge()
-            }
+        const related = data?.members ?? []
+        if(related.includes(auth.id) || related.includes(auth.activeUser.id)){
+            badge.getTaskCommentBadge()
         }
     }
     const footerView = computed(() =>{

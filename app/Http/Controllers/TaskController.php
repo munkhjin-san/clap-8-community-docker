@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use DB;
+use App\Jobs\SocketEmitter;
 class TaskController extends Controller
 {
     protected $sharedService;
@@ -339,18 +340,14 @@ class TaskController extends Controller
         $data = $request->toArray();
         $data['user_id'] = $active_user->id;
         $comment = $task->comments()->create($data);
-        $related_users = $task->taskUsers()->pluck('user_id')->toArray();
-        $socket = [];
+        $related_users = $task->taskUsers()->pluck('user_id');
 
-
-        array_push($socket, ["event" => 'refresh:task', "data" => $request->task_record_id]);  
-        array_push($socket, ["event" => 'refresh:task_comment', "data" => ['task_id' => $request->task_record_id, 'members' => $related_users]]);
-
-
-        // event(new MessageSent($rebound));    
-        return response()->json([
-            "socket" => $socket
+        SocketEmitter::dispatchAfterResponse([
+            ["event" => 'refresh:task', "data" => $request->task_record_id],
+            ["event" => 'refresh:task_comment', "data" => ['task_id' => $request->task_record_id, 'members' => $related_users]]
         ]);
+ 
+        return response()->json();
 
     }
     public function task_comment_update(Request $request){
