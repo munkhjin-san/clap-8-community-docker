@@ -1918,6 +1918,7 @@ class WorkController extends Controller
         $validated = $request->validate([
             'draft_uuid' => 'required|uuid',
             'file_path' => 'required|string',
+            'expense_type' => 'nullable|integer',
             'subject_user_id' => 'nullable|integer',
             'timecard_record_id' => 'nullable|integer',
             'timecard_cost_record_id' => 'nullable|integer',
@@ -1938,7 +1939,10 @@ class WorkController extends Controller
         ]);
 
         try {
-            $ocrResponse = $this->workReceiptOcrService->extract($validated['file_path']);
+            $ocrResponse = $this->workReceiptOcrService->extract(
+                $validated['file_path'],
+                isset($validated['expense_type']) ? (int) $validated['expense_type'] : null
+            );
             $ocrRun->fill([
                 'provider' => Arr::get($ocrResponse, 'provider', 'gemini'),
                 'model' => Arr::get($ocrResponse, 'model'),

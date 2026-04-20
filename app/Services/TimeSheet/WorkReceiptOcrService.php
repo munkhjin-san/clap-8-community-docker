@@ -10,7 +10,7 @@ use Illuminate\Validation\ValidationException;
 
 class WorkReceiptOcrService
 {
-    public function extract(string $filePath): array
+    public function extract(string $filePath, ?int $expenseType = null): array
     {
         $disk = Storage::disk('local');
         $storagePath = "timecard_files/{$filePath}";
@@ -30,6 +30,19 @@ class WorkReceiptOcrService
         $fullPath = $disk->path($storagePath);
         $mimeType = $disk->mimeType($storagePath) ?: 'application/octet-stream';
         $base64Data = base64_encode((string) file_get_contents($fullPath));
+
+        $shouldExtractTransport = in_array($expenseType, [1, 4], true);
+        $transportPrompt = $shouldExtractTransport
+            ? <<<TEXT
+                The current expense type is transportation-related ({$expenseType}).
+                Aggressively extract transport_type, departure_place, and arrival_place when visible.
+                If a route summary or transit screenshot is shown, prefer the actual departure and arrival points.
+            TEXT
+            : <<<TEXT
+                The current expense type is not confirmed as transportation-related.
+                Only return transport_type, departure_place, and arrival_place if they are clearly visible in the image.
+                Otherwise return empty strings for those fields.
+            TEXT;
 
         $payload = [
             'contents' => [[
@@ -57,12 +70,7 @@ class WorkReceiptOcrService
                             - 4: 飛行機
                             - 5: その他
 
-                            If this is a transportation screenshot, route memo, transit receipt, fare summary,
-                            or travel detail screen, also extract:
-                            - departure_place
-                            - arrival_place
-                            - transport_type
-
+                            {$transportPrompt}
                             If departure or arrival is not visible, return an empty string for that field.
 
                             IMPORTANT: Set multiple_receipts_detected to true if the image contains more than one
@@ -100,7 +108,7 @@ class WorkReceiptOcrService
                         'tax_amount' => ['type' => 'string'],
                         'notes' => ['type' => 'string'],
                     ],
-                    'required' => ['multiple_receipts_detected', 'merchant_name', 'receipt_date', 'amount', 'currency', 'receipt_source_type', 'transport_type', 'departure_place', 'arrival_place', 'tax_amount', 'notes'],
+                    'required' => ['multiple_receipts_detected', 'merchant_name', 'receipt_date', 'amount', 'currency', 'receipt_source_type', 'tax_amount', 'notes'],
                 ],
             ],
         ];

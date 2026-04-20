@@ -220,18 +220,27 @@ const hasOcrSuggestions = computed(() => {
     return suggestionRows.value.some((row) => Boolean(row.value))
 })
 
+const supportsTransportOcr = computed(() => [1, 4].includes(Number(type.value)))
+
 const suggestionRows = computed(() => {
     const source = ocrSuggestions.value ?? {}
-    return [
+    const rows = [
         { key: 'merchant_name', label: '取引先', value: source.merchant_name ?? '' },
         { key: 'receipt_date', label: '領収書日付', value: source.receipt_date ?? '' },
-        { key: 'transport_type', label: '交通手段', value: transportLabelMap[source.transport_type] ?? '' },
-        { key: 'departure_place', label: '出発', value: source.departure_place ?? '' },
-        { key: 'arrival_place', label: '到着', value: source.arrival_place ?? '' },
         { key: 'amount', label: '金額', value: source.amount ?? '' },
         { key: 'currency', label: '通貨', value: source.currency ?? '' },
         { key: 'receipt_source_type', label: '保存種別', value: receiptSourceTypeLabelMap[source.receipt_source_type] ?? source.receipt_source_type ?? '' },
     ]
+
+    if (supportsTransportOcr.value) {
+        rows.splice(2, 0,
+            { key: 'transport_type', label: '交通手段', value: transportLabelMap[source.transport_type] ?? '' },
+            { key: 'departure_place', label: '出発', value: source.departure_place ?? '' },
+            { key: 'arrival_place', label: '到着', value: source.arrival_place ?? '' },
+        )
+    }
+
+    return rows
 })
 const transportOptions = [
     { label: '電車のみ', value: 1 },
@@ -338,6 +347,7 @@ const runOcr = async() => {
     const response = await api.post('/work_receipt_ocr', {
         draft_uuid: draftUuid.value,
         file_path: fileModel.value,
+        expense_type: type.value,
         subject_user_id: props.subjectUserId,
         timecard_record_id: props.timecardRecordId,
         timecard_cost_record_id: props.timecardCostRecordId,
@@ -352,7 +362,11 @@ const runOcr = async() => {
 }
 
 const applyAllOcr = () => {
-    applyOcrFields(['merchant_name', 'receipt_date', 'transport_type', 'departure_place', 'arrival_place', 'amount', 'currency', 'receipt_source_type'])
+    const fields = ['merchant_name', 'receipt_date', 'amount', 'currency', 'receipt_source_type']
+    if (supportsTransportOcr.value) {
+        fields.splice(2, 0, 'transport_type', 'departure_place', 'arrival_place')
+    }
+    applyOcrFields(fields)
 }
 
 const applyOcrFields = (fields) => {
