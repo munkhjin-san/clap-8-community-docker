@@ -321,7 +321,7 @@ import { useTour } from '@/composables/useTour';
         department: costDepartment.value ?? '',
         content: '',
         type: props.item.position_id == 15 ? 1 : 4,
-        transport_type: props.item.position_id == 15 ? null : 1,
+        transport_type: 1,
         departure_place: '',
         arrival_place: '',
         expenses: null,

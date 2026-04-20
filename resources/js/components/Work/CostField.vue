@@ -11,12 +11,12 @@
             v-model="department"
             :disabled="locked"
         />
-        <select class="optionPicker" v-if="type == 4" name="transportType" v-model="transportType" :disabled="locked">
+        <select class="optionPicker" v-if="type == 4 || type == 1" name="transportType" v-model="transportType" :disabled="locked">
             <option :key="index" v-for="(item, index) in transportOptions" :value="item.value">
                 {{ item.label }}
             </option>
         </select>
-        <div class="flex gap-5" v-if="type == 4">
+        <div class="flex gap-5" v-if="type == 4 || type == 1">
             <input
                 class="text-[var(--primary-color)] border border-[var(--primary-color)] border-solid px-[10px] h-[38px]"
                 placeholder="出発"
@@ -32,7 +32,7 @@
         </div>
         
         <input
-            v-if="type !== 4"
+            v-if="type !== 4 && type !== 1"
             name="content"
             placeholder="内容"
             type="text"
