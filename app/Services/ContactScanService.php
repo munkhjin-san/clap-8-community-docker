@@ -33,7 +33,7 @@ class ContactScanService
             'email' => $normalized['email'] ?? null,
             'fax' => $normalized['fax'] ?? null,
             'url' => $normalized['url'] ?? null,
-            'description' => 'Geminiバッチで処理された名刺' . now()->toDateTimeString(),
+            'description' => '名刺画像から自動登録',
             'data' => $normalized['company_info'],
             'contact_type_id' => $batch->contact_type_id,
             'strategy' => null,

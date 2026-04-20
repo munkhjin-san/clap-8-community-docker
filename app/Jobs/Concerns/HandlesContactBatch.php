@@ -238,7 +238,7 @@ trait HandlesContactBatch
             'email' => $normalized['email'] ?? null,
             'fax' => $normalized['fax'] ?? null,
             'url' => $normalized['url'] ?? null,
-            'description' => 'Business card processed via Gemini batch on ' . now()->toDateTimeString(),
+            'description' => '名刺画像から自動登録',
             'data' => $html,
             'contact_type_id' => $batch->contact_type_id,
             'strategy' => null,
@@ -458,11 +458,6 @@ trait HandlesContactBatch
                                     ],
                                 ],
                             ],
-                        ],
-                    ],
-                    'tools' => [
-                        [
-                            'google_search' => (object)[],
                         ],
                     ],
                     'generationConfig' => $generationConfig,
