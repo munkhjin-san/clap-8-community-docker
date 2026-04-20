@@ -23,7 +23,7 @@ type BoardMethods = {
     privateSearch: () => void,
     setNotification: (item: Board) => void
     messageLoader:(val: boolean) => void
-
+    removeMessage: (id: number) => void
 }
 type MessageMethods = {
     addQueue: (item: Message) => void,

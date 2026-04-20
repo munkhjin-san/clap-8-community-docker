@@ -920,6 +920,12 @@ import Error from '@/components/Global/Error.vue'
             messageList.value[index] = message
         }
     }
+    const removeMessage = (id: number) => {
+        const index = messageList.value.findIndex(ob => ob.id === id)
+        if (index > -1) {
+            messageList.value.splice(index, 1)
+        }
+    }
     provide(BoardMethodsKey, {
         remove: (item) => boardDelete(item),
         edit: (item) => activeEditBoard.value = item,
@@ -933,6 +939,7 @@ import Error from '@/components/Global/Error.vue'
         pin: (item) => pinBoard(item.id),
         leave: (item) => leaveBoard(item),
         refreshMessages: (message, oldId) => refreshMessages(message, oldId),
+        removeMessage: (id) => removeMessage(id),
         privateSearch: () => startPrivateSearch(),
         messageLoader: (item) => messageLoader.value = item,
         setNotification: (item) => setNotification(item.id)

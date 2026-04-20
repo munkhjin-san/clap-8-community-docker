@@ -69,7 +69,7 @@ import { useSharingDataStore } from '@/store/sharingData';
     const draftSending = ref(false)
     const messageBox = useTemplateRef('messageBox')
     const { openedBoard } = useBoardList()
-    const { refreshMessages, close, reload, messageLoader, open } = inject(BoardMethodsKey) as BoardMethods 
+    const { refreshMessages, close, reload, messageLoader, open, removeMessage } = inject(BoardMethodsKey) as BoardMethods 
     const { copy, remind, check, sent } = inject(MessageMethodsKey) as MessageMethods;
     const editing = ref(false)
     const api = useApi()
@@ -222,6 +222,10 @@ import { useSharingDataStore } from '@/store/sharingData';
             toast: 'メッセージを削除しました。'
         }) 
         if (!data) return 
+        if (data.remove) {
+            removeMessage(data.id)
+            return
+        }
         refreshMessages(data)
     }
     const markUnread = async(id: number) => {

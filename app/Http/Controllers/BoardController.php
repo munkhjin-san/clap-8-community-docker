@@ -932,36 +932,50 @@ class BoardController extends Controller
 
     }
         
-    public function chatDelete(Request $request){
+    public function chatDelete(Request $request)
+    {
         $active_user = $this->active_user();
+
         $validatedData = $request->validate([
             'id' => 'required',
         ]);
+
         $auth_user_id = $active_user->id;
         $chat_record = messageRecord::findOrFail($request->id);
-        if($auth_user_id !== $chat_record->user_id){
-            throw ValidationException::withMessages(['message' => 'sufficientAdministrativePermission']);
+
+        if ($auth_user_id !== $chat_record->user_id) {
+            throw ValidationException::withMessages([
+                'message' => 'sufficientAdministrativePermission'
+            ]);
         }
+
         $chat_record->reactedUsers()->detach();
         $chat_record->checkUsers()->detach();
+
+        $files = messageFile::where('message_id', $chat_record->id)->get();
+        foreach ($files as $file) {
+            $path = 'shared_files/' . $chat_record->record_id . '/' . $file->id . '_' . $file->user_id . '_' . $chat_record->id . '.' . $file->extension;
+            Storage::disk('local')->delete($path);
+            $file->delete();
+        }
+
         if ($chat_record->draft_flag === 1) {
             $chat_record->deleted_flag = 1;
             $chat_record->save();
+            $chat_record->delete();
+
+            return response()->json([
+                'id' => $chat_record->id,
+                'draft_flag' => 1,
+                'deleted_flag' => 1,
+                'remove' => true,
+            ]);
         }
-        $chat_record->delete();            
-        $files = messageFile::where('message_id', '=', $chat_record->id)->get();
-        if($files){                
-            foreach($files as $file){             
-                $path = 'shared_files/' . $chat_record->record_id . '/' . $file->id . '_' . $file->user_id . '_' . $chat_record->id . '.' . $file->extension;
-                Storage::disk('local')->delete($path);
-                $file->delete();
-            }               
-            
-        }          
+
+        $chat_record->delete();
+
         $mutatedMessage = $this->message_refresh($chat_record);
         return response()->json($mutatedMessage);
-        
-         
     }
     public function draftSend(Request $request, DraftMessageSender $sender, MentionAndNotify $mentioner)
     {

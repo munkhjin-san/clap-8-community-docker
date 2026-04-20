@@ -34,7 +34,7 @@ class ContactScanService
             'fax' => $normalized['fax'] ?? null,
             'url' => $normalized['url'] ?? null,
             'description' => '名刺画像から自動登録',
-            'data' => $normalized['company_info'],
+            'data' => $normalized['company_info'] ?? null,
             'contact_type_id' => $batch->contact_type_id,
             'strategy' => null,
             'card_path' => $cardPath,
