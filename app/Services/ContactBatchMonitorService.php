@@ -21,19 +21,189 @@ class ContactBatchMonitorService
         $apiKey = config('services.google.gemini_api_key');
         if (empty($apiKey)) {
             $this->markBatchFailed($batch, 'Gemini API key is not configured.');
+
             return $batch->fresh('items.contactRecord.collaborators');
         }
 
+        return match ($batch->status) {
+            ContactBatch::STATUS_SCANNING => $this->refreshScanStage($batch, $apiKey),
+            ContactBatch::STATUS_ENRICHING => $this->refreshEnrichmentStage($batch, $apiKey),
+            default => $batch->fresh('items.contactRecord.collaborators'),
+        };
+    }
+
+    protected function refreshScanStage(ContactBatch $batch, string $apiKey): ContactBatch
+    {
         if (!$batch->scan_operation) {
-            return $batch;
+            return $batch->fresh('items.contactRecord.collaborators');
+        }
+
+        $payload = $this->pollOperationPayload(
+            $batch,
+            $apiKey,
+            $batch->scan_operation,
+            'Gemini batch status could not be retrieved anymore.',
+            'Gemini batch did not complete successfully.'
+        );
+
+        if ($payload === null) {
+            return $batch->fresh('items.contactRecord.collaborators');
+        }
+
+        $this->applyScanResults($batch, $payload);
+
+        $batch->update([
+            'scan_completed_at' => $batch->scan_completed_at ?? now(),
+            'error' => null,
+        ]);
+
+        $batch = $batch->fresh('items.contactRecord.collaborators');
+        $scannedItems = $batch->items->where('status', ContactBatchItem::STATUS_SCANNED)->values();
+
+        if ($scannedItems->isEmpty()) {
+            $this->markBatchFailed($batch, '名刺画像から連絡先情報を抽出できませんでした。');
+
+            return $batch->fresh('items.contactRecord.collaborators');
+        }
+
+        $requests = $this->buildEnrichmentRequests($batch);
+        if (empty($requests)) {
+            return $this->completeWithoutEnrichment($batch);
         }
 
         try {
-            $payload = $this->pollGeminiOperation($apiKey, $batch->scan_operation);
+            $operation = $this->startGeminiBatch($batch, $apiKey, 'models/gemini-3-flash-preview', [
+                'batch' => [
+                    'displayName' => 'contact-enrich-' . now()->format('YmdHis'),
+                    'model' => 'models/gemini-3-flash-preview',
+                    'inputConfig' => [
+                        'requests' => [
+                            'requests' => $requests,
+                        ],
+                    ],
+                ],
+            ]);
         } catch (\Throwable $exception) {
-            $this->markBatchFailed($batch, 'Gemini batch status could not be retrieved anymore.');
+            $this->logEntry($batch, 'enrich_submit_fallback', 'Falling back to OCR-only completion.', [
+                'message' => $exception->getMessage(),
+            ], 'models/gemini-3-flash-preview');
+
+            return $this->completeWithoutEnrichment($batch);
+        }
+
+        $batch->update([
+            'status' => ContactBatch::STATUS_ENRICHING,
+            'enrich_operation' => $operation['name'] ?? null,
+            'enrich_attempts' => 0,
+            'enrich_requested_at' => now(),
+            'enrich_completed_at' => null,
+            'error' => null,
+        ]);
+
+        return $batch->fresh('items.contactRecord.collaborators');
+    }
+
+    protected function refreshEnrichmentStage(ContactBatch $batch, string $apiKey): ContactBatch
+    {
+        if (!$batch->enrich_operation) {
+            return $this->completeWithoutEnrichment($batch);
+        }
+
+        try {
+            $payload = $this->pollGeminiOperation($apiKey, $batch->enrich_operation);
+        } catch (\Throwable $exception) {
+            $this->logEntry($batch, 'enrich_poll_fallback', 'Company research poll failed; using OCR-only completion.', [
+                'message' => $exception->getMessage(),
+            ]);
+
+            return $this->completeWithoutEnrichment($batch);
+        }
+
+        $state = data_get($payload, 'metadata.state');
+
+        if (in_array($state, ['BATCH_STATE_FAILED', 'BATCH_STATE_CANCELLED', 'BATCH_STATE_EXPIRED'], true)) {
+            $this->logEntry($batch, 'enrich_state_fallback', 'Company research did not finish successfully; using OCR-only completion.', [
+                'state' => $state,
+                'error' => data_get($payload, 'error.message'),
+            ]);
+
+            return $this->completeWithoutEnrichment($batch);
+        }
+
+        if ($state !== 'BATCH_STATE_SUCCEEDED') {
+            return $batch->fresh('items.contactRecord.collaborators');
+        }
+
+        $this->applyEnrichmentResults($batch, $payload);
+        $batch = $batch->fresh('items.contactRecord.collaborators');
+
+        if ($batch->items->where('status', ContactBatchItem::STATUS_COMPLETED)->count() === 0) {
+            $this->markBatchFailed($batch, '会社情報の取得まで完了できませんでした。');
 
             return $batch->fresh('items.contactRecord.collaborators');
+        }
+
+        $batch->update([
+            'status' => ContactBatch::STATUS_COMPLETED,
+            'enrich_completed_at' => $batch->enrich_completed_at ?? now(),
+            'error' => null,
+        ]);
+
+        $this->cleanupBatchDirectory($batch);
+
+        return $batch->fresh('items.contactRecord.collaborators');
+    }
+
+    protected function completeWithoutEnrichment(ContactBatch $batch): ContactBatch
+    {
+        $items = $batch->items()->where('status', ContactBatchItem::STATUS_SCANNED)->get();
+
+        foreach ($items as $item) {
+            $scanData = data_get($item->scan_result, 'parsed.0', []);
+            $contactRecord = $this->storeContactRecord($batch, $item, is_array($scanData) ? $scanData : [], '');
+
+            $item->update([
+                'contact_record_id' => $contactRecord?->id,
+                'status' => ContactBatchItem::STATUS_COMPLETED,
+                'error' => null,
+                'enrich_result' => null,
+            ]);
+        }
+
+        $batch = $batch->fresh('items.contactRecord.collaborators');
+
+        if ($batch->items->where('status', ContactBatchItem::STATUS_COMPLETED)->count() === 0) {
+            $this->markBatchFailed($batch, '名刺画像から連絡先情報を抽出できませんでした。');
+
+            return $batch->fresh('items.contactRecord.collaborators');
+        }
+
+        $batch->update([
+            'status' => ContactBatch::STATUS_COMPLETED,
+            'enrich_operation' => null,
+            'enrich_requested_at' => null,
+            'enrich_completed_at' => null,
+            'error' => null,
+        ]);
+
+        $this->cleanupBatchDirectory($batch);
+
+        return $batch->fresh('items.contactRecord.collaborators');
+    }
+
+    protected function pollOperationPayload(
+        ContactBatch $batch,
+        string $apiKey,
+        string $operationName,
+        string $pollFailureMessage,
+        string $stateFailureMessage,
+    ): ?array {
+        try {
+            $payload = $this->pollGeminiOperation($apiKey, $operationName);
+        } catch (\Throwable $exception) {
+            $this->markBatchFailed($batch, $pollFailureMessage);
+
+            return null;
         }
 
         $state = data_get($payload, 'metadata.state');
@@ -41,91 +211,16 @@ class ContactBatchMonitorService
         if (in_array($state, ['BATCH_STATE_FAILED', 'BATCH_STATE_CANCELLED', 'BATCH_STATE_EXPIRED'], true)) {
             $this->markBatchFailed(
                 $batch,
-                (string) data_get($payload, 'error.message', 'Gemini batch did not complete successfully.')
+                (string) data_get($payload, 'error.message', $stateFailureMessage)
             );
 
-            return $batch->fresh('items.contactRecord.collaborators');
+            return null;
         }
 
         if ($state !== 'BATCH_STATE_SUCCEEDED') {
-            return $batch->fresh('items.contactRecord.collaborators');
+            return null;
         }
 
-        $items = $batch->items()->get()->keyBy('id');
-        $inlineResponses = data_get($payload, 'response.inlinedResponses.inlinedResponses', []);
-
-        foreach ($inlineResponses as $inline) {
-            $itemId = data_get($inline, 'metadata.batch_item_id');
-            if (!$itemId || !$items->has($itemId)) {
-                continue;
-            }
-
-            /** @var ContactBatchItem $item */
-            $item = $items->get($itemId);
-
-            if (isset($inline['error'])) {
-                $message = (string) data_get($inline, 'error.message', 'Unknown error during scan stage.');
-                $item->update([
-                    'status' => ContactBatchItem::STATUS_FAILED,
-                    'error' => $message,
-                ]);
-                continue;
-            }
-
-            $rawText = data_get($inline, 'response.candidates.0.content.parts.0.text');
-
-            if (!$rawText) {
-                $item->update([
-                    'status' => ContactBatchItem::STATUS_FAILED,
-                    'error' => 'Scan response did not include text content.',
-                ]);
-                continue;
-            }
-
-            $parsed = $this->decodeJsonText($rawText);
-
-            if ($parsed === null) {
-                $item->update([
-                    'status' => ContactBatchItem::STATUS_FAILED,
-                    'error' => 'Scan response JSON could not be decoded.',
-                    'scan_result' => [
-                        'raw_text' => $rawText,
-                    ],
-                ]);
-                continue;
-            }
-
-            $scanData = $this->normalizeParsedContacts($parsed)[0] ?? [];
-            $contactRecord = $this->storeContactRecord($batch, $item, $scanData, $rawText);
-
-            $item->update([
-                'status' => ContactBatchItem::STATUS_COMPLETED,
-                'error' => null,
-                'scan_result' => [
-                    'raw_text' => $rawText,
-                    'parsed' => $this->normalizeParsedContacts($parsed),
-                ],
-                'contact_record_id' => $contactRecord?->id,
-            ]);
-        }
-
-        $items->each(function (ContactBatchItem $item) {
-            if ($item->status === ContactBatchItem::STATUS_SCANNING) {
-                $item->update([
-                    'status' => ContactBatchItem::STATUS_FAILED,
-                    'error' => 'Scan result was not returned for this item.',
-                ]);
-            }
-        });
-
-        $batch->update([
-            'status' => ContactBatch::STATUS_COMPLETED,
-            'scan_completed_at' => $batch->scan_completed_at ?? now(),
-            'error' => null,
-        ]);
-
-        $this->cleanupBatchDirectory($batch);
-
-        return $batch->fresh('items.contactRecord.collaborators');
+        return $payload;
     }
 }
