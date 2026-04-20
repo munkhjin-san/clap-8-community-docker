@@ -120,7 +120,7 @@
                     <div class="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         type="button"
-                        class="p-1.5 rounded-md flex bg-black/60 hover:bg-black/80 text-white ring-1 ring-white/10"
+                        class="p-1.5 rounded-md flex bg-black/60 hover:bg-black/80 !text-white ring-1 ring-white/10"
                         @click="removeAt(i)"
                         aria-label="Remove file"
                       >

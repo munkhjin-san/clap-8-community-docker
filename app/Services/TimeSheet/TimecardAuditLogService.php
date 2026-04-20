@@ -7,6 +7,7 @@ use App\Models\TimecardAuditEventProjection;
 use App\Models\TimecardCostOcrRun;
 use App\Models\timecardCostRecord;
 use App\Models\timecardRecord;
+use Carbon\Carbon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
@@ -191,9 +192,11 @@ class TimecardAuditLogService
             'merchant_name' => Arr::get($afterState, 'merchant_name')
                 ?? Arr::get($beforeState, 'merchant_name')
                 ?? $cost?->merchant_name,
-            'receipt_date' => Arr::get($afterState, 'receipt_date')
+            'receipt_date' => $this->normalizeDateOnly(
+                Arr::get($afterState, 'receipt_date')
                 ?? Arr::get($beforeState, 'receipt_date')
                 ?? $this->normalizeDateOnly($cost?->receipt_date),
+            ),
             'expenses' => Arr::get($afterState, 'expenses')
                 ?? Arr::get($beforeState, 'expenses')
                 ?? $cost?->expenses,
@@ -230,7 +233,11 @@ class TimecardAuditLogService
             return $matches[1];
         }
 
-        return $raw;
+        try {
+            return Carbon::parse($raw)->toDateString();
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     private function requestId(): string

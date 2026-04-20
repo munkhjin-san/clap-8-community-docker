@@ -2,6 +2,7 @@
 
 namespace App\Services\TimeSheet;
 
+use Carbon\Carbon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -40,12 +41,29 @@ class WorkReceiptOcrService
                             Return only normalized data based on visible evidence in the file.
                             If a value is uncertain, return an empty string instead of guessing.
                             Use ISO date format YYYY-MM-DD for receipt_date when possible.
+                            If the image shows month/day without year (for example 4月4日 or 04/04),
+                            use the current year.
                             Use a plain number for amount and tax_amount without commas or currency symbols.
 
                             For receipt_source_type:
                             - If the receipt is scanned from paper, return "スキャナ保存"
                             - If the receipt is originally digital (e.g. email PDF, online invoice), return "電子取引データ"
                             - If unclear, default to "スキャナ保存"
+
+                            For transport_type, use:
+                            - 1: 電車のみ
+                            - 2: 電車・バス
+                            - 3: タクシー
+                            - 4: 飛行機
+                            - 5: その他
+
+                            If this is a transportation screenshot, route memo, transit receipt, fare summary,
+                            or travel detail screen, also extract:
+                            - departure_place
+                            - arrival_place
+                            - transport_type
+
+                            If departure or arrival is not visible, return an empty string for that field.
 
                             IMPORTANT: Set multiple_receipts_detected to true if the image contains more than one
                             distinct receipt document (e.g. two receipts photographed side by side, or a collage).
@@ -76,10 +94,13 @@ class WorkReceiptOcrService
                         'amount' => ['type' => 'string'],
                         'currency' => ['type' => 'string'],
                         'receipt_source_type' => ['type' => 'string'],
+                        'transport_type' => ['type' => 'integer'],
+                        'departure_place' => ['type' => 'string'],
+                        'arrival_place' => ['type' => 'string'],
                         'tax_amount' => ['type' => 'string'],
                         'notes' => ['type' => 'string'],
                     ],
-                    'required' => ['multiple_receipts_detected', 'merchant_name', 'receipt_date', 'amount', 'currency', 'receipt_source_type', 'tax_amount', 'notes'],
+                    'required' => ['multiple_receipts_detected', 'merchant_name', 'receipt_date', 'amount', 'currency', 'receipt_source_type', 'transport_type', 'departure_place', 'arrival_place', 'tax_amount', 'notes'],
                 ],
             ],
         ];
@@ -105,10 +126,13 @@ class WorkReceiptOcrService
 
         $normalized = [
             'merchant_name' => trim((string) Arr::get($decoded, 'merchant_name', '')),
-            'receipt_date' => trim((string) Arr::get($decoded, 'receipt_date', '')),
+            'receipt_date' => $this->normalizeReceiptDate(Arr::get($decoded, 'receipt_date')),
             'amount' => $this->normalizeNumericString(Arr::get($decoded, 'amount')),
-            'currency' => strtoupper(trim((string) Arr::get($decoded, 'currency', '円'))) ?: '円',
-            'receipt_source_type' => trim((string) Arr::get($decoded, 'receipt_source_type', 'paper_scan')) ?: 'paper_scan',
+            'currency' => strtoupper(trim((string) Arr::get($decoded, 'currency', 'JPY'))) ?: 'JPY',
+            'receipt_source_type' => $this->normalizeReceiptSourceType(Arr::get($decoded, 'receipt_source_type')),
+            'transport_type' => $this->normalizeTransportType(Arr::get($decoded, 'transport_type')),
+            'departure_place' => trim((string) Arr::get($decoded, 'departure_place', '')),
+            'arrival_place' => trim((string) Arr::get($decoded, 'arrival_place', '')),
             'tax_amount' => $this->normalizeNumericString(Arr::get($decoded, 'tax_amount')),
             'notes' => trim((string) Arr::get($decoded, 'notes', '')),
         ];
@@ -132,5 +156,67 @@ class WorkReceiptOcrService
         }
 
         return preg_replace('/[^0-9.-]/', '', $stringValue) ?: '';
+    }
+
+    private function normalizeReceiptDate(mixed $value): string
+    {
+        $raw = trim((string) $value);
+        if ($raw === '') {
+            return Carbon::today()->toDateString();
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) {
+            return $raw;
+        }
+
+        if (preg_match('/^(\d{4})[\/\.](\d{1,2})[\/\.](\d{1,2})$/', $raw, $matches)) {
+            return Carbon::createFromDate((int) $matches[1], (int) $matches[2], (int) $matches[3])->toDateString();
+        }
+
+        if (preg_match('/^(\d{1,2})[\/\.](\d{1,2})$/', $raw, $matches)) {
+            return Carbon::createFromDate((int) Carbon::today()->year, (int) $matches[1], (int) $matches[2])->toDateString();
+        }
+
+        if (preg_match('/(\d{1,2})月(\d{1,2})日/u', $raw, $matches)) {
+            return Carbon::createFromDate((int) Carbon::today()->year, (int) $matches[1], (int) $matches[2])->toDateString();
+        }
+
+        try {
+            return Carbon::parse($raw)->toDateString();
+        } catch (\Throwable $e) {
+            return Carbon::today()->toDateString();
+        }
+    }
+
+    private function normalizeReceiptSourceType(mixed $value): string
+    {
+        $raw = trim((string) $value);
+
+        return match ($raw) {
+            '電子取引データ', '電子取引', 'electronic' => 'electronic',
+            default => 'paper_scan',
+        };
+    }
+
+    private function normalizeTransportType(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_numeric($value)) {
+            $normalized = (int) $value;
+            return in_array($normalized, [1, 2, 3, 4, 5], true) ? $normalized : null;
+        }
+
+        $raw = trim((string) $value);
+        return match ($raw) {
+            '電車のみ', '電車', 'train' => 1,
+            '電車・バス', 'バス', 'bus' => 2,
+            'タクシー', 'taxi' => 3,
+            '飛行機', 'airplane', 'plane', 'flight' => 4,
+            'その他', 'other' => 5,
+            default => null,
+        };
     }
 }

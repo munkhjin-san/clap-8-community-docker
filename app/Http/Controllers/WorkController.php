@@ -1270,7 +1270,7 @@ class WorkController extends Controller
             );
         }));
 
-        $this->validateCost($filteredCosts, (int) $request->status_flag);
+        // $this->validateCost($filteredCosts, (int) $request->status_flag);
 
         $existingCosts = $timecard->timecard_costs()->get();
         $existingById = $existingCosts->keyBy('id');

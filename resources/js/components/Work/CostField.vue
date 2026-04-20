@@ -16,7 +16,7 @@
                 {{ item.label }}
             </option>
         </select>
-        <div class="flex gap-5" v-if="type == 4 || type == 1">
+        <div class="flex gap-5 flex-wrap" v-if="type == 4 || type == 1">
             <input
                 class="text-[var(--primary-color)] border border-[var(--primary-color)] border-solid px-[10px] h-[38px]"
                 placeholder="出発"
@@ -225,9 +225,12 @@ const suggestionRows = computed(() => {
     return [
         { key: 'merchant_name', label: '取引先', value: source.merchant_name ?? '' },
         { key: 'receipt_date', label: '領収書日付', value: source.receipt_date ?? '' },
+        { key: 'transport_type', label: '交通手段', value: transportLabelMap[source.transport_type] ?? '' },
+        { key: 'departure_place', label: '出発', value: source.departure_place ?? '' },
+        { key: 'arrival_place', label: '到着', value: source.arrival_place ?? '' },
         { key: 'amount', label: '金額', value: source.amount ?? '' },
         { key: 'currency', label: '通貨', value: source.currency ?? '' },
-        { key: 'receipt_source_type', label: '保存種別', value: source.receipt_source_type ?? '' },
+        { key: 'receipt_source_type', label: '保存種別', value: receiptSourceTypeLabelMap[source.receipt_source_type] ?? source.receipt_source_type ?? '' },
     ]
 })
 const transportOptions = [
@@ -237,6 +240,10 @@ const transportOptions = [
     { label: '飛行機', value: 4 },
     { label: 'その他', value: 5 },
 ]
+const receiptSourceTypeLabelMap = {
+    paper_scan: 'スキャナ保存',
+    electronic: '電子取引データ',
+}
 const costOptions = computed(() => {
     const registeredOptions = [
         { label: '交通費', value: 1 },
@@ -345,7 +352,7 @@ const runOcr = async() => {
 }
 
 const applyAllOcr = () => {
-    applyOcrFields(['merchant_name', 'receipt_date', 'amount', 'currency', 'receipt_source_type'])
+    applyOcrFields(['merchant_name', 'receipt_date', 'transport_type', 'departure_place', 'arrival_place', 'amount', 'currency', 'receipt_source_type'])
 }
 
 const applyOcrFields = (fields) => {
@@ -357,6 +364,15 @@ const applyOcrFields = (fields) => {
     }
     if (fields.includes('receipt_date') && source.receipt_date) {
         receiptDate.value = source.receipt_date
+    }
+    if (fields.includes('transport_type') && source.transport_type) {
+        transportType.value = Number(source.transport_type)
+    }
+    if (fields.includes('departure_place') && source.departure_place) {
+        departurePlace.value = source.departure_place
+    }
+    if (fields.includes('arrival_place') && source.arrival_place) {
+        arrivalPlace.value = source.arrival_place
     }
     if (fields.includes('amount') && source.amount) {
         expenses.value = source.amount
@@ -382,7 +398,7 @@ watch(fileModel, (value) => {
 watch(
     [type, transportType, departurePlace, arrivalPlace],
     ([nextType]) => {
-        if (Number(nextType) !== 4) {
+        if (![1, 4].includes(Number(nextType))) {
             return
         }
 
@@ -392,7 +408,7 @@ watch(
 )
 
 watch(type, (nextType, previousType) => {
-    if (Number(nextType) === 4) {
+    if ([1, 4].includes(Number(nextType))) {
         if (!transportType.value) {
             transportType.value = 1
         }
@@ -400,7 +416,7 @@ watch(type, (nextType, previousType) => {
         return
     }
 
-    if (Number(previousType) === 4) {
+    if ([1, 4].includes(Number(previousType))) {
         transportType.value = null
         departurePlace.value = ''
         arrivalPlace.value = ''
