@@ -473,8 +473,7 @@ class WorkController extends Controller
         $isTodayOrPast = date('Y-m-d') >= $day->format('Y-m-d');
         $create = !$timecardExist && !$has_attendace && $valid_shift && $isTodayOrPast && ($user->id == $active_user->id || $active_user->id == 610 || $active_user->id == 608);
         $status = $time_card->status_flag ?? -1;
-        $ownEditable = in_array($status, [0, 10], true) && $user->id == $active_user->id;
-        $modify = $timecardExist && !$has_attendace && ($ownEditable || (($active_user->id == 610 || $active_user->id == 608) && $status !== 2));
+        $modify = $timecardExist && !$has_attendace && (($status == 10 || $status == 0 && $user->id == $active_user->id) || (($active_user->id == 610 || $active_user->id == 608) && $status !== 2));
         $start_stamp = !$timecardExist && !$has_attendace && $valid_shift && $isToday && $user->id == $active_user->id; 
         $end_stamp = $timecardExist && !$has_attendace && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $valid_shift && $isToday && $user->id == $active_user->id;
         $break_stamp = $timecardExist && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $user->id == $active_user->id; 
