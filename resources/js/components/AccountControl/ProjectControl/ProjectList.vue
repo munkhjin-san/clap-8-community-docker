@@ -96,7 +96,7 @@
                         
                     </div>
                     <div class="project-cell">
-                        {{ timeFormat(project.total_work_time ?? 0) }}
+                        {{ numberTime(project.total_work_time ?? 0) }}
                     </div>
                     <div class="project-cell">
                         <select 
@@ -347,6 +347,9 @@ const updateProjectStatus = async (project: Project, selectElement: HTMLSelectEl
     }
     selectElement.value = oldStatus
 }
+const numberTime = (time: number) => {
+    return time / 60
+}
 const generateWorkTimeCsv = () => {
     const selectedDate = DateTime.fromObject({ year: selectedYear.value, month: selectedMonth.value }).toFormat('yyyy-MM')
     const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `プロジェクト労働時間_${selectedDate}`});
@@ -358,7 +361,7 @@ const generateWorkTimeCsv = () => {
             'プロジェクト名': project.name,
             '管理者': managers,
             'メンバー': members,
-            '労働時間': timeFormat(project.total_work_time ?? 0)
+            '労働時間': numberTime(project.total_work_time ?? 0)
         })
     })
     if(data && data.length){
