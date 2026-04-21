@@ -133,7 +133,7 @@
                                 v-for="(item, index) in userData?.user_album"
                                 :key="item.id"
                                 class="swiper-slide album-slide cursor-pointer group/slide"
-                                
+                                @click="previewAlbumItem(index)"
                             >
                                 <img
                                     v-if="item.mime_type === 'image'"
