@@ -53,7 +53,10 @@
                         <div>
                             <div class="mb-[10px] text-[12px] text-[gray]">人事計画</div>
                             <div class="text-[14px]" v-if="!evaluationData?.candidate || !evaluationData?.candidate.length">未設定</div>
-                            <div class="text-[14px]" v-for="candidate in evaluationData?.candidate">{{ candidate.next_candidate }}</div>
+                            <div class="flex gap-2 flex-wrap">
+                                <div class="text-[14px]" v-for="candidate in evaluationData?.candidate">{{ candidate.next_candidate }}</div>
+                            </div>
+                            
                         </div>
                         <div>
                             <div class="mb-[10px] text-[12px] text-[gray]">能力保有数</div>
