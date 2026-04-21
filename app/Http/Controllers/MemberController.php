@@ -239,10 +239,30 @@ class MemberController extends Controller
                     ->where('type_id', 43)
                     ->whereNotNull('value_text')
                     ->with('emotedUsers')
-                    ->select('id', 'user_id', 'date', 'type_id', 'value_text', 'value_int');
-            }])->select('id', 'name', 'icon_bg', 'icon_path')->get();
+                    ->select('id', 'user_id', 'date', 'type_id', 'value_text', 'value_int', 'updated_at');
+            }])
+            ->select('id', 'name', 'icon_bg', 'icon_path')
+            ->get();
         return response()->json($items);
 
+    }
+    public function create_comment(Request $request) {
+        $typeId = 43;
+        $user = $this->active_user();
+        $today = Carbon::now()->format('Y-m-d');
+        $comment = $request->comment;
+
+        $record = customFieldDataRecord::updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'date' => $today,
+                'type_id' => $typeId
+            ],
+            [
+                'value_text' => $comment
+            ]
+        );
+        return response()->json($record);
     }
     public function mark_condition_asread() {
         $typeId = 43;

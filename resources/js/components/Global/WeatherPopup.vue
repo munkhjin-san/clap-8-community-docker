@@ -88,6 +88,7 @@
                                 <p class="leading-normal under400:text-[14px]">みんなのひとこと</p>
                                 <div class="bg-[var(--bg3)] p-4">
                                     <DailyMemberMessages 
+                                        from="morning-popup"
                                         :members="members" 
                                         @refresh="refreshDailyMessageUser"
                                     />

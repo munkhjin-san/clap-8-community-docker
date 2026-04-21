@@ -300,6 +300,7 @@ import Error from '@/components/Global/Error.vue'
         instance.off('refresh:board', updateBoardHandler)    
         clearListeners()
         setNextCursor(null)
+        nextMessageCursor.value = null
     })
     onMounted(() => {
         const trayIndex = localStorage.getItem('favorite_tray');

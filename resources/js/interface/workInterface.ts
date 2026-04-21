@@ -23,6 +23,7 @@ export type CustomFieldData = {
     type_id: number
     value_text: string
     value_int: number
+    updated_at?: string
     emoted_users?: EmoteUser[]
 }
 export type CustomInfoType = {

@@ -1,5 +1,12 @@
 <template>
-<div class="relative flex flex-col gap-2 min-h-[70px]" :id="`daily-expanded-${user.id}`">
+<div class="relative flex flex-col gap-2 min-h-[70px] daily-item-root" @mouseover="handleMouseOver" @mouseleave="handleMouseLeave" :id="`daily-expanded-${user.id}`">
+    <div class="daily-edit-overlay" v-if="editable && !isEditing && user.id === auth.activeUser?.id">
+        <div class="daily-edit-button" @click.stop="openEditor">
+            <Edit size="15" color="white"/>
+        </div>
+        
+    </div>
+
     <div class="mb-overlay" v-if="expanded" @click.stop="menu.close()"></div>
     <div :class="{'expanded': expanded}" ref="commentBox"  @click.stop="toggleComment">
         <div class="bg-[var(--background-color)]" :class="[expanded ? 'p-5 shade' : 'p-3']">
@@ -8,7 +15,7 @@
                 <WeatherIcon v-if="comment.value_int !== null" :which="comment.value_int" size="15" class="min-w-[15px] ml-1" />
             </div>
             
-            <div class="cursor-pointer min-w-0 mt-[10px]" v-if="comment">
+            <div class="cursor-pointer min-w-0 mt-[10px]" v-if="comment && !isEditing">
                 <p v-if="!expanded" class="text-xs leading-snug line-clamp-2 min-w-0 text-ellipsis">
                     {{ comment.value_text ?? ''}}
                 </p>
@@ -16,7 +23,20 @@
                     {{ comment.value_text ?? '' }}
                 </div>
             </div>  
-            <div class="mt-2 w-fit" @click="setEmoteUsers(comment.emoted_users)" v-if="comment.emoted_users && comment.emoted_users.length && (!emoteArea || !expanded)">
+            <div v-if="isEditing" class="daily-inline-editor" @click.stop>
+                <textarea
+                    v-model="editText"
+                    class="daily-edit-textarea"
+                    rows="4"
+                    maxlength="200"
+                    placeholder="今日のひとことを入力"
+                />
+                <div class="daily-edit-actions">
+                    <button type="button" class="daily-edit-btn ghost" @click.stop="cancelEdit" :disabled="editLoading">キャンセル</button>
+                    <button type="button" class="daily-edit-btn" @click.stop="saveEdit" :disabled="editLoading || !editText.trim()">保存</button>
+                </div>
+            </div>
+            <div class="mt-2 w-fit" @click="setEmoteUsers(comment.emoted_users)" v-if="!isEditing && comment.emoted_users && comment.emoted_users.length && (!emoteArea || !expanded)">
                 <div class="flex items-end cursor-pointer text-[var(--primary-color)] w-fit overflow-hidden">
                     <TransitionGroup name="downShiftPop">
                         <Character v-for="emote in emotes" :key="emote" :multiple="0.5" :emote-name="emote"/>
@@ -49,6 +69,7 @@ import { useModal } from '@/composables/modal';
 import { useAuthUserStore } from '@/store/auth';
 import Smile from '../Icons/Smile.vue';
 import { oikawaMap } from '@/utils/tools';
+import Edit from '../Icons/Edit.vue';
 
 const props = defineProps<{
     user: DailyMessageUser
@@ -64,6 +85,10 @@ const api = useApi();
 const { setEmoteUsers } = useModal()
 const auth = useAuthUserStore()
 const emoteArea = ref(false);
+const editable = ref(false)
+const isEditing = ref(false)
+const editText = ref('')
+const editLoading = ref(false)
 const comment = computed(() => {
     return props.user?.custom_field_data_records?.[0] || null
 })
@@ -73,6 +98,8 @@ const expanded = computed(() => {
 })  
 
 const toggleComment = () => {
+    if (isEditing.value) return;
+    if (props.user.id === auth.activeUser?.id) return;
     if(menu.parent && menu.parent.includes('daily-expanded-')){
         menu.close()
         return;
@@ -91,6 +118,61 @@ const toggleComment = () => {
             commentBox.value.scrollIntoView({behavior: 'smooth', block: 'center'})
         }
     })
+}
+const handleMouseOver = () => {
+    if (isEditing.value) {
+        editable.value = false
+        return
+    }
+    editable.value = true
+}
+
+const handleMouseLeave = () => {
+    editable.value = false
+}
+
+const openEditor = () => {
+    if (props.user.id !== auth.activeUser?.id) return
+    editable.value = false
+    isEditing.value = true
+    editText.value = comment.value?.value_text ?? ''
+}
+
+const cancelEdit = () => {
+    isEditing.value = false
+    editText.value = ''
+}
+
+const saveEdit = async () => {
+    if (editLoading.value) return
+
+    const message = editText.value.trim()
+    if (!message) return
+
+    editLoading.value = true
+    const response = await api.post('/create_comment', { comment: message })
+    if (response) {
+        const nextRecords = props.user.custom_field_data_records?.length
+            ? props.user.custom_field_data_records.map((record, index) => {
+                if (index !== 0) return record
+                return {
+                    ...record,
+                    ...response,
+                    emoted_users: record.emoted_users ?? []
+                }
+            })
+            : [{
+                ...response,
+                emoted_users: []
+            }]
+
+        emit('refresh', {
+            ...props.user,
+            custom_field_data_records: nextRecords
+        })
+        isEditing.value = false
+    }
+    editLoading.value = false
 }
 const fastPreCheckEmote = (name: string) => {
     if(!comment.value || !comment.value.emoted_users) return;
@@ -165,6 +247,79 @@ const emotes = computed(() => {
 })
 </script>
 <style scoped>
+    .daily-item-root {
+        transition: transform 0.2s ease;
+    }
+    .daily-edit-overlay {
+        background: #00000066;
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.2s ease, background-color 0.2s ease;
+    }
+    .daily-item-root:hover .daily-edit-overlay {
+        opacity: 1;
+        background: #00000073;
+    }
+    .daily-edit-button {
+        border-radius: 999px;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        transition: transform 0.18s ease, background-color 0.18s ease;
+        background: #00000052;
+    }
+    .daily-edit-button:hover {
+        background: var(--bg2);
+        transform: translateY(-1px) scale(1.03);
+    }
+    .daily-inline-editor {
+        margin-top: 10px;
+    }
+    .daily-edit-textarea {
+        width: 100%;
+        resize: vertical;
+        min-height: 88px;
+        border: 1px solid var(--check-inactive);
+        background: var(--background-color);
+        color: var(--primary-color);
+        padding: 8px 10px;
+        font-size: 13px;
+        line-height: 1.5;
+        transition: border-color 0.18s ease, box-shadow 0.2s ease;
+        box-sizing: border-box !important;
+    }
+    
+    .daily-edit-actions {
+        margin-top: 8px;
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+    .daily-edit-btn {
+        border: 1px solid var(--primary-color);
+        background: var(--primary-color);
+        color: var(--bg2);
+        font-size: 12px;
+        padding: 4px 10px;
+        transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+    .daily-edit-btn:not(:disabled):hover {
+        transform: translateY(-1px);
+    }
+    .daily-edit-btn.ghost {
+        background: transparent;
+        color: var(--primary-color);
+    }
+    .daily-edit-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
     .expanded {
         position:  absolute;
         left: -10px;

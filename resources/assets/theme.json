@@ -1,5 +1,6 @@
 [
 {"className": "--primary-color", "dark" : "#e4e6eb", "light" : "#000000"},
+{"className": "--sub-color", "dark" : "#b0b3b8", "light" : "#666666"},
 {"className": "--background-color", "dark" : "#323232", "light" : "#ffffff"},
 {"className": "--bg2", "dark" : "#262626", "light" : "#dddddd"},
 {"className": "--bg3", "dark" : "#262626", "light" : "#efefef"},

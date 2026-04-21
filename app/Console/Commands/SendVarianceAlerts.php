@@ -86,6 +86,7 @@ class SendVarianceAlerts extends Command
             foreach ($project->manager as $pm) {
                 if ($pm->id === $override_user->id) {
                     $this->warn("PM {$pm->name} is HQ; skipping alert.");
+                    continue;
                 }
                 $boardId = boardRecord::query()
                 ->where('private_flag', 1)
