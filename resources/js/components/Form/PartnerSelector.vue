@@ -124,6 +124,7 @@ import { validator } from '@/validation/validator';
 }
 .global-user-select{
     border: none !important;
+    width: 100%;
 }
 @supports selector(:focus-visible) {
     .v-list-item:after {

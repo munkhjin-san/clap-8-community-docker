@@ -94,6 +94,7 @@ import { useApi } from '@/composables/api';
 }
 .global-user-select{
     border: none !important;
+    width: 100%;
 }
 @supports selector(:focus-visible) {
     .v-list-item:after {
