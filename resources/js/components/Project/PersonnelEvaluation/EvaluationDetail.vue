@@ -7,71 +7,69 @@
         </div>
         <div>
             <div class="goals-inner">
-                <div v-if="evaluationData && evaluationData" class="my-[30px]">
-                    <div>
-                        <div class="mb-[10px]">期間</div>
-                        <div>{{ date.name }}</div>
-                    </div>
-                    <div class="mt-[20px]">
-                        <div class="mb-[10px]">ステータス</div>
-                        <div>{{ evaluationData ? statuses[evaluationData?.status].name : '' }}</div>
-                    </div>
-                    <div class="flex gap-[20px] flex-wrap mt-[20px]">
+                <div v-if="evaluationData && evaluationData">
+                    <div class="flex flex-wrap items-start justify-between gap-[20px] p-4 bg-[var(--bg3)]">
                         <div>
-                            <div class="mb-[10px]">雇用形態</div>
-                            <div>{{ computedMemberData?.positions?.name || '未設定' }}</div>
+                            <div class="mb-[10px] text-[12px] text-[gray]">期間</div>
+                            <div class="text-[14px]">{{ date.name }}</div>
                         </div>
-                        <div>
-                            <div class="mb-[10px]">等級</div>
-                            <div>{{ gradeSplit(evaluationData?.current_salary_rank) || '未設定' }}</div>
-                        </div>
-                        <div>
-                            <div class="mb-[10px]">職階</div>
-                            <div>{{ evaluationData?.general_position || '未設定' }}</div>
-                        </div>
-                        <div>
-                            <div class="mb-[10px]">職務</div>
-                            <div>{{ evaluationData?.current_level || '未設定' }}</div>
+                        <div class="">
+                            <div class="mb-[10px] text-[12px] text-[gray]">ステータス</div>
+                            <div class="text-[14px]">{{ evaluationData ? statuses[evaluationData?.status].name : '' }}</div>
                         </div>
                     </div>
 
-                    <div class="flex gap-[20px] flex-wrap mt-[20px]"
-                        v-if="(auth.id === computedMemberData?.id || auth.id === evaluationData?.mentor_id)">
+                    <div class="flex gap-[20px] flex-wrap p-4 bg-[var(--bg3)] justify-between">
+                        <div>
+                            <div class="mb-[10px] text-[12px] text-[gray]">雇用形態</div>
+                            <div class="text-[14px]">{{ computedMemberData?.positions?.name || '未設定' }}</div>
+                        </div>
+                        <div>
+                            <div class="mb-[10px] text-[12px] text-[gray]">等級</div>
+                            <div class="text-[14px]">{{ gradeSplit(evaluationData?.current_salary_rank) || '未設定' }}</div>
+                        </div>
+                        <div>
+                            <div class="mb-[10px] text-[12px] text-[gray]">職階</div>
+                            <div class="text-[14px]">{{ evaluationData?.general_position || '未設定' }}</div>
+                        </div>
+                        <div>
+                            <div class="mb-[10px] text-[12px] text-[gray]">職務</div>
+                            <div class="text-[14px]">{{ evaluationData?.current_level || '未設定' }}</div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-[20px] flex-wrap p-4 bg-[var(--bg3)] justify-between" v-if="(auth.id === computedMemberData?.id || auth.id === evaluationData?.mentor_id)">
 
                         <div>
-                            <div class="mb-[10px]">給料（非公開）</div>
-                            <div>{{ formatSalary(evaluationData?.current_salary_rank) }}</div>
+                            <div class="mb-[10px] text-[12px] text-[gray]">給料（非公開）</div>
+                            <div class="text-[14px]">{{ formatSalary(evaluationData?.current_salary_rank) }}</div>
                         </div>
                         <div v-if="currentPosition?.value">
-                            <div class="mb-[10px]">役職手当（非公開）</div>
-                            <div>{{ currentPosition?.value }}</div>
+                            <div class="mb-[10px] text-[12px] text-[gray]">役職手当（非公開）</div>
+                            <div class="text-[14px]">{{ currentPosition?.value }}</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-[20px] flex-wrap p-4 bg-[var(--bg3)] justify-between">
+                        <div>
+                            <div class="mb-[10px] text-[12px] text-[gray]">人事計画</div>
+                            <div class="text-[14px]" v-if="!evaluationData?.candidate || !evaluationData?.candidate.length">未設定</div>
+                            <div class="text-[14px]" v-for="candidate in evaluationData?.candidate">{{ candidate.next_candidate }}</div>
+                        </div>
+                        <div>
+                            <div class="mb-[10px] text-[12px] text-[gray]">能力保有数</div>
+                            <div class="text-[14px]">{{ evaluationData?.checklist?.length }}／{{ baseSkills.length }}</div>
+                        </div>
+                        <div>
+                            <div class="mb-[10px] text-[12px] text-[gray]">能力保有率</div>
+                            <div class="text-[14px]">{{  !baseSkills.length ? '情報なし' : `${Math.round(evaluationData?.checklist?.length / baseSkills.length * 100)}%` }}</div>
                         </div>
                     </div>
 
 
-                    <div class="mt-[30px] flex flex-col gap-[20px] leading-normal">
-
-                        <div style="display: flex; gap: 20px;">
-                            <div>
-                                <div class="mb-[10px]">人事計画</div>
-                                <div v-if="!evaluationData?.candidate || !evaluationData?.candidate.length">未設定
-                                </div>
-                                <div v-for="candidate in evaluationData?.candidate">{{ candidate.next_candidate }}</div>
-                            </div>
-                            <div>
-                                <div class="mb-[10px]">能力保有数</div>
-                                <div>{{ evaluationData?.checklist?.length }}／{{ baseSkills.length }}</div>
-                            </div>
-                            <div>
-                                <div class="mb-[10px]">能力保有率</div>
-                                <div>{{  !baseSkills.length ? '情報なし' : `${Math.round(evaluationData?.checklist?.length / baseSkills.length * 100)}%` }}
-                                </div>
-                            </div>
-
-                        </div>
+                    <div class="mt-[30px] flex flex-col gap-[20px] px-2 leading-normal">                        
                         <div>
                             <div class="mb-[10px]">保有能力</div>
-                            <div class="flex flex-col gap-[10px] text-[13px]">
+                            <div class="flex flex-col gap-5 text-[13px]">
                                 <div v-for="skill in baseSkills">
                                     <div class="flex gap-3">
                                         <div>
@@ -99,13 +97,13 @@
                         </div>
 
                         <div>
-                            <div class="mb-[10px]">昇格後のビジョン</div>
-                            <div>{{ evaluationData?.vision || '未設定' }}</div>
+                            <div class="mb-[10px] text-[12px] text-[gray]">昇格後のビジョン</div>
+                            <div class="text-[14px] leading-normal whitespace-break-spaces">{{ evaluationData?.vision || '未設定' }}</div>
                         </div>
 
                         <div>
-                            <div class="mb-[10px]">メンター記入欄</div>
-                            <div>{{ evaluationData?.mentor_comment || '未設定' }}</div>
+                            <div class="mb-[10px] text-[12px] text-[gray]">メンター記入欄</div>
+                            <div class="text-[14px] leading-normal whitespace-break-spaces">{{ evaluationData?.mentor_comment || '未設定' }}</div>
                         </div>
                     </div>
                     <div class="mt-[30px] flex gap-[20px]">
