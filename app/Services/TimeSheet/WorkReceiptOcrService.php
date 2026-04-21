@@ -107,6 +107,7 @@ class WorkReceiptOcrService
                         'arrival_place' => ['type' => 'string'],
                         'tax_amount' => ['type' => 'string'],
                         'notes' => ['type' => 'string'],
+                        'transport' => ['type' => 'string'],
                     ],
                     'required' => ['multiple_receipts_detected', 'merchant_name', 'receipt_date', 'amount', 'currency', 'receipt_source_type', 'tax_amount', 'notes'],
                 ],
@@ -115,7 +116,7 @@ class WorkReceiptOcrService
 
         $response = Http::withHeaders(['Content-Type' => 'application/json'])
             ->post("{$baseUrl}/{$model}:generateContent?key={$apiKey}", $payload);
-
+        
         if (!$response->successful()) {
             throw ValidationException::withMessages(['message' => 'Gemini OCRの実行に失敗しました。']);
         }
@@ -143,6 +144,7 @@ class WorkReceiptOcrService
             'arrival_place' => trim((string) Arr::get($decoded, 'arrival_place', '')),
             'tax_amount' => $this->normalizeNumericString(Arr::get($decoded, 'tax_amount')),
             'notes' => trim((string) Arr::get($decoded, 'notes', '')),
+            'transport' => trim((string) Arr::get($decoded, 'transport', '')),
         ];
 
         $multipleDetected = (bool) Arr::get($decoded, 'multiple_receipts_detected', false);

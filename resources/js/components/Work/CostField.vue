@@ -222,10 +222,12 @@ const hasOcrSuggestions = computed(() => {
 
 const supportsTransportOcr = computed(() => [1, 4].includes(Number(type.value)))
 
+
+
 const suggestionRows = computed(() => {
     const source = ocrSuggestions.value ?? {}
     const rows = [
-        { key: 'merchant_name', label: '取引先', value: source.merchant_name ?? '' },
+        { key: 'merchant_name', label: supportsTransportOcr.value && source.transport ? '交通内容' : '取引先', value: supportsTransportOcr.value ? (source.transport || source.merchant_name || '') : (source.merchant_name ?? '') },
         { key: 'receipt_date', label: '領収書日付', value: source.receipt_date ?? '' },
         { key: 'amount', label: '金額', value: source.amount ?? '' },
         { key: 'currency', label: '通貨', value: source.currency ?? '' },
@@ -373,8 +375,12 @@ const applyOcrFields = (fields) => {
     const source = ocrSuggestions.value ?? {}
     if (!fields.length) return
 
-    if (fields.includes('merchant_name') && source.merchant_name) {
-        merchantName.value = source.merchant_name
+    if (fields.includes('merchant_name')) {
+        if (supportsTransportOcr.value && source.transport) {
+            merchantName.value = source.transport
+        } else if (source.merchant_name) {
+            merchantName.value = source.merchant_name
+        }
     }
     if (fields.includes('receipt_date') && source.receipt_date) {
         receiptDate.value = source.receipt_date
@@ -467,7 +473,6 @@ watch(type, (nextType, previousType) => {
         margin-top: 10px;
         padding: 12px;
         border: 1px solid var(--primary-color);
-        border-radius: 8px;
     }
 
     .ocr-suggestion-header {
