@@ -16,7 +16,7 @@
                         <span class="daily-edit-chip">Edit</span>
                     </template>
                     <template v-else>
-                        <span class="daily-add-plus">+</span>
+                        <AddIcon size="15" class="daily-add-plus" />
                         <span class="daily-add-label">ひとことを追加</span>
                     </template>
                 </button>
@@ -52,6 +52,7 @@ import { computed, ref, useTemplateRef } from 'vue';
 import DailyMessageItem from './DailyMessageItem.vue';
 import { DailyMessageUser } from '@/interface/globalInterface';
 import { useAuthUserStore } from '@/store/auth';
+import AddIcon from '../Form/AddIcon.vue';
 const emit = defineEmits<{
     refresh: [data: DailyMessageUser]
     create: [comment: string]
