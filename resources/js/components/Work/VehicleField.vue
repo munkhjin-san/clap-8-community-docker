@@ -83,8 +83,10 @@ type VehicleFieldProps = {
     alcohol_after_time: string | null,
     alcohol_before_value: number | null,
     alcohol_after_value: number | null,
-    confirm_before_user: User | null,
-    confirm_after_user: User | null
+    before_user: User | null,
+    after_user: User | null,
+    confirm_before_user: number | null,
+    confirm_after_user: number | null,
 }
 const vehicle = defineModel<VehicleFieldProps>('vehicle')
 const vehicleType = ref<null | number>(null)
@@ -102,8 +104,8 @@ onMounted(() => {
         alchoholTestAfter.value = vehicle.value['alcohol_after_time']
         alchoholTestValueBefore.value = vehicle.value['alcohol_before_value']
         alchoholTestValueAfter.value = vehicle.value['alcohol_after_value']
-        alcoholTestConfirmMember.value = vehicle.value['confirm_before_user']
-        alcoholTestConfirmMember2.value = vehicle.value['confirm_after_user']
+        alcoholTestConfirmMember.value = vehicle.value['before_user']
+        alcoholTestConfirmMember2.value = vehicle.value['after_user']
     }
 })
 const vehicleChange = (type: keyof VehicleFieldProps, value: any) => {
