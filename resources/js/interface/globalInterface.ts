@@ -71,7 +71,6 @@ export interface DailyMessageUser extends User {
     custom_field_data_records: CustomFieldData[]
 }
 export interface User {
-    positions: any
     id: number;
     name: string | null;
     icon_path: string | null | undefined;
@@ -90,7 +89,7 @@ export interface User {
     portfolio?: Portfolio[];
     user_album?: UserAlbum[];
     position?: Position;
-    office?: Office;
+    offices?: Office;
     name_kana?: string;
     today_weather?: Weather;
     retire?: number;
@@ -109,6 +108,13 @@ export interface User {
     partner_flag?: number;
     project_settings?: ProjectSetting[]
     joined_date: string;
+    refresh_current_balance?: number;
+    positions?: Position
+    motto?: string;
+    recommend?: string;
+    intro?: string;
+    enjoy?: string;
+    user_albums?: UserAlbum[];
 }
 export interface ProjectSetting {
     color: string;

@@ -1,5 +1,5 @@
 <template>
-    <div style="width: 100%;height:100%;" class="user-conteiner-inner relative" :class="{scrollable : !showModalContent && !showSettingModalContent }">   
+    <div class="h-full w-full relative bg-[var(--bg3)]" :class="{scrollable : !showModalContent && !showSettingModalContent }">   
         <Transition name="modalFade">
             <div class="work-loader" style="height: 100%; z-index: 2" v-if="loading">
                 <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
@@ -12,11 +12,7 @@
                 </div>
                 <div>
                     <div v-if="UserAllData && auth.user && UserAllData !== null" class="row justify-content-center user-icon-content">  
-                        <div v-if="UserAllData.id == auth.id" class="user-three-menu">
-                            <ItemMenu :items="[
-                                {title: 'プロフィール編集', action:() => router.push({name: 'personal-info-settings'})},
-                            ]"/>
-                        </div>    
+                         
                         <UserIconEdit 
                             :UserAllData="UserAllData"
                             :clapData="clapData"
@@ -26,39 +22,42 @@
                             @openHistory="showRefreshHistory = true"
                         />
                         
-                        <div v-if="UserAllData" class="second-bar">
-                            <div class="record-area" style="padding-right: 20px;">
-                                <div style="display:flex; gap: 10px; margin-bottom: 10px;">
-                                    <p class="record-inner title">役職</p>
-                                    <p class="record-inner record" v-if="UserAllData.positions !== null">{{UserAllData.positions.name}}</p>
+                        <div v-if="UserAllData" class="second-bar relative">
+                            <div v-if="UserAllData.id == auth.id" class="user-three-menu">
+                                <ItemMenu :items="[
+                                    {title: 'プロフィール編集', action:() => router.push({name: 'personal-info-settings'})},
+                                ]"/>
+                            </div>   
+                            <div class="profile-fields">
+                                <div v-if="UserAllData.positions !== null || UserAllData.offices !== null"
+                                     class="flex flex-wrap gap-3">
+                                    <div v-if="UserAllData.positions !== null" class="profile-badge">
+                                        <span class="badge-label">役職</span>
+                                        <span class="badge-value">{{ UserAllData.positions.name }}</span>
+                                    </div>
+                                    <div v-if="UserAllData.offices !== null" class="profile-badge">
+                                        <span class="badge-label">営業所</span>
+                                        <span class="badge-value">{{ UserAllData.offices.name }}</span>
+                                    </div>
                                 </div>
-                                <div style="display:flex; gap: 10px; margin-bottom: 10px;">
-                                    <p class="record-inner title">営業所</p>
-                                    <p class="record-inner record" v-if="UserAllData.offices !== null">{{UserAllData.offices.name}}</p>
+
+                                <div v-if="UserAllData.motto !== null" class="profile-row">
+                                    <span class="row-label">好きな言葉</span>
+                                    <p class="row-value">{{ UserAllData.motto }}</p>
                                 </div>
-                                <!-- <div v-if="canViewRefreshHistory" style="margin-bottom: 14px;">
-                                    <button class="refresh-history-button" @click="showRefreshHistory = true">リフレッシュ履歴</button>
-                                </div> -->
-                                <div v-if="UserAllData.motto !== null">
-                                    <p class="record-inner title">好きな言葉</p>
-                                    <p class="record-inner record">{{UserAllData.motto}}</p>
+                                <div v-if="UserAllData.enjoy !== null" class="profile-row">
+                                    <span class="row-label">私の「楽」</span>
+                                    <p class="row-value">{{ UserAllData.enjoy }}</p>
                                 </div>
-                                <div v-if="UserAllData.enjoy !== null">
-                                    <p class="record-inner title">私の「楽」</p>
-                                    <p class="record-inner record">{{UserAllData.enjoy}}</p>
+                                <div v-if="UserAllData.intro !== null" class="profile-row">
+                                    <span class="row-label">自己紹介</span>
+                                    <p class="row-value">{{ UserAllData.intro }}</p>
                                 </div>
-                                <div v-if="UserAllData.intro !== null">
-                                    <p class="record-inner title">自己紹介</p>
-                                    <p class="record-inner record">{{UserAllData.intro}}</p>
+                                <div v-if="UserAllData.recommend !== null" class="profile-row">
+                                    <span class="row-label">推し</span>
+                                    <p class="row-value" v-html="urlCheck(UserAllData.recommend)"></p>
                                 </div>
-                                <div v-if="UserAllData.recommend !== null">
-                                    <p class="record-inner title">推し</p>
-                                    <p class="record-inner record" v-html="urlCheck(UserAllData.recommend)"></p>
-                                </div>
-                                <div v-if="userPortfolio && userPortfolio.length">
-                                    <p class="record-inner title" style="margin-bottom: 10px;">ポートフォリオ</p>
-                                    <UserPortfolio class="record" @editPortfolio="editingPortfolio = portfolio" v-for="portfolio in userPortfolio" :portfolio="portfolio" @reload="updateUser"/>
-                                </div>
+
                             </div>
                         </div>
                         
@@ -92,8 +91,9 @@
         </Transition>
         
     </div>
+
     
-    </template>
+</template>
     
 <script setup>
 
@@ -104,12 +104,12 @@ import { computed, onMounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
 import { useResponsive } from '@/store/responsive';
-import UserPortfolio from './UserPortfolio.vue';
 import UserPortfolioEdit from './UserPortfolioEdit.vue';
 import UserRefreshHistoryModal from './UserRefreshHistoryModal.vue';
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import { urlCheck } from '@/utils/tools';
 import { useApi } from '@/composables/api';
+import ProfileIconUpdater from './ProfileIconUpdater.vue';
     const router = useRouter()
     const responsive = useResponsive()
     const auth = useAuthUserStore()
@@ -122,6 +122,7 @@ import { useApi } from '@/composables/api';
     const showRefreshHistory = ref(false)
     const api = useApi()
     const loading = ref(true)
+    const editIconModal = ref(false)
     
     const userPortfolio = computed(() => {
         return UserAllData.value.portfolio.filter(data => data.status == 3)
@@ -168,6 +169,65 @@ import { useApi } from '@/composables/api';
     provide('UserAllData', UserAllData)
 </script>
 <style lang="scss" scoped>
+/* ── Profile fields ────────────────────────────────────── */
+.profile-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+}
+
+/* Chips for position / office */
+.profile-badge {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 16px;
+    border-radius: 4px;
+    background: var(--background-color);
+    min-width: 80px;
+}
+
+.badge-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--third-color);
+    letter-spacing: 0.03em;
+}
+
+.badge-value {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--primary-color);
+    line-height: 1.3;
+}
+
+/* Text info rows */
+.profile-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 16px;
+    border-radius: 4px;
+    background: var(--background-color);
+}
+
+.row-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--third-color);
+    letter-spacing: 0.03em;
+}
+
+.row-value {
+    font-size: 14px;
+    color: var(--primary-color);
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+}
+/* ──────────────────────────────────────────────────────── */
+
 .menuLink{
     text-decoration: none;
 }

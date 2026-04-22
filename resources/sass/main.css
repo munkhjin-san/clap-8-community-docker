@@ -2136,12 +2136,6 @@ textarea {
   background-color: #fff;
 }
 
-.user-conteiner-inner {
-  background-color: var(--background-color);
-  color: var(--primary-color);
-  overflow: hidden;
-
-}
 
 .commentHeder>.column-01 {
   width: auto;
@@ -2986,8 +2980,11 @@ div.recordFormTitle>p {
 }
 
 .main-bar {
-  width: 30%;
-  margin: 50px 0;
+  max-width: 500px;
+  margin: 30px;
+  padding: 30px;
+  background-color: var(--background-color);
+  border-radius: 5px;
 }
 
 .main-bar .bar01 {
@@ -3034,8 +3031,11 @@ div.recordFormTitle>p {
 }
 
 .second-bar {
-  width: 70%;
-  float: right;
+    flex: 1;
+    margin: 30px 30px 30px 0px;
+    background: var(--background-color);
+    padding: 20px;
+    border-radius: 5px;
 }
 
 .third-bar {
@@ -7451,9 +7451,9 @@ button.shift-button {
   }
 
   .main-bar {
-    width: 100% !important;
-    min-width: 100% !important;
-    margin: 0px 0px 0px 0px !important;
+    max-width: auto;
+    padding: 30px;
+    
   }
 
 

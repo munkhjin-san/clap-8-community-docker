@@ -106,14 +106,24 @@ class UserController extends Controller{
     }
     public function get_albums(Request $request) {
         $tag_id = $request->tag_id;
-        $usersWithAlbums = User::whereHas('user_album.tags', function ($query) use ($tag_id) {
-            $query->where('tag_id', $tag_id);
-        })->with(['user_album' => function ($query) use ($tag_id) {
-            $query->select('id', 'path', 'name', 'mime_type', 'user_id', 'extension', 'title')
-                  ->whereHas('tags', function ($subQuery) use ($tag_id) {
-                      $subQuery->where('tag_id', $tag_id);
-                  });
-        }])->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')->get();
+
+        if ($tag_id) {
+            $usersWithAlbums = User::whereHas('user_album.tags', function ($query) use ($tag_id) {
+                $query->where('tag_id', $tag_id);
+            })->with(['user_album' => function ($query) use ($tag_id) {
+                $query->select('id', 'path', 'name', 'mime_type', 'user_id', 'extension', 'title')
+                      ->whereHas('tags', function ($subQuery) use ($tag_id) {
+                          $subQuery->where('tag_id', $tag_id);
+                      });
+            }])->select('id', 'name', 'icon_path', 'icon_bg')->get();
+        } else {
+            $usersWithAlbums = User::whereHas('user_album')
+                ->with(['user_album' => function ($query) {
+                    $query->select('id', 'path', 'name', 'mime_type', 'user_id', 'extension', 'title')
+                          ->latest()
+                          ->limit(4);
+                }])->select('id', 'name', 'icon_path', 'icon_bg')->get();
+        }
 
         return response()->json($usersWithAlbums);
     }

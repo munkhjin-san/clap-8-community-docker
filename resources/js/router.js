@@ -68,7 +68,7 @@ const routes = [
     {   
         path: '/user/:userId', 
         name: 'user',  
-        component: () => import('./components/Profile/UserComponent.vue'),
+        component: () => import('./components/Profile/ProfileContainer.vue'),
         meta: {
             title: 'プロフィール',
         }, 
