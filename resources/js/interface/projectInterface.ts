@@ -152,6 +152,7 @@ interface Project {
     specs?: ProjectSpecs | null
     projectAssignRecords?: ProjectAssignRecord[]
     total_work_time?: number
+    total_work_day?: number
 }
 export interface ProjectAssignRecord {
     id: number;

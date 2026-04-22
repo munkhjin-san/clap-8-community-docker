@@ -31,6 +31,7 @@
                     <!-- <div class="project-cell">概要</div> -->
                     <div class="project-cell">管理者</div>
                     <div class="project-cell">メンバー</div>
+                    <div class="project-cell">労働日数</div>
                     <div class="project-cell">労働時間</div>
                     <div class="project-cell">ステータス</div>
                     <div class="project-cell">アクション</div>
@@ -96,8 +97,12 @@
                         
                     </div>
                     <div class="project-cell">
+                        {{ project.total_work_day ?? 0 }}
+                    </div>
+                    <div class="project-cell">
                         {{ numberTime(project.total_work_time ?? 0) }}
                     </div>
+                    
                     <div class="project-cell">
                         <select 
                             :value="project.status" 
@@ -361,7 +366,8 @@ const generateWorkTimeCsv = () => {
             'プロジェクト名': project.name,
             '管理者': managers,
             'メンバー': members,
-            '労働時間': numberTime(project.total_work_time ?? 0)
+            '労働日数': project.total_work_day ?? 0,
+            '労働時間': numberTime(project.total_work_time ?? 0),
         })
     })
     if(data && data.length){

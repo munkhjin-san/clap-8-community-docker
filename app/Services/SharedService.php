@@ -533,7 +533,7 @@ class SharedService
             ->values()
             ->all();
     }
-    public function collectWorkTimePerProject($projectId, $membersId, $year, $month): int
+    public function collectWorkTimePerProject($projectId, $membersId, $year, $month): array
     {
         
         $records = timecardRecord::where('work_group_id', $projectId)
@@ -557,6 +557,9 @@ class SharedService
             return $workTime + $overtime;
         });
 
-        return $totalWorkTime;
+        return [
+            'totalWorkTime' => $totalWorkTime,
+            'totalWorkDay'  => $records->count(),
+        ];
     }
 }

@@ -194,7 +194,8 @@ class ProjectController extends Controller
                 ->toArray();
             
             $totalWorkTimePerProject = $this->sharedService->collectWorkTimePerProject($p->id, $allMemberIds, $selectedYear, $selectedMonth);
-            $p->total_work_time = $totalWorkTimePerProject;
+            $p->total_work_time = $totalWorkTimePerProject['totalWorkTime'];
+            $p->total_work_day = $totalWorkTimePerProject['totalWorkDay'];
             $p->has_confirm_badge = isset($confirmBadgeMap[$p->id]);
             $p->has_comment_badge = isset($commentBadgeMap[$p->id]);
         });
