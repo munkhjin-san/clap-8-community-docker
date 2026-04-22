@@ -540,6 +540,7 @@ class SharedService
             ->whereIn('user_id', $membersId)
             ->whereYear('day', $year)
             ->whereMonth('day', $month)
+            ->where('work_time', '>', 0)
             ->get(['work_time', 'over_time']);
 
         $totalWorkTime = $records->sum(function ($record) {
