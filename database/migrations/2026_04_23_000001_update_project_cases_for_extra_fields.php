@@ -12,9 +12,6 @@ return new class extends Migration
             // Drop the FK first (it relies on the unique index for its supporting index)
             $table->dropForeign(['timecard_record_id']);
 
-            // Drop the composite unique constraint
-            $table->dropUnique(['timecard_record_id', 'status']);
-
             // Add a plain index on timecard_record_id so the FK can be re-created
             $table->index('timecard_record_id');
 
@@ -37,7 +34,6 @@ return new class extends Migration
             $table->dropForeign(['timecard_record_id']);
             $table->dropIndex(['timecard_record_id']);
 
-            $table->unique(['timecard_record_id', 'status']);
             $table->foreign('timecard_record_id')
                 ->references('id')
                 ->on('timecard_records')
