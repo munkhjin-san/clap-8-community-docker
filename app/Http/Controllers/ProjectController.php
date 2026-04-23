@@ -709,7 +709,7 @@ class ProjectController extends Controller
         $userList = User::where('retire', 0)
                         ->where('partner_flag', 0)
                         ->whereNotNull('user_code')
-                        ->where('hide_flag', 0)
+                        ->where(fn ($q) => $q->where('hide_flag', 0)->orWhere('id', 610))
                         ->select('id', 'name', 'position_id', 'icon_path', 'icon_bg', 'user_code', 'general_position')
                         ->when(!empty($params), function ($q) use ($params) {
                             $q->with([

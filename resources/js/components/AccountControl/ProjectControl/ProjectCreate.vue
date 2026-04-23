@@ -943,7 +943,7 @@ const serviceCategoryTrigger = ref(false)
 const industryTypeTrigger = ref(false)
 const partnerSelectorRef = useTemplateRef<ComponentExposed<typeof PartnerSelector>>('partnerSelectorRef')
 const managerOptions = computed(() => {
-    return props.userList.filter((user: { position_id: number; }) => user.position_id <= 6)
+    return props.userList.filter((user: { position_id: number, id: number; }) => user.position_id <= 6 || user.id === 610)
 })
 watch(
     () => projectParams.category,
