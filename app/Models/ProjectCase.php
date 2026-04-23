@@ -17,6 +17,7 @@ class ProjectCase extends Model
         'report_date'  => 'date:Y-m-d',
         'submitted_at' => 'datetime',
         'probability'  => 'float',
+        'meta'         => 'array',
     ];
 
     public function project(): BelongsTo

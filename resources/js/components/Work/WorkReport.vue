@@ -118,14 +118,68 @@
                 <div id="performanceReport" class="report-field" v-if="selectedProject && selectedProject.has_actual_func">
                     <p class="report-header">実績報告</p>
 
-                    <div class="space-y-2">
+                    <template v-if="actualStatusDefs.length">
+                        <div v-for="statusDef in actualStatusDefs" :key="statusDef.label ?? statusDef.custom_label" class="mb-[16px]">
+                            <p class="text-[13px] font-medium mb-[8px]">{{ statusDef.label ?? statusDef.custom_label }}</p>
+                            <div
+                                v-for="(row, ri) in rowsForStatus(statusDef.label ?? statusDef.custom_label)"
+                                :key="ri"
+                                class="flex flex-wrap items-center gap-[8px] mb-[8px]"
+                            >
+                                <!-- Extra fields -->
+                                <template v-for="field in (statusDef.extra_fields ?? [])" :key="field.label">
+                                    <select
+                                        v-if="field.type === 'select'"
+                                        v-model="row.meta[field.label]"
+                                        class="optionPicker"
+                                        style="max-width: 160px;"
+                                        :disabled="isLocked"
+                                    >
+                                        <option value="">{{ field.label }}</option>
+                                        <option v-for="opt in (field.options ?? [])" :key="opt" :value="opt">{{ opt }}</option>
+                                    </select>
+                                    <input
+                                        v-else
+                                        type="text"
+                                        v-model="row.meta[field.label]"
+                                        :placeholder="field.label"
+                                        style="padding: 0px 10px; height:38px; min-width: 120px; border:1px solid var(--primary-color); color:var(--primary-color);"
+                                        :disabled="isLocked"
+                                    />
+                                </template>
+                                <!-- Value input -->
+                                <input
+                                    name="actual_val"
+                                    :placeholder="unitLabel ? `実績値（${unitLabel}）` : '実績値'"
+                                    type="number"
+                                    style="padding: 0px 10px; height:38px; width: 100px; border:1px solid var(--primary-color); color:var(--primary-color);"
+                                    v-model.number="row.value"
+                                    :disabled="isLocked"
+                                />
+                                <!-- Remove row button -->
+                                <button
+                                    v-if="!isLocked && rowsForStatus(statusDef.label ?? statusDef.custom_label).length > 1"
+                                    type="button"
+                                    style="height:38px; width:38px; border:1px solid var(--primary-color); color:var(--primary-color); font-size:18px; line-height:1;"
+                                    @click="removeActualRowForStatus(statusDef.label ?? statusDef.custom_label, ri)"
+                                >−</button>
+                            </div>
+                            <!-- Add row button -->
+                            <button
+                                v-if="!isLocked"
+                                type="button"
+                                style="height:32px; padding:0 12px; border:1px solid var(--primary-color); color:var(--primary-color); font-size:13px;"
+                                @click="addActualRowForStatus(statusDef)"
+                            >＋ 追加</button>
+                        </div>
+                    </template>
+                    <template v-else>
                         <div class="flex items-center gap-4"
                             v-for="(row, index) in actualRows"
                             :key="row.status ?? index">
                             <div v-if="row.status" class="min-w-[120px] text-sm">
                                 {{ row.status }}
                             </div>
-
                             <input
                                 name="actual_val"
                                 :placeholder="unitLabel ? `実績値（${unitLabel}）` : '実績値'"
@@ -135,10 +189,7 @@
                                 :disabled="isLocked"
                             />
                         </div>
-
-
-                        
-                    </div>
+                    </template>
                 </div>
 
                 <div class="report-field" v-if="car_mileage && car_data?.status == 'success'">
@@ -277,7 +328,7 @@ import { useTour } from '@/composables/useTour';
     const car_mileage = useDebouncedRef('')
     const car_data = ref({})
     const actualRows = ref([
-        { status: null, value: null },
+        { status: null, value: null, meta: {} },
     ])
     const getInitialAttendanceMode = () => {
         const hasWorkTimes = Boolean(timeCard.value?.start_time && timeCard.value?.end_time)
@@ -376,19 +427,50 @@ import { useTour } from '@/composables/useTour';
             actualRows.value = cases.map(c => ({
                 status: c.status ?? null,
                 value: c.amount ?? null,
+                meta: c.meta ?? {},
             }))
             return
         }
 
         if (statuses.length > 0) {
-            actualRows.value = statuses.map(s => ({
-                status: s.label ?? s.custom_label ?? null,
-                value: null,
-            }))
+            actualRows.value = statuses.map(s => {
+                const emptyMeta = {}
+                ;(s.extra_fields ?? []).forEach(f => { emptyMeta[f.label] = '' })
+                return {
+                    status: s.label ?? s.custom_label ?? null,
+                    value: null,
+                    meta: emptyMeta,
+                }
+            })
             return
         }
 
-        actualRows.value = [{ status: null, value: null }]
+        actualRows.value = [{ status: null, value: null, meta: {} }]
+    }
+
+    const actualStatusDefs = computed(() => selectedProject.value?.actual_statuses ?? [])
+
+    const rowsForStatus = (statusLabel) => {
+        return actualRows.value.filter(r => r.status === statusLabel)
+    }
+
+    const addActualRowForStatus = (statusDef) => {
+        const emptyMeta = {}
+        ;(statusDef.extra_fields ?? []).forEach(f => { emptyMeta[f.label] = '' })
+        actualRows.value.push({
+            status: statusDef.label ?? statusDef.custom_label,
+            value: null,
+            meta: emptyMeta,
+        })
+    }
+
+    const removeActualRowForStatus = (statusLabel, statusRowIndex) => {
+        const indices = actualRows.value
+            .map((r, i) => r.status === statusLabel ? i : -1)
+            .filter(i => i !== -1)
+        if (indices.length <= 1) return
+        const globalIndex = indices[statusRowIndex]
+        actualRows.value.splice(globalIndex, 1)
     }
 
     watch(
@@ -613,6 +695,21 @@ import { useTour } from '@/composables/useTour';
             if(invalidCustomFields && invalidCustomFields.length > 0){
                 ping('在宅手当の種類を選択してください。')
                 resolve(false)
+            }
+            // Validate extra fields are filled when a value is entered
+            const statusDefs = selectedProject.value?.actual_statuses ?? []
+            for (const row of actualRows.value) {
+                if (row.value === null || row.value === '' || row.value === undefined) continue
+                const def = statusDefs.find(s => (s.label ?? s.custom_label) === row.status)
+                const extraFields = def?.extra_fields ?? []
+                for (const field of extraFields) {
+                    const v = row.meta?.[field.label]
+                    if (v === null || v === undefined || String(v).trim() === '') {
+                        ping(`「${row.status}」の「${field.label}」は必須項目です。入力してください。`)
+                        resolve(false)
+                        return
+                    }
+                }
             }
             resolve(true)
         })

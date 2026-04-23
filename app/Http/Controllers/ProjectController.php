@@ -4643,11 +4643,31 @@ class ProjectController extends Controller
                 continue;
             }
 
+            // Normalize extra_fields: validate type and sanitize options
+            $rawExtraFields = $row['extra_fields'] ?? [];
+            $extraFields = [];
+            if (is_array($rawExtraFields)) {
+                foreach ($rawExtraFields as $field) {
+                    $fieldType = in_array($field['type'] ?? '', ['select', 'text']) ? $field['type'] : 'text';
+                    $fieldLabel = trim((string) ($field['label'] ?? ''));
+                    if ($fieldLabel === '') continue;
+                    $entry = ['type' => $fieldType, 'label' => $fieldLabel];
+                    if ($fieldType === 'select') {
+                        $opts = $field['options'] ?? [];
+                        $entry['options'] = is_array($opts)
+                            ? array_values(array_filter(array_map('trim', $opts)))
+                            : [];
+                    }
+                    $extraFields[] = $entry;
+                }
+            }
+
             $clean[] = [
                 'status_id' => $statusId && isset(self::SYSTEM_STATUS_LABELS[$statusId]) ? (int) $statusId : null,
                 'label' => $label,
                 'sort_order' => $row['sort_order'] ?? $order,
                 'is_system_default' => $statusId && isset(self::SYSTEM_STATUS_LABELS[$statusId]),
+                'extra_fields' => $extraFields,
             ];
             $order++;
         }
@@ -4665,6 +4685,7 @@ class ProjectController extends Controller
                 'label' => $row['label'],
                 'sort_order' => $i++,
                 'is_system_default' => $row['is_system_default'] ?? false,
+                'extra_fields' => $row['extra_fields'] ?? [],
             ];
         }
 

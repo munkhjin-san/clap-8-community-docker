@@ -326,7 +326,7 @@ class WorkController extends Controller
                         $q->select('id', 'name');
                     },
                     'project_case' => function ($q) {
-                        $q->select('id', 'amount', 'status', 'timecard_record_id');
+                        $q->select('id', 'amount', 'status', 'timecard_record_id', 'meta');
                     },
                 ]);
             },
@@ -1211,6 +1211,7 @@ class WorkController extends Controller
             }
 
             $statusLabel = $row['status'] ?? ($request->actual_status ?: '実績');
+            $meta = isset($row['meta']) && is_array($row['meta']) ? $row['meta'] : null;
 
             ProjectCase::create([
                 'project_record_id'  => $request->department,
@@ -1221,6 +1222,7 @@ class WorkController extends Controller
                 'report_date'        => $request->day,
                 'state'              => 'submitted',
                 'submitted_at'       => now(),
+                'meta'               => $meta,
             ]);
         }
     }
@@ -1270,7 +1272,7 @@ class WorkController extends Controller
             );
         }));
 
-        // $this->validateCost($filteredCosts, (int) $request->status_flag);
+        $this->validateCost($filteredCosts, (int) $request->status_flag);
 
         $existingCosts = $timecard->timecard_costs()->get();
         $existingById = $existingCosts->keyBy('id');

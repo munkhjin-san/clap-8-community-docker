@@ -224,12 +224,19 @@ export type ProjectCheckItem = {
     link_user: User
     children: ProjectCheckItem[]
 }
+export type ExtraFieldDef = {
+    type: 'select' | 'text';
+    label: string;
+    options?: string[];
+}
+
 export type ProjectActualStatus = {
     status_id: number | null;
     label: string;
     sort_order?: number;
     is_system_default?: boolean;
     custom_label?: string;
+    extra_fields?: ExtraFieldDef[];
 }
 type ProjectSpecs = {
     id: number | null;

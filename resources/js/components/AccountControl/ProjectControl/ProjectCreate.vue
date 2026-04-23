@@ -191,31 +191,81 @@
                                 <div class="si-box" id="achievementItems">
                                     <p class="text-[14px]">実績項目</p>
                                 
-                                    <div class="flex flex-col gap-[10px] mt-[10px]">
-                                        <div v-for="(row, index) in statusRows" :key="`status-${index}`" class="flex flex-wrap items-center gap-[10px]">
-                                            <input class="custom-f-checkbox" type="checkbox" v-model="row.selected"/>
-                                            <span v-if="row.is_system_default" class="text-[13px]">{{ row.label }}</span>
-                                            <input
-                                                v-else
-                                                v-model="row.label"
-                                                type="text"
-                                                class="flex-1 border border-solid border-[var(--normalBorder)] px-[10px] py-[8px] text-[13px] min-w-[200px] text-[var(--primary-color)]"
-                                                placeholder="実績を分類する項目名を設定してください。"
-                                            />
-                                            <button
-                                                v-if="!row.is_system_default"
-                                                type="button"
-                                                class="text-[12px] px-[10px] py-[6px] border-solid border border-[var(--normalBorder)]"
-                                                @click="removeStatusRow(index)"
-                                            >
-                                                削除
-                                            </button>
+                                    <div class="flex flex-col gap-[14px] mt-[10px]">
+                                        <div v-for="(row, index) in statusRows" :key="`status-${index}`" class="border border-solid border-[var(--normalBorder)] p-[12px]">
+                                            <!-- Row header: checkbox + label + delete -->
+                                            <div class="flex flex-wrap items-center gap-[10px] mb-[10px]">
+                                                <input class="custom-f-checkbox" type="checkbox" v-model="row.selected"/>
+                                                <span v-if="row.is_system_default" class="text-[13px]">{{ row.label }}</span>
+                                                <input
+                                                    v-else
+                                                    v-model="row.label"
+                                                    type="text"
+                                                    class="flex-1 border border-solid border-[var(--normalBorder)] px-[10px] py-[8px] text-[13px] min-w-[200px] text-[var(--primary-color)]"
+                                                    placeholder="実績を分類する項目名を設定してください。"
+                                                />
+                                                <button
+                                                    v-if="!row.is_system_default"
+                                                    type="button"
+                                                    class="text-[12px] px-[10px] py-[6px] border-solid border border-[var(--normalBorder)]"
+                                                    @click="removeStatusRow(index)"
+                                                >
+                                                    削除
+                                                </button>
+                                            </div>
+                                            <!-- Extra fields config -->
+                                            <div class="ml-[20px]">
+                                                <p class="text-[12px] text-[gray] mb-[8px]">追加フィールド（日報入力時に表示される項目）</p>
+                                                <div class="flex flex-col gap-[8px]">
+                                                    <div
+                                                        v-for="(field, fi) in row.extra_fields"
+                                                        :key="fi"
+                                                        class="flex flex-wrap items-center gap-[8px]"
+                                                    >
+                                                        <select
+                                                            v-model="field.type"
+                                                            class="border border-solid border-[var(--normalBorder)] px-[8px] py-[6px] text-[12px] text-[var(--primary-color)] bg-[var(--background-color)]"
+                                                        >
+                                                            <option value="text">テキスト</option>
+                                                            <option value="select">選択肢</option>
+                                                        </select>
+                                                        <input
+                                                            v-model="field.label"
+                                                            type="text"
+                                                            placeholder="フィールド名（例：種別、支店名）"
+                                                            class="border border-solid border-[var(--normalBorder)] px-[10px] py-[6px] text-[12px] text-[var(--primary-color)] min-w-[160px]"
+                                                        />
+                                                        <input
+                                                            v-if="field.type === 'select'"
+                                                            v-model="field.options"
+                                                            type="text"
+                                                            placeholder="選択肢をカンマ区切りで入力（例：イベント, POP, その他）"
+                                                            class="flex-1 border border-solid border-[var(--normalBorder)] px-[10px] py-[6px] text-[12px] text-[var(--primary-color)] min-w-[200px]"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            class="text-[12px] px-[8px] py-[4px] border border-solid border-[var(--normalBorder)]"
+                                                            @click="removeExtraField(index, fi)"
+                                                        >
+                                                            ✕
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="flex gap-[10px] mt-[8px]">
+                                                    <button type="button" class="text-[12px] text-[var(--primary-color)] border border-solid border-[var(--normalBorder)] px-[10px] py-[4px]" @click="addExtraField(index, 'text')">
+                                                        + テキストフィールド
+                                                    </button>
+                                                    <button type="button" class="text-[12px] text-[var(--primary-color)] border border-solid border-[var(--normalBorder)] px-[10px] py-[4px]" @click="addExtraField(index, 'select')">
+                                                        + 選択フィールド
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                         <button type="button" class="text-left text-[13px] text-[var(--primary-color)]" @click="addCustomStatus">
                                             + 項目を追加
                                         </button>
                                     </div>
-                                    <div v-if="suggestedStatuses.length" class="flex flex-wrap items-center gap-[8px] mb-[10px]">
+                                    <div v-if="suggestedStatuses.length" class="flex flex-wrap items-center gap-[8px] mb-[10px] mt-[10px]">
                                         <span class="text-[12px] text-[gray] mr-[6px]">他プロジェクトからの候補:</span>
                                         <button
                                             v-for="s in suggestedStatuses"
@@ -765,7 +815,8 @@ const unitOptions = [
     { value: 'HOUR', label: '時間' },
     { value: 'CUSTOM', label: 'カスタム' },
 ] as const
-type StatusRow = { status_id: number | null; label: string; selected: boolean; sort_order: number; is_system_default: boolean }
+type ExtraFieldConfig = { type: 'select' | 'text'; label: string; options: string }
+type StatusRow = { status_id: number | null; label: string; selected: boolean; sort_order: number; is_system_default: boolean; extra_fields: ExtraFieldConfig[] }
 const statusRows = ref<StatusRow[]>([])
 const suggestedStatuses = ref<string[]>([])
 const stepTitles = computed(() => [
@@ -861,6 +912,11 @@ const hydrateStatusRows = () => {
             selected: true,
             sort_order: status.sort_order ?? idx + 1,
             is_system_default: status.is_system_default ?? Boolean(status.status_id),
+            extra_fields: (status.extra_fields ?? []).map(f => ({
+                type: f.type,
+                label: f.label,
+                options: Array.isArray(f.options) ? f.options.join(', ') : '',
+            })),
         }));
         return;
     }
@@ -870,6 +926,7 @@ const hydrateStatusRows = () => {
         selected: true,
         sort_order: statusRows.value.length + 1,
         is_system_default: false,
+        extra_fields: [],
     })
 }
 hydrateStatusRows();
@@ -1271,6 +1328,7 @@ const addCustomStatus = () => {
         selected: true,
         sort_order: statusRows.value.length + 1,
         is_system_default: false,
+        extra_fields: [],
     })
 }
 const addSuggestedStatus = (label: string) => {
@@ -1282,12 +1340,19 @@ const addSuggestedStatus = (label: string) => {
         selected: true,
         sort_order: statusRows.value.length + 1,
         is_system_default: false,
+        extra_fields: [],
     });
 }
 const removeStatusRow = (index: number) => {
     const target = statusRows.value[index]
     if (!target || target.is_system_default) return
     statusRows.value.splice(index, 1)
+}
+const addExtraField = (rowIndex: number, type: 'select' | 'text') => {
+    statusRows.value[rowIndex].extra_fields.push({ type, label: '', options: '' })
+}
+const removeExtraField = (rowIndex: number, fieldIndex: number) => {
+    statusRows.value[rowIndex].extra_fields.splice(fieldIndex, 1)
 }
 const statusPayload = computed(() => {
     let order = 1
@@ -1297,6 +1362,13 @@ const statusPayload = computed(() => {
             status_id: row.is_system_default ? row.status_id : null,
             custom_label: row.is_system_default ? null : row.label.trim(),
             sort_order: order++,
+            extra_fields: row.extra_fields.map(f => ({
+                type: f.type,
+                label: f.label,
+                options: f.type === 'select'
+                    ? f.options.split(',').map((o: string) => o.trim()).filter((o: string) => o)
+                    : undefined,
+            })),
         }))
 })
 const buildParams = (status: ProjectStatus, specs?: any) => ({

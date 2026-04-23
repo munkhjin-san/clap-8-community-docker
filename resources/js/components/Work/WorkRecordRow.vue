@@ -368,8 +368,20 @@ const actualResultFormatted = computed(() => {
 
   return cases
     .filter(c => c.amount !== null && c.amount !== '' && c.amount !== undefined)
-    .map(c => `${c.status ?? '実績'}: ${c.amount}${unitLabel.value}`)
-    .join('\n');
+    .map(c => {
+      const lines = []
+      // Meta fields (selector/text extra fields)
+      if (c.meta && typeof c.meta === 'object') {
+        for (const [key, val] of Object.entries(c.meta)) {
+          if (val !== null && val !== undefined && String(val).trim() !== '') {
+            lines.push(`${key}: ${val}`)
+          }
+        }
+      }
+      lines.push(`${c.status ?? '実績'}: ${c.amount}${unitLabel.value}`)
+      return lines.join('\n')
+    })
+    .join('\n\n');
 });
 
 const yenFmt = new Intl.NumberFormat('ja-JP');
