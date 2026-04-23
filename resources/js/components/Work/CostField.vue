@@ -53,12 +53,16 @@
                 <span style="position:absolute; height:100%; top:0; right: 5px; line-height: 38px;">円</span>
             </div>
             
-            <div class="round-trip-input" v-if="type == 1 && expenses">
-                <div>
-                    <input class="h-[30px] opacity-0 w-full cursor-pointer" id="roundTrip" type="checkbox" name="roundTrip" v-model="isRoundTrip" :disabled="locked">
-                    <label class="round-trip-label" for="roundTrip">往復</label> 
-                </div>
-            </div>
+            <button
+                v-if="type == 1 && expenses"
+                type="button"
+                class="round-trip-button"
+                :class="{ 'round-trip-applied': roundTripApplied }"
+                @click="applyRoundTrip"
+                :disabled="locked"
+            >
+                往復計算
+            </button>
         </div>
         <input
             name="merchant_name"
@@ -196,7 +200,8 @@ const fileSha256 = defineModel('file_sha256')
 const fileUploadedAt = defineModel('file_uploaded_at')
 const ocrRunId = defineModel('ocr_run_id')
 const ocrAppliedFields = defineModel('ocr_applied_fields')
-const isRoundTrip = ref(false)
+const roundTripApplied = ref(false)
+let skipExpensesWatch = false
 const props = defineProps({
     workGroupAsOptions: Array,
     fieldIndex: Number,
@@ -458,13 +463,23 @@ watch(type, (nextType, previousType) => {
         content.value = ''
     }
 })
-watch(isRoundTrip, (next, prev) => {
-    if (next === prev || !expenses.value) return
+const applyRoundTrip = () => {
+    if (roundTripApplied.value) {
+        ping('往復計算済みです。金額を変更すると再計算できます。')
+        return
+    }
+    if (!expenses.value) return
+    skipExpensesWatch = true
+    expenses.value = String(Number(expenses.value) * 2)
+    roundTripApplied.value = true
+}
 
-    const amount = Number(expenses.value)
-    expenses.value = next
-        ? String(amount * 2)
-        : String(amount / 2)
+watch(expenses, () => {
+    if (skipExpensesWatch) {
+        skipExpensesWatch = false
+        return
+    }
+    roundTripApplied.value = false
 })
 </script>
 <style scoped>
@@ -535,30 +550,23 @@ watch(isRoundTrip, (next, prev) => {
         background: var(--primary-button);
         font-size: 12px;
     }
-    .round-trip-label {
-        position: absolute;
-        top: 0;
-        left: 0;
-        color: var(--primary-color);
-        width: 100%;
+    .round-trip-button {
+        padding: 0 12px;
         height: 30px;
+        color: var(--primary-color);
         background: var(--bg3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        pointer-events: none;
         border: solid thin var(--bg3);
         font-size: 14px;
-        box-sizing: border-box;
+        white-space: nowrap;
+        cursor: pointer;
     }
-    .round-trip-input input:checked + label {
-        font-weight: 500;
-        color: var(--primary-color);
-        border: solid thin var(--primary-color);
+    .round-trip-button.round-trip-applied {
+        background: var(--primary-button);
+        color: #fff;
+        border-color: var(--primary-button);
     }
-    .round-trip-input {
-        position: relative;
-        width: fit-content;
-        min-width: 50px;
+    .round-trip-button:disabled {
+        opacity: 0.5;
+        cursor: default;
     }
 </style>
