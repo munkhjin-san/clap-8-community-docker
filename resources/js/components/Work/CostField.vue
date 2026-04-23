@@ -40,16 +40,25 @@
             v-model="content"
             :disabled="locked"
         />
-        <div style="background:inherit; position:relative;">
-            <input
-                name="expenses"
-                placeholder="経費"
-                type="number"
-                style="padding: 0px 25px 0 10px; height:38px; width: 80px;border:1px solid var(--primary-color);color:var(--primary-color);"
-                v-model="expenses"
-                :disabled="locked"
-            />
-            <span style="position:absolute; height:100%; top:0; right: 5px; line-height: 38px;">円</span>
+        <div class="flex items-center gap-3">
+            <div class="relative bg-inherit">
+                <input
+                    name="expenses"
+                    placeholder="経費"
+                    type="number"
+                    style="padding: 0px 25px 0 10px; height:38px; width: 80px;border:1px solid var(--primary-color);color:var(--primary-color);"
+                    v-model="expenses"
+                    :disabled="locked"
+                />
+                <span style="position:absolute; height:100%; top:0; right: 5px; line-height: 38px;">円</span>
+            </div>
+            
+            <div class="round-trip-input" v-if="type == 1 && expenses">
+                <div>
+                    <input class="h-[30px] opacity-0 w-full cursor-pointer" id="roundTrip" type="checkbox" name="roundTrip" v-model="isRoundTrip" :disabled="locked">
+                    <label class="round-trip-label" for="roundTrip">往復</label> 
+                </div>
+            </div>
         </div>
         <input
             name="merchant_name"
@@ -165,6 +174,7 @@ import { workFilePreview } from '../../utils/workApi';
 import { useDialog } from '@/composables/dialog';
 import { useApi } from '@/composables/api';
 import { useTheme } from '@/store/theme';
+import { DateTime } from 'luxon';
 
 const department = defineModel('department')
 const content = defineModel('content')
@@ -186,7 +196,7 @@ const fileSha256 = defineModel('file_sha256')
 const fileUploadedAt = defineModel('file_uploaded_at')
 const ocrRunId = defineModel('ocr_run_id')
 const ocrAppliedFields = defineModel('ocr_applied_fields')
-
+const isRoundTrip = ref(false)
 const props = defineProps({
     workGroupAsOptions: Array,
     fieldIndex: Number,
@@ -228,7 +238,7 @@ const suggestionRows = computed(() => {
     const source = ocrSuggestions.value ?? {}
     const rows = [
         { key: 'merchant_name', label: supportsTransportOcr.value && source.transport ? '交通内容' : '取引先', value: supportsTransportOcr.value ? (source.transport || source.merchant_name || '') : (source.merchant_name ?? '') },
-        { key: 'receipt_date', label: '領収書日付', value: source.receipt_date ?? '' },
+        { key: 'receipt_date', label: '領収書日付', value: (source.receipt_date ? normalizeReceiptDate(source.receipt_date) : '') },
         { key: 'amount', label: '金額', value: source.amount ?? '' },
         { key: 'currency', label: '通貨', value: source.currency ?? '' },
         { key: 'receipt_source_type', label: '保存種別', value: receiptSourceTypeLabelMap[source.receipt_source_type] ?? source.receipt_source_type ?? '' },
@@ -383,7 +393,7 @@ const applyOcrFields = (fields) => {
         }
     }
     if (fields.includes('receipt_date') && source.receipt_date) {
-        receiptDate.value = source.receipt_date
+        receiptDate.value = normalizeReceiptDate(source.receipt_date)
     }
     if (fields.includes('transport_type') && source.transport_type) {
         transportType.value = Number(source.transport_type)
@@ -407,7 +417,12 @@ const applyOcrFields = (fields) => {
     const applied = new Set([...(ocrAppliedFields.value ?? []), ...fields])
     ocrAppliedFields.value = Array.from(applied)
 }
+const normalizeReceiptDate = (date) => {
+    const todayYear = DateTime.now().year
+    const [year, month, day] = date.split('-')
 
+    return `${todayYear}-${month}-${day}`
+}
 watch(fileModel, (value) => {
     if (!value) {
         ocrSuggestions.value = null
@@ -442,6 +457,14 @@ watch(type, (nextType, previousType) => {
         arrivalPlace.value = ''
         content.value = ''
     }
+})
+watch(isRoundTrip, (next, prev) => {
+    if (next === prev || !expenses.value) return
+
+    const amount = Number(expenses.value)
+    expenses.value = next
+        ? String(amount * 2)
+        : String(amount / 2)
 })
 </script>
 <style scoped>
@@ -511,5 +534,31 @@ watch(type, (nextType, previousType) => {
         color: #fff;
         background: var(--primary-button);
         font-size: 12px;
+    }
+    .round-trip-label {
+        position: absolute;
+        top: 0;
+        left: 0;
+        color: var(--primary-color);
+        width: 100%;
+        height: 30px;
+        background: var(--bg3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        border: solid thin var(--bg3);
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+    .round-trip-input input:checked + label {
+        font-weight: 500;
+        color: var(--primary-color);
+        border: solid thin var(--primary-color);
+    }
+    .round-trip-input {
+        position: relative;
+        width: fit-content;
+        min-width: 50px;
     }
 </style>
