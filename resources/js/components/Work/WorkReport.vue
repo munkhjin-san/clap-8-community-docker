@@ -78,6 +78,7 @@
                         v-model:arrival_place="cost.arrival_place"
                         v-model:expenses="cost.expenses"
                         v-model:file_path="cost.file_path"
+                        v-model:receipt_file_id="cost.receipt_file_id"
                         v-model:draft_uuid="cost.draft_uuid"
                         v-model:merchant_name="cost.merchant_name"
                         v-model:receipt_date="cost.receipt_date"
@@ -88,6 +89,12 @@
                         v-model:file_size_bytes="cost.file_size_bytes"
                         v-model:file_sha256="cost.file_sha256"
                         v-model:file_uploaded_at="cost.file_uploaded_at"
+                        v-model:scan_dpi="cost.scan_dpi"
+                        v-model:scan_color_depth="cost.scan_color_depth"
+                        v-model:scan_color_mode="cost.scan_color_mode"
+                        v-model:document_size="cost.document_size"
+                        v-model:image_width_px="cost.image_width_px"
+                        v-model:image_height_px="cost.image_height_px"
                         v-model:ocr_run_id="cost.ocr_run_id"
                         v-model:ocr_applied_fields="cost.ocr_applied_fields"
                         :workGroupAsOptions="workGroupAsOptions.map(ob => ob.name)"
@@ -377,6 +384,7 @@ import { useTour } from '@/composables/useTour';
         arrival_place: '',
         expenses: null,
         file_path: null,
+        receipt_file_id: null,
         draft_uuid: generateDraftUuid(),
         merchant_name: '',
         receipt_date: null,
@@ -387,16 +395,29 @@ import { useTour } from '@/composables/useTour';
         file_size_bytes: null,
         file_sha256: null,
         file_uploaded_at: null,
+        scan_dpi: null,
+        scan_color_depth: null,
+        scan_color_mode: null,
+        document_size: null,
+        image_width_px: null,
+        image_height_px: null,
         ocr_run_id: null,
         ocr_applied_fields: [],
     })
     const clearReceiptFields = (cost) => {
         cost.file_path = null
+        cost.receipt_file_id = null
         cost.file_original_name = null
         cost.file_mime_type = null
         cost.file_size_bytes = null
         cost.file_sha256 = null
         cost.file_uploaded_at = null
+        cost.scan_dpi = null
+        cost.scan_color_depth = null
+        cost.scan_color_mode = null
+        cost.document_size = null
+        cost.image_width_px = null
+        cost.image_height_px = null
         cost.ocr_run_id = null
         cost.ocr_applied_fields = []
     }
@@ -516,6 +537,7 @@ import { useTour } from '@/composables/useTour';
         const response = await api.post('/work_file_delete', {
             draft_uuid: targetCost.draft_uuid,
             file_path: targetCost.file_path,
+            receipt_file_id: targetCost.receipt_file_id,
             subject_user_id: props.item?.user_id,
             timecard_record_id: timeCard.value?.id,
             timecard_cost_record_id: targetCost.id,

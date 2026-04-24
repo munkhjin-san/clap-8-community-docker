@@ -24,6 +24,9 @@ class TimecardAuditEventProjection extends Model
         'currency',
         'department',
         'file_path',
+        'receipt_file_id',
+        'file_sha256',
+        'internal_control_status',
         'ocr_run_id',
     ];
 

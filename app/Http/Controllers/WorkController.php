@@ -23,14 +23,11 @@ use App\Models\ProjectCase;
 use App\Models\TimecardCostOcrRun;
 use App\Services\SharedService;
 use App\Services\TimeSheet\TimecardAuditLogService;
+use App\Services\TimeSheet\TimecardReceiptStorageService;
 use App\Services\TimeSheet\WorkReceiptOcrService;
-use Illuminate\Support\Facades\File; 
-use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Arr;
@@ -46,6 +43,7 @@ class WorkController extends Controller
         private readonly KintoneClient $kintone,
         private readonly AutoAttendanceConfirm $attendanceService,
         private readonly TimecardAuditLogService $timecardAuditLogService,
+        private readonly TimecardReceiptStorageService $timecardReceiptStorageService,
         private readonly WorkReceiptOcrService $workReceiptOcrService,
         private readonly ShiftService $shiftService
     ) {
@@ -297,6 +295,7 @@ class WorkController extends Controller
                             'expenses',
                             'record_id',
                             'file_path',
+                            'receipt_file_id',
                             'id',
                             'department',
                             'draft_uuid',
@@ -308,7 +307,13 @@ class WorkController extends Controller
                             'file_mime_type',
                             'file_size_bytes',
                             'file_sha256',
-                            'file_uploaded_at'
+                            'file_uploaded_at',
+                            'scan_dpi',
+                            'scan_color_depth',
+                            'scan_color_mode',
+                            'document_size',
+                            'image_width_px',
+                            'image_height_px'
                         );
                     },
                     'timecard_incentives' => function ($q) {
@@ -1296,6 +1301,7 @@ class WorkController extends Controller
                 $beforeState = $this->timecardAuditLogService->trackedCostState($matchedCost);
                 $matchedCost->fill($attributes);
                 $matchedCost->save();
+                $this->finalizeReceiptForCost($cost, $matchedCost);
                 $matchedCost->refresh();
                 $afterState = $this->timecardAuditLogService->trackedCostState($matchedCost);
                 if ($beforeState !== $afterState) {
@@ -1316,6 +1322,7 @@ class WorkController extends Controller
             $newCost = new timecardCostRecord();
             $newCost->fill($attributes);
             $newCost->save();
+            $this->finalizeReceiptForCost($cost, $newCost);
             $newCost->refresh();
             $afterState = $this->timecardAuditLogService->trackedCostState($newCost);
             $this->timecardAuditLogService->logCostEvent(
@@ -1333,6 +1340,12 @@ class WorkController extends Controller
         $costsToDelete = $existingCosts->filter(fn ($cost) => !in_array($cost->id, $keptIds, true));
         foreach ($costsToDelete as $costToDelete) {
             $beforeState = $this->timecardAuditLogService->trackedCostState($costToDelete);
+            $this->timecardReceiptStorageService->logicalDeleteByReference(
+                $costToDelete->receipt_file_id,
+                $costToDelete->file_path,
+                $costToDelete->draft_uuid,
+                Auth::id()
+            );
             $costToDelete->delete();
             $this->timecardAuditLogService->logCostEvent(
                 'cost_deleted',
@@ -1728,6 +1741,7 @@ class WorkController extends Controller
             'user_id' => $request->userId,
             'draft_uuid' => $draftUuid,
             'file_path' => Arr::get($cost, 'file_path'),
+            'receipt_file_id' => Arr::get($cost, 'receipt_file_id'),
             'type' => Arr::get($cost, 'type'),
             'transport_type' => $transportType ?: null,
             'departure_place' => $departurePlace ?: null,
@@ -1745,7 +1759,31 @@ class WorkController extends Controller
             'file_size_bytes' => Arr::get($cost, 'file_size_bytes'),
             'file_sha256' => Arr::get($cost, 'file_sha256'),
             'file_uploaded_at' => Arr::get($cost, 'file_uploaded_at'),
+            'scan_dpi' => Arr::get($cost, 'scan_dpi'),
+            'scan_color_depth' => Arr::get($cost, 'scan_color_depth'),
+            'scan_color_mode' => Arr::get($cost, 'scan_color_mode'),
+            'document_size' => Arr::get($cost, 'document_size'),
+            'image_width_px' => Arr::get($cost, 'image_width_px'),
+            'image_height_px' => Arr::get($cost, 'image_height_px'),
         ];
+    }
+
+    private function finalizeReceiptForCost(array $incomingCost, timecardCostRecord $savedCost): void
+    {
+        $this->timecardReceiptStorageService->finalizeReceipt(
+            $savedCost,
+            Arr::get($incomingCost, 'receipt_file_id'),
+            Arr::get($incomingCost, 'file_path'),
+            Arr::get($incomingCost, 'draft_uuid'),
+            [
+                'scan_dpi' => Arr::get($incomingCost, 'scan_dpi'),
+                'scan_color_depth' => Arr::get($incomingCost, 'scan_color_depth'),
+                'scan_color_mode' => Arr::get($incomingCost, 'scan_color_mode'),
+                'document_size' => Arr::get($incomingCost, 'document_size'),
+                'image_width_px' => Arr::get($incomingCost, 'image_width_px'),
+                'image_height_px' => Arr::get($incomingCost, 'image_height_px'),
+            ]
+        );
     }
 
     private function buildTransportContent($transportType, string $departurePlace, string $arrivalPlace): ?string
@@ -1831,38 +1869,33 @@ class WorkController extends Controller
 
         $timecard = $request->timecard_record_id ? timecardRecord::find($request->timecard_record_id) : null;
         $this->ensureEditableTimecard($timecard);
-        $path = '/timecard_files';
         $fileContent = $request->file('file');
-        $file_path = $this->path_generator();           
-        $file_extension = $fileContent->getClientOriginalExtension();
-        $originalName = $fileContent->getClientOriginalName();
-            
-        $mime_type = $fileContent->getMimeType();
-        $mime_type_array = explode('/',$mime_type);
-        $file_type = $mime_type_array[0];           
-        
-        if($file_type == 'image' && $file_extension !== 'svg'){
-            $img = Image::read($fileContent);
-            $file_extension = 'webp';
-            $img->scale(640);
-            $file_path .= '.webp';
-            File::isDirectory(storage_path('app') . $path) or File::makeDirectory(storage_path('app') . $path, 0755, true, true);                      
-            $img->toWebp(80)->save(storage_path('app') . $path .'/'. $file_path);  
-        } else {
-            $file_path .= ".{$file_extension}";
-            Storage::disk('local')->putFileAs(
-                $path, $fileContent, $file_path
-            );
-        }
-        $storedPath = "timecard_files/{$file_path}";
         $subjectUserId = (int) ($request->subject_user_id ?: Auth::id());
+        $receiptFile = $this->timecardReceiptStorageService->storePending(
+            $fileContent,
+            $request->draft_uuid,
+            $subjectUserId,
+            $timecard
+        );
+        $file_path = $receiptFile->canonical_path;
+        $mime_type = $receiptFile->mime_type ?: $fileContent->getMimeType();
+        $mime_type_array = explode('/', (string) $mime_type);
+        $file_type = $mime_type_array[0] ?? 'application';
         $metadata = [
+            'receipt_file_id' => $receiptFile->id,
             'file_path' => $file_path,
-            'file_original_name' => $originalName,
-            'file_mime_type' => Storage::disk('local')->mimeType($storedPath) ?: $mime_type,
-            'file_size_bytes' => Storage::disk('local')->size($storedPath),
-            'file_sha256' => $this->fileHash($file_path),
-            'file_uploaded_at' => now()->toDateTimeString(),
+            'preview_path' => $receiptFile->preview_path,
+            'file_original_name' => $receiptFile->original_name,
+            'file_mime_type' => $mime_type,
+            'file_size_bytes' => $receiptFile->size_bytes,
+            'file_sha256' => $receiptFile->sha256,
+            'file_uploaded_at' => $receiptFile->uploaded_at?->toDateTimeString(),
+            'scan_dpi' => $receiptFile->scan_dpi,
+            'scan_color_depth' => $receiptFile->scan_color_depth,
+            'scan_color_mode' => $receiptFile->scan_color_mode,
+            'document_size' => $receiptFile->document_size,
+            'image_width_px' => $receiptFile->image_width_px,
+            'image_height_px' => $receiptFile->image_height_px,
         ];
         $this->timecardAuditLogService->logReceiptEvent(
             'receipt_uploaded',
@@ -1875,14 +1908,23 @@ class WorkController extends Controller
             $metadata
         );
         $data = [
+            "receipt_file_id" => $receiptFile->id,
             "file_path" => $file_path,
+            "preview_path" => $receiptFile->preview_path,
             "file_type" => $file_type,
-            "file_extension" => $file_extension,
+            "file_extension" => $receiptFile->extension,
             "file_original_name" => $metadata['file_original_name'],
             "file_mime_type" => $metadata['file_mime_type'],
             "file_size_bytes" => $metadata['file_size_bytes'],
             "file_sha256" => $metadata['file_sha256'],
             "file_uploaded_at" => $metadata['file_uploaded_at'],
+            "scan_dpi" => $metadata['scan_dpi'],
+            "scan_color_depth" => $metadata['scan_color_depth'],
+            "scan_color_mode" => $metadata['scan_color_mode'],
+            "document_size" => $metadata['document_size'],
+            "image_width_px" => $metadata['image_width_px'],
+            "image_height_px" => $metadata['image_height_px'],
+            "scan_warnings" => $this->timecardReceiptStorageService->scanWarnings($receiptFile),
         ];
         return response()->json($data); 
     }
@@ -1891,6 +1933,7 @@ class WorkController extends Controller
         $request->validate([
             'draft_uuid' => 'required|uuid',
             'file_path' => 'required|string',
+            'receipt_file_id' => 'nullable|integer',
             'subject_user_id' => 'nullable|integer',
             'timecard_record_id' => 'nullable|integer',
             'timecard_cost_record_id' => 'nullable|integer',
@@ -1902,6 +1945,12 @@ class WorkController extends Controller
 
         $subjectUserId = (int) ($request->subject_user_id ?: Auth::id());
         $beforeState = ['file_path' => $request->file_path];
+        $this->timecardReceiptStorageService->logicalDeleteByReference(
+            $request->receipt_file_id,
+            $request->file_path,
+            $request->draft_uuid,
+            Auth::id()
+        );
         $this->timecardAuditLogService->logReceiptEvent(
             'receipt_removed',
             $subjectUserId,
@@ -2000,6 +2049,12 @@ class WorkController extends Controller
         $workCost = timecardCostRecord::with('timecard')->findOrFail($request->id);
         $this->ensureEditableTimecard($workCost->timecard);
         $beforeState = $this->timecardAuditLogService->trackedCostState($workCost);
+        $this->timecardReceiptStorageService->logicalDeleteByReference(
+            $workCost->receipt_file_id,
+            $workCost->file_path,
+            $workCost->draft_uuid,
+            Auth::id()
+        );
         $workCost->delete();
         if ($workCost->timecard) {
             $this->timecardAuditLogService->logCostEvent(

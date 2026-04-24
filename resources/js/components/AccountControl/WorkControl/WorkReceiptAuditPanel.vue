@@ -58,6 +58,7 @@
             <div class="filter-actions">
                 <div class="filter-action-buttons">
                     <button type="button" class="audit-button" @click="loadEvents(1)">検索</button>
+                    <button type="button" class="audit-button audit-button-secondary" :disabled="listLoading || !events.length" @click="downloadExport">CSV出力</button>
                     <button type="button" class="audit-button audit-button-secondary" @click="resetFilters">リセット</button>
                 </div>
                 <span v-if="pagination.total > 0" class="filter-total-count">{{ pagination.total.toLocaleString() }} 件</span>
@@ -102,6 +103,12 @@
                         <div class="receipt-audit-summary">{{ eventSummary(event) }}</div>
                         <div class="receipt-audit-meta">対象日: {{ formatDate(event.timecard_day) }}</div>
                         <div class="receipt-audit-meta">申請状態: {{ approvalStateLabel(event.approval_state) }}</div>
+                        <div v-if="event.internal_control_status" class="receipt-audit-meta">
+                            内部統制:
+                            <span class="control-status-chip" :class="internalControlStatusClass(event.internal_control_status)">
+                                {{ internalControlStatusLabel(event.internal_control_status) }}
+                            </span>
+                        </div>
                         <div class="receipt-audit-meta">記録時刻: {{ formatDateTime(event.occurred_at) }}</div>
                     </div>
                 </template>
@@ -137,9 +144,15 @@
                         <div><strong>申請状態:</strong> {{ approvalStateLabel(detail.timecard?.status_flag ?? detail.metadata?.approval_state) }}</div>
                         <div><strong>取引先:</strong> {{ detail.timecard_cost?.merchant_name || detail.after_state?.merchant_name || detail.before_state?.merchant_name || detail.ocr_run?.normalized_result?.merchant_name || '-' }}</div>
                         <div><strong>金額:</strong> {{ amountLabel(detail.timecard_cost?.expenses ?? detail.after_state?.expenses ?? detail.before_state?.expenses ?? detail.ocr_run?.normalized_result?.amount) }}</div>
+                        <div v-if="detail.internal_control_status">
+                            <strong>内部統制:</strong>
+                            <span class="control-status-chip" :class="internalControlStatusClass(detail.internal_control_status)">
+                                {{ internalControlStatusLabel(detail.internal_control_status) }}
+                            </span>
+                        </div>
                     </div>
 
-                    <button v-if="detail.receipt_preview_path" type="button" @click="openReceiptPreview" class="audit-button">領収書を表示</button>
+                    <button v-if="detail.receipt_file_url" type="button" @click="openReceiptFile" class="audit-button">領収書を表示</button>
 
                     <div v-if="diffRows(detail.before_state, detail.after_state).length" class="detail-section">
                         <h4>変更内容</h4>
@@ -263,6 +276,7 @@ const fieldLabelMap = {
     day: '対象日',
     status_flag: '申請状態',
     approval_state: '申請状態',
+    internal_control_status: '内部統制',
     type: '勘定科目',
     transport_type: '交通手段',
     departure_place: '出発',
@@ -331,6 +345,11 @@ const approvalStateMap = {
     10: '差戻し',
 }
 
+const internalControlStatusMap = {
+    recorded: '記録済み',
+    sealed: '封印済み',
+}
+
 const receiptSourceTypeMap = {
     paper_scan: '紙領収書スキャン',
     electronic: '電子取引',
@@ -375,6 +394,8 @@ const eventTypeLabel = (value) => eventLabelMap[value] ?? value ?? '-'
 const eventChipClass = (value) => eventChipMap[value]?.className ?? 'chip-neutral'
 const eventChipText = (value) => eventChipMap[value]?.text ?? '記録'
 const approvalStateLabel = (value) => approvalStateMap[String(value)] ?? (value ?? '-')
+const internalControlStatusLabel = (value) => internalControlStatusMap[value] ?? (value ?? '-')
+const internalControlStatusClass = (value) => value === 'sealed' ? 'control-status-sealed' : 'control-status-recorded'
 
 const formatDate = (value) => {
     if (!value) return '-'
@@ -410,6 +431,9 @@ const formatValue = (key, value) => {
     }
     if (key === 'status_flag' || key === 'approval_state') {
         return approvalStateLabel(value)
+    }
+    if (key === 'internal_control_status') {
+        return internalControlStatusLabel(value)
     }
     if (key === 'type') {
         return costTypeMap[value] ?? value
@@ -576,10 +600,44 @@ const refreshFilterSummary = () => {
     activeFilterSummary.value = summary
 }
 
-const openReceiptPreview = () => {
-    if (detail.value?.receipt_preview_path) {
-        window.open(detail.value.receipt_preview_path, '_blank', 'noopener')
+const openReceiptFile = () => {
+    if (detail.value?.receipt_file_url) {
+        window.open(detail.value.receipt_file_url, '_blank', 'noopener')
     }
+}
+
+const buildAuditQuery = ({ exportMode = false } = {}) => {
+    const params = {}
+
+    Object.entries(filters).forEach(([key, value]) => {
+        if (value !== '' && value !== null && value !== undefined) {
+            params[key] = value
+        }
+    })
+
+    if (props.month) {
+        params.month = props.month
+    }
+
+    if (exportMode) {
+        params.export = 1
+        return params
+    }
+
+    params.page = pagination.page
+    params.per_page = pagination.per_page
+
+    return params
+}
+
+const downloadExport = () => {
+    const query = new URLSearchParams()
+
+    Object.entries(buildAuditQuery({ exportMode: true })).forEach(([key, value]) => {
+        query.set(key, String(value))
+    })
+
+    window.open(`/work_audit_logs?${query.toString()}`, '_blank', 'noopener')
 }
 
 const clearFilter = (key) => {
@@ -591,14 +649,7 @@ const loadEvents = async (page = pagination.page) => {
     const nextPage = Number(page)
     pagination.page = Number.isFinite(nextPage) && nextPage > 0 ? nextPage : 1
     refreshFilterSummary()
-    const params = {
-        ...filters,
-        page: pagination.page,
-        per_page: pagination.per_page,
-    }
-    if (props.month) {
-        params.month = props.month
-    }
+    const params = buildAuditQuery()
 
     const response = await api.get('/work_audit_logs', params, {
         silent: true,
@@ -973,6 +1024,30 @@ watch(() => props.month, () => {
         color: var(--audit-text-soft);
     }
 
+    .control-status-chip {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 6px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-size: 11px;
+        font-weight: 700;
+        vertical-align: middle;
+    }
+
+    .control-status-recorded {
+        color: #9b7b2d;
+        background: rgba(207, 158, 62, 0.12);
+        border-color: rgba(207, 158, 62, 0.34);
+    }
+
+    .control-status-sealed {
+        color: #2f8a55;
+        background: rgba(70, 163, 108, 0.12);
+        border-color: rgba(70, 163, 108, 0.32);
+    }
+
     .receipt-audit-detail {
         padding: 22px;
     }
@@ -1105,6 +1180,14 @@ watch(() => props.month, () => {
         transform: translateY(-1px);
         box-shadow: 0 12px 22px rgba(0, 0, 0, 0.12);
         filter: saturate(1.05);
+    }
+
+    .audit-button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: var(--audit-shadow-soft);
+        filter: none;
     }
 
     .audit-button-secondary {

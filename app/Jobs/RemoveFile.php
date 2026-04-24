@@ -8,10 +8,11 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use App\Models\TimecardReceiptFile;
 use App\Models\timecardCostRecord;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 class RemoveFile implements ShouldQueue
 {
@@ -49,11 +50,7 @@ class RemoveFile implements ShouldQueue
                 }
             }
         } else if ($this->type == 'cost') {
-            $line = Carbon::now()->subMonth()->format('Y:m:d H:i:s');
-            $unused_files = timecardCostRecord::where('deleted_at', '<=', $line)->onlyTrashed()->get();
-            foreach($unused_files as $file){           
-                Storage::disk('local')->delete("timecard_files/{$file->file_path}");        
-            }
+            return;
         } else if ($this->type == 'timecard_orphaned') {
             $directory = 'timecard_files';
             $disk = Storage::disk('local');
@@ -69,10 +66,45 @@ class RemoveFile implements ShouldQueue
                 ->filter()
                 ->all();
             $attachedLookup = array_fill_keys($attachedFilePaths, true);
-            $files = $disk->files($directory);
+            $receiptFiles = TimecardReceiptFile::query()
+                ->where('is_deleted', false)
+                ->get(['canonical_path']);
+            foreach ($receiptFiles as $receiptFile) {
+                $attachedLookup[$receiptFile->canonical_path] = true;
+            }
+
+            TimecardReceiptFile::query()
+                ->where('status', 'pending')
+                ->whereNull('finalized_at')
+                ->where('uploaded_at', '<=', now()->subDays(7))
+                ->get()
+                ->each(function (TimecardReceiptFile $receiptFile) use ($disk): void {
+                    $receiptFile->fill([
+                        'status' => 'expired',
+                        'is_deleted' => true,
+                        'deleted_at' => now(),
+                    ])->save();
+
+                    $sameCanonicalCount = TimecardReceiptFile::where('canonical_path', $receiptFile->canonical_path)->count();
+                    if ($sameCanonicalCount === 1) {
+                        $disk->delete("timecard_files/{$receiptFile->canonical_path}");
+                    }
+                    if ($receiptFile->preview_path) {
+                        $disk->delete("timecard_files/{$receiptFile->preview_path}");
+                    }
+                });
+
+            $files = $disk->allFiles($directory);
 
             foreach ($files as $file) {
-                $relativePath = File::basename($file);
+                $relativePath = Str::after($file, "{$directory}/");
+                if (str_starts_with($relativePath, 'originals/')) {
+                    continue;
+                }
+                if (str_starts_with($relativePath, 'previews/')) {
+                    $disk->delete($file);
+                    continue;
+                }
                 if (isset($attachedLookup[$relativePath])) {
                     continue;
                 }

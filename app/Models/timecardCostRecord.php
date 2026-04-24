@@ -20,7 +20,7 @@ class timecardCostRecord extends Model
     }
 
     public function timecard(){
-        return $this->belongsTo(timeCardRecord::class, 'record_id', 'id');
+        return $this->belongsTo(timecardRecord::class, 'record_id', 'id');
     }
 
     public function auditEvents()
@@ -33,12 +33,21 @@ class timecardCostRecord extends Model
         return $this->hasMany(TimecardCostOcrRun::class, 'timecard_cost_record_id');
     }
 
+    public function receiptFile()
+    {
+        return $this->belongsTo(TimecardReceiptFile::class, 'receipt_file_id');
+    }
+
     protected $casts = [
         'receipt_date' => 'string',
         'file_uploaded_at' => 'datetime',
         'file_size_bytes' => 'int',
         'expenses' => 'float',
         'transport_type' => 'int',
+        'scan_dpi' => 'int',
+        'scan_color_depth' => 'int',
+        'image_width_px' => 'int',
+        'image_height_px' => 'int',
     ];
 
     protected $guarded = [];

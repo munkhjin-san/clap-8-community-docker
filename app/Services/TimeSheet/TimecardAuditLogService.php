@@ -5,14 +5,24 @@ namespace App\Services\TimeSheet;
 use App\Models\TimecardAuditEvent;
 use App\Models\TimecardAuditEventProjection;
 use App\Models\TimecardCostOcrRun;
+use App\Models\TimecardReceiptFile;
 use App\Models\timecardCostRecord;
 use App\Models\timecardRecord;
+use App\Services\TimeSheet\Compliance\AuditHashService;
+use App\Services\TimeSheet\Compliance\InternalControlStatusService;
 use Carbon\Carbon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
 class TimecardAuditLogService
 {
+    public function __construct(
+        private readonly AuditHashService $auditHashService,
+        private readonly InternalControlStatusService $internalControlStatusService
+    )
+    {
+    }
+
     public function log(array $attributes): TimecardAuditEvent
     {
         $payload = array_merge([
@@ -22,6 +32,11 @@ class TimecardAuditLogService
             'user_agent' => request()?->userAgent(),
             'occurred_at' => now(),
         ], $attributes);
+        $previousHash = TimecardAuditEvent::query()
+            ->whereNotNull('event_hash')
+            ->latest('id')
+            ->value('event_hash');
+        $payload = array_merge($payload, $this->auditHashService->hashesForPayload($payload, $previousHash));
 
         $event = TimecardAuditEvent::create($payload);
         $this->syncProjectionForEvent($event);
@@ -126,7 +141,15 @@ class TimecardAuditLogService
             'receipt_date' => $this->normalizeDateOnly(Arr::get($data, 'receipt_date')),
             'currency' => Arr::get($data, 'currency'),
             'receipt_source_type' => Arr::get($data, 'receipt_source_type'),
+            'receipt_file_id' => Arr::get($data, 'receipt_file_id'),
             'file_path' => Arr::get($data, 'file_path'),
+            'file_sha256' => Arr::get($data, 'file_sha256'),
+            'scan_dpi' => Arr::get($data, 'scan_dpi'),
+            'scan_color_depth' => Arr::get($data, 'scan_color_depth'),
+            'scan_color_mode' => Arr::get($data, 'scan_color_mode'),
+            'document_size' => Arr::get($data, 'document_size'),
+            'image_width_px' => Arr::get($data, 'image_width_px'),
+            'image_height_px' => Arr::get($data, 'image_height_px'),
         ];
     }
 
@@ -153,7 +176,8 @@ class TimecardAuditLogService
     {
         $event->loadMissing([
             'timecard:id,day,status_flag',
-            'timecardCost:id,record_id,merchant_name,receipt_date,expenses,currency,department,file_path',
+            'timecardCost:id,record_id,merchant_name,receipt_date,expenses,currency,department,file_path,receipt_file_id,file_sha256',
+            'timecardCost.receiptFile:id,sha256,canonical_path',
         ]);
 
         $projectionAttributes = $this->projectionAttributes($event);
@@ -171,6 +195,25 @@ class TimecardAuditLogService
         $metadata = $event->metadata ?? [];
         $cost = $event->timecardCost;
         $timecard = $event->timecard;
+        $receiptFileId = Arr::get($afterState, 'receipt_file_id')
+            ?? Arr::get($beforeState, 'receipt_file_id')
+            ?? Arr::get($metadata, 'receipt_file_id')
+            ?? $cost?->receipt_file_id;
+        $receiptFile = $receiptFileId ? TimecardReceiptFile::find($receiptFileId) : $cost?->receiptFile;
+        $filePath = Arr::get($afterState, 'file_path')
+            ?? Arr::get($beforeState, 'file_path')
+            ?? Arr::get($metadata, 'file_path')
+            ?? $cost?->file_path;
+        $fileSha256 = Arr::get($afterState, 'file_sha256')
+            ?? Arr::get($beforeState, 'file_sha256')
+            ?? Arr::get($metadata, 'file_sha256')
+            ?? $receiptFile?->sha256
+            ?? $cost?->file_sha256;
+        $internalControlStatus = $this->internalControlStatusService->statusForAuditRecord(
+            $filePath,
+            $fileSha256,
+            $event->occurred_at,
+        );
 
         return [
             'timecard_record_id' => $event->timecard_record_id,
@@ -206,10 +249,10 @@ class TimecardAuditLogService
             'department' => Arr::get($afterState, 'department')
                 ?? Arr::get($beforeState, 'department')
                 ?? $cost?->department,
-            'file_path' => Arr::get($afterState, 'file_path')
-                ?? Arr::get($beforeState, 'file_path')
-                ?? Arr::get($metadata, 'file_path')
-                ?? $cost?->file_path,
+            'file_path' => $filePath,
+            'receipt_file_id' => $receiptFileId,
+            'file_sha256' => $fileSha256,
+            'internal_control_status' => $internalControlStatus,
             'ocr_run_id' => Arr::get($metadata, 'ocr_run_id'),
         ];
     }

@@ -393,6 +393,7 @@ class AdminWorkController extends Controller{
             'amount_min' => 'nullable|numeric',
             'amount_max' => 'nullable|numeric',
             'approval_state' => 'nullable|integer',
+            'export' => 'nullable|boolean',
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
         ]);
@@ -432,6 +433,43 @@ class AdminWorkController extends Controller{
             ->orderByDesc('occurred_at')
             ->orderByDesc('timecard_audit_event_id');
 
+        if (!empty($validated['export'])) {
+            return response()->streamDownload(function () use ($query) {
+                $out = fopen('php://output', 'w');
+                fputcsv($out, [
+                    'event_id',
+                    'occurred_at',
+                    'event_type',
+                    'subject_user_id',
+                    'receipt_date',
+                    'merchant_name',
+                    'expenses',
+                    'currency',
+                    'file_path',
+                    'file_sha256',
+                    'internal_control_status',
+                ]);
+                $query->chunk(500, function ($rows) use ($out) {
+                    foreach ($rows as $row) {
+                        fputcsv($out, [
+                            $row->timecard_audit_event_id,
+                            $row->occurred_at?->toDateTimeString(),
+                            $row->event_type,
+                            $row->subject_user_id,
+                            $row->receipt_date?->toDateString(),
+                            $row->merchant_name,
+                            $row->expenses,
+                            $row->currency,
+                            $row->file_path,
+                            $row->file_sha256,
+                            $row->internal_control_status,
+                        ]);
+                    }
+                });
+                fclose($out);
+            }, 'timecard-audit-export.csv', ['Content-Type' => 'text/csv']);
+        }
+
         $paginated = $query->paginate($perPage);
 
         $events = $paginated->getCollection()->map(function (TimecardAuditEventProjection $projection) {
@@ -447,7 +485,10 @@ class AdminWorkController extends Controller{
                 'merchant_name' => $projection->merchant_name,
                 'expenses' => $projection->expenses,
                 'department' => $projection->department,
-                'receipt_preview_path' => $projection->file_path ? "/cdn/timecard_files/{$projection->file_path}" : null,
+                'receipt_file_url' => $projection->file_path ? "/cdn/timecard_files/{$projection->file_path}" : null,
+                'receipt_file_id' => $projection->receipt_file_id,
+                'file_sha256' => $projection->file_sha256,
+                'internal_control_status' => $projection->internal_control_status,
                 'draft_uuid' => $projection->draft_uuid,
             ];
         })->values();
@@ -468,7 +509,8 @@ class AdminWorkController extends Controller{
             'actor',
             'subject',
             'timecard:id,day,status_flag,user_id,approved_by,work_group_id,start_time,end_time',
-            'timecardCost:id,record_id,merchant_name,receipt_date,expenses,file_path,currency,receipt_source_type,department,content,type,transport_type,departure_place,arrival_place',
+            'timecardCost:id,record_id,merchant_name,receipt_date,expenses,file_path,receipt_file_id,file_sha256,currency,receipt_source_type,department,content,type,transport_type,departure_place,arrival_place,scan_dpi,scan_color_depth,scan_color_mode,document_size,image_width_px,image_height_px',
+            'timecardCost.receiptFile',
         ]);
 
         $metadata = $event->metadata ?? [];
@@ -482,6 +524,9 @@ class AdminWorkController extends Controller{
             ?? Arr::get($event->after_state, 'file_path')
             ?? Arr::get($event->before_state, 'file_path')
             ?? Arr::get($metadata, 'file_path');
+        $internalControlStatus = TimecardAuditEventProjection::query()
+            ->where('timecard_audit_event_id', $event->id)
+            ->value('internal_control_status');
 
         return response()->json([
             'id' => $event->id,
@@ -495,7 +540,9 @@ class AdminWorkController extends Controller{
             'before_state' => $event->before_state,
             'after_state' => $event->after_state,
             'metadata' => $metadata,
-            'receipt_preview_path' => $filePath ? "/cdn/timecard_files/{$filePath}" : null,
+            'internal_control_status' => $internalControlStatus,
+            'receipt_file_url' => $filePath ? "/cdn/timecard_files/{$filePath}" : null,
+            'receipt_file' => $cost?->receiptFile,
             'ocr_run' => $ocrRun ? [
                 'id' => $ocrRun->id,
                 'provider' => $ocrRun->provider,

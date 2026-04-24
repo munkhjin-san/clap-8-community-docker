@@ -20,6 +20,9 @@ class TimecardAuditEvent extends Model
         'before_state',
         'after_state',
         'metadata',
+        'payload_hash',
+        'previous_event_hash',
+        'event_hash',
         'occurred_at',
     ];
 
