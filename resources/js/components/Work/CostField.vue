@@ -32,7 +32,6 @@
         </div>
         
         <input
-            v-if="type !== 4 && type !== 1"
             name="content"
             placeholder="内容"
             type="text"
@@ -54,7 +53,7 @@
             </div>
             
             <button
-                v-if="type == 1 && expenses"
+                v-if="(type == 1 || type == 4) && expenses"
                 type="button"
                 class="round-trip-button"
                 :class="{ 'round-trip-applied': roundTripApplied }"
@@ -299,16 +298,17 @@ const transportLabelMap = {
 const buildTransportContent = () => {
     const route = [departurePlace.value, arrivalPlace.value].filter(Boolean).join(' → ')
     const transportLabel = transportLabelMap[transportType.value] ?? ''
+    const roundTripSuffix = roundTripApplied.value ? '（往復）' : ''
 
     if (!route) {
         return ''
     }
 
     if (transportLabel) {
-        return `${transportLabel} / ${route}`
+        return `${transportLabel} / ${route}${roundTripSuffix}`
     }
 
-    return route
+    return `${route}${roundTripSuffix}`
 }
 
 const fileSrc = (file) => `/cdn/timecard_files/${file}`
@@ -480,6 +480,12 @@ watch(expenses, () => {
         return
     }
     roundTripApplied.value = false
+})
+
+watch(roundTripApplied, () => {
+    if ([1, 4].includes(Number(type.value))) {
+        content.value = buildTransportContent()
+    }
 })
 </script>
 <style scoped>

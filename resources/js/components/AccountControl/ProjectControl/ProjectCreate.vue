@@ -233,7 +233,7 @@
                                                             v-model="field.label"
                                                             type="text"
                                                             placeholder="フィールド名（例：種別、支店名）"
-                                                            class="border border-solid border-[var(--normalBorder)] px-[10px] py-[6px] text-[12px] text-[var(--primary-color)] min-w-[160px]"
+                                                            class="border border-solid border-[var(--normalBorder)] px-[10px] py-[6px] text-[12px] text-[var(--primary-color)] min-w-[200px]"
                                                         />
                                                         <input
                                                             v-if="field.type === 'select'"
