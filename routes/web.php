@@ -342,6 +342,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
             Route::get('/users/{id}/history', [RefreshController::class, 'userHistory']);
             Route::get('/management', [RefreshController::class, 'indexManagement']);
             Route::post('/management/grants', [RefreshController::class, 'storeManagementGrant']);
+            Route::patch('/management/leave-review', [RefreshController::class, 'confirmLeaveReview']);
             Route::delete('/management/reviews', [RefreshController::class, 'destroyManagementReview']);
         });
 

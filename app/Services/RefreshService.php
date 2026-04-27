@@ -577,6 +577,59 @@ class RefreshService
         });
     }
 
+    public function confirmLeaveReview(int $userId, int $grantYear, int $actorId): array
+    {
+        $user = User::query()
+            ->select('id', 'position_id')
+            ->whereKey($userId)
+            ->with('activeLeaveRecord')
+            ->firstOrFail();
+
+        if (! in_array((int) $user->position_id, self::ELIGIBLE_POSITION_IDS, true)) {
+            abort(422, '対象外の社員です。');
+        }
+
+        if (! $user->activeLeaveRecord) {
+            throw ValidationException::withMessages([
+                'user_id' => ['確認対象の休職・育休がありません。'],
+            ]);
+        }
+
+        return DB::transaction(function () use ($user, $grantYear, $actorId) {
+            $account = RefreshAccount::query()->firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'is_active' => true,
+                    'opening_total_granted' => 0,
+                    'opening_total_used' => 0,
+                    'opening_remaining_amount' => 0,
+                ],
+            );
+
+            $review = RefreshAnnualReview::query()->firstOrNew([
+                'refresh_account_id' => $account->id,
+                'grant_year' => $grantYear,
+            ]);
+
+            if (! in_array($review->status, ['draft', 'hold'], true)) {
+                $review->status = $review->status ?: 'done';
+            }
+
+            $review->leave_status = $this->formatLeaveStatus($user->activeLeaveRecord);
+            $review->leave_review_confirmed_at = now();
+            $review->leave_review_confirmed_by_user_id = $actorId;
+            $review->reviewed_by_user_id = $actorId;
+            $review->reviewed_at = now();
+            $review->save();
+
+            return [
+                'confirmed' => true,
+                'user_id' => $user->id,
+                'grant_year' => $grantYear,
+            ];
+        });
+    }
+
     public function approveApplication(int $postId, int $actorId, bool $forceUseRemaining = false): array
     {
         return DB::transaction(function () use ($postId) {
@@ -932,6 +985,14 @@ class RefreshService
             'judgementNote' => $currentReview?->decision_note ?? '',
             'status' => $this->resolveEmployeeStatus($currentReview, $grants, $targetYear, $activeLeaveRecord, $pendingUsages),
             'statusReason' => $this->resolveEmployeeStatusReason($currentReview, $grants, $targetYear, $activeLeaveRecord, $pendingUsages),
+            'leaveReview' => [
+                'hasActiveLeave' => (bool) $activeLeaveRecord,
+                'confirmed' => (bool) $currentReview?->leave_review_confirmed_at,
+                'canMoveToReady' => (bool) $activeLeaveRecord
+                    && ! $currentReview?->leave_review_confirmed_at
+                    && (($pendingUsages?->count() ?? 0) === 0)
+                    && ! in_array($currentReview?->status, ['draft', 'hold'], true),
+            ],
             'reviewDraft' => [
                 'hasSavedReview' => (bool) $currentReview,
                 'hasRegisteredGrant' => $hasRegisteredGrant,
@@ -954,6 +1015,7 @@ class RefreshService
                     'appliedAt' => $this->formatDate($usage->used_at),
                     'title' => $usage->post?->title ?? 'リフレッシュ利用申請',
                     'note' => $usage->post?->content ?? '',
+                    'receipts' => $usage->post?->receipts ?? [],
                 ];
             })->values(),
             'grants' => $grantRows,
@@ -986,11 +1048,15 @@ class RefreshService
                 && (int) $grant->grant_year === $targetYear;
         });
 
-        if ($activeLeaveRecord || in_array($review?->status, ['draft', 'hold'], true)) {
+        if (in_array($review?->status, ['draft', 'hold'], true)) {
             return 'review';
         }
 
-        if ($hasCurrentYearAnnualGrant || $review?->status === 'done') {
+        if ($activeLeaveRecord && ! $review?->leave_review_confirmed_at) {
+            return 'review';
+        }
+
+        if ($hasCurrentYearAnnualGrant) {
             return 'done';
         }
 
@@ -1014,10 +1080,6 @@ class RefreshService
                 && (int) $grant->grant_year === $targetYear;
         });
 
-        if ($activeLeaveRecord) {
-            return '休職・育休あり';
-        }
-
         if ($review?->status === 'hold') {
             return $hasCurrentYearAnnualGrant
                 ? '年次付与済み / 保留あり'
@@ -1030,8 +1092,16 @@ class RefreshService
                 : '下書きあり';
         }
 
+        if ($activeLeaveRecord && ! $review?->leave_review_confirmed_at) {
+            return '休職・育休あり';
+        }
+
         if ($hasCurrentYearAnnualGrant) {
             return '今年分を登録済み';
+        }
+
+        if ($activeLeaveRecord && $review?->leave_review_confirmed_at) {
+            return '休職・育休確認済み';
         }
 
         if ($review?->status === 'done') {

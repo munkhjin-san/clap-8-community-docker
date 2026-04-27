@@ -11,6 +11,7 @@ class RefreshAnnualReview extends Model
     protected $casts = [
         'grant_date' => 'date',
         'reviewed_at' => 'datetime',
+        'leave_review_confirmed_at' => 'datetime',
     ];
 
     public function refreshAccount()

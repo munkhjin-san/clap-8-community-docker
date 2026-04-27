@@ -139,11 +139,36 @@
                                 <p>{{ usage.appliedAt }} ・ 申請額 {{ formatCurrency(usage.requestedAmount) }}</p>
                                 <p v-if="usage.note">{{ usage.note }}</p>
                             </div>
+
+                            <div v-if="usage.receipts.length" class="usage-receipts-panel">
+                                <div class="usage-receipts-head">
+                                    <span>領収書</span>
+                                    <strong>{{ usage.receipts.length }}件</strong>
+                                </div>
+                                <div class="usage-receipt-grid">
+                                    <button
+                                        v-for="(receipt, index) in imageReceipts(usage.receipts)"
+                                        :key="receipt.id"
+                                        type="button"
+                                        class="usage-receipt-image"
+                                        @click="previewReceiptImage(usage.receipts, receipt, index)"
+                                    >
+                                        <img :src="receiptImagePath(receipt)" :alt="receipt.name">
+                                    </button>
+                                </div>
+                                <PostFiles
+                                    v-if="nonImageReceipts(usage.receipts).length"
+                                    path="/post_receipts"
+                                    :items="nonImageReceipts(usage.receipts)"
+                                />
+                            </div>
                             <div class="usage-review-actions">
                                 <label>
                                     <span>確定利用額</span>
                                     <input v-model.number="pendingUsageAmounts[usage.id]" type="number" min="1" step="100">
                                 </label>
+                                
+
                                 <button
                                     type="button"
                                     class="usage-confirm-button"
@@ -174,6 +199,16 @@
                             <span>今年の判断メモ</span>
                             <p>{{ selectedEmployee.judgementNote }}</p>
                         </div>
+
+                        <button
+                            v-if="canMoveLeaveReviewToReady"
+                            type="button"
+                            class="leave-ready-button"
+                            :disabled="saving"
+                            @click="confirmLeaveReview"
+                        >
+                            そのまま付与へ
+                        </button>
                     </aside>
 
                     <section class="ledger-panel">
@@ -337,8 +372,10 @@ import UserPanel from '@/components/Global/UserPanel.vue';
 import { useApi } from '@/composables/api';
 import { DateTime } from 'luxon';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { User } from '@/interface/globalInterface';
+import { CommonFile, User } from '@/interface/globalInterface';
 import { useTheme } from '@/store/theme';
+import PostFiles from '@/components/Post/PostFiles.vue';
+import { useFilePreview } from '@/store/filePreview';
 
 type EmployeeStatus = 'ready' | 'review' | 'done';
 type QueueFilter = 'all' | EmployeeStatus;
@@ -379,6 +416,7 @@ interface PendingUsage {
     appliedAt: string;
     title: string;
     note: string;
+    receipts: CommonFile[];
 }
 
 interface EmployeeRecord {
@@ -405,6 +443,11 @@ interface EmployeeRecord {
         amount: number;
         registrationStatus: RegistrationStatus;
         judgementNote: string;
+    };
+    leaveReview: {
+        hasActiveLeave: boolean;
+        confirmed: boolean;
+        canMoveToReady: boolean;
     };
     pendingUsages: PendingUsage[];
     grants: EmployeeGrant[];
@@ -455,10 +498,12 @@ const grantTypeOptions: { value: GrantType; label: string }[] = [
 ];
 const theme = useTheme()
 const api = useApi();
+const filePreview = useFilePreview();
 const loading = ref(false);
 const saving = ref(false);
 const syncing = ref(false);
 const employees = ref<EmployeeRecord[]>([]);
+const targetYear = ref(DateTime.now().year);
 const stats = ref<RefreshManagementResponse['stats']>({
     eligible_count: 0,
     ready_count: 0,
@@ -498,6 +543,10 @@ const selectedEmployee = computed(() => {
 const eligibleCount = computed(() => stats.value.eligible_count);
 const readyCount = computed(() => stats.value.ready_count);
 const reviewCount = computed(() => stats.value.review_count);
+const canMoveLeaveReviewToReady = computed(() => {
+    return !!selectedEmployee.value?.leaveReview.canMoveToReady
+        && selectedEmployee.value.statusReason === '休職・育休あり';
+});
 
 const selectedDecisionRows = computed<DecisionItem[]>(() => {
     if (!selectedEmployee.value) return [];
@@ -621,6 +670,36 @@ const formatDisplayDate = (value: string) => {
     return date.isValid ? date.toFormat('yyyy.MM.dd') : value;
 };
 
+const imageReceipts = (receipts: CommonFile[]) => {
+    return receipts.filter((receipt) => receipt.mime_type === 'image');
+};
+
+const nonImageReceipts = (receipts: CommonFile[]) => {
+    return receipts.filter((receipt) => receipt.mime_type !== 'image');
+};
+
+const receiptImagePath = (receipt: CommonFile) => {
+    return `/cdn/post_receipts/${receipt.id}_${receipt.user_id}_${receipt.path}.${receipt.extension}`;
+};
+
+const previewReceiptImage = (receipts: CommonFile[], receipt: CommonFile, imageIndex: number) => {
+    const images = imageReceipts(receipts).map((fileData) => ({
+        ...fileData,
+        file_path: receiptImagePath(fileData),
+        thumbnail_path: `/cdn/post_receipts/${fileData.id}_${fileData.user_id}_${fileData.path}_thumbnail.webp`,
+    }));
+
+    filePreview.setFilePreview({
+        active: true,
+        files: images,
+        target: receipt,
+        source: 'post',
+        source_board_id: null,
+        index: imageIndex,
+        message: null,
+    });
+};
+
 const yearsWorkedLabel = (hireDate: string) => {
     const start = DateTime.fromISO(hireDate);
     if (!start.isValid) return '';
@@ -665,6 +744,7 @@ const getRefreshManagement = async () => {
 
     if (!data) return;
 
+    targetYear.value = data.year;
     employees.value = data.employees ?? [];
     stats.value = data.stats ?? {
         eligible_count: 0,
@@ -719,6 +799,23 @@ const discardReviewDraft = async () => {
     if (!result) return;
 
     showGrantEditor.value = false;
+    await getRefreshManagement();
+};
+
+const confirmLeaveReview = async () => {
+    if (!selectedEmployee.value) return;
+
+    const result = await api.patch('/refresh/management/leave-review', {
+        user_id: selectedEmployee.value.id,
+        grant_year: targetYear.value,
+    }, {
+        loadingRef: saving,
+        ask: '休職・育休を確認済みにして、そのまま付与へ移動しますか？',
+        toast: '休職・育休を確認済みにしました。',
+    });
+
+    if (!result) return;
+
     await getRefreshManagement();
 };
 
@@ -1186,17 +1283,23 @@ input, select, textarea {
 }
 
 .usage-review-card {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(260px, 420px) 150px;
+    align-items: stretch;
     gap: 12px;
     padding: 10px;
     border-radius: 6px;
     background: var(--background-color);
 }
 
+.usage-review-copy {
+    min-width: 0;
+}
+
 .usage-review-copy strong {
     display: block;
     font-size: 13px;
+    line-height: normal;
 }
 
 .usage-review-copy p {
@@ -1205,9 +1308,58 @@ input, select, textarea {
     color: var(--text2);
 }
 
+.usage-receipts-panel {
+    min-width: 0;
+    padding: 8px;
+    border-radius: 6px;
+    background: var(--bg3);
+}
+
+.usage-receipts-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 11px;
+    color: var(--text2);
+}
+
+.usage-receipts-head strong {
+    color: var(--primary-color);
+}
+
+.usage-receipts-panel :deep(.file-area-content) {
+    margin-top: 8px !important;
+}
+
+.usage-receipt-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    gap: 8px;
+}
+
+.usage-receipt-image {
+    aspect-ratio: 4 / 3;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: var(--background-color);
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.usage-receipt-image img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+}
+
 .usage-review-actions {
     display: flex;
-    align-items: end;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: stretch;
     gap: 8px;
 }
 
@@ -1218,7 +1370,7 @@ input, select, textarea {
 }
 
 .usage-review-actions input {
-    width: 120px;
+    width: 100%;
     border: 1px solid var(--formBorder);
     border-radius: 6px;
     background: var(--background-color);
@@ -1228,6 +1380,7 @@ input, select, textarea {
 
 .usage-confirm-button {
     height: 36px;
+    width: 100%;
     padding: 0 12px;
     border-radius: 6px;
     border: 1px solid #4b4b4b;
@@ -1236,6 +1389,18 @@ input, select, textarea {
     font-size: 12px;
     cursor: pointer;
     white-space: nowrap;
+    box-sizing: border-box !important;
+}
+
+@media (max-width: 1200px) {
+    .usage-review-card {
+        grid-template-columns: minmax(0, 1fr) 150px;
+    }
+
+    .usage-receipts-panel {
+        grid-column: 1 / -1;
+        order: 3;
+    }
 }
 
 .usage-confirm-button:disabled {
@@ -1274,6 +1439,23 @@ input, select, textarea {
     padding: 12px;
     border-radius: 6px;
     background: var(--background-color);
+}
+
+.leave-ready-button {
+    width: 100%;
+    height: 34px;
+    margin-top: 10px;
+    border-radius: 6px;
+    border: 1px solid #4b4b4b;
+    background: #4b4b4b;
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.leave-ready-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .form-grid {

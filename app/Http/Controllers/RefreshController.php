@@ -141,4 +141,20 @@ class RefreshController extends Controller
             )
         );
     }
+
+    public function confirmLeaveReview(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|integer|exists:users,id',
+            'grant_year' => 'required|integer|min:2000|max:2100',
+        ]);
+
+        return response()->json(
+            $this->refreshService->confirmLeaveReview(
+                (int) $validated['user_id'],
+                (int) $validated['grant_year'],
+                (int) Auth::id(),
+            )
+        );
+    }
 }
