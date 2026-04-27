@@ -9,12 +9,19 @@ use Illuminate\Console\Command;
 
 class VerifyTimecardAuditIntegrity extends Command
 {
-    protected $signature = 'app:verify-timecard-audit-integrity {--date= : Verify one YYYY-MM-DD digest date}';
+    protected $signature = 'app:verify-timecard-audit-integrity
+        {--date= : Verify one YYYY-MM-DD digest date}
+        {--repair : Recalculate the full audit hash chain before verifying}
+        {--require-digest : Fail date verification when the daily digest is missing}';
 
     protected $description = 'Verify timecard audit hash chain and optional daily digest';
 
     public function handle(AuditHashService $auditHashService): int
     {
+        if ($this->option('repair')) {
+            $this->repairHashChain($auditHashService);
+        }
+
         $date = $this->option('date');
         $query = TimecardAuditEvent::query()->orderBy('id');
         if ($date) {
@@ -34,7 +41,9 @@ class VerifyTimecardAuditIntegrity extends Command
             if ($event->previous_event_hash !== $expected['previous_event_hash']
                 || $event->payload_hash !== $expected['payload_hash']
                 || $event->event_hash !== $expected['event_hash']) {
-                $this->error("Audit hash mismatch at event {$event->id}.");
+                $message = "Audit hash mismatch at event {$event->id}.";
+                $this->error($message);
+                $this->appendCommandLog($message);
                 return self::FAILURE;
             }
 
@@ -44,17 +53,56 @@ class VerifyTimecardAuditIntegrity extends Command
 
         if ($date) {
             $digest = AuditDailyDigest::whereDate('digest_date', $date)->first();
+            if (!$digest && $this->option('require-digest')) {
+                $message = "Daily digest missing for {$date}.";
+                $this->error($message);
+                $this->appendCommandLog($message);
+                return self::FAILURE;
+            }
+
             if ($digest) {
                 $digestHash = hash('sha256', implode('', $hashes));
                 if ($digest->event_count !== count($hashes) || $digest->digest_hash !== $digestHash) {
-                    $this->error("Daily digest mismatch for {$date}.");
+                    $message = "Daily digest mismatch for {$date}.";
+                    $this->error($message);
+                    $this->appendCommandLog($message);
                     return self::FAILURE;
                 }
             }
         }
 
-        $this->info('Timecard audit integrity verified.');
+        $message = 'Timecard audit integrity verified.';
+        $this->info($message);
+        $this->appendCommandLog($message);
 
         return self::SUCCESS;
+    }
+
+    private function repairHashChain(AuditHashService $auditHashService): void
+    {
+        $previousHash = null;
+        $count = 0;
+
+        TimecardAuditEvent::query()
+            ->orderBy('id')
+            ->chunkById(200, function ($events) use (&$previousHash, &$count, $auditHashService): void {
+                foreach ($events as $event) {
+                    $event->forceFill($auditHashService->hashesForEvent($event, $previousHash))->save();
+                    $previousHash = $event->event_hash;
+                    $count++;
+                }
+            });
+
+        $this->info("Repaired {$count} audit hashes before verification.");
+    }
+
+    private function appendCommandLog(string $message): void
+    {
+        $path = storage_path('logs/timecard-audit-integrity.log');
+        if (!is_dir(dirname($path))) {
+            mkdir(dirname($path), 0755, true);
+        }
+
+        file_put_contents($path, '['.now()->toDateTimeString()."] {$message}\n", FILE_APPEND);
     }
 }

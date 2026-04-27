@@ -36,9 +36,9 @@ class TimecardAuditLogService
             ->whereNotNull('event_hash')
             ->latest('id')
             ->value('event_hash');
-        $payload = array_merge($payload, $this->auditHashService->hashesForPayload($payload, $previousHash));
 
         $event = TimecardAuditEvent::create($payload);
+        $event->forceFill($this->auditHashService->hashesForEvent($event->fresh(), $previousHash))->save();
         $this->syncProjectionForEvent($event);
 
         return $event;

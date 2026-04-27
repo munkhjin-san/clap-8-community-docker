@@ -149,7 +149,7 @@
                                             boxSizing: 'border-box !important',
                                         }"
                                     >
-                                        <option value="" style="color: #9ca3af;">{{ field.label }}</option>
+                                        <option value="" style="color: gray;">{{ field.label }}</option>
                                         <option v-for="opt in (field.options ?? [])" :key="opt" :value="opt" style="color: var(--primary-color);">{{ opt }}</option>
                                     </select>
                                     <input
