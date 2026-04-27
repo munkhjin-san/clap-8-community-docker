@@ -875,8 +875,8 @@ import { useTour } from '@/composables/useTour';
             const answer = await ask('日報を申請します。承認までは修正できます。よろしいですか。')
             if(!answer.value) return
         }
-        if (actualRows.value.some(a => a.status.includes('インセンティブ'))) {
-            incentives.value[0].count = actualRows.value.find(a => a.status.includes('インセンティブ')).value
+        if (actualRows.value.some(a => a.status?.includes('インセンティブ'))) {
+            incentives.value[0].count = actualRows.value.find(a => a.status?.includes('インセンティブ')).value
         }
         // loading.value[status_flag] = true
         const status = action === 'apply' ? 1 : 0
