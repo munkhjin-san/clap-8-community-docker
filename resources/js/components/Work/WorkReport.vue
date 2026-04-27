@@ -138,19 +138,27 @@
                                     <select
                                         v-if="field.type === 'select'"
                                         v-model="row.meta[field.label]"
-                                        class="optionPicker"
-                                        style="max-width: 160px;"
                                         :disabled="isLocked"
+                                        :style="{
+                                            height: '38px',
+                                            padding: '0px 10px',
+                                            border: '1px solid var(--primary-color)',
+                                            color: row.meta[field.label] ? 'var(--primary-color)' : 'gray',
+                                            appearance: 'auto',
+                                            minWidth: '120px',
+                                            boxSizing: 'border-box !important',
+                                        }"
                                     >
-                                        <option value="">{{ field.label }}</option>
-                                        <option v-for="opt in (field.options ?? [])" :key="opt" :value="opt">{{ opt }}</option>
+                                        <option value="" style="color: #9ca3af;">{{ field.label }}</option>
+                                        <option v-for="opt in (field.options ?? [])" :key="opt" :value="opt" style="color: initial;">{{ opt }}</option>
                                     </select>
                                     <input
                                         v-else
                                         type="text"
                                         v-model="row.meta[field.label]"
                                         :placeholder="field.label"
-                                        style="padding: 0px 10px; height:38px; min-width: 120px; border:1px solid var(--primary-color); color:var(--primary-color);"
+                                        class="md:min-w-[120px] min-w-full !box-border"
+                                        style="padding: 0px 10px; height:38px; border:1px solid var(--primary-color); color:var(--primary-color);"
                                         :disabled="isLocked"
                                     />
                                 </template>
@@ -228,8 +236,8 @@
                 />              
                 <div id="saveButton" class="si-box" style="display: flex; justify-content: center; gap: 20px;">
                     <template v-if="!isLocked">
-                        <LoaderButton style="margin: 0" :loading="loading[0]" content="一時保存" @triggered="saveTimeCard(0)" />
-                        <LoaderButton style="margin: 0" :loading="loading[1]" content="申請する" @triggered="saveTimeCard(1)" />
+                        <LoaderButton style="margin: 0" :loading="saveLoading" content="一時保存" @triggered="saveTimeCard('save')" />
+                        <LoaderButton style="margin: 0" :loading="applyLoading" content="申請する" @triggered="saveTimeCard('apply')" />
                     </template>
                     <p v-else style="margin: 0; font-size: 13px;">承認済みの日報は編集できません。</p>
                 </div>
@@ -318,6 +326,8 @@ import { useTour } from '@/composables/useTour';
         }
     ])
     const loading = ref([false, false])
+    const saveLoading = ref(false)
+    const applyLoading = ref(false)
     const editStartTime = ref(timeCard.value?.start_time ? timeCard.value.start_time : shift.value?.start_time ? shift.value.start_time : '09:00:00')
     const editEndTime = ref(timeCard.value?.end_time ? timeCard.value.end_time : shift.value?.end_time ? shift.value.end_time : '18:00:00')
     const trainingStartTime = ref(timeCard.value?.training_start_time ? timeCard.value.training_start_time : null)
@@ -721,7 +731,7 @@ import { useTour } from '@/composables/useTour';
             // Validate extra fields are filled when a value is entered
             const statusDefs = selectedProject.value?.actual_statuses ?? []
             for (const row of actualRows.value) {
-                if (row.value === null || row.value === '' || row.value === undefined) continue
+                if (row.value === null || row.value === '' || row.value === undefined || row.value === 0) continue
                 const def = statusDefs.find(s => (s.label ?? s.custom_label) === row.status)
                 const extraFields = def?.extra_fields ?? []
                 for (const field of extraFields) {
@@ -846,7 +856,7 @@ import { useTour } from '@/composables/useTour';
             resolve(a)
         })
     }
-    const saveTimeCard = async(status_flag) => {
+    const saveTimeCard = async(action) => {
         if (isLocked.value) {
             ping('承認済みの日報は編集できません。')
             return
@@ -860,19 +870,23 @@ import { useTour } from '@/composables/useTour';
         if(includesWorkHours.value && shift.value?.overtime_request){
             const confirm = await confirmOvertime()
             if(!confirm.value) return            
-        } else if(includesWorkHours.value && status_flag === 1){
+        } else if(includesWorkHours.value && action === 'apply'){
             await fifteenMinuteCalc()
             const answer = await ask('日報を申請します。承認までは修正できます。よろしいですか。')
             if(!answer.value) return
         }
-        if (actualRows.value.some(a => a.status == 'インセンティブ')) {
-            incentives.value[0].count = actualRows.value.find(a => a.status == 'インセンティブ').value
+        if (actualRows.value.some(a => a.status.includes('インセンティブ'))) {
+            incentives.value[0].count = actualRows.value.find(a => a.status.includes('インセンティブ')).value
         }
-        loading.value[status_flag] = true
-        const params = await buildParams(status_flag)
+        // loading.value[status_flag] = true
+        const status = action === 'apply' ? 1 : 0
+        const params = await buildParams(status)
         await api.post('/save_time_card', params, {
-            toast: '申請しました。'
+            toast: '申請しました。',
+            loadingRef: action === 'save' ? saveLoading : applyLoading,
         })
+        
+        
         emit('reload')
     }
     const isInvalidTime = (t) => {

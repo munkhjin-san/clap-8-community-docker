@@ -1368,6 +1368,11 @@ class WorkController extends Controller
                     throw ValidationException::withMessages(['message' => '経費必須です。']);
                 }
             }
+            if(filled($move['expenses'] ?? null)){
+                if(blank($move['merchant_name'] ?? null) && blank($move['receipt_date'] ?? null)){
+                    throw ValidationException::withMessages(['message' => '取引先、領収書日付のいずれか必須です。']);
+                }
+            }
             if (
                 $statusFlag === 1 &&
                 !empty($move['file_path']) &&
