@@ -1304,8 +1304,9 @@ input, select, textarea {
 
 .usage-review-copy p {
     margin: 4px 0 0;
-    font-size: 11px;
+    font-size: 13px;
     color: var(--text2);
+    line-height: normal;
 }
 
 .usage-receipts-panel {

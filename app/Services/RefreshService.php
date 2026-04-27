@@ -687,7 +687,7 @@ class RefreshService
                     'approved_at' => null,
                 ],
             );
-
+            $post->timestamps = false;
             $post->status_flag = 2;
             $post->save();
 
@@ -760,6 +760,7 @@ class RefreshService
             $this->allocateUsageToGrants($account, $usage, $amount);
 
             if ($usage->post) {
+                $usage->post->timestamps = false;
                 $usage->post->status_flag = 1;
                 $usage->post->save();
             }

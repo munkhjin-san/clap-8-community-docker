@@ -150,7 +150,7 @@
                                         }"
                                     >
                                         <option value="" style="color: #9ca3af;">{{ field.label }}</option>
-                                        <option v-for="opt in (field.options ?? [])" :key="opt" :value="opt" style="color: initial;">{{ opt }}</option>
+                                        <option v-for="opt in (field.options ?? [])" :key="opt" :value="opt" style="color: var(--primary-color);">{{ opt }}</option>
                                     </select>
                                     <input
                                         v-else
