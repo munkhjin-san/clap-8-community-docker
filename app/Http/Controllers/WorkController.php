@@ -1273,7 +1273,9 @@ class WorkController extends Controller
                 blank($cost['expenses'] ?? null) &&
                 blank($cost['file_path'] ?? null) &&
                 blank($cost['departure_place'] ?? null) &&
-                blank($cost['arrival_place'] ?? null)
+                blank($cost['arrival_place'] ?? null) && 
+                blank($cost['merchant_name'] ?? null) &&
+                blank($cost['receipt_date'] ?? null)
             );
         }));
 
@@ -1359,6 +1361,7 @@ class WorkController extends Controller
     }
 
     private function validateCost($costs, int $statusFlag){
+        
         foreach($costs as $move){
             if($move['department'] == null ){
                 throw ValidationException::withMessages(['message' => '部門に割り当ててください。']);
@@ -1371,6 +1374,11 @@ class WorkController extends Controller
             if(filled($move['expenses'] ?? null)){
                 if(blank($move['merchant_name'] ?? null) && blank($move['receipt_date'] ?? null)){
                     throw ValidationException::withMessages(['message' => '取引先、領収書日付のいずれか必須です。']);
+                }
+            }
+            if(filled($move['merchant_name'] ?? null) || filled($move['receipt_date'] ?? null)){
+                if(blank($move['expenses'] ?? null)){
+                    throw ValidationException::withMessages(['message' => '経費必須です。']);
                 }
             }
             if (
