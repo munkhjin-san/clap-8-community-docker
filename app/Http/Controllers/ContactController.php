@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Services\ContactScanService; 
+use App\Services\ContactCardSplitService;
 use App\Services\ContactBatchSubmissionService;
 use App\Services\ContactBatchMonitorService;
 use App\Services\ContactBatchNotificationService;
@@ -30,12 +31,14 @@ class ContactController extends Controller
 
     protected $gemini_url;
     protected $contactScanService;
+    protected $contactCardSplitService;
     protected $contactBatchSubmissionService;
     protected $contactBatchMonitorService;
     protected $contactBatchNotificationService;
 
     public function __construct(
         ContactScanService $contactScanService,
+        ContactCardSplitService $contactCardSplitService,
         ContactBatchSubmissionService $contactBatchSubmissionService,
         ContactBatchMonitorService $contactBatchMonitorService,
         ContactBatchNotificationService $contactBatchNotificationService
@@ -43,6 +46,7 @@ class ContactController extends Controller
     {
         $this->gemini_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
         $this->contactScanService = $contactScanService;
+        $this->contactCardSplitService = $contactCardSplitService;
         $this->contactBatchSubmissionService = $contactBatchSubmissionService;
         $this->contactBatchMonitorService = $contactBatchMonitorService;
         $this->contactBatchNotificationService = $contactBatchNotificationService;
@@ -219,19 +223,7 @@ class ContactController extends Controller
         $storageDisk = Storage::disk('local');
         $directory = "contact_batches/{$batch->id}";
         $storageDisk->makeDirectory($directory);
-        foreach ($request->file('images', []) as $index => $file) {
-            $extension = $file->guessExtension() ?: $file->getClientOriginalExtension() ?: 'jpg';
-            $filename = Str::uuid()->toString() . '.' . $extension;
-            $relativePath = $file->storeAs($directory, $filename, 'local');
-
-            ContactBatchItem::create([
-                'contact_batch_id' => $batch->id,
-                'index' => $index,
-                'original_filename' => $file->getClientOriginalName(),
-                'stored_path' => $relativePath,
-                'status' => ContactBatchItem::STATUS_QUEUED,
-            ]);
-        }
+        $this->contactCardSplitService->createItems($batch, $request->file('images', []), $directory);
 
         if ($batch->items()->count() === 0) {
             $batch->delete();

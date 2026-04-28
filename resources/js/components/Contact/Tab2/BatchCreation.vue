@@ -35,6 +35,13 @@
                   @dragover.prevent
                   @drop.prevent="onDrop"
                 >
+                <div v-if="isProcessing" class="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[var(--bg3)] px-6 text-center">
+                  <div class="h-8 w-8 border-2 border-[var(--primary-color)] border-t-transparent rounded-full animate-spin"></div>
+                  <div>
+                    <p class="text-[14px] font-semibold text-[var(--primary-color)]">{{ processingTitle }}</p>
+                    <p class="mt-1 text-xs text-[gray] leading-5">{{ processingGuide }}</p>
+                  </div>
+                </div>
                 <div class="flex gap-5 mb-4 items-center">
                   <UploadIcon class="w-8 h-8 text-[gray]" />
                   <span class="text-[gray]">|</span>
@@ -145,8 +152,17 @@
                   </li>
                 </ul>
               </div>
+              <div v-if="isProcessing" class="mt-5 bg-[var(--bg3)] border border-[var(--bg2)] p-4">
+                <div class="flex items-start gap-3">
+                  <div class="mt-1 h-2.5 w-2.5 rounded-full bg-[var(--primary-color)] animate-pulse"></div>
+                  <div>
+                    <p class="text-[13px] font-semibold text-[var(--primary-color)]">{{ processingTitle }}</p>
+                    <p class="mt-1 text-xs text-[gray] leading-5">{{ processingDetail }}</p>
+                  </div>
+                </div>
+              </div>
               <div class="si-box">
-                <LoaderButton :loading="isProcessing" @triggered="execute" content="取り込みを開始"/>
+                <LoaderButton :loading="isProcessing" @triggered="execute" :content="submitButtonText"/>
               </div>
             </div>
         </template>
@@ -336,8 +352,29 @@ const borderStyle = computed(() => {
 })
 
 const labelText = computed(() => {
-  if (props.isProcessing) return '処理中...'
+  if (props.isProcessing) return processingTitle.value
   return '名刺画像をここにドラッグ＆ドロップするか、クリックして選択してください'
+})
+
+const selectedFileCount = computed(() => selectedFiles.value.length)
+
+const processingTitle = computed(() => {
+  return '名刺を取り込む準備をしています'
+})
+
+const processingGuide = computed(() => {
+  return '複数の名刺が写っている場合は自動で分割し、読み取りやすい画像に整えています。'
+})
+
+const processingDetail = computed(() => {
+  const count = selectedFileCount.value
+  const fileText = count > 0 ? `${count}件の画像を確認中です。` : '画像を確認中です。'
+
+  return `${fileText}名刺の分割、WebP変換、読み取り準備を行っています。この画面のまま少しお待ちください。`
+})
+
+const submitButtonText = computed(() => {
+  return props.isProcessing ? '準備中...' : '取り込みを開始'
 })
 
 watch(previews, (old, _new, onCleanup) => {

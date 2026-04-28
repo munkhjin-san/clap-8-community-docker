@@ -49,6 +49,7 @@ return [
             'gemini_api_key' => env('GEMINI_API_KEY'),
             'gemini_url' => env('GEMINI_URL'),
             'receipt_ocr_model' => env('GEMINI_RECEIPT_OCR_MODEL', 'models/gemini-3-flash-preview'),
+            'contact_card_split_model' => env('GEMINI_CONTACT_CARD_SPLIT_MODEL', 'models/gemini-3-flash-preview'),
     ],
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
