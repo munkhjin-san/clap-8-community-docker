@@ -57,22 +57,40 @@ export const getShiftWithWorkGroup = async(yearMonth: string, checkedUsers: numb
     return fetchData('/get_shift_with_work_group', yearMonth, checkedUsers)
 }
 
+export const fileExtensionFromPath = (file?: string | null) => {
+    return file?.split('?')[0]?.split('#')[0]?.split('.')?.pop()?.toLowerCase() || 'file'
+}
+
+const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif']
+
+export const filePreviewTypeFromPath = (file?: string | null, mimeType?: string | null) => {
+    if (mimeType === 'image' || mimeType?.startsWith('image/')) {
+        return 'image'
+    }
+
+    return imageExtensions.includes(fileExtensionFromPath(file)) ? 'image' : 'application'
+}
+
 export const workFilePreview = (file: string, type: string, base: string) => {
     const filePreview = useFilePreview()
     const file_path = `${base}/${file}`
+    const extension = fileExtensionFromPath(file)
+    const mimeType = type.includes('/') ? type.split('/')[0] : type
+    const previewType = mimeType === 'image' ? 'image' : filePreviewTypeFromPath(file)
     let target_data: any
-    if(type == 'image'){
+    if(previewType == 'image'){
         target_data = {
-            extension: 'webp',
+            extension: extension || 'webp',
             mime_type: 'image',
             file_path: file_path,
             name: file
         }
     } else {
         target_data = {
-            extension: 'pdf',
+            extension: extension || 'pdf',
             mime_type: 'application',
             file_path: file_path,
+            doc_path: `${base.replace('/cdn', '')}/${file}`,
             name: file
         }
     }

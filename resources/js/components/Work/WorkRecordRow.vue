@@ -63,12 +63,12 @@
                 <div @click="menu.close()" ref="costBox" class="comment-box" id="costBox" :style="{top: `${topOffset}px`}" v-if="menu.name == 'costBox' && menu.id == item.time_card?.id">
                     <div v-for="cost in item.time_card?.timecard_costs" :key="cost.id">
                         <div style="word-break: break-word;" v-html="formatCostString(cost)"></div>
-                        <div v-if="cost.file_path?.split('.').pop() == 'webp'">
-                            <img @click="workFilePreview(cost.file_path, 'image', '/cdn/timecard_files')" style="height:120px;cursor: pointer;" v-if="cost?.file_path" :src="`/cdn/timecard_files/${cost?.file_path}`"/>
+                        <div v-if="isCostImage(cost)">
+                            <img @click="previewCostFile(cost)" style="height:120px;cursor: pointer;" v-if="cost?.file_path" :src="costFileUrl(cost)"/>
                         </div>
-                        <div v-else-if="cost.file_path?.split('.').pop() == 'pdf'">
-                            <div class="cursor-pointer" style="position:relative;" @click="workFilePreview(cost.file_path, 'application', '/cdn/timecard_files')">
-                                <FileIcon ext="pdf"/>
+                        <div v-else-if="cost.file_path">
+                            <div class="cursor-pointer" style="position:relative;" @click="previewCostFile(cost)">
+                                <FileIcon :ext="costFileExtension(cost)"/>
                             </div>
                         </div>
                     </div>
@@ -148,7 +148,7 @@ import { computed, inject, onMounted, ref, useTemplateRef } from 'vue';
 import { useResponsive } from '@/store/responsive';
 import { useMenuStore } from "@/store/menu";
 import CommandButton from '../Global/CommandButton.vue';
-import { vehicleAsOptions, workFilePreview } from '../../utils/workApi';
+import { fileExtensionFromPath, filePreviewTypeFromPath, vehicleAsOptions, workFilePreview } from '../../utils/workApi';
 import FileIcon from '../Board/Mixed/FileIcon.vue';
 import WeatherIcon from '../Global/WeatherIcon.vue';
 import { DateTime } from 'luxon';
@@ -483,6 +483,26 @@ const formatCostString = (cost) => {
 
     return result;
 }
+const costFileExtension = (cost) => {
+    return fileExtensionFromPath(cost?.file_path)
+}
+
+const costFileType = (cost) => {
+    return filePreviewTypeFromPath(cost?.file_path, cost?.file_mime_type)
+}
+
+const isCostImage = (cost) => {
+    return Boolean(cost?.file_path) && costFileType(cost) === 'image'
+}
+
+const costFileUrl = (cost) => {
+    return `/cdn/timecard_files/${cost.file_path}`
+}
+
+const previewCostFile = (cost) => {
+    workFilePreview(cost.file_path, costFileType(cost), '/cdn/timecard_files')
+}
+
 const hasAction = computed(() => {
     const authorityCheck = Object.values(props.item.ability).some(val => val == true)
     return authorityCheck

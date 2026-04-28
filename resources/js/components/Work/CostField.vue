@@ -173,7 +173,7 @@
 import { computed, ref, watch } from 'vue';
 import OptionSelector from '../Form/OptionSelector.vue';
 import FileIcon from '../Board/Mixed/FileIcon.vue';
-import { workFilePreview } from '../../utils/workApi';
+import { filePreviewTypeFromPath, workFilePreview } from '../../utils/workApi';
 import { useDialog } from '@/composables/dialog';
 import { useApi } from '@/composables/api';
 import { useTheme } from '@/store/theme';
@@ -229,12 +229,7 @@ const api = useApi()
 const { ping } = useDialog()
 
 const currentFileType = computed(() => {
-    if (fileMimeType.value?.startsWith('image/')) {
-        return 'image'
-    }
-
-    const extension = fileModel.value?.split('.').pop()?.toLowerCase()
-    return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(extension) ? 'image' : 'application'
+    return filePreviewTypeFromPath(fileModel.value, fileMimeType.value)
 })
 
 const hasOcrSuggestions = computed(() => {

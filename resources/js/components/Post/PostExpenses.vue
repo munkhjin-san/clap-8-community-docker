@@ -44,12 +44,12 @@
                 <input accept="image/*,application/pdf" type="file" :name="`sharedfile${fieldIndex}`" :id="`sharedfile${fieldIndex}`" @change="addAttachment($event)" style="display: none;">
             </div>
             <div class="file-area-content" v-else style="margin:0">
-                <div v-if="file_type == 'image'" class="cost-file-container" @click.stop >   
+                <div v-if="previewFileType == 'image'" class="cost-file-container" @click.stop >   
                     <img
                         style="max-width:100%;margin:auto;max-height:100%;cursor: pointer;" 
                         class="list-image-mobile" 
                         :src=fileSrc(fileModel)
-                        @click="workFilePreview(fileModel, file_type, '/cdn/post_grant_files')"
+                        @click="workFilePreview(fileModel, previewFileType, '/cdn/post_grant_files')"
                     />
                     <div @click.stop="fileUpCancel()" class="cancelButton">
                         <svg @click.prevent version="1.1" xmlns="http://www.w3.org/2000/svg" width="7" height="7" viewBox="0 0 32 32" fill="var(--background-color)">
@@ -58,8 +58,8 @@
                     </div>  
                 </div>
                 <div v-else class="cost-file-container" @click.stop >   
-                    <div style="position:relative;" @click="workFilePreview(fileModel, file_type, '/cdn/post_grant_files')">
-                        <FileIcon :ext="file_type==='application' ? 'pdf' : 'file'"/>
+                    <div style="position:relative;" @click="workFilePreview(fileModel, previewFileType, '/cdn/post_grant_files')">
+                        <FileIcon :ext="fileExtension"/>
                     </div>
                     <div @click.stop="fileUpCancel()" class="cancelButton">
                         <svg @click.prevent version="1.1" xmlns="http://www.w3.org/2000/svg" width="7" height="7" viewBox="0 0 32 32" fill="var(--background-color)">
@@ -84,9 +84,9 @@
         </div>
 </template>
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import FileIcon from '../Board/Mixed/FileIcon.vue';
-import { workFilePreview } from '../../utils/workApi';
+import { fileExtensionFromPath, filePreviewTypeFromPath, workFilePreview } from '../../utils/workApi';
 import { useDialog } from '@/composables/dialog';
 import { useApi } from '@/composables/api';
 
@@ -100,6 +100,8 @@ import { useApi } from '@/composables/api';
     const api = useApi()
     
     const file_type = ref<'image'|'pdf'|'other'|'application'>('application')
+    const previewFileType = computed(() => filePreviewTypeFromPath(fileModel.value, file_type.value))
+    const fileExtension = computed(() => fileExtensionFromPath(fileModel.value))
     
     const emit = defineEmits(['addCostField', 'removeCostField', 'removeFile'])
     const { ping } = useDialog()
