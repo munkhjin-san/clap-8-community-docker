@@ -54,7 +54,22 @@ class VerifyTimecardAuditIntegrity extends Command
         if ($date) {
             $digest = AuditDailyDigest::whereDate('digest_date', $date)->first();
             if (!$digest && $this->option('require-digest')) {
-                $message = "Daily digest missing for {$date}.";
+                $totalEvents = TimecardAuditEvent::query()
+                    ->whereDate('occurred_at', $date)
+                    ->count();
+                $hashedEvents = TimecardAuditEvent::query()
+                    ->whereDate('occurred_at', $date)
+                    ->whereNotNull('event_hash')
+                    ->count();
+                if ($totalEvents === 0) {
+                    $message = "No audit events found for {$date}; daily digest is not required.";
+                    $this->info($message);
+                    $this->appendCommandLog($message);
+
+                    return self::SUCCESS;
+                }
+
+                $message = "Daily digest missing for {$date}. total_events={$totalEvents}, hashed_events={$hashedEvents}.";
                 $this->error($message);
                 $this->appendCommandLog($message);
                 return self::FAILURE;
@@ -63,7 +78,7 @@ class VerifyTimecardAuditIntegrity extends Command
             if ($digest) {
                 $digestHash = hash('sha256', implode('', $hashes));
                 if ($digest->event_count !== count($hashes) || $digest->digest_hash !== $digestHash) {
-                    $message = "Daily digest mismatch for {$date}.";
+                    $message = "Daily digest mismatch for {$date}. digest_event_count={$digest->event_count}, actual_event_count=".count($hashes).".";
                     $this->error($message);
                     $this->appendCommandLog($message);
                     return self::FAILURE;

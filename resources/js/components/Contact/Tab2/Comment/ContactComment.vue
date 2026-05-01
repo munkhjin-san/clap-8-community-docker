@@ -1,8 +1,8 @@
 <template>
-    <div>
-        <div>
+    <div class="flex flex-col h-full">
+        <div class="flex-1 flex flex-col min-h-0">
             <!-- <p class="text-[13px] font-semibold mb-[10px]">メッセージ</p> -->
-            <div ref="messageContainer" class="max-h-[50vh] overflow-auto bg-[var(--bg2)] px-[20px] py-[40px]">
+            <div ref="messageContainer" class="flex-1 overflow-auto bg-[var(--bg2)] px-[20px] py-[40px]">
                 
                 <TransitionGroup name="goal-comment" class="flex flex-col gap-[50px]" tag="div" v-if="item.comments && item.comments.length">
                     <ContactCommentItem

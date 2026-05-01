@@ -3,21 +3,21 @@
         
         <table id="customers">
             <thead>
-                <tr style="position: sticky;top: -1px; z-index: 1;">
-                    <th>氏名</th>
-                    <th>会社名</th>
-                    <th>種類</th>
-                    <th>住所</th>
-                    <th>メールアドレス</th>
-                    <th>電話番号</th>
-                    <th>FAX</th>
-                    <th>共同制作者</th>
-                    <th class="whitespace-nowrap">詳細</th>
-                    <th class="whitespace-nowrap">メモ</th>
+                <tr class="sticky top-[-1px] z-[1]">
+                    <th scope="col">氏名</th>
+                    <th scope="col">会社名</th>
+                    <th scope="col">種類</th>
+                    <th scope="col">住所</th>
+                    <th scope="col">メールアドレス</th>
+                    <th scope="col">電話番号</th>
+                    <th scope="col">FAX</th>
+                    <th scope="col">共同制作者</th>
+                    <th scope="col" class="whitespace-nowrap">詳細</th>
+                    <th scope="col" class="whitespace-nowrap">メモ</th>
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="contact in contacts">
+                <tr v-for="contact in contacts" :key="contact.id ?? contact.name">
                     <td class="whitespace-nowrap">{{contact.name}}</td>
                     <td>{{contact.company_name}}</td>
                     <td>{{contact?.type?.title || '未設定'}}</td>
@@ -37,7 +37,7 @@
                         <div class="flex whitespace-nowrap gap-1 items-center">
                             <router-link :to="{name: 'contactDetail', params: {contactId: contact.id}}">詳細</router-link>
                             <span v-if="badge.contactBadge.some(c => c.contact_id === contact.id)" class="side-notification" style="position: static">
-                                {{ badge.contactBadge.find(c => c.contact_id === contact.id).comments }}
+                                {{ badge.contactBadge.find(c => c.contact_id === contact.id)?.comments }}
                             </span>
                         </div>
                         
@@ -46,7 +46,7 @@
                         <button
                             type="button"
                             class="jump-link !bg-inherit"
-                            @click="openMemo(contact)"
+                            @click="emit('open-memo', contact)"
                             v-if="contact?.collaborators?.some(co => co.id === auth.id)"
                         >メモ</button>
                     </td>
@@ -62,16 +62,13 @@ import { ContactRecord } from '@/interface/contactInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { useBadgeStore } from '@/store/badge';
     const auth = useAuthUserStore()
-    const props = defineProps<{
+    defineProps<{
         contacts: ContactRecord[]
     }>()
     const badge = useBadgeStore()
     const emit = defineEmits<{
         (e: 'open-memo', contact: ContactRecord): void;
     }>();
-    const openMemo = (contact: ContactRecord) => {
-        emit('open-memo', contact);
-    };
 </script>
 
 <style scoped>

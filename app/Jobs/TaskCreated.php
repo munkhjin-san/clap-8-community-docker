@@ -30,7 +30,9 @@ class TaskCreated implements ShouldQueue
     {
         $data = $this->payload;
         $trim = Str::limit($data['text'], 50, '...');
-        $type = $data['glowd_nine'] ? 'glowd_nine_task' : 'new_task';
+        $type = ($data['glowd_nine'] ?? false) === true
+        ? 'glowd_nine_task'
+        : 'new_task';
         $sharedService->createInfoMessage("タスク", $data['board_id'], $type, $data['user_id'], $trim);  
     }
 }

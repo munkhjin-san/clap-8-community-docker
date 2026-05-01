@@ -92,6 +92,10 @@ export type DashboardTimesheetCard = CardBase & {
         pendingTimesheets: pendingTimesheedData[]
         departuresReportUsers: UserWithShift[],
         pendingPlannedLeaves: any[],
+        pendingAttendance?: {
+            user_id: number
+            date_year_month: string
+        } | null
     }
 }
 export type SpanRequiredGoalData = {
@@ -108,4 +112,3 @@ export type GoalRequiredData = {
 }
 
 export type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard | DashboardAssetCard | DashboardScheduleCard | DashboardPersonnelEvaluationCard | DashboardTimesheetCard | DashboardNoticeCard | DashboardProjectCard 
-

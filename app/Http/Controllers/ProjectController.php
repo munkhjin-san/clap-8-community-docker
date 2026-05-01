@@ -527,7 +527,7 @@ class ProjectController extends Controller
                 'files', 
                 'steps', 
                 'reports' => fn($q) => $q->with('user'),
-                'user' => fn($q) => $q->select('id', 'name', 'icon_path', 'icon_bg', 'position_id'),
+                'user' => fn($q) => $q->select('id', 'name', 'icon_path', 'icon_bg', 'position_id', 'general_position')
             ])
             ->withCount(['goal_notifications' => fn($q) => $q->where('target_user_id', $self_id)])
             ->with(['salaryIssue' => fn ($q) => $q->with([

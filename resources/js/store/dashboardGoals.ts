@@ -69,6 +69,16 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         '未達成（完了）' // 11
     ]
 
+    const pointByGeneralPosition: Record<string, { kpi: number; kgi: number }> = {
+        '一般職': { kpi: 80, kgi: 20 },
+        'A': { kpi: 70, kgi: 30 },
+        'B': { kpi: 60, kgi: 40 },
+        'C': { kpi: 50, kgi: 50 },
+        'D': { kpi: 40, kgi: 60 },
+        'E': { kpi: 30, kgi: 70 },
+        'F': { kpi: 20, kgi: 80 },
+        'G': { kpi: 10, kgi: 90 },
+    }
     // Actions
     const getGoals = async (userId: number, year: number, which_half: string) => {
         loading.value = true
@@ -175,7 +185,7 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
             const totalProgress = steps.reduce((acc: number, step: ProjectGoalStep) => {
                 return acc + step.progress
             }, 0)
-
+            
             const maxProgress = steps.length * 100
             return Math.round((totalProgress / maxProgress) * 100)
         }
@@ -187,7 +197,11 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         const kpi = kpiCalculation(goal.steps)
         const kgi = goal.achievement_rate
         const sum = kpi + kgi
-        return Math.round(sum / 2)
+        const kpiWeight = pointByGeneralPosition[goal.user.general_position]?.kpi ?? 50
+        const kgiWeight = pointByGeneralPosition[goal.user.general_position]?.kgi ?? 50
+        const weightedKpi = (kpi * kpiWeight) / 100
+        const weightedKgi = (kgi * kgiWeight) / 100
+        return Math.round(weightedKpi + weightedKgi)
     }
 
     // Computed

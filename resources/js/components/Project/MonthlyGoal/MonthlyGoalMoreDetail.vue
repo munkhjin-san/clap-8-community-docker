@@ -96,7 +96,7 @@
                     </div>
                     <div>
                         <div class="text-[13px] font-semibold">評価点</div>
-                        <div class="kadai-content">{{ overallScore }}点</div>
+                        <div class="kadai-content">{{ overallScore(goal) }}点</div>
                     </div>
                     <div class="p-4 border border-solid border-[var(--formBorder)]] break-all">
                         <p>結果</p>
@@ -182,7 +182,7 @@ const emit = defineEmits(['close'])
 const auth = useAuthUserStore()
 const goalsStore = useDashboardGoalsStore()
 const { evaluationData } = storeToRefs(goalsStore)
-const { getGoals, invalidateCache, markAsRead } = goalsStore
+const { getGoals, invalidateCache, markAsRead, overallScore } = goalsStore
 const openReport = ref(false)
 const sub_tab = ref(0)
 const reviewing = ref(false)
@@ -251,26 +251,7 @@ const updateGoalStatusDirectly = async () => {
     }
 }
 
-const kpiCalculation = (steps: any) => {
-    if(steps && steps.length){
-        const totalProgress = steps.reduce((acc: number, step: any) => {
-            return acc + step.progress
-        }, 0)
-        
-        const maxProgress = steps.length * 100
-        return Math.round((totalProgress / maxProgress) * 100)
-    }
-    return 0
-}
-const overallScore = computed(() => {
-    if(!props.goal.steps || props.goal.steps.length === 0) {
-        return props.goal.achievement_rate
-    }
-    const kpi = kpiCalculation(props.goal.steps)
-    const kgi = props.goal.achievement_rate
-    const sum = kpi + kgi
-    return Math.round(sum / 2)
-})
+
 
 const refresh = () => {
     invalidateCache()

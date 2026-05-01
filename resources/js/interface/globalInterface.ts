@@ -150,7 +150,8 @@ interface Weather {
 export interface Position {
     id: number;
     name: string;
-    members: User[]
+    members: User[];
+    sort_flag: number;
 }
 export interface Office {
     id: number;

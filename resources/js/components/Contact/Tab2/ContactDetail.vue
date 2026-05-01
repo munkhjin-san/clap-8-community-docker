@@ -1,5 +1,5 @@
 <template>
-<Modal @close="router.push({name: 'contact'})" size="large">
+<Modal @close="router.push({name: 'contact'})" size="large" :disableScroll="activeTab === 'comment'">
     <template #title>
         <div class="sub-tab-container">
             <div @click="activeTab = 'detail'" :class="['sub-tab-item', { 'selected-sub-tab': activeTab == 'detail'}]">基本情報</div>
@@ -98,7 +98,7 @@
             </table>
 
         </div>
-        <div v-else-if="activeTab == 'comment'">
+        <div v-else-if="activeTab == 'comment'" class="h-full">
             <ContactComment :item="contact" @refresh="emit('closeCreate', true)"/>
         </div>
     </template>

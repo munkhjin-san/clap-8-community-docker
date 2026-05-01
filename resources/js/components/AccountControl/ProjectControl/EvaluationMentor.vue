@@ -173,6 +173,7 @@ import { generateCsv, download, mkConfig } from 'export-to-csv';
 import { useDialog } from '@/composables/dialog';
 import Modal from '@/components/Global/Modal.vue';
 import Edit from '@/components/Icons/Edit.vue';
+import { useDashboardGoalsStore } from '@/store/dashboardGoals';
 const props = defineProps(['userList', 'mentorList', 'keywords'])
 
 const targetDates = detailedDateOptions()
@@ -182,6 +183,8 @@ const selectedUser = ref<User | null>(null)
 const salary_options = ref([])
 const editData = ref<Evaluation>()
 const api = useApi()
+const goalsStore = useDashboardGoalsStore()
+const { overallScore } = goalsStore
 const announceWindow = ref(false)
 const wantedNumber = ref(1)
 const copyTemplate = ref<any>(null)
@@ -244,24 +247,7 @@ const getSalaryOptions = async() => {
     salary_options.value = await api.get('/get_salary_options')
 
 }
-const kpiCalculation = (steps: any) => {
-    if(steps && steps.length){
-        const totalProgress = steps.reduce((acc: number, step: any) => {
-            return acc + step.progress
-        }, 0)
-        
-        const maxProgress = steps.length * 100
-        return Math.round((totalProgress / maxProgress) * 100)
-    }
-    return 0
-}
-const overallScore = (goal: ProjectGoal) => {
-    if(!goal.steps || goal.steps.length === 0) return goal.achievement_rate
-    const kpi = kpiCalculation(goal.steps)
-    const kgi = goal.achievement_rate
-    const sum = kpi + kgi
-    return Math.round(sum / 2)
-}
+
 const totalOverallScore = (goals: ProjectGoal[]) => {
     if (!goals.length) return 0
 

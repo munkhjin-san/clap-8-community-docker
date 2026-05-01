@@ -274,7 +274,8 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         data: {
             pendingTimesheets: [] as any[],
             departuresReportUsers: [],
-            pendingPlannedLeaves: []
+            pendingPlannedLeaves: [],
+            pendingAttendance: null,
         },
         canFullscreen: false,
         canResize: true,

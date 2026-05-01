@@ -6,8 +6,8 @@
                     <div class="spinner-mini" style="border-color: transparent rgb(134, 134, 134) rgb(134, 134, 134);"></div>     
                 </div>  
             </Transition>               
-            <div :class="[{'scrollable bg-inherit h-full' : !disableScroll}]" @mousedown.stop>            
-                <div class="recordFormTitle !px-[30px] !py-[20px] !w-[calc(100%-60px)]" style="display:flex">
+            <div :class="['bg-inherit', !disableScroll ? 'scrollable h-full' : 'h-full flex flex-col overflow-hidden']" @mousedown.stop>            
+                <div class="recordFormTitle flex-shrink-0 !px-[30px] !py-[20px] !w-[calc(100%-60px)]" style="display:flex">
                     <slot name="title"></slot>
                     <div class="ml-auto">
                         <slot name="menu"></slot>
@@ -16,7 +16,7 @@
                         <CloseIcon size="13"/>                      
                     </button>                 
                 </div>
-                <div class="w-[calc(100%-60px)] px-[30px] pb-[30px]" :style="props.bodyStyle ? props.bodyStyle : ''">
+                <div :class="['w-[calc(100%-60px)] px-[30px] pb-[30px]', disableScroll ? 'flex-1 min-h-0' : '']" :style="props.bodyStyle ? props.bodyStyle : ''">
                     <slot name="content"></slot>
                 </div>
             </div>

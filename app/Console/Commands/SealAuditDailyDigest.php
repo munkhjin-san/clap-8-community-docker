@@ -54,7 +54,14 @@ class SealAuditDailyDigest extends Command
             ->get(['event_hash']);
 
         if ($events->isEmpty()) {
-            $message = "No hashed audit events found for {$date}.";
+            $totalEvents = TimecardAuditEvent::query()
+                ->whereDate('occurred_at', $date)
+                ->count();
+            $unhashedEvents = TimecardAuditEvent::query()
+                ->whereDate('occurred_at', $date)
+                ->whereNull('event_hash')
+                ->count();
+            $message = "No hashed audit events found for {$date}. total_events={$totalEvents}, unhashed_events={$unhashedEvents}.";
             $this->warn($message);
             $this->appendCommandLog($message);
             return self::SUCCESS;
