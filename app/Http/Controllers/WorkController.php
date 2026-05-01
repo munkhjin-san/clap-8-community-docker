@@ -2120,6 +2120,125 @@ class WorkController extends Controller
         }
         return response()->json([]);
     }         
+
+    private function buildProjectSelectOptionTotalsByUser($cases): array
+    {
+        $countsByUser = [];
+
+        foreach ($cases as $case) {
+            $userId = (int) $case->user_id;
+            $countsByUser[$userId] ??= [];
+            $this->addCaseSelectOptionCounts($countsByUser[$userId], $case);
+        }
+
+        return collect($countsByUser)
+            ->map(fn ($counts) => $this->summarizeSelectOptionCounts($counts))
+            ->all();
+    }
+
+    private function addCaseSelectOptionCounts(array &$counts, ProjectCase $case): void
+    {
+        if (empty($case->meta) || !is_array($case->meta)) {
+            return;
+        }
+
+        foreach ($this->caseSelectFieldLabels($case) as $fieldLabel) {
+            $value = $case->meta[$fieldLabel] ?? null;
+            $values = is_array($value) ? $value : [$value];
+
+            foreach ($values as $option) {
+                $option = trim((string) $option);
+                if ($option === '') {
+                    continue;
+                }
+
+                $counts[$fieldLabel][$option] = ($counts[$fieldLabel][$option] ?? 0) + 1;
+            }
+        }
+    }
+
+    private function caseSelectFieldLabels(ProjectCase $case): array
+    {
+        $statuses = $case->project?->actual_statuses ?? [];
+        if (!is_array($statuses)) {
+            return [];
+        }
+
+        $caseStatus = $case->status ?? '実績';
+        $matchedStatus = collect($statuses)->first(function ($status) use ($caseStatus) {
+            return ($status['label'] ?? $status['custom_label'] ?? null) === $caseStatus;
+        });
+        $sourceStatuses = $matchedStatus ? [$matchedStatus] : $statuses;
+
+        return collect($sourceStatuses)
+            ->flatMap(function ($status) {
+                return collect($status['extra_fields'] ?? [])
+                    ->filter(fn ($field) => ($field['type'] ?? null) === 'select')
+                    ->pluck('label');
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function summarizeSelectOptionCounts(array $counts): array
+    {
+        $summary = [];
+
+        foreach ($counts as $fieldLabel => $optionCounts) {
+            if (empty($optionCounts)) {
+                continue;
+            }
+
+            arsort($optionCounts);
+            $option = array_key_first($optionCounts);
+            if ($option === null) {
+                continue;
+            }
+
+            $summary[] = [
+                'field_label' => $fieldLabel,
+                'option' => $option,
+                'count' => $optionCounts[$option],
+            ];
+        }
+
+        return $summary;
+    }
+
+    private function projectUnitLabel(?ProjectRecord $project): string
+    {
+        $unitLabel = [
+            'COUNT' => '件',
+            'HOUR' => '時間',
+            'JPY' => '円',
+            'CUSTOM' => '',
+        ];
+        $unitId = $project->unit_id ?? 'JPY';
+
+        if ($unitId === 'CUSTOM') {
+            return $project->custom_unit_label ?? '単位';
+        }
+
+        return $unitLabel[$unitId] ?? '円';
+    }
+
+    private function formatMinutesForCsv(int $minutes): string
+    {
+        $hours = intdiv($minutes, 60);
+        $remainingMinutes = $minutes % 60;
+
+        return $hours . '時間' . $remainingMinutes . '分';
+    }
+
+    private function formatSelectOptionSummary(array $counts): string
+    {
+        return collect($this->summarizeSelectOptionCounts($counts))
+            ->map(fn ($row) => "{$row['field_label']}: {$row['option']} ({$row['count']}件)")
+            ->join("\n");
+    }
+
     public function work_generate_csv(Request $request){
         $year = (int) $request->year;
         $month = (int) $request->month;
@@ -2132,7 +2251,7 @@ class WorkController extends Controller
                 ->with(['custom_field_data_records' => function ($q) {
                     $q->whereIn('type_id', [37, 40, 39, 41, 42])->orderBy('created_at', 'desc')->select('id', 'table_record_id', 'type_id', 'value_text', 'value_int', 'date', 'label', 'user_id');
                 }])
-                ->with(['timecard_costs', 'timecard_incentives', 'department', 'project_case.project:id,unit_id,custom_unit_label'])
+                ->with(['timecard_costs', 'timecard_incentives', 'department', 'project_case.project:id,unit_id,custom_unit_label,actual_statuses'])
                 ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'car_mileage', 'work_group_id');
         }])->with(['shift_records' => function ($q) use($year, $month) {
             $q->whereYear('shift_day', $year)->whereMonth('shift_day', $month)
@@ -2150,13 +2269,16 @@ class WorkController extends Controller
         $insentive_user = $users->where('position_id', 15)->first();
         $insentive_exists = !empty($insentive_user); 
         $recordList = [];
-        $unitLabel = [
-            'COUNT' => '件',
-            'HOUR' => '時間',
-            'JPY' => '円',
-            'CUSTOM' => ''
-        ];
         $conditions = ['🌈','☀️','☁️','☂️','⚡','☃️'];
+        $totalData = [
+            'work_time' => 0,
+            'over_time' => 0,
+            'break_time' => 0,
+            'costs' => 0,
+            'mileage' => 0,
+            'actuals' => [],
+            'select_counts' => [],
+        ];
         for ($day = 1; $day <= cal_days_in_month(CAL_GREGORIAN, $month, $year); $day++) {
             $date = Carbon::create($year, $month, $day);
         
@@ -2170,6 +2292,7 @@ class WorkController extends Controller
                 $allowances_value = implode(" ", $allowances); 
                 $incident = empty($time_card_record) ? [] : $time_card_record->custom_field_data_records->where('type_id', 40)->first();      
                 $costs = !empty($time_card_record) ? $time_card_record->timecard_costs : [];
+                $cases = empty($time_card_record) ? collect() : collect($time_card_record->project_case);
                 
                 $satisfy = empty($time_card_record) ? [] : $time_card_record->custom_field_data_records->where('type_id', 41)->first();  
                 $isRegistered = $user->position_id == 15;
@@ -2193,6 +2316,26 @@ class WorkController extends Controller
                                     ($commissionCosts ? "支払手数料 : $commissionCosts'円'" : "") . 
                                     ($welfareExpense ? "福利厚生費 : $welfareExpense'円'" : "" );
                 }
+                if (!empty($time_card_record)) {
+                    $totalData['work_time'] += (int) $time_card_record->work_time;
+                    $totalData['over_time'] += (int) $time_card_record->over_time;
+                    $totalData['break_time'] += (int) $time_card_record->break_time;
+                    $totalData['costs'] += (int) collect($costs)->sum('expenses');
+                    $totalData['mileage'] += (int) $time_card_record->car_mileage;
+
+                    foreach ($cases as $case) {
+                        if (!filled($case->amount) || !is_numeric($case->amount)) {
+                            continue;
+                        }
+
+                        $label = $this->projectUnitLabel($case->project);
+                        $key = ($case->status ?? '実績') . '|' . $label;
+                        $totalData['actuals'][$key]['status'] = $case->status ?? '実績';
+                        $totalData['actuals'][$key]['unit_label'] = $label;
+                        $totalData['actuals'][$key]['amount'] = ($totalData['actuals'][$key]['amount'] ?? 0) + (int) $case->amount;
+                        $this->addCaseSelectOptionCounts($totalData['select_counts'], $case);
+                    }
+                }
                
                 $data = [
                     '日付' => $date->format('Y-m-d'),
@@ -2210,30 +2353,88 @@ class WorkController extends Controller
                     'コンディション' => $condition_index ? $conditions[$condition_index] : '',
                     'コメント' => $comment ? $comment->value_text : '',
                     '経費' => $costFormatted,
+                    '実績' => '',
                     'マイカー走行距離' => empty($time_card_record) ? '' : $time_card_record->car_mileage
                 ];
                 if (!empty($time_card_record->department) && $time_card_record->department->has_actual_func) {
-                    $data['実績'] = collect($time_card_record->project_case)
+                    $data['実績'] = $cases
                         ->filter(fn ($c) => filled($c->amount))
-                        ->map(function ($c) use ($unitLabel) {
-                            $unitId = $c->project->unit_id ?? null;
-                            $label = $unitId === 'CUSTOM'
-                                ? ($c->project->custom_unit_label ?? '')
-                                : ($unitLabel[$unitId] ?? '');
+                        ->map(function ($c) {
+                            $label = $this->projectUnitLabel($c->project);
 
                             return ($c->status ?? '実績') . ': ' . $c->amount . $label;
                         })
                         ->join("\n");
                 }
-                // if($insentive_exists){
-                    
-                //     $incentives = $isRegistered && !empty($time_card_record) ? $time_card_record->timecard_incentives : [];
-                //     $totalIncentive = collect($incentives)->sum('count');
-                //     $data['インセンティブ'] = $totalIncentive ? $totalIncentive . "件" : '';
-                // }
+                if($insentive_exists){
+                    $data['実績'] = $cases
+                        ->filter(function ($c) {
+                            $amount = $c->amount ?? null;
+
+                            if (is_array($amount)) {
+                                return collect($amount)->filter(fn ($v) =>
+                                    $v !== null && trim((string) $v) !== ''
+                                )->isNotEmpty();
+                            }
+
+                            return $amount !== null && trim((string) $amount) !== '';
+                        })
+                        ->map(function ($c) {
+                            $lines = [];
+
+                            if (!empty($c->meta) && is_array($c->meta)) {
+                                foreach ($c->meta as $key => $val) {
+                                    if ($val !== null && trim((string) $val) !== '') {
+                                        $lines[] = "{$key}: {$val}";
+                                    }
+                                }
+                            }
+
+                            $status = $c->status ?? '実績';
+
+                            $amount = $c->amount ?? '';
+
+                            if (is_array($amount)) {
+                                $amount = collect($amount)
+                                    ->filter(fn ($v) => $v !== null && trim((string) $v) !== '')
+                                    ->implode(', ');
+                            }
+
+                            $unitLabel = $this->projectUnitLabel($c->project);
+                            $lines[] = "{$status}: {$amount}{$unitLabel}";
+
+                            return implode("\n", $lines);
+                        })
+                        ->implode("\n\n");
+                }
                 array_push($recordList, $data);
             }
         }
+        $actualSummary = collect($totalData['actuals'])
+            ->map(fn ($row) => "{$row['status']}: {$row['amount']}{$row['unit_label']}")
+            ->values()
+            ->join("\n");
+        $selectSummary = $this->formatSelectOptionSummary($totalData['select_counts']);
+
+        $recordList[] = [
+            '日付' => '合計',
+            'メンバー' => '',
+            '予定' => '',
+            '出勤' => '',
+            '退勤' => '',
+            '労働時間' => $this->formatMinutesForCsv($totalData['work_time']),
+            '時間外' => $totalData['over_time'] . '分',
+            '休憩時間' => $totalData['break_time'] . '分',
+            '部門' => '',
+            '諸手当' => '',
+            'インシデント' => '',
+            '目標達成率' => '',
+            'コンディション' => '',
+            'コメント' => '',
+            '経費' => $totalData['costs'] ? $totalData['costs'] . '円' : '',
+            '実績' => trim($actualSummary . ($actualSummary && $selectSummary ? "\n" : '') . $selectSummary),
+            'マイカー走行距離' => $totalData['mileage'] ? $totalData['mileage'] . 'km' : '',
+        ];
         return response()->json($recordList);
     }    
 
