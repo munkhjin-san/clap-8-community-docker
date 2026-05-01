@@ -511,7 +511,11 @@
                                 </div>
 
                                 <div class="legal-review-panel__findings-content">
-                                    <ContractFindings :contract="resolvedSummary" @focus-finding="focusFinding" />
+                                    <ContractFindings
+                                        :contract="resolvedSummary"
+                                        :export-filename="riskExportFilename"
+                                        @focus-finding="focusFinding"
+                                    />
                                 </div>
 
                                 <div class="legal-review-panel__footer">
@@ -760,6 +764,12 @@ const fileMeta = computed(() => {
         extension: extension?.toString().toLowerCase() || 'file',
         sizeLabel: size ? filesize(size, size > 1_000_000 ? { standard: 'jedec', round: 1 } : { standard: 'jedec', round: 0 }) : '',
     }
+})
+
+const riskExportFilename = computed(() => {
+    const baseName = fileMeta.value.name.replace(/\.[^.]+$/, '') || 'contract'
+
+    return `${baseName}-risks.txt`
 })
 
 const uploadFileMeta = computed(() => {

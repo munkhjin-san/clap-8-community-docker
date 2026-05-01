@@ -78,6 +78,87 @@ class ContractExtractionService
             throw new RuntimeException('DOCX本文を読み取れませんでした。');
         }
 
+        return $this->buildDocxPagesFromXml($xml);
+    }
+
+    private function buildDocxPagesFromXml(string $xml): array
+    {
+        $document = new \DOMDocument();
+        $previousLibxmlMode = libxml_use_internal_errors(true);
+        $loaded = $document->loadXML($xml, LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING);
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousLibxmlMode);
+
+        if (!$loaded || $document->documentElement === null) {
+            return $this->buildSingleDocxPageFromXml($xml);
+        }
+
+        $pageTexts = [''];
+        $this->appendDocxNodeText($document->documentElement, $pageTexts);
+
+        return $this->buildPagesFromTexts($pageTexts);
+    }
+
+    private function appendDocxNodeText(\DOMNode $node, array &$pageTexts): void
+    {
+        $localName = $node->localName;
+
+        if ($localName === 't') {
+            $pageTexts[count($pageTexts) - 1] .= $node->textContent;
+
+            return;
+        }
+
+        if ($localName === 'tab') {
+            $pageTexts[count($pageTexts) - 1] .= "\t";
+
+            return;
+        }
+
+        if ($localName === 'br') {
+            if ($this->isDocxPageBreak($node)) {
+                $pageTexts[] = '';
+            } else {
+                $pageTexts[count($pageTexts) - 1] .= "\n";
+            }
+
+            return;
+        }
+
+        if ($localName === 'lastRenderedPageBreak') {
+            $pageTexts[] = '';
+
+            return;
+        }
+
+        foreach ($node->childNodes as $childNode) {
+            $this->appendDocxNodeText($childNode, $pageTexts);
+        }
+
+        if ($localName === 'p' || $localName === 'tr') {
+            $pageTexts[count($pageTexts) - 1] .= "\n";
+        }
+
+        if ($localName === 'tc') {
+            $pageTexts[count($pageTexts) - 1] .= "\t";
+        }
+    }
+
+    private function isDocxPageBreak(\DOMNode $node): bool
+    {
+        if (!$node instanceof \DOMElement) {
+            return false;
+        }
+
+        $type = $node->getAttributeNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'type')
+            ?: $node->getAttribute('w:type')
+            ?: $node->getAttribute('type');
+
+        return $type === 'page';
+    }
+
+    private function buildSingleDocxPageFromXml(string $xml): array
+    {
         $normalizedXml = str_replace(
             ['<w:tab/>', '<w:br/>', '<w:br />', '</w:p>', '</w:tr>', '</w:tc>'],
             ["\t", "\n", "\n", "\n", "\n", "\t"],
@@ -87,10 +168,31 @@ class ContractExtractionService
         $text = strip_tags($normalizedXml);
         $text = html_entity_decode($text, ENT_QUOTES | ENT_XML1, 'UTF-8');
 
+        return $this->buildPagesFromTexts([(string) $text]);
+    }
+
+    private function buildPagesFromTexts(array $pageTexts): array
+    {
+        $pages = [];
+
+        foreach ($pageTexts as $text) {
+            $normalizedText = $this->normalizeContractText((string) $text);
+
+            $pages[] = [
+                'page' => count($pages) + 1,
+                'lines' => $this->splitPlainLines($normalizedText),
+                'text' => $normalizedText,
+            ];
+        }
+
+        if ($pages !== []) {
+            return $pages;
+        }
+
         return [[
             'page' => 1,
-            'lines' => $this->splitPlainLines((string) $text),
-            'text' => $this->normalizeContractText((string) $text),
+            'lines' => [],
+            'text' => '',
         ]];
     }
 

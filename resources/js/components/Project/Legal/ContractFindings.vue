@@ -1,10 +1,20 @@
 <template>
     <div v-if="contract" class="contract-findings">
         <div class="contract-findings__header">
-            <span class="contract-findings__label">リスク概要</span>
-            <span :class="['contract-findings__badge', `contract-findings__badge--${contract.overallRisk}`]">
-                {{ severityLabel(contract.overallRisk) }}
-            </span>
+            <div class="contract-findings__summary">
+                <span class="contract-findings__label">リスク概要</span>
+                <span :class="['contract-findings__badge', `contract-findings__badge--${contract.overallRisk}`]">
+                    {{ severityLabel(contract.overallRisk) }}
+                </span>
+            </div>
+            <button
+                v-if="contract.findings.length"
+                type="button"
+                class="contract-findings__export"
+                @click="downloadFindings"
+            >
+                リスク一覧をダウンロード
+            </button>
         </div>
 
         <div class="contract-findings__filters">
@@ -139,6 +149,7 @@ const props = defineProps<{
         overallRisk: Severity
         findings: Finding[]
     } | null
+    exportFilename?: string
 }>()
 
 const emit = defineEmits<{
@@ -200,6 +211,82 @@ const sectionLabel = (finding: Finding) => {
     return '関連箇所へ移動'
 }
 
+const sanitizeFilename = (value?: string) => {
+    const name = (value || 'detected-risks.txt')
+        .replace(/[\\/:*?"<>|]+/g, '-')
+        .replace(/\s+/g, ' ')
+        .trim()
+
+    return name.toLowerCase().endsWith('.txt') ? name : `${name}.txt`
+}
+
+const lineValue = (label: string, value?: string | number | null) => {
+    if (value === null || value === undefined || value === '') {
+        return ''
+    }
+
+    return `${label}: ${value}`
+}
+
+const activeFilterLabel = () => {
+    if (!activeFilter.value) {
+        return '全件'
+    }
+
+    return `${severityLabel(activeFilter.value)}リスク`
+}
+
+/**
+ * Builds a plain-text report so users can keep or share the currently visible risk list without extra export dependencies.
+ */
+const createFindingsText = () => {
+    const findings = filteredFindings.value
+    const lines = [
+        '検出されたリスク',
+        `総合リスク: ${severityLabel(props.contract?.overallRisk ?? 'unknown')}`,
+        `出力対象: ${activeFilterLabel()}`,
+        `件数: ${findings.length}`,
+        `高: ${counts.value.high} / 中: ${counts.value.medium} / 低: ${counts.value.low}`,
+        '',
+    ]
+
+    findings.forEach((finding, index) => {
+        const detailLines = [
+            `${index + 1}. [${severityLabel(finding.severity)}] ${finding.issue}`,
+            lineValue('関連箇所', sectionLabel(finding)),
+            lineValue('カテゴリ', finding.category),
+            lineValue('スコア', finding.score),
+            lineValue('理由', finding.rationale),
+            lineValue('提案', finding.suggestion),
+            lineValue('該当条文', finding.quote),
+            lineValue('交渉ポイント', finding.negotiation_tip),
+        ].filter(Boolean)
+
+        lines.push(...detailLines, '')
+    })
+
+    return lines.join('\n')
+}
+
+/**
+ * Downloads the visible finding list as UTF-8 text for lightweight review handoff.
+ */
+const downloadFindings = () => {
+    if (!props.contract?.findings.length) {
+        return
+    }
+
+    const blob = new Blob([createFindingsText()], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = sanitizeFilename(props.exportFilename)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+}
+
 const focusFinding = (finding: Finding, index: number) => {
     if (!openItems.value.has(index)) {
         openItems.value.add(index)
@@ -236,9 +323,17 @@ const clearFilter = () => {
 
 .contract-findings__header {
     display: flex;
+    justify-content: space-between;
     gap: 12px;
     align-items: center;
     font-size: 14px;
+}
+
+.contract-findings__summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
 }
 
 .contract-findings__label {
@@ -346,6 +441,19 @@ const clearFilter = () => {
     color: var(--primary-color);
     font-size: 11px;
     cursor: pointer;
+}
+
+.contract-findings__export {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--calendarBorder);
+    background: var(--bg3);
+    color: var(--primary-color);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
 }
 
 .contract-findings__list {
