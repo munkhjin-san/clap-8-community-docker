@@ -52,7 +52,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('app:auto-attendance-confirm')->monthlyOn(3, '08:00');
         $schedule->command('app:refresh-automation')->monthlyOn(1, '08:00');
         $schedule->command('contact-batches:poll')->everyFifteenMinutes();
-        $schedule->command('app:seal-audit-daily-digest')->dailyAt('02:45')->appendOutputTo(storage_path('logs/timecard-audit-seal.log'));
+        $schedule->command('app:seal-audit-daily-digest')->dailyAt('02:00')->appendOutputTo(storage_path('logs/timecard-audit-seal.log'));
         $schedule->command('app:verify-timecard-audit-integrity --require-digest --date='.now()->subDay()->toDateString())->dailyAt('03:00')->appendOutputTo(storage_path('logs/timecard-audit-integrity.log'));
     }
 
