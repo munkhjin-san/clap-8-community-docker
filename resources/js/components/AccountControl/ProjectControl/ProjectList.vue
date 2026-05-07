@@ -164,7 +164,7 @@
                             </button>
                             <button
                                 type="button"
-                                class="text-xs px-3 py-2 rounded bg-[var(--primary-button)] text-white"
+                                class="text-xs px-3 py-2 rounded bg-[var(--primary-button)] !text-white"
                                 :disabled="!completedAtInput"
                                 @click="applyCompleteStatusChange"
                             >
