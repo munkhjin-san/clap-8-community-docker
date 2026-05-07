@@ -56,7 +56,7 @@
                                     v-model="projectParams.manager"
                                     :options="managerOptions"
                                     :multiple="true"
-                                    placeHolder="管理者"
+                                    placeHolder="PM"
                                     ref="projectManager"
                                 />
                             </div>
@@ -399,7 +399,7 @@
                                 <LongInput 
                                     name="private_memo"
                                     v-model="projectParams.private_memo"
-                                    placeHolder="管理者用非公開メモ"
+                                    placeHolder="PM用非公開メモ"
                                     ref="projectMemo"
                                     rules="required"                        
                                 />
@@ -417,7 +417,7 @@
                                     :data="projectParams"
                                 />                                                                
                             </div>
-                            <p class="text-[12px] text-[gray] mt-[15px] leading-normal">概要は管理者用の非公開メモから自動生成されます。プロジェクト情報を詳しく入力すると、より正確な概要が作成されます。</p>
+                            <p class="text-[12px] text-[gray] mt-[15px] leading-normal">概要はPM用の非公開メモから自動生成されます。プロジェクト情報を詳しく入力すると、より正確な概要が作成されます。</p>
  
                         </div>
                         <div class="mb-[60px] section-hd" id="miso">
@@ -1401,7 +1401,7 @@ const createProject = async(status: ProjectStatus, specs?: any) => {
         const managerIds = projectParams.manager?.map((manager: { id: number; }) => manager.id) ?? []
         const checkDuplicated = membersIds.filter((id: number) => managerIds.includes(id))
         if(checkDuplicated.length > 0){
-            ping('メンバーと管理者に同じユーザーが含まれています。')
+            ping('メンバーとPMに同じユーザーが含まれています。')
             return
         }
     }

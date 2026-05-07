@@ -32,7 +32,7 @@
                 <div class="project-header-row">
                     <div class="project-cell cursor-pointer relative" style="min-width: 230px;">
                         <div class="flex items-center justify-between">
-                            プロジェクト名
+                            プロジェクト
                             <div class="boardMenuContainer justify-center" title="バッジフィルター" @click="cycleColor" >
                                 <svg :class="['relative inline-flex side-app-icon']" id="b" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" height="13" viewBox="0 0 26.41919 29.13772">
 
@@ -99,7 +99,7 @@
 
                     <div class="project-cell cursor-pointer relative">
                         <div @click.stop="menu.setMenu({parent: 'projectManagerSelect'})" class="flex items-center gap-[5px] whitespace-nowrap">
-                            管理者
+                            PM
                             <Back class="rotate-[270deg]" size="10"/>
                         </div>
                         <div class="flex flex-wrap">
@@ -111,7 +111,7 @@
                                 id="projectManagerSelect" 
                                 :members="sortableUsers('manager')" 
                                 v-model:selected-users="selectedManagers"
-                                custom-place-holder="管理者検索"
+                                custom-place-holder="PM検索"
                             />
                         </Transition>
                     </div>

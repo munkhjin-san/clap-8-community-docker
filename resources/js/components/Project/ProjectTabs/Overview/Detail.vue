@@ -66,7 +66,7 @@
                 </div>
 
                 <div v-if="hasPrivilage" class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">管理者用非公開メモ</span></div> 
+                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">PM用非公開メモ</span></div> 
                     <div class="leading-normal mt-[10px]">
                         <div v-html="displayHtml"></div>
 

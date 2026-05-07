@@ -28,7 +28,7 @@
                                 <button @click="leftTab = 'project'"
                                     :class="['sub-tab-item !bg-inherit', { 'selected-sub-tab': leftTab == 'project' }]">プロジェクト別</button>
                                 <button @click="leftTab = 'manager'"
-                                    :class="['sub-tab-item !bg-inherit', { 'selected-sub-tab': leftTab == 'manager' }]">管理者別</button>
+                                    :class="['sub-tab-item !bg-inherit', { 'selected-sub-tab': leftTab == 'manager' }]">PM別</button>
                             </div>
                             <div v-if="leftTab == 'project'" class="project-selector-left">
                                 <div class="mobile-filter-panel">
@@ -166,8 +166,8 @@
                             <div v-if="tab === 'table'" class="flex items-center gap-2 text-sm pc">
                                 <label class="text-xs opacity-70">並び替え</label>
                                 <select v-model="sortMode" class="text-[var(--primary-color)] px-2 py-1 bg-[var(--background-color)] text-sm">
-                                    <option value="name">プロジェクト名</option>
-                                    <option value="manager">管理者</option>
+                                    <option value="name">プロジェクト</option>
+                                    <option value="manager">PM</option>
                                 </select>
                             </div>
                             <div class="flex items-center gap-[10px] py-[10px] relative w-full justify-end flex-wrap md:flex-nowrap">
@@ -678,14 +678,14 @@
                                         <th :rowspan="2" class="sticky-left first-col top-border">
                                             <div class="relative">
                                                 <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="menu.setMenu({parent: 'projectFilter'})">
-                                                    プロジェクト名
+                                                    プロジェクト
                                                     <Filter style="fill: var(--primary-color);" size="12"/>
                                                 </div>
                                                 <Transition name="slidePop">
                                                     <FilterById 
                                                         v-if="menu.parent == 'projectFilter'"
                                                         id="projectFilter"
-                                                        :options="projects" 
+                                                        :options="selectableProjects" 
                                                         :include-select-all="true"
                                                         :searchable="true"
                                                         v-model:selected="selectedProjects"
@@ -698,7 +698,7 @@
                                         <th :rowspan="2" class="sticky-left second-col top-border">
                                             <div class="relative">
                                                 <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="menu.setMenu({parent: 'managerFilter'})">
-                                                    PM名
+                                                    PM
                                                     <Filter style="fill: var(--primary-color);" size="12"/>
                                                 </div>
                                                 <Transition name="slidePop">
@@ -2307,9 +2307,31 @@ const comparisonPeriodTotals = computed<ComparisonPeriodTotals>(() => {
         ])
     ) as ComparisonPeriodTotals
 })
-const allProjectIds = computed(() => props.projects.map(project => project.id))
+const projectSelectionStart = computed(() => {
+    if (totalGrouping.value === 'fiscal') {
+        const fiscalStartYear = Math.min(selectedFiscalYearStart.value, selectedFiscalYearEnd.value)
+        return DateTime.local(fiscalStartYear, 3, 1).startOf('month')
+    }
+
+    return normalizedRange.value.start
+})
+const parseProjectCompletedAt = (value: string | null | undefined) => {
+    if (!value) return null
+
+    const isoDate = DateTime.fromISO(value, { zone: 'Asia/Tokyo' })
+    if (isoDate.isValid) return isoDate.startOf('month')
+
+    const sqlDate = DateTime.fromSQL(value, { zone: 'Asia/Tokyo' })
+    return sqlDate.isValid ? sqlDate.startOf('month') : null
+}
+const isProjectSelectable = (project: Project) => {
+    const completedAt = parseProjectCompletedAt(project.completed_at)
+    return !completedAt || completedAt >= projectSelectionStart.value
+}
+const selectableProjects = computed(() => props.projects.filter(isProjectSelectable))
+const allProjectIds = computed(() => selectableProjects.value.map(project => project.id))
 const selectedProjectNames = computed(() => {
-    return props.projects
+    return selectableProjects.value
         .filter(project => selectedProjects.value.includes(project.id))
         .map(project => project.name)
 })
@@ -2855,7 +2877,7 @@ const scenarioPeriodEntry = (
     scenario: ScenarioKey,
 ): UnitData => normalizeUnitData(proj.data?.[period]?.[scenario])
 const managers = computed(() => {
-    const allManagers = props.projects.map(project => project.manager)
+    const allManagers = selectableProjects.value.map(project => project.manager)
     const flatUsers = allManagers.flat()
     const uniqueUsers = flatUsers.filter((user, index, self) =>
         index === self.findIndex((u) => (
@@ -2866,8 +2888,8 @@ const managers = computed(() => {
 })
 const filteredMobileProjects = computed(() => {
     const keyword = mobileProjectKeywords.value.trim().toLowerCase()
-    if (!keyword) return props.projects
-    return props.projects.filter(project => project.name?.toLowerCase().includes(keyword))
+    if (!keyword) return selectableProjects.value
+    return selectableProjects.value.filter(project => project.name?.toLowerCase().includes(keyword))
 })
 const filteredMobileManagers = computed(() => {
     const keyword = mobileManagerKeywords.value.trim().toLowerCase()
@@ -2949,7 +2971,7 @@ const openProjectFilter = () => {
 }
 
 const managersProjects = (manager: User) => {
-    return props.projects.filter(project => project.manager.some(m => m.id === manager.id))
+    return selectableProjects.value.filter(project => project.manager.some(m => m.id === manager.id))
 }
 
 const toggleByManager = (event: Event, manager: User) => {
@@ -3189,7 +3211,7 @@ watch(financeRefreshKey, () => {
 watch(selectedManagers, (managers) => {
     if (managers.length) {
         const set = new Set(managers)
-        selectedProjects.value = props.projects.filter(p => Array.isArray(p.manager) && p.manager.some(m => set.has(m.id)))
+        selectedProjects.value = selectableProjects.value.filter(p => Array.isArray(p.manager) && p.manager.some(m => set.has(m.id)))
         .map(p => p.id);
     } else {
         selectedProjects.value = []

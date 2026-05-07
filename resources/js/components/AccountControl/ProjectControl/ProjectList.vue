@@ -22,14 +22,14 @@
             <div class="project-table">
                 
                 <div class="project-header-row break-keep">
-                    <div class="project-cell">プロジェクト名</div>
+                    <div class="project-cell">プロジェクト</div>
                     <!-- <div class="project-cell">部門</div> -->
                     <div class="project-cell">期間</div>
                     <!-- <div class="project-cell">サービスカテゴリ</div>
                     <div class="project-cell">顧客企業</div>
                     <div class="project-cell">パートナー企業</div> -->
                     <!-- <div class="project-cell">概要</div> -->
-                    <div class="project-cell">管理者</div>
+                    <div class="project-cell">PM</div>
                     <div class="project-cell">メンバー</div>
                     <div class="project-cell">労働日数</div>
                     <div class="project-cell">労働時間</div>
@@ -193,6 +193,10 @@
                             <p class="bg-[var(--bg3)] p-1">期間</p>
                             <p>{{ DateTime.fromISO(selectedProject.date_start).toLocaleString(DateTime.DATE_SHORT) }} ~ {{ DateTime.fromISO(selectedProject.date_end).toLocaleString(DateTime.DATE_SHORT) }}</p>
                         </div>
+                         <div class="flex gap-2 text-sm items-center">
+                            <p class="bg-[var(--bg3)] p-1">完了日</p>
+                            <p>{{ selectedProject?.completed_at ? DateTime.fromISO(selectedProject.completed_at).toLocaleString(DateTime.DATE_SHORT) : '未設定' }}</p>
+                        </div>
                         <div class="flex gap-2 text-sm items-center">
                             <div>
                                 <span class="bg-[var(--bg3)] p-1">サービスカテゴリー</span>
@@ -223,7 +227,7 @@
                     </div>
 
                     <div class="project-detail-header">
-                        <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">管理者用非公開メモ</span></div> 
+                        <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">PM用非公開メモ</span></div> 
                         <div class="leading-normal mt-[10px]">
                             <div v-html="displayHtml"></div>
 
@@ -363,8 +367,8 @@ const generateWorkTimeCsv = () => {
         const managers = project.manager.map(m => m.name).join('\n')
         const members = project.members.map(m => m.name).join('\n')
         data.push({
-            'プロジェクト名': project.name,
-            '管理者': managers,
+            'プロジェクト': project.name,
+            'PM': managers,
             'メンバー': members,
             '労働日数': project.total_work_day ?? 0,
             '労働時間': numberTime(project.total_work_time ?? 0),
