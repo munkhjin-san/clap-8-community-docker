@@ -876,7 +876,9 @@ import { useTour } from '@/composables/useTour';
             if(!answer.value) return
         }
         if (actualRows.value.some(a => a.status?.includes('インセンティブ'))) {
-            incentives.value[0].count = actualRows.value.find(a => a.status?.includes('インセンティブ')).value
+            incentives.value[0].count = actualRows.value
+                .filter(a => a.status?.includes('インセンティブ'))
+                .reduce((sum, a) => sum + Number(a.value ?? 0), 0)
         }
         // loading.value[status_flag] = true
         const status = action === 'apply' ? 1 : 0

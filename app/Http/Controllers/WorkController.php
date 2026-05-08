@@ -182,6 +182,10 @@ class WorkController extends Controller
         ->whereIn('project_cases.user_id', $users_list)
         ->whereYear('project_cases.report_date', $currentYear)
         ->whereMonth('project_cases.report_date', $currentMonth)
+        ->whereHas('timecardRecord', function ($query) use ($currentYear, $currentMonth) {
+            $query->whereYear('day', $currentYear)
+                  ->whereMonth('day', $currentMonth);
+        })
         ->groupBy(
             'project_cases.user_id',
             'project_records.unit_id',
