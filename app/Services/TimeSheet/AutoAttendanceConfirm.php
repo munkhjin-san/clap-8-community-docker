@@ -56,10 +56,10 @@ class AutoAttendanceConfirm
             $shiftTypes = [13, 12, 11, 10, 9, 8, 7, 6];
             $hours_count = 0;
             $working_hour_low = 0;
-            if ($data['over_time'] > 0) {
-                $over_time = $data['over_time'] + $data['night_over_time'];
+            if ($data['month_over_time'] > 0) {
+                $over_time = $data['month_over_time'] + $data['night_over_time'];
             } else {
-                $over_time = $data['over_time'];
+                $over_time = $data['month_over_time'];
             }
             foreach ($shiftTypes as $type) {
                 $count = $shift_records->where('shift_type', $type)->count();
