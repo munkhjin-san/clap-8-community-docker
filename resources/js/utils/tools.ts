@@ -82,7 +82,7 @@ const mentionFormatter = (text: string | null, withUrl?: boolean, multiple: numb
         const maxHeight = (basePx * multiple) + 'px'
 
         const style = `max-height: ${maxHeight};`
-        return `<img class="chat-emoji" data-type="${type}" src="/images/reactions/v7/${prefix}_${type}.webp" srcset="/images/reactions/v7/${prefix}_${type}@2x.webp 2x" alt="${type}" style="${style}" />`;
+        return `<img class="chat-emoji" data-type="${type}" src="/images/reactions/v8/${prefix}_${type}.webp" srcset="/images/reactions/v8/${prefix}_${type}@2x.webp 2x" alt="${type}" style="${style}" />`;
     })
     return withUrl ? urlCheck(cooked) : cooked
 }

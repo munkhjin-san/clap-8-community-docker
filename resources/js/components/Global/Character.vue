@@ -1,7 +1,7 @@
 <template>
     <img 
-        :src="`/images/reactions/v7/${prefix}_${emoteName}.webp`" 
-        :srcset="`/images/reactions/v7/${prefix}_${emoteName}@2x.webp 2x`"
+        :src="`/images/reactions/v8/${prefix}_${emoteName}.webp`" 
+        :srcset="`/images/reactions/v8/${prefix}_${emoteName}@2x.webp 2x`"
         :style="{ maxHeight: style  }" 
         class="w-auto cursor-pointer"
     />

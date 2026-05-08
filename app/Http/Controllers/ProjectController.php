@@ -722,7 +722,7 @@ class ProjectController extends Controller
                             $q->with(['outcome_goals' => function ($q) use ($params){
                                 $q->where('year', $params['year'])
                                     ->where('which_half', $params['which_half'])
-                                    ->with('steps');
+                                    ->with('steps', 'user:general_position,id');
                             }]);
                         })                     
                         ->with('positions')
