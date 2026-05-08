@@ -90,7 +90,7 @@
                         <td v-html="legalHolidayOvertime(item, 'display')"></td>
                         <td v-html="item?.yearly_holiday_minutes && yearlyHolidayTime(item.yearly_holiday_minutes, item.work_minutes_per_day) || ''"></td>
                         <td style="white-space: nowrap;">{{ monthly_expenses[item.id] ? `${monthly_expenses[item.id]}円` : '' }}</td>
-                        <td style="white-space: nowrap;">{{ monthly_incentive[item.id] }}</td>
+                        <td style="white-space: nowrap;">{{ monthly_result[item.id]?.find(ob => ob.unit_id ==='COUNT')?.total_amount || '' }}</td>
                         <td style="white-space: nowrap;">{{ item?.monthly_mileage ? `${item.monthly_mileage}km` : '' }}</td>
                         <td v-html="conversionTime(month_work_time[item.id])"></td>
                     </tr>
@@ -121,6 +121,7 @@ import { useApi } from '@/composables/api';
     const weather_average = ref([])
     const monthly_expenses = ref([])
     const monthly_incentive = ref([])
+    const monthly_result = ref([])
     const timecard_costs = ref([])
     const departmentCount = ref([])
     const responsive = useResponsive()
@@ -367,6 +368,7 @@ import { useApi } from '@/composables/api';
         weather_average.value = data.weather_average,
         monthly_expenses.value = data.monthly_expenses
         monthly_incentive.value = data.monthly_incentive
+        monthly_result.value = data.monthly_result
         timecard_costs.value = data.timecard_costs
         departmentCount.value = data.departments
         my_car_usage.value = data.my_car_usage

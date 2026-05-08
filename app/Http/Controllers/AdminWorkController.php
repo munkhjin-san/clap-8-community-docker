@@ -13,7 +13,7 @@ use App\Models\attendanceRecord;
 
 use App\Models\customFieldDataRecord;
 
-
+use App\Models\ProjectCase;
 use App\Models\shiftRecord;
 
 use Illuminate\Http\Request;
@@ -146,7 +146,26 @@ class AdminWorkController extends Controller{
         ->groupBy('user_id')
         ->get();
         $monthly_incentive = $incentives->pluck('totalCount', 'user_id');
-
+        $monthly_result = ProjectCase::query()
+        ->selectRaw("
+            project_cases.user_id,
+            project_records.unit_id,
+            project_records.custom_unit_label,
+            SUM(project_cases.amount) as total_amount
+        ")
+        ->join('project_records', 'project_records.id', '=', 'project_cases.project_record_id')
+        ->whereIn('project_cases.user_id', $userIds)
+        ->whereYear('project_cases.report_date', $currentYear)
+        ->whereMonth('project_cases.report_date', $currentMonth)
+        ->whereHas('timecardRecord')
+        ->groupBy(
+            'project_cases.user_id',
+            'project_records.unit_id',
+            'project_records.custom_unit_label'
+        )
+        ->orderBy('project_cases.user_id')
+        ->get()
+        ->groupBy('user_id');
         now()->day >= 1 && now()->day <= 6 ? $previousMonth = $currentMonth - 1 : $previousMonth = null;  
         $custom_weather_data = customFieldDataRecord::whereIn('user_id', $userIds)
         ->whereYear('date', $currentYear)
@@ -372,6 +391,7 @@ class AdminWorkController extends Controller{
                 'weather_average' => $mostCommonValuesPerUser,
                 'monthly_expenses' => $monthly_expenses,
                 'monthly_incentive' => $monthly_incentive,
+                'monthly_result' => $monthly_result,
                 'timecard_costs' => $time_card_costs,
                 'departments' => $allDepartmentCountsArray,
                 'holiday_shifts' => $holiday_shifts,
