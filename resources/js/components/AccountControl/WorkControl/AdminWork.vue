@@ -325,7 +325,7 @@ import { useApi } from '@/composables/api';
                 "ODA休暇": item.oda_holiday,
                 "代休" : item.comp_holiday,
                 "休業": item.closed_day,
-                "労働時間（分）": item.working_hours_no_over - item.training_time,
+                "労働時間（分）": item.working_hours_no_over,
                 "欠勤時間（分）": item.absence_hour,
                 "残業時間（分）": item.over_time,
                 "深夜勤務（分）": item.night_work_time,
