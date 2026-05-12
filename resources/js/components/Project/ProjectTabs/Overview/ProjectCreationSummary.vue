@@ -89,7 +89,7 @@ const rows = computed<SummaryRow[]>(() => {
     margin-bottom: 4px;
 }
 .summary-value {
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.5;
     word-break: break-word;
     white-space: pre-line;

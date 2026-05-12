@@ -1,22 +1,35 @@
 <template>
     <div class="h-[calc(100%-75px)] relative overflow-y-auto" ref="scrollContainer"> 
-        <div class="project-detail flex flex-col gap-[15px]">
-            <div v-if="hasPrivilage" class="ml-auto sticky top-0">
+        <div class="project-detail flex flex-col gap-[15px]" :class="{'pb-[70px]': hasPrivilage && (auth.isBoss || auth.isAdmin) && selectedProject?.status == 'pending_director'}">
+            <div v-if="hasPrivilage" class="ml-auto sticky top-0 z-10">
                 <div class="flex gap-4 items-center">
-                    <div v-if="(auth.isBoss || auth.isAdmin) && selectedProject?.status == 'pending_director'" class="flex gap-4">
+                    <!-- Desktop: inline approval buttons -->
+                    <div v-if="(auth.isBoss || auth.isAdmin) && selectedProject?.status == 'pending_director'" class="hidden sm:flex gap-4">
                         <button @click="statusChange('director_approved')" class="bg-[var(--primary-button)] text-white p-1">
                             承認する
                         </button>
                         <button @click="statusChange('returned')" class="bg-[var(--primary-button)] text-white p-1">
                             差し戻し
                         </button>
-                    </div> 
+                    </div>
                     <ItemMenu :items="[
                         {title: '編集する', action: () => editProjects(selectedProject)},
                         {title: '削除する', action: () => deleteProject(selectedProject)}
                     ]"/>
                 </div>
             </div>
+            <!-- Mobile: sticky bottom bar for approval buttons only -->
+            <Teleport to="body">
+                <div v-if="hasPrivilage && (auth.isBoss || auth.isAdmin) && selectedProject?.status == 'pending_director'"
+                    class="sm:hidden fixed bottom-0 left-0 right-0 z-50 flex border-t border-[var(--calendarBorder)] bg-[var(--bg1)]">
+                    <button @click="statusChange('director_approved')" class="flex-1 py-3 text-sm font-medium bg-[var(--primary-button)] text-white">
+                        承認する
+                    </button>
+                    <button @click="statusChange('returned')" class="flex-1 py-3 text-sm font-medium bg-[var(--bg2)] text-[var(--primary-color)]">
+                        差し戻し
+                    </button>
+                </div>
+            </Teleport>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <!-- <div class="project-detail-header">
                     <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">部門</span> {{ selectedProject?.is_new ? '新規' : '既存' }}</div>
@@ -153,6 +166,7 @@ import { useDashboardStore } from '@/store/dashboard';
     const editProjects = inject('editProjects') as (project: any) => void
     const deleteProject = inject('deleteProject') as (project: Project | null) => void
     const { selectedProject, updateProject, checkItemConfirmBadge } = useProject()
+    const auth = useAuthUserStore()
     const checkTab = ref(false)
 
     const sanitized = (text: string) => {
@@ -167,7 +181,6 @@ import { useDashboardStore } from '@/store/dashboard';
     const isExpanded = ref(false);
     const isTruncated = ref(false);
     const excerptHtml = ref('');
-    const auth = useAuthUserStore()
     const route = useRoute()
     const scrollRef = useTemplateRef('scrollContainer')
     onMounted(() => {
