@@ -56,7 +56,7 @@
                                         </div>
                                         <div v-else-if="canPreview && file.mime_type == 'text'" style="height: calc(100% - 37px);width:100%;">
                                             <object
-                                                v-if="file.extension === 'txt'"
+                                                v-if="file.extension === 'txt' || file.extension === 'md'"
                                                 :data="file.file_path"
                                                 type="text/html"
                                                 width="100%"
