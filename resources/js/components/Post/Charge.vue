@@ -58,7 +58,8 @@ import LoaderButton from '../Global/LoaderButton.vue'
 import { onMounted } from 'vue';
 import { useApi } from '@/composables/api';
     const props = defineProps<{
-        chargeTarget: number
+        chargeTarget: number,
+        isMini: boolean
     }>()
     const emit = defineEmits<{
         'close': [number | undefined]
@@ -89,6 +90,9 @@ import { useApi } from '@/composables/api';
     const pushChargeSelect = (my_charge: number) => {
         var award_bit = my_charge/100;
         var charges: {label: string, value: number}[]= [];
+        if (props.isMini) {
+            award_bit = 5; // ミニチャレンジは最大500円まで
+        }
         for (let step = 1; step < award_bit + 1; step++) {
             charges.push({ label : step * 100 + '円' , value : step * 100 });
         }

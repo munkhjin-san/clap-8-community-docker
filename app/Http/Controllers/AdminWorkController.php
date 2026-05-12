@@ -457,17 +457,18 @@ class AdminWorkController extends Controller{
             return response()->streamDownload(function () use ($query) {
                 $out = fopen('php://output', 'w');
                 fputcsv($out, [
-                    'event_id',
-                    'occurred_at',
-                    'event_type',
-                    'subject_user_id',
-                    'receipt_date',
-                    'merchant_name',
-                    'expenses',
-                    'currency',
-                    'file_path',
-                    'file_sha256',
-                    'internal_control_status',
+                    'イベントID',
+                    '記録時刻',
+                    'イベント種別',
+                    '対象社員ID',
+                    '領収書日付',
+                    '取引先',
+                    '金額',
+                    '通貨',
+                    '領収書ファイル',
+                    'ファイルSHA-256',
+                    '内部統制状態',
+                    '内部統制説明',
                 ]);
                 $query->chunk(500, function ($rows) use ($out) {
                     foreach ($rows as $row) {
@@ -482,7 +483,8 @@ class AdminWorkController extends Controller{
                             $row->currency,
                             $row->file_path,
                             $row->file_sha256,
-                            $row->internal_control_status,
+                            $this->internalControlStatusLabel($row->internal_control_status),
+                            $this->internalControlStatusReason($row->internal_control_status),
                         ]);
                     }
                 });
@@ -509,6 +511,8 @@ class AdminWorkController extends Controller{
                 'receipt_file_id' => $projection->receipt_file_id,
                 'file_sha256' => $projection->file_sha256,
                 'internal_control_status' => $projection->internal_control_status,
+                'internal_control_status_label' => $this->internalControlStatusLabel($projection->internal_control_status),
+                'internal_control_status_reason' => $this->internalControlStatusReason($projection->internal_control_status),
                 'draft_uuid' => $projection->draft_uuid,
             ];
         })->values();
@@ -561,6 +565,8 @@ class AdminWorkController extends Controller{
             'after_state' => $event->after_state,
             'metadata' => $metadata,
             'internal_control_status' => $internalControlStatus,
+            'internal_control_status_label' => $this->internalControlStatusLabel($internalControlStatus),
+            'internal_control_status_reason' => $this->internalControlStatusReason($internalControlStatus),
             'receipt_file_url' => $filePath ? "/cdn/timecard_files/{$filePath}" : null,
             'receipt_file' => $cost?->receiptFile,
             'ocr_run' => $ocrRun ? [
@@ -576,6 +582,24 @@ class AdminWorkController extends Controller{
                 'applied_at' => $ocrRun->applied_at?->toDateTimeString(),
             ] : null,
         ]);
+    }
+
+    private function internalControlStatusLabel(?string $status): string
+    {
+        return match ($status) {
+            'sealed' => '日次封印済み',
+            'recorded' => '証跡記録済み（封印待ち）',
+            default => '対象外',
+        };
+    }
+
+    private function internalControlStatusReason(?string $status): string
+    {
+        return match ($status) {
+            'sealed' => '原本ファイルまたはSHA-256が記録され、該当日の監査digestで封印されています。',
+            'recorded' => '原本ファイルまたはSHA-256は記録済みです。該当日の監査digest封印後に日次封印済みになります。',
+            default => '領収書ファイル証跡を伴わないイベントです。',
+        };
     }
     
 

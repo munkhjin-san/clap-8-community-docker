@@ -39,6 +39,7 @@ export interface Post{
     grants: PostGrant[];
     grantable: boolean;
     emoted_users: EmoteUser[];
+    mini?: boolean;
 }
 interface PostGrant {
     id: number;
@@ -75,7 +76,8 @@ export interface PostQuery {
     app_type: string | LocationQueryValue[] | null;
     search_tags: string | LocationQueryValue[] | null;
     member: string | LocationQueryValue[] | null;
-
+    main_category: string | LocationQueryValue[] | null;
+    sub_category: string | LocationQueryValue[] | null;
 }
 
 

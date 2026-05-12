@@ -35,15 +35,10 @@
                     </label>
                     
                 </div> 
-            </div>       
-            <!-- <div class="si-box" v-if="app_type == 2">
-                <div style="display: flex; gap: 15px;font-size: 14px;flex-wrap: wrap;">
-                    <div @click="grantable = false" :class="['ch-selector', { chSelected: !grantable}]">通常チャレンジ</div>
-                    <div @click="grantable = true" :class="['ch-selector', { chSelected: grantable}]">チャレンジ補助金</div>
-                </div>
-            </div>     -->
+            </div>    
+            
+           
             <div class="si-box" v-if="app_type == 2 && donatable">
-                <!-- <p class="mb-[20px]">寄付先</p> -->
                 <ItemSelector 
                     placeHolder="寄付先"
                     :options="npoList"
@@ -55,14 +50,98 @@
                     :close-on-select="true"
                 />
                 <p class="m-0 text-xs text-[gray]">新しい寄付先を追加したい場合は、経営管理本部に連絡してください。</p>
-                <!-- <OptionSelector 
-                    :options="npoList"
-                    rules="required"
-                    name="npo"
-                    unit=""
-                    ref="npoRef"
-                    v-model="selectedNpo"
-                /> -->
+                
+            </div>
+            <div class="si-box" v-if="app_type == 2">
+                <div class="switchLabel">
+                    <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">ミニにする</p>
+                </div>
+                <div
+                    :class="['selectSwitchArea', 'mini-switch-area', { 'mini-switch-area-disabled': isMiniLocked }]"
+                    style="display: flex;width: 100%;margin-top: 10px;"
+                >    
+                    <input :disabled="isMiniLocked" v-model="mini" type="checkbox" id="mini">
+                    <label
+                        for="mini"
+                        style="min-width: 80px;"
+                        :class="['cursor-pointer', { 'mini-switch-label-disabled': isMiniLocked }]"
+                    ><span></span>
+                        <div class="switch-toggle"></div>
+                    </label>
+                    
+                </div> 
+            </div>  
+            <div v-if="app_type == 2" class="si-box flex flex-col gap-5">
+                <LongInput 
+                    place-holder="アイデア（任意)"
+                    v-model="challengeIdea"
+                />
+               
+                <p class="text-xs text-[gray]">
+                    アイデアの入力は任意です。入力・選択した内容をもとにチャレンジを自動生成できます。
+                </p>
+                <CommandButton
+                    :custom-style="loading ? 'opacity: 0.75; pointer-events: none;' : undefined"
+                    :buttons="[
+                        { title: loading ? '生成中...' : '自動生成', action: () => execute()}
+                    ]" 
+                />
+                <div v-if="loading" class="ai-generation-loader" role="status" aria-live="polite">
+                    <div class="image-wrap">
+                        <img
+                            class="oikawa-normal"
+                            src="/images/minisuke.webp"
+                            alt=""
+                        />
+                    </div>
+                    <!-- <div class="ai-generation-loader-icon" aria-hidden="true">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
+                            xmlns="http://www.w3.org/2000/svg">
+                        <rect x="5" y="7" width="14" height="11" rx="3"
+                                stroke="currentColor" stroke-width="1.7"/>
+
+                        <path d="M12 7V4"
+                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                        <circle cx="12" cy="3.5" r="1.2" fill="currentColor"/>
+
+                        <circle class="ai-eye" cx="9" cy="12" r="1.2" fill="currentColor"/>
+                        <circle class="ai-eye" cx="15" cy="12" r="1.2" fill="currentColor"/>
+
+                        <path d="M9.5 15H14.5"
+                                stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+
+                        <path d="M3.5 11V14"
+                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                        <path d="M20.5 11V14"
+                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                        </svg>
+                    </div> -->
+                    <div class="ai-generation-loader-copy">
+                        <p class="ai-generation-loader-title">AIがチャレンジを自動生成中です</p>
+                        <div class="flex items-center gap-1">
+                            <p class="ai-generation-loader-text">入力内容を整理して、タイトル・内容・達成条件を作成しています</p>
+                            <div class="ai-generation-loader-dots" aria-hidden="true">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+            <div class="si-box flex flex-col gap-3" v-if="generated_challenges.length">
+                <p class="text-sm">自動生成されたチャレンジ</p>
+                <div v-for="challenge in generated_challenges">
+                    
+                    <div 
+                        @click="selectGeneratedChallenge(challenge)"
+                        :class="['difficult-chip', { active: challenge.title == title}]"
+                    >
+                        <p class="text-xs">{{ challenge.title }}</p>
+
+                    </div>
+                </div>
             </div>
             <div class="si-box">
                 <TagSelector 
@@ -186,7 +265,7 @@
                     チャレンジカテゴリとサブカテゴリを選択してください。
                 </p>
             </div>
-            <div class="si-box" v-if="app_type == 2">
+            <div class="si-box" v-if="app_type == 2 && !mini">
                 <p class="form-lbl" style="font-size: 14px;">必要経費</p>
                <PostExpenses 
                     v-for="cost, index in costs"
@@ -320,6 +399,8 @@ import {
     challengeSuggestionRules,
     type ChallengeCategorySuggestion
 } from '@/utils/challengeCategory'
+import CommandButton from '../Global/CommandButton.vue'
+import AiIcon from '../Icons/AiIcon.vue'
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
 
@@ -328,11 +409,18 @@ import {
         appName: string,
         editTarget: Post | null,
         getQuery: PostQuery
+        popup?: boolean
     }>()
 
     const emit = defineEmits<{
         'postFinish': [flag: boolean, id?: number]
     }>()
+    type generatedChallenge = {
+        title: string
+        content_rule: string
+        achievement_condition: string
+        main_category: string
+    }
     const app_type = ref(props.editTarget && props.editTarget.app_type ? props.editTarget.app_type : props.getQuery?.app_type ? props.getQuery?.app_type : 0)
     const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : "")
     const content = ref(props.editTarget && props.editTarget.content ? props.editTarget.content : "")
@@ -360,11 +448,10 @@ import {
     const recordDateStart = useTemplateRef('recordDateStart')
     const uploadedReceiptsRef = useTemplateRef('uploadedReceiptsRef')
     const uploadedRefreshRef = useTemplateRef('uploadedRefreshRef')
-    // const npoRef = useTemplateRef('npoRef')
     const selectedNpo = ref(props.editTarget && props.editTarget.donation_target ? props.editTarget.donation_target : null)
     const chargeable = ref(true)
-    const grantable = ref(false)
     const donatable = ref(false)
+    const mini = ref(props.editTarget?.mini ?? false)
     const npoList = [
         'e-Education',
         'にこスマ九州',
@@ -387,6 +474,8 @@ import {
     const refreshSummaryLoading = ref(false)
     const challengeCategoryTouched = ref(Boolean(selectedChallengeMainCategory.value || selectedChallengeSubCategory.value))
     const challengeCategoryValidationError = ref(false)
+    const challengeIdea = ref('')
+    const generated_challenges = ref<generatedChallenge[]>([])
     const validateTargets = computed(() => {
         return [
             recordTitle.value,
@@ -407,7 +496,8 @@ import {
         expenses: number | null
         file_path: string | null
     }[]>([])
-
+    const loading = ref(false)
+    const isMiniLocked = computed(() => Boolean(props.popup))
     const refreshPlaceholder = computed(() => {
         return app_type.value == 6 ? 'リフレッシュ写真（必須）（公開）' : 'ファイル'
     })
@@ -496,7 +586,8 @@ import {
     })
     const dateComparsionError = computed(() =>{
         const duration = (DateTime.fromISO(date_end.value).diff(DateTime.fromISO(date_start.value), 'days').toObject().days ?? 0)
-        console.log(duration)
+        
+        
         if (!DateTime.fromISO(date_start.value).isValid || !DateTime.fromISO(date_end.value).isValid) {
             return {
                 hasError: false,
@@ -509,11 +600,22 @@ import {
                 message: '終了日は開始日より前にすることはできません。'
             }                      
 
-        } else if (duration < 14) {
+        } else if (!mini.value && duration < 14) {
             return {
                 hasError: duration < 14,
                 message: '実施期間は最低14日間以上必要です。'
             }
+        } else if (mini.value && duration < 7) {
+            return {
+                hasError: mini.value && duration < 7,
+                message: 'ミニは実施期間を7日以上にする必要があります。'
+            }
+        } else if (mini.value && duration > 30) {
+            return {
+                hasError: mini.value && duration > 30,
+                message: 'ミニは実施期間を30日以内にする必要があります。'
+            }
+            
         } else {
             return {
                 hasError: false,
@@ -533,9 +635,38 @@ import {
         loadRefreshSummary()
 
     })
-    watch(donatable, (newVal) => {
+    watch(donatable, async(newVal) => {
         if (newVal) {
-            confirmDonate()
+            const result = await ask('必要経費以外のチャージ総額はNPOに寄付します。よろしいでしょうか?')
+            console.log('User response to donation confirmation:', result.value)
+            if(!result.value){
+                donatable.value = false
+            }
+        }
+    })
+    watch(() => props.popup, (isPopup) => {
+        if (isPopup) {
+            mini.value = true
+        }
+    }, { immediate: true })
+    watch(mini, async (newVal) => {
+        if (isMiniLocked.value) {
+            if (!newVal) {
+                mini.value = true
+            }
+            return
+        }
+
+        if (newVal) {
+            if (costs.some(cost => cost.expenses && cost.expenses > 0)) {
+                costs.forEach(cost => {
+                    cost.expenses = null
+                })
+            }
+            const result = await ask('ミニを選択した場合、最大請求額は500円となり、費用は発生しません。よろしいでしょうか?')
+            if (!result.value) {
+                mini.value = false
+            }
         }
     })
     watch([title, content_rule, content_goal, app_type], () => {
@@ -588,16 +719,7 @@ import {
     const formatCurrency = (value: number) => {
         return `${Number(value || 0).toLocaleString()}円`
     }
-    const confirmDonate = async() => {
-        if(donatable.value){
-            const result = await ask('必要経費以外のチャージ総額はNPOに寄付します。よろしいでしょうか?')
-            if(result.value){
-                donatable.value = true
-            }else{
-                donatable.value = false
-            }
-        }
-    }
+    
     const addCostField = () => {
         if(costs.length >= 10){
             ping('上限は10個です。')
@@ -687,7 +809,8 @@ import {
             refresh_amount: refresh_amount.value,
             challenge_main_category: app_type.value == 2 ? selectedChallengeMainCategory.value : null,
             challenge_sub_category: app_type.value == 2 ? selectedChallengeSubCategory.value : null,
-            grants: costs
+            grants: costs,
+            mini: mini.value
         }
 
         const data = await api.post('post_add_record', params, {
@@ -713,6 +836,37 @@ import {
         sharingData.setSharingData(shareData)
         emit('postFinish',flag, id);          
     }
+
+    const execute = async () => {
+        if(loading.value) return
+
+        const user_ids = to_users.value.map(u => u.id)
+        const user_id = user_ids.includes(auth.user.id)
+            ? auth.user.id
+            : user_ids[0] ?? null
+        if (!user_id) return
+        const data = await api.post('/suggest_challenge', { challenger: user_id, idea: challengeIdea.value, mini: mini.value }, {
+            loadingRef: loading
+        })
+        if (data?.generated_challenge) {
+            title.value = data.generated_challenge.title
+            content_rule.value = data.generated_challenge.content_rule
+            content_goal.value = data.generated_challenge.content_goal
+        }
+        if (data?.generated_challenges.length && mini.value) {
+            generated_challenges.value = data.generated_challenges
+        }
+        
+    }
+    const selectGeneratedChallenge = (challenge: generatedChallenge) => {
+        title.value = challenge.title
+        content_rule.value = challenge.content_rule
+        content_goal.value = challenge.achievement_condition
+        selectedChallengeMainCategory.value = challenge.main_category
+    }
+
+
+   
 </script>
 <style scoped>
 .challenge-category-header {
@@ -775,7 +929,122 @@ import {
     font-size: 12px;
     color: tomato;
 }
+.difficult-chip {
+    cursor: pointer;
+    border: 1px solid var(--check-inactive);
+    padding: 8px;
+}
+.difficult-chip.active {
+    border-color: var(--primary-color);
+    background: var(--bg3);
+}
+.ai-generation-loader {
+    position: relative;
+    display: flex;
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    min-height: 68px;
+    padding: 12px 14px;
+    overflow: hidden;
+    border: 1px solid var(--check-inactive);
+    background: var(--bg3);
+    color: var(--primary-color);
+}
+.image-wrap {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--background-color);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 60px;
+    /* box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28); */
+    border: 1px solid var(--calendarBorder);
+}
+.oikawa-normal {
+    width: 40px;
+    object-fit: contain;
+    opacity: 1;
+}
+/* .ai-generation-loader::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 45%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.32), transparent);
+    animation: ai-loader-shimmer 1.8s ease-in-out infinite;
+    pointer-events: none;
+} */
 
+.ai-generation-loader-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--check-inactive);
+    border-radius: 50%;
+    background: var(--background-color);
+    animation: ai-loader-pulse 1.4s ease-in-out infinite;
+}
+
+.ai-generation-loader-copy {
+    position: relative;
+    min-width: 0;
+}
+
+.ai-generation-loader-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.ai-generation-loader-text {
+    margin: 2px 0 0;
+    color: var(--sub-color);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.ai-generation-loader-dots {
+    position: relative;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.ai-generation-loader-dots span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    opacity: 0.35;
+    animation: ai-loader-dot 1.1s ease-in-out infinite;
+}
+
+.ai-generation-loader-dots span:nth-child(2) {
+    animation-delay: 0.16s;
+}
+
+.ai-generation-loader-dots span:nth-child(3) {
+    animation-delay: 0.32s;
+}
+.ai-eye {
+  animation: blink 2.4s infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes blink {
+  0%, 88%, 100% { transform: scaleY(1); }
+  92%, 96% { transform: scaleY(.15); }
+}
 .refresh-balance-panel {
     margin-top: 10px;
     padding: 10px 12px;
@@ -809,6 +1078,68 @@ import {
     line-height: 1.45;
     color: #c45a3a;
 }
+
+.mini-switch-area-disabled {
+    opacity: 0.6;
+}
+
+.mini-switch-label-disabled {
+    cursor: not-allowed !important;
+}
+
+.mini-switch-area-disabled .switch-toggle {
+    filter: grayscale(0.5);
+}
+
+@keyframes ai-loader-pulse {
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.78;
+    }
+    50% {
+        transform: scale(1.06);
+        opacity: 1;
+    }
+}
+
+@keyframes ai-loader-dot {
+    0%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.35;
+    }
+    50% {
+        transform: translateY(-4px);
+        opacity: 1;
+    }
+}
+
+@keyframes ai-loader-shimmer {
+    0% {
+        transform: translateX(-120%);
+    }
+    100% {
+        transform: translateX(240%);
+    }
+}
+
+@media (max-width: 480px) {
+    .ai-generation-loader {
+        grid-template-columns: 30px minmax(0, 1fr);
+        gap: 10px;
+    }
+
+    .ai-generation-loader-icon {
+        width: 30px;
+        height: 30px;
+    }
+
+    .ai-generation-loader-dots {
+        grid-column: 2;
+    }
+}
+
 </style>
     
     

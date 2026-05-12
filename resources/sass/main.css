@@ -880,6 +880,7 @@ progress {
   width: fit-content;
   width: -moz-fit-content;
   cursor: pointer;
+  z-index: 1;
 }
 
 .post-list-reset:hover {
@@ -931,7 +932,17 @@ progress {
   white-space: pre-line;
   overflow-wrap: break-word;
 }
+.line-clamp-3 {
+  display: -webkit-box;              /* required for WebKit */
+  -webkit-box-orient: vertical;      /* required for WebKit */
+  overflow: hidden;
 
+  /* Standard property */
+  line-clamp: 3;
+
+  /* Vendor-prefixed fallback */
+  -webkit-line-clamp: 3;
+}
 .fileFullScreen {
   padding: 10px 20px 20px 20px;
   width: -webkit-fill-available;

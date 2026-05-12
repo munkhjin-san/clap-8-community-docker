@@ -2,17 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\GenerateLunchChallenge;
+use App\Models\User;
+use App\Services\ChallengeSuggestionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\StreamedEvent;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use GuzzleHttp\Client;
 use OpenAI;
 use Generator;
+
 class OpenAiController extends Controller
 {
+    private const LUNCH_CHALLENGE_TARGET_COUNT = 10;
+
     public function summarize_contract_comparison(Request $request)
     {
         $data = $request->validate([
@@ -469,5 +476,151 @@ TXT
         }
         
         return $finalChunks;
+    }
+    public function suggest_challenge(Request $request, ChallengeSuggestionService $challengeSuggestionService)
+    {
+        $validated = $request->validate([
+            'challenger' => 'required|integer',
+            'idea' => 'nullable|string|max:1000',
+            'mini' => 'nullable|boolean',
+        ]);
+        $user = User::with([
+            'post' => fn ($q) => $q
+                ->where('app_type', 2)
+                ->select(['id', 'user_id', 'title', 'content_rule', 'content_goal']),
+        ])
+        ->select(['id', 'name'])
+        ->findOrFail($validated['challenger']);
+
+        $json = $challengeSuggestionService->suggest(
+            $user,
+            $validated['idea'] ?? null,
+            $validated['mini'] ?? false,
+        );
+
+        return response()->json($json);
+    }
+
+    public function lunch_challenge_popup()
+    {
+        $user = Auth::user();
+        $now = now()->timezone(config('app.timezone'));
+        $dateKey = $now->toDateString();
+        $isTestUser = (int) $user->id === 765;
+
+        if (! $user) {
+            return response()->json([
+                'show_popup' => false,
+                'pending' => false,
+                'targeted' => false,
+                'within_lunch_window' => false,
+                'challenge_date' => $dateKey,
+            ], 401);
+        }
+
+        if ((! $this->isLunchChallengeWindow($now) && ! $isTestUser ) || ! $this->isLunchChallengeEligibleUser($user)) {
+            return response()->json([
+                'show_popup' => false,
+                'pending' => false,
+                'targeted' => false,
+                'within_lunch_window' => false,
+                'challenge_date' => $dateKey,
+            ]);
+        }
+
+        $targetUserIds = $this->lunchChallengeTargetUserIds($dateKey);
+
+        if (! $isTestUser && ! in_array($user->id, $targetUserIds, true)) {
+            return response()->json([
+                'show_popup' => false,
+                'pending' => false,
+                'targeted' => false,
+                'within_lunch_window' => true,
+                'challenge_date' => $dateKey,
+            ]);
+        }
+
+        $challengeCacheKey = $this->lunchChallengePayloadCacheKey($dateKey, $user->id);
+        $pendingCacheKey = $this->lunchChallengePendingCacheKey($dateKey, $user->id);
+        $cachedChallenge = Cache::get($challengeCacheKey);
+
+        if (is_array($cachedChallenge)) {
+            return response()->json([
+                'show_popup' => true,
+                'pending' => false,
+                'targeted' => true,
+                'within_lunch_window' => true,
+                'challenge_date' => $dateKey,
+                'generated_challenge' => $cachedChallenge['generated_challenge'] ?? $cachedChallenge,
+            ]);
+        }
+
+        if (Cache::add($pendingCacheKey, true, $now->copy()->endOfDay())) {
+            GenerateLunchChallenge::dispatchAfterResponse($user->id, $user->name, $dateKey);
+        }
+
+        return response()->json([
+            'show_popup' => false,
+            'pending' => true,
+            'targeted' => true,
+            'within_lunch_window' => true,
+            'challenge_date' => $dateKey,
+        ]);
+    }
+
+    private function isLunchChallengeWindow($now): bool
+    {
+        $start = $now->copy()->startOfDay()->setTime(12, 0, 0);
+        $end = $now->copy()->startOfDay()->setTime(13, 59, 59);
+
+        return $now->betweenIncluded($start, $end);
+    }
+
+    private function isLunchChallengeEligibleUser(User $user): bool
+    {
+        return
+            (int) $user->deleted_flag === 0 &&
+            (int) $user->retire === 0 &&
+            (int) $user->partner_flag === 0 &&
+            (int) $user->hide_flag === 0 &&
+            (
+                (int) $user->position_id < 13 ||
+                (int) $user->position_id === 16
+            );
+    }
+
+    private function lunchChallengeTargetUserIds(string $dateKey): array
+    {
+        return Cache::remember(
+            "lunch_challenge:targets:{$dateKey}",
+            now()->endOfDay(),
+            function () {
+                return User::query()
+                    ->where('deleted_flag', 0)
+                    ->where('retire', 0)
+                    ->where('partner_flag', 0)
+                    ->where('hide_flag', 0)
+                    ->where(function ($query) {
+                        $query->where(function ($employeeQuery) {
+                            $employeeQuery->where('position_id', '<', 13);
+                        })->orWhere('position_id', 16);
+                    })
+                    ->pluck('id')
+                    ->shuffle()
+                    ->take(self::LUNCH_CHALLENGE_TARGET_COUNT)
+                    ->values()
+                    ->all();
+            }
+        );
+    }
+
+    private function lunchChallengePayloadCacheKey(string $dateKey, int $userId): string
+    {
+        return "lunch_challenge:payload:{$dateKey}:{$userId}";
+    }
+
+    private function lunchChallengePendingCacheKey(string $dateKey, int $userId): string
+    {
+        return "lunch_challenge:pending:{$dateKey}:{$userId}";
     }
 }

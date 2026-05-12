@@ -80,23 +80,23 @@
             </div>
             <div class="post-content-stack">
                 <div>
-                    <div class="record-content" v-html="body"></div>
-                    <span @click="showAll('body')" class="jump-link" v-if="truncated.find(t => t.type === 'body')?.active">{{ truncated.find(t => t.type === 'body')?.expand ? '閉じる' : '続きを表示する' }}</span>
+                    <div ref="bodyContentRef" :class="['record-content', { 'line-clamp-3': !showMore.content }]" v-html="body"></div>
+                    <span v-if="showMore.content || bodyNeedsMore" @click="toggleShowMore('content')" class="jump-link">{{ showMore.content ? '閉じる' : '続きを表示する' }}</span>
                 </div>
                 <div v-if="goal">
                     <div class="post-separetor">
                         <div>達 成 条 件</div>
                     </div>
-                    <div class="record-content" v-html="goal"></div>
-                    <span @click="showAll('goal')" class="jump-link" v-if="truncated.find(t => t.type === 'goal')?.active">{{ truncated.find(t => t.type === 'goal')?.expand ? '閉じる' : '続きを表示する' }}</span>
+                    <div ref="goalContentRef" :class="['record-content', { 'line-clamp-3': !showMore.goal }]" v-html="goal"></div>
+                    <span v-if="showMore.goal || goalNeedsMore" @click="toggleShowMore('goal')" class="jump-link">{{ showMore.goal ? '閉じる' : '続きを表示する' }}</span>
                 </div>
                 <PostFiles v-if="record.files.length" :items="record.files"/>
                 <div v-if="result">
                     <div class="post-separetor">
                         <div>{{ record.status_flag == 5 ? '進 捗 状 況' : '結 果 発 表'}}</div>
                     </div>
-                    <div class="record-content" v-html="result"></div>
-                    <span @click="showAll('result')" class="jump-link" v-if="truncated.find(t => t.type === 'result')?.active">{{ truncated.find(t => t.type === 'result')?.expand ? '閉じる' : '続きを表示する' }}</span>
+                    <div ref="resultContentRef" :class="['record-content', { 'line-clamp-3': !showMore.result }]" v-html="result"></div>
+                    <span v-if="showMore.result || resultNeedsMore" @click="toggleShowMore('result')" class="jump-link">{{ showMore.result ? '閉じる' : '続きを表示する' }}</span>
                 </div>
                 <PostFiles v-if="record.result_files && record.result_files.length" :items="record.result_files"/>
                 <div v-if="record.grants && record.grants.length && record.grantable && totalExpenses > 0">
@@ -107,12 +107,12 @@
                         <div>{{ grant.content }}</div>
                         <div v-if="grant.expenses" class="text-[14px]">金額：{{ amountOfMoneyParser(grant.expenses) }}円</div>
                         <div v-if="grant.file_path" class="mt-2 mb-4">
-                            <div v-if="grant.file_path?.split('.').pop() == 'webp'">
-                                <img @click="workFilePreview(grant.file_path, 'image', '/cdn/post_grant_files')" style="height:120px;cursor: pointer;" v-if="grant?.file_path" :src="`/cdn/post_grant_files/${grant?.file_path}`"/>
+                            <div v-if="isGrantImage(grant)">
+                                <img @click="previewGrantFile(grant)" style="height:120px;cursor: pointer;" v-if="grant?.file_path" :src="grantFileUrl(grant)"/>
                             </div>
-                            <div v-else-if="grant.file_path?.split('.').pop() == 'pdf'">
-                                <div class="cursor-pointer" style="position:relative;" @click="workFilePreview(grant.file_path, 'application', '/cdn/post_grant_files')">
-                                    <FileIcon ext="pdf"/>
+                            <div v-else>
+                                <div class="cursor-pointer" style="position:relative;" @click="previewGrantFile(grant)">
+                                    <FileIcon :ext="grantFileExtension(grant)"/>
                                 </div>
                             </div>
                         </div>
@@ -164,7 +164,7 @@
                     </div> -->
                 </div>
                 <div class="flex flex-col justify-center items-center gap-2 my-6 mx-auto w-full" v-if="challengeButtonView"> 
-                    <button @click="emit('setChargeTarget', record.id)" v-if="challengeButtonSwitch" id="chargeAddButton" class="chargeFormeAddButton cursor-pointer">チャレンジにチャージする</button>
+                    <button @click="emit('setChargeTarget', record)" v-if="challengeButtonSwitch" id="chargeAddButton" class="chargeFormeAddButton cursor-pointer">チャレンジにチャージする</button>
                     <button v-else class="chargeFormeAddButton" disabled>{{canNotCharge}}</button>
                 </div>  
                 <div v-if="record.app_type == 5">                                    
@@ -273,7 +273,7 @@ import { amountOfMoneyParser, customParser, oikawaMap, urlCheck } from '@/utils/
 import { Post, PostEntry } from '@/interface/postInterface';
 import { User } from '@/interface/globalInterface';
 import PostEntryRecord from './PostEntryRecord.vue';
-import { workFilePreview } from '@/utils/workApi';
+import { fileExtensionFromPath, filePreviewTypeFromPath, workFilePreview } from '@/utils/workApi';
 import People from '../Icons/People.vue';
 import CloseIcon from '../Form/CloseIcon.vue';
 import FileIcon from '../Board/Mixed/FileIcon.vue';
@@ -295,8 +295,25 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
         appName: string,
         apps: string[]
     }>()
+    const grantFileExtension = (grant: { file_path?: string | null }) => {
+        return fileExtensionFromPath(grant.file_path)
+    }
+    const grantFileType = (grant: { file_path?: string | null }) => {
+        return filePreviewTypeFromPath(grant.file_path)
+    }
+    const isGrantImage = (grant: { file_path?: string | null }) => {
+        return Boolean(grant.file_path) && grantFileType(grant) === 'image'
+    }
+    const grantFileUrl = (grant: { file_path?: string | null }) => {
+        return `/cdn/post_grant_files/${grant.file_path}`
+    }
+    const previewGrantFile = (grant: { file_path?: string | null }) => {
+        if (!grant.file_path) return
+
+        workFilePreview(grant.file_path, grantFileType(grant), '/cdn/post_grant_files')
+    }
     const emit = defineEmits<{
-        'setChargeTarget': [number],
+        'setChargeTarget': [Post],
         'setClap': [number],
         'editRecord': [Post],
         'updateStatus': [Post],
@@ -319,13 +336,32 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
     const expand = ref(false)
     const viewExpand = ref(false)
     const isExpanded = ref(false)
+    const showMore = ref({
+        content: false,
+        goal: false,
+        result: false
+    })
     const toUsersRef = useTemplateRef('toUsersRef');
+    const bodyContentRef = useTemplateRef<HTMLElement>('bodyContentRef')
+    const goalContentRef = useTemplateRef<HTMLElement>('goalContentRef')
+    const resultContentRef = useTemplateRef<HTMLElement>('resultContentRef')
+    const bodyNeedsMore = ref(false)
+    const goalNeedsMore = ref(false)
+    const resultNeedsMore = ref(false)
     const viewEntries = ref(false)
     onMounted(() => {
         const to_user = toUsersRef.value
         if(to_user && to_user.scrollHeight > to_user.clientHeight){
             viewExpand.value = true
         }
+        nextTick(() => {
+            if (bodyContentRef.value)
+                bodyNeedsMore.value = bodyContentRef.value.scrollHeight > bodyContentRef.value.clientHeight
+            if (goalContentRef.value)
+                goalNeedsMore.value = goalContentRef.value.scrollHeight > goalContentRef.value.clientHeight
+            if (resultContentRef.value)
+                resultNeedsMore.value = resultContentRef.value.scrollHeight > resultContentRef.value.clientHeight
+        })
         const queryId = route.query.id as string
         if(queryId){
             const id = parseInt(queryId)
@@ -339,6 +375,9 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
             }           
         }  
     })  
+    const toggleShowMore = (which: keyof typeof showMore.value) => {
+        showMore.value[which] = !showMore.value[which]
+    }
     const clapButtonView = computed(() => {
         return props.record.created_at && DateTime.fromISO(props.record.created_at) > DateTime.fromISO('2026-04-12') ? false : true
     })
@@ -501,21 +540,18 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
     })
     const body = computed(() => {           
         const text = props.record.app_type == 2 ? props.record.content_rule : props.record.content
-        const truncate = cutter(text, maxLength.value, 'body')
-        const urlParse = urlCheck(truncate)
+        const urlParse = urlCheck(text)
         return urlParse          
         
     })
     const goal = computed(() => {
         const text = props.record.app_type == 2 ? props.record.content_goal : ''
-        const truncate = cutter(text, maxLength.value, 'goal')
-        const urlParse = urlCheck(truncate)
+        const urlParse = urlCheck(text)
         return urlParse    
     })
     const result = computed(() => {
         const text = props.record.app_type == 2 ? props.record.result : props.record.result
-        const truncate = cutter(text, maxLength.value, 'result')
-        const urlParse = urlCheck(truncate)
+        const urlParse = urlCheck(text)
         return urlParse    
     })
     const updateStatus = () => {

@@ -94,7 +94,9 @@ class PostController extends Controller
         $records = PostRecord::query();
         $path = $request->path;
         $app_type = $params['app_type'] ?? null;
-        $qr = $records->when($params, function ($query) use($params, $search_tags, $target_users, $path, $app_type) {
+        $main_category = $params['main_category'] ?? null;
+        $sub_category = $params['sub_category'] ?? null;
+        $qr = $records->when($params, function ($query) use($params, $search_tags, $target_users, $path, $app_type, $main_category, $sub_category) {
             $query->when(array_key_exists('id', $params) && $params['id'], function ($query) use($params) {
                 $query->where('id', $params['id']);
             });
@@ -132,6 +134,14 @@ class PostController extends Controller
 
             $query->when(!is_null($app_type), function ($query) use ($app_type) {
                 $query->where('app_type', $app_type);
+            });
+
+            $query->when($main_category, function ($query) use ($main_category) {
+                $query->where('challenge_main_category', $main_category);
+            });
+
+            $query->when($sub_category, function ($query) use ($sub_category) {
+                $query->where('challenge_sub_category', $sub_category);
             });
 
             $query->when($app_type == 2, function ($q) {
@@ -378,6 +388,7 @@ class PostController extends Controller
                 $record->donation_target = $request->donation_target;
                 $record->challenge_main_category = $request->challenge_main_category;
                 $record->challenge_sub_category = $request->challenge_sub_category;
+                $record->mini = $request->mini;
             }else{
                 $record->content = $request->post_content;
                 $record->challenge_main_category = null;

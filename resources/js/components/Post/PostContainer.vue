@@ -36,86 +36,95 @@
           
         <div class="post-container scrollable" @scroll="scrollListen">
             
-            <div v-if="hasQuery" style="height: auto;margin: 0 20px;display: flex;gap: 20px;">
-                <div v-if="getQuery?.app_type" class="active-query">
-                    <PostIcon v-if="Number(getQuery?.app_type) != 6" :which="getQuery?.app_type" size="20"/>
-                    {{ getQuery?.app_type ? apps[Number(getQuery.app_type)] : ''}}
-                    <div @click="router.push({name: appName})" style="cursor:pointer">
-                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style="width: 10px;height:10px" class="modalWindowCloseButton" viewBox="0 0 32 32">
-                            <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
-                        </svg>
-                    </div>
+            <!-- <div class="active-query-shell" :class="{ 'active-query-shell--visible': hasQuery }">
+                <div class="active-query-shell__inner">
+                    <transition-group tag="div" name="badgeAnim" class="active-query-row">
+                        <div v-if="getQuery?.app_type" :key="`type_${getQuery.app_type}`" class="active-query">
+                            <PostIcon :which="getQuery?.app_type" size="20"/>
+                            {{ getQuery?.app_type ? apps[Number(getQuery.app_type)] : ''}}
+                            <div @click="router.push({name: appName})" style="cursor:pointer; display: flex; align-items: center;">
+                                <CloseIcon size="10" />
+                            </div>
+                        </div>
+                        <div v-if="getQuery?.member" :key="`member_${getQuery.member}`" class="active-query">
+                            <div>{{ getQuery?.member }}</div>
+                            <div @click="router.push({name: appName})" style="cursor:pointer; display: flex; align-items: center;">
+                                <CloseIcon size="10" />
+                            </div>
+                        </div>
+                        <div v-if="getQuery?.main_category" :key="`main_category_${getQuery.main_category}`" class="active-query">
+                            <div>{{ getQuery.main_category }}</div>
+                            <div @click="router.push({name: appName, query: getQuery?.app_type ? { app_type: getQuery.app_type } : {}})" style="cursor:pointer; display: flex; align-items: center;">
+                                <CloseIcon size="10" />
+                            </div>
+                        </div>
+                        <div v-if="getQuery?.sub_category" :key="`sub_category_${getQuery.sub_category}`" class="active-query">
+                            <div>{{ getQuery.sub_category }}</div>
+                            <div @click="router.push({name: appName, query: { ...(getQuery?.app_type ? { app_type: getQuery.app_type } : {}), main_category: getQuery.main_category }})" style="cursor:pointer; display: flex; align-items: center;">
+                                <CloseIcon size="10" />
+                            </div>
+                        </div>
+                    </transition-group>
                 </div>
-                <div v-if="getQuery?.member" class="active-query">
-                    <div>{{ getQuery?.member }}</div>
-                    <div @click="router.push({name: appName})" style="cursor:pointer">
-                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style="width: 10px;height:10px" class="modalWindowCloseButton" viewBox="0 0 32 32">
-                            <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div v-if="getQuery?.search_tags" class="active-query"> 
-                    <div>#{{ sanitized(getQuery.search_tags) }}</div>
-                    <div @click="router.push({name: appName})" style="cursor:pointer">
-                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" style="width: 10px;height:10px" class="modalWindowCloseButton" viewBox="0 0 32 32">
-                            <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
-                        </svg>
-                    </div>
-                </div>
-            </div>
-            <div v-else>
-                <div v-if="appName == 'post'" style="display: flex; gap: 20px;font-size: 14px;flex-wrap: wrap;margin: 0 20px">
-                    <router-link :to="`/${appName}?app_type=0`" :class="['pt-selector']">
-                        <PostIcon which="0" size="20"/>
+            </div> -->
+
+            <!-- Category / Type filter strip -->
+            <div class="cat-filter-strip" :class="{ 'cat-filter-strip--busy': queryRefreshing }">
+                <!-- Post app: type filter -->
+                <div v-if="appName == 'post'" class="cat-filter-row">
+                    <router-link :to="`/${appName}`" :class="['cat-chip', { 'cat-chip--active': !getQuery?.app_type }]">
+                        すべて
+                    </router-link>
+                    <router-link :to="`/${appName}?app_type=0`" :class="['cat-chip', { 'cat-chip--active': getQuery?.app_type == '0' }]">
+                        <PostIcon which="0" size="16"/>
                         {{ apps[0] }}
                     </router-link>
-                    <router-link :to="`/${appName}?app_type=2`" :class="['pt-selector']">
-                        <PostIcon which="2" size="20"/>
+                    <router-link :to="`/${appName}?app_type=2`" :class="['cat-chip', { 'cat-chip--active': getQuery?.app_type == '2' }]">
+                        <PostIcon which="2" size="16"/>
                         {{ apps[2] }}
                     </router-link>
-                    <router-link :to="`/${appName}?app_type=6`" :class="['pt-selector']">
-                        <PostIcon which="6" size="20"/>
+                    <router-link :to="`/${appName}?app_type=6`" :class="['cat-chip', { 'cat-chip--active': getQuery?.app_type == '6' }]">
+                        <PostIcon which="6" size="16"/>
                         {{ apps[6] }}
                     </router-link>
-                </div>                
-            </div>
-            <div class="p-tag-container">
-                <div class="tag-strip">
-                    
-
-                    <div v-if="tagLoading == 0" class="p-tag-wrap p-tag-wrap--skeleton">
-                        <div
-                            v-for="num in skeletonCount"
-                            :key="num"
-                            class="tag-skeleton"
-                            :style="{ width: randomWidth() }"
-                        ></div>
-                    </div>
-
-                    <div v-else class="tag-strip__body">
-                        
-
-                        <div class="p-tag-wrap">
-                            <router-link
-                                v-for="tag in previewTags"
-                                :key="tag.id"
-                                :to="tagLink(tag.text)"
-                                :class="['tag-chip', { 'tag-chip--active': isCurrentTag(tag.text) }]"
-                            >
-                                <span>#{{ sanitized(tag.text) }}</span>
-                                <span>({{ tagCount(tag) }})</span>
-                            </router-link>
-                        </div>
-                    </div>
-                    <div class="tag-strip__footer" @click="openTagPicker">
-                        <div title="すべて見る" class="selector-accordion-el">
-                            <Back :class="['selector-accordion-inactive' , {'selector-accordion-active' : topTags.expanded}]" v-show="tagLoading > 0" size="11" fill="var(--primary-color)"/>
-                        </div>
-                    </div>
                 </div>
+
+                <!-- Challenge category filter -->
+                <template v-if="showCategoryFilter">
+                    <div class="cat-filter-row">
+                        <router-link
+                            v-for="cat in challengeCategories"
+                            :key="cat.label"
+                            :to="buildCategoryPath(activeMainCategory === cat.label ? null : cat.label)"
+                            :class="['cat-chip', { 'cat-chip--active': activeMainCategory === cat.label }]"
+                        >
+                            {{ cat.label }}
+                        </router-link>
+                    </div>
+                    <div class="cat-filter-subshell" :class="{ 'cat-filter-subshell--visible': !!activeChallengeCategory }">
+                        <div class="cat-filter-subshell__inner">
+                            <Transition name="subRowSwap" mode="out-in">
+                                <div
+                                    v-if="activeChallengeCategory"
+                                    :key="activeMainCategory ?? 'challenge-subcategories'"
+                                    class="cat-filter-row cat-filter-row--sub"
+                                >
+                                    <router-link
+                                        v-for="sub in activeChallengeCategory.subcategories"
+                                        :key="sub"
+                                        :to="buildCategoryPath(activeMainCategory, activeSubCategory === sub ? null : sub)"
+                                        :class="['cat-chip', 'cat-chip--sub', { 'cat-chip--active': activeSubCategory === sub }]"
+                                    >
+                                        {{ sub }}
+                                    </router-link>
+                                </div>
+                            </Transition>
+                        </div>
+                    </div>
+                </template>
             </div>
             
-            <transition-group name="slidePop" tag="div" style="display: flex;flex-direction: column;gap: 40px;">
+            <transition-group name="slidePop" tag="div" class="post-record-list" :class="{ 'post-record-list--refreshing': queryRefreshing }">
                 <PostRecord 
                     v-for="(record, index) in records"
                     :key="`${record?.id}_${index}`"
@@ -123,7 +132,7 @@
                     :appName="String(appName)"
                     :appNameJp="appNameJp"
                     :apps="apps"  
-                    @setChargeTarget=" val => chargeTarget = val"
+                    @setChargeTarget=" val => setChargeTarget(val)"
                     @setCommentCount="setCommentCount"
                     @setClap="setClap"
                     @editRecord="editRecord"
@@ -155,6 +164,7 @@
                 v-if="chargeTarget" 
                 @close="closeCharge" 
                 :chargeTarget="chargeTarget"
+                :isMini="isMini"
             />
         </Transition>
         <Transition name="modalFade">
@@ -174,75 +184,6 @@
         </Transition>
         <Transition name="modalFade">
             <PostEntryRanking :ranking="topRecords" v-if="viewFullRanking" @close="viewFullRanking = false"/>
-        </Transition>
-        <Transition name="modalFade">
-            <div
-                v-if="tagPickerOpen"
-                class="tag-picker-overlay"
-                @mousedown="closeTagPicker"
-            >
-                <div
-                    class="tag-picker-sheet"
-                    @mousedown.stop
-                >
-                    <div class="tag-picker-sheet__header">
-                        <div>
-                            <p class="tag-picker-sheet__title">タグから探す</p>
-                        </div>
-                        <button type="button" class="tag-picker-sheet__close" @click="closeTagPicker">
-                            <CloseIcon size="12" />
-                        </button>
-                    </div>
-
-                    <div class="tag-picker-sheet__toolbar">
-                        <div v-if="currentTagLabel" class="tag-picker-sheet__active">
-                            <span class="tag-picker-sheet__active-label">選択中のタグ</span>
-                            <router-link
-                                :to="`/${String(appName)}?search_tags=${currentTagLabel}`"
-                                class="tag-chip tag-chip--active"
-                                @click="closeTagPicker"
-                            >
-                                #{{ currentTagLabel }}
-                            </router-link>
-                        </div>
-
-                        <router-link
-                            v-if="currentTagLabel"
-                            :to="`/${String(appName)}`"
-                            class="tag-picker-sheet__reset"
-                            @click="closeTagPicker"
-                        >
-                            タグ絞り込みを解除
-                        </router-link>
-                    </div>
-
-                    <div class="tag-picker-sheet__search">
-                        <input
-                            v-model="tagSearch"
-                            type="text"
-                            class="tag-picker-sheet__search-input"
-                            placeholder="タグ名で検索"
-                        >
-                    </div>
-
-                    <div class="tag-picker-sheet__body scrollable">
-                        <router-link
-                            v-for="tag in filteredTags"
-                            :key="tag.id"
-                            :to="tagLink(tag.text)"
-                            :class="['tag-picker-item', { 'tag-picker-item--active': isCurrentTag(tag.text) }]"
-                            @click="closeTagPicker"
-                        >
-                            <span class="tag-picker-item__name">#{{ sanitized(tag.text) }}</span>
-                            <span class="text-sm">({{ tagCount(tag) }})</span>
-                        </router-link>
-
-                        <div v-if="tagLoading > 0 && !filteredTags.length" class="tag-picker-sheet__empty">
-                            該当するタグがありません。
-                        </div>
-                    </div>
-                </div>
-            </div>
         </Transition>
     </div>
     <div v-else style="height: 100%;width: 100%;">
@@ -271,7 +212,6 @@ import { useAuthUserStore } from '@/store/auth'
 import { useResponsive } from '@/store/responsive';
 import { useSharingDataStore } from '@/store/sharingData'
 import { useBadgeStore } from '@/store/badge'
-import { useTopTags } from '@/store/topTags'
 import { instance } from '@/utils/broadcaster';
 import { onUnmounted } from 'vue';
 import { useApi } from '@/composables/api';
@@ -280,7 +220,7 @@ import { PostMethodsKey } from '@/interface/keys';
 import PostEntryCreate from './PostEntryCreate.vue';
 import PostEntryRanking from './PostEntryRanking.vue';
 import CloseIcon from '../Form/CloseIcon.vue';
-import Back from '../Icons/Back.vue';
+import { challengeCategories } from '@/utils/challengeCategory';
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
@@ -290,21 +230,22 @@ import Back from '../Icons/Back.vue';
     const componentKey = ref(0)
     const sharedFrom = ref(null)
     const filesToShare = ref(null)
-    const hasQuery = ref(false)
+    const hasQuery = computed(() => {
+        const q = route.query
+        return !!(q.app_type || q.member || q.search_tags || q.main_category || q.sub_category)
+    })
     const chargeTarget =  ref<number | null>(null)
+    const isMini = ref(false)
     const editTarget = ref<Post | null>(null)
     const updateTarget = ref<Post | null>(null)
     const searchWindow = ref(false)
     const route = useRoute()    
     const router = useRouter()
     const infiniteLoader = ref(false)
-    const tagLoading = ref(0)
-    const topTags = useTopTags()
+    const queryRefreshing = ref(false)
     const apps = ['ナイス', 'ナレッジ', 'チャレンジ', 'ノート', 'ヘルプ', 'グラリンピック', 'リフレッシュ']
     const api = useApi()
     const viewFullRanking = ref(false)
-    const tagPickerOpen = ref(false)
-    const tagSearch = ref('')
     const entryData = ref({
         record: <Post | null>null,
         editData: <PostEntry | null>null,
@@ -322,24 +263,33 @@ import Back from '../Icons/Back.vue';
     const skeletonCount = computed(() => {
         return responsive.mobile ? 6 : 20
     })
-    const previewTags = computed(() => {
-        return topTags.tags.slice(0, responsive.mobile ? 6 : 25)
+    const activeMainCategory = computed(() => {
+        return route.query.main_category ? String(route.query.main_category) : null
     })
-    const currentTagLabel = computed(() => {
-        const currentTag = getQuery.value?.search_tags
-        return currentTag ? sanitized(currentTag) : ''
+    const activeSubCategory = computed(() => {
+        return route.query.sub_category ? String(route.query.sub_category) : null
     })
-    const filteredTags = computed(() => {
-        const keyword = tagSearch.value.trim().toLowerCase()
-        if (!keyword) {
-            return topTags.tags
+    const activeChallengeCategory = computed(() => {
+        return challengeCategories.find(c => c.label === activeMainCategory.value) ?? null
+    })
+    const showCategoryFilter = computed(() => {
+        return appName.value === 'challenge' || (appName.value === 'post' && getQuery.value?.app_type === '2')
+    })
+    let feedRequestId = 0
+    const buildCategoryPath = (main: string | null, sub: string | null = null): string => {
+        const params = new URLSearchParams()
+        if (appName.value === 'post' && getQuery.value?.app_type) {
+            params.set('app_type', String(getQuery.value.app_type))
         }
-
-        return topTags.tags.filter(tag =>
-            sanitized(tag.text).toLowerCase().includes(keyword)
-        )
-    })
-
+        if (main) params.set('main_category', main)
+        if (sub) params.set('sub_category', sub)
+        const qs = params.toString()
+        return `/${appName.value}${qs ? '?' + qs : ''}`
+    }
+    const setChargeTarget = (record: Post) => {
+        chargeTarget.value = record.id
+        isMini.value = record.mini ? true : false
+    }
     onMounted(() => {
         if(route.meta.data && Array.isArray(route.meta.data) && route.meta.data.length){
             postList.value = route.meta.data as Post[];
@@ -353,12 +303,11 @@ import Back from '../Icons/Back.vue';
             }
         }else{
             const query = getQuery.value
-            fetchPosts(query)
+            refreshFeed(query)
         }
         instance.on('post:new', postSocketHandler)
-        hasQuery.value = Object.getOwnPropertyNames(route.query).length ? true : false
-        
-    
+
+
 
         setTimeout(() => {
             if(route.name && (typeof route.name === 'string' && (route.name.includes('challenge') || route.name.includes('post'))) && !auth.isPartner && appName.value){
@@ -370,21 +319,30 @@ import Back from '../Icons/Back.vue';
         } else {
             openCreateFromRoute()
         }
-        getTopTags()
-        // getTopRecords()
     })
     onUnmounted(() => {
         instance.off('post:new', postSocketHandler)
-    })
-    watch(() => route.fullPath, () => {
-        tagPickerOpen.value = false
-        tagSearch.value = ''
     })
     watch(() => route.query.create, (value, oldValue) => {
         if(value && value !== oldValue){
             openCreateFromRoute()
         }
     })
+    watch(
+        () => ({
+            app_type: route.query.app_type,
+            main_category: route.query.main_category,
+            sub_category: route.query.sub_category,
+            member: route.query.member,
+            search_tags: route.query.search_tags,
+        }),
+        (newQ, oldQ) => {
+            const changed = JSON.stringify(newQ) !== JSON.stringify(oldQ)
+            if (changed && !route.query.id && !route.query.create) {
+                refreshFeed(getQuery.value)
+            }
+        }
+    )
     const getTopRecords = async () => {
         const data = await api.post('/get_top_posts')
         topRecords.value = data
@@ -417,12 +375,12 @@ import Back from '../Icons/Back.vue';
         const target = event.currentTarget as HTMLElement;
         const percent = 100 * target.scrollTop / (target.scrollHeight - target.clientHeight);  
         if(percent > 99){          
-            if (infiniteLoader.value){
+            if (infiniteLoader.value || queryRefreshing.value){
                 return;
             }                       
             infiniteLoader.value = true;
             let query = getQuery.value
-            fetchPosts(query)                                   
+            fetchPosts(query, undefined, { requestId: feedRequestId })                                   
         }
     }
     const closeStatus = (id?: number) => {
@@ -465,33 +423,21 @@ import Back from '../Icons/Back.vue';
         const search_tags = route.query.hasOwnProperty('search_tags') && route.query.search_tags ? route.query.search_tags : null
         const search_member = route.query.hasOwnProperty('member') && route.query.member ? route.query.member : null
         const search_type = route.query.hasOwnProperty('app_type') && route.query.app_type ? route.query.app_type : null
+        const main_category = route.query.hasOwnProperty('main_category') && route.query.main_category ? route.query.main_category : null
+        const sub_category = route.query.hasOwnProperty('sub_category') && route.query.sub_category ? route.query.sub_category : null
         const query = {
             id: id,
             search_tags: search_tags,
             member: search_member,
             app_type: search_type,
+            main_category: main_category,
+            sub_category: sub_category,
         }
         return query
     })
     
-    const getTopTags = async() => {
-        // if(topTags.appName == appName.value) {
-        //     tagLoading.value ++
-        //     return
-        // }
-        await topTags.getTags({appName: appName.value, reset: true, currentTag: getQuery.value?.search_tags})
-        setTimeout(() => {
-            tagLoading.value ++
-        }, 300);
-    }
-    const openTagPicker = () => {
-        tagSearch.value = ''
-        tagPickerOpen.value = true
-    }
-    const closeTagPicker = () => {
-        tagPickerOpen.value = false
-        tagSearch.value = ''
-    }
+    const openTagPicker = () => {}
+    const closeTagPicker = () => {}
     
     const postFinish = (flag: boolean, id?: number) => {
         create.value = false
@@ -502,7 +448,6 @@ import Back from '../Icons/Back.vue';
                 search_tags: null
             }
             fetchPosts(query, id)
-            topTags.getTags({appName: appName.value, reset: false})
         }
     }
     const newRecord = () => {
@@ -513,21 +458,44 @@ import Back from '../Icons/Back.vue';
             newRecord()
         }
     }
-    const fetchPosts = async (query: Record<string, any>, replace?:number) => {
-        const data = await api.post('/get_posts', {
-            path: appName.value,
-            query: query,
-            skip: postList.value.length,
-        })
+    const refreshFeed = (query: Record<string, any>) => {
+        queryRefreshing.value = true
+        feedRequestId += 1
+        return fetchPosts(query, undefined, { reset: true, requestId: feedRequestId })
+    }
+    const fetchPosts = async (
+        query: Record<string, any>,
+        replace?:number,
+        options: { reset?: boolean; requestId?: number } = {}
+    ) => {
+        const { reset = false, requestId = feedRequestId } = options
 
-        if(replace ){
-            const index = postList.value.findIndex(ob => ob.id == replace)
-            if(index > -1){
-                postList.value[index] = data[0]
-            }else{
-                postList.value.unshift(data[0])
+        try {
+            const data = await api.post('/get_posts', {
+                path: appName.value,
+                query: query,
+                skip: reset || replace ? 0 : postList.value.length,
+            })
+
+            if (requestId !== feedRequestId && (reset || !replace)) {
+                return
             }
-        }else{
+
+            if (reset) {
+                postList.value = data
+                return
+            }
+
+            if(replace ){
+                const index = postList.value.findIndex(ob => ob.id == replace)
+                if(index > -1){
+                    postList.value[index] = data[0]
+                }else{
+                    postList.value.unshift(data[0])
+                }
+                return
+            }
+
             data.forEach((responseItem: Post) => {
                 const existingPost = postList.value.find((post) => post.id === responseItem.id);
                 if (existingPost) {
@@ -536,11 +504,14 @@ import Back from '../Icons/Back.vue';
                     postList.value.push(responseItem);
                 }
             });
+        } finally {
+            setTimeout(() => {
+                if (requestId === feedRequestId) {
+                    queryRefreshing.value = false
+                }
+                infiniteLoader.value = false
+            }, 180);
         }
-        setTimeout(() => {
-            infiniteLoader.value = false
-        }, 500);
-
     }
     const setCommentCount = (num: number, id: number) => {
         const index = postList.value.findIndex(item => item.id === id);
@@ -564,21 +535,6 @@ import Back from '../Icons/Back.vue';
         }
         return text ? String(text).replace(/#|♯|＃/g, '') : '';
     }
-    const tagLink = (text: string) => {
-        return `/${String(appName.value)}?search_tags=${sanitized(text)}`
-    }
-    const isCurrentTag = (text: string) => {
-        return sanitized(text) === currentTagLabel.value
-    }
-    const tagCount = (tag: Record<string, any>) => {
-        return tag[`${String(appName.value)}_occurence_count` as keyof typeof tag] ?? tag.occurrence ?? 0
-    }
-    const randomWidth = () => {        
-        const range = (3 - 1) / 0.2;
-        const index = (Math.floor(Math.random() * range) * 0.2) + 1;
-        return `${(Math.floor(Math.random() * (90 - 70 + 1)) + 70) * index}px`;
-
-    }
     provide(PostMethodsKey, {
         commentCount: (num, id) => setCommentCount(num, id),
         updateRecord: (record) => {
@@ -591,301 +547,183 @@ import Back from '../Icons/Back.vue';
 
 </script>
 <style scoped lang="scss">
+.active-query-shell {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: grid-template-rows 0.24s ease, opacity 0.2s ease, transform 0.24s ease;
+}
+
+.active-query-shell--visible {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.active-query-shell__inner {
+    overflow: hidden;
+}
+
+.active-query-row {
+    position: relative;
+    margin: 0 20px;
+    padding: 4px 0 6px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-height: 36px;
+}
+
+.badgeAnim-move,
+.badgeAnim-enter-active,
+.badgeAnim-leave-active {
+    transition: transform 0.24s ease, opacity 0.18s ease;
+}
+.badgeAnim-enter-from,
+.badgeAnim-leave-to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+}
+.badgeAnim-leave-active {
+    position: absolute;
+}
+
 .active-query{
-    font-size: 14px;
-    background: var(--background-color);
+    font-size: 13px;
+    background: color-mix(in srgb, var(--primary-color) 8%, transparent);
     color: var(--primary-color);
-    padding: 10px 10px;
+    padding: 6px 12px;
+    border-radius: 20px;
     width: fit-content;
     display: flex;
-    gap: 15px;
-    align-items: center;
-}
-
-.tag-skeleton{
-    overflow: hidden;
-    height: 22px;
-    animation: pulse-bg 2s infinite;
-    border-radius: 3px;
-}
-
-.p-tag-container {
-    padding: 8px 20px 4px;
-    overflow: visible;
-}
-
-.tag-strip {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    padding: 0;
-    border: none;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
-}
-
-.tag-strip__footer {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.tag-strip__eyebrow,
-.tag-picker-sheet__eyebrow {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: color-mix(in srgb, var(--primary-color) 60%, transparent);
-}
-
-.tag-strip__title,
-.tag-picker-sheet__title {
-    margin-top: 4px;
-    font-size: 17px;
-    font-weight: 700;
-    line-height: 1.35;
-    color: var(--primary-color);
-}
-
-.tag-strip__action,
-.tag-picker-sheet__close,
-.tag-picker-sheet__reset {
-    border: none;
-    outline: none;
-    background: transparent;
-    color: var(--primary-color);
-    cursor: pointer;
-}
-
-.tag-strip__action {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0;
-    font-size: 13px;
-    font-weight: 700;
-    white-space: nowrap;
-}
-
-.tag-strip__body {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.tag-strip__active,
-.tag-picker-sheet__active {
-    display: flex;
-    align-items: center;
     gap: 10px;
-    flex-wrap: wrap;
+    align-items: center;
+    position: relative;
+    will-change: transform, opacity;
 }
 
-.tag-strip__active-label,
-.tag-picker-sheet__active-label,
-.tag-picker-sheet__description {
-    font-size: 13px;
-    line-height: 1.5;
-    color: color-mix(in srgb, var(--primary-color) 74%, transparent);
-}
-
-.p-tag-wrap {
+/* Category filter strip */
+.cat-filter-strip {
+    padding: 8px 20px 4px;
     display: flex;
-    gap: 4px;
+    flex-direction: column;
+    gap: 6px;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.cat-filter-strip--busy {
+    opacity: 0.82;
+}
+
+.cat-filter-row {
+    display: flex;
+    gap: 6px;
     flex-wrap: wrap;
-    align-items: flex-start;
-    align-content: flex-start;
-    overflow: visible;
-    padding: 2px !important;
-    height: auto !important;
-    max-height: none !important;
-    min-height: 0;
+    align-items: center;
 }
 
-.p-tag-wrap--skeleton {
-    gap: 8px;
+.cat-filter-row--sub {
+    padding-left: 4px;
+    border-left: 2px solid color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 
-.tag-chip {
+.cat-filter-subshell {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows 0.24s ease, opacity 0.2s ease;
+}
+
+.cat-filter-subshell--visible {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+
+.cat-filter-subshell__inner {
+    overflow: hidden;
+}
+
+.subRowSwap-enter-active,
+.subRowSwap-leave-active {
+    transition: opacity 0.2s ease, transform 0.24s ease;
+}
+
+.subRowSwap-enter-from,
+.subRowSwap-leave-to {
+    opacity: 0;
+    transform: translateY(-5px);
+}
+
+.cat-chip {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    min-height: 0;
-    padding: 8px 10px;
-    box-sizing: border-box;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid color-mix(in srgb, var(--primary-color) 20%, transparent);
     background: transparent;
-    font-size: 13px;
-    overflow: visible;
-    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    color: var(--primary-color);
     text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.2s ease-in-out, border-color 0.2s ease-in-out,
+                color 0.2s ease-in-out, transform 0.15s ease, opacity 0.15s ease;
+    line-height: 1.4;
+    will-change: transform, opacity;
 }
 
-.tag-chip:hover,
-.tag-picker-item:hover,
-.tag-strip__action:hover,
-.tag-picker-sheet__close:hover,
-.tag-picker-sheet__reset:hover {
+.cat-chip :deep(.side-app-icon) {
+    transition: fill 0.2s ease-in-out;
+}
+
+.cat-chip:hover {
+    background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+    border-color: color-mix(in srgb, var(--primary-color) 40%, transparent);
     transform: translateY(-1px);
 }
 
-.tag-chip__count,
-.tag-picker-item__count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 24px;
-    height: 24px;
-    padding: 0 7px;
-    border-radius: 4px;
-    background: var(--calendarBorder);
-    font-size: 12px;
-    color: var(--primary-color);
+.cat-chip--active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--background-color);
+    font-weight: 600;
+    transform: translateY(-1px);
 }
 
-
-.tag-picker-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 40;
-    display: flex;
-    align-items: flex-end;
-    justify-content: flex-end;
-    background-color: var(--overlay);
+.cat-chip--active:hover {
+    background: var(--primary-color);
+    opacity: 0.85;
 }
 
-.tag-picker-sheet {
-    width: min(460px, 100%);
-    height: 100%;
-    max-height: 100%;
-    box-sizing: border-box !important;
+.cat-chip--active :deep(.side-app-icon) {
+    fill: var(--background-color);
+}
+
+.cat-chip--sub {
+    font-size: 11px;
+    padding: 4px 10px;
+    opacity: 0.85;
+}
+
+.post-record-list {
     display: flex;
     flex-direction: column;
-    gap: 18px;
-    padding: 22px;
-    background: var(--background-color);
-    color: var(--primary-color);
-    box-shadow: -24px 0 48px rgba(15, 23, 42, 0.18);
+    gap: 40px;
+    transition: opacity 0.18s ease, transform 0.18s ease;
 }
 
-.tag-picker-sheet * {
-    box-sizing: border-box;
-}
-
-.tag-picker-sheet__header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-}
-
-.tag-picker-sheet__close,
-.tag-picker-sheet__reset {
-    font-size: 13px;
-    font-weight: 700;
-}
-
-.tag-picker-sheet__close {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    opacity: 0.8;
-}
-
-.tag-picker-sheet__toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    flex-wrap: wrap;
-}
-
-.tag-picker-sheet__search {
-    position: relative;
-}
-
-.tag-picker-sheet__search-input {
-    width: 100%;
-    height: 44px;
-    padding: 0 14px;
-    border: 1px solid color-mix(in srgb, var(--primary-color) 18%, transparent);
-    background: color-mix(in srgb, var(--background-color) 92%, #ffffff 8%);
-    color: var(--primary-color);
-    font-size: 14px;
-    box-sizing: border-box !important;  
-}
-
-.tag-picker-sheet__body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding-right: 4px;
-}
-
-.tag-picker-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    border-radius: 6px;
-    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
-    text-decoration: none;
-}
-
-.tag-picker-item__name {
-    font-size: 14px;
-    line-height: 1.45;
-    word-break: break-word;
-}
-
-.tag-picker-sheet__empty {
-    padding: 28px 12px;
-    text-align: center;
-    font-size: 14px;
-    color: color-mix(in srgb, var(--primary-color) 70%, transparent);
-}
-
-@keyframes pulse-bg {
-    0% {
-        background-color: var(--skItem1);
-    }
-    50% {
-        background-color: var(--skItem2);
-    }
-    100% {
-        background-color: var(--skItem1);
-    }
+.post-record-list--refreshing {
+    opacity: 0.7;
+    transform: translateY(3px);
+    pointer-events: none;
 }
 
 @media screen and (max-width: 959px) {
-    .p-tag-container {
+    .cat-filter-strip {
         padding: 8px 14px 4px;
-    }
-
-    .tag-strip {
-        padding: 0;
-        border-radius: 0;
-    }
-
-    .tag-strip__footer,
-    .tag-picker-sheet__header,
-    .tag-picker-sheet__toolbar {
-        align-items: stretch;
-    }
-
-    .tag-picker-overlay {
-        align-items: flex-end;
-        justify-content: center;
-    }
-
-    .tag-picker-sheet {
-        width: 100%;
-        height: min(78vh, 720px);
-        box-shadow: 0 -24px 48px rgba(15, 23, 42, 0.18);
     }
 }
 </style>

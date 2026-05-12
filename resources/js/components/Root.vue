@@ -47,6 +47,11 @@
                 }"
             ></Dialog>
         </Transition>
+        <LunchChallengePopup
+            :visible="lunchChallengeVisible"
+            :challenge="lunchChallengeData"
+            @close="closeLunchChallenge"
+        />
         <OverRide/>
         <Transition name="footerPop">
             <PWAPrompt 
@@ -71,6 +76,7 @@ import Footer from './Header/Footer.vue';
 import { computed, onBeforeMount, onMounted, onUnmounted, provide, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Dialog from './Global/Dialog.vue';
+import LunchChallengePopup from './Global/LunchChallengePopup.vue';
 import OverRide from './Header/OverRide.vue'
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
@@ -98,6 +104,10 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
     const focused = useFocused()
     const sideMenuView = useSideMenuView()
     const switchLoader = ref(false)
+    const lunchChallengeVisible = ref(false)
+    const lunchChallengePolling = ref(false)
+    const lunchChallengeData = ref(null)
+    const LUNCH_CHALLENGE_ZONE = 'Asia/Tokyo'
 
     const { askData, pingData, toastData, respondOptions, decision, resetDialog, ask, inputOptions, inputResult } = useDialog() 
     const instantUser = ref({
@@ -167,6 +177,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         if(!auth.isPartner && !auth.isRegistered){
             initGoalData()
         }
+        maybeCheckLunchChallenge()
     })
     async function loadBadges() {
         const jobs = []
@@ -233,6 +244,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         socket.on(`switch:${auth.id}`, activeAccountHandler)
         socket.on("refresh:badge", boardBadgeHandler)
         socket.on("refresh:task_comment", taskCommentBadgeHandler)
+        socket.on(`lunch_challenge:ready:${auth.id}`, lunchChallengeReadyHandler)
     }
     const removeEventListener = () => {
         window.removeEventListener('resize', handleResize);
@@ -244,6 +256,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         socket.off("post:badge", postHandler);
         socket.off(`switch:${auth.id}`, activeAccountHandler);
         socket.off("refresh:task_comment", taskCommentBadgeHandler)
+        socket.off(`lunch_challenge:ready:${auth.id}`, lunchChallengeReadyHandler)
     }
     const taskCommentBadgeHandler = (data) => {
         const related = data?.members ?? []
@@ -362,6 +375,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
     };
     const handleFocus = () => {
         checkActivity()
+        maybeCheckLunchChallenge()
         setFocusedState(true);
     }
     // const handleBlur = () => {
@@ -482,9 +496,82 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
             confused.value = true
         }
     }
+    const lunchChallengeDateKey = () => {
+        return DateTime.now().setZone(LUNCH_CHALLENGE_ZONE).toISODate()
+    }
+    const lunchChallengeStateKey = () => {
+        return `lunch_challenge:state:${auth.id ?? props.auth_user?.id ?? 'guest'}`
+    }
+    const getLunchChallengeState = (dateKey = lunchChallengeDateKey()) => {
+        try {
+            const raw = localStorage.getItem(lunchChallengeStateKey())
+            const state = raw ? JSON.parse(raw) : null
+            if (state?.date === dateKey) return state
+        } catch {}
+        return { date: dateKey, dismissed: false, skipped: false }
+    }
+    const hasLunchChallengeFlag = (type, dateKey = lunchChallengeDateKey()) => {
+        return getLunchChallengeState(dateKey)[type] === true
+    }
+    const setLunchChallengeFlag = (type, dateKey = lunchChallengeDateKey()) => {
+        const state = getLunchChallengeState(dateKey)
+        state[type] = true
+        localStorage.setItem(lunchChallengeStateKey(), JSON.stringify(state))
+    }
+    const isLunchChallengeWindow = () => {
+        const now = DateTime.now().setZone(LUNCH_CHALLENGE_ZONE)
+        const start = now.startOf('day').set({ hour: 12, minute: 0, second: 0, millisecond: 0 })
+        const end = now.startOf('day').set({ hour: 13, minute: 59, second: 59, millisecond: 999 })
+
+        return now >= start && now <= end
+    }
+    const maybeCheckLunchChallenge = async() => {
+        if (!props.auth_user?.id || lunchChallengeVisible.value || lunchChallengePolling.value || !isLunchChallengeWindow()) return
+
+        const dateKey = lunchChallengeDateKey()
+        if (hasLunchChallengeFlag('dismissed', dateKey) || hasLunchChallengeFlag('skipped', dateKey)) return
+
+        lunchChallengePolling.value = true
+
+        try {
+            const { data } = await axios.get('/lunch_challenge_popup')
+            const responseDateKey = data?.challenge_date || dateKey
+
+            if (!data?.within_lunch_window) return
+
+            if (!data?.targeted) {
+                setLunchChallengeFlag('skipped', responseDateKey)
+
+                return
+            }
+
+            if (data?.show_popup && data?.generated_challenge) {
+                lunchChallengeData.value = data.generated_challenge
+
+                if (!hasLunchChallengeFlag('dismissed', responseDateKey)) {
+                    lunchChallengeVisible.value = true
+                }
+            }
+        } catch (error) {
+            console.error('[lunch challenge] failed to load popup state', error)
+        } finally {
+            lunchChallengePolling.value = false
+        }
+    }
+    const lunchChallengeReadyHandler = (challenge) => {
+        if (!challenge) return
+        const dateKey = lunchChallengeDateKey()
+        if (hasLunchChallengeFlag('dismissed', dateKey)) return
+        lunchChallengeData.value = challenge?.generated_challenge ?? challenge
+        lunchChallengeVisible.value = true
+    }
+    const closeLunchChallenge = () => {
+        lunchChallengeVisible.value = false
+        setLunchChallengeFlag('dismissed')
+    }
+    
     provide('pushInstantUser', pushInstantUser)
     provide('refreshRemind', refreshRemind)
     provide('refreshMessage', refreshMessage)
     provide('resetInstantUser', resetInstantUser)
 </script>
-

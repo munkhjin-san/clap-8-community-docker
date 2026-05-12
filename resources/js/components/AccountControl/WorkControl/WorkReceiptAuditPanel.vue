@@ -106,8 +106,11 @@
                         <div v-if="event.internal_control_status" class="receipt-audit-meta">
                             内部統制:
                             <span class="control-status-chip" :class="internalControlStatusClass(event.internal_control_status)">
-                                {{ internalControlStatusLabel(event.internal_control_status) }}
+                                {{ internalControlStatusLabel(event.internal_control_status, event.internal_control_status_label) }}
                             </span>
+                        </div>
+                        <div v-if="event.internal_control_status_reason" class="receipt-audit-control-note">
+                            {{ event.internal_control_status_reason }}
                         </div>
                         <div class="receipt-audit-meta">記録時刻: {{ formatDateTime(event.occurred_at) }}</div>
                     </div>
@@ -147,12 +150,38 @@
                         <div v-if="detail.internal_control_status">
                             <strong>内部統制:</strong>
                             <span class="control-status-chip" :class="internalControlStatusClass(detail.internal_control_status)">
-                                {{ internalControlStatusLabel(detail.internal_control_status) }}
+                                {{ internalControlStatusLabel(detail.internal_control_status, detail.internal_control_status_label) }}
                             </span>
                         </div>
                     </div>
 
                     <button v-if="detail.receipt_file_url" type="button" @click="openReceiptFile" class="audit-button">領収書を表示</button>
+
+                    <div v-if="internalControlChecklist(detail).length" class="detail-section control-check-section">
+                        <div class="section-heading-row">
+                            <div>
+                                <h4>内部統制チェック</h4>
+                                <p>{{ detail.internal_control_status_reason || '領収書証跡の記録状態を確認できます。' }}</p>
+                            </div>
+                            <span class="control-status-chip" :class="internalControlStatusClass(detail.internal_control_status)">
+                                {{ internalControlStatusLabel(detail.internal_control_status, detail.internal_control_status_label) }}
+                            </span>
+                        </div>
+                        <div class="control-check-grid">
+                            <div
+                                v-for="item in internalControlChecklist(detail)"
+                                :key="item.key"
+                                class="control-check-card"
+                                :class="{ complete: item.complete, warning: !item.complete }"
+                            >
+                                <div class="control-check-mark">{{ item.complete ? 'OK' : '要確認' }}</div>
+                                <div>
+                                    <strong>{{ item.label }}</strong>
+                                    <p>{{ item.description }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <div v-if="diffRows(detail.before_state, detail.after_state).length" class="detail-section">
                         <h4>変更内容</h4>
@@ -210,20 +239,32 @@
                         </table>
                     </div>
 
-                    <div v-if="detail.ocr_run?.normalized_result" class="detail-section">
-                        <h4>OCR読取結果</h4>
-                        <table class="detail-table">
-                            <tbody>
-                                <tr v-for="row in fieldRows(detail.ocr_run.normalized_result)" :key="row.key">
-                                    <td>{{ row.label }}</td>
-                                    <td>{{ row.value }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div v-if="detail.ocr_run" class="detail-section ocr-summary-section">
+                        <div class="section-heading-row">
+                            <div>
+                                <h4>OCR要約</h4>
+                                <p>管理者確認用に、読取結果と反映状況だけを表示しています。</p>
+                            </div>
+                            <span class="event-chip" :class="detail.ocr_run.status === 'completed' ? 'chip-success' : 'chip-danger'">
+                                {{ detail.ocr_run.status === 'completed' ? '読取完了' : '読取失敗' }}
+                            </span>
+                        </div>
+                        <div class="ocr-summary-grid">
+                            <div v-for="row in ocrSummaryRows(detail)" :key="row.key" class="ocr-summary-card">
+                                <span>{{ row.label }}</span>
+                                <strong>{{ row.value }}</strong>
+                            </div>
+                        </div>
+                        <div v-if="ocrApplyDescription(detail)" class="ocr-apply-note">
+                            {{ ocrApplyDescription(detail) }}
+                        </div>
+                        <div v-if="detail.ocr_run.error_message" class="ocr-error-note">
+                            {{ detail.ocr_run.error_message }}
+                        </div>
                     </div>
 
                     <details class="detail-section technical-section">
-                        <summary>技術情報を表示</summary>
+                        <summary>技術情報（通常確認不要）を表示</summary>
                         <div v-if="detail.ocr_run?.raw_response" class="detail-section-inner">
                             <h4>OCR生データ</h4>
                             <pre>{{ pretty(detail.ocr_run.raw_response) }}</pre>
@@ -346,8 +387,8 @@ const approvalStateMap = {
 }
 
 const internalControlStatusMap = {
-    recorded: '記録済み',
-    sealed: '封印済み',
+    recorded: '証跡記録済み（封印待ち）',
+    sealed: '日次封印済み',
 }
 
 const receiptSourceTypeMap = {
@@ -394,7 +435,7 @@ const eventTypeLabel = (value) => eventLabelMap[value] ?? value ?? '-'
 const eventChipClass = (value) => eventChipMap[value]?.className ?? 'chip-neutral'
 const eventChipText = (value) => eventChipMap[value]?.text ?? '記録'
 const approvalStateLabel = (value) => approvalStateMap[String(value)] ?? (value ?? '-')
-const internalControlStatusLabel = (value) => internalControlStatusMap[value] ?? (value ?? '-')
+const internalControlStatusLabel = (value, fallback = '') => fallback || internalControlStatusMap[value] || (value ?? '対象外')
 const internalControlStatusClass = (value) => value === 'sealed' ? 'control-status-sealed' : 'control-status-recorded'
 
 const formatDate = (value) => {
@@ -485,6 +526,74 @@ const metadataRows = (metadata) => {
             label: fieldLabelMap[key] ?? key,
             value: formatValue(key, metadata[key]),
         }))
+}
+
+const evidenceFilePath = (detailValue) => detailValue.receipt_file?.canonical_path
+    || detailValue.timecard_cost?.file_path
+    || detailValue.after_state?.file_path
+    || detailValue.before_state?.file_path
+    || detailValue.metadata?.file_path
+
+const evidenceSha256 = (detailValue) => detailValue.receipt_file?.sha256
+    || detailValue.timecard_cost?.file_sha256
+    || detailValue.after_state?.file_sha256
+    || detailValue.before_state?.file_sha256
+    || detailValue.metadata?.file_sha256
+
+const internalControlChecklist = (detailValue) => {
+    if (!detailValue?.internal_control_status && !evidenceFilePath(detailValue) && !evidenceSha256(detailValue)) {
+        return []
+    }
+
+    const hasOriginal = !!evidenceFilePath(detailValue)
+    const hasHash = !!evidenceSha256(detailValue)
+    const isSealed = detailValue.internal_control_status === 'sealed'
+
+    return [
+        {
+            key: 'original',
+            label: '原本ファイル',
+            complete: hasOriginal,
+            description: hasOriginal ? '領収書ファイルの参照を保持しています。' : '領収書ファイルの参照が確認できません。',
+        },
+        {
+            key: 'hash',
+            label: 'SHA-256',
+            complete: hasHash,
+            description: hasHash ? 'ファイル同一性確認用のハッシュを保持しています。' : 'ファイルハッシュが未記録です。',
+        },
+        {
+            key: 'seal',
+            label: '日次封印',
+            complete: isSealed,
+            description: isSealed ? '該当日の監査digestで封印済みです。' : '日次digest封印後に封印済みになります。',
+        },
+    ]
+}
+
+const ocrSummaryRows = (detailValue) => {
+    const result = detailValue.ocr_run?.normalized_result ?? {}
+
+    return [
+        { key: 'merchant_name', label: '取引先', value: formatValue('merchant_name', result.merchant_name) },
+        { key: 'receipt_date', label: '領収書日付', value: formatValue('receipt_date', result.receipt_date) },
+        { key: 'amount', label: '金額', value: formatValue('amount', result.amount) },
+        { key: 'currency', label: '通貨', value: formatValue('currency', result.currency) },
+        { key: 'source', label: '保存区分', value: formatValue('receipt_source_type', result.receipt_source_type) },
+        { key: 'executed_by', label: 'OCR実行者', value: detailValue.ocr_run?.executed_by?.name || '-' },
+        { key: 'applied_by', label: '反映者', value: detailValue.ocr_run?.applied_by?.name || '-' },
+        { key: 'applied_at', label: '反映日時', value: formatDateTime(detailValue.ocr_run?.applied_at) },
+    ]
+}
+
+const ocrApplyDescription = (detailValue) => {
+    const appliedFields = detailValue.metadata?.applied_fields
+    if (!Array.isArray(appliedFields) || appliedFields.length === 0) {
+        return ''
+    }
+
+    const labels = appliedFields.map((field) => fieldLabelMap[field] ?? field).join('、')
+    return `OCR候補から反映された項目: ${labels}`
 }
 
 const diffRows = (beforeState, afterState) => {
@@ -1024,6 +1133,16 @@ watch(() => props.month, () => {
         color: var(--audit-text-soft);
     }
 
+    .receipt-audit-control-note {
+        margin: 5px 0 7px;
+        padding: 7px 9px;
+        border-left: 3px solid var(--audit-border-strong);
+        background: var(--audit-surface-muted);
+        color: var(--audit-text-soft);
+        font-size: 11px;
+        line-height: 1.55;
+    }
+
     .control-status-chip {
         display: inline-flex;
         align-items: center;
@@ -1110,6 +1229,116 @@ watch(() => props.month, () => {
 
     .detail-section h4 {
         color: var(--primary-color);
+    }
+
+    .section-heading-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 14px;
+    }
+
+    .section-heading-row p {
+        margin: 0;
+        color: var(--audit-text-soft);
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .control-check-grid,
+    .ocr-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .control-check-card,
+    .ocr-summary-card {
+        border: 1px solid var(--audit-border);
+        background: var(--audit-surface-muted);
+        padding: 12px;
+        color: var(--primary-color);
+    }
+
+    .control-check-card {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+    }
+
+    .control-check-card.complete {
+        border-color: rgba(70, 163, 108, 0.42);
+    }
+
+    .control-check-card.warning {
+        border-color: rgba(207, 158, 62, 0.5);
+    }
+
+    .control-check-mark {
+        flex: 0 0 auto;
+        min-width: 48px;
+        padding: 4px 7px;
+        border: 1px solid currentColor;
+        color: var(--audit-text-soft);
+        font-size: 11px;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .control-check-card.complete .control-check-mark {
+        color: #2f8a55;
+    }
+
+    .control-check-card.warning .control-check-mark {
+        color: #9b7b2d;
+    }
+
+    .control-check-card strong {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 13px;
+    }
+
+    .control-check-card p {
+        margin: 0;
+        color: var(--audit-text-soft);
+        font-size: 12px;
+        line-height: 1.55;
+    }
+
+    .ocr-summary-card {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        min-height: 62px;
+    }
+
+    .ocr-summary-card span {
+        color: var(--audit-text-soft);
+        font-size: 11px;
+        font-weight: 700;
+    }
+
+    .ocr-summary-card strong {
+        font-size: 13px;
+        line-height: 1.45;
+        word-break: break-word;
+    }
+
+    .ocr-apply-note,
+    .ocr-error-note {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-left: 3px solid var(--audit-border-strong);
+        background: var(--audit-surface-muted);
+        color: var(--primary-color);
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .ocr-error-note {
+        border-left-color: #d46d6d;
     }
 
     .detail-section pre {
@@ -1280,6 +1509,11 @@ watch(() => props.month, () => {
         }
 
         .detail-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .control-check-grid,
+        .ocr-summary-grid {
             grid-template-columns: 1fr;
         }
 

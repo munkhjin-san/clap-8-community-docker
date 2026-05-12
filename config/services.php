@@ -69,6 +69,7 @@ return [
             'legal_quick_review' => env('OPENAI_PROMPT_LEGAL_QUICK_REVIEW_ID'),
             'legal_deep_review' => env('OPENAI_PROMPT_LEGAL_DEEP_REVIEW_ID'),
             'challenge_suggestion' => env('OPENAI_PROMPT_CHALLENGE_SUGGESTION'),
+            'normal_challenge_suggestion' => env('OPENAI_PROMPT_NORMAL_CHALLENGE_SUGGESTION'),
             'project_member_assign_evaluation' => env('OPENAI_PROMPT_PROJECT_MEMBER_ASSIGN_EVALUATION'),
         ]
     ],

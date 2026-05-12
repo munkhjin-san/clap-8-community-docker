@@ -38,7 +38,15 @@ class CloseExpiredPosts extends Command
 
         $posts = PostRecord::query()
             ->where('app_type', 2)
-            ->whereDate('created_at', '<=', now()->subDays(15));
+            ->where(function ($q) {
+                $q->where(fn ($q) =>
+                    $q->where('mini', 1)
+                    ->whereDate('created_at', '<=', now()->subDays(8))
+                )->orWhere(fn ($q) =>
+                    $q->where('mini', 0)
+                    ->whereDate('created_at', '<=', now()->subDays(15))
+                );
+            });
             
         $grantable_posts = (clone $posts)
             ->where('grantable', 1)
