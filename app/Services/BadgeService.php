@@ -313,7 +313,7 @@ final class BadgeService
                 ->pluck('id');
 
             if ($projectIds->isEmpty()) {
-                [
+                return [
                     'total_unread' => 0,
                     'projects'     => [],
                 ];

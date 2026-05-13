@@ -356,7 +356,9 @@ export function shouldShowCard(card: DashboardCard): boolean {
     if (layout === 'schedules') {
         return (data as any)?.temp_schedules?.length > 0
     } else if (layout === 'project') {
-        return (data as any)?.officer_approval_waiting?.length > 0 || (data as any)?.assign_approval_waiting?.length > 0
+        return (data as any)?.officer_approval_waiting?.length > 0 
+        || (data as any)?.assign_approval_waiting?.length > 0
+        || (data as any)?.comments?.length > 0
     }
 
     // All other cards show by default
