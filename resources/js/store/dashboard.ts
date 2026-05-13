@@ -3,6 +3,7 @@ import { CalendarRecord } from "@/interface/calendarInterface";
 import { CustomForm } from "@/interface/customFormInterface";
 import { pendingTimesheedData, UserWithShift } from "@/interface/dashboard";
 import { Message, Task, User } from "@/interface/globalInterface";
+import { Incident } from "@/interface/incident";
 import { Post } from "@/interface/postInterface";
 import { Evaluation, Project, ProjectAssignRecord } from "@/interface/projectInterface";
 import { Shift, WorkItem } from "@/interface/workInterface";
@@ -18,6 +19,9 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         assets: {
             in_use: [] as Asset[],
             waiting_approval: [] as Asset[],
+        },
+        incidents: {
+            attention: [] as Incident[],
         },
         overdueGoals: [] as any[], //data ignored just for layout purposes
         challenges: [] as Post[],
@@ -50,6 +54,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
             assign_approval_waiting: [] as ProjectAssignRecord[],
         },
         notices: [] as any[],
+        systemUpdates: [] as number[],
     })
 
     const annualLeaveData = ref<{
@@ -119,7 +124,8 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         collection.value.personnelEvaluation.pendingEvaluations.length + 
         collection.value.timesheet.pendingTimesheets.length + 
         collection.value.notices.length + collection.value.projects.assign_approval_waiting.length + 
-        collection.value.projects.officer_approval_waiting.length
+        collection.value.projects.officer_approval_waiting.length +
+        collection.value.incidents.attention.length + collection.value.systemUpdates.length
         return total
     })
     const goalsStore = useDashboardGoalsStore()
@@ -149,7 +155,6 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
             annualLeaveData.value.fetching = false;
         }
     }
-
     return {
         collection,
         getBatchDashboardData,

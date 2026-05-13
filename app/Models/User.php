@@ -262,6 +262,10 @@ class User extends Authenticatable
     {
         return $this->hasOne(RefreshAccount::class, 'user_id', 'id');
     }
+    public function systemUpdateCheck()
+    {
+        return $this->hasOne(SystemUpdateCheck::class, 'user_id', 'id');
+    }
     public function refreshAnnualReviews()
     {
         return $this->hasManyThrough(

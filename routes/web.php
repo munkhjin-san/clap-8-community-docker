@@ -48,7 +48,7 @@ use App\Models\User;
 | contains the "web" middleware group. Now create something great!
 |
 */
-
+Route::get('/incident_fill', [AutoJobController::class, 'incident_fill']);
 //for home page
 Route::get('get_team_external', [ProjectController::class, 'get_team_external']);
 Route::get('get_projects_external', [ProjectController::class, 'get_projects_external']);
@@ -488,6 +488,12 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/add_memo_to_consult', [SupportController::class, 'add_memo_to_consult']);
         Route::post('/update_consult_status', [SupportController::class, 'update_consult_status']);
         Route::post('/support_add_message', [SupportController::class, 'support_add_message']);
+        Route::get('/search_regulations_from_files', [SupportController::class, 'search_regulations_from_files']);
+        Route::post('emergency_contact', [SupportController::class, 'emergency_contact']);
+        Route::get('/system_updates', [SupportController::class, 'get_system_updates']);
+        Route::post('/system_update_save', [SupportController::class, 'save_system_update']);
+        Route::post('/system_update_delete', [SupportController::class, 'delete_system_update']);
+        Route::post('/system_update_check', [SupportController::class, 'system_update_check']);
 
         Route::get('/get_notices', [NoticeController::class, 'get_notices']);
         Route::get('/get_notice', [NoticeController::class, 'get_notice']);
@@ -810,12 +816,14 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/summarize_contract_comparison', [OpenAiController::class, 'summarize_contract_comparison']);
         Route::post('/suggest_challenge', [OpenAiController::class, 'suggest_challenge']);
         Route::get('/lunch_challenge_popup', [OpenAiController::class, 'lunch_challenge_popup']);
+        Route::post('/chatkit/session', [OpenAiController::class, 'session']);
 
         Route::get('/goal_issue_comment_badge', [ProjectController::class, 'goal_issue_comment_badge']);
         Route::post('/clear_goal_issue_badge', [ProjectController::class, 'clear_goal_issue_badge']);
         Route::get('/must_sync_check', [AutoJobController::class, 'must_sync_check']);
 
         Route::get('/dashboard_data', [DashboardController::class, 'dashboard_data']);
+        Route::get('/get_incidents', [DashboardController::class, 'getIncidents']);
         Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
 });
      Route::post('/tts_stream', [OpenAiController::class, 'stream_tts']);

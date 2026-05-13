@@ -1,7 +1,7 @@
 <template>
     <div class="py-[40px] regulation-item">
         <div class="flex">
-            <h3 class="mb-[30px]">{{ regulation.title }}</h3>
+            <div class="mb-[30px]">{{ regulation.title }}</div>
             <div class="ml-auto" v-if="isAuthorized">
                 <ItemMenu :items="[
                     { title: '編集', action: () => emit('edit', regulation) },
@@ -11,10 +11,9 @@
         </div>
         <div>
             <div :style="{ height: `${dynamicHeight}`, overflow: 'hidden', transition: 'height 0.1s ease' }">
-                <p ref="contentBody" style="line-height: 1.5;white-space: pre-line;"
-                    v-html="urlCheck(regulation.content)"></p>
+                <p ref="contentBody" class="leading-normal whitespace-pre-line text-sm" v-html="urlCheck(regulation.content)"></p>
             </div>
-            <div @click="toggleFull" class="jump-link" style="margin-top:10px"
+            <div @click="toggleFull" class="jump-link text-[14px]" style="margin-top:10px"
                 v-if="dynamicHeight !== 'auto'">{{ dynamicHeight == staticHeight + 'px' ? '続きを表示する' : '閉じる' }}
             </div>
         </div>
@@ -43,7 +42,7 @@ const emit = defineEmits<{
 const dynamicHeight = ref('auto')
 const contentBody = useTemplateRef('contentBody')
 const mobile = useResponsive()
-const staticHeight = ref(mobile.mobile ? 42 : 48)
+const staticHeight = ref(40)
 onMounted(() => {
     if (contentBody.value) {
         if (contentBody.value?.clientHeight > staticHeight.value) {

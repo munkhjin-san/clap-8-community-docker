@@ -821,11 +821,16 @@ const routes = [
                 name: 'dashboard-support',
                 component: () => import('./components/Support/Support.vue'),
                 children: [
-                    { path: 'faq', name: 'faq', component: () => import('./components/Support/Faq.vue') },
+                    { path: 'faq', name: 'faq', component: () => import('./components/Support/Faq.vue'), children: [
+                        { path: ':faqId', name: 'faq_detail', component: { render: () => null } }
+                    ] },
                     { path: 'regulations', name: 'regulations', component: () => import('./components/Support/Regulations/RegulationsContainer.vue') },
                     { path: 'email_consult', name: 'email_consult', component: () => import('./components/Support/MailConsult.vue') },
                     { path: 'phone_consult', name: 'phone_consult', component: () => import('./components/Support/PhoneConsult.vue') },
-                    { path: 'email_inbox', name: 'email_inbox', component: () => import('./components/Support/Inbox.vue')}
+                    { path: 'emergency_contact', name: 'emergency_contact', component: () => import('./components/Support/EmergencyContact.vue') },
+                    { path: 'email_inbox', name: 'email_inbox', component: () => import('./components/Support/Inbox.vue')},
+                    { path: 'chat', name: 'ai_chat', component: () => import('./components/Support/Chat/ChatKit.vue') },
+                    { path: 'system_updates', name: 'system_updates', component: () => import('./components/Support/SystemUpdates.vue') }
                 ],
             }
         ]

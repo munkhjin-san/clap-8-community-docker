@@ -1,6 +1,5 @@
 <template>
-    <div class="support-content">
-        <div class="support-title">電話相談</div>
+    <div class="support-content leading-normal text-[14px] px-4 under960:px-1">
         <div class="support-content-inner">
             <div class="mobile-tel-title">【社内・経営管理本部へのご相談】</div>
                 <div style="line-height:1.3;margin-top: 10px;">

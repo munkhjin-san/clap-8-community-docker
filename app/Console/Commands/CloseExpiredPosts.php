@@ -74,8 +74,10 @@ class CloseExpiredPosts extends Command
         }
         foreach ($expired_posts as $post) {
             DB::transaction(function () use ($post, &$expired) {
+                $post->timestamps = false; // Disable timestamps to avoid updating updated_at
                 $post->update(['status_flag' => 5]);
                 $expired++;
+                $post->timestamps = true; // Re-enable timestamps
             });
         }
         $this->info("Closed and refunded {$refunded} post(s).");

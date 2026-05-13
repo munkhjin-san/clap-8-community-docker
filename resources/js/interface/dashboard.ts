@@ -1,6 +1,7 @@
 import { Asset } from "./assetInterface"
 import { CalendarRecord } from "./calendarInterface"
 import { Message, Task, User } from "./globalInterface"
+import { Incident } from "./incident"
 import { Post } from "./postInterface"
 import { Project, ProjectAssignRecord } from "./projectInterface"
 import { Shift } from "./workInterface"
@@ -54,6 +55,13 @@ export type DashboardAssetCard = CardBase & {
     data: {
         in_use: Asset[]
         waiting_approval?: Asset[]
+    }
+}
+
+export type DashboardIncidentCard = CardBase & {
+    layout: 'incidents'
+    data: {
+        attention: Incident[]
     }
 }
 
@@ -111,4 +119,4 @@ export type GoalRequiredData = {
     previous_span: SpanRequiredGoalData,
 }
 
-export type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard | DashboardAssetCard | DashboardScheduleCard | DashboardPersonnelEvaluationCard | DashboardTimesheetCard | DashboardNoticeCard | DashboardProjectCard 
+export type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard | DashboardAssetCard | DashboardIncidentCard | DashboardScheduleCard | DashboardPersonnelEvaluationCard | DashboardTimesheetCard | DashboardNoticeCard | DashboardProjectCard 

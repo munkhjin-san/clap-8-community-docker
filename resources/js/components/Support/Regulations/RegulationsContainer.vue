@@ -1,18 +1,51 @@
 <template>
-    <div >
-        <div class="bg-[var(--background-color)] mr-[20px] under960:ml-[20px] mt-[20px]">
-            
+    <div>        
+        <div class="bg-[var(--background-color)] mr-[20px] under960:ml-[20px] mt-[20px]">            
+            <div class="w-[300px] under960:w-full mb-5 ml-5 relative">
+                <PostSearchBar
+                    className="newChatMemberSearch" 
+                    :customPlaceHolder="'検索'"
+                    @search-start="(key) => keyword = key"
+                />                       
+                <div v-if="keyword.length" class="absolute top 40px shadow-lg bg-[var(--background-color)] left-0 w-full z-[5] max-h-[60vh] overflow-y-auto">
+                    <div class="p-3">
+                        <button class="bg-[var(--bg3)] w-full py-2 rounded" @click="searchFromFiles">
+                            規則・規定ファイルから検索
+                        </button>
+                        <div v-if="searching" class="spinner-micro mx-auto my-5"></div>
+                        <div v-if="!searching && chunks.length">
+                            <div class="text-[12px] text-[gray] my-3">検索結果:<strong>{{ chunks.length }}件</strong></div>
+                            <div class="space-y-2">
+                                <div v-for="(chunk, index) in chunks" :key="index" class="mb-3 p-2 border rounded">
+                                    <p class="text-[12px] text-[gray] whitespace-break-spaces leading-normal" v-html="highlightKeyword(chunk.text)"></p>
+                                    <div class="text-sm mt-1 p-2 bg-[var(--bg3)] rounded">
+                                        <div @click="openTargetFile(chunk)" class="flex mt-2 cursor-pointer">
+                                            <FileIcon ext="pdf"/>
+                                            <div class="ml-2">
+                                                <div class="text-[12px]">{{ chunk.title }}</div>      
+                                                <div class="text-[gray] text-[11px]">{{ chunk.pageNumber ? `ページ ${chunk.pageNumber}` : '' }}</div>                                           
+                                            </div>                                        
+                                        </div>  
+                                                                
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>         
+            </div> 
+            <p class="text-[11px] text-[gray] ml-5">全ての規則・規定ファイルからキーワードで検索できます</p>
             <div class="regulations-list">
                 <RegulationItem 
-                    v-for="regulation in regulations" 
+                    v-for="regulation in filteredRegulations" 
                     :key="regulation.id"
                     :regulation="regulation"
                     @edit="editRegulation"
                     @delete="deleteRegulation"
                     :is-authorized="isAuthorizedAccount"
                 />
-                <div v-if="regulations.length === 0" class="empty-state">
-                    <p>規則がまだ作成されていません。</p>
+                <div v-if="filteredRegulations.length === 0" class="empty-state">
+                    <p>{{ keyword.length ? '該当する規則が見つかりません。' : '規則がまだ作成されていません。' }}</p>
                 </div>
             </div>
         </div>
@@ -23,35 +56,27 @@
             @close="handleCreateClose"
             
         />
-        <FloatButton v-if="isAuthorizedAccount" :order="2"  @action="showCreateForm = true">
+        <FloatButton v-if="isAuthorizedAccount" @action="showCreateForm = true">
             <template #icon>
                 <AddIcon size="15"/>
             </template>
         </FloatButton>
         
-        <FloatButton :order="1" v-if="!chatBoxWindow" @action="emit('setChatBoxWindow', true)">
-            <template #icon>
-                <svg data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" width="35px" style="width: 20px;height: 20px;" fill="var(--primary-color)" viewBox="0 0 30.88051 24.97352">
-                    <path d="M10.55606,9.62179l.0546.06405c.04369.05122.08643.10446.12744.15921l.03031.04102.02192.03384.04359.06789c.03.04445.05602.09244.08107.14143.02617.04819.05066.09749.07036.15002.08557.20538.14022.43289.14638.66737.01404.46946-.17038.95105-.50548,1.2913-.33156.34197-.81002.54917-1.29145.54654-.23953.00081-.47583-.04475-.69015-.12699-.21493-.08193-.4087-.19579-.58226-.3254l-.05632-.04203-.04172-.05607c-.12946-.17366-.24322-.36743-.3249-.58241-.08148-.21458-.12684-.45067-.12567-.6899-.00051-.48057.2026-.95903.54382-1.29241.33939-.33672.82239-.52018,1.29226-.50755.23458.00546.46375.05607.67015.14174.05289.0197.10244.04395.15128.0693.04955.02435.0982.04981.1433.0793l.0689.04273.0343.02152.04198.03021c.03298.02414.0643.05001.09628.07526Z"/>
-                    <path d="M16.4958,9.62179l.0546.06405c.04369.05122.08643.10446.12744.15921l.03031.04102.02192.03384.04359.06789c.03.04445.05607.09244.08107.14143.02617.04819.05066.09749.07036.15002.08557.20538.14022.43289.14638.66737.01409.46946-.17038.95105-.50548,1.2913-.33156.34197-.81002.54917-1.29145.54654-.23953.00081-.47583-.04475-.69015-.12699-.21493-.08193-.4087-.19579-.58226-.3254l-.05627-.04203-.04177-.05607c-.12946-.17366-.24322-.36743-.3249-.58241-.08148-.21458-.12684-.45067-.12562-.6899-.00056-.48057.20255-.95903.54382-1.29241.33934-.33672.82239-.52018,1.29221-.50755.23458.00546.46375.05607.67015.14174.05289.0197.10244.04395.15128.0693.04955.02435.0982.04981.14335.0793l.0689.04273.03425.02152.04198.03021c.03298.02414.0643.05001.09628.07526Z"/>
-                    <path d="M22.43555,9.62179l.0546.06405c.04369.05122.08643.10446.12744.15921l.03031.04102.02192.03384.04359.06789c.03.04445.05607.09244.08107.14143.02617.04819.05066.09749.07041.15002.08552.20538.14017.43289.14633.66737.01409.46946-.17038.95105-.50548,1.2913-.33156.34197-.81002.54917-1.29145.54654-.23953.00081-.47583-.04475-.69015-.12699-.21488-.08193-.4087-.19579-.58221-.3254l-.05632-.04203-.04177-.05607c-.12941-.17366-.24317-.36743-.3249-.58241-.08148-.21458-.12684-.45067-.12562-.6899-.00056-.48057.20255-.95903.54382-1.29241.33934-.33672.82239-.52018,1.29221-.50755.23458.00546.46375.05607.6702.14174.05284.0197.10244.04395.15123.0693.0496.02435.09825.04981.14335.0793l.0689.04273.0343.02152.04193.03021c.03298.02414.0643.05001.09628.07526Z"/>
-                    <path d="M30.72811,8.87693c-.14532-.82961-.40248-1.64973-.77491-2.41843-.37349-.76799-.86078-1.48112-1.43021-2.11041-.56958-.63019-1.21982-1.17502-1.91078-1.64003-.69167-.46552-1.42748-.84628-2.17935-1.16582-1.50724-.63646-3.08105-1.02166-4.65608-1.252C18.19969.06071,16.6191-.02142,15.04529.00464c-1.57649.02829-3.16121.16689-4.73063.4734-1.56674.30853-3.12596.77981-4.5892,1.52224-.73016.37157-1.43455.81072-2.08919,1.32696-.65393.51624-1.2568,1.11188-1.77349,1.78298-.51816.66949-.94332,1.41798-1.25367,2.21052-.31232.79234-.49891,1.63013-.57271,2.46864-.03809.41824-.04172.84345-.03152,1.24937.01121.41056.04253.82295.09759,1.23493.11224.82325.32277,1.6463.65656,2.42702.33207.78072.78845,1.51335,1.34019,2.15607.5526.64252,1.19426,1.19593,1.88174,1.6568,1.37873.92579,2.68455,1.41704,4.21593,1.83754,1.40433.38561,3.01336.61236,4.42381.68084.11501.00558.22221.05607.3.14096.35824.39093.73214.83741,1.12904,1.18121.52245.45299,1.09731.87909,1.70002,1.23301.5959.34991,1.21809.62423,1.86059.87348.67722.24416,1.72508.46818,2.28038.51005.54648.0412.61253-.37127.43499-.73406s-.21921-.43035-.29245-.58906c-.074-.16063-.14558-.32257-.21427-.48542-.13744-.3255-.26357-.65434-.37738-.98267-.09087-.26556-.22831-.73-.30037-1.09607-.02543-.12921.06172-.25268.19215-.27083,1.26612-.17617,2.52991-.42751,3.77481-.80463.76041-.23094,1.51335-.50957,2.24553-.85548.73202-.3449,1.44233-.76213,2.10303-1.26604.65883-.50543,1.26453-1.10349,1.76768-1.78915.25064-.34308.47542-.70667.67161-1.0849.19417-.37925.35904-.77294.49431-1.17502.26868-.80517.41491-1.64044.46769-2.46823.05147-.82406.01687-1.66165-.12997-2.49218ZM29.10737,11.2797c-.02647.69949-.13057,1.38666-.32934,2.03918-.10037.3258-.22362.64292-.36995.94882-.14841.30479-.31939.59847-.51265.87851-.38824.55927-.86755,1.06096-1.41167,1.50042-1.09218.87932-2.42323,1.50618-3.81646,1.96776-.69828.23094-1.41566.42107-2.14299.58059-.72723.16073-1.46461.29176-2.20754.39935l-.02278.00323c-.31025.04455-.552.30792-.55953.63161-.01086.46461.06607.87417.16356,1.26432.099.38975.22503.7587.36389,1.11824.11438.2969.22463.54764.42413.85887.03482.05431-.01935.11274-.081.09373-.9125-.28139-1.79562-.70823-2.69588-1.43556-.95898-.77477-1.37653-1.23436-2.1915-2.20854-.11613-.138-.28565-.23387-.47941-.25236l-.02223-.00212c-1.49037-.14184-2.9679-.37349-4.38614-.76072-1.4149-.38602-2.77939-.93155-3.93688-1.73045-.57862-.39753-1.099-.86043-1.53881-1.38333-.4386-.52391-.79365-1.10895-1.05364-1.73944-.26085-.63019-.42693-1.30413-.51361-1.99726-.08112-.6905-.10037-1.41909-.0244-2.09596.07799-.68353.24281-1.3504.49967-1.97887.25771-.62817.60413-1.21876,1.03101-1.75278.85073-1.07288,2.00074-1.91826,3.27623-2.54138.63903-.31095,1.30686-.57705,1.99483-.79638.68894-.2173,1.3953-.3942,2.11369-.52897,1.43647-.27256,2.91274-.39511,4.39503-.41339,1.48532-.01182,2.97073.05819,4.42281.26933,1.45021.21276,2.87415.55564,4.19288,1.10076,1.31357.54715,2.52536,1.29746,3.45696,2.29518.46456.49825.85719,1.0552,1.16284,1.65862.30403.60423.52038,1.25432.64974,1.92957.12956.67495.1729,1.37575.14911,2.07939Z"/>
-                </svg>
-            </template>
-        </FloatButton>
 
     </div>
 </template>
 <script setup lang="ts">
 import FloatButton from '@/components/Global/FloatButton.vue';
 import { useApi } from '@/composables/api';
-import { computed, onMounted, ref } from 'vue';
-import ChatBox from './ChatBox.vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import RegulationItem from './RegulationItem.vue';
 import RegulationCreate from './RegulationCreate.vue';
 import { Regulation } from '@/interface/regulationInterface';
 import AddIcon from '@/components/Form/AddIcon.vue';
 import { useAuthUserStore } from '@/store/auth';
+import PostSearchBar from '@/components/Post/PostSearchBar.vue';
+import FileIcon from '@/components/Board/Mixed/FileIcon.vue';
+import { useFilePreview } from '@/store/filePreview';
 
 const props = defineProps<{
     tagList: any[],
@@ -63,13 +88,26 @@ const emit = defineEmits<{
     setChatBoxWindow: [val: boolean]
 }>()
 
-
+const keyword = ref('')
 const api = useApi();
 const regulations = ref<Regulation[]>([]);
 const chatBoxWindow = ref(false);
 const showCreateForm = ref(false);
 const editTarget = ref<Regulation | null>(null);
 const auth = useAuthUserStore()
+const searching = ref(false)
+const filePreview = useFilePreview()
+const currentKeyword = ref('')
+const chunks = ref<{
+    pageNumber: number | null
+    title: string | null
+    text: string | null
+}[]>([])
+
+const filteredRegulations = computed(() => {
+    if(!keyword.value) return regulations.value;
+    return regulations.value.filter(reg => reg?.title?.includes(keyword.value) || reg?.content?.includes(keyword.value))
+})
 const loadRegulations = async () => {
 
     const response = await api.get('/get_regulation_list');
@@ -104,10 +142,52 @@ const handleCreateClose = async (refreshNeeded: boolean) => {
         await loadRegulations();
     }
 };
-
+const searchFromFiles = async () => {
+    if(!keyword.value) return;
+    currentKeyword.value = keyword.value;
+    searching.value = true;
+    const response = await api.get('/search_regulations_from_files', { keyword: keyword.value });
+    chunks.value = response.chunks ?? [];
+    searching.value = false;
+}
 onMounted(() => {
     loadRegulations();
 });
+const openTargetFile = (chunk: typeof chunks.value[0]) => {
+    if(!chunk || !chunk.title) return;
+    const foundFile = regulations.value.flatMap(r => r.regulation_files).find(f => f.name == chunk.title);
+    if(foundFile) {
+        const files = [{
+            ...foundFile,
+            file_path: `/cdn/regulation_files/${foundFile.path}.${foundFile.extension}`,
+            doc_path: `/regulation_files/${foundFile.path}.${foundFile.extension}`,
+            initialPage: chunk.pageNumber ? chunk.pageNumber : 1
+        }];     
+        
+        const data = {
+            active: true,
+            files,
+            source: 'calendar',
+            index: 0,
+            message: null,
+            initialPage: chunk.pageNumber ? chunk.pageNumber : 1
+        }
+        filePreview.setFilePreview(data)
+    }
+}
+const highlightKeyword = (text: string | null) => {
+    if(!text || !currentKeyword.value) return text;
+    const escapedKeyword = currentKeyword.value.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const regex = new RegExp(`(${escapedKeyword})`, 'gi');
+    return text.replace(regex, '<mark>$1</mark>');
+}
+
+watch(keyword, (newVal) => {
+    if(!newVal) {
+        chunks.value = [];
+        currentKeyword.value = '';
+    }
+})
 </script>
 <style scoped>
 .regulations-header {
@@ -155,6 +235,16 @@ onMounted(() => {
 .empty-state p {
     margin: 0;
     font-size: 16px;
+}
+.ref-file-icon :deep(svg){
+    width: 20px;
+    height: 20px;
+    margin-right: 4px;
+}
+@media screen and (max-width: 959px) {
+    .regulations-list {
+        padding: 0;
+    }
 }
 
 

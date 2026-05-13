@@ -70,10 +70,10 @@
     </div>
 
 </template>
-<script setup>
+<script setup lang="ts">
 import SideMenu from './Global/SideMenu.vue';
 import Footer from './Header/Footer.vue';
-import { computed, onBeforeMount, onMounted, onUnmounted, provide, ref, watch } from 'vue';
+import { computed, onBeforeMount, onMounted, onUnmounted, provide, ref, watch, nextTick, useTemplateRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Dialog from './Global/Dialog.vue';
 import LunchChallengePopup from './Global/LunchChallengePopup.vue';
@@ -97,7 +97,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
     const route = useRoute()
     const router = useRouter()
     const badge = useBadgeStore()
-    const mainRef = ref(null)
+    const mainRef = useTemplateRef<any>('mainRef')
     const auth = useAuthUserStore()
     const menu = useMenuStore()
     const responsive = useResponsive()
@@ -110,7 +110,12 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
     const LUNCH_CHALLENGE_ZONE = 'Asia/Tokyo'
 
     const { askData, pingData, toastData, respondOptions, decision, resetDialog, ask, inputOptions, inputResult } = useDialog() 
-    const instantUser = ref({
+    const instantUser = ref<({
+        id: string | null,
+        name: string | null,
+        cX: number,
+        cY: number
+    })>({
         id: null,
         name: null,
         cX: 0,
@@ -128,7 +133,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         removeEventListener()
     })
     const BOARD_BADGE_COOLDOWN_MS = 2000
-    let badgeRefreshTimer = null
+    let badgeRefreshTimer: ReturnType<typeof setTimeout> | null = null
     let badgeRefreshInFlight = false
     let badgeRefreshPending = false
     let lastBadgeRefreshAt = 0
@@ -167,16 +172,21 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         loadBadges().catch(err => {
             console.error('[badges] failed to load', err)
         })
-        if(route.name === 'board'){
-            pushPwaBackGuardState()
-        }
+    
         if (isIOS.value) {
             savePWAStatus()
         } 
-        initDashboardData()
-        if(!auth.isPartner && !auth.isRegistered){
-            initGoalData()
+        await router.isReady()
+        if(route.name === 'board'){
+            pushPwaBackGuardState()
         }
+        if(route.name && !route.fullPath.includes('dashboard')){
+            initDashboardData()
+            if(!auth.isPartner && !auth.isRegistered){
+                initGoalData()
+            }
+        }
+        
         maybeCheckLunchChallenge()
     })
     async function loadBadges() {
@@ -212,7 +222,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
             badge.getbadgeSummary()
         }
     }
-    const activeAccountHandler = (e) => {
+    const activeAccountHandler = (e:any) => {
         if(e.to !== auth.activeUser.id){                
             setAlert()
         }
@@ -224,7 +234,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         const space = badgeCount ? ' ' : ''
         return badgeCount + space + name   
     })
-    const boardBadgeHandler = (data) => {
+    const boardBadgeHandler = (data:any) => {
         console.log('refresh:board event received', data)
         const related = data && data.length? data : []
         if(related.includes(auth.id) || related.includes(auth.activeUser.id)){
@@ -258,7 +268,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         socket.off("refresh:task_comment", taskCommentBadgeHandler)
         socket.off(`lunch_challenge:ready:${auth.id}`, lunchChallengeReadyHandler)
     }
-    const taskCommentBadgeHandler = (data) => {
+    const taskCommentBadgeHandler = (data:any) => {
         const related = data?.members ?? []
         if(related.includes(auth.id) || related.includes(auth.activeUser.id)){
             badge.getTaskCommentBadge()
@@ -304,7 +314,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         return true
     })
     const isStandaloneMode = () => {
-        return window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true
+        return window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true
     }
     const pushPwaBackGuardState = () => {
         if(!isStandaloneMode()) return
@@ -334,7 +344,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
             pushPwaBackGuardState()
         }
     })
-    const setActiveUser = async(id) => {
+    const setActiveUser = async(id:number) => {
         if(id == auth.activeUser.id){
             if(id == auth.id){
                 router.push({path: `/user/${auth.activeUser.id}`});
@@ -347,7 +357,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         }
 
         await auth.setActiveUser(id)
-        window.location.reload(true)
+        window.location.reload()
         // skeleton.setSkeleton(0)
         // nextTick(() => {
         //     setTimeout(() => {
@@ -358,7 +368,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         
 
     }
-    const setFocusedState = (v) => {
+    const setFocusedState = (v:boolean) => {
         focused.setFocused(v)
         console.debug("focused =", v, {
             visibility: document.visibilityState,
@@ -397,7 +407,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
             if(!isSocketReady.value || must_sync === true){            
                 await badge.getBoardBadge(false, 'checkActivity');
                 const hasNewMessages = badge.totalBoardBadge(auth.activeUser.id)      
-                if(mainRef.value.refreshBoardList){
+                if(mainRef.value && mainRef.value.refreshBoardList){
                     if(hasNewMessages){                        
                         mainRef.value.refreshBoardList()
                         mainRef.value.unreadLineTrigger()
@@ -420,21 +430,21 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
             }
         }
     }
-    const refreshMessage = (data) => {
+    const refreshMessage = (data:any) => {
         if(mainRef.value.getMessageList){
             mainRef.value.refreshMessages(data)
         }
     }
-    const refreshRemind = (dataType) => {
+    const refreshRemind = (dataType:any) => {
         if(mainRef.value.refreshData) {
             mainRef.value.refreshData(dataType)
         }
     }
-    const onClick = (event) => {
+    const onClick = (event: MouseEvent | TouchEvent) => {
         const target = event.target
-        if(menu){
+        if(menu && target){
             const cont = document.getElementById(menu.parent ? menu.parent : menu.name);  
-            if(cont && !cont.contains(target)){
+            if(cont && !cont.contains(target as Node)){
                 menu.close()
             } 
         }        
@@ -447,7 +457,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         try {
             const { must_sync } = await axios.post('/auth_check', {id: auth.id}).then(res => res.data)
             return must_sync
-        } catch (error) {
+        } catch (error :any) {
             const { response } = error;
             let errorMessage = '';
             if (response) {
@@ -458,10 +468,11 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
             } else if (error.request) {
                 errorMessage = 'ネットワークエラーが発生しました。ブラウザを更新してください';
             }  
-            answer = await ask(errorMessage, options).value;
+            const userAnwser = await ask(errorMessage, options);
+            answer = userAnwser.value
         }    
         if(answer){
-            window.location.reload(true);
+            window.location.reload();
         }             
     }
     const resetInstantUser = () => {
@@ -473,7 +484,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         }
         instantUser.value = data    
     }
-    const pushInstantUser = (e, id, name) => {
+    const pushInstantUser = (e: MouseEvent, id: string, name: string) => {
         // if(id == auth.id) return
         const cX = e.clientX;
         const cY = e.clientY;  
@@ -491,7 +502,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         }
         const answer = await ask('アクティブアカウントが変更されています。ページを更新してください。', options)
         if(answer.value){
-            window.location.reload(true);
+            window.location.reload();
         }else{
             confused.value = true
         }
@@ -510,10 +521,10 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         } catch {}
         return { date: dateKey, dismissed: false, skipped: false }
     }
-    const hasLunchChallengeFlag = (type, dateKey = lunchChallengeDateKey()) => {
+    const hasLunchChallengeFlag = (type:any, dateKey = lunchChallengeDateKey()) => {
         return getLunchChallengeState(dateKey)[type] === true
     }
-    const setLunchChallengeFlag = (type, dateKey = lunchChallengeDateKey()) => {
+    const setLunchChallengeFlag = (type:any, dateKey = lunchChallengeDateKey()) => {
         const state = getLunchChallengeState(dateKey)
         state[type] = true
         localStorage.setItem(lunchChallengeStateKey(), JSON.stringify(state))
@@ -558,7 +569,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
             lunchChallengePolling.value = false
         }
     }
-    const lunchChallengeReadyHandler = (challenge) => {
+    const lunchChallengeReadyHandler = (challenge:any) => {
         if (!challenge) return
         const dateKey = lunchChallengeDateKey()
         if (hasLunchChallengeFlag('dismissed', dateKey)) return

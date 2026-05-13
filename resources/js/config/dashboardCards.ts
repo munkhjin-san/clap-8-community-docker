@@ -14,6 +14,7 @@ import DashboardSurvey from '@/components/Dashboard/Layout/DashboardSurvey.vue'
 import DashboardGoal from '@/components/Dashboard/Layout/DashboardGoal.vue'
 import DashboardChallenge from '@/components/Dashboard/Layout/DashboardChallenge.vue'
 import DashboardAsset from '@/components/Dashboard/Layout/DashboardAsset.vue'
+import DashboardIncident from '@/components/Dashboard/Layout/DashboardIncident.vue'
 import DashboardSchedule from '@/components/Dashboard/Layout/DashboardSchedule.vue'
 import DashboardPersonnelEvaluation from '@/components/Dashboard/Layout/Admin/DashboardPersonnelEvaluation.vue'
 import DashboardTimesheet from '@/components/Dashboard/Layout/DashboardTimesheet.vue'
@@ -21,6 +22,7 @@ import DashboardNotice from '@/components/Dashboard/Layout/DashboardNotice.vue'
 import DashboardProject from '@/components/Dashboard/Layout/DashboardProject.vue'
 import { useAuthUserStore } from '@/store/auth'
 import { Project, ProjectAssignRecord } from '@/interface/projectInterface'
+import { Incident } from '@/interface/incident'
 
 /**
  * Layout type constants
@@ -34,6 +36,7 @@ export const CARD_LAYOUTS = {
     MONTHLY_GOALS: 'monthly_goals',
     CHALLENGE: 'challenge',
     ASSETS: 'assets',
+    INCIDENTS: 'incidents',
     SCHEDULES: 'schedules',
     PERSONNEL_EVALUATION: 'personnelEvaluation',
     TIMESHEET: 'timesheet',
@@ -53,6 +56,7 @@ export const DASHBOARD_COMPONENTS: Record<string, Component> = {
     [CARD_LAYOUTS.MONTHLY_GOALS]: markRaw(DashboardGoal),
     [CARD_LAYOUTS.CHALLENGE]: markRaw(DashboardChallenge),
     [CARD_LAYOUTS.ASSETS]: markRaw(DashboardAsset),
+    [CARD_LAYOUTS.INCIDENTS]: markRaw(DashboardIncident),
     [CARD_LAYOUTS.SCHEDULES]: markRaw(DashboardSchedule),
     [CARD_LAYOUTS.PERSONNEL_EVALUATION]: markRaw(DashboardPersonnelEvaluation),
     [CARD_LAYOUTS.TIMESHEET]: markRaw(DashboardTimesheet),
@@ -74,6 +78,7 @@ type DashboardStoreKey =
     | 'overdueGoals'
     | 'challenges'
     | 'assets'
+    | 'incidents'
     | 'schedules'
     | 'timesheet'
     | 'personnelEvaluation'
@@ -94,6 +99,7 @@ export const CARD_DATA_KEY_BY_TYPE: Record<string, DashboardStoreKey> = {
     overdueGoals: 'overdueGoals',
     challenges: 'challenges',
     assets: 'assets',
+    incidents: 'incidents',
     schedules: 'schedules',
     timesheet: 'timesheet',
     notice: 'notices',
@@ -114,6 +120,7 @@ export const CARD_REFRESH_KEYS_BY_TYPE: Record<string, DashboardStoreKey[]> = {
     overdueGoals: ['overdueGoals'],
     challenges: ['challenges'],
     assets: ['assets'],
+    incidents: ['incidents'],
     schedules: ['schedules'],
     timesheet: ['timesheet'],
     notice: ['notices'],
@@ -249,6 +256,18 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         order: undefined,
         data: {
             in_use: [] as Asset[]
+        },
+        canFullscreen: true,
+        canResize: true,
+    },
+    {
+        title: 'インシデント',
+        type: 'incidents',
+        layout: 'incidents',
+        col: 'col-span-1',
+        order: undefined,
+        data: {
+            attention: [] as Incident[],
         },
         canFullscreen: true,
         canResize: true,

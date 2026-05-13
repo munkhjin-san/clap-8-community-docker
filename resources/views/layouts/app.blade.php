@@ -44,6 +44,10 @@
         });
         }
     </script>
+    <script
+        src="https://cdn.platform.openai.com/deployments/chatkit/chatkit.js"
+        async
+    ></script>
 </head>
 <body style="height:100%;position:fixed;overflow:hidden">
     <div id="app" style="height:100%;width:100%;" data-user-id="{{ Auth::id() }}">

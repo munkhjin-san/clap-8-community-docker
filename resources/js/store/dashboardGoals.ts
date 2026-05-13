@@ -411,10 +411,12 @@ export function useGoalConstants() {
             overdueGoals: 'overdueGoals',
             challenges: 'challenges',
             assets: 'assets',
+            incidents: 'incidents',
             schedules: 'schedules',
             timesheet: 'timesheet',
             notices: 'notices',
             projects: 'projects',
+            systemUpdates: 'systemUpdates',
         },
         CARD_ADMIN_DATA_KEY_BY_TYPE: {
             personnelEvaluation: 'personnelEvaluation',

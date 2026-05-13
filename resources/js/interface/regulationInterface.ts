@@ -20,6 +20,9 @@ export interface RegulationFiles {
     path: string;
     size: number;
     chat_supported: boolean
+    ai_sync_status: 'not_synced' | 'syncing' | 'synced' | 'error'
+    ai_sync_error: string | null
+    ai_synced_at: string | null
+    ai_sync_hash: string | null
 }
-
 

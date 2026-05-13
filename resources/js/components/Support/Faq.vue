@@ -1,124 +1,106 @@
 <template>
-<div class="support-content">
-    <div class="support-title">よくある質問</div>
-
-    <!-- Tag Category Selector -->
-    <div class="support-content-inner">
-        <div style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
-            <span>カテゴリーから選ぶ</span>
-        </div>
-        <div class="support-tag-selector">
+<div class="faq-page">
+    <div class="w-[300px] under960:w-full mb-5" style="margin-left: 0;">
+        <PostSearchBar 
+            className="newChatMemberSearch" 
+            :customPlaceHolder="'よくある質問から検索'"
+            @searchStart="(key) => emit('setKeyWord', key)"
+        />                
+    </div> 
+    <!-- Tag filter section -->
+    <section class="faq-section">
+        <div class="faq-section-label">カテゴリーから絞り込む</div>
+        <div class="faq-tag-list">
             <template v-for="item in tagList" :key="item.id">
                 <!-- Tag in edit mode (admin only) -->
-                <div v-if="auth.isAdmin && editingTagId === item.id" class="support-tag" style="display: flex; align-items: center; gap: 6px; padding: 6px 10px;">
+                <div v-if="auth.isAdmin && editingTagId === item.id" class="faq-tag faq-tag--editing">
                     <input
                         v-model="editingTagText"
                         @keydown.enter="saveTag"
                         @keydown.esc="cancelEditTag"
-                        style="width: 80px; background: transparent; border: none; border-bottom: 1px solid var(--primary-color); outline: none; color: inherit; font-size: inherit;"
+                        class="faq-tag-input"
                         autofocus
                     />
-                    <span @click="saveTag" style="cursor: pointer; font-size: 12px;">✓</span>
-                    <span @click="cancelEditTag" style="cursor: pointer; font-size: 12px; color: gray;">✗</span>
+                    <span @click="saveTag" class="faq-tag-confirm">
+                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" height="10" viewBox="0 0 38 32" fill="var(--primary-color)">
+                            <path d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path>
+                        </svg>
+                    </span>
+                    <span @click="cancelEditTag" class="faq-tag-cancel">
+                        <CloseIcon size="10"/>
+                    </span>
                 </div>
-                <!-- Normal tag view -->
-                <div v-else style="display: flex; align-items: center; gap: 2px;">
+                <!-- Normal tag -->
+                <div v-else class="faq-tag-wrap">
                     <div
                         @click="setText(item)"
-                        :class="['support-tag', {'tag-selected': selectedTag == item.id}]"
-                    >{{ item.text }}</div>
-                    <ItemMenu
-                        v-if="auth.isAdmin && item.id !== 0"
-                        :items="[
-                            {title: '編集する', action: () => startEditTag(item)},
-                            {title: '削除する', action: () => deleteTag(item)}
-                        ]"
-                    />
+                        :class="['faq-tag relative', { 'faq-tag--active': selectedTag === item.id }]"
+                    >
+                        <div :class="{'mr-3' : auth.isAdmin && item.id !== 0}">{{ item.text }}</div>
+                        <div class="absolute right-0">
+                            <ItemMenu
+                                v-if="auth.isAdmin && item.id !== 0"
+                                :items="[
+                                    { title: '編集する', action: () => startEditTag(item) },
+                                    { title: '削除する', action: () => deleteTag(item) }
+                                ]"
+                            />
+                        </div>                                        
+                    </div>
                 </div>
             </template>
 
             <!-- Admin: add new tag -->
             <template v-if="auth.isAdmin">
-                <div v-if="addingTag" class="support-tag" style="display: flex; align-items: center; gap: 6px; padding: 6px 10px;">
+                <div v-if="addingTag" class="faq-tag faq-tag--editing">
                     <input
                         v-model="newTagText"
                         @keydown.enter="createTag"
                         @keydown.esc="addingTag = false; newTagText = ''"
                         placeholder="タグ名"
-                        style="width: 80px; background: transparent; border: none; border-bottom: 1px solid var(--primary-color); outline: none; color: inherit; font-size: inherit;"
+                        class="faq-tag-input"
                         autofocus
                     />
-                    <span @click="createTag" style="cursor: pointer; font-size: 12px;">✓</span>
-                    <span @click="addingTag = false; newTagText = ''" style="cursor: pointer; font-size: 12px; color: gray;">✗</span>
+                    <span @click="createTag" class="faq-tag-confirm">✓</span>
+                    <span @click="addingTag = false; newTagText = ''" class="faq-tag-cancel">✗</span>
                 </div>
-                <div v-else class="support-tag" @click="addingTag = true" style="cursor: pointer; opacity: 0.6;">
+                <button v-else class="faq-tag faq-tag--add" @click="addingTag = true">
                     + タグ追加
-                </div>
+                </button>
             </template>
         </div>
-    </div>
+    </section>
 
-    <!-- FAQ List -->
-    <div class="support-content-inner" style="margin-top: 20px; padding: 0;">
-        <div v-for="item in qaList" :key="item.id" class="qandaContent" style="display: flex; align-items: flex-start; gap: 8px;">
-            <div @click="selectedItem = item" style="flex: 1; cursor: pointer;">
-                <div><strong>Q : {{ item.question }}</strong></div>
-                <div style="margin-top: 10px;">A : {{ item.answer }}</div>
-            </div>
-            <ItemMenu
-                v-if="auth.isAdmin"
-                :items="[
-                    {title: '編集する', action: () => openEdit(item)},
-                    {title: '削除する', action: () => deleteFaq(item)}
-                ]"
+    <!-- FAQ list -->
+    <section class="faq-section faq-list-section">
+        <div class="faq-section-label">{{ qaList.length }} 件の質問</div>
+        <div class="faq-list">
+            <!-- <TransitionGroup name="faq-item" tag="div"> -->
+            <ExpansionGrid :col="1" v-model="expandedFaqId">
+            <FaqItem
+                v-for="item in qaList"
+                :key="item.id"
+                :item="item"
+                :expandedId="expandedFaqId"
+                :isAdmin="auth.isAdmin"
+                @edit="openEdit"
+                @delete="deleteFaq"
+                @close="expandedFaqId = null"
             />
-        </div>
-    </div>
+            </ExpansionGrid>
+            <!-- </TransitionGroup> -->
 
-    <!-- FAQ Detail Modal -->
-    <Transition name="modalFade">
-        <div class="overlay" v-if="selectedItem" @mousedown="reset">
-            <div class="chatCreate scrollable" @mousedown.stop>
-                <div class="recordFormTitle" style="display:flex">                        
-                    <div class="cursor-pointer" @click="reset" style="position:unset; margin:auto 0 auto auto">
-                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="modalWindowCloseButton" viewBox="0 0 32 32">
-                            <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
-                        </svg>                        
-                    </div> 
-                </div>
-                <div class="answerBox">
-                    <div>Q : {{ selectedItem.question }}</div>
-                    <div class="si-box">
-                        <div style="margin-top: 10px;">A : {{ selectedItem.answer }}</div>
-                    </div>
-                    <div v-html="selectedItem.content" style="background: var(--bg3);padding: 15px;margin-top: 15px;white-space: normal;"></div>
-                </div>
-                <div class="si-box" style="display: flex;align-items: center;flex-direction: column;gap: 20px;">
-                    <div><strong>問題は解決しましたか？</strong></div>
-                    <div>
-                        <div style="margin-right: 30px;" @click="feedBack(true)" class="commentEditButton">はい</div>
-                        <div @click="feedBack(false)" class="commentEditButton">いいえ</div>
-                    </div>
-                </div>
-                <div ref="advancedFeedBackRef" class="si-box" v-if="advancedFeedBack"> 
-                    <p style="margin-bottom: 30px;">解決しなかった理由をお聞かせください。</p>
-                    <LongInput
-                        :initialValue="feedBackContent"   
-                        ref="feedBackBody"
-                        :placeHolder="`解決しなかった理由`"
-                        uId="feedBackBody"
-                        name="feedBackBody"
-                        rules="required|max:2000"
-                        label="タイトル"
-                        v-model="feedBackContent"
-                    />
-                    <div class="si-box">
-                        <LoaderButton content="送信する" @triggered="sendFeedBack" :loading="sending"/>
-                    </div>
-                </div>
+            <div v-if="!qaList.length" class="faq-empty">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.25;margin-bottom:10px">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span>該当する質問が見つかりません</span>
             </div>
         </div>
-    </Transition>
+    </section>
+
 
     <!-- FAQ Create / Edit Modal -->
     <Transition name="modalFade">
@@ -144,28 +126,42 @@
 </div>
 </template>
 <script setup>
-import { ref } from 'vue';
-import LoaderButton from '../Global/LoaderButton.vue';
-import LongInput from '../Form/LongInput.vue';
+import { computed, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import FaqCreate from './FaqCreate.vue';
+import FaqItem from './FaqItem.vue';
 import FloatButton from '../Global/FloatButton.vue';
-import ItemMenu from '../Global/ItemMenu.vue';
 import AddIcon from '../Form/AddIcon.vue';
+import ExpansionGrid from '../Dashboard/ExpansionGrid.vue';
+import ItemMenu from '../Global/ItemMenu.vue';
 import { useApi } from '@/composables/api';
 import { useAuthUserStore } from '@/store/auth';
+import PostSearchBar from '../Post/PostSearchBar.vue';
+import CloseIcon from '../Form/CloseIcon.vue';
 
     const props = defineProps(['qaList', 'tagList'])
     const emit = defineEmits(['setKeyWord', 'refresh'])
     const auth = useAuthUserStore()
     const api = useApi()
+    const route = useRoute()
+    const router = useRouter()
 
     // FAQ list state
     const selectedTag = ref(0)
-    const selectedItem = ref(null)
-    const advancedFeedBack = ref(false)
-    const advancedFeedBackRef = ref(null)
-    const sending = ref(false)
-    const feedBackContent = ref('')
+
+    // Sync expansion with route param
+    const expandedFaqId = computed({
+        get() {
+            return route.params.faqId ? Number(route.params.faqId) : null
+        },
+        set(value) {
+            if (value) {
+                router.push({ name: 'faq_detail', params: { faqId: value } })
+            } else {
+                router.push({ name: 'faq' })
+            }
+        }
+    })
 
     // FAQ create/edit state
     const showFaqCreate = ref(false)
@@ -178,42 +174,11 @@ import { useAuthUserStore } from '@/store/auth';
     const newTagText = ref('')
 
     // --- FAQ list handlers ---
-    const reset = () => {
-        selectedItem.value = null
-        advancedFeedBack.value = false
-        sending.value = false
-        feedBackContent.value = ''
-    }
     const setText = (item) => {
         selectedTag.value = item.id
         const text = item.id == 0 ? '' : item.text
         emit('setKeyWord', text)
     }
-    const feedBack = async (value) => {
-        if (value == false) {
-            advancedFeedBack.value = true
-            setTimeout(() => {
-                advancedFeedBackRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            }, 0)
-        } else {
-            await api.post('/support_resolve_decision', { id: selectedItem.value.id }, {
-                toast: '送信しました。'
-            })
-            reset()
-        }
-    }
-    const sendFeedBack = async () => {
-        await api.post('/support_feedback', {
-            consultation_content: feedBackContent.value,
-            contact_address: null,
-            kind_value: 99,
-            id: selectedItem.value.id
-        }, {
-            toast: '送信しました。'
-        })
-        reset()
-    }
-
     // --- FAQ create/edit ---
     const openCreate = () => {
         editTarget.value = null
@@ -274,3 +239,133 @@ import { useAuthUserStore } from '@/store/auth';
         emit('refresh')
     }
 </script>
+
+<style scoped lang="scss">
+/* ── Page layout ─────────────────────────────────────── */
+.faq-page {
+    min-height: 100%;
+    padding: 28px 28px 80px;
+    color: var(--primary-color);
+}
+
+/* ── Page header ─────────────────────────────────────── */
+.faq-page-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 28px;
+}
+.faq-page-header-icon {
+    display: flex;
+    align-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--bg3);
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0.8;
+}
+.faq-page-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: 0.01em;
+}
+
+/* ── Sections ────────────────────────────────────────── */
+.faq-section {
+    margin-bottom: 28px;
+}
+.faq-section-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.35;
+    margin-bottom: 12px;
+}
+
+/* ── Tags / chips ────────────────────────────────────── */
+.faq-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+.faq-tag-wrap {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+.faq-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 5px 14px;
+    border-radius: 5px;
+    border: 1px solid rgba(128, 128, 128, 0.2);
+    background: var(--bg3);
+    color: var(--primary-color);
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.faq-tag:hover { border-color: var(--primary-color); }
+.faq-tag--active {
+    background: var(--background-color);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+.faq-tag--add { opacity: 0.55; }
+.faq-tag--add:hover { opacity: 1; }
+
+.faq-tag--editing {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 5px;
+    border: 1px solid var(--primary-color);
+    background: var(--bg3);
+}
+.faq-tag-input {
+    width: 80px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--primary-color);
+    outline: none;
+    color: inherit;
+    font-size: inherit;
+}
+.faq-tag-confirm { cursor: pointer; font-size: 12px; color: var(--primary-color); }
+.faq-tag-cancel   { cursor: pointer; font-size: 12px; opacity: 0.45; }
+
+/* ── FAQ list ────────────────────────────────────────── */
+.faq-list-section { flex: 1; }
+
+.faq-list {
+    position: relative;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+/* ── Empty state ─────────────────────────────────────── */
+.faq-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 20px;
+    color: var(--primary-color);
+    opacity: 0.4;
+    font-size: 13px;
+}
+
+/* ── Mobile ──────────────────────────────────────────── */
+@media screen and (max-width: 959px) {
+    .faq-page { padding: 20px 16px 80px; }
+    .faq-page-header { margin-bottom: 20px; }
+}
+</style>

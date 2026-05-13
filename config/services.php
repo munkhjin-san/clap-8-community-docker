@@ -53,6 +53,7 @@ return [
     ],
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
+        'chatkit_workflow_id' => env('OPENAI_CHATKIT_WORKFLOW_ID'),
         'organization' => env('OPENAI_ORGANIZATION'),
         'compare_model' => env('OPENAI_COMPARE_SUMMARY_MODEL', 'gpt-4.1-mini'),
         'prompts' => [

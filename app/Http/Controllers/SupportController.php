@@ -13,6 +13,16 @@ use App\Models\FileRecord;
 use App\Models\RegulationFile;
 use App\Models\SupportConversation;
 use App\Models\SupportConversationItem;
+use App\Models\FileAttachment;
+use App\Models\SystemUpdateDetail;
+use App\Models\SystemUpdateRecord;
+use App\Models\SystemUpdateCheck;
+use App\Jobs\RemoveOpenAiFaqRecordDocument;
+use App\Jobs\RemoveOpenAiRegulationFilePages;
+use App\Jobs\SyncOpenAiFaqRecord;
+use App\Jobs\SyncOpenAiRegulationFile;
+use App\Services\Faq\OpenAiFaqSyncService;
+use App\Services\Regulations\OpenAiRegulationSyncService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -29,6 +39,17 @@ class SupportController extends Controller
             return $sub;
         }else{
             return Auth::user();
+        }
+    }
+    private function isSupportAdmin(): bool
+    {
+        return in_array($this->active_user()->id, [608, 610]);
+    }
+
+    private function authorizeSupportAdmin(): void
+    {
+        if (!$this->isSupportAdmin()) {
+            abort(403);
         }
     }
     public function support_record_list(Request $request){
@@ -89,6 +110,14 @@ class SupportController extends Controller
                 'deleted_flag'  => 0,
             ]
         );
+
+        $syncService = app(OpenAiFaqSyncService::class);
+        if ($syncService->needsSync($record)) {
+            $syncService->markRecordSyncing($record);
+            SyncOpenAiFaqRecord::dispatch($record->id);
+            $record->refresh();
+        }
+
         return response()->json($record);
     }
     public function faq_delete_record(Request $request){
@@ -98,7 +127,13 @@ class SupportController extends Controller
             abort(403);
         }
         $request->validate(['id' => 'required|integer']);
-        questionAndAnswerRecord::findOrFail($request->id)->update(['deleted_flag' => 1]);
+        $record = questionAndAnswerRecord::findOrFail($request->id);
+        $record->update(['deleted_flag' => 1]);
+
+        $syncService = app(OpenAiFaqSyncService::class);
+        $syncService->markRecordSyncing($record);
+        RemoveOpenAiFaqRecordDocument::dispatch($record->id);
+
         return response()->json(['success' => true]);
     }
     public function faq_tag_save(Request $request){
@@ -165,6 +200,178 @@ class SupportController extends Controller
             "status_flag" => $request->value
         ]);
         return response()->json($update);
+    }
+
+    public function get_system_updates(Request $request)
+    {
+        $validated = $request->validate([
+            'category' => 'nullable|string|in:all,maintenance_plan,update_plan,update_log,notice',
+            'keyword' => 'nullable|string|max:200',
+            'per_page' => 'nullable|integer|min:1|max:50',
+        ]);
+
+        $category = $validated['category'] ?? 'all';
+        $keyword = trim($validated['keyword'] ?? '');
+        $perPage = $validated['per_page'] ?? 10;
+
+        $records = SystemUpdateRecord::with(['details.files', 'user'])
+            ->when(!$this->isSupportAdmin(), function ($query) {
+                $query->where('is_published', true);
+            })
+            ->when($category !== 'all', function ($query) use ($category) {
+                $query->where('category', $category);
+            })
+            ->when($keyword !== '', function ($query) use ($keyword) {
+                $likeKeyword = '%' . $keyword . '%';
+                $query->where(function ($searchQuery) use ($likeKeyword) {
+                    $searchQuery->where('title', 'like', $likeKeyword)
+                        ->orWhere('summary', 'like', $likeKeyword)
+                        ->orWhereHas('details', function ($detailQuery) use ($likeKeyword) {
+                            $detailQuery->where('title', 'like', $likeKeyword)
+                                ->orWhere('content', 'like', $likeKeyword);
+                        });
+                });
+            })
+            ->withExists('systemUpdateChecks as checked_by_user', function ($query) {
+                $query->where('user_id', $this->active_user()->id);
+            })
+            ->orderByRaw('COALESCE(published_at, scheduled_start_at, created_at) DESC')
+            ->orderBy('id', 'desc')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return response()->json($records);
+    }
+
+    public function save_system_update(Request $request)
+    {
+        $this->authorizeSupportAdmin();
+
+        $validated = $request->validate([
+            'id' => 'nullable|integer|exists:system_update_records,id',
+            'category' => 'required|string|in:maintenance_plan,update_plan,update_log,notice',
+            'title' => 'required|string|max:200',
+            'summary' => 'nullable|string|max:5000',
+            'status' => 'required|string|in:draft,scheduled,published,completed,canceled',
+            'is_published' => 'boolean',
+            'must_read' => 'boolean',
+            'published_at' => 'nullable|date',
+            'scheduled_start_at' => 'nullable|date',
+            'scheduled_end_at' => 'nullable|date|after_or_equal:scheduled_start_at',
+            'details' => 'required|array|min:1',
+            'details.*.id' => 'nullable|integer|exists:system_update_details,id',
+            'details.*.type' => 'required|string|in:new_feature,improvement,error_fix,security,performance,maintenance,ui_change,known_issue,notice,other',
+            'details.*.title' => 'required|string|max:200',
+            'details.*.content' => 'nullable|string|max:5000',
+            'details.*.sort_order' => 'nullable|integer|min:0',
+            'details.*.files' => 'array',
+            'details.*.files.*.id' => 'required|integer|exists:file_records,id',
+        ]);
+
+        $record = DB::transaction(function () use ($validated) {
+            $isPublished = $validated['is_published'] ?? true;
+            $record = SystemUpdateRecord::updateOrCreate(
+                ['id' => $validated['id'] ?? null],
+                [
+                    'user_id' => $this->active_user()->id,
+                    'category' => $validated['category'],
+                    'title' => $validated['title'],
+                    'summary' => $validated['summary'] ?? null,
+                    'status' => $validated['status'],
+                    'is_published' => $isPublished,
+                    'must_read' => $validated['must_read'] ?? false,
+                    'published_at' => $validated['published_at'] ?? ($isPublished ? now() : null),
+                    'scheduled_start_at' => $validated['scheduled_start_at'] ?? null,
+                    'scheduled_end_at' => $validated['scheduled_end_at'] ?? null,
+                ]
+            );
+
+            $detailIds = [];
+            foreach (($validated['details'] ?? []) as $index => $detail) {
+                $detailRecord = $record->details()->updateOrCreate(
+                    ['id' => $detail['id'] ?? null],
+                    [
+                        'type' => $detail['type'],
+                        'title' => $detail['title'],
+                        'content' => $detail['content'] ?? null,
+                        'sort_order' => $detail['sort_order'] ?? $index,
+                    ]
+                );
+                $fileIds = collect($detail['files'] ?? [])->pluck('id')->filter()->values()->all();
+                FileAttachment::where('attachable_type', SystemUpdateDetail::class)
+                    ->where('attachable_id', $detailRecord->id)
+                    ->where('collection', 'attachments')
+                    ->when(count($fileIds), fn ($query) => $query->whereNotIn('file_id', $fileIds))
+                    ->delete();
+
+                foreach ($fileIds as $fileId) {
+                    FileAttachment::firstOrCreate([
+                        'file_id' => $fileId,
+                        'attachable_type' => SystemUpdateDetail::class,
+                        'attachable_id' => $detailRecord->id,
+                        'collection' => 'attachments',
+                    ]);
+                }
+                $detailIds[] = $detailRecord->id;
+            }
+
+            $removedDetails = $record->details()
+                ->when(count($detailIds), fn ($query) => $query->whereNotIn('id', $detailIds))
+                ->when(!count($detailIds), fn ($query) => $query)
+                ->with('fileAttachments')
+                ->get();
+
+            foreach ($removedDetails as $removedDetail) {
+                $this->deleteSystemUpdateDetailAttachments($removedDetail);
+            }
+
+            $record->details()
+                ->when(count($detailIds), fn ($query) => $query->whereNotIn('id', $detailIds))
+                ->when(!count($detailIds), fn ($query) => $query)
+                ->delete();
+
+            return $record->load(['details.files', 'user']);
+        });
+
+        return response()->json($record);
+    }
+
+    public function delete_system_update(Request $request)
+    {
+        $this->authorizeSupportAdmin();
+
+        $request->validate([
+            'id' => 'required|integer|exists:system_update_records,id',
+        ]);
+
+        $record = SystemUpdateRecord::findOrFail($request->id);
+        foreach ($record->details as $detail) {
+            $this->deleteSystemUpdateDetailAttachments($detail);
+        }
+        $record->details()->delete();
+        $record->delete();
+
+        return response()->json(['success' => true]);
+    }
+    public function system_update_check(Request $request)
+    {
+        $request->validate([
+            'record_id' => 'required|integer|exists:system_update_records,id',
+        ]);
+
+        $recordId = $request->record_id;
+        $userId = $this->active_user()->id;
+
+        $check = SystemUpdateCheck::firstOrCreate([
+            'user_id' => $userId,
+            'system_update_record_id' => $recordId,
+        ]);
+
+        return response()->json(['success' => true]);
+    }
+    private function deleteSystemUpdateDetailAttachments(SystemUpdateDetail $detail): void
+    {
+        $detail->fileAttachments()->delete();
     }
 
     private function conversation($conversationId)
@@ -242,6 +449,11 @@ class SupportController extends Controller
             'message' => $message,
             'role' => 'user',
         ]);
+        $vectorStoreId = $this->regulationOpenAiVectorStoreId();
+        if (!$vectorStoreId) {
+            return response()->json(['message' => 'No synced OpenAI regulation store found.'], 404);
+        }
+
         $apiKey = config('services.openai.api_key');
         $response = Http::withToken($apiKey)
         ->acceptJson()
@@ -254,11 +466,15 @@ class SupportController extends Controller
             'tools' => [
                 [
                     'type' => 'file_search',
-                    'vector_store_ids' => ["vs_68a7c6b10f048191b5fa9cd63fefefde"],
+                    'vector_store_ids' => [$vectorStoreId],
+                    'max_num_results' => 12,
                 ]
             ],
+            'include' => ['file_search_call.results'],
             'instructions' => 'あなたは社内ナレッジ専用の回答アシスタントです。' .
             '可能な限り file_search で文書根拠を使って回答してください。' .
+            '回答の根拠を示すときは、必ず元PDFファイル名とページ番号を「参考: ファイル名 p.ページ番号」の形式で明記してください。' .
+            'file_search の検索結果はページごとのMarkdownです。Markdown本文冒頭のメタデータではなく、本文内容を根拠に回答してください。' .
             '関連する根拠が見つからない場合は、はっきり「関連する社内ファイルが見つかりませんでした」と最初に明記してから、' .
             '一般知識では推測せずに必要な情報を箇条書きで尋ねてください。',
         ]);
@@ -324,16 +540,15 @@ class SupportController extends Controller
         // }
         // return response()->json(['reply' => $reply]);
     }
-    private function responseParser($response)
+    protected function responseParser($response)
     {
         $message = '';
-        $file_annotations = [];
         $keywords = [];
-        foreach ($response['output'] as $output) {
+        $sources = [];
+        foreach (($response['output'] ?? []) as $output) {
             if(isset($output['role']) && $output['role'] === 'assistant') {
                 foreach ($output['content'] as $content) {                    
                     $message = $content['text'];
-                    $file_annotations = $content['annotations'] ?? [];
                 }
             }        
             if(isset($output['type']) && $output['type'] === 'file_search_call' && isset($output['queries'])) {
@@ -342,15 +557,46 @@ class SupportController extends Controller
                     $keywords[] = $query;
                 }
             }
+            if(isset($output['type']) && $output['type'] === 'file_search_call' && isset($output['results'])) {
+                foreach ($output['results'] as $result) {
+                    $source = $this->openAiFileSearchReference($result);
+                    if ($source) {
+                        $sources[] = $source;
+                    }
+                }
+            }
         }
-        $file_names = array_map(fn($fa) => $fa['file_id'], $file_annotations);
-        $file_names = array_unique($file_names);
-        $files = RegulationFile::whereIn('vector_file_id', $file_names)->pluck('name')->toArray();
         return [
             'reply' => $message,
-            'file_names' => $files,
-            'keywords' => $keywords,
+            'file_names' => array_values(array_unique($sources)),
+            'keywords' => array_values(array_unique($keywords)),
         ];
+    }
+
+    private function regulationOpenAiVectorStoreId(): ?string
+    {
+        $storeDataPath = storage_path('app/regulation_openai_store/store.json');
+        if (!file_exists($storeDataPath)) {
+            return null;
+        }
+
+        $storeData = json_decode(file_get_contents($storeDataPath), true);
+
+        return $storeData['vector_store_id'] ?? null;
+    }
+
+    private function openAiFileSearchReference(array $result): ?string
+    {
+        $attributes = $result['attributes'] ?? [];
+        $fileName = $result['filename'] ?? null;
+        $title = $attributes['original_file_name'] ?? $this->originalNameFromGeneratedFileName($fileName);
+        $pageNumber = $attributes['page'] ?? $this->pageNumberFromGeneratedFileName($fileName);
+
+        if (!$title) {
+            return null;
+        }
+
+        return $pageNumber ? "{$title} p.{$pageNumber}" : $title;
     }
     public function delete_conversation(Request $request)
     {
@@ -423,46 +669,55 @@ class SupportController extends Controller
             );
 
             $files = $request['regulation_files'] ?? [];
-           
-                
-            $vectorStoreId = 'vs_68a7c6b10f048191b5fa9cd63fefefde';
-            $apiKey = config('services.openai.api_key');
-            $client = OpenAI::client($apiKey);
-            $files_list = $client->vectorStores()->files()->list($vectorStoreId);
-            $v_file_ids_in_store = array_map(fn($file) => $file->id, $files_list->data);
+            $syncService = app(OpenAiRegulationSyncService::class);
 
             $current_files = $regulation->regulation_files()->pluck('id')->toArray();
-            $files_to_detach = array_diff($current_files, array_map(fn($file) => $file['id'], $files));
+            $incomingFileIds = array_values(array_filter(array_map(fn($file) => $file['id'] ?? null, $files)));
+            $files_to_detach = array_diff($current_files, $incomingFileIds);
             if(!empty($files_to_detach)){
                 $remove_targets = RegulationFile::whereIn('id', $files_to_detach)->get();
                 foreach ($remove_targets as $removeFileRecord) {
-                    if($removeFileRecord->vector_file_id){
-                        $this->delete_from_vector_store($removeFileRecord->vector_file_id, $client, $vectorStoreId);
-                    }
+                    $syncService->markFileSyncing($removeFileRecord);
+                    RemoveOpenAiRegulationFilePages::dispatch($removeFileRecord->id);
                     $removeFileRecord->delete();
                 }
             }
 
             foreach ($files as $file) {
-                
-                if (isset($file['id'])) {
-                    $fileRecord = RegulationFile::find($file['id']);
-                    if ($fileRecord) {
-                        // dd($file);
-                        
-                        if (isset($file['chat_supported'])) {
-                            $fileRecord->chat_supported = $file['chat_supported'];
-                            $is_exist_in_store = $fileRecord->vector_file_id && in_array($fileRecord->vector_file_id, $v_file_ids_in_store);
-                            if(!$is_exist_in_store){
-                                $vector_id = $this->save_into_vector_store($fileRecord, $client, $vectorStoreId);
-                                $fileRecord->vector_file_id = $vector_id;
-                                $fileRecord->save();
-                            }
-                        }
-                    }
+
+                if (!isset($file['id'])) {
+                    continue;
                 }
+
+                $fileRecord = RegulationFile::find($file['id']);
+                if (!$fileRecord) {
+                    continue;
+                }
+
+                $wasSupported = $syncService->isSupportedPdf($fileRecord);
+
                 $fileRecord->regulation_record_id = $regulation->id;
-                $fileRecord->save();
+                if (isset($file['chat_supported'])) {
+                    $fileRecord->chat_supported = (bool) $file['chat_supported'];
+                }
+
+                if ($fileRecord->isDirty()) {
+                    $fileRecord->save();
+                }
+
+                $fileRecord->refresh();
+                $isSupported = $syncService->isSupportedPdf($fileRecord);
+
+                if ($wasSupported && !$isSupported) {
+                    $syncService->markFileSyncing($fileRecord);
+                    RemoveOpenAiRegulationFilePages::dispatch($fileRecord->id);
+                    continue;
+                }
+
+                if ($isSupported && $syncService->needsSync($fileRecord)) {
+                    $syncService->markFileSyncing($fileRecord);
+                    SyncOpenAiRegulationFile::dispatch($fileRecord->id);
+                }
             }
 
             return response()->json([
@@ -536,13 +791,10 @@ class SupportController extends Controller
 
             $regulationFiles = $regulation->regulation_files;
             if($regulationFiles){
-                $vectorStoreId = 'vs_68a7c6b10f048191b5fa9cd63fefefde';
-                $apiKey = config('services.openai.api_key');
-                $client = OpenAI::client($apiKey);
+                $syncService = app(OpenAiRegulationSyncService::class);
                 foreach ($regulationFiles as $file) {
-                    if($file->vector_file_id){
-                        $this->delete_from_vector_store($file->vector_file_id, $client, $vectorStoreId);
-                    }
+                    $syncService->markFileSyncing($file);
+                    RemoveOpenAiRegulationFilePages::dispatch($file->id);
                     $file->delete();
                 }
             }
@@ -616,5 +868,156 @@ class SupportController extends Controller
         $fileRecord->update(['size' => $sizeAfter]);
 
         return response()->json($fileRecord);
+    }
+    public function search_regulations_from_files(Request $request){
+        $request->validate([
+            'keyword' => 'required|string|max:100',
+        ]);
+        $keyword = $request->input('keyword');
+
+        $storeDataPath = storage_path('app/regulation_openai_store/store.json');
+        if (!file_exists($storeDataPath)) {
+            return response()->json(['message' => 'No synced store found.'], 404);
+        }
+
+        $storeData = json_decode(file_get_contents($storeDataPath), true);
+        $vectorStoreId = $storeData['vector_store_id'] ?? null;
+        if (!$vectorStoreId) {
+            return response()->json(['message' => 'Invalid store data.'], 500);
+        }
+
+        $apiKey = config('services.openai.api_key');
+        if (!$apiKey) {
+            return response()->json(['message' => 'OpenAI API key is not configured.'], 500);
+        }
+
+        $response = Http::withToken($apiKey)
+            ->acceptJson()
+            ->asJson()
+            ->timeout(600)
+            ->post("https://api.openai.com/v1/vector_stores/{$vectorStoreId}/search", [
+                'query' => $keyword,
+                'max_num_results' => 10,
+                'rewrite_query' => false,
+                'ranking_options' => [
+                    'score_threshold' => 0.25,
+                ],
+            ]);
+
+        if ($response->failed()) {
+            return response()->json(['message' => 'OpenAI request failed.', 'error' => $response->json()], 500);
+        }
+
+        $chunks = $this->openAiVectorSearchChunks($response->json(), $vectorStoreId, $keyword);
+
+        return response()->json(['chunks' => $chunks]);
+    }
+
+    protected function openAiVectorSearchChunks(array $data, string $vectorStoreId, string $keyword): array
+    {
+        $chunks = [];
+
+        foreach (data_get($data, 'data', []) as $result) {
+            $attributes = $result['attributes'] ?? [];
+            $fileName = $result['filename'] ?? null;
+            $title = $attributes['original_file_name'] ?? $this->originalNameFromGeneratedFileName($fileName);
+            $pageNumber = $attributes['page'] ?? $this->pageNumberFromGeneratedFileName($fileName);
+            $text = $this->keywordContextText($this->openAiVectorSearchResultText($result), $keyword);
+
+            if (!$text) {
+                continue;
+            }
+
+            $chunks[] = [
+                'title' => $title,
+                'text' => $text,
+                'uri' => $attributes['source_path'] ?? null,
+                'fileSearchStore' => $vectorStoreId,
+                'customMetadata' => $attributes,
+                'pageNumber' => $pageNumber !== null ? (int) $pageNumber : null,
+                'score' => $result['score'] ?? null,
+            ];
+        }
+
+        return $chunks;
+    }
+
+    private function openAiVectorSearchResultText(array $result): string
+    {
+        $content = $result['content'] ?? [];
+
+        if (is_string($content)) {
+            return $this->stripMarkdownSearchMetadata($content);
+        }
+
+        if (is_array($content)) {
+            $text = collect($content)
+                ->map(fn ($part) => is_array($part) ? ($part['text'] ?? null) : $part)
+                ->filter()
+                ->implode("\n");
+
+            return $this->stripMarkdownSearchMetadata($text);
+        }
+
+        return '';
+    }
+
+    private function stripMarkdownSearchMetadata(string $text): string
+    {
+        $text = str_replace("\r", '', $text);
+        $parts = preg_split("/\n---\n/u", $text, 2);
+
+        if (count($parts) === 2) {
+            $text = $parts[1];
+        }
+
+        $lines = collect(preg_split("/\n/u", $text) ?: [])
+            ->reject(fn ($line) => preg_match('/^\s*(#|- Regulation file ID:|- Source path:|- Page:)/u', $line) === 1)
+            ->values()
+            ->all();
+
+        return trim(preg_replace("/\n{3,}/u", "\n\n", implode("\n", $lines)) ?? implode("\n", $lines));
+    }
+
+    private function keywordContextText(string $text, string $keyword): ?string
+    {
+        $text = trim($text);
+        if ($text === '') {
+            return null;
+        }
+
+        $keyword = trim($keyword);
+        if ($keyword === '') {
+            return mb_substr($text, 0, 240, 'UTF-8');
+        }
+
+        $position = mb_stripos($text, $keyword, 0, 'UTF-8');
+        if ($position === false) {
+            return mb_substr($text, 0, 240, 'UTF-8');
+        }
+
+        $start = max(0, $position - 80);
+        $length = mb_strlen($keyword, 'UTF-8') + 180;
+        $snippet = mb_substr($text, $start, $length, 'UTF-8');
+
+        return ($start > 0 ? '...' : '').trim($snippet).(mb_strlen($text, 'UTF-8') > $start + $length ? '...' : '');
+    }
+
+    private function originalNameFromGeneratedFileName(?string $fileName): ?string
+    {
+        if (!$fileName) {
+            return null;
+        }
+
+        return preg_replace('/(?:__file\d+)?__p\d{3}\.md$/', '.pdf', $fileName) ?: $fileName;
+    }
+
+    private function pageNumberFromGeneratedFileName(?string $fileName): ?int
+    {
+        if (!$fileName || preg_match('/(?:__file\d+)?__p(\d{3})\.md$/', $fileName, $matches) !== 1) {
+            return null;
+        }
+
+        return (int) $matches[1];
     }
 }

@@ -64,6 +64,9 @@ use League\Csv\Statement;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
+use App\Models\Incident;
+use App\Models\IncidentCategory;
+use App\Models\IncidentPunishment;
 class AutoJobController extends Controller
 
 {
@@ -838,5 +841,84 @@ class AutoJobController extends Controller
             }
         }
         return response()->json($result_users);
+    }
+    public function incident_fill(){
+        $users = User::select('id', 'name')->get();
+        $userMap = $users->pluck('name', 'id')->toArray();
+        $userListNoSpace = $users->mapWithKeys(function ($user) {
+            return [$user->id => str_replace(' ', '', $user->name)];
+        })->toArray();
+
+        $loadedJsonFile = Storage::disk('local')->get('incident.json');
+        $incidents = json_decode($loadedJsonFile, true);
+
+        $projects = ProjectRecord::pluck('id', 'name')->toArray();
+        $projectListNoSpace = collect($projects)->mapWithKeys(function ($id, $name) {
+            return [$id => str_replace(' ', '', $name)];
+        })->toArray();
+
+        $incidentCategories = IncidentCategory::pluck('id', 'name')->toArray();
+        $incidentCategoryList = collect($incidentCategories)->mapWithKeys(function ($id, $name) {
+            return [$id => $name];
+        })->toArray();
+
+        $incidentPunishments = IncidentPunishment::pluck('id', 'name')->toArray();
+        $incidentPunishmentList = collect($incidentPunishments)->mapWithKeys(function ($id, $name) {
+            return [$id => $name];
+        })->toArray();
+
+        foreach($incidents as $incident){
+            $reporter_id = null;
+            $causer_id = null;
+            $project_record_id = null;
+            $incident_category_id = null;
+            $incident_punishment_id = null;
+            $memo1 = $incident['memo'] ?? '';
+            $memo2 = $incident['memo2'] ?? '';
+            $memo_combined = $memo1 . ' ' . $memo2;
+            $created_at = $incident['created_at'] ? Carbon::parse($incident['created_at']) : now();
+            $updated_at = $incident['updated_at'] ? Carbon::parse($incident['updated_at']) : now();
+            $committee_decision_date = $incident['committee_decision_date'] ? Carbon::parse($incident['committee_decision_date']) : null;
+            $private_note1 = $incident['private_notes'] ?? '';
+            $private_note2 = $incident['private_notes2'] ?? '';
+            $private_note_combined = $private_note1 . ' ' . $private_note2;
+            
+            if($incident['reported_by']){
+                $reporter_id = array_search($incident['reported_by'], $userListNoSpace);          
+            }
+            if($incident['caused_by']){
+                $causer_id = array_search($incident['caused_by'], $userListNoSpace);                
+            }
+            if($incident['occurred_date']){
+                $incident['occurred_date'] = Carbon::parse($incident['occurred_date'])->format('Y-m-d');
+            }
+            if($incident['project_record_id']){
+                $project_record_id = array_search($incident['project_record_id'], $projectListNoSpace);                
+            }
+            if($incident['incident_category']){
+                $incident_category_id = array_search($incident['incident_category'], $incidentCategoryList);                
+            }
+            if($incident['incident_punishment']){
+                $incident_punishment_id = array_search($incident['incident_punishment'], $incidentPunishmentList);                
+            }
+            
+            // dd($reporter_id);
+            $incident['private_notes'] = $private_note_combined ? $private_note_combined : null;
+            $incident['memo'] = $memo_combined ? $memo_combined : null;
+            $incident['reported_by'] = $reporter_id;
+            $incident['caused_by'] = $causer_id;
+            $incident['project_record_id'] = $project_record_id;
+            $incident['incident_category_id'] = $incident_category_id;
+            $incident['incident_punishment_id'] = $incident_punishment_id;
+            $incident['created_at'] = $created_at;
+            $incident['updated_at'] = $updated_at;
+            $incident['committee_decision_date'] = $committee_decision_date;
+            $incident['instruction_date'] = $incident['instruction_date'] ? Carbon::parse($incident['instruction_date'])->format('Y-m-d') : null;
+
+            //drop memo2, private_note2, and original string fields
+            unset($incident['memo2'], $incident['private_notes2'], $incident['incident_category'], $incident['incident_punishment']);
+            $createRecord = Incident::create($incident);
+            echo('Created incident record with ID: ' . $createRecord->id . "\n");            
+        }   
     }
 }

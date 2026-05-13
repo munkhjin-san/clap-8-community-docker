@@ -22,6 +22,9 @@ use App\Models\timecardRecord;
 use App\Models\shiftRecord;
 use App\Models\attendanceRecord;
 use App\Models\NoticeRecord;
+use App\Models\Incident;
+use App\Models\SystemUpdateCheck;
+use App\Models\SystemUpdateRecord;
 
 
 class DashboardController extends Controller
@@ -743,6 +746,105 @@ class DashboardController extends Controller
             ->get();
 
         return $unreadNotices;
+    }
+    private function incidentQuery(bool $withDetail = true)
+    {
+        $columns = [
+            'id',
+            'title',
+            'description',
+            'caused_by',
+            'incident_category_id',
+            'project_record_id',
+            'status',
+            'occurred_date',
+            'created_at',
+        ];
+
+        if ($withDetail) {
+            $columns = array_merge($columns, [
+                'reported_by',
+                'incident_punishment_id',
+                'reason',
+                'prevention',
+                'instruction',
+                'resolution',
+                'occured_location',
+                'memo',
+                'instruction_date',
+                'related_parties',
+                'amount_of_damage',
+                'risk_level',
+                'severity_level',
+                'private_notes',
+                'committee_members',
+                'committee_decision',
+                'committee_decision_date',
+                'updated_at',
+            ]);
+        }
+
+        return Incident::query()
+            ->select(array_values(array_unique($columns)))
+            ->with([
+                'reportedByUser',
+                'causedByUser',
+                'category',
+                'punishment',
+                'projectRecord:id,name,date_start,date_end,category',
+                'projectRecord.manager',
+            ]);
+    }
+
+    public function getIncidents(Request $request)
+    {
+        return $this->incidentQuery()
+            ->orderByRaw('occurred_date is null')
+            ->orderByDesc('occurred_date')
+            ->orderByDesc('created_at')
+            ->paginate((int) $request->input('per_page', 50));
+    }
+
+    private function incidents() {
+        $activeUser = $this->active_user();
+
+        return [
+            'attention' => $this->incidentQuery(false)
+            ->where(function ($query) use ($activeUser) {
+                $query->where('caused_by', $activeUser->id)
+                    ->orWhereHas('projectRecord.manager', function ($managerQuery) use ($activeUser) {
+                        $managerQuery->where('users.id', $activeUser->id);
+                    });
+            })
+            ->where(function ($query) {
+                $query->whereNull('status')
+                    ->orWhere('status', '!=', '完了');
+            })
+            ->orderByRaw('occurred_date is null')
+            ->orderByDesc('occurred_date')
+            ->orderByDesc('created_at')
+            ->get(),
+        ];
+    }
+    public function systemUpdates() {
+        return [];
+        $activeUser = $this->active_user();
+        $target_positions = [
+            6, //執行役員,
+            16, //プロジェクトリーダー,
+            11, //正社員,
+            12 //契約社員
+        ];
+        if (!in_array($activeUser->position_id, $target_positions, true)) {
+            return 0;
+        }
+        $thresholdDate = Carbon::parse('2026-05-01');
+        $count = SystemUpdateRecord::where('must_read', true)
+        ->where('created_at', '>=', $thresholdDate)
+        ->whereDoesntHave('systemUpdateChecks', function ($query) use ($activeUser) {
+            $query->where('user_id', $activeUser->id);
+        })->pluck('id')->toArray();
+        return $count;
     }
 
 }

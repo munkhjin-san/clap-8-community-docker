@@ -13,7 +13,7 @@
                 </div>                
             </div>
             <div v-if="filePreview.files.length" class="mySwiper-container">
-                <div v-if="canView" style="height:100%;">
+                <div style="height:100%;">
                     <div class="mySwiper-wrapper" ref="mySwiper">                   
                         <div ref="swiperContainer" class="swiper-container" style="background:none;border:none;width:100%;overflow: hidden;">
                             <div class="swiper-wrapper" > 
@@ -140,7 +140,7 @@ import type { MenuList } from '@/interface/globalInterface';
         f_index.value = filePreview.index
         markSlidesLoaded(f_index.value)
         swiperCreate()
-        if(canView.value && topSwiper.value){
+        if(topSwiper.value){
             topSwiper.value.slideTo(f_index.value, 0)
             // thumbsSwiper.value.slideTo(f_index.value, false)
         }
@@ -182,11 +182,6 @@ import type { MenuList } from '@/interface/globalInterface';
             pdfKey.value++
         }
     }      
-    const canView = computed(() => {
-        if(!source.value) return false
-        const possibleSources = ['post', 'message', 'calendar', 'user', 'notice', 'work', 'project', 'storage', 'deeplink']
-        return possibleSources.includes(source.value)
-    })
     const source = computed(() => {
         return filePreview.source
     })
@@ -283,12 +278,9 @@ import type { MenuList } from '@/interface/globalInterface';
         }
         filePreview.setFilePreview(data)
     }
-    const downloadFile = () => {
-        if(canView.value){                    
-            direcDownload();
-        }
+    const downloadFile = () => {                
+        direcDownload();        
         menu.setMenu( {name: '', id: null})
-
     }
     const direcDownload = async() => {                 
         fetch(currentFile.value.file_path)

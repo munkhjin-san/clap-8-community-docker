@@ -5,7 +5,7 @@
                 class="viewer"
                 viewer-path="/pdf-reader"
                 locale="ja"
-                page="1"
+                :page="file.initialPage ? file.initialPage : 1"
                 :phrase="true"
                 zoom="page-width"
                 pagemode="none"

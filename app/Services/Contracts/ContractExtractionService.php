@@ -29,7 +29,7 @@ class ContractExtractionService
         return $this->buildDocumentIndex($pages);
     }
 
-    private function extractPdfPages(string $absolutePath): array
+    public function extractPdfPages(string $absolutePath): array
     {
         $this->ensurePdfParserLoaded();
 

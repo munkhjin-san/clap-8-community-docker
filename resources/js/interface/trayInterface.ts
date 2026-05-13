@@ -7,6 +7,7 @@ export interface FileRecord {
     multiple_flag: number | null
     user_id: number | null
     unsigned_users: UnsignedUsers
+    initialPage?: number
 }
 interface UnsignedUsers {
     id: number | null

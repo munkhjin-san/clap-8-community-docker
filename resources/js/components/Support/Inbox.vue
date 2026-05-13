@@ -1,9 +1,9 @@
 <template>
-    <div class="support-content">
-        <div class="support-title">メール相談（受信BOX）</div>
-        <div class="support-content-inner">
-            <!-- Desktop table -->
-            <table class="supportMailFormList-table inbox-desktop-table">
+    <div class="inbox-page">
+
+        <!-- Table (desktop) / Cards (mobile) -->
+        <div class="inbox-table-wrap">
+            <table class="inbox-table">
                 <thead>
                     <tr>
                         <th>氏名</th>
@@ -15,94 +15,75 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr v-for="item in list" :key="item.id" @click="select(item)">
-                        <td>{{ item.user ? item.user.name : '' }}</td>
-                        <td class="inbox-date-cell">{{ createdDate(item.created_at) }}</td>
-                        <td><span class="inbox-type-badge">{{ type(item.kind_value) }}</span></td>
-                        <td>{{ item.contact_address }}</td>
-                        <td>
-                            <p>{{ item.consultation_content && item.consultation_content.length > 20 ? `${item.consultation_content.slice(0, 20)}...` : item.consultation_content }}</p>
-                            <div style="display: flex;align-items: center;gap: 3px;margin-top: 8px;" v-if="item.support_mail_responding_logs && item.support_mail_responding_logs.length">
-                                <svg fill="var(--primary-color)" width="15" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 32">
-                                    <path d="M10.788 8.109c1.574-0.063 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.345 0.021-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.896 0.010-0.459 0.386-0.823 0.834-0.844zM10.788 13.050c1.574-0.052 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.356 0.010-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.907 0.021-0.438 0.396-0.803 0.844-0.823zM10.788 17.991c0.74-0.052 1.491-0.083 2.231-0.104l1.115-0.031c0.375-0.010 0.74-0.010 1.115-0.010 0.74 0 1.491 0.010 2.231 0.042 0.75 0.031 1.491 0.063 2.231 0.136 0.459 0.052 0.803 0.459 0.75 0.928-0.042 0.407-0.365 0.709-0.75 0.75-0.75 0.073-1.491 0.115-2.231 0.136-0.75 0.031-1.491 0.042-2.231 0.042-0.375 0-0.74 0-1.115-0.010l-1.115-0.031c-0.74-0.021-1.491-0.052-2.231-0.104-0.479-0.042-0.844-0.459-0.803-0.938 0.031-0.427 0.375-0.771 0.803-0.803z"></path><path d="M39.432 11.393c-0.188-1.063-0.521-2.116-0.99-3.106-0.479-0.99-1.105-1.897-1.835-2.71s-1.564-1.511-2.45-2.106c-0.886-0.594-1.835-1.084-2.794-1.501-1.939-0.813-3.95-1.313-5.973-1.605s-4.055-0.396-6.066-0.365c-2.022 0.042-4.055 0.219-6.066 0.605-2.012 0.396-4.013 1.001-5.889 1.949-0.938 0.479-1.845 1.042-2.679 1.699-0.834 0.667-1.616 1.428-2.272 2.293-0.667 0.855-1.209 1.824-1.605 2.835-0.396 1.021-0.636 2.095-0.74 3.169-0.052 0.532-0.052 1.084-0.042 1.605 0.010 0.532 0.052 1.053 0.125 1.584 0.146 1.053 0.417 2.116 0.844 3.117s1.011 1.939 1.72 2.762c0.709 0.823 1.532 1.532 2.418 2.126 1.772 1.188 3.44 1.824 5.41 2.356 1.803 0.49 3.867 0.782 5.681 0.876 0.146 0.010 0.281 0.073 0.386 0.177 0.459 0.5 0.938 1.074 1.449 1.511 0.667 0.584 1.407 1.126 2.178 1.584 0.761 0.448 1.564 0.803 2.387 1.115 0.865 0.313 2.21 0.605 2.929 0.657 0.698 0.052 0.782-0.479 0.563-0.938-0.229-0.469-0.281-0.552-0.375-0.761s-0.188-0.417-0.271-0.625-0.344-0.844-0.49-1.261c-0.115-0.344-0.292-0.938-0.386-1.407-0.031-0.167 0.083-0.323 0.25-0.344 1.626-0.229 3.242-0.552 4.847-1.032 0.98-0.292 1.939-0.657 2.877-1.094s1.855-0.98 2.7-1.626c0.844-0.646 1.626-1.418 2.272-2.293 0.323-0.438 0.615-0.907 0.865-1.397s0.459-0.99 0.636-1.511c0.344-1.032 0.532-2.106 0.594-3.169 0.021-1.032-0.021-2.106-0.208-3.169zM37.347 14.478c-0.031 0.896-0.167 1.782-0.427 2.616-0.125 0.417-0.292 0.823-0.479 1.22s-0.407 0.771-0.657 1.126c-0.5 0.719-1.115 1.365-1.814 1.928-1.397 1.126-3.106 1.928-4.899 2.522-0.896 0.302-1.814 0.542-2.752 0.75-0.928 0.208-1.876 0.375-2.835 0.511h-0.031c-0.396 0.063-0.709 0.396-0.719 0.813-0.010 0.594 0.083 1.126 0.208 1.626s0.292 0.969 0.469 1.438c0.146 0.375 0.292 0.698 0.542 1.105 0.042 0.073-0.021 0.146-0.104 0.125-1.167-0.365-2.304-0.907-3.461-1.845-1.23-0.99-1.762-1.584-2.814-2.835-0.146-0.177-0.365-0.302-0.615-0.323h-0.031c-1.908-0.188-3.805-0.479-5.629-0.98-1.814-0.5-3.565-1.199-5.055-2.22-0.74-0.511-1.407-1.105-1.97-1.772-0.563-0.678-1.022-1.418-1.355-2.231s-0.552-1.678-0.657-2.564-0.125-1.824-0.031-2.689c0.104-0.876 0.313-1.73 0.646-2.543 0.334-0.803 0.771-1.564 1.324-2.251 1.115-1.386 2.595-2.481 4.232-3.273 0.823-0.396 1.678-0.74 2.564-1.022s1.793-0.511 2.71-0.678c1.845-0.354 3.742-0.511 5.639-0.532 1.907-0.010 3.815 0.073 5.67 0.344 1.866 0.271 3.69 0.709 5.378 1.418 1.689 0.698 3.242 1.668 4.44 2.95 0.594 0.636 1.105 1.355 1.491 2.126s0.667 1.605 0.834 2.481c0.167 0.855 0.219 1.751 0.188 2.658z"></path>
+                    <tr v-for="item in list" :key="item.id" @click="select(item)" class="inbox-row">
+                        <td data-label="氏名">{{ item.user ? item.user.name : '' }}</td>
+                        <td data-label="問合せ日時">{{ createdDate(item.created_at) }}</td>
+                        <td data-label="相談種別">{{ type(item.kind_value) }}</td>
+                        <td data-label="希望連絡先">{{ item.contact_address }}</td>
+                        <td data-label="相談内容">
+                            <p class="inbox-content-preview">
+                                {{ item.consultation_content && item.consultation_content.length > 20
+                                    ? `${item.consultation_content.slice(0, 20)}...`
+                                    : item.consultation_content }}
+                            </p>
+                            <div v-if="item.support_mail_responding_logs && item.support_mail_responding_logs.length" class="inbox-reply-badge">
+                                <svg fill="currentColor" width="14" height="14" viewBox="0 0 40 32" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M10.788 8.109c1.574-0.063 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.345 0.021-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.896 0.010-0.459 0.386-0.823 0.834-0.844zM10.788 13.050c1.574-0.052 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.356 0.010-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.907 0.021-0.438 0.396-0.803 0.844-0.823zM10.788 17.991c0.74-0.052 1.491-0.083 2.231-0.104l1.115-0.031c0.375-0.010 0.74-0.010 1.115-0.010 0.74 0 1.491 0.010 2.231 0.042 0.75 0.031 1.491 0.063 2.231 0.136 0.459 0.052 0.803 0.459 0.75 0.928-0.042 0.407-0.365 0.709-0.75 0.75-0.75 0.073-1.491 0.115-2.231 0.136-0.75 0.031-1.491 0.042-2.231 0.042-0.375 0-0.74 0-1.115-0.010l-1.115-0.031c-0.74-0.021-1.491-0.052-2.231-0.104-0.479-0.042-0.844-0.459-0.803-0.938 0.031-0.427 0.375-0.771 0.803-0.803z"></path>
+                                    <path d="M39.432 11.393c-0.188-1.063-0.521-2.116-0.99-3.106-0.479-0.99-1.105-1.897-1.835-2.71s-1.564-1.511-2.45-2.106c-0.886-0.594-1.835-1.084-2.794-1.501-1.939-0.813-3.95-1.313-5.973-1.605s-4.055-0.396-6.066-0.365c-2.022 0.042-4.055 0.219-6.066 0.605-2.012 0.396-4.013 1.001-5.889 1.949-0.938 0.479-1.845 1.042-2.679 1.699-0.834 0.667-1.616 1.428-2.272 2.293-0.667 0.855-1.209 1.824-1.605 2.835-0.396 1.021-0.636 2.095-0.74 3.169-0.052 0.532-0.052 1.084-0.042 1.605 0.010 0.532 0.052 1.053 0.125 1.584 0.146 1.053 0.417 2.116 0.844 3.117s1.011 1.939 1.72 2.762c0.709 0.823 1.532 1.532 2.418 2.126 1.772 1.188 3.44 1.824 5.41 2.356 1.803 0.49 3.867 0.782 5.681 0.876 0.146 0.010 0.281 0.073 0.386 0.177 0.459 0.5 0.938 1.074 1.449 1.511 0.667 0.584 1.407 1.126 2.178 1.584 0.761 0.448 1.564 0.803 2.387 1.115 0.865 0.313 2.21 0.605 2.929 0.657 0.698 0.052 0.782-0.479 0.563-0.938-0.229-0.469-0.281-0.552-0.375-0.761s-0.188-0.417-0.271-0.625-0.344-0.844-0.49-1.261c-0.115-0.344-0.292-0.938-0.386-1.407-0.031-0.167 0.083-0.323 0.25-0.344 1.626-0.229 3.242-0.552 4.847-1.032 0.98-0.292 1.939-0.657 2.877-1.094s1.855-0.98 2.7-1.626c0.844-0.646 1.626-1.418 2.272-2.293 0.323-0.438 0.615-0.907 0.865-1.397s0.459-0.99 0.636-1.511c0.344-1.032 0.532-2.106 0.594-3.169 0.021-1.032-0.021-2.106-0.208-3.169z"></path>
                                 </svg>
-                                <div>{{ item.support_mail_responding_logs.length }}</div>
+                                <span>{{ item.support_mail_responding_logs.length }}</span>
                             </div>
                         </td>
-                        <td><span :class="['inbox-status-badge', `inbox-status-${item.status_flag}`]">{{ status(item.status_flag) }}</span></td>
+                        <td data-label="ステータス">
+                            <span :class="['inbox-status-badge', `inbox-status-badge--${item.status_flag}`]">
+                                {{ status(item.status_flag) }}
+                            </span>
+                        </td>
                     </tr>
                 </tbody>
             </table>
-
-            <!-- Mobile card list -->
-            <div class="inbox-mobile-list">
-                <div
-                    v-for="item in list"
-                    :key="item.id"
-                    class="inbox-card"
-                    @click="select(item)"
-                >
-                    <div class="inbox-card-header">
-                        <span class="inbox-card-name">{{ item.user ? item.user.name : '—' }}</span>
-                        <span :class="['inbox-status-badge', `inbox-status-${item.status_flag}`]">{{ status(item.status_flag) }}</span>
-                    </div>
-                    <div class="inbox-card-meta">
-                        <span class="inbox-type-badge">{{ type(item.kind_value) }}</span>
-                        <span class="inbox-card-date">{{ createdDate(item.created_at) }}</span>
-                    </div>
-                    <p class="inbox-card-content">{{ item.consultation_content && item.consultation_content.length > 50 ? `${item.consultation_content.slice(0, 50)}...` : item.consultation_content }}</p>
-                    <div class="inbox-card-footer">
-                        <span class="inbox-card-contact">{{ item.contact_address }}</span>
-                        <div v-if="item.support_mail_responding_logs && item.support_mail_responding_logs.length" style="display:flex;align-items:center;gap:4px;">
-                            <svg fill="var(--primary-color)" width="14" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 32">
-                                <path d="M10.788 8.109c1.574-0.063 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.345 0.021-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.896 0.010-0.459 0.386-0.823 0.834-0.844zM10.788 13.050c1.574-0.052 3.148-0.083 4.711-0.104l2.356-0.031 2.356-0.010 2.356 0.010c0.782 0 1.574 0.021 2.356 0.031 1.574 0.031 3.148 0.063 4.711 0.136 0.459 0.021 0.823 0.417 0.803 0.876-0.021 0.438-0.375 0.771-0.803 0.792-1.574 0.073-3.148 0.115-4.711 0.136-0.782 0.010-1.574 0.031-2.356 0.031l-2.356 0.010-2.356-0.010-2.356-0.031c-1.574-0.021-3.148-0.052-4.711-0.104-0.479-0.021-0.855-0.417-0.844-0.907 0.021-0.438 0.396-0.803 0.844-0.823zM10.788 17.991c0.74-0.052 1.491-0.083 2.231-0.104l1.115-0.031c0.375-0.010 0.74-0.010 1.115-0.010 0.74 0 1.491 0.010 2.231 0.042 0.75 0.031 1.491 0.063 2.231 0.136 0.459 0.052 0.803 0.459 0.75 0.928-0.042 0.407-0.365 0.709-0.75 0.75-0.75 0.073-1.491 0.115-2.231 0.136-0.75 0.031-1.491 0.042-2.231 0.042-0.375 0-0.74 0-1.115-0.010l-1.115-0.031c-0.74-0.021-1.491-0.052-2.231-0.104-0.479-0.042-0.844-0.459-0.803-0.938 0.031-0.427 0.375-0.771 0.803-0.803z"></path><path d="M39.432 11.393c-0.188-1.063-0.521-2.116-0.99-3.106-0.479-0.99-1.105-1.897-1.835-2.71s-1.564-1.511-2.45-2.106c-0.886-0.594-1.835-1.084-2.794-1.501-1.939-0.813-3.95-1.313-5.973-1.605s-4.055-0.396-6.066-0.365c-2.022 0.042-4.055 0.219-6.066 0.605-2.012 0.396-4.013 1.001-5.889 1.949-0.938 0.479-1.845 1.042-2.679 1.699-0.834 0.667-1.616 1.428-2.272 2.293-0.667 0.855-1.209 1.824-1.605 2.835-0.396 1.021-0.636 2.095-0.74 3.169-0.052 0.532-0.052 1.084-0.042 1.605 0.010 0.532 0.052 1.053 0.125 1.584 0.146 1.053 0.417 2.116 0.844 3.117s1.011 1.939 1.72 2.762c0.709 0.823 1.532 1.532 2.418 2.126 1.772 1.188 3.44 1.824 5.41 2.356 1.803 0.49 3.867 0.782 5.681 0.876 0.146 0.010 0.281 0.073 0.386 0.177 0.459 0.5 0.938 1.074 1.449 1.511 0.667 0.584 1.407 1.126 2.178 1.584 0.761 0.448 1.564 0.803 2.387 1.115 0.865 0.313 2.21 0.605 2.929 0.657 0.698 0.052 0.782-0.479 0.563-0.938-0.229-0.469-0.281-0.552-0.375-0.761s-0.188-0.417-0.271-0.625-0.344-0.844-0.49-1.261c-0.115-0.344-0.292-0.938-0.386-1.407-0.031-0.167 0.083-0.323 0.25-0.344 1.626-0.229 3.242-0.552 4.847-1.032 0.98-0.292 1.939-0.657 2.877-1.094s1.855-0.98 2.7-1.626c0.844-0.646 1.626-1.418 2.272-2.293 0.323-0.438 0.615-0.907 0.865-1.397s0.459-0.99 0.636-1.511c0.344-1.032 0.532-2.106 0.594-3.169 0.021-1.032-0.021-2.106-0.208-3.169zM37.347 14.478c-0.031 0.896-0.167 1.782-0.427 2.616-0.125 0.417-0.292 0.823-0.479 1.22s-0.407 0.771-0.657 1.126c-0.5 0.719-1.115 1.365-1.814 1.928-1.397 1.126-3.106 1.928-4.899 2.522-0.896 0.302-1.814 0.542-2.752 0.75-0.928 0.208-1.876 0.375-2.835 0.511h-0.031c-0.396 0.063-0.709 0.396-0.719 0.813-0.010 0.594 0.083 1.126 0.208 1.626s0.292 0.969 0.469 1.438c0.146 0.375 0.292 0.698 0.542 1.105 0.042 0.073-0.021 0.146-0.104 0.125-1.167-0.365-2.304-0.907-3.461-1.845-1.23-0.99-1.762-1.584-2.814-2.835-0.146-0.177-0.365-0.302-0.615-0.323h-0.031c-1.908-0.188-3.805-0.479-5.629-0.98-1.814-0.5-3.565-1.199-5.055-2.22-0.74-0.511-1.407-1.105-1.97-1.772-0.563-0.678-1.022-1.418-1.355-2.231s-0.552-1.678-0.657-2.564-0.125-1.824-0.031-2.689c0.104-0.876 0.313-1.73 0.646-2.543 0.334-0.803 0.771-1.564 1.324-2.251 1.115-1.386 2.595-2.481 4.232-3.273 0.823-0.396 1.678-0.74 2.564-1.022s1.793-0.511 2.71-0.678c1.845-0.354 3.742-0.511 5.639-0.532 1.907-0.010 3.815 0.073 5.67 0.344 1.866 0.271 3.69 0.709 5.378 1.418 1.689 0.698 3.242 1.668 4.44 2.95 0.594 0.636 1.105 1.355 1.491 2.126s0.667 1.605 0.834 2.481c0.167 0.855 0.219 1.751 0.188 2.658z"></path>
-                            </svg>
-                            <span style="font-size:12px;">{{ item.support_mail_responding_logs.length }}</span>
-                        </div>
-                    </div>
-                </div>
-                <div v-if="!list.length" class="inbox-empty">データがありません</div>
-            </div>
         </div>
 
+        <!-- Detail modal -->
         <Transition name="modalFade">
-        <div class="overlay" v-if="selectedItem" @mousedown="reset">
-            <div class="chatCreate scrollable" @mousedown.stop>
-                <div class="recordFormTitle" style="display:flex">                        
-                    <div class="cursor-pointer" @click="reset" style="position:unset; margin:auto 0 auto auto">
-                        <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="modalWindowCloseButton" viewBox="0 0 32 32">
-                            <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
-                        </svg>                        
-                    </div> 
-                </div>
-                <div style="font-size: 14px;line-height: 1.7;">
-                    <div class="si-box">
-                        <p>氏名</p>                    
-                        <div>{{ selectedItem.user ? selectedItem.user.name : '' }}</div>
-                    </div>
-                    <div class="si-box">
-                        <p>問合せ日時</p>
-                        <div>{{ createdDate(selectedItem.created_at) }}</div>
-                    </div>
-                    <div class="si-box">
-                        <p>相談種別</p>
-                        <div>{{ type(selectedItem.kind_value) }}</div>
-                    </div>
-                    <div class="si-box">
-                        <p>希望連絡先</p>
-                        <div>{{selectedItem.contact_address }}</div>
-                    </div>
-                    <div class="si-box">
-                        <p>相談内容</p>
-                        <div style="white-space:break-spaces;">{{selectedItem.consultation_content}}</div>
-                        <div style="background: var(--bg3);padding: 10px;margin-top: 10px;">
-                            <div style="display: flex;align-items: center;justify-content: space-between;">
-                                <p>メモ</p>
-                                <div @click="viewNewMemo" class="commentEditButton">メモ追加</div>                                
+            <Modal v-if="selectedItem" size="medium" @close="reset">
+                <template #title>
+                    <span class="inbox-modal-title">相談詳細</span>
+                </template>
+                <template #content>
+                    <div class="inbox-detail">
+                        <div class="inbox-detail-row">
+                            <span class="inbox-detail-label">氏名</span>
+                            <span class="inbox-detail-value">{{ selectedItem.user ? selectedItem.user.name : '' }}</span>
+                        </div>
+                        <div class="inbox-detail-row">
+                            <span class="inbox-detail-label">問合せ日時</span>
+                            <span class="inbox-detail-value">{{ createdDate(selectedItem.created_at) }}</span>
+                        </div>
+                        <div class="inbox-detail-row">
+                            <span class="inbox-detail-label">相談種別</span>
+                            <span class="inbox-detail-value">{{ type(selectedItem.kind_value) }}</span>
+                        </div>
+                        <div class="inbox-detail-row">
+                            <span class="inbox-detail-label">希望連絡先</span>
+                            <span class="inbox-detail-value">{{ selectedItem.contact_address }}</span>
+                        </div>
+                        <div class="inbox-detail-row inbox-detail-row--block">
+                            <span class="inbox-detail-label">相談内容</span>
+                            <p class="inbox-detail-value inbox-detail-body">{{ selectedItem.consultation_content }}</p>
+                        </div>
+
+                        <!-- Memo block -->
+                        <div class="inbox-memo-block">
+                            <div class="inbox-memo-header">
+                                <span class="inbox-detail-label">メモ</span>
+                                <button class="inbox-memo-add-btn" @click="viewNewMemo">
+                                    {{ addMemoWindow ? '閉じる' : 'メモ追加' }}
+                                </button>
                             </div>
-                            <div v-if="addMemoWindow" style="background: inherit;margin-top: 10px;padding: 10px;">
+                            <div v-if="addMemoWindow" class="inbox-memo-form">
                                 <LongInput
-                                    :initialValue="newMemo"  
+                                    :initialValue="newMemo"
                                     ref="consultMemo"
                                     placeHolder="新しいメモ"
                                     uId="consultMemo"
@@ -110,40 +91,50 @@
                                     rules="max:2000"
                                     label="タイトル"
                                     v-model="newMemo"
-                                /> 
+                                />
                                 <div style="margin-top: 15px;">
-                                    <LoaderButton content="保存する" :loading="sending" @triggered="sendMemo"/>
+                                    <LoaderButton content="保存する" :loading="sending" @triggered="sendMemo" />
                                 </div>
                             </div>
-                            <div v-for="memo in selectedItem.support_mail_responding_logs">
-                                <p>【{{ createdDate(memo.created_at) }} {{ memo.user ? memo.user.name : ''}}】 :  {{ memo.text }}</p>
+                            <div v-for="memo in selectedItem.support_mail_responding_logs" :key="memo.id" class="inbox-memo-item">
+                                <span class="inbox-memo-meta">{{ createdDate(memo.created_at) }} {{ memo.user ? memo.user.name : '' }}</span>
+                                <span class="inbox-memo-text">{{ memo.text }}</span>
+                            </div>
+                            <p v-if="!selectedItem.support_mail_responding_logs?.length" class="inbox-memo-empty">メモはありません</p>
+                        </div>
+
+                        <!-- Status -->
+                        <div class="inbox-detail-row inbox-detail-row--block">
+                            <span class="inbox-detail-label">ステータス</span>
+                            <div class="inbox-status-select-wrap">
+                                <select @change="setStatus" v-model="newStatus" class="inbox-status-select dropDownSelector cursor-pointer">
+                                    <option :value="0">{{ status(0) }}</option>
+                                    <option :value="1">{{ status(1) }}</option>
+                                    <option :value="2">{{ status(2) }}</option>
+                                </select>
                             </div>
                         </div>
                     </div>
-                    <div class="si-box">
-                        <p>ステータス</p>
-                        <div class="locale-selector" style="width: fit-content;margin-top: 15px;">
-                            <select @change="setStatus" name="locales" v-model="newStatus" class="dropDownSelector cursor-pointer">
-                                <option :value="0">{{ status(0) }}</option>
-                                <option :value="1">{{ status(1)}}</option>
-                                <option :value="2">{{ status(2) }}</option>
-                            </select>
-                        </div>  
-                    </div>
-                </div>
-
-            </div>
-        </div>
+                </template>
+            </Modal>
         </Transition>
-    </div>
 
+    </div>
 </template>
 <script setup>
+import Modal from '../Global/Modal.vue';
 import LongInput from '../Form/LongInput.vue';
 import LoaderButton from '../Global/LoaderButton.vue'
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthUserStore } from '@/store/auth';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
+    const router = useRouter()
+    const auth = useAuthUserStore()
+    if (!auth.isAdmin) {
+        router.replace({ name: 'dashboard-support' })
+    }
     const list = ref([])
     const selectedItem = ref(null)
     const newStatus = ref(0)
@@ -223,131 +214,372 @@ import { useApi } from '@/composables/api';
     onMounted(getRecievedConsults)
  
 </script>
-<style>
-/* ── Shared badges ── */
+<style scoped lang="scss">
+
+/* ─── Page layout ──────────────────────────────────────── */
+.inbox-page {
+    padding: 24px;
+    min-height: 100%;
+    box-sizing: border-box;
+}
+
+/* ─── Header ───────────────────────────────────────────── */
+.inbox-page-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.inbox-page-header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: var(--primary-color);
+    color: var(--background-color);
+    flex-shrink: 0;
+}
+
+.inbox-page-title {
+    font-size: 17px;
+    font-weight: 600;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.inbox-count {
+    margin-left: auto;
+    font-size: 12px;
+    color: #888;
+    background: var(--bg3);
+    border-radius: 20px;
+    padding: 3px 10px;
+    flex-shrink: 0;
+}
+
+/* ─── Table wrapper ─────────────────────────────────────── */
+.inbox-table-wrap {
+    border: 1px solid var(--bg3);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* ─── Desktop table ─────────────────────────────────────── */
+.inbox-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+
+    thead tr {
+        background: var(--bg3);
+    }
+
+    th {
+        padding: 11px 14px;
+        font-weight: 600;
+        font-size: 12px;
+        text-align: left;
+        white-space: nowrap;
+        border-bottom: 1px solid color-mix(in srgb, var(--primary-color) 12%, transparent);
+    }
+
+    td {
+        padding: 12px 14px;
+        line-height: 1.5;
+        border-bottom: 1px solid var(--bg3);
+        vertical-align: middle;
+    }
+
+    tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    tbody tr {
+        cursor: pointer;
+        transition: background 0.15s ease;
+
+        &:hover {
+            background: var(--bg3);
+        }
+    }
+}
+
+/* ─── Content preview in table cell ─────────────────────── */
+.inbox-content-preview {
+    margin: 0;
+    max-width: 180px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* ─── Reply count badge (chat icon + count) ─────────────── */
+.inbox-reply-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+    border-radius: 20px;
+    padding: 2px 8px 2px 6px;
+}
+
+/* ─── Status badge ──────────────────────────────────────── */
 .inbox-status-badge {
     display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
     padding: 3px 10px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
+    border-radius: 20px;
     white-space: nowrap;
-}
-.inbox-status-0 { background: #fee2e2; color: #b91c1c; }
-.inbox-status-1 { background: #fef3c7; color: #92400e; }
-.inbox-status-2 { background: #d1fae5; color: #065f46; }
 
-.inbox-type-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-size: 11px;
-    background: var(--bg3);
-    color: var(--primary-color);
-    white-space: nowrap;
-}
-
-/* ── Desktop table ── */
-table.supportMailFormList-table {
-    padding: 10px;
-    width: 100%;
-}
-table.supportMailFormList-table > thead > tr > th {
-    vertical-align: middle;
-    border: 1px solid #ccc;
-    font-weight: 600;
-    font-size: 13px;
-    padding: 10px 12px;
-    background: var(--bg3);
-}
-table.supportMailFormList-table > tbody > tr > td {
-    border: 1px solid #ccc;
-    font-size: 13px;
-    padding: 10px 12px;
-    max-width: 160px;
-    overflow: hidden;
-    line-height: 1.5;
-    vertical-align: middle;
-}
-.inbox-date-cell {
-    white-space: nowrap;
-    font-size: 12px !important;
-    color: #666;
-}
-table.supportMailFormList-table > tbody tr:hover {
-    background-color: var(--bg3) !important;
-    cursor: pointer;
-}
-
-/* ── Mobile cards ── */
-.inbox-mobile-list {
-    display: none;
-}
-.inbox-card {
-    background: var(--background-color);
-    border: 1px solid #e5e7eb;
-    padding: 14px 16px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    transition: background 0.15s;
-}
-.inbox-card:hover, .inbox-card:active {
-    background: var(--bg3);
-}
-.inbox-card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-}
-.inbox-card-name {
-    font-weight: 600;
-    font-size: 14px;
-}
-.inbox-card-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-    flex-wrap: wrap;
-}
-.inbox-card-date {
-    font-size: 11px;
-    color: #888;
-}
-.inbox-card-content {
-    font-size: 13px;
-    line-height: 1.5;
-    color: var(--primary-color);
-    margin-bottom: 10px;
-    word-break: break-word;
-}
-.inbox-card-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: 12px;
-    color: #888;
-}
-.inbox-card-contact {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    max-width: 60%;
-}
-.inbox-empty {
-    text-align: center;
-    padding: 30px;
-    color: #aaa;
-    font-size: 14px;
-}
-
-@media screen and (max-width: 959px) {
-    .inbox-desktop-table {
-        display: none;
+    /* 0 = 未対応 */
+    &--0 {
+        background: color-mix(in srgb, #aaa 15%, transparent);
+        color: #777;
     }
-    .inbox-mobile-list {
-        display: block;
+    /* 1 = 対応中 */
+    &--1 {
+        background: color-mix(in srgb, #f5a623 15%, transparent);
+        color: #c47b00;
+    }
+    /* 2 = 対応済 */
+    &--2 {
+        background: color-mix(in srgb, var(--primary-color) 15%, transparent);
+        color: var(--primary-color);
+    }
+}
+
+/* ─── Detail modal content ──────────────────────────────── */
+.inbox-modal-title {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.inbox-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.inbox-detail-row {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--bg3);
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    &--block {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+}
+
+.inbox-detail-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #888;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 70px;
+}
+
+.inbox-detail-value {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.inbox-detail-body {
+    white-space: pre-wrap;
+    margin: 0;
+    padding: 12px;
+    background: var(--bg3);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+/* ─── Memo section ──────────────────────────────────────── */
+.inbox-memo-block {
+    padding: 12px;
+    background: var(--bg3);
+    border-radius: 10px;
+    margin: 4px 0 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.inbox-memo-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.inbox-memo-add-btn {
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--primary-color);
+    background: transparent;
+    color: var(--primary-color);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+
+    &:hover {
+        background: var(--primary-color);
+        color: var(--background-color);
+    }
+}
+
+.inbox-memo-form {
+    padding: 10px;
+    background: var(--message-background);
+    border-radius: 8px;
+}
+
+.inbox-memo-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 0;
+    border-top: 1px solid color-mix(in srgb, var(--primary-color) 12%, transparent);
+}
+
+.inbox-memo-meta {
+    font-size: 11px;
+    color: #888;
+}
+
+.inbox-memo-text {
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.inbox-memo-empty {
+    font-size: 12px;
+    color: #aaa;
+    margin: 0;
+}
+
+/* ─── Status select ─────────────────────────────────────── */
+.inbox-status-select-wrap {
+    display: flex;
+}
+
+.inbox-status-select {
+    font-size: 13px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--bg3);
+    background: var(--message-background);
+    color: inherit;
+    min-width: 140px;
+    outline: none;
+
+    &:focus {
+        border-color: var(--primary-color);
+    }
+}
+
+/* ─── Transition ────────────────────────────────────────── */
+.modalFade-enter-active,
+.modalFade-leave-active {
+    transition: opacity 0.2s ease;
+}
+.modalFade-enter-from,
+.modalFade-leave-to {
+    opacity: 0;
+}
+
+/* ─── Mobile ────────────────────────────────────────────── */
+@media (max-width: 959px) {
+    .inbox-page {
+        padding: 16px;
+    }
+
+    .inbox-page-header {
+        margin-bottom: 16px;
+    }
+
+    .inbox-page-title {
+        font-size: 15px;
+    }
+
+    /* Hide table header on mobile */
+    .inbox-table-wrap {
+        border-radius: 10px;
+    }
+
+    .inbox-table {
+        thead {
+            display: none;
+        }
+
+        /* Reflow rows as cards */
+        tbody,
+        tr,
+        td {
+            display: block;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid var(--bg3);
+            padding: 14px 16px;
+
+            &:last-child {
+                border-bottom: none;
+            }
+
+            &:hover {
+                background: var(--bg3);
+            }
+        }
+
+        td {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 5px 0;
+            border-bottom: none;
+            font-size: 13px;
+
+            &::before {
+                content: attr(data-label);
+                font-size: 10px;
+                font-weight: 700;
+                color: #888;
+                min-width: 68px;
+                flex-shrink: 0;
+                padding-top: 2px;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+            }
+        }
+
+        /* Hide "相談内容" cell on list — show only relevant columns */
+        td[data-label="相談内容"] {
+            display: none;
+        }
+    }
+
+    /* Detail modal rows stack on mobile */
+    .inbox-detail-row {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .inbox-detail-label {
+        min-width: unset;
     }
 }
 </style>
