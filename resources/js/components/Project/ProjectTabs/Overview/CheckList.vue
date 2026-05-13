@@ -215,7 +215,7 @@ import { useRoute } from 'vue-router';
 import { getProjectCreationActiveCategoryIds, getProjectCreationActiveCategories } from './projectCreationForm';
 import { useDashboardStore } from '@/store/dashboard';
 
-const { selectedProject, updateProject } = useProject()
+const { selectedProject, updateProject, readProjectMessage } = useProject()
 const api = useApi()
 const auth = useAuthUserStore()
 const { ping } = useDialog()
@@ -264,7 +264,7 @@ watchEffect(() => {
 })
 const toggleCategory = (category: string) => {
     expanded.value[category] = !expanded.value[category]
-    read(category)
+    readProjectMessage(category)
 }
 const categoryStats = computed(() => {
     const stats: Record<string, { total: number; done: number; na: number }> = {}
@@ -358,15 +358,7 @@ const confirm = async(status: string) => {
     getBatchDashboardData(['pendingProjects'])
 }
 
-const read = async(type: string) => {
-    if (seen.value[type] > 0) return
-    await api.post('/mark_as_seen', {
-        project_id: selectedProject.value?.id,
-        type: type
-    })
-    seen.value[type] = 1
-    badge.clearProjectReportBadge()
-}
+
 const projectReportBadgeType = computed(() => {
     return badge.projectReportMapByType[Number(route.params.projectId)] ?? []
 })

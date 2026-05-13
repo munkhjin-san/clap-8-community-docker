@@ -1,5 +1,5 @@
 <template>
-    <div class="h-[calc(100%-75px)] relative overflow-y-auto" ref="scrollContainer"> 
+    <div class="h-[calc(100%-75px)] relative overflow-y-auto" ref="scrollContainer" @scroll="handleScroll"> 
         <div class="project-detail flex flex-col gap-[15px]" :class="{'pb-[70px]': hasPrivilage && (auth.isBoss || auth.isAdmin) && selectedProject?.status == 'pending_director'}">
             <div v-if="hasPrivilage" class="ml-auto sticky top-0 z-10">
                 <div class="flex gap-4 items-center">
@@ -141,6 +141,19 @@
                     </div>
                 </div> -->
             </div>
+            <div>
+                <MessageArea 
+                    type="詳細"
+                    :passing-data="passingData"
+                    :item="{
+                        ...selectedProject,
+                        reports: selectedProject?.reports?.filter(report => report.type === '詳細') ?? []
+                    }"
+                    @refresh="updateProject([
+                        { name: 'reports', include: ['user', 'files'] },
+                    ])"
+                />
+            </div>
             
                                   
         </div>
@@ -162,13 +175,18 @@ import { useRoute } from 'vue-router';
 import { EXPENSE_ITEMS, parseNumber, PROJECT_STATUS_LABEL, yenFmt } from '@/utils/tools';
 import { useBadgeStore } from '@/store/badge';
 import { useDashboardStore } from '@/store/dashboard';
+import MessageArea from '../../MessageArea.vue';
     const props = defineProps(['hasPrivilage'])
     const editProjects = inject('editProjects') as (project: any) => void
     const deleteProject = inject('deleteProject') as (project: Project | null) => void
-    const { selectedProject, updateProject, checkItemConfirmBadge } = useProject()
+    const { selectedProject, updateProject, checkItemConfirmBadge, readProjectMessage } = useProject()
     const auth = useAuthUserStore()
     const checkTab = ref(false)
-
+    const passingData = {
+        path: '/project_checkitem_comment_add',
+        title: 'メッセージ',
+        file_path: 'project_checkitem_report_files'
+    }
     const sanitized = (text: string) => {
         const clean = text ?? ''
         if(!clean) return '未設定'
@@ -201,7 +219,14 @@ import { useDashboardStore } from '@/store/dashboard';
             }
         }   
     })
-    
+    const handleScroll = (event: Event) => {
+        const el = event.target as HTMLElement
+
+        const isBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 10; // 10px threshold
+        if (isBottom) {
+            readProjectMessage('詳細')
+        }
+    }
     const planData = computed(() => {
         const raw = selectedProject.value?.specs?.plan_data
         if (!raw) return

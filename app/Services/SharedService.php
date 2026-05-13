@@ -42,7 +42,7 @@ class SharedService
         ->delete();
         $shift_array = shiftRecord::whereMonth('shift_day', $month)->whereYear('shift_day', $year)->where('user_id', $userId)->get();
         foreach($shift_array as $shift){
-            if(in_array( $shift['shift_type'], [0, 2, 3, 5, 14, 15, 16])){
+            if(in_array( $shift['shift_type'], [0, 2, 3, 5, 14, 15, 16, 18, 27])){
                 $shiftType = shiftType::find($shift['shift_type']);
                 $instance = Carbon::parse($shift['shift_day']); 
                 $start_instance = $instance->clone()->hour(00)->minute(00)->second(00);

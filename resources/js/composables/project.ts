@@ -112,6 +112,29 @@ export function useProject() {
         if (!projectId) return;
         getProjects(undefined, undefined, Number(projectId));        
     }
+    const isReadingMessage = ref(false)
+    const readProjectMessage = async (type?: string) => {
+        if (isReadingMessage.value) return
+
+        const projectId = route.params.projectId;
+        const pid = Number(projectId)
+        const hasUnread = type
+            ? (badge.projectReportMapByType[pid]?.[type] ?? 0) > 0
+            : (badge.projectReportMap[pid] ?? 0) > 0
+
+        if (!hasUnread) return
+
+        isReadingMessage.value = true
+        try {
+            await axios.post('/mark_as_seen', {
+                project_id: projectId,
+                type: type
+            })
+            badge.clearProjectReportBadge()
+        } finally {
+            isReadingMessage.value = false
+        }
+    }
     const selectedDate = computed(() => {
         const options = detailedDateOptions()
         const span = route.params.span as string
@@ -121,6 +144,9 @@ export function useProject() {
     })
     const projectReportBadge = computed(() => {
         return badge.projectReportMap[Number(route.params.projectId)] ?? 0
+    })
+    const projectReportCheckBadge = computed(() => {
+        return badge.projectReportMapByType[Number(route.params.projectId)] ?? 0
     })
     const checkItemConfirmBadge = computed(() => {
         return badge.checkItemConfirmByFilter[Number(route.params.projectId)] ?? 0
@@ -138,7 +164,8 @@ export function useProject() {
         selectedDate,
         updateProject,
         projectReportBadge,
-        checkItemConfirmBadge
-        
+        checkItemConfirmBadge,
+        projectReportCheckBadge,
+        readProjectMessage
     };
 }
