@@ -926,7 +926,6 @@ progress {
 .record-content {
   width: 100%;
   height: auto;
-  margin-top: 30px;
   font-size: 16px;
   line-height: 2;
   white-space: pre-line;
@@ -6377,17 +6376,6 @@ input:autofill {
     white-space: nowrap;
   }
 
-}
-
-.p-tag-wrap {
-  max-height: 65px;
-  display: flex;
-  white-space: nowrap;
-  flex-wrap: wrap;
-  gap: 15px;
-  padding: 20px;
-  overflow: hidden;
-  transition: max-height 0.3s ease;
 }
 
 .p-tag-expand {

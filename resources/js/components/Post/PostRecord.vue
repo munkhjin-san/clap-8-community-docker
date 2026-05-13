@@ -637,7 +637,6 @@ import { PostMethods, PostMethodsKey } from '@/interface/keys';
 .post-record-shell {
     display: flex;
     flex-direction: column;
-    gap: 14px;
 }
 
 .post-meta-grid {

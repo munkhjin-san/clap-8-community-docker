@@ -54,7 +54,7 @@
             </div>
             <div class="si-box" v-if="app_type == 2">
                 <div class="switchLabel">
-                    <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">ミニにする</p>
+                    <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">チャレンジの種類</p>
                 </div>
                 <div
                     :class="['selectSwitchArea', 'mini-switch-area', { 'mini-switch-area-disabled': isMiniLocked }]"
@@ -65,11 +65,12 @@
                         for="mini"
                         style="min-width: 80px;"
                         :class="['cursor-pointer', { 'mini-switch-label-disabled': isMiniLocked }]"
-                    ><span></span>
+                    ><span class="mini-switch-splash"></span>
                         <div class="switch-toggle"></div>
                     </label>
                     
                 </div> 
+                <p class="text-[12px] text-[gray] mt-3" v-if="mini">ミニチャレンジの場合、最大チャージ額は500円となり、経費は発生しません</p>
             </div>  
             <div v-if="app_type == 2" class="si-box flex flex-col gap-5">
                 <LongInput 
@@ -80,12 +81,17 @@
                 <p class="text-xs text-[gray]">
                     アイデアの入力は任意です。入力・選択した内容をもとにチャレンジを自動生成できます。
                 </p>
-                <CommandButton
+                <!-- <CommandButton
                     :custom-style="loading ? 'opacity: 0.75; pointer-events: none;' : undefined"
                     :buttons="[
                         { title: loading ? '生成中...' : '自動生成', action: () => execute()}
                     ]" 
-                />
+                /> -->
+                <LoaderButton class="!m-0" :content="loading ? '生成中...' : '自動生成'" :loading="loading" @triggered="execute">
+                    <template #icon>
+                        <AiIcon size="20" fill="var(--background-color)" class="mr-3"/>
+                    </template>
+                </LoaderButton>
                 <div v-if="loading" class="ai-generation-loader" role="status" aria-live="polite">
                     <div class="image-wrap">
                         <img
@@ -94,40 +100,12 @@
                             alt=""
                         />
                     </div>
-                    <!-- <div class="ai-generation-loader-icon" aria-hidden="true">
-                        <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
-                            xmlns="http://www.w3.org/2000/svg">
-                        <rect x="5" y="7" width="14" height="11" rx="3"
-                                stroke="currentColor" stroke-width="1.7"/>
-
-                        <path d="M12 7V4"
-                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                        <circle cx="12" cy="3.5" r="1.2" fill="currentColor"/>
-
-                        <circle class="ai-eye" cx="9" cy="12" r="1.2" fill="currentColor"/>
-                        <circle class="ai-eye" cx="15" cy="12" r="1.2" fill="currentColor"/>
-
-                        <path d="M9.5 15H14.5"
-                                stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-
-                        <path d="M3.5 11V14"
-                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                        <path d="M20.5 11V14"
-                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                        </svg>
-                    </div> -->
                     <div class="ai-generation-loader-copy">
                         <p class="ai-generation-loader-title">AIがチャレンジを自動生成中です</p>
                         <div class="flex items-center gap-1">
                             <p class="ai-generation-loader-text">入力内容を整理して、タイトル・内容・達成条件を作成しています</p>
-                            <div class="ai-generation-loader-dots" aria-hidden="true">
-                                <span></span>
-                                <span></span>
-                                <span></span>
-                            </div>
                         </div>
-                    </div>
-                    
+                    </div>                    
                 </div>
             </div>
             <div class="si-box flex flex-col gap-3" v-if="generated_challenges.length">
@@ -663,10 +641,6 @@ import AiIcon from '../Icons/AiIcon.vue'
                     cost.expenses = null
                 })
             }
-            const result = await ask('ミニを選択した場合、最大請求額は500円となり、費用は発生しません。よろしいでしょうか?')
-            if (!result.value) {
-                mini.value = false
-            }
         }
     })
     watch([title, content_rule, content_goal, app_type], () => {
@@ -1089,6 +1063,12 @@ import AiIcon from '../Icons/AiIcon.vue'
 
 .mini-switch-area-disabled .switch-toggle {
     filter: grayscale(0.5);
+}
+.mini-switch-splash::after{
+    content: "通常";
+}
+.mini-switch-area input[type="checkbox"]:checked+label .mini-switch-splash:after {
+    content: "ミニ";
 }
 
 @keyframes ai-loader-pulse {

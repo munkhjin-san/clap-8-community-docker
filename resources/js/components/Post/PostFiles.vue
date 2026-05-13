@@ -4,9 +4,11 @@
             <div class="swiper" style="border:none;">
                 <div class="swiper-wrapper">
                     <div class="swiper-slide" v-for="(image, index) in images" :key="index">
-                        <img @click="previewImage(image, index)" class="cursor-pointer" :src="`/cdn/${path}/thumbnail/` + image.id + '_' + image.user_id + '_' + image.path + '_thumbnail.webp'" style="width: auto;max-width: 100%;max-height: 130px;">
+                        <div class="swiper-slide-square" @click="previewImage(image, index)">
+                            <img class="p-image cursor-pointer" :src="`/cdn/${path}/thumbnail/${image.id}_${image.user_id}_${image.path}_thumbnail.webp`">
+                        </div>
                     </div>  
-                </div>                                                          
+                </div>                                                             
             </div>        
             <div class="file-area-content" style="gap: 10px;margin: 15px 0 0 0">
                 <div @click="previewFile(file, index)" class="file-wrap-rec" v-for="(file, index) in fileList" style="padding: 0;">   
@@ -23,16 +25,16 @@
             </div>                                              
         </div>
     </div>
-    </template>
+</template>
     
-    <script setup lang="ts">
-    import FileIcon from '../Board/Mixed/FileIcon.vue';
-    import {filesize} from 'filesize';
-    import  Swiper  from 'swiper';
-    import 'swiper/css'
-    import { computed, onMounted } from 'vue';
-    import { ref } from 'vue';
-    import { useFilePreview } from '@/store/filePreview';
+<script setup lang="ts">
+import FileIcon from '../Board/Mixed/FileIcon.vue';
+import {filesize} from 'filesize';
+import  Swiper  from 'swiper';
+import 'swiper/css'
+import { computed, onMounted } from 'vue';
+import { ref } from 'vue';
+import { useFilePreview } from '@/store/filePreview';
 import { CommonFile } from '@/interface/globalInterface';
     // const props = defineProps(['items', 'path'])
     const props = defineProps<{
@@ -43,8 +45,12 @@ import { CommonFile } from '@/interface/globalInterface';
     const filePreview = useFilePreview()
     onMounted(() => {
         new Swiper('.swiper', {
-            slidesPerView: 5,
-            spaceBetween: 20
+            slidesPerView: 4,
+            spaceBetween: 6,
+            breakpoints: {
+                640: { slidesPerView: 5, spaceBetween: 8 },
+                1024: { slidesPerView: 10, spaceBetween: 20 },
+            }
         })
     })
     const images = computed(() => {
@@ -101,5 +107,21 @@ import { CommonFile } from '@/interface/globalInterface';
         if(bytes > 1000000) return filesize(bytes, {standard: "jedec", round: 1});
         else return filesize(bytes, {standard: "jedec", round: 0});
     }
-    </script>
+</script>
+<style scoped>
+.swiper-slide-square {
+    position: relative;
+    width: 100%;
+    padding-bottom: 100%;
+    overflow: hidden;
+}
+.swiper-slide-square .p-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+</style>
     
