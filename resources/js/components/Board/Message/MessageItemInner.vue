@@ -96,16 +96,16 @@
                             @touchmove="cancelTouch"
                             @blur.prevent
                             ref="messageBoxBody" 
-                            :style="{display: messageBody  ? 'inline-block' : 'none', marginBottom: message.message_files && message.message_files.length && !messageBody ? '10px' : '0'}" 
+                            :style="{marginBottom: message.message_files && message.message_files.length && !messageBody ? '10px' : '0'}" 
                             v-html="messageBody" 
-                            class="messageInnerBody"
-                            :class="{ emojiOnlyInner: emojiTrue }">
-                        </div>   
+                            :class="['messageInnerBody', {'line-clamp-[30]': !showMore, emojiOnlyInner: emojiTrue}]">
+                        </div>
                         <MessageEditor 
                             v-else 
                             :message="message" 
                             @cancel="emit('cancelEdit')"
                         />
+                        <p v-if="messageBody && bodyNeedsMore" class="jump-link mt-2" @click="showMore = !showMore">{{ showMore ? '閉じる' : '続きを表示する' }}</p>   
                         <MessageFiles 
                             v-if="message.message_files && message.message_files.length"
                             :list="message.message_files"
@@ -176,7 +176,7 @@
 
 import MessageQuoteReply from "./MessageQuoteReply.vue";
 import MessageFiles from "./MessageFiles.vue";
-import { computed, inject, ref, useTemplateRef } from 'vue'
+import { computed, inject, onMounted, ref, useTemplateRef } from 'vue'
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from "@/store/responsive";
@@ -227,7 +227,9 @@ import { DateTime } from "luxon";
         reactOrCheck: [message: Message]
         cancelEdit: []
     }>()
+    const showMore = ref(false)
     const showDate = ref(false)
+    const bodyNeedsMore = ref(false)
     const messageBoxBody = useTemplateRef('messageBoxBody')
     const pushInstantUser = inject('pushInstantUser') as Function
     const itemMenuRef = useTemplateRef('itemMenuRef')
@@ -237,7 +239,11 @@ import { DateTime } from "luxon";
     const messageSchedule = useMessageSchedule()
     const api = useApi()
     const { setEmoteUsers } = useModal()
-
+    onMounted(() => {
+        if (messageBoxBody.value) {
+            bodyNeedsMore.value = messageBoxBody.value.scrollHeight > messageBoxBody.value.clientHeight
+        }
+    })
     const startTouch = (event:MouseEvent | TouchEvent) => {
         isLongPress.value = false
 
