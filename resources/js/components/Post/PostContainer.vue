@@ -91,7 +91,7 @@
 
                 <!-- Challenge category filter -->
                 <template v-if="showCategoryFilter">
-                    <div class="cat-filter-row">
+                    <div class="cat-filter-row mt-4 under960:mt-1">
                         <router-link
                             v-for="cat in challengeCategories"
                             :key="cat.label"
@@ -102,7 +102,7 @@
                         </router-link>
                     </div>
                     <div class="cat-filter-subshell" :class="{ 'cat-filter-subshell--visible': !!activeChallengeCategory }">
-                        <div class="cat-filter-subshell__inner">
+                        <div class="cat-filter-subshell__inner mt-3">
                             <Transition name="subRowSwap" mode="out-in">
                                 <div
                                     v-if="activeChallengeCategory"
@@ -625,7 +625,6 @@ import { challengeCategories } from '@/utils/challengeCategory';
 
 .cat-filter-row--sub {
     padding-left: 4px;
-    border-left: 2px solid color-mix(in srgb, var(--primary-color) 20%, transparent);
 }
 
 .cat-filter-subshell {
@@ -660,12 +659,11 @@ import { challengeCategories } from '@/utils/challengeCategory';
     align-items: center;
     gap: 5px;
     padding: 5px 12px;
-    border-radius: 20px;
     font-size: 12px;
     font-weight: 500;
-    border: 1px solid color-mix(in srgb, var(--primary-color) 20%, transparent);
     background: transparent;
     color: var(--primary-color);
+    border: 1px solid transparent;
     text-decoration: none;
     white-space: nowrap;
     cursor: pointer;
@@ -675,32 +673,20 @@ import { challengeCategories } from '@/utils/challengeCategory';
     will-change: transform, opacity;
 }
 
-.cat-chip :deep(.side-app-icon) {
-    transition: fill 0.2s ease-in-out;
-}
 
 .cat-chip:hover {
-    background: color-mix(in srgb, var(--primary-color) 8%, transparent);
-    border-color: color-mix(in srgb, var(--primary-color) 40%, transparent);
-    transform: translateY(-1px);
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
 }
 
 .cat-chip--active {
-    background: var(--primary-color);
+    background: var(--bg3);
     border-color: var(--primary-color);
-    color: var(--background-color);
-    font-weight: 600;
-    transform: translateY(-1px);
 }
-
 .cat-chip--active:hover {
-    background: var(--primary-color);
-    opacity: 0.85;
+    background: var(--bg3);
 }
 
-.cat-chip--active :deep(.side-app-icon) {
-    fill: var(--background-color);
-}
+
 
 .cat-chip--sub {
     font-size: 11px;
