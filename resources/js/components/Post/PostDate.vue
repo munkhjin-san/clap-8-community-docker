@@ -1,9 +1,6 @@
 <template>
-    <div style="display: inline;font-size: 14px;white-space: nowrap;margin-left: auto;">
-        {{dateConverted}}                                                    
-    </div>  
+    <div class="text-inherit inline whitespace-nowrap ml-auto">{{dateConverted}}</div>  
 </template>
-
 <script setup lang="ts"> 
     import { Post } from '@/interface/postInterface';
     import { computed } from 'vue';
@@ -11,8 +8,7 @@
     const props = defineProps<{
         record: Post;
         which: string;
-    }>()
-        
+    }>()       
      
     const dateConverted = computed(() => {
         const now = DateTime.now();
@@ -27,7 +23,7 @@
             
             
             if(startDate.year === endDate.year && endDate.year === now.year){
-                return `${startDate.toFormat('M / d')}  ―  ${endDate.toFormat('M / d')}`;
+                return `${startDate.toFormat('M / d')}  ~  ${endDate.toFormat('M / d')}`;
             }
             return `${startDate.toFormat('yyyy / M / d')}  ―  ${endDate.toFormat('yyyy / M / d')}`;
         } else {

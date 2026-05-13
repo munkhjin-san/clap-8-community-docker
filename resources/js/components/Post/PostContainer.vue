@@ -76,15 +76,18 @@
                         すべて
                     </router-link>
                     <router-link :to="`/${appName}?app_type=0`" :class="['cat-chip', { 'cat-chip--active': getQuery?.app_type == '0' }]">
-                        <PostIcon which="0" size="16"/>
+                        <PostIcon which="0" size="12" class="hidden under400:block"/>
+                        <PostIcon which="0" size="16" class="under400:hidden"/>
                         {{ apps[0] }}
                     </router-link>
                     <router-link :to="`/${appName}?app_type=2`" :class="['cat-chip', { 'cat-chip--active': getQuery?.app_type == '2' }]">
-                        <PostIcon which="2" size="16"/>
+                        <PostIcon which="2" size="12" class="hidden under400:block"/>
+                        <PostIcon which="2" size="16" class="under400:hidden"/>
                         {{ apps[2] }}
                     </router-link>
                     <router-link :to="`/${appName}?app_type=6`" :class="['cat-chip', { 'cat-chip--active': getQuery?.app_type == '6' }]">
-                        <PostIcon which="6" size="16"/>
+                        <PostIcon which="6" size="12" class="hidden under400:block"/>
+                        <PostIcon which="6" size="16" class="under400:hidden"/>
                         {{ apps[6] }}
                     </router-link>
                 </div>
@@ -618,7 +621,6 @@ import { challengeCategories } from '@/utils/challengeCategory';
 
 .cat-filter-row {
     display: flex;
-    gap: 6px;
     flex-wrap: wrap;
     align-items: center;
 }
@@ -710,6 +712,12 @@ import { challengeCategories } from '@/utils/challengeCategory';
 @media screen and (max-width: 959px) {
     .cat-filter-strip {
         padding: 8px 14px 4px;
+    }
+}
+@media screen and (max-width: 480px) {
+    .cat-chip {
+        padding: 4px 8px;
+        font-size: 11px;
     }
 }
 </style>
