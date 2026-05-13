@@ -4175,14 +4175,6 @@ input:-webkit-autofill:active {
   margin: 10px 0;
 }
 
-.post-item-header-wrap {
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: relative;
-
-}
 
 .chargeFormeAddButton {
   font-size: 14px;
@@ -4201,6 +4193,7 @@ input:-webkit-autofill:active {
   /* justify-content: flex-end; */
   gap: 15px;
   width: 100%;
+  margin-top: 10px;
 }
 
 .comment-icon {
@@ -7599,8 +7592,12 @@ button.shift-button {
   .chargeFormeAddButton{
     width: 100%;
   }
+  .post-title{
+    font-size: 16px;
+  }
 }
 @media screen and (max-width: 380px) {
+
   .c-bar-wrap {
     gap: 10px
   }
