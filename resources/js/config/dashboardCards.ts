@@ -56,7 +56,7 @@ export const DASHBOARD_COMPONENTS: Record<string, Component> = {
     [CARD_LAYOUTS.MONTHLY_GOALS]: markRaw(DashboardGoal),
     [CARD_LAYOUTS.CHALLENGE]: markRaw(DashboardChallenge),
     [CARD_LAYOUTS.ASSETS]: markRaw(DashboardAsset),
-    [CARD_LAYOUTS.INCIDENTS]: markRaw(DashboardIncident),
+    // [CARD_LAYOUTS.INCIDENTS]: markRaw(DashboardIncident),
     [CARD_LAYOUTS.SCHEDULES]: markRaw(DashboardSchedule),
     [CARD_LAYOUTS.PERSONNEL_EVALUATION]: markRaw(DashboardPersonnelEvaluation),
     [CARD_LAYOUTS.TIMESHEET]: markRaw(DashboardTimesheet),
@@ -78,7 +78,7 @@ type DashboardStoreKey =
     | 'overdueGoals'
     | 'challenges'
     | 'assets'
-    | 'incidents'
+    // | 'incidents'
     | 'schedules'
     | 'timesheet'
     | 'personnelEvaluation'
@@ -99,7 +99,7 @@ export const CARD_DATA_KEY_BY_TYPE: Record<string, DashboardStoreKey> = {
     overdueGoals: 'overdueGoals',
     challenges: 'challenges',
     assets: 'assets',
-    incidents: 'incidents',
+    // incidents: 'incidents',
     schedules: 'schedules',
     timesheet: 'timesheet',
     notice: 'notices',
@@ -120,7 +120,7 @@ export const CARD_REFRESH_KEYS_BY_TYPE: Record<string, DashboardStoreKey[]> = {
     overdueGoals: ['overdueGoals'],
     challenges: ['challenges'],
     assets: ['assets'],
-    incidents: ['incidents'],
+    // incidents: ['incidents'],
     schedules: ['schedules'],
     timesheet: ['timesheet'],
     notice: ['notices'],
@@ -260,18 +260,18 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         canFullscreen: true,
         canResize: true,
     },
-    {
-        title: 'インシデント',
-        type: 'incidents',
-        layout: 'incidents',
-        col: 'col-span-1',
-        order: undefined,
-        data: {
-            attention: [] as Incident[],
-        },
-        canFullscreen: true,
-        canResize: true,
-    },
+    // {
+    //     title: 'インシデント',
+    //     type: 'incidents',
+    //     layout: 'incidents',
+    //     col: 'col-span-1',
+    //     order: undefined,
+    //     data: {
+    //         attention: [] as Incident[],
+    //     },
+    //     canFullscreen: true,
+    //     canResize: true,
+    // },
     {
         title: 'スケジュール',
         type: 'schedules',
