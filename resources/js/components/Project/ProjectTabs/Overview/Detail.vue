@@ -141,7 +141,7 @@
                     </div>
                 </div> -->
             </div>
-            <div>
+            <div v-if="hasPrivilage || (auth.isBoss || auth.isAdmin)">
                 <MessageArea 
                     type="詳細"
                     :passing-data="passingData"
