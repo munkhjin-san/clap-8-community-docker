@@ -679,7 +679,7 @@
                                             <div class="relative">
                                                 <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="menu.setMenu({parent: 'projectFilter'})">
                                                     プロジェクト
-                                                    <Filter style="fill: var(--primary-color);" size="12"/>
+                                                    <Filter :filtered="selectedProjects.length > 0" style="fill: var(--primary-color);" size="12"/>
                                                 </div>
                                                 <Transition name="slidePop">
                                                     <FilterById 
@@ -699,7 +699,7 @@
                                             <div class="relative">
                                                 <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="menu.setMenu({parent: 'managerFilter'})">
                                                     PM
-                                                    <Filter style="fill: var(--primary-color);" size="12"/>
+                                                    <Filter :filtered="selectedManagers.length > 0" style="fill: var(--primary-color);" size="12"/>
                                                 </div>
                                                 <Transition name="slidePop">
                                                     <FilterById 
@@ -719,7 +719,7 @@
                                             <div class="relative">
                                                 <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="menu.setMenu({parent: 'scenarioFilter'})">
                                                     区分
-                                                    <Filter style="fill: var(--primary-color);" size="12"/>
+                                                    <Filter :filtered="selectedOption.length > 0" style="fill: var(--primary-color);" size="12"/>
                                                 </div>
                                                 <Transition name="slidePop">
                                                     <div 

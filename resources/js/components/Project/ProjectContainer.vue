@@ -49,7 +49,7 @@
                     <div class="project-cell cursor-pointer relative">
                         <div @click.stop="menu.setMenu({ parent: 'projectStatusSort' })" class="flex items-center gap-[5px] whitespace-nowrap">
                             ステータス
-                            <Back class="rotate-[270deg]" size="10"/>
+                            <Filter :filtered="selectedStatuses.length > 0" style="fill: var(--primary-color);" size="12"/>
                         </div>
                         <Transition name="slidePop">
                             <div 
@@ -75,7 +75,8 @@
                     <div class="project-cell cursor-pointer relative">
                         <div @click.stop="menu.setMenu({parent: 'projectDateSelect'})" class="flex items-center gap-[5px] whitespace-nowrap">
                             期間
-                            <Back class="rotate-[270deg]" size="10"/>
+                            <Filter :filtered="!!(start && end)" style="fill: var(--primary-color);" size="12"/>
+                            
                         </div>
                         <div v-if="start && end" class="flex flex-wrap">
                            {{ start.toLocaleString(DateTime.DATE_SHORT) }} ~ {{ end.toLocaleString(DateTime.DATE_SHORT) }}
@@ -100,7 +101,7 @@
                     <div class="project-cell cursor-pointer relative">
                         <div @click.stop="menu.setMenu({parent: 'projectManagerSelect'})" class="flex items-center gap-[5px] whitespace-nowrap">
                             PM
-                            <Back class="rotate-[270deg]" size="10"/>
+                            <Filter :filtered="selectedManagers.length > 0" style="fill: var(--primary-color);" size="12"/>
                         </div>
                         <div class="flex flex-wrap">
                             <UserPanel v-for="member in activeManagers" disable-instant :user="member" size="15"/>
@@ -118,7 +119,7 @@
                     <div class="project-cell cursor-pointer relative">
                         <div @click.stop="menu.setMenu({parent: 'projectMemberSelect'})" class="flex items-center gap-[5px] whitespace-nowrap">
                             メンバー
-                            <Back class="rotate-[270deg]" size="10"/>
+                            <Filter :filtered="selectedMembers.length > 0" style="fill: var(--primary-color);" size="12"/>
                         </div>
                         <div class="flex flex-wrap">
                             <UserPanel v-for="member in activeMembers" disable-instant :user="member" size="15"/>
@@ -264,6 +265,7 @@ import { useTutorialStore } from '@/store/tutorial';
 import { PROJECT_STATUS_LABEL } from '@/utils/tools';
 import ResourceSort from './Resource/ResourceSort.vue';
 import CommandButton from '../Global/CommandButton.vue';
+import Filter from '../Icons/Filter.vue';
 type ColorState = 0 | 1 | 2;
 const state = ref<ColorState>(0);
 
@@ -280,7 +282,7 @@ const editData = ref<Project | null>(null)
 const createWindow = ref(false)
 const selectedManagers = ref<number[]>([])
 const selectedMembers = ref<number[]>([])
-const selectedStatuses = ref<string[]>([])
+const selectedStatuses = ref<string[]>(Object.keys(PROJECT_STATUS_LABEL).filter(k => k !== 'completed'))
 const badge = useBadgeStore()
 const taskComponent = useTemplateRef<ComponentExposed<typeof TaskComponent>>('taskComponent')
 const totalFinanceWindow = ref(false)

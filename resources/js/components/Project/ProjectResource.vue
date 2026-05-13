@@ -49,7 +49,7 @@
                         <div class="relative">
                           <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="toggleFilterMenu('memberFilter')">
                             メンバー名
-                            <Filter class="filter-icon" size="12"/>
+                            <Filter :filtered="selectedMembers.length > 0" class="filter-icon" size="12"/>
                           </div>
                           <Transition name="slidePop">
                             <ResourceSort 
@@ -68,7 +68,7 @@
                         <div class="relative">
                           <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="toggleFilterMenu('projectFilter')">
                             プロジェクト名
-                            <Filter class="filter-icon" size="12"/>
+                            <Filter :filtered="selectedProjects.length > 0" class="filter-icon" size="12"/>
                           </div>
                           <Transition name="slidePop">
                               <ResourceSort
@@ -104,7 +104,7 @@
                               <div class="relative">
                                 <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="toggleFilterMenu('empTypeFilter')">
                                   雇用形態
-                                  <Filter v-if="allowRemainingFilter" class="filter-icon" size="12"/>
+                                  <Filter :filtered="selectedEmpFilter.length > 0" v-if="allowRemainingFilter" class="filter-icon" size="12"/>
                                 </div>
                                 <Transition name="slidePop">
                                   <ResourceSort 
@@ -125,7 +125,7 @@
                               <div class="relative">
                                 <div class="cursor-pointer flex items-center gap-[5px]" @click.stop="toggleFilterMenu('minusPlusFilter')">
                                   数量残り
-                                  <Filter v-if="allowRemainingFilter" class="filter-icon" size="12"/>
+                                  <Filter :filtered="selectedFilter.length > 0" v-if="allowRemainingFilter" class="filter-icon" size="12"/>
                                 </div>
                                 <Transition name="slidePop">
                                   <ResourceSort 
