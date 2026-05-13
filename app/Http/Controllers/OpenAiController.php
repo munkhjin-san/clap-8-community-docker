@@ -507,7 +507,6 @@ TXT
         $user = Auth::user();
         $now = now()->timezone(config('app.timezone'));
         $dateKey = $now->toDateString();
-        $isTestUser = (int) $user->id === 765;
 
         if (! $user) {
             return response()->json([
@@ -519,7 +518,7 @@ TXT
             ], 401);
         }
 
-        if ((! $this->isLunchChallengeWindow($now) && ! $isTestUser ) || ! $this->isLunchChallengeEligibleUser($user)) {
+        if ((! $this->isLunchChallengeWindow($now)) || ! $this->isLunchChallengeEligibleUser($user)) {
             return response()->json([
                 'show_popup' => false,
                 'pending' => false,
@@ -531,7 +530,7 @@ TXT
 
         $targetUserIds = $this->lunchChallengeTargetUserIds($dateKey);
 
-        if (! $isTestUser && ! in_array($user->id, $targetUserIds, true)) {
+        if (! in_array($user->id, $targetUserIds, true)) {
             return response()->json([
                 'show_popup' => false,
                 'pending' => false,
