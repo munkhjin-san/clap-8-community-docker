@@ -4,6 +4,10 @@
             <div class="post-item-header-wrap">
                 <div class="flex gap-2.5 items-center">
                     <PostIcon v-if="appName == 'post'" :which="record.app_type" size="20"/>
+                    <div title="このチャレンジはミニチャレンジです" v-if="record.mini" class="rounded-full bg-[var(--bg3)] px-3 py-1 flex items-center gap-2">
+                        <img src="/images/minisuke.webp" class="h-[23px]"/>
+                        <p class="text-[12px]">ミニ</p>
+                    </div>
                     <div v-html="title" class="post-title"></div>
                 </div>
                 <ItemMenu v-if="isOwner || auth.id === 516" :items="postMenu"/> 
