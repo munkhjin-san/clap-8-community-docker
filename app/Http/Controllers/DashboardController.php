@@ -179,7 +179,8 @@ class DashboardController extends Controller
                                 'month_label' => $monthLabel,
                                 'count' => (int) $count,
                             ];
-                        });
+                        })
+                        ->values();
                 })
             )
             ->filter(fn ($comment) => ($comment['count'] ?? 0) > 0)

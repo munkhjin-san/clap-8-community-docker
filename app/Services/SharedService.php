@@ -353,6 +353,13 @@ class SharedService
             $mins = (int) $typeValue;
             $paidLeaveMinutes += $mins;
 
+            // Partial leave: count remaining time as working minutes
+            $remainingWorkMinutes = max(0, $minutesPerDay - $mins);
+            if ($remainingWorkMinutes > 0) {
+                $workDays++;
+                $workMinutes += $remainingWorkMinutes;
+            }
+
             if (isset($type->full_day)) {
                 if ((int)$type->full_day === 2) $paidLeaveDays += 1.0;
                 elseif ((int)$type->full_day === 1) $paidLeaveDays += 0.5;
