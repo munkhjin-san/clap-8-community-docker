@@ -98,7 +98,7 @@
                             ref="messageBoxBody" 
                             :style="{marginBottom: message.message_files && message.message_files.length && !messageBody ? '10px' : '0'}" 
                             v-html="messageBody" 
-                            :class="['messageInnerBody', {'line-clamp-[30]': !showMore, emojiOnlyInner: emojiTrue}]">
+                            :class="['messageInnerBody', {'!line-clamp-[30]': !showMore, emojiOnlyInner: emojiTrue}]">
                         </div>
                         <MessageEditor 
                             v-else 
