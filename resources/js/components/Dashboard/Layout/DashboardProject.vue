@@ -15,8 +15,8 @@
             </svg>
         </template>
         <template #default>
-            <div v-if="!fullscreen" class="m-5">
-                <div v-if="data.data.officer_approval_waiting.length" class="mb-3">
+            <div v-if="!fullscreen" class="m-5 space-y-6">
+                <div v-if="data.data.officer_approval_waiting.length">
                     <div class="text-[14px] font-bold mb-3">承認待ち（{{ data.data.officer_approval_waiting.length }}）</div>
                     <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
                         <ExpansionPanelItem
@@ -72,7 +72,7 @@
                     </ExpansionGrid>
                 </div>
 
-                <div v-if="data.data.assign_approval_waiting.length" class="mt-6">
+                <div v-if="data.data.assign_approval_waiting.length">
                     <div class="text-[14px] font-bold mb-3">確認待ち（{{ data.data.assign_approval_waiting.length }}）</div>
                     <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
                         <ExpansionPanelItem
@@ -139,7 +139,7 @@
                     </ExpansionGrid>
                 </div>
 
-                <div v-if="projectComments.length" class="mt-6">
+                <div v-if="projectComments.length">
                     <div class="text-[14px] font-bold mb-3">コメント（{{ projectCommentCount }}）</div>
                     <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
                         <ExpansionPanelItem
