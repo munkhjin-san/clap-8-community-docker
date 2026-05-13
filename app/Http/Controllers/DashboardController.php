@@ -132,10 +132,63 @@ class DashboardController extends Controller
                 'actions' => fn($q) => $q->where('action_type', 'member_confirmation_items'),
             ])
             ->get();
+
+        $projectReportBadges = $this->badgeService->getProjectUnreadCount($activeUser);
+        $financeCommentBadges = $this->badgeService->financeComment($activeUser);
+
+        $commentProjectIds = collect($projectReportBadges['records'] ?? [])
+            ->pluck('project_record_id')
+            ->merge(collect($financeCommentBadges['projects'] ?? [])->pluck('project_id'))
+            ->filter()
+            ->unique()
+            ->values();
+
+        $projectNames = $commentProjectIds->isEmpty()
+            ? collect()
+            : ProjectRecord::whereIn('id', $commentProjectIds)->pluck('name', 'id');
+
+        $comments = collect($projectReportBadges['records'] ?? [])
+            ->flatMap(function ($record) use ($projectNames) {
+                return collect($record['types'] ?? [])->map(function ($type) use ($record, $projectNames) {
+                    $projectId = (int) ($record['project_record_id'] ?? 0);
+                    $section = $type['type'] ?? '詳細';
+
+                    return [
+                        'type' => $section === '詳細' ? 'project_detail' : 'confirmation_item',
+                        'project_id' => $projectId,
+                        'project_name' => $projectNames[$projectId] ?? 'プロジェクト',
+                        'section' => $section,
+                        'count' => (int) ($type['unread_count'] ?? 0),
+                    ];
+                });
+            })
+            ->merge(
+                collect($financeCommentBadges['projects'] ?? [])->flatMap(function ($project) use ($projectNames) {
+                    $projectId = (int) ($project['project_id'] ?? 0);
+
+                    return collect($project['period_counts'] ?? [])
+                        ->filter(fn ($count, $period) => is_string($period) && preg_match('/^\d{4}-\d{2}$/', $period))
+                        ->map(function ($count, $period) use ($projectId, $projectNames) {
+                            $monthLabel = Carbon::createFromFormat('Y-m', $period)->format('Y年n月');
+
+                            return [
+                                'type' => 'finance',
+                                'project_id' => $projectId,
+                                'project_name' => $projectNames[$projectId] ?? 'プロジェクト',
+                                'period' => $period,
+                                'month_label' => $monthLabel,
+                                'count' => (int) $count,
+                            ];
+                        });
+                })
+            )
+            ->filter(fn ($comment) => ($comment['count'] ?? 0) > 0)
+            ->values();
         
         return [
             'officer_approval_waiting' => $officer_approval_waiting,
             'assign_approval_waiting' => $assign_approval_waiting,
+            'comments' => $comments,
         ];
     }
 

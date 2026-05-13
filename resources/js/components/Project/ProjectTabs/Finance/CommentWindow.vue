@@ -72,6 +72,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, Ref, ref, useTemplateRe
 import CommentItem from './CommentItem.vue';
 import { FinanceComment } from '@/interface/projectInterface';
 import { useBadgeStore } from '@/store/badge';
+import { useDashboardStore } from '@/store/dashboard';
 import { DateTime } from 'luxon';
 type Props = {
     type: string;
@@ -100,6 +101,7 @@ const mentionBox = useTemplateRef<MentionBoxExpose>('mentionBox')
 const editingCommentId = ref<number | null>(null)
 const replyComment = ref<FinanceComment | null>(null)
 const badge = useBadgeStore()
+const dashboardStore = useDashboardStore()
 const mentionNameToId = computed<Record<string, number>>(() => {
   const map: Record<string, number> = {}
   for (const u of mentionableUsers.value ?? []) {
@@ -456,7 +458,8 @@ onMounted(async() => {
   getMentionableUsers()
   getComments()
   await markRead()
-  badge.getFinanceCommentBadge()
+  await badge.getFinanceCommentBadge()
+  await dashboardStore.getBatchDashboardData(['projects'])
   nextTick(() => {
     addEditorListeners()
     document.addEventListener('selectionchange', updateRangeFromSelection)

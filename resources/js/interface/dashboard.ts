@@ -43,6 +43,15 @@ export type DashboardProjectCard = CardBase & {
     data: {
         officer_approval_waiting: Project[],
         assign_approval_waiting: ProjectAssignRecord[],
+        comments?: {
+            type: 'project_detail' | 'confirmation_item' | 'finance',
+            project_id: number,
+            project_name: string,
+            section?: string,
+            period?: string,
+            month_label?: string,
+            count: number,
+        }[],
     }
 }
 export type DashboardChallengeCard = CardBase & {

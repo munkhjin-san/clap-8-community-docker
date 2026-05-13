@@ -2,6 +2,7 @@ import { User } from "@/interface/globalInterface";
 import { Project } from "@/interface/projectInterface";
 import { useAuthUserStore } from "@/store/auth";
 import { useBadgeStore } from "@/store/badge";
+import { useDashboardStore } from "@/store/dashboard";
 import { detailedDateOptions } from "@/utils/tools";
 import axios from "axios";
 import { DateTime } from "luxon";
@@ -15,6 +16,7 @@ export function useProject() {
     
     const auth = useAuthUserStore()
     const badge = useBadgeStore()
+    const dashboardStore = useDashboardStore()
     const projectList = computed(() => list.value);
     const route = useRoute();
     const setProjectList = (projects: Project[]) => {
@@ -130,7 +132,8 @@ export function useProject() {
                 project_id: projectId,
                 type: type
             })
-            badge.clearProjectReportBadge()
+            await badge.clearProjectReportBadge()
+            await dashboardStore.getBatchDashboardData(['projects'])
         } finally {
             isReadingMessage.value = false
         }

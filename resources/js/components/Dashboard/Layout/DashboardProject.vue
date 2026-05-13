@@ -1,7 +1,7 @@
 <template>
     <BaseLayout 
         :title="`プロジェクト`" 
-        :count="data.data.officer_approval_waiting.length + data.data.assign_approval_waiting.length" 
+        :count="dashboardCount"
         :fullscreen="fullscreen" 
         :type="data.type"
         :can-resize="data.canResize"
@@ -17,6 +17,7 @@
         <template #default>
             <div v-if="!fullscreen" class="m-5">
                 <div v-if="data.data.officer_approval_waiting.length" class="mb-3">
+                    <div class="text-[14px] font-bold mb-3">承認待ち（{{ data.data.officer_approval_waiting.length }}）</div>
                     <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
                         <ExpansionPanelItem
                             selected-class="selected-panel-item"
@@ -137,6 +138,51 @@
                         </ExpansionPanelItem>
                     </ExpansionGrid>
                 </div>
+
+                <div v-if="projectComments.length" class="mt-6">
+                    <div class="text-[14px] font-bold mb-3">コメント（{{ projectCommentCount }}）</div>
+                    <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                        <ExpansionPanelItem
+                            selected-class="selected-panel-item"
+                            hide-actions
+                            static
+                            :tile="true"
+                            class="rm-p"
+                            v-for="(comment, index) in projectComments"
+                            :key="`${comment.type}-${comment.project_id}-${comment.period ?? comment.section ?? index}`"
+                            :value="`${comment.type}-${comment.project_id}-${comment.period ?? comment.section ?? index}`"
+                            :col="Number(data.col?.split('-')[2] ?? 1)"
+                        >
+                            <template #title="{ expanded }">
+                                <PanelTitle :expanded="expanded">
+                                    <div class="text-[14px] flex-1 whitespace-nowrap overflow-hidden text-ellipsis leading-normal flex items-center gap-2">
+                                        <div class="text-[14px] flex-1 whitespace-nowrap overflow-hidden text-ellipsis leading-normal">
+                                            {{ comment.project_name }}
+                                        </div>
+                                        <span class="side-notification side-notification--comment-only" style="position: static; text-indent: inherit;">{{ comment.count }}</span>
+                                    </div>
+                                </PanelTitle>
+                            </template>
+                            <template #body>
+                                <PanelData class="px-4 py-4 pt-1 space-y-3">
+                                    <div class="text-[13px] leading-normal">
+                                        <span class="p-1 text-xs bg-[var(--bg3)] mr-[10px]">{{ commentTypeLabel(comment) }}</span>
+                                        {{ commentTargetLabel(comment) }}
+                                    </div>
+                                    <div class="text-[12px] text-[gray] leading-normal">
+                                        {{ comment.count }}件の未確認コメントがあります。
+                                    </div>
+                                    <div class="mt-3 text-right">
+                                        
+                                        <span type="button" class="jump-link text-sm" @click="openProjectComment(comment)">
+                                            コメントを見る
+                                        </span>
+                                    </div>
+                                </PanelData>
+                            </template>
+                        </ExpansionPanelItem>
+                    </ExpansionGrid>
+                </div>
             </div>
             
         </template>
@@ -151,16 +197,18 @@ import PanelData from './PanelData.vue';
 import { DateTime } from 'luxon';
 import { PROJECT_STATUS_LABEL } from '@/utils/tools';
 import { DashboardProjectCard } from '@/interface/dashboard';
-import { reactive, ref } from 'vue';
+import { computed, reactive } from 'vue';
 import { useApi } from '@/composables/api';
 import { useDashboardStore } from '@/store/dashboard';
 import LongInput from '@/components/Form/LongInput.vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
+import { useRouter } from 'vue-router';
 
 const props = defineProps<{
     data: DashboardProjectCard,
     fullscreen: boolean
 }>()
+type ProjectComment = NonNullable<DashboardProjectCard['data']['comments']>[number];
 
 const emit = defineEmits<{
     resize: [type: string]
@@ -169,8 +217,16 @@ const emit = defineEmits<{
 
 const api = useApi();
 const dashboardStore = useDashboardStore();
+const router = useRouter();
 const memberComments = reactive<Record<number, string>>({});
 const loadingRecords = reactive<Record<number, boolean>>({});
+const projectComments = computed(() => props.data.data.comments ?? []);
+const projectCommentCount = computed(() => projectComments.value.reduce((total, comment) => total + (comment.count ?? 0), 0));
+const dashboardCount = computed(() => (
+    props.data.data.officer_approval_waiting.length
+    + props.data.data.assign_approval_waiting.length
+    + projectCommentCount.value
+));
 
 const getMemberConfirmationItems = (record: any): string => {
     if (!record.actions) return '';
@@ -220,6 +276,48 @@ const rejectRecord = async (record: any) => {
     } finally {
         loadingRecords[record.id] = false;
     }
+};
+
+const commentTypeLabel = (comment: ProjectComment) => {
+    if (comment.type === 'finance') return '予算・実績';
+    if (comment.type === 'confirmation_item') return '確認事項';
+    return '詳細';
+};
+
+const commentTargetLabel = (comment: ProjectComment) => {
+    if (comment.type === 'finance') return comment.month_label ?? comment.period ?? '対象月';
+    if (comment.type === 'confirmation_item') return comment.section ?? '確認事項';
+    return 'プロジェクト詳細';
+};
+
+const openProjectComment = (comment: ProjectComment) => {
+    if (comment.type === 'finance') {
+        if (!comment.period) return;
+        router.push({
+            name: 'finance',
+            params: { projectId: comment.project_id },
+            query: {
+                period: comment.period,
+                comment_period: comment.period,
+            },
+        });
+        return;
+    }
+
+    if (comment.type === 'confirmation_item') {
+        router.push({
+            name: 'project-overview-checkitems',
+            params: { projectId: comment.project_id },
+            query: { comment_type: comment.section },
+        });
+        return;
+    }
+
+    router.push({
+        name: 'project-overview-detail',
+        params: { projectId: comment.project_id },
+        query: { check: 'true' },
+    });
 };
 
 defineExpose({

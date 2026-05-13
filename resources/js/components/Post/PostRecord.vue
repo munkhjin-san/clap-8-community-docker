@@ -247,7 +247,7 @@
                 
             </div>
             <div @click="setEmoteUsers(record.emoted_users)" v-if="record.emoted_users && record.emoted_users.length">
-                <div class="flex items-end cursor-pointer text-[var(--primary-color)] flex-wrap">
+                <div class="flex items-end cursor-pointer text-[var(--primary-color)] flex-wrap gap-1">
                     <TransitionGroup name="downShiftPop">
                         <Character v-for="emote in emotes" :key="emote" :size="40" :emoteName="emote"/>
                     </TransitionGroup>

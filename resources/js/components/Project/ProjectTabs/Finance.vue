@@ -4,6 +4,7 @@
             <div class="sub-tab-container">
                 <div @click="router.push({name: 'finance'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name === 'finance'}]">収支確認</div>
                 <div v-if="selectedProject.has_actual_func" id="performanceManagement" @click="router.push({name: 'result'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name === 'result'}]">実績管理</div>
+                <!-- <div v-if="hasPrivilage" @click="router.push({name: 'plan'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name === 'plan'}]">損益計画</div> -->
                 <div v-if="hasPrivilage" @click="router.push({name: 'plan'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name === 'plan'}]">年度予算</div>
             </div>
         </div>
@@ -468,7 +469,14 @@ const openComment = (period: string) => {
 const tutorialStore = useTutorialStore()
 const { startTour } = useTour()
 onMounted(async() => {
-    updateRouteQuery()
+    const commentPeriod = parsePeriodParam(route.query.comment_period)
+    if (commentPeriod) {
+        applyRange(commentPeriod, commentPeriod, { skipRefresh: true })
+        selectedCommentPeriod.value = commentPeriod.toFormat('yyyy-MM')
+        commentView.value = true
+    } else {
+        updateRouteQuery()
+    }
     refreshFinanceData()
     if (tutorialStore.state.active && tutorialStore.state.name.includes('project.details.finance')) {
         setTimeout(() => {

@@ -454,8 +454,8 @@ import { useDashboardStore } from '@/store/dashboard';
 
             // 休日（0/18）は労働も計上もしない（会社ルールで変えるならここ）
             if (isHolidayType(typeId)) {
-            holidayDays++
-            continue
+                holidayDays++
+                continue
             }
 
             // 勤務（valueがNULLの想定） => 基本労働時間
@@ -469,10 +469,16 @@ import { useDashboardStore } from '@/store/dashboard';
                 workMinutes += minutesPerDay.value
             } else {
                 // 有給/休暇系
-                paidLeaveMinutes += Number(typeValue) || 0
+                const leaveMinutes = Number(typeValue) || 0
+                paidLeaveMinutes += leaveMinutes
 
-                // 日数カウント（full_day の仕様が謎だけどあなたの表だと 2=1日, 1=半日, 0=時間休っぽい）
-                // ここは「表示用」に割り切って、分から日数換算も出す方が安全
+                // 全日休暇（480分）以外は残り時間を労働時間として計上
+                const remainingWorkMinutes = Math.max(0, minutesPerDay.value - leaveMinutes)
+                if (remainingWorkMinutes > 0) {
+                    workDays++
+                    workMinutes += remainingWorkMinutes
+                }
+
                 if (type?.full_day === 2) paidLeaveDays += 1
                 else if (type?.full_day === 1) paidLeaveDays += 0.5
                 // full_day 0 は日数カウントしない（時間休）

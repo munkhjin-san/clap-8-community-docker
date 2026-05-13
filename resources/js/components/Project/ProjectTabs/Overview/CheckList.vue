@@ -16,6 +16,7 @@
                 <div
                     v-for="(items, category) in groupedCheckitems"
                     :key="category"
+                    :id="categoryAnchorId(category)"
                     class="border border-solid border-[var(--calendarBorder)] mb-5 bg-[var(--background-color)] rounded-md overflow-hidden"
                 >
                     <div :class="[{'border-b [border-bottom-style:solid] border-[var(--calendarBorder)]' : expanded[category]}, 'flex items-center p-4 bg-[var(--background-color)]']">
@@ -201,7 +202,7 @@
 <script lang="ts" setup>
 import { useProject } from '@/composables/project';
 import MessageArea from '../../MessageArea.vue';
-import { computed, onMounted, ref, watchEffect } from 'vue';
+import { computed, nextTick, ref, watchEffect } from 'vue';
 import { ProjectCheckItem } from '@/interface/projectInterface';
 import { useApi } from '@/composables/api';
 import { useAuthUserStore } from '@/store/auth';
@@ -218,6 +219,7 @@ import { useDashboardStore } from '@/store/dashboard';
 const { selectedProject, updateProject, readProjectMessage } = useProject()
 const api = useApi()
 const auth = useAuthUserStore()
+const route = useRoute()
 const { ping } = useDialog()
 const seen = ref<Record<string, number>>({})
 const emit = defineEmits<{
@@ -233,6 +235,8 @@ const passingData = {
     file_path: 'project_checkitem_report_files'
 }
 const expanded = ref<Record<string, boolean>>({})
+const openedQueryCategory = ref<string | null>(null)
+const categoryAnchorId = (category: string) => `checkitem-comment-${encodeURIComponent(category)}`
 const activeSpecCategoryIds = computed<Set<number> | null>(() =>
     getProjectCreationActiveCategoryIds(selectedProject.value?.specs?.spec_data)
 )
@@ -261,6 +265,19 @@ watchEffect(() => {
             expanded.value[key] = false
         }
     }
+
+    const targetCategory = typeof route.query.comment_type === 'string' ? route.query.comment_type : ''
+    if (!targetCategory || openedQueryCategory.value === targetCategory || !groupedCheckitems.value[targetCategory]) return
+
+    openedQueryCategory.value = targetCategory
+    expanded.value[targetCategory] = true
+    nextTick(() => {
+        document.getElementById(categoryAnchorId(targetCategory))?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+        })
+        readProjectMessage(targetCategory)
+    })
 })
 const toggleCategory = (category: string) => {
     expanded.value[category] = !expanded.value[category]
@@ -345,7 +362,6 @@ const toggleCheck = async (it: ProjectCheckItem, nextStatus: 'pending' | 'done' 
 }
 const { getBatchDashboardData } = useDashboardStore()
 const badge = useBadgeStore()
-const route = useRoute()
 const confirm = async(status: string) => {
     await api.patch('/project_change_status', {
         status: status,
