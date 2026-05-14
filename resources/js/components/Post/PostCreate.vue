@@ -89,7 +89,7 @@
                 /> -->
                 <LoaderButton class="!m-0" :content="loading ? '生成中...' : '自動生成'" :loading="loading" @triggered="execute">
                     <template #icon>
-                        <AiIcon size="20" fill="var(--background-color)" class="mr-3"/>
+                        <AiIcon size="20" fill="#fff" class="mr-3"/>
                     </template>
                 </LoaderButton>
                 <div v-if="loading" class="ai-generation-loader" role="status" aria-live="polite">
@@ -787,7 +787,7 @@ import AiIcon from '../Icons/AiIcon.vue'
             mini: mini.value
         }
 
-        const data = await api.post('post_add_record', params, {
+        const data = await api.post('/post_add_record', params, {
             toast: props.editTarget ? '編集しました。' : '投稿しました。',
             loadingRef: processing,
             
