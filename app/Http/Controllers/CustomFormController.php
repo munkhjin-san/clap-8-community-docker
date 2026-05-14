@@ -507,7 +507,7 @@ class CustomFormController extends Controller
     private function generatePublicToken(): string
     {
         do {
-            $token = Str::random(40);
+            $token = rtrim(strtr(base64_encode(random_bytes(16)), '+/', '-_'), '=');
         } while (CustomForm::where('public_token', $token)->exists());
 
         return $token;
