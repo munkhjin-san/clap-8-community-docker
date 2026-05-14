@@ -119,7 +119,11 @@
                 </div>
             </div>
             <div v-show="step == 2" class="h-full">            
-                <div class="reserve-table-wrapper"> 
+                <div
+                    ref="reserveTableWrapper"
+                    class="reserve-table-wrapper"
+                    :class="{ 'drag-scroll-enabled': reserveView === 'memberTime', 'is-dragging': isReserveDragging }"
+                > 
                     <Transition name="modalFade">
                         <div class="absolute w-full h-full left-0 top-0 bg-[var(--background-color)] opacity-50 z-[3]" v-if="searching">
                             <div id="loaderMini">
@@ -127,11 +131,53 @@
                             </div>
                         </div>
                     </Transition>
-                    <div class="flex justify-center z-[15] min-h-[40px] sticky top-[0px] bg-[var(--background-color)]">
+                    <div class="reserve-table-toolbar">
                         <WeekPicker v-model="startDate"/>
+                        <div class="reserve-table-toolbar-sub">
+                            <div class="reserve-table-legend" aria-label="凡例">
+                                <div class="reserve-legend-item">
+                                    <span class="reserve-legend-swatch available"></span>
+                                    <span>予約可</span>
+                                </div>
+                                <div class="reserve-legend-item">
+                                    <span class="reserve-legend-swatch unavailable"></span>
+                                    <span>予約不可</span>
+                                </div>
+                                <div class="reserve-legend-item">
+                                    <span class="reserve-legend-swatch selected-available"></span>
+                                    <span>選択（予約可）</span>
+                                </div>
+                                <div class="reserve-legend-item">
+                                    <span class="reserve-legend-swatch selected-unavailable"></span>
+                                    <span>選択（予約不可含む）</span>
+                                </div>
+                            </div>
+                            <div class="reserve-view-switch" role="tablist" aria-label="表示切替">
+                                <label :class="{ active: reserveView === 'dayTime' }">
+                                    <input
+                                        v-model="reserveView"
+                                        class="custom-f-radio"
+                                        name="reserve-view"
+                                        type="radio"
+                                        value="dayTime"
+                                    >
+                                    日・時間
+                                </label>
+                                <label :class="{ active: reserveView === 'memberTime' }">
+                                    <input
+                                        v-model="reserveView"
+                                        class="custom-f-radio"
+                                        name="reserve-view"
+                                        type="radio"
+                                        value="memberTime"
+                                    >
+                                    メンバー・時間
+                                </label>
+                            </div>
+                        </div>
                     </div>
-                    <table class="temp-reserve-table">
-                        <thead class="sticky top-[40px] z-[10] bg-[var(--background-color)]">
+                    <table v-if="reserveView === 'dayTime'" class="temp-reserve-table">
+                        <thead class="sticky top-[70px] z-[10] bg-[var(--background-color)]">
                             <td class="!border-0 !w-[45px] !max-w-[45px]"></td>      
                             <DayHeader 
                                 v-for="(date) in Object.keys(blockData)" 
@@ -151,6 +197,68 @@
                                 @setHighlight="selectSlot"
                             />
                         </tbody>                    
+                    </table>
+                    <table
+                        v-else
+                        class="temp-reserve-table member-time-table"
+                        @mousedown="onReserveMouseDown"
+                    >
+                        <thead class="sticky top-[70px] z-[10] bg-[var(--background-color)]">
+                            <td class="member-time-date-cell member-time-label-header">日付</td>
+                            <td class="member-time-resource-cell member-time-label-header">メンバー</td>
+                            <td
+                                v-for="hour in hourColumns"
+                                :key="hour"
+                                class="member-time-hour-header"
+                            >
+                                {{ DateTime.fromFormat(hour, 'HH:mm').toFormat('H時') }}
+                            </td>
+                        </thead>
+                        <tbody>
+                            <template v-for="[date, dayData] in scheduleEntries" :key="date">
+                                <tr
+                                    v-for="(resource, resourceIndex) in reserveResources"
+                                    :key="`${date}-${resource.key}`"
+                                >
+                                    <td
+                                        v-if="resourceIndex === 0"
+                                        :rowspan="reserveResources.length"
+                                        class="member-time-date-cell no-hover cursor-default"
+                                        :title="dayTitle(date)"
+                                        :class="dayClass(date)"
+                                    >
+                                        <div>{{ DateTime.fromISO(date).toFormat('ccc') }}</div>
+                                        <div class="mt-[5px]">{{ DateTime.fromISO(date).toFormat('d日') }}</div>
+                                    </td>
+                                    <td class="member-time-resource-cell">
+                                        <div class="member-time-resource-name" :title="resource.label">
+                                            {{ resource.label }}
+                                        </div>
+                                    </td>
+                                    <td
+                                        v-for="hour in hourColumns"
+                                        :key="`${date}-${resource.key}-${hour}`"
+                                        class="member-time-hour-cell"
+                                    >
+                                        <div class="member-time-quarter-grid">
+                                            <button
+                                                v-for="quarter in quarterHours(hour)"
+                                                :key="`${date}-${resource.key}-${quarter}`"
+                                                type="button"
+                                                class="member-time-quarter"
+                                                :class="{
+                                                    'unavailable-slot': isResourceUnavailable(dayData, resource.key, quarter),
+                                                    highlighted: highlightedStartForQuarter(date, quarter) !== null,
+                                                    'highlighted-unavailable': highlightedStartForQuarter(date, quarter) !== null && slotIncludesUnavailable(date, highlightedStartForQuarter(date, quarter) ?? quarter)
+                                                }"
+                                                :title="`${resource.label} ${DateTime.fromISO(date).toFormat('M/d')} ${quarter}`"
+                                                @click="handleMemberTimeSlotClick(dayData, quarter, date)"
+                                            ></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
                     </table>
                 </div>    
                 <div class="mt-[25px]">
@@ -201,7 +309,7 @@
 import Modal from '@/components/Global/Modal.vue';
 import MemberSelector from '../Form/MemberSelector.vue';
 import GroupSelector from '../Form/GroupSelector.vue';
-import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import LoaderButton from '../Global/LoaderButton.vue';
 import { User } from '@/interface/globalInterface';
 import ShortInput from '../Form/ShortInput.vue';
@@ -239,6 +347,11 @@ const selectedZoom = ref<number| null>(null)
 const buffer = ref(0)
 const saving = ref(false)
 const step = ref(1)
+const reserveView = ref<'dayTime' | 'memberTime'>('dayTime')
+const reserveTableWrapper = useTemplateRef('reserveTableWrapper')
+const reserveCursorPos = ref([0, 0])
+const isReserveDragging = ref(false)
+const hasReserveDragged = ref(false)
 const title = ref('')
 const content = ref('')
 const bufferOptions = [
@@ -286,6 +399,10 @@ const confirmDetail = useTemplateRef('confirmDetail')
 onMounted(async() => {
     facilites.value = await api.get('/all_facility_items')
 })
+onUnmounted(() => {
+    window.removeEventListener('mousemove', onReserveMouseHold)
+    window.removeEventListener('mouseup', onReserveMouseUp)
+})
 const bodyStyle = computed(() => {
     if(step.value == 2){
         return 'height: calc(100% - 110px); overflow:hidden;'
@@ -332,6 +449,177 @@ const hourOfDay = computed(() => {
 
     return hours
 })
+
+const hourColumns = computed(() => {
+    const hours: string[] = []
+    const start = DateTime.fromObject({ hour: 7, minute: 0 })
+    const end = DateTime.fromObject({ hour: 20, minute: 0 })
+    if (!start.isValid || !end.isValid) {
+        return hours
+    }
+    let current = start
+
+    while (current <= end) {
+        hours.push(current.toFormat('HH:mm'))
+        current = current.plus({ hours: 1 })
+    }
+
+    return hours
+})
+
+const scheduleEntries = computed((): [string, DailySchedule][] => Object.entries(blockData.value))
+
+const reserveResources = computed(() => {
+    const users = targetUsers.value
+        .filter((user): user is User => user !== null && user !== undefined)
+        .map(user => ({
+            key: user.name ?? '',
+            label: user.name ?? '名称未設定'
+        }))
+        .filter(resource => resource.key !== '')
+
+    const resources = [...users]
+
+    if (selectedRoom.value !== null) {
+        const room = facilites.value.qualified_institution.find(f => f.value === selectedRoom.value)
+        resources.push({
+            key: `room_${selectedRoom.value}`,
+            label: room?.label ?? '施設'
+        })
+    }
+
+    if (selectedZoom.value !== null) {
+        const zoom = facilites.value.zoom_value.find(f => f.value === selectedZoom.value)
+        resources.push({
+            key: `zoom_${selectedZoom.value + 1}`,
+            label: zoom?.label ?? 'WEB会議'
+        })
+    }
+
+    return resources
+})
+
+const quarterHours = (hour: string) => {
+    const start = DateTime.fromFormat(hour, 'HH:mm')
+    if (!start.isValid) {
+        return []
+    }
+    return Array.from({ length: 4 }, (_, index) => start.plus({ minutes: index * 15 }).toFormat('HH:mm'))
+}
+
+const isResourceUnavailable = (dayData: DailySchedule, resourceKey: string, hour: string) => {
+    return dayData[hour]?.[resourceKey] === false
+}
+
+const onReserveMouseDown = (event: MouseEvent) => {
+    if (event.button !== 0) {
+        return
+    }
+
+    reserveCursorPos.value = [event.pageX, event.pageY]
+    isReserveDragging.value = true
+    hasReserveDragged.value = false
+    window.addEventListener('mousemove', onReserveMouseHold)
+    window.addEventListener('mouseup', onReserveMouseUp)
+}
+
+const onReserveMouseUp = () => {
+    isReserveDragging.value = false
+    window.removeEventListener('mousemove', onReserveMouseHold)
+    window.removeEventListener('mouseup', onReserveMouseUp)
+    window.setTimeout(() => {
+        hasReserveDragged.value = false
+    }, 0)
+}
+
+const onReserveMouseHold = (event: MouseEvent) => {
+    const delta = [
+        event.pageX - reserveCursorPos.value[0],
+        event.pageY - reserveCursorPos.value[1],
+    ]
+
+    if (Math.abs(delta[0]) > 2 || Math.abs(delta[1]) > 2) {
+        hasReserveDragged.value = true
+    }
+
+    reserveCursorPos.value = [event.pageX, event.pageY]
+    if (!reserveTableWrapper.value || Math.abs(delta[0]) === 0) {
+        return
+    }
+
+    event.preventDefault()
+    requestAnimationFrame(() => {
+        reserveTableWrapper.value?.scrollBy({
+            left: -delta[0],
+        })
+    })
+}
+
+const handleMemberTimeSlotClick = (dayData: DailySchedule, hour: string, date: string) => {
+    if (hasReserveDragged.value) {
+        return
+    }
+    selectSlot(dayData, hour, date)
+}
+
+const highlightedStartForQuarter = (date: string, hour: string) => {
+    const quarterInstance = DateTime.fromFormat(`${date} ${hour}`, 'yyyy-MM-dd HH:mm')
+    if (!quarterInstance.isValid) {
+        return null
+    }
+
+    return tempHighlighted.value.find(highlightedSlot => {
+        const highlightedInstance = DateTime.fromFormat(highlightedSlot, 'yyyy-MM-dd HH:mm')
+        if (!highlightedInstance.isValid || highlightedInstance.toISODate() !== date) {
+            return false
+        }
+
+        const highlightedEnd = highlightedInstance.plus({ hours: duration.value.hour, minutes: duration.value.minute })
+        return quarterInstance >= highlightedInstance && quarterInstance < highlightedEnd
+    })?.split(' ')[1] ?? null
+}
+
+const slotIncludesUnavailable = (date: string, hour: string) => {
+    const startPoint = DateTime.fromISO(date).set({
+        hour: parseInt(hour.split(':')[0]),
+        minute: parseInt(hour.split(':')[1])
+    })
+    const endPoint = startPoint.plus({ hours: duration.value.hour, minutes: duration.value.minute }).minus({ minutes: 15 })
+
+    if (!startPoint.isValid || !endPoint.isValid) {
+        return false
+    }
+
+    let cursor = startPoint
+    while (cursor <= endPoint) {
+        const hourKey = cursor.toFormat('HH:mm')
+        const data = blockData.value[date]?.[hourKey]
+        if (data && Object.values(data).some((value) => value === false)) {
+            return true
+        }
+        cursor = cursor.plus({ minutes: 15 })
+    }
+
+    return false
+}
+
+const holidayName = (date: string) => {
+    return holidays.value.find(h => DateTime.fromJSDate(h.date).toISODate() === date)?.name ?? ''
+}
+
+const dayTitle = (date: string) => {
+    const dateInstance = DateTime.fromISO(date)
+    return `${dateInstance.toFormat('yyyy年M月d日')} (${dateInstance.toFormat('ccc')}) ${holidayName(date)}`
+}
+
+const dayClass = (date: string) => {
+    const dateInstance = DateTime.fromISO(date)
+    return {
+        isSaturday: dateInstance.weekday === 6,
+        'special-day': dateInstance.weekday === 7 || holidayName(date),
+        'cal-todayTitle': dateInstance.hasSame(DateTime.now(), 'day')
+    }
+}
 const search = async () => {
 
     if (!validateDate()) {
@@ -567,13 +855,208 @@ const saveBufferTime = () => {
     }
 }
 
+.reserve-table-toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 15;
+    min-height: 70px;
+    width: calc(100% - 60px);
+    background-color: var(--background-color);
+    padding: 0 30px;
+}
+
+.reserve-table-toolbar-sub {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    width: 100%;
+    min-height: 30px;
+    padding: 0 15px;
+    box-sizing: border-box;
+    margin-top: 10px;
+}
+
+.reserve-table-legend {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.reserve-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.reserve-legend-swatch {
+    display: block;
+    width: 14px;
+    height: 14px;
+    border: solid thin var(--calendarBorder);
+    box-sizing: border-box;
+
+    &.available {
+        background-color: var(--background-color);
+    }
+
+    &.unavailable {
+        background-color: var(--past-calendar);
+    }
+
+    &.selected-available {
+        background-color: var(--link-color);
+    }
+
+    &.selected-unavailable {
+        background-color: tomato;
+    }
+}
+
+.reserve-view-switch {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 12px;
+
+    label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 28px;
+        padding: 0;
+        font-size: 12px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+
+        
+    }
+}
+
+.member-time-table {
+    width: 100%;
+    min-width: 1096px;
+    table-layout: fixed;    
+    box-sizing: border-box;
+    thead{
+        td{
+            border-top: solid thin var(--calendarBorder);
+        }
+    }
+
+    .member-time-date-cell {
+        position: sticky;
+        left: 0;
+        z-index: 6;
+        width: 60px;
+        min-width: 60px;
+        max-width: 60px;
+        border-bottom: solid thin var(--calendarBorder);
+        font-size: 12px;
+        background-color: var(--background-color);
+        box-shadow: inset 1px 0 0 var(--calendarBorder);
+    }
+
+    .member-time-date-cell.cal-todayTitle {
+        background: #C5AF72;
+    }
+
+    .member-time-resource-cell {
+        position: sticky;
+        left: 60px;
+        z-index: 6;
+        width: 140px;
+        min-width: 140px;
+        max-width: 140px;
+        padding: 0 8px;
+        border-bottom: solid thin var(--calendarBorder);
+        font-size: 12px;
+        text-align: left;
+        background-color: var(--background-color);
+    }
+
+    .member-time-label-header {
+        z-index: 12;
+        height: 38px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: normal;
+        background-color: var(--background-color);
+        border-bottom: solid thin var(--calendarBorder);
+    }
+
+    .member-time-resource-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .member-time-hour-header {
+        width: auto;
+        border-bottom: solid thin var(--calendarBorder);
+        font-size: 12px;
+    }
+
+    .member-time-hour-cell {
+        height: 28px;
+        padding: 0;
+        border-bottom: solid thin var(--calendarBorder);
+        overflow: hidden;
+    }
+
+    .member-time-quarter-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .member-time-quarter {
+        display: block;
+        width: 100%;
+        height: 100%;
+        min-height: 28px;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+
+        &.highlighted {
+            background-color: var(--link-color);
+        }
+
+        &.highlighted-unavailable {
+            background-color: tomato !important;
+        }
+    }
+}
+
 .reserve-table-wrapper {
     position: relative;
-    width: calc(100% + 30px);
-    margin-left: -15px;
-    margin-right: -15px;
-    height: calc(100% - 55px);
+    width: calc(100% + 60px);
+    margin-left: -30px;
+    margin-right: -30px;
+    height: calc(100% - 70px);
     overflow-y: auto;
+    overflow-x: auto;
+
+    &.drag-scroll-enabled {
+        cursor: grab;
+        width: 100%;
+        margin: 0;
+    }
+
+    &.is-dragging {
+        cursor: grabbing;
+        user-select: none;
+    }
 }
 @media screen and (max-width: 959px) {
     .temp-reserve-table {
@@ -593,6 +1076,23 @@ const saveBufferTime = () => {
         width: calc(100% + 60px);
         margin-left: -30px;
         margin-right: -30px;
+    }
+    .reserve-table-toolbar {
+        justify-content: flex-start;
+        padding-left: 30px;
+        padding-right: 30px;
+    }
+    .reserve-table-toolbar-sub {
+        padding: 0;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .reserve-table-legend {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .reserve-view-switch {
+        margin-left: auto;
     }
 }
 
