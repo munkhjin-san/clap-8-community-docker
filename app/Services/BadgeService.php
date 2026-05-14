@@ -18,11 +18,32 @@ use App\Models\CustomfieldRead;
 use App\Models\ProjectRecordReadState;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Carbon\Carbon;
 
 final class BadgeService
 {
+    private const BADGE_SUMMARY_VERSION_KEY = 'badge_summary:version';
+
+    public function badgeSummaryCacheKey(User $user): string
+    {
+        $version = Cache::get(self::BADGE_SUMMARY_VERSION_KEY, 1);
+
+        return "badge_summary:v{$version}:user:{$user->id}";
+    }
+
+    public function invalidateBadgeSummaryCache(): void
+    {
+        Cache::add(self::BADGE_SUMMARY_VERSION_KEY, 1);
+        Cache::increment(self::BADGE_SUMMARY_VERSION_KEY);
+    }
+
+    public function forgetBadgeSummaryForUser(User $user): void
+    {
+        Cache::forget($this->badgeSummaryCacheKey($user));
+    }
+
     public function goalIssueComment(User $user) {
         $goal_badge_count = ProjectMemberReportNotification::where('target_user_id', $user->id)
             ->get();
@@ -34,7 +55,7 @@ final class BadgeService
 
             $created = PostRecord::where('created_at', '>', $list->updated_at ?? now())->count();
            
-            $changed = PostRecord::where(function($q) use($list) {
+            $changedPosts = PostRecord::where(function($q) use($list) {
                 $q->where('app_type', 2)
                 ->where('updated_at', '>', $list->updated_at ?? now());
             })
@@ -45,17 +66,18 @@ final class BadgeService
                     $q->where('users.id', $user->id);
                 });
             }) 
-            ->pluck('id')->toArray();
+            ->get(['id', 'title']);
+            $changed = $changedPosts->pluck('id')->toArray();
 
-            $progress_reports = PostRecord::where('app_type', 2)
+            $progressReportPosts = PostRecord::where('app_type', 2)
                 ->whereHas('awards', function($q) use($user){
                     $q->where('users.id', $user->id);
                 })
                 ->whereHas('progressReports', function($q) use($list){
                     $q->where('created_at', '>', $list->updated_at ?? now());
                 })
-                ->pluck('id')
-                ->toArray();
+                ->get(['id', 'title']);
+            $progress_reports = $progressReportPosts->pluck('id')->toArray();
 
             $date = Carbon::now()->startOfDay();
             $targetEnd = $date->copy()->addDays(8);
@@ -82,18 +104,33 @@ final class BadgeService
             $showBadge = $exists && (optional($list->updated_at)->toDateString() !== $date->toDateString());
             
             if ($showBadge) {
-                $last_chargeable = $query->pluck('id')->toArray();
+                $lastChargeablePosts = $query->get(['id', 'title']);
+                $last_chargeable = $lastChargeablePosts->pluck('id')->toArray();
+            } else {
+                $lastChargeablePosts = collect();
             }
             
             $result = [
                 'created' => $created,
                 'changed' => count($changed),
                 'changed_ids' => $changed,
+                'changed_items' => $changedPosts->map(fn ($post) => [
+                    'id' => $post->id,
+                    'title' => $post->title,
+                ])->values(),
                 'progress_report' => count($progress_reports),
                 'progress_report_ids' => $progress_reports,
+                'progress_report_items' => $progressReportPosts->map(fn ($post) => [
+                    'id' => $post->id,
+                    'title' => $post->title,
+                ])->values(),
                 'last_chargeable' => count($last_chargeable),
                 'last_chargeable_ids' => $last_chargeable,
-            ];       
+                'last_chargeable_items' => $lastChargeablePosts->map(fn ($post) => [
+                    'id' => $post->id,
+                    'title' => $post->title,
+                ])->values(),
+            ];      
             
 
             return $result;

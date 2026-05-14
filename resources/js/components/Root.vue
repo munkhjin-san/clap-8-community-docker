@@ -50,7 +50,9 @@
         <LunchChallengePopup
             :visible="lunchChallengeVisible"
             :challenge="lunchChallengeData"
+            :loading="lunchChallengeLoading"
             @close="closeLunchChallenge"
+            @reload="refreshLunchChallenge"
         />
         <OverRide/>
         <Transition name="footerPop">
@@ -106,6 +108,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
     const switchLoader = ref(false)
     const lunchChallengeVisible = ref(false)
     const lunchChallengePolling = ref(false)
+    const lunchChallengeLoading = ref(false)
     const lunchChallengeData = ref(null)
     const LUNCH_CHALLENGE_ZONE = 'Asia/Tokyo'
 
@@ -536,6 +539,32 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
 
         return now >= start && now <= end
     }
+    const refreshLunchChallenge = async() => {
+        if (lunchChallengeLoading.value) return
+
+        lunchChallengeLoading.value = true
+
+        const data = await callLunchChallengeApi(true)
+        if (data?.show_popup && data?.generated_challenge) {
+            lunchChallengeData.value = data.generated_challenge
+        }
+
+        if (!data?.pending) {
+            lunchChallengeLoading.value = false
+        }
+    }
+    const callLunchChallengeApi = async(refresh = false) => {
+        try {
+            const { data } = await axios.get('/lunch_challenge_popup', {
+                params: refresh ? { refresh: 1 } : {}
+            })
+            return data
+        } catch (error) {
+            console.error('[lunch challenge] failed to call API', error)
+            lunchChallengeLoading.value = false
+            return null
+        }
+    }
     const maybeCheckLunchChallenge = async() => {
         if (!props.auth_user?.id || lunchChallengeVisible.value || lunchChallengePolling.value || !isLunchChallengeWindow()) return
 
@@ -545,7 +574,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         lunchChallengePolling.value = true
 
         try {
-            const { data } = await axios.get('/lunch_challenge_popup')
+            const data = await callLunchChallengeApi()
             const responseDateKey = data?.challenge_date || dateKey
 
             if (!data?.within_lunch_window) return
@@ -573,11 +602,13 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
         if (!challenge) return
         const dateKey = lunchChallengeDateKey()
         if (hasLunchChallengeFlag('dismissed', dateKey)) return
+        lunchChallengeLoading.value = false
         lunchChallengeData.value = challenge?.generated_challenge ?? challenge
         lunchChallengeVisible.value = true
     }
     const closeLunchChallenge = () => {
         lunchChallengeVisible.value = false
+        lunchChallengeLoading.value = false
         setLunchChallengeFlag('dismissed')
     }
     

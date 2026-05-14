@@ -1,7 +1,7 @@
 <template>
     <BaseLayout
         :title="data.title" 
-        :count="0"
+        :count="data.data.temp_schedules.length"
         :fullscreen="fullscreen" 
         :type="data.type" 
         :can-resize="data.canResize"

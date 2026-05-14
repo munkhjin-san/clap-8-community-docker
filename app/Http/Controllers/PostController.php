@@ -406,6 +406,7 @@ class PostController extends Controller
             $record->save();
             $user = Auth::user();
             $user->user_last_record()->firstOrCreate()->touch();
+            $this->badgeService->invalidateBadgeSummaryCache();
             if($request->app_type == 2 || $request->app_type == 0){
                 $record->to_users()->sync($request->to_users);
             }           
@@ -453,6 +454,7 @@ class PostController extends Controller
         $record = PostRecord::findOrFail($request->record_id);
         $record->awards()->attach(Auth::id(), ['award_bet' => $request->charge_bet, 'created_at' => now(), 'updated_at' => now()]);
         Auth::user()->update(['award_charge' => Auth::user()->award_charge - $request->charge_bet]);
+        $this->badgeService->invalidateBadgeSummaryCache();
         return response()->json();        
 
     }
@@ -510,6 +512,9 @@ class PostController extends Controller
         $comment->user_id = Auth::id();
         $comment->emoji_flag = $this->containsOnlyEmojis($request->message);
         $comment->save();
+        if ($request->app_name === 'post' && $comment->comment_type === 'progress_report') {
+            $this->badgeService->invalidateBadgeSummaryCache();
+        }
 
         $nameSpace = '\\App\\Models\\'; 
         $model_name = $request->app_name  == 'post_entry' ? 'PostEntry' : ucfirst($request->app_name). 'Record';
@@ -663,6 +668,7 @@ class PostController extends Controller
         $record->save();
         $user = Auth::user();
         $user->user_last_record()->firstOrCreate()->touch();
+        $this->badgeService->invalidateBadgeSummaryCache();
         PostStatusChangeNotification::dispatch($record, [Auth::id()]);
         
         return response()->json($record);  
@@ -683,9 +689,20 @@ class PostController extends Controller
         $auth_user = Auth::user();
         if(!empty($auth_user)){
             $auth_user->user_last_record()->firstOrCreate()->touch();
-            $update = $this->badgeService->post($auth_user);
-            return $update;         
+            $this->badgeService->forgetBadgeSummaryForUser($auth_user);
             
+            return [
+                'created' => 0,
+                'changed' => 0,
+                'changed_ids' => [],
+                'changed_items' => [],
+                'progress_report' => 0,
+                'progress_report_ids' => [],
+                'progress_report_items' => [],
+                'last_chargeable' => 0,
+                'last_chargeable_ids' => [],
+                'last_chargeable_items' => [],
+            ];       
         }
         
     }

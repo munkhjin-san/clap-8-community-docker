@@ -502,12 +502,11 @@ TXT
         return response()->json($json);
     }
 
-    public function lunch_challenge_popup()
+    public function lunch_challenge_popup(Request $request)
     {
         $user = Auth::user();
         $now = now()->timezone(config('app.timezone'));
         $dateKey = $now->toDateString();
-
         if (! $user) {
             return response()->json([
                 'show_popup' => false,
@@ -517,6 +516,7 @@ TXT
                 'challenge_date' => $dateKey,
             ], 401);
         }
+        $refresh = $request->boolean('refresh');
 
         if ((! $this->isLunchChallengeWindow($now)) || ! $this->isLunchChallengeEligibleUser($user)) {
             return response()->json([
@@ -542,6 +542,12 @@ TXT
 
         $challengeCacheKey = $this->lunchChallengePayloadCacheKey($dateKey, $user->id);
         $pendingCacheKey = $this->lunchChallengePendingCacheKey($dateKey, $user->id);
+
+        if ($refresh) {
+            Cache::forget($challengeCacheKey);
+            Cache::forget($pendingCacheKey);
+        }
+
         $cachedChallenge = Cache::get($challengeCacheKey);
 
         if (is_array($cachedChallenge)) {

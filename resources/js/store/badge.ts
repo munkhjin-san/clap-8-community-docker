@@ -3,16 +3,28 @@ import { useAuthUserStore } from "./auth";
 import axios from "axios";
 import { ref, computed } from "vue";
 
+type PostBadgeItem = {
+    id: number
+    title: string | null
+}
+
+type PostNoticeType = 'changed' | 'progress_report' | 'last_chargeable'
+
+type PostNoticeItems = Record<PostNoticeType, PostBadgeItem[]>
+
 interface State {
     board: any[]
     post: {
         changed: number,
         created: number,
         changed_ids: number[],
+        changed_items: PostBadgeItem[],
         progress_report: number,
         progress_report_ids: number[],
+        progress_report_items: PostBadgeItem[],
         last_chargeable: number,
         last_chargeable_ids: number[],
+        last_chargeable_items: PostBadgeItem[],
     }
     task: number[]
     members_goals: any[]
@@ -47,6 +59,11 @@ interface State {
     }
 }
 const BOARD_BADGE_CACHE_MS = 2000;
+const emptyPostNoticeItems = (): PostNoticeItems => ({
+    changed: [],
+    progress_report: [],
+    last_chargeable: [],
+});
 
 export const useBadgeStore = defineStore('badge', () => {
     // State
@@ -55,11 +72,15 @@ export const useBadgeStore = defineStore('badge', () => {
         changed: 0,
         created: 0,
         changed_ids: [] as number[],
+        changed_items: [] as PostBadgeItem[],
         progress_report: 0,
         progress_report_ids: [] as number[],
+        progress_report_items: [] as PostBadgeItem[],
         last_chargeable: 0,
         last_chargeable_ids: [] as number[],
+        last_chargeable_items: [] as PostBadgeItem[],
     });
+    const postNoticeItems = ref<PostNoticeItems>(emptyPostNoticeItems());
     const task = ref<number[]>([]);
     const notice = ref(0);
     const members_goals = ref<any[]>([]);
@@ -88,7 +109,35 @@ export const useBadgeStore = defineStore('badge', () => {
 
     async function updatePostBadge(which: string) {
         const response = await axios.patch('/post_badge', {which: which});
+        mergePostNoticeItems(post.value);
+        mergePostNoticeItems(response.data);
         post.value = response.data;
+    }
+    function mergePostNoticeItems(payload: Partial<{
+        changed_items: PostBadgeItem[],
+        progress_report_items: PostBadgeItem[],
+        last_chargeable_items: PostBadgeItem[],
+    }>) {
+        const sources: Record<PostNoticeType, PostBadgeItem[] | undefined> = {
+            changed: payload.changed_items,
+            progress_report: payload.progress_report_items,
+            last_chargeable: payload.last_chargeable_items,
+        };
+
+        (Object.keys(sources) as PostNoticeType[]).forEach(type => {
+            const incoming = sources[type] ?? [];
+            if (!incoming.length) return;
+
+            const existing = new Map(postNoticeItems.value[type].map(item => [item.id, item]));
+            incoming.forEach(item => existing.set(item.id, item));
+            postNoticeItems.value[type] = Array.from(existing.values());
+        });
+    }
+    function clearPostNoticeItem(type: PostNoticeType, id: number) {
+        postNoticeItems.value[type] = postNoticeItems.value[type].filter(item => item.id !== id);
+    }
+    function clearPostNoticeItems() {
+        postNoticeItems.value = emptyPostNoticeItems();
     }
 
     async function getNoticeBadge() {
@@ -181,6 +230,7 @@ export const useBadgeStore = defineStore('badge', () => {
     async function getbadgeSummary() {
         const data = await axios.get('/badge_summary').then(response => response.data);
         goal_issue_comment.value = data.goal_issue_comment;
+        mergePostNoticeItems(data.post);
         post.value = data.post;
         members_goals.value = data.members_goals;
         managers_goals.value = data.managers_goals;
@@ -372,6 +422,7 @@ export const useBadgeStore = defineStore('badge', () => {
         // State
         board,
         post,
+        postNoticeItems,
         task,
         notice,
         members_goals,
@@ -390,6 +441,8 @@ export const useBadgeStore = defineStore('badge', () => {
         setTaskBadge,
         getGoalIssueCommentBadge,
         updatePostBadge,
+        clearPostNoticeItem,
+        clearPostNoticeItems,
         getNoticeBadge,
         getBoardBadge,
         updateBoardBadge,

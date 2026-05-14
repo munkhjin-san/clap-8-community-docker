@@ -1048,16 +1048,19 @@ class RemindController extends Controller
     public function badge_summary()
     {
         $user = $this->active_user();
-        $cacheKey = "badge_summary:user:{$user->id}";
+        $cacheKey = $this->badgeService->badgeSummaryCacheKey($user);
         $ttl     = 60;
         $post_result = [
             'created' => 0,
             'changed' => 0,
             'changed_ids' => [],
+            'changed_items' => [],
             'progress_report' => 0,
             'progress_report_ids' => [],
+            'progress_report_items' => [],
             'last_chargeable' => 0,
             'last_chargeable_ids' => [],
+            'last_chargeable_items' => [],
         ]; 
         $data = Cache::remember($cacheKey, $ttl, function () use ($user, $post_result) {
             return [

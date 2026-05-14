@@ -24,7 +24,22 @@
                 </div>
                 
                 <div class="lunch-challenge-modal-wrapper">
-                    <div @click="createChallenge(challenge)" class="lunch-challenge-modal" v-for="challenge in challenge.generated_challenges" @click.stop>
+                    <div v-if="loading" class="lunch-challenge-loading" role="status" aria-live="polite">
+                        <div
+                            v-for="index in 3"
+                            :key="index"
+                            class="lunch-challenge-skeleton"
+                        >
+                            <span></span>
+                        </div>
+                    </div>
+                    <div
+                        v-else
+                        @click.stop="createChallenge(challenge)"
+                        class="lunch-challenge-modal"
+                        v-for="challenge in challengeItems"
+                        :key="challenge.title"
+                    >
                         <!-- <div class="lunch-challenge-header">
                             <div>
                                 <p class="text-[18px]">チャレンジしてみませんか？</p>
@@ -62,8 +77,27 @@
                             @post-finish="finishPopup"
                         />
                 </div>
-                
-                
+                <div
+                    @click="requestReload"
+                    class="p-2 rounded-full bg-[var(--bg3)] w-fit ml-auto cursor-pointer"
+                    :class="{ 'is-loading': loading }"
+                    title="再生"
+                >
+                    <div
+                        v-if="loading"
+                        class="spinner-nano"
+                    ></div>
+                    <svg
+                        v-else
+                        fill="var(--primary-color)"
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="15"
+                        height="15"
+                        viewBox="0 0 406.7002 448.97456"
+                    >
+                        <path d="M269.42244,400.48149c89.40405-38.52608,127.74738-143.45953,84.52156-230.37382-4.00132-8.04547-.26147-17.82743,7.09537-22.04708,7.4958-4.29935,18.71269-3.19281,23.2254,5.40907,20.95447,39.94219,27.1756,85.82814,18.89384,129.76056-19.02756,100.93584-110.71041,171.77738-212.55189,165.33852C89.88917,442.20092,8.2668,362.26379.5443,261.0774c-2.28189-29.8992,2.63636-63.24923,14.27731-91.50091,25.44743-61.75894,78.66763-107.53931,144.41752-122.44033l-19.58257-16.43668c-7.42992-6.23632-8.21032-17.1677-2.31285-24.29177,6.18069-7.46619,16.86033-8.68422,24.91843-2.18939l51.8508,41.79173c6.84966,5.52083,8.93392,15.44934,4.04718,22.84488l-36.39742,55.08348c-5.60688,8.48539-17.40599,9.55259-24.3728,4.29712-8.40154-6.33776-9.11161-16.578-3.67234-25.07838l13.93379-21.77543c-31.98287,6.59331-59.7407,22.17515-82.69216,44.87814-41.19269,40.74673-58.67726,98.6188-45.74298,156.9487,11.22378,50.61602,47.48919,95.46628,97.6474,117.14014,41.87034,18.09258,90.2506,18.36429,132.55882.13279Z"/>
+                    </svg>
+                </div>
             </div>
         </div>
         
@@ -71,7 +105,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import PostCreate from '../Post/PostCreate.vue'
 import { DateTime } from 'luxon'
 import { useAuthUserStore } from '@/store/auth'
@@ -108,9 +142,14 @@ const challengeMessages = [
 const message = ref(
   challengeMessages[Math.floor(Math.random() * challengeMessages.length)]
 );
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'reload'])
 
 const createWindow = ref(false)
+const challengeItems = computed(() => {
+    return Array.isArray(props.challenge?.generated_challenges)
+        ? props.challenge.generated_challenges
+        : []
+})
 
 const imageVisible = ref(false)
 const auth = useAuthUserStore()
@@ -142,7 +181,12 @@ watch(
     }
 )
 
+const requestReload = () => {
+    if (props.loading) return
+    emit('reload')
+}
 const createChallenge = (challenge) => {
+    if (props.loading) return
     editTarget.value = {
         title: challenge.title,
         content_rule: challenge.content_rule,
@@ -275,8 +319,44 @@ const finishPopup = (flag, id) => {
     display: flex;
     flex-direction: column;
     gap: 20px;
-    
+    min-height: 76px;
     align-items: center;
+    justify-content: center;
+}
+.lunch-challenge-loading {
+    min-width: 292px;
+    min-height: 118px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+    justify-content: center;
+}
+.lunch-challenge-skeleton {
+    width: 292px;
+    min-height: 40px;
+    padding: 10px 20px;
+    border: 1px solid var(--formBorder);
+    box-sizing: border-box !important;
+    overflow: hidden;
+    position: relative;
+}
+.lunch-challenge-skeleton::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -60%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(134, 134, 134, 0.18), transparent);
+    animation: lunch-challenge-skeleton 1.15s ease-in-out infinite;
+}
+.lunch-challenge-skeleton span {
+    display: block;
+    width: 72%;
+    height: 12px;
+    margin-top: 3px;
+    background: var(--bg3);
 }
 .lunch-challenge-modal {
     
@@ -292,6 +372,14 @@ const finishPopup = (flag, id) => {
     background-color: var(--primary-color);
     cursor: pointer;
     color: var(--background-color);
+}
+.is-loading {
+    cursor: default;
+}
+@keyframes lunch-challenge-skeleton {
+    100% {
+        left: 100%;
+    }
 }
 .lunch-challenge-header {
     display: flex;

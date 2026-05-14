@@ -126,6 +126,24 @@
                     </div>
                 </template>
             </div>
+            <TransitionGroup
+                v-if="postNoticeRows.length"
+                name="slidePop"
+                tag="div"
+                class="post-notice-list"
+            >
+                <div
+                    v-for="notice in postNoticeRows"
+                    :key="`${notice.type}_${notice.id}`"
+                    class="post-notice-row"
+                >
+                    <span class="post-notice-title">{{ notice.title || 'タイトルなし' }}</span>
+                    <span class="post-notice-message">{{ notice.message }}</span>
+                    <div class="post-notice-link" type="button" @click="jumpToBadgePost(notice)">
+                        見に行く
+                    </div>
+                </div>
+            </TransitionGroup>
             
             <transition-group name="slidePop" tag="div" class="post-record-list" :class="{ 'post-record-list--refreshing': queryRefreshing }">
                 <PostRecord 
@@ -209,7 +227,7 @@ import Status from './Status.vue';
 import PostSearchWindow from './PostSearchWindow.vue'
 import PostIcon from './PostIcon.vue';
 import { computed, onMounted, ref, watch } from 'vue';
-import { LocationQueryValue, useRoute, useRouter } from 'vue-router'
+import { LocationQueryValue, onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { provide } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useResponsive } from '@/store/responsive';
@@ -224,6 +242,13 @@ import PostEntryCreate from './PostEntryCreate.vue';
 import PostEntryRanking from './PostEntryRanking.vue';
 import CloseIcon from '../Form/CloseIcon.vue';
 import { challengeCategories } from '@/utils/challengeCategory';
+type PostNoticeType = 'changed' | 'progress_report' | 'last_chargeable'
+type PostNoticeRow = {
+    id: number
+    title: string | null
+    type: PostNoticeType
+    message: string
+}
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
@@ -278,6 +303,23 @@ import { challengeCategories } from '@/utils/challengeCategory';
     const showCategoryFilter = computed(() => {
         return appName.value === 'challenge' || (appName.value === 'post' && getQuery.value?.app_type === '2')
     })
+    const postNoticeRows = computed<PostNoticeRow[]>(() => [
+        ...badge.postNoticeItems.progress_report.map(item => ({
+            ...item,
+            type: 'progress_report' as const,
+            message: '進捗報告が追加されました',
+        })),
+        ...badge.postNoticeItems.changed.map(item => ({
+            ...item,
+            type: 'changed' as const,
+            message: 'ステータスが変更されました',
+        })),
+        ...badge.postNoticeItems.last_chargeable.map(item => ({
+            ...item,
+            type: 'last_chargeable' as const,
+            message: 'チャージ最終日です',
+        })),
+    ])
     let feedRequestId = 0
     const buildCategoryPath = (main: string | null, sub: string | null = null): string => {
         const params = new URLSearchParams()
@@ -325,6 +367,11 @@ import { challengeCategories } from '@/utils/challengeCategory';
     })
     onUnmounted(() => {
         instance.off('post:new', postSocketHandler)
+    })
+    onBeforeRouteLeave((to) => {
+        if (to.name !== route.name) {
+            badge.clearPostNoticeItems()
+        }
     })
     watch(() => route.query.create, (value, oldValue) => {
         if(value && value !== oldValue){
@@ -465,6 +512,17 @@ import { challengeCategories } from '@/utils/challengeCategory';
         queryRefreshing.value = true
         feedRequestId += 1
         return fetchPosts(query, undefined, { reset: true, requestId: feedRequestId })
+    }
+    const jumpToBadgePost = (notice: PostNoticeRow) => {
+        badge.clearPostNoticeItem(notice.type, notice.id)
+
+        const query = {
+            ...route.query,
+            id: String(notice.id),
+        }
+        router.push({ name: appName.value, query })
+
+        fetchPosts({ ...getQuery.value, id: String(notice.id) }, notice.id)
     }
     const fetchPosts = async (
         query: Record<string, any>,
@@ -619,6 +677,47 @@ import { challengeCategories } from '@/utils/challengeCategory';
     opacity: 0.82;
 }
 
+.post-notice-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0px 20px;
+    background: var(--bg3);
+    padding: 10px;
+}
+
+.post-notice-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    max-width: 100%;
+    padding: 6px 10px;
+    font-size: 12px;
+}
+
+.post-notice-title {
+    max-width: min(360px, 46vw);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.post-notice-message {
+    color: var(--subText);
+    white-space: nowrap;
+}
+
+.post-notice-link {
+    color: var(--link-color);
+    cursor: pointer;
+    white-space: nowrap;
+}
+.post-notice-link:hover {
+  text-decoration: underline;
+  font-weight: 600;
+}
 .cat-filter-row {
     display: flex;
     flex-wrap: wrap;
@@ -712,6 +811,16 @@ import { challengeCategories } from '@/utils/challengeCategory';
 @media screen and (max-width: 959px) {
     .cat-filter-strip {
         padding: 8px 14px 4px;
+    }
+    .post-notice-list {
+        padding: 2px 14px 12px;
+    }
+    .post-notice-row {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    .post-notice-title {
+        max-width: 100%;
     }
 }
 @media screen and (max-width: 480px) {

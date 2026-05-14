@@ -1,7 +1,7 @@
 <template>
     <BaseLayout
         :title="data.title" 
-        :count="0" 
+        :count="actionCount"
         :fullscreen="fullscreen" 
         :type="data.type" 
         :can-resize="data.canResize"
@@ -107,7 +107,10 @@
                 </ExpansionGrid>
             </div>
             <div class="mt-3" v-if="data.data.departuresReportUsers && data.data.departuresReportUsers.length">
-                <p class="text-sm mb-3"><span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 mr-1 py-0.5">PM</span>出発報告状況</p>
+                <p class="text-sm mb-3">
+                    <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 mr-1 py-0.5">PM</span>
+                    出発報告状況
+                </p>
                 <div class="mx-3 mb-3 overflow-hidden w-fit flex flex-col gap-[10px] bg-[var(--background-color)]">
                     <div v-for="item in data.data.departuresReportUsers">
                         <div class="flex gap-[15px] text-[13px] items-center">
@@ -220,6 +223,20 @@ const router = useRouter()
 
 const dashboardStore = useDashboardStore();
 const auth = useAuthUserStore();
+const departureReportCount = computed(() => {
+    return props.data.data.departuresReportUsers.filter((user) => {
+        return user.shift_records?.some((shift: any) => !shift.departure_report)
+    }).length
+})
+
+const actionCount = computed(() => {
+    return (
+        (props.data.data.pendingAttendance ? 1 : 0) +
+        props.data.data.pendingPlannedLeaves.length +
+        departureReportCount.value +
+        props.data.data.pendingTimesheets.length
+    )
+})
 
 onMounted(() => {
     if(auth?.user?.user_code){
@@ -229,7 +246,7 @@ onMounted(() => {
     }
 })
 const nothingTodo = computed(() => {
-    return !props.data.data.pendingTimesheets.length && !props.data.data.departuresReportUsers.length && !props.data.data.pendingPlannedLeaves.length && !dashboardStore.annualLeaveData.planned_leaves_this_year.length && !dashboardStore.annualLeaveData.planned_leaves_last_year.length
+    return !props.data.data.pendingAttendance && !props.data.data.pendingTimesheets.length && !props.data.data.departuresReportUsers.length && !props.data.data.pendingPlannedLeaves.length && !dashboardStore.annualLeaveData.planned_leaves_this_year.length && !dashboardStore.annualLeaveData.planned_leaves_last_year.length
 })
 defineExpose({
     cardType: props.data.type,

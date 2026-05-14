@@ -1,7 +1,7 @@
 <template>
     <BaseLayout
         :title="'【管理者】'" 
-        :count="0"
+        :count="data.data.pendingEvaluations.length + data.data.pendingAssignments.length"
         :fullscreen="fullscreen" 
         :type="data.type" 
         :can-resize="data.canResize"

@@ -1,7 +1,7 @@
 <template>
     <BaseLayout
         :title="data.title" 
-        :count="data.data.in_use.length" 
+        :count="actionCount"
         :fullscreen="fullscreen" 
         :type="data.type" 
         :can-resize="data.canResize"
@@ -135,7 +135,7 @@
             
 </template>
 <script setup lang="ts">
-import { onMounted, ref, useTemplateRef, watch } from 'vue';
+import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
 import BaseLayout from './BaseLayout.vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
@@ -180,6 +180,14 @@ const loadCount = ref(0)
 const viewHistory = ref(false)
 const ASSET_CONFIRM_DEADLINE_MONTH = 3
 const currentMonth = DateTime.now().month
+const unconfirmedAssetCount = computed(() => {
+    if (currentMonth < ASSET_CONFIRM_DEADLINE_MONTH) return 0
+
+    return props.data.data.in_use.filter((asset) => !asset.confirm_logs.length).length
+})
+const actionCount = computed(() => {
+    return unconfirmedAssetCount.value + (props.data.data.waiting_approval?.length ?? 0)
+})
 onMounted(() => {
     if(route.params.type === props.data.type) {
         loadCount.value += 1

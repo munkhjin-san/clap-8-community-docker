@@ -1,7 +1,7 @@
 <template>
     <BaseLayout 
         :title="`成果目標`" 
-        :count="0" 
+        :count="goalActionCount"
         :fullscreen="fullscreen" 
         :type="data.type"
         :can-resize="data.canResize"
@@ -253,7 +253,7 @@ const emit = defineEmits<{
 }>()
 
 const goalsStore = useDashboardGoalsStore()
-const {totalOverallScore, loading, pendingMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals, requiredGoalData, unfinishedPreviousSpanGoals } = storeToRefs(goalsStore)
+const {totalOverallScore, loading, pendingMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals, requiredGoalData, unfinishedPreviousSpanGoals, pulseBadgeCount, normalBadgeCount } = storeToRefs(goalsStore)
 const { getGoals } = goalsStore
 
 const auth = useAuthUserStore()
@@ -325,6 +325,7 @@ const approvaNeeded = computed(() => {
     return items
 
 })
+const goalActionCount = computed(() => pulseBadgeCount.value + normalBadgeCount.value)
 const goalIsOverWeek = (goal: ProjectGoal) => {
     return goalsStore.isGoalOverWeek(goal)
 }
