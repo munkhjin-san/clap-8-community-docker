@@ -485,8 +485,8 @@ const challengeProgressMeta = computed(() => {
             label: status.value
         }
     }
-    const start = DateTime.fromISO(props.record.date_start)
-    const end = DateTime.fromISO(props.record.date_end)
+    const start = DateTime.fromISO(props.record.date_start).set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
+    const end = DateTime.fromISO(props.record.date_end).set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
     const now = DateTime.now()
 
     const isBetween = now >= start && now <= end
