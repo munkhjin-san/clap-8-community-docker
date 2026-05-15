@@ -36,7 +36,7 @@
                     <button type="button" class="daily-edit-btn" @click.stop="saveEdit" :disabled="editLoading || !editText.trim()">保存</button>
                 </div>
             </div>
-            <div class="mt-2 w-fit" @click="setEmoteUsers(comment.emoted_users)" v-if="!isEditing && comment.emoted_users && comment.emoted_users.length && (!emoteArea || !expanded)">
+            <div class="mt-2 w-fit relative z-[15]" @click="setEmoteUsers(comment.emoted_users)" v-if="!isEditing && comment.emoted_users && comment.emoted_users.length && (!emoteArea || !expanded)">
                 <div class="flex items-end cursor-pointer text-[var(--primary-color)] w-fit overflow-hidden">
                     <TransitionGroup name="downShiftPop">
                         <Character v-for="emote in emotes" :key="emote" :multiple="0.5" :emote-name="emote"/>
@@ -251,7 +251,7 @@ const emotes = computed(() => {
         transition: transform 0.2s ease;
     }
     .daily-edit-overlay {
-        background: #00000066;
+        background: transparent;
         position: absolute;
         inset: 0;
         z-index: 10;
@@ -263,7 +263,7 @@ const emotes = computed(() => {
     }
     .daily-item-root:hover .daily-edit-overlay {
         opacity: 1;
-        background: #00000073;
+        /* background: #00000073; */
     }
     .daily-edit-button {
         border-radius: 999px;
@@ -274,10 +274,10 @@ const emotes = computed(() => {
         transition: transform 0.18s ease, background-color 0.18s ease;
         background: #00000052;
     }
-    .daily-edit-button:hover {
+    /* .daily-edit-button:hover {
         background: var(--bg2);
         transform: translateY(-1px) scale(1.03);
-    }
+    } */
     .daily-inline-editor {
         margin-top: 10px;
     }
