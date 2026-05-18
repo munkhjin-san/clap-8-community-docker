@@ -331,7 +331,9 @@ class LessonController extends Controller
                     $usersProgress[$userId] = [
                         'user' => $answer->user,
                         'basic_knowledge_statuses' => [],
+                        'basic_knowledge_material_ids' => [],
                         'case_study_statuses' => [],
+                        'case_study_material_ids' => [],
                         'answers' => [],
                         'cant_understand' => '',
                         'reason_dnt_und' => '',
@@ -345,12 +347,14 @@ class LessonController extends Controller
                 }
 
                 if ($lesson->material_type === '基礎知識') {
-                    $usersProgress[$userId]['basic_knowledge_statuses'][] = $answer->status;
+                    // Deduplicate by material_id: only track the latest answer per material
+                    $usersProgress[$userId]['basic_knowledge_statuses'][$lesson->id] = $answer->status;
                     $usersProgress[$userId]['cant_understand'] = $answer->cant_understand;
                     $usersProgress[$userId]['reason_dnt_und'] = $answer->reason_dnt_und;
                 } elseif ($lesson->material_type === 'ケーススタディ') {
-                    $usersProgress[$userId]['case_study_statuses'][] = $answer->status;
-                    $usersProgress[$userId]['answers'][] = [
+                    // Deduplicate by material_id
+                    $usersProgress[$userId]['case_study_statuses'][$lesson->id] = $answer->status;
+                    $usersProgress[$userId]['answers'][$lesson->id] = [
                         'title' => $lesson->title,
                         'answer' => $answer->answer
                     ];
@@ -359,6 +363,11 @@ class LessonController extends Controller
         }
 
         foreach ($usersProgress as $userId => &$progress) {
+            // Re-index to plain arrays after deduplication by material_id
+            $progress['basic_knowledge_statuses'] = array_values($progress['basic_knowledge_statuses']);
+            $progress['case_study_statuses']      = array_values($progress['case_study_statuses']);
+            $progress['answers']                  = array_values($progress['answers']);
+
             $answeredBasic = count($progress['basic_knowledge_statuses']);
             $answeredCase  = count($progress['case_study_statuses']);
 
