@@ -1,6 +1,6 @@
 <template>
 	<div
-		class="expansion-panel rounded"
+		class="expansion-panel rounded min-w-0"
 		:class="[
 			attrsClass,
 			panelClass,
@@ -9,7 +9,7 @@
 		]"
 		v-bind="rootAttrs"
         :style="{
-            gridColumn: isExpanded ? `span ${col}` : 'unset'
+            gridColumn: isExpanded ? `span ${expandedCol}` : 'unset'
         }"
 	>
 		<div
@@ -109,6 +109,10 @@ const rootAttrs = computed(() => {
 })
 
 const grid = inject(EXPANSION_GRID_KEY, null)
+const expandedCol = computed(() => {
+    const requestedCol = Math.max(1, Number(props.col || 1))
+    return grid ? Math.min(requestedCol, grid.cols.value) : requestedCol
+})
 
 const isControlled = computed(() => props.modelValue !== undefined)
 const internalExpanded = ref<boolean>(props.defaultExpanded)

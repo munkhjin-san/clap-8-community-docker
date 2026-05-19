@@ -11,6 +11,7 @@
 <script setup lang="ts">
 import { computed, provide, ref, useAttrs } from 'vue'
 import { EXPANSION_GRID_KEY, type ExpansionGridModelValue, type ExpansionPanelValue } from './expansionGridContext'
+import { useResponsive } from '@/store/responsive'
 
 defineOptions({ inheritAttrs: false })
 
@@ -40,6 +41,7 @@ const rootAttrs = computed(() => {
 
 const isControlled = computed(() => props.modelValue !== undefined)
 const internalValue = ref<ExpansionGridModelValue>(props.defaultValue)
+const responsive = useResponsive()
 
 const activeValue = computed<ExpansionGridModelValue>({
     get() {
@@ -64,7 +66,7 @@ function toggle(value: ExpansionPanelValue) {
     activeValue.value = activeValue.value === value ? null : value
 }
 
-const cols = computed(() => Math.max(1, Number(props.col || 1)))
+const cols = computed(() => responsive.mobile ? 1 : Math.max(1, Number(props.col || 1)))
 
 const registered = ref<ExpansionPanelValue[]>([])
 
