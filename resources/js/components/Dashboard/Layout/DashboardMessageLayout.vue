@@ -24,6 +24,7 @@
             >
                 <template #title="{ expanded }">
                     <PanelTitle :expanded="expanded">
+                        <div v-if="isExpired(message.check_request_deadline)" class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
                         <div class="flex gap-2 overflow-hidden text-ellipsis items-center">
                             <UserPanel disable-instant :user="message.user" size="25" />
                             <div class="overflow-hidden text-ellipsis w-full">{{ message.user.name }}</div>
@@ -92,10 +93,11 @@ import BaseLayout from './BaseLayout.vue';
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
 import { useAuthUserStore } from '@/store/auth';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useMenuStore } from '@/store/menu';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import ExpansionGrid from '../ExpansionGrid.vue';
+import { DateTime } from 'luxon';
 
 const props = defineProps<{
     data: {
@@ -120,7 +122,10 @@ const emit = defineEmits<{
     resize: [type: string]
     toggle: [el: HTMLElement | null, title: string]
 }>()
-
+const isExpired = (deadline: string | null | undefined) => {
+    if (!deadline) return false
+    return DateTime.fromSQL(deadline) < DateTime.now()
+}
 const remindRequest = async(message: Message) => {
     const data = await api.post('/remind_add', { id: message.id })
     const inf = data?.reminded === true ? 'リマインドしました。' : 'リマインドを取り消しました。'

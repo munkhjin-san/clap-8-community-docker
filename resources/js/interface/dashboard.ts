@@ -102,6 +102,7 @@ export type pendingTimesheedData = {
         count: number
     }[]
     user: User
+    has_pending_timecards: boolean
 }
 export type DashboardTimesheetCard = CardBase & {
     layout: 'timesheet'
