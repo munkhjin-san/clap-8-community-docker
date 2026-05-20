@@ -35,6 +35,7 @@
                                     type="text"
                                     ref="projectTitle"
                                 />
+                                <p class="text-xs text-[gray] mt-2">カタカナを入力する場合は、半角で入力してください</p>
                             </div>
                             <div class="si-box">
                                 <p :class="['form-title-small', 'form-title-active']" style="margin-bottom: 10px;">プロジェクト種別</p>
