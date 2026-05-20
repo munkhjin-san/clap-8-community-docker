@@ -2924,28 +2924,31 @@ const mobileSummaryScenarioEntry = (scenario: ScenarioKey): UnitData =>
             fiscalSummaryEntry(scenario, selectedFiscalYearStart.value),
         )
         : totalSummaryEntry(scenario)
+const barChartProjectEntry = (projectName: string, scenario: ScenarioKey): UnitData =>
+    totalGrouping.value === 'fiscal'
+        ? fiscalTotalEntry(projectName, scenario, selectedFiscalYearEnd.value)
+        : totalEntry(projectName, scenario)
+const barChartSummaryEntry = (scenario: ScenarioKey): UnitData =>
+    totalGrouping.value === 'fiscal'
+        ? fiscalSummaryEntry(scenario, selectedFiscalYearEnd.value)
+        : totalSummaryEntry(scenario)
 const barChartProjectsData = computed<Record<string, Record<ScenarioKey, UnitData>>>(() => {
-    if (totalGrouping.value !== 'fiscal') {
-        return Object.fromEntries(
-            Object.entries(financeData.value ?? {}).map(([projectName, totals]) => [
-                projectName,
-                normalizeScenarioTotals(totals),
-            ])
-        ) as Record<string, Record<ScenarioKey, UnitData>>
-    }
-
     return Object.fromEntries(
         selectedProjectNames.value.map((projectName) => [
             projectName,
-            normalizeScenarioTotals(rawComparisonProjectTotals.value?.[projectName]?.[selectedFiscalYearEnd.value]),
+            {
+                yearly_plan: barChartProjectEntry(projectName, 'yearly_plan'),
+                profit: barChartProjectEntry(projectName, 'profit'),
+                settlement: barChartProjectEntry(projectName, 'settlement'),
+            },
         ])
     ) as Record<string, Record<ScenarioKey, UnitData>>
 })
-const barChartSummaryData = computed<Record<ScenarioKey, UnitData>>(() =>
-    totalGrouping.value === 'fiscal'
-        ? normalizeScenarioTotals(rawComparisonSummaryTotals.value?.[selectedFiscalYearEnd.value])
-        : normalizeScenarioTotals(summarizeData.value)
-)
+const barChartSummaryData = computed<Record<ScenarioKey, UnitData>>(() => ({
+    yearly_plan: barChartSummaryEntry('yearly_plan'),
+    profit: barChartSummaryEntry('profit'),
+    settlement: barChartSummaryEntry('settlement'),
+}))
 const barChartPeriodLabel = computed(() =>
     totalGrouping.value === 'fiscal'
         ? `FY${selectedFiscalYearEnd.value}`
