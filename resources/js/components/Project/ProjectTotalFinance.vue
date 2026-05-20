@@ -171,6 +171,54 @@
                                 </select>
                             </div>
                             <div class="flex items-center gap-[10px] py-[10px] relative w-full justify-end flex-wrap md:flex-nowrap">
+                                <div v-if="(tab === 'line' || tab === 'bar') && !responsive.mobile" class="finance-chart-filter-bar pc">
+                                    <div class="finance-chart-filter">
+                                        <button
+                                            type="button"
+                                            class="finance-chart-filter__button"
+                                            @click.stop="menu.setMenu({parent: 'projectFilter'})"
+                                        >
+                                            <span>プロジェクト</span>
+                                            <span class="finance-chart-filter__count">{{ selectedProjects.length }}件</span>
+                                            <Filter :filtered="selectedProjects.length > 0" style="fill: var(--primary-color);" size="12"/>
+                                        </button>
+                                        <Transition name="slidePop">
+                                            <FilterById
+                                                v-if="menu.parent == 'projectFilter'"
+                                                id="projectFilter"
+                                                :options="selectableProjects"
+                                                :include-select-all="true"
+                                                :searchable="true"
+                                                v-model:selected="selectedProjects"
+                                                custom-place-holder="プロジェクト検索"
+                                                style="top: 34px; left: 0;"
+                                            />
+                                        </Transition>
+                                    </div>
+                                    <div class="finance-chart-filter">
+                                        <button
+                                            type="button"
+                                            class="finance-chart-filter__button"
+                                            @click.stop="menu.setMenu({parent: 'managerFilter'})"
+                                        >
+                                            <span>PM</span>
+                                            <span class="finance-chart-filter__count">{{ selectedManagers.length }}件</span>
+                                            <Filter :filtered="selectedManagers.length > 0" style="fill: var(--primary-color);" size="12"/>
+                                        </button>
+                                        <Transition name="slidePop">
+                                            <FilterById
+                                                v-if="menu.parent == 'managerFilter'"
+                                                id="managerFilter"
+                                                :options="managers"
+                                                :include-select-all="true"
+                                                :searchable="true"
+                                                v-model:selected="selectedManagers"
+                                                custom-place-holder="PM検索"
+                                                style="top: 34px; left: 0;"
+                                            />
+                                        </Transition>
+                                    </div>
+                                </div>
                                 <div v-if="(tab === 'table' || tab === 'line') && totalGrouping === 'fiscal'" class="flex items-center gap-2 text-xs flex-wrap md:justify-end justify-center">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <label class="flex items-center gap-1">
@@ -1655,7 +1703,12 @@
                             </div>
                             <div v-if="tab == 'bar'">
                                 <div>
-                                    <BarChart :projectsData="financeData" :activeView="activeType" />
+                                    <BarChart
+                                        :projectsData="barChartProjectsData"
+                                        :summaryData="barChartSummaryData"
+                                        :activeView="activeType"
+                                        :periodLabel="barChartPeriodLabel"
+                                    />
                                 </div>
 
                             </div>
@@ -2871,6 +2924,33 @@ const mobileSummaryScenarioEntry = (scenario: ScenarioKey): UnitData =>
             fiscalSummaryEntry(scenario, selectedFiscalYearStart.value),
         )
         : totalSummaryEntry(scenario)
+const barChartProjectsData = computed<Record<string, Record<ScenarioKey, UnitData>>>(() => {
+    if (totalGrouping.value !== 'fiscal') {
+        return Object.fromEntries(
+            Object.entries(financeData.value ?? {}).map(([projectName, totals]) => [
+                projectName,
+                normalizeScenarioTotals(totals),
+            ])
+        ) as Record<string, Record<ScenarioKey, UnitData>>
+    }
+
+    return Object.fromEntries(
+        selectedProjectNames.value.map((projectName) => [
+            projectName,
+            normalizeScenarioTotals(rawComparisonProjectTotals.value?.[projectName]?.[selectedFiscalYearEnd.value]),
+        ])
+    ) as Record<string, Record<ScenarioKey, UnitData>>
+})
+const barChartSummaryData = computed<Record<ScenarioKey, UnitData>>(() =>
+    totalGrouping.value === 'fiscal'
+        ? normalizeScenarioTotals(rawComparisonSummaryTotals.value?.[selectedFiscalYearEnd.value])
+        : normalizeScenarioTotals(summarizeData.value)
+)
+const barChartPeriodLabel = computed(() =>
+    totalGrouping.value === 'fiscal'
+        ? `FY${selectedFiscalYearEnd.value}`
+        : mobileSummaryCaption.value
+)
 const scenarioPeriodEntry = (
     proj: { name: string; data: Record<string, any> },
     period: string,
@@ -3991,6 +4071,40 @@ td[data-cell=right-border], th[data-cell=right-border] {
     overflow: auto;
     height: 100%;
     border-right: solid thin var(--bg3);
+}
+
+.finance-chart-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: auto;
+}
+
+.finance-chart-filter {
+    position: relative;
+}
+
+.finance-chart-filter__button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 30px;
+    border: 1px solid var(--normalBorder);
+    border-radius: 4px;
+    background: var(--background-color);
+    color: var(--primary-color);
+    padding: 5px 10px;
+    font-size: 12px;
+    white-space: nowrap;
+    transition: border-color 0.2s ease;
+}
+
+.finance-chart-filter__button:hover {
+    border-color: var(--hoverBorder);
+}
+
+.finance-chart-filter__count {
+    color: gray;
 }
 
 .finance-chart-panel {
