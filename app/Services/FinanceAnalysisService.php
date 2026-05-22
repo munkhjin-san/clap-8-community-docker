@@ -235,12 +235,13 @@ class FinanceAnalysisService
 
         $client = OpenAI::client($apiKey);
         $model = config('services.openai.chat_model', 'gpt-4.1-mini');
+        $factsForModel = $this->factsForModel($facts);
 
         $response = $client->chat()->create([
             'model' => $model,
             'messages' => [
                 ['role' => 'system', 'content' => $this->systemPrompt()],
-                ['role' => 'user', 'content' => json_encode($facts, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)],
+                ['role' => 'user', 'content' => json_encode($factsForModel, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)],
             ],
             'temperature' => 0.2,
             'max_tokens' => 1200,
@@ -261,7 +262,9 @@ class FinanceAnalysisService
 - 売上、販管費、利益、計画差分、前年比/年度差分、データ欠損を優先して見る
 - 金額換算は必ず 1億円 = 100,000,000円、1万円 = 10,000円 とする
 - 例: 800,282,891円 は 約8.0億円 または 80,028万円。800億円ではない
-- 金額には facts 内の *_display フィールドを優先して使い、整数値から独自に換算しない
+- 例: 13,086,730円 は 1,309万円 または 約0.1億円。1.3億円ではない
+- facts 内の sales / expense / profit / *_amount は既に表示用に換算済み。必ずその文字列をそのまま使い、独自に億円換算しない
+- 「万円」として渡された金額を「億円」に言い換えない
 - factsにない数値やプロジェクト名は推測しない
 - include_forecast_settlement=false または analysis_basis が実績のみの場合、未反映月を含む年度計画との比較は進捗途中であることを明示する
 - data_status に missing_settlement_periods または forecast_periods がある場合は data_notes に含める
@@ -298,6 +301,32 @@ TXT;
             'recommended_actions' => $this->stringList($decoded['recommended_actions'] ?? []),
             'data_notes' => $this->stringList($decoded['data_notes'] ?? []),
         ];
+    }
+
+    private function factsForModel(array $value): array
+    {
+        $out = [];
+        foreach ($value as $key => $item) {
+            $out[$key] = is_array($item) ? $this->factsForModel($item) : $item;
+        }
+
+        foreach (['sales', 'expense', 'profit'] as $moneyKey) {
+            $displayKey = "{$moneyKey}_display";
+            if (array_key_exists($displayKey, $out)) {
+                $out[$moneyKey] = $out[$displayKey];
+                unset($out[$displayKey]);
+            }
+        }
+
+        foreach (['sales_amount', 'expense_amount', 'profit_amount'] as $moneyKey) {
+            $displayKey = "{$moneyKey}_display";
+            if (array_key_exists($displayKey, $out)) {
+                $out[$moneyKey] = $out[$displayKey];
+                unset($out[$displayKey]);
+            }
+        }
+
+        return $out;
     }
 
     private function periodsFromInterval(array $interval): array
