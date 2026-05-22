@@ -191,7 +191,7 @@ const basisLabel = computed(() => props.result?.scope.analysis_basis ?? '')
     height: 30px;
     border-radius: 7px;
     color: #fff;
-    background: var(--primary-color);
+    background: var(--primary-button);
     display: flex;
     align-items: center;
     justify-content: center;

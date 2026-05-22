@@ -4221,9 +4221,9 @@ td[data-cell=right-border], th[data-cell=right-border] {
     justify-content: center;
     gap: 6px;
     min-height: 30px;
-    border: 1px solid var(--primary-color);
+    border: 1px solid var(--primary-button);
     border-radius: 4px;
-    background: var(--primary-color);
+    background: var(--primary-button);
     color: #fff;
     padding: 5px 11px;
     font-size: 12px;
