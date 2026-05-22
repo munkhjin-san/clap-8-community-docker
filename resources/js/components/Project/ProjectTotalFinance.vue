@@ -262,6 +262,35 @@
                                         <span v-if="nextMonthCount" class="side-notification side-notification--comment-only" style="position: static">{{ nextMonthCount }}</span>
                                     </div>
                                 </div>
+                                <button
+                                    v-if="hasPrivilage"
+                                    type="button"
+                                    class="finance-ai-analyze-button"
+                                    :disabled="!hasSelectedProjects || financeAnalysisLoading"
+                                    @click="analyzeFinance"
+                                >
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                                            xmlns="http://www.w3.org/2000/svg">
+                                        <rect x="5" y="7" width="14" height="11" rx="3"
+                                                stroke="currentColor" stroke-width="1.7"/>
+
+                                        <path d="M12 7V4"
+                                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                                        <circle cx="12" cy="3.5" r="1.2" fill="currentColor"/>
+
+                                        <circle class="ai-eye" cx="9" cy="12" r="1.2" fill="currentColor"/>
+                                        <circle class="ai-eye" cx="15" cy="12" r="1.2" fill="currentColor"/>
+
+                                        <path d="M9.5 15H14.5"
+                                                stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+
+                                        <path d="M3.5 11V14"
+                                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                                        <path d="M20.5 11V14"
+                                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                                    </svg>
+                                    <span>{{ financeAnalysisButtonLabel }}</span>
+                                </button>
                                 <div
                                     class="mobile-finance-controls"
                                     v-if="responsive.mobile"
@@ -298,11 +327,20 @@
                                         </button>
                                     </div>
                                 </div>
-                                
+
                             </div>
                             
 
                             </div>
+                        <FinanceAnalysisPanel
+                            v-if="financeAnalysisVisible"
+                            :result="financeAnalysisResult"
+                            :loading="financeAnalysisLoading"
+                            :error="financeAnalysisError"
+                            :stale="financeAnalysisStale"
+                            @retry="analyzeFinance"
+                            @close="financeAnalysisVisible = false"
+                        />
                         <div v-if="!hasSelectedProjects" class="finance-empty-state">
                             <div class="finance-empty-state__inner">
                                 <p class="finance-empty-state__title">プロジェクトが選択されていません</p>
@@ -1752,6 +1790,7 @@ import PeriodRangePicker from './ProjectTabs/Finance/PeriodRangePicker.vue';
 import Filter from '../Icons/Filter.vue';
 import CommandButton from '../Global/CommandButton.vue';
 import FilterById from '../Global/FilterById.vue';
+import FinanceAnalysisPanel from './ProjectTabs/Finance/FinanceAnalysisPanel.vue';
 const router = useRouter()
 const props = defineProps<{
     projects: Project[]
@@ -3215,6 +3254,72 @@ const financeRefreshKey = computed(() => {
     return `range|${projectIdsKey}|${periodStartIso.value}|${periodEndIso.value}`
 })
 
+type FinanceAnalysisScope = {
+    grouping: 'range' | 'fiscal'
+    include_forecast_settlement: boolean
+    project_count: number
+    period_start?: string
+    period_end?: string
+    fiscal_years?: number[]
+    analysis_basis?: string
+}
+type FinanceAnalysisResult = {
+    headline: string
+    summary: string
+    highlights: string[]
+    risks: string[]
+    recommended_actions: string[]
+    data_notes: string[]
+    scope: FinanceAnalysisScope
+    generated_at: string
+    metrics?: Record<string, unknown>
+}
+
+const financeAnalysisResult = ref<FinanceAnalysisResult | null>(null)
+const financeAnalysisLoading = ref(false)
+const financeAnalysisError = ref('')
+const financeAnalysisVisible = ref(false)
+const financeAnalysisScopeKey = ref('')
+const financeAnalysisRequestKey = computed(() => {
+    const managerIdsKey = [...selectedManagers.value].sort((left, right) => left - right).join(',')
+    return `${financeRefreshKey.value}|forecast:${includeForecastSettlement.value}|managers:${managerIdsKey}`
+})
+const financeAnalysisStale = computed(() =>
+    Boolean(financeAnalysisResult.value) && financeAnalysisScopeKey.value !== financeAnalysisRequestKey.value
+)
+const financeAnalysisButtonLabel = computed(() => {
+    if (financeAnalysisLoading.value) return '分析中'
+    if (financeAnalysisStale.value) return 'AI再分析'
+    return 'AI分析'
+})
+const analyzeFinance = async () => {
+    if (!selectedProjects.value.length || financeAnalysisLoading.value) return
+
+    const requestKey = financeAnalysisRequestKey.value
+    financeAnalysisVisible.value = true
+    financeAnalysisLoading.value = true
+    financeAnalysisError.value = ''
+
+    try {
+        const data = await api.post('/finance/analyze', {
+            projects: selectedProjects.value,
+            managers: selectedManagers.value,
+            grouping: totalGrouping.value,
+            interval: intervalPayload.value,
+            fiscalYears: activeFiscalYears.value,
+            includeForecastSettlement: includeForecastSettlement.value,
+        }, { silent: true })
+
+        if (!data) return
+        financeAnalysisResult.value = data
+        financeAnalysisScopeKey.value = requestKey
+    } catch (error: any) {
+        financeAnalysisError.value = error?.response?.data?.message ?? error?.message ?? 'AI分析に失敗しました。'
+    } finally {
+        financeAnalysisLoading.value = false
+    }
+}
+
 watch(
     [totalGrouping, selectedFiscalYearStart, selectedFiscalYearEnd, periodStartIso, periodEndIso, sortMode],
     () => {
@@ -4108,6 +4213,32 @@ td[data-cell=right-border], th[data-cell=right-border] {
 
 .finance-chart-filter__count {
     color: gray;
+}
+
+.finance-ai-analyze-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 30px;
+    border: 1px solid var(--primary-color);
+    border-radius: 4px;
+    background: var(--primary-color);
+    color: #fff;
+    padding: 5px 11px;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: opacity .15s ease, transform .15s ease;
+}
+
+.finance-ai-analyze-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.finance-ai-analyze-button:disabled {
+    opacity: .45;
+    cursor: not-allowed;
 }
 
 .finance-chart-panel {
