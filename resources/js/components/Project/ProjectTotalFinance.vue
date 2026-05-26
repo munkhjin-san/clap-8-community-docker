@@ -152,14 +152,17 @@
                                 style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
                         </div>
                     </div>
-                    <div class="h-full flex flex-col min-h-0">
+                    <div
+                        class="h-full flex flex-col min-h-0"
+                        :class="{ 'finance-analysis-active': financeAnalysisVisible }"
+                    >
                         <div
                             class="sticky top-0 bg-[var(--background-color)] z-[7] min-h-fit flex justify-between items-center px-6 flex-wrap after:flex-auto after:content-['']">
                             <div class="sub-tab-container pc">
                                 <button @click="tab = 'table'"
                                     :class="['sub-tab-item', { 'selected-sub-tab': tab == 'table' }]">テーブル</button>
-                                <button @click="tab = 'line'"
-                                    :class="['sub-tab-item', { 'selected-sub-tab': tab == 'line' }]">折れ線グラフ</button>
+                                <button @click="tab = 'monthlyBar'"
+                                    :class="['sub-tab-item', { 'selected-sub-tab': tab == 'monthlyBar' }]">月別棒グラフ</button>
                                 <button @click="tab = 'bar'"
                                     :class="['sub-tab-item', { 'selected-sub-tab': tab == 'bar' }]">棒グラフ</button>
                             </div>
@@ -171,7 +174,7 @@
                                 </select>
                             </div>
                             <div class="flex items-center gap-[10px] py-[10px] relative w-full justify-end flex-wrap md:flex-nowrap">
-                                <div v-if="(tab === 'line' || tab === 'bar') && !responsive.mobile" class="finance-chart-filter-bar pc">
+                                <div v-if="(tab === 'monthlyBar' || tab === 'bar') && !responsive.mobile" class="finance-chart-filter-bar pc">
                                     <div class="finance-chart-filter">
                                         <button
                                             type="button"
@@ -219,7 +222,7 @@
                                         </Transition>
                                     </div>
                                 </div>
-                                <div v-if="(tab === 'table' || tab === 'line') && totalGrouping === 'fiscal'" class="flex items-center gap-2 text-xs flex-wrap md:justify-end justify-center">
+                                <div v-if="(tab === 'table' || tab === 'monthlyBar') && totalGrouping === 'fiscal'" class="flex items-center gap-2 text-xs flex-wrap md:justify-end justify-center">
                                     <div class="flex items-center gap-2 flex-wrap">
                                         <label class="flex items-center gap-1">
                                             <span class="opacity-70">比較</span>
@@ -269,26 +272,7 @@
                                     :disabled="!hasSelectedProjects || financeAnalysisLoading"
                                     @click="analyzeFinance"
                                 >
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                                            xmlns="http://www.w3.org/2000/svg">
-                                        <rect x="5" y="7" width="14" height="11" rx="3"
-                                                stroke="currentColor" stroke-width="1.7"/>
-
-                                        <path d="M12 7V4"
-                                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                                        <circle cx="12" cy="3.5" r="1.2" fill="currentColor"/>
-
-                                        <circle class="ai-eye" cx="9" cy="12" r="1.2" fill="currentColor"/>
-                                        <circle class="ai-eye" cx="15" cy="12" r="1.2" fill="currentColor"/>
-
-                                        <path d="M9.5 15H14.5"
-                                                stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-
-                                        <path d="M3.5 11V14"
-                                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                                        <path d="M20.5 11V14"
-                                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                                    </svg>
+                                    <AiIcon size="20" fill="#fff"/>
                                     <span>{{ financeAnalysisButtonLabel }}</span>
                                 </button>
                                 <div
@@ -332,8 +316,13 @@
                             
 
                             </div>
+                        <div
+                            class="finance-workspace"
+                            :class="{ 'finance-workspace--with-analysis': financeAnalysisVisible && !responsive.mobile }"
+                        >
+                            <main class="finance-workspace__main">
                         <FinanceAnalysisPanel
-                            v-if="financeAnalysisVisible"
+                            v-if="financeAnalysisVisible && responsive.mobile"
                             :result="financeAnalysisResult"
                             :loading="financeAnalysisLoading"
                             :error="financeAnalysisError"
@@ -1712,9 +1701,9 @@
                             </table>
 
                         </div>
-                        <div class="overflow-auto h-[calc(100%-65px)]" v-if="hasSelectedProjects && (tab == 'line' || tab == 'bar')">
+                        <div class="finance-chart-scroll overflow-auto h-[calc(100%-65px)]" v-if="hasSelectedProjects && (tab == 'monthlyBar' || tab == 'bar')">
                             <div class="px-[20px]">
-                                <div class="flex my-[20px] gap-[15px]">
+                                <div v-if="tab == 'monthlyBar' || tab == 'bar'" class="flex my-[20px] gap-[15px]">
                                     <label v-for="item in possibleTypes"
                                         class="flex items-center gap-[10px] text-[12px]">
                                         <input type="radio" name="type" class="custom-f-radio" :value="item.value"
@@ -1725,16 +1714,17 @@
                             </div>
 
 
-                            <div v-if="tab == 'line'">
+                            <div v-if="tab == 'monthlyBar'">
 
-                                <div class="finance-chart-panel">
-                                    <TotalFinanceLineChart
+                                <div>
+                                    <TotalFinanceMonthlyBarChart
                                         :grouping="totalGrouping"
-                                        :activeView="activeType"
                                         :periods="periods"
-                                        :periodTotals="periodTotals"
+                                        :projectNames="selectedProjectNames"
+                                        :projectPeriods="dataByMonth"
                                         :activeFiscalYears="activeFiscalYears"
-                                        :comparisonPeriodTotals="comparisonPeriodTotals"
+                                        :comparisonProjectPeriods="comparisonProjectPeriods"
+                                        :activeView="activeType"
                                     />
                                 </div>
 
@@ -1750,6 +1740,22 @@
                                 </div>
 
                             </div>
+                        </div>
+                            </main>
+                            <aside
+                                v-if="financeAnalysisVisible && !responsive.mobile"
+                                class="finance-workspace__aside"
+                            >
+                                <FinanceAnalysisPanel
+                                    variant="aside"
+                                    :result="financeAnalysisResult"
+                                    :loading="financeAnalysisLoading"
+                                    :error="financeAnalysisError"
+                                    :stale="financeAnalysisStale"
+                                    @retry="analyzeFinance"
+                                    @close="financeAnalysisVisible = false"
+                                />
+                            </aside>
                         </div>
                     </div>
                     </div>
@@ -1780,7 +1786,7 @@ import { useMenuStore } from '@/store/menu';
 import { User } from '@/interface/globalInterface';
 import DeltaNumbers from '@/components/Project/ProjectTabs/Finance/DeltaNumbers.vue'
 import BarChart from './ProjectTabs/Finance/BarChart.vue';
-import TotalFinanceLineChart from './ProjectTabs/Finance/TotalFinanceLineChart.vue';
+import TotalFinanceMonthlyBarChart from './ProjectTabs/Finance/TotalFinanceMonthlyBarChart.vue';
 import Back from '../Icons/Back.vue';
 import { useApi } from '@/composables/api';
 import CommentWindow from './ProjectTabs/Finance/CommentWindow.vue';
@@ -1791,6 +1797,7 @@ import Filter from '../Icons/Filter.vue';
 import CommandButton from '../Global/CommandButton.vue';
 import FilterById from '../Global/FilterById.vue';
 import FinanceAnalysisPanel from './ProjectTabs/Finance/FinanceAnalysisPanel.vue';
+import AiIcon from '@/components/Icons/AiIcon.vue';
 const router = useRouter()
 const props = defineProps<{
     projects: Project[]
@@ -2143,14 +2150,6 @@ const initialRange = normalizeRange(
 )
 const periodStart = ref<DateTime>(initialRange.start)
 const periodEnd = ref<DateTime>(initialRange.end)
-const tableRangeStart = ref<DateTime>(initialRange.start)
-const tableRangeEnd = ref<DateTime>(initialRange.end)
-const lineInitialRange = normalizeRange(
-    defaultFiscalStart,
-    defaultFiscalStart.plus({ months: MAX_RANGE_MONTHS - 1 })
-)
-const lineRangeStart = ref<DateTime>(lineInitialRange.start)
-const lineRangeEnd = ref<DateTime>(lineInitialRange.end)
 
 const periodStartIso = computed(() => periodStart.value.toFormat('yyyy-MM'))
 const periodEndIso = computed(() => periodEnd.value.toFormat('yyyy-MM'))
@@ -2264,28 +2263,6 @@ const handleRangeChange = ({ start, end }: { start: string; end: string }) => {
 const shiftRange = (months: number) => {
   applyRange(periodStart.value.plus({ months }), periodEnd.value.plus({ months }))
 }
-const activeRangeBucket = (tabName: 'table' | 'line' | 'bar') => tabName === 'line' ? 'line' : 'main'
-const sameRange = (leftStart: DateTime, leftEnd: DateTime, rightStart: DateTime, rightEnd: DateTime) =>
-    leftStart.toMillis() === rightStart.toMillis() && leftEnd.toMillis() === rightEnd.toMillis()
-const persistRangeForTab = (tabName: 'table' | 'line' | 'bar') => {
-    const normalized = normalizeRange(periodStart.value, periodEnd.value)
-    if (activeRangeBucket(tabName) === 'line') {
-        lineRangeStart.value = normalized.start
-        lineRangeEnd.value = normalized.end
-        return
-    }
-    tableRangeStart.value = normalized.start
-    tableRangeEnd.value = normalized.end
-}
-const restoreRangeForTab = (tabName: 'table' | 'line' | 'bar') => {
-    const useLineRange = activeRangeBucket(tabName) === 'line'
-    const start = useLineRange ? lineRangeStart.value : tableRangeStart.value
-    const end = useLineRange ? lineRangeEnd.value : tableRangeEnd.value
-    const normalized = normalizeRange(start, end)
-    if (sameRange(periodStart.value, periodEnd.value, normalized.start, normalized.end)) return
-    periodStart.value = normalized.start
-    periodEnd.value = normalized.end
-}
 const categorizedProjects = computed(() => {
     const myProjects: Project[] = []
     const otherProjects: Project[] = []
@@ -2313,7 +2290,7 @@ const mobileProjectKeywords = ref('')
 const mobileManagerKeywords = ref('')
 const loader = ref(true)
 const badgeLoader = ref(0)
-const tab = ref<'table' | 'line' | 'bar'>('table')
+const tab = ref<'table' | 'monthlyBar' | 'bar'>('table')
 const responsive = useResponsive()
 const menu = useMenuStore()
 const leftTab = ref<'project' | 'manager'>('project')
@@ -2385,19 +2362,24 @@ const rawComparisonProjectTotals = ref<Record<string, Record<number, Record<Scen
 const rawComparisonSummaryTotals = ref<Record<number, Record<ScenarioKey, UnitData>>>({})
 const rawComparisonProjectPeriods = ref<ComparisonProjectPeriods>({})
 const rawComparisonPeriodTotals = ref<ComparisonPeriodTotals>({})
-const comparisonPeriodTotals = computed<ComparisonPeriodTotals>(() => {
-    if (includeForecastSettlement.value) return rawComparisonPeriodTotals.value
+const comparisonProjectPeriods = computed<ComparisonProjectPeriods>(() => {
+    if (includeForecastSettlement.value) return rawComparisonProjectPeriods.value
     return Object.fromEntries(
-        Object.entries(rawComparisonPeriodTotals.value ?? {}).map(([fiscalYear, totals]) => [
-            fiscalYear,
+        Object.entries(rawComparisonProjectPeriods.value ?? {}).map(([projectName, years]) => [
+            projectName,
             Object.fromEntries(
-                Object.entries(totals ?? {}).map(([period, entry]) => [
-                    period,
-                    filterScenarioRecord(entry),
+                Object.entries(years ?? {}).map(([fiscalYear, periods]) => [
+                    fiscalYear,
+                    Object.fromEntries(
+                        Object.entries(periods ?? {}).map(([period, entry]) => [
+                            period,
+                            filterScenarioRecord(entry),
+                        ])
+                    ),
                 ])
             ),
         ])
-    ) as ComparisonPeriodTotals
+    ) as ComparisonProjectPeriods
 })
 const projectSelectionStart = computed(() => {
     if (totalGrouping.value === 'fiscal') {
@@ -3369,15 +3351,6 @@ watch(allProjectIds, (projectIds, previousProjectIds = []) => {
     selectedProjects.value = selectedProjects.value.filter(id => projectIds.includes(id))
 }, { immediate: true })
 
-watch([periodStartIso, periodEndIso], () => {
-    persistRangeForTab(tab.value)
-})
-watch(tab, (newTab, oldTab) => {
-    if (oldTab) {
-        persistRangeForTab(oldTab)
-    }
-    restoreRangeForTab(newTab)
-})
 watch([selectedFiscalYearStart, selectedFiscalYearEnd], ([start, end], [previousStart, previousEnd]) => {
     if (start === end) {
         if (start !== previousStart) {
@@ -4026,6 +3999,46 @@ td[data-cell=right-border], th[data-cell=right-border] {
     height: calc(100% - 95px);
 }
 
+.finance-workspace {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    overflow: hidden;
+}
+
+.finance-workspace--with-analysis {
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 30vw, 400px);
+}
+
+.finance-workspace__main {
+    position: relative;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.finance-workspace__aside {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.finance-workspace__main .finance-table-scroll,
+.finance-workspace__main .finance-chart-scroll,
+.finance-workspace__main .mobile-finance-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto;
+}
+
+.finance-workspace__main .finance-empty-state {
+    height: 100%;
+    min-height: 0;
+}
+
 .finance-empty-state {
     display: flex;
     align-items: center;
@@ -4241,14 +4254,6 @@ td[data-cell=right-border], th[data-cell=right-border] {
     cursor: not-allowed;
 }
 
-.finance-chart-panel {
-    width: calc(100% - 40px);
-    display: flex;
-    justify-content: stretch;
-    margin: auto;
-    padding: 0 20px;
-}
-
 @media screen and (max-width: 959px) {
     .mobile-finance-compare-table {
         grid-template-columns: minmax(64px, 0.85fr) repeat(3, minmax(0, 1fr));
@@ -4271,10 +4276,6 @@ td[data-cell=right-border], th[data-cell=right-border] {
     .finance-top-summary__period-card {
         flex-basis: 240px;
     }
-    .finance-chart-panel {
-        width: 100%;
-    }
-
     .finance-table-scroll {
         height: calc(100% - 170px);
     }

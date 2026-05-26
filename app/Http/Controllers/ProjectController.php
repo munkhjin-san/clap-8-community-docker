@@ -53,6 +53,7 @@ use App\Http\Controllers\OpenAiController;
 use App\Services\SharedService;
 use App\Services\VarianceService;
 use App\Services\BadgeService;
+use App\Services\FinanceAnalysisService;
 use App\Services\ProjectPlanFormulaService;
 use App\Imports\EvaluationImport;
 use App\Exports\YearlyBudgetTemplate;
@@ -414,16 +415,18 @@ class ProjectController extends Controller
         $admin_approval_needed_goals = [];
 
         $goal_required_data = $this->requiredGoalData($year, $which_half);
+        $approvalGoalColumns = ['id', 'project_id', 'user_id', 'status', 'year', 'which_half', 'end_date', 'title', 'outcome_goal', 'updated_at'];
+        $resultSubmissionLogs = fn ($q) => $q->where('after_number', 7)->with('user');
 
         if($is_mentor){
             $mentor_approval_needed_goals_with_salary_issue = User::whereNot('id', $user->id)
             ->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
-            ->with(['outcome_goals' => function ($q) use ($user) {
+            ->with(['outcome_goals' => function ($q) use ($user, $approvalGoalColumns, $resultSubmissionLogs) {
                 $q->whereHas('salaryIssue', function ($q) use ($user){                
                     $q->whereIn('status', [2, 7])->whereHas('evaluation', function ($subQuery) use ($user) {
                         $subQuery->where('mentor_id', $user->id);
                     });
-                })->select('id', 'user_id', 'status', 'year', 'which_half', 'end_date');
+                })->select($approvalGoalColumns)->with(['statusLogs' => $resultSubmissionLogs]);
             }])
             ->whereHas('outcome_goals', function ($q) use ($user) {
                 $q->whereHas('salaryIssue', function ($q) use ($user){                
@@ -435,10 +438,10 @@ class ProjectController extends Controller
         }
         if($is_admin){
             $admin_approval_needed_goals_with_salary_issue = User::select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
-            ->with(['outcome_goals' => function ($q) use ($user) {
+            ->with(['outcome_goals' => function ($q) use ($user, $approvalGoalColumns, $resultSubmissionLogs) {
                 $q->whereHas('salaryIssue', function ($q) use ($user){                
                     $q->whereIn('status', [3, 4, 9]);
-                })->select('id', 'user_id', 'status', 'year', 'which_half', 'end_date');
+                })->select($approvalGoalColumns)->with(['statusLogs' => $resultSubmissionLogs]);
             }])
             ->whereHas('outcome_goals', function ($q) use ($user) {
                 $q->whereHas('salaryIssue', function ($q) use ($user){                
@@ -447,7 +450,7 @@ class ProjectController extends Controller
             })->get();
 
             $admin_approval_needed_goals = User::select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
-            ->with(['outcome_goals' => fn ($q) => $q->whereIn('status', [3, 4])->select('id', 'user_id', 'status', 'year', 'which_half', 'end_date')])
+            ->with(['outcome_goals' => fn ($q) => $q->whereIn('status', [3, 4])->select($approvalGoalColumns)->with(['statusLogs' => $resultSubmissionLogs])])
             ->whereHas('outcome_goals', function ($q) use ($user) {
                 $q->whereIn('status', [3, 4]);
             })->get();
@@ -468,7 +471,7 @@ class ProjectController extends Controller
                 ->whereHas('project.members', function ($memberQuery) {
                     $memberQuery->whereColumn('users.id', 'project_goals.user_id');
                 })
-            ->select('id', 'user_id', 'status', 'year', 'which_half', 'end_date')])->get();
+            ->select($approvalGoalColumns)->with(['statusLogs' => $resultSubmissionLogs])])->get();
         }
         if($is_boss){
             
@@ -484,7 +487,7 @@ class ProjectController extends Controller
                 ->whereDoesntHave('project.members', function ($memberQuery) {
                     $memberQuery->whereColumn('users.id', 'project_goals.user_id');
                 })
-                ->select('id', 'user_id', 'status', 'year', 'which_half', 'end_date')])->get();
+                ->select($approvalGoalColumns)->with(['statusLogs' => $resultSubmissionLogs])])->get();
         }
 
         $project_goals = $this->goalLoader($user->id, $target_user_id, $year, $which_half);
@@ -3107,6 +3110,7 @@ class ProjectController extends Controller
         }
         return response()->json($result);
     }
+
     public function get_asset_badge(Request $request){
         $active_user = $this->active_user();
         $projects = $this->members_of_project_managed_by_user($active_user);
@@ -3753,6 +3757,33 @@ class ProjectController extends Controller
         return response()->json( $final_data);
 
 
+    }
+
+    public function analyze_finance(Request $request, FinanceAnalysisService $financeAnalysis): JsonResponse
+    {
+        $activeUser = $this->active_user();
+        $canAnalyze = ((int) ($activeUser->position_id ?? 99) <= 6)
+            || in_array((int) $activeUser->id, [608, 610], true);
+
+        abort_unless($canAnalyze, 403, '財務AI分析の権限がありません。');
+
+        $validated = $request->validate([
+            'projects' => ['required', 'array', 'min:1', 'max:1000'],
+            'projects.*' => ['required', 'integer', 'exists:project_records,id'],
+            'managers' => ['nullable', 'array', 'max:200'],
+            'managers.*' => ['integer', 'exists:users,id'],
+            'grouping' => ['required', 'string', Rule::in(['range', 'fiscal'])],
+            'interval' => ['required_if:grouping,range', 'array'],
+            'interval.startYear' => ['required_if:grouping,range', 'integer'],
+            'interval.startMonth' => ['required_if:grouping,range', 'integer', 'between:1,12'],
+            'interval.endYear' => ['required_if:grouping,range', 'integer'],
+            'interval.endMonth' => ['required_if:grouping,range', 'integer', 'between:1,12'],
+            'fiscalYears' => ['required_if:grouping,fiscal', 'array', 'min:1', 'max:2'],
+            'fiscalYears.*' => ['integer', 'between:2024,2035'],
+            'includeForecastSettlement' => ['sometimes', 'boolean'],
+        ]);
+
+        return response()->json($financeAnalysis->analyze($validated, $activeUser));
     }
     public function get_total_finance_badge(Request $request)
     {
@@ -4417,6 +4448,7 @@ class ProjectController extends Controller
 
         $query = ProjectCase::query()
             ->where('project_record_id', $project->id)
+            ->whereHas('timecardRecord')
             ->with(['reporter:id,name,icon_path,icon_bg']);
 
         if (!empty($data['start'])) {

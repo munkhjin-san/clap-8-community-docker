@@ -30,7 +30,7 @@ const metricLabels: Record<MetricKey, string> = {
 
 const scenarioLabels: Record<ScenarioKey, string> = {
     yearly_plan: '予算',
-    profit: '損益',
+    profit: '計画',
     settlement: '実績',
 };
 
@@ -56,13 +56,13 @@ const comparisonPairs: Array<{
         key: 'profit:settlement',
         base: 'profit',
         target: 'settlement',
-        label: '損益 / 実績',
+        label: '計画 / 実績',
     },
     {
         key: 'yearly_plan:profit',
         base: 'yearly_plan',
         target: 'profit',
-        label: '予算 / 損益',
+        label: '予算 / 計画',
     },
 ];
 
