@@ -70,6 +70,7 @@ class AssetController extends Controller
     {
         $id = $request->id ?? null;
         $params = $request->params;
+        $is_editing = $request['settings']['editing'] ?? false;
         $fieldValues = $request->field_values ?? null;
         $assetCategoryItemId = $request->asset_category_item_id ?? ($params['asset_category_item_id'] ?? null);
 
@@ -83,7 +84,20 @@ class AssetController extends Controller
         if($id == null){
             $params['created_by'] = $this->active_user()->id;
         }
-        $asset = AssetRecord::findOrNew($id);
+        // $asset = AssetRecord::findOrNew($id);
+        if(!$is_editing && $id){
+            $check = AssetRecord::find($id);
+            if($check){
+                throw new HttpResponseException(response()->json([
+                    'message' => '既に同じIDの資産が存在しています。編集モードで更新してください。',
+                ], 422));   
+            }
+        }
+        $asset = AssetRecord::find($id);
+        if(!$asset){
+            $asset = new AssetRecord();
+            $asset->id = $id;
+        }
 
         // Dynamic category-item based fields (optional; backward compatible)
         $categoryItem = null;
@@ -349,7 +363,7 @@ class AssetController extends Controller
             $data = $data->get();
         }
         else{
-            $data = $data->paginate(30);
+            $data = $data->orderBy('created_at', 'asc')->paginate(30);
         }
 
         $maskPasswordValues = function ($asset) {

@@ -207,7 +207,7 @@ const isFieldLocked = (field: AssetCategoryItemField): boolean => {
 
 
 const api = useApi()
-const { ping, ask } = useDialog()
+const { ping, ask, toast } = useDialog()
 const { userList } = useAsset()
 onMounted(() => {
     // if (!props.editData) {
@@ -316,14 +316,20 @@ const createAsset = async() => {
             external_user: isExternal.value ? externalUser.value : null,
             office_id: officeId.value ?? null,
             
+        },
+        settings: {
+            editing: props.editData ? true : false,
         }
     }
 
-    await api.post('/create_asset', {
+    const res = await api.post('/create_asset', {
         ...params,
         asset_category_item_id: selectedItemId,
         field_values,
-    }, { toast: '保存しました。' })
+    })
+    if(res) {
+        toast(props.editData ? '物品を更新しました。' : '物品を作成しました。')
+    }
     emit('close', true)
 
 }
