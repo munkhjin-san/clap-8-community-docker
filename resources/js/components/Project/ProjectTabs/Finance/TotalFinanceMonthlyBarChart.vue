@@ -58,9 +58,9 @@ const props = defineProps<{
     grouping: GroupingMode
     periods: PeriodCell[]
     projectNames: string[]
-    projectPeriods: Record<string, Record<string, PeriodEntry>>
+    periodTotals: Record<string, PeriodEntry>
     activeFiscalYears: number[]
-    comparisonProjectPeriods: Record<string, Record<number, Record<string, PeriodEntry>>>
+    comparisonPeriodTotals: Record<number, Record<string, PeriodEntry>>
     activeView: MetricKey
 }>();
 
@@ -122,9 +122,6 @@ const compactCurrency = new Intl.NumberFormat('ja-JP', {
 });
 
 const metricLabel = computed(() => metricLabels[props.activeView]);
-const projectLabels = computed(() =>
-    props.projectNames.length ? props.projectNames : Object.keys(props.projectPeriods ?? {})
-);
 const activeComparison = computed(() =>
     comparisonPairs.find(pair => pair.key === selectedComparisonKey.value) ?? comparisonPairs[0]
 );
@@ -202,20 +199,17 @@ const emptyScenarioValues = (): Record<ScenarioKey, MonthlyScenarioValues> => ({
 
 const buildRows = (
     periods: PeriodCell[],
-    periodResolver: (projectName: string, period: string) => PeriodEntry | undefined,
+    periodResolver: (period: string) => PeriodEntry | undefined,
 ) => periods.map((period): MonthlyChartRow => {
     const values = emptyScenarioValues();
+    const entry = periodResolver(period.period);
 
-    projectLabels.value.forEach((projectName) => {
-        const entry = periodResolver(projectName, period.period);
+    (['yearly_plan', 'profit', 'settlement'] as ScenarioKey[]).forEach((scenario) => {
+        const unit = normalizeUnit(entry?.[scenario]);
+        if (!unit) return;
 
-        (['yearly_plan', 'profit', 'settlement'] as ScenarioKey[]).forEach((scenario) => {
-            const unit = normalizeUnit(entry?.[scenario]);
-            if (!unit) return;
-
-            values[scenario].value += metricValue(unit, props.activeView);
-            values[scenario].isForecast = values[scenario].isForecast || Boolean(unit.is_forecast);
-        });
+        values[scenario].value = metricValue(unit, props.activeView);
+        values[scenario].isForecast = Boolean(unit.is_forecast);
     });
 
     return {
@@ -270,7 +264,7 @@ const chartDataForRows = (rows: MonthlyChartRow[]): ChartData<'bar'> => {
 const rangeRows = computed(() =>
     buildRows(
         props.periods,
-        (projectName, period) => props.projectPeriods?.[projectName]?.[period]
+        (period) => props.periodTotals?.[period]
     )
 );
 const rangeSummary = computed(() => summarizeRows(rangeRows.value));
@@ -280,7 +274,7 @@ const fiscalCharts = computed(() =>
     props.activeFiscalYears.map((fiscalYear) => {
         const rows = buildRows(
             buildFiscalPeriods(fiscalYear),
-            (projectName, period) => props.comparisonProjectPeriods?.[projectName]?.[fiscalYear]?.[period]
+            (period) => props.comparisonPeriodTotals?.[fiscalYear]?.[period]
         );
 
         return {
@@ -393,7 +387,7 @@ const chartHeight = computed(() => {
             <div class="bar-finance-summary__header">
                 <div>
                     <p class="bar-finance-summary__title">{{ metricLabel }}月別推移</p>
-                    <p class="bar-finance-summary__period">選択プロジェクト {{ projectLabels.length }}件</p>
+                    <p class="bar-finance-summary__period">選択プロジェクト {{ props.projectNames.length }}件</p>
                 </div>
                 <div class="bar-finance-summary__actions">
                     <label class="bar-finance-compare">

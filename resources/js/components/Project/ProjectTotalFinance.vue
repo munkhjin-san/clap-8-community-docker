@@ -1721,9 +1721,9 @@
                                         :grouping="totalGrouping"
                                         :periods="periods"
                                         :projectNames="selectedProjectNames"
-                                        :projectPeriods="dataByMonth"
+                                        :periodTotals="periodTotals"
                                         :activeFiscalYears="activeFiscalYears"
-                                        :comparisonProjectPeriods="comparisonProjectPeriods"
+                                        :comparisonPeriodTotals="comparisonPeriodTotals"
                                         :activeView="activeType"
                                     />
                                 </div>
@@ -2362,6 +2362,20 @@ const rawComparisonProjectTotals = ref<Record<string, Record<number, Record<Scen
 const rawComparisonSummaryTotals = ref<Record<number, Record<ScenarioKey, UnitData>>>({})
 const rawComparisonProjectPeriods = ref<ComparisonProjectPeriods>({})
 const rawComparisonPeriodTotals = ref<ComparisonPeriodTotals>({})
+const comparisonPeriodTotals = computed<ComparisonPeriodTotals>(() => {
+    if (includeForecastSettlement.value) return rawComparisonPeriodTotals.value
+    return Object.fromEntries(
+        Object.entries(rawComparisonPeriodTotals.value ?? {}).map(([fiscalYear, periods]) => [
+            fiscalYear,
+            Object.fromEntries(
+                Object.entries(periods ?? {}).map(([period, entry]) => [
+                    period,
+                    filterScenarioRecord(entry),
+                ])
+            ),
+        ])
+    ) as ComparisonPeriodTotals
+})
 const comparisonProjectPeriods = computed<ComparisonProjectPeriods>(() => {
     if (includeForecastSettlement.value) return rawComparisonProjectPeriods.value
     return Object.fromEntries(
