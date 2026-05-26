@@ -9,6 +9,7 @@ use App\Models\ProjectType;
 use App\Models\SurveyAnswer;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
@@ -304,13 +305,12 @@ class CustomFormController extends Controller
                 'project_type_id' => $projectTypeId,
             ]
         );
-        $user_ids = collect($users)->map(fn($user) => $user['id']);
+        $user_ids = collect($users)->pluck('id');
 
         $admins = Arr::get($data, 'admins', []);
-        $admin_ids = collect($admins)->map(fn($admin) => $admin['id']);
-        $now = now();
-        $form->users()->syncWithPivotValues($user_ids, ['authority' => 0, 'created_at' => $now, 'updated_at' => $now]);
-        $form->admins()->syncWithPivotValues($admin_ids, ['authority' => 1, 'created_at' => $now, 'updated_at' => $now]);
+        $admin_ids = collect($admins)->pluck('id');
+        $this->syncAuthorizedMembers($form->users(), $user_ids, 0);
+        $this->syncAuthorizedMembers($form->admins(), $admin_ids, 1);
         return $form;
     }
     public function delete_custom_form(Request $request){
@@ -476,6 +476,36 @@ class CustomFormController extends Controller
     {
         return (is_numeric($id) && $id > 0) ? $id : null;
     }
+
+    private function syncAuthorizedMembers(BelongsToMany $relation, $memberIds, int $authority): void
+    {
+        $memberIds = collect($memberIds)
+            ->filter(fn ($id) => is_numeric($id) && (int) $id > 0)
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $existingIds = $relation->allRelatedIds()
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
+        $newIds = $memberIds->diff($existingIds);
+        $now = now();
+
+        $payload = $memberIds->mapWithKeys(function (int $memberId) use ($authority, $newIds, $now) {
+            $attributes = ['authority' => $authority];
+
+            if ($newIds->contains($memberId)) {
+                $attributes['created_at'] = $now;
+                $attributes['updated_at'] = $now;
+            }
+
+            return [$memberId => $attributes];
+        })->all();
+
+        $relation->sync($payload);
+    }
+
     private function normalizePublicSetting(array $data, string $usage): array
     {
         $requested = $usage !== self::PROJECT_CREATION_USAGE
