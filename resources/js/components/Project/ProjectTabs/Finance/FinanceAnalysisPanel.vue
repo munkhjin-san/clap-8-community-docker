@@ -1,28 +1,9 @@
 <template>
-    <section class="finance-analysis-panel">
+    <section :class="['finance-analysis-panel', `finance-analysis-panel--${variant}`]">
         <div class="finance-analysis-panel__header">
             <div class="finance-analysis-panel__title">
                 <span class="finance-analysis-panel__icon" aria-hidden="true">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-                            xmlns="http://www.w3.org/2000/svg">
-                        <rect x="5" y="7" width="14" height="11" rx="3"
-                                stroke="currentColor" stroke-width="1.7"/>
-
-                        <path d="M12 7V4"
-                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                        <circle cx="12" cy="3.5" r="1.2" fill="currentColor"/>
-
-                        <circle class="ai-eye" cx="9" cy="12" r="1.2" fill="currentColor"/>
-                        <circle class="ai-eye" cx="15" cy="12" r="1.2" fill="currentColor"/>
-
-                        <path d="M9.5 15H14.5"
-                                stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
-
-                        <path d="M3.5 11V14"
-                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                        <path d="M20.5 11V14"
-                                stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                    </svg>
+                    <AiIcon size="16" fill="#fff" :class="{'animate-pulse': loading}"/>
                 </span>
                 <div>
                     <p class="finance-analysis-panel__eyebrow">AI分析</p>
@@ -32,14 +13,12 @@
             <div class="finance-analysis-panel__actions">
                 <span v-if="stale && !loading" class="finance-analysis-panel__stale">再分析が必要</span>
                 <button type="button" class="finance-analysis-panel__icon-button" title="再分析" @click="$emit('retry')">
-                    <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.45 5.08h-2.13A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L13 11h8V3l-3.35 3.35Z"/>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 406.7002 448.97456">
+                        <path d="M269.42244,400.48149c89.40405-38.52608,127.74738-143.45953,84.52156-230.37382-4.00132-8.04547-.26147-17.82743,7.09537-22.04708,7.4958-4.29935,18.71269-3.19281,23.2254,5.40907,20.95447,39.94219,27.1756,85.82814,18.89384,129.76056-19.02756,100.93584-110.71041,171.77738-212.55189,165.33852C89.88917,442.20092,8.2668,362.26379.5443,261.0774c-2.28189-29.8992,2.63636-63.24923,14.27731-91.50091,25.44743-61.75894,78.66763-107.53931,144.41752-122.44033l-19.58257-16.43668c-7.42992-6.23632-8.21032-17.1677-2.31285-24.29177,6.18069-7.46619,16.86033-8.68422,24.91843-2.18939l51.8508,41.79173c6.84966,5.52083,8.93392,15.44934,4.04718,22.84488l-36.39742,55.08348c-5.60688,8.48539-17.40599,9.55259-24.3728,4.29712-8.40154-6.33776-9.11161-16.578-3.67234-25.07838l13.93379-21.77543c-31.98287,6.59331-59.7407,22.17515-82.69216,44.87814-41.19269,40.74673-58.67726,98.6188-45.74298,156.9487,11.22378,50.61602,47.48919,95.46628,97.6474,117.14014,41.87034,18.09258,90.2506,18.36429,132.55882.13279Z"/>
                     </svg>
                 </button>
                 <button type="button" class="finance-analysis-panel__icon-button" title="閉じる" @click="$emit('close')">
-                    <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                        <path d="m18.3 5.71-1.41-1.41L12 9.17 7.11 4.3 5.7 5.71 10.59 10.6 5.7 15.49l1.41 1.41L12 12.01l4.89 4.89 1.41-1.41-4.89-4.89 4.89-4.89Z"/>
-                    </svg>
+                    <CloseIcon size="10" fill="currentColor"/>
                 </button>
             </div>
         </div>
@@ -94,6 +73,8 @@
 </template>
 
 <script setup lang="ts">
+import AiIcon from '@/components/Icons/AiIcon.vue'
+import CloseIcon from '@/components/Form/CloseIcon.vue';
 import { computed } from 'vue'
 
 type FinanceAnalysisScope = {
@@ -117,12 +98,15 @@ type FinanceAnalysisResult = {
     generated_at: string
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     result: FinanceAnalysisResult | null
     loading: boolean
     error: string
     stale: boolean
-}>()
+    variant?: 'inline' | 'aside'
+}>(), {
+    variant: 'inline',
+})
 
 defineEmits<{
     retry: []
@@ -148,10 +132,27 @@ const basisLabel = computed(() => props.result?.scope.analysis_basis ?? '')
 
 <style scoped>
 .finance-analysis-panel {
+    background: color-mix(in srgb, var(--background-color) 88%, var(--bg2));
+    box-sizing: border-box !important;
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.finance-analysis-panel--inline {
     border-top: 1px solid var(--normalBorder);
     border-bottom: 1px solid var(--normalBorder);
-    background: color-mix(in srgb, var(--background-color) 88%, var(--bg2));
-    padding: 14px 24px 16px;
+    padding: 16px 24px 18px;
+    max-height: min(34vh, 340px);
+}
+
+.finance-analysis-panel--aside {
+    height: 100%;
+    max-height: none;
+    padding: 16px 18px 18px;
+    border-left: 1px solid var(--normalBorder);
 }
 
 .finance-analysis-panel__header {
@@ -265,6 +266,10 @@ const basisLabel = computed(() => props.result?.scope.analysis_basis ?? '')
 
 .finance-analysis-panel__body {
     margin-top: 12px;
+    min-height: 0;
+    overflow: hidden auto;
+    padding: 0 8px 4px 0;
+    scrollbar-gutter: stable;
 }
 
 .finance-analysis-panel__summary {
@@ -293,6 +298,11 @@ const basisLabel = computed(() => props.result?.scope.analysis_basis ?? '')
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px 22px;
     margin-top: 14px;
+}
+
+.finance-analysis-panel--aside .finance-analysis-panel__sections {
+    grid-template-columns: 1fr;
+    gap: 12px;
 }
 
 .finance-analysis-panel__section h4 {
@@ -342,7 +352,10 @@ const basisLabel = computed(() => props.result?.scope.analysis_basis ?? '')
 @media (max-width: 768px) {
     .finance-analysis-panel {
         padding: 12px 16px 14px;
-        overflow: hidden auto;
+    }
+
+    .finance-analysis-panel--inline {
+        max-height: 42vh;
     }
 
     .finance-analysis-panel__sections {

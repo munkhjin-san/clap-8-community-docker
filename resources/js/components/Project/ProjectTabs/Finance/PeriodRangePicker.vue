@@ -47,7 +47,7 @@
                         v-for="m in months"
                         :key="`end-${m}`"
                         type="button"
-                        :class="['month-cell', { selected: endMonthModel === m && currentEnd.toFormat('yyyy') == endYearModel?.toString() }]"
+                        :class="['month-cell', { selected: endMonthModel === m }]"
                         @click="setEndMonth(m)"
                     >
                         {{ m }}月
@@ -76,6 +76,7 @@ import { DateTime } from 'luxon';
 import { ComputedRef, computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 type MonthNumber = 1|2|3|4|5|6|7|8|9|10|11|12
+type RangeChangeSource = 'start' | 'end'
 
 const props = defineProps<{
     start: string;
@@ -108,7 +109,7 @@ const currentStart: ComputedRef<DateTime> = computed(() => parseMonth(props.star
 const currentEnd: ComputedRef<DateTime> = computed(() => parseMonth(props.end))
 
 const startYearModel = ref<number>(currentStart.value.year)
-const startMonthModel = ref<MonthNumber>(currentStart.value.month as MonthNumber)
+const startMonthModel = ref<MonthNumber | null>(currentStart.value.month as MonthNumber)
 const endYearModel = ref<number>(currentEnd.value.year)
 const endMonthModel = ref<MonthNumber | null>(currentEnd.value.month as MonthNumber)
 
@@ -155,74 +156,60 @@ const emitRange = (start: DateTime, end: DateTime) => {
 
 const buildMonthDate = (year: number, month: MonthNumber) =>
     DateTime.fromObject({ year, month, day: 1 }, { zone: 'Asia/Tokyo' }).startOf('month')
+const hasStartMonth = () => startMonthModel.value != null
 const hasEndMonth = () => endMonthModel.value != null
-const clearEnd = () => {
-  endYearModel.value = startYearModel.value
+const clearEnd = (year = startYearModel.value) => {
+  endYearModel.value = year
   endMonthModel.value = null
 }
-const validateRange = (start: DateTime, end: DateTime): string | null => {
-    if (!start.isValid || !end.isValid) return '有効な日付を選択してください。'
-    if (end < start) return '終了月は開始月以降を選択してください。'
+const keepRangeWithinLimit = (start: DateTime, end: DateTime, source: RangeChangeSource) => {
+    let nextStart = start.startOf('month')
+    let nextEnd = end.startOf('month')
+    const monthsDiff = monthsBetween(nextStart, nextEnd) + 1
 
-    const monthsDiff = monthsBetween(start, end) + 1
     if (monthsDiff > MAX_MONTHS.value) {
-        return `最大${MAX_MONTHS.value}ヶ月まで選択できます。`
+        if (source === 'start') {
+            nextEnd = nextStart.plus({ months: MAX_MONTHS.value - 1 })
+        } else {
+            nextStart = nextEnd.minus({ months: MAX_MONTHS.value - 1 })
+        }
     }
 
-    return null
+    return { start: nextStart, end: nextEnd }
 }
 
-const tryUpdateRange = (start: DateTime, end: DateTime, options?: { silent?: boolean }) => {
-  if (!start.isValid) {
+const tryUpdateRange = (start: DateTime, end: DateTime, source: RangeChangeSource, options?: { silent?: boolean }) => {
+  if (!start.isValid || !end.isValid) {
     if (!options?.silent) ping('有効な日付を選択してください。')
     return false
   }
 
-  // If end is invalid/empty-ish, allow start update only
-  if (!end?.isValid) {
-    startYearModel.value = start.year
-    startMonthModel.value = start.month as MonthNumber
-    return true
-  }
-
-  // If start > end: clear end and don't show message
   if (end < start) {
     startYearModel.value = start.year
     startMonthModel.value = start.month as MonthNumber
-    clearEnd()
+    clearEnd(start.year)
     return true
   }
 
-  const error = validateRange(start, end)
-  if (error) {
-    if (!options?.silent) ping(error)
-    return false
-  }
+  const nextRange = keepRangeWithinLimit(start, end, source)
 
-  startYearModel.value = start.year
-  startMonthModel.value = start.month as MonthNumber
-  endYearModel.value = end.year
-  endMonthModel.value = end.month as MonthNumber
+  startYearModel.value = nextRange.start.year
+  startMonthModel.value = nextRange.start.month as MonthNumber
+  endYearModel.value = nextRange.end.year
+  endMonthModel.value = nextRange.end.month as MonthNumber
 
-  emitRange(start, end)
+  emitRange(nextRange.start, nextRange.end)
   return true
 }
 
 
-const applyRangeFromModels = (options?: { silent?: boolean }) => {
-    const startCandidate = buildMonthDate(startYearModel.value, startMonthModel.value)
-    if (!hasEndMonth()) return true
-    const endCandidate = buildMonthDate(endYearModel.value, endMonthModel.value!)
-    return tryUpdateRange(startCandidate, endCandidate, options)
-}
-
 const adjustStartYear = (delta: number) => {
     startYearModel.value = clampYear(startYearModel.value + delta)
-    applyRangeFromModels({ silent: true })
+    startMonthModel.value = null
 }
 const adjustEndYear = (delta: number) => {
     endYearModel.value = clampYear(endYearModel.value! + delta)
-    applyRangeFromModels({ silent: true })
+    endMonthModel.value = null
 }
 const setStartMonth = (month: MonthNumber) => {
   const nextStart = buildMonthDate(startYearModel.value, month)
@@ -234,13 +221,18 @@ const setStartMonth = (month: MonthNumber) => {
   }
 
   const currentEnd = buildMonthDate(endYearModel.value!, endMonthModel.value!)
-  tryUpdateRange(nextStart, currentEnd)
+  tryUpdateRange(nextStart, currentEnd, 'start')
 }
 
 const setEndMonth = (month: MonthNumber) => {
-  const currentStart = buildMonthDate(startYearModel.value, startMonthModel.value)
+  if (!hasStartMonth()) {
+    endMonthModel.value = month
+    return
+  }
+
+  const currentStart = buildMonthDate(startYearModel.value, startMonthModel.value!)
   const nextEnd = buildMonthDate(endYearModel.value, month)
-  tryUpdateRange(currentStart, nextEnd)
+  tryUpdateRange(currentStart, nextEnd, 'end')
 }
 
 

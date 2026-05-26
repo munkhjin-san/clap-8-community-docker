@@ -228,14 +228,14 @@ class MemberController extends Controller
     public function get_today_comments() {
         $typeId = 43;
         $user = $this->active_user();
-        $today = Carbon::now()->format('Y-m-d');
+        $since = Carbon::now()->subHours(24);
         $items = User::where('retire', 0)
-            ->whereHas('custom_field_data_records', function ($q) use ($today) {
-                $q->where('date', $today)
+            ->whereHas('custom_field_data_records', function ($q) use ($since) {
+                $q->where('updated_at', '>=', $since)
                     ->where('type_id', 43)
                     ->whereNotNull('value_text');
-            })->with(['custom_field_data_records' => function ($q) use ($today) {
-                $q->where('date', $today)
+            })->with(['custom_field_data_records' => function ($q) use ($since) {
+                $q->where('updated_at', '>=', $since)
                     ->where('type_id', 43)
                     ->whereNotNull('value_text')
                     ->with('emotedUsers')
