@@ -1,6 +1,6 @@
 <template>
     <BaseLayout
-        v-if="canSeeIncidentCard"
+        v-if="fullscreen || canSeeIncidentCard"
         :title="data.title"
         :count="data.data.attention.length"
         :fullscreen="fullscreen"

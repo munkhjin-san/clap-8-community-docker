@@ -114,7 +114,7 @@
                     <button type="button" class="rounded-full bg-[var(--background-color)] text-[var(--primary-color)] px-4 py-2 text-[12px] shadow-lg" @click="autoArrangeDashboard">
                         <div>自動整列</div>
                     </button>
-                    <button type="button" class="rounded-full bg-[var(--primary-color)] text-[var(--background-color)] px-4 py-2 text-[12px] shadow-lg" @click="customize">
+                    <button type="button" class="rounded-full bg-[var(--primary-color)] !text-[var(--background-color)] px-4 py-2 text-[12px] shadow-lg" @click="customize">
                         <div>カスタマイズ完了</div>
                     </button>
                 </div>
@@ -210,7 +210,14 @@ if (auth.isAdmin) {
 prefsStore.applyLayoutToCards(defaultDashboardCards)
 
 const dashboardCards = ref<DashboardCard[]>(prefsStore.applyOrderToCards(defaultDashboardCards))
-const visibleDashboardCards = computed(() => dashboardCards.value.filter((card) => shouldShowCard(card)))
+const canSeeIncidentCard = computed(() => auth.isPM || auth.isBoss || auth.isAdmin)
+const visibleDashboardCards = computed(() => dashboardCards.value.filter((card) => {
+    if (card.type === 'incidents' && !canSeeIncidentCard.value) {
+        return route.params.type === card.type
+    }
+
+    return shouldShowCard(card)
+}))
 const grid = ref<GridStack | null>(null)
 const customizing = ref(false)
 const GRID_COLUMNS = 4
@@ -439,7 +446,7 @@ const buildSkeletonCards = () => {
     const isSingleColumn = typeof window !== 'undefined' && window.innerWidth <= 959
     let mobileY = 0
 
-    skeletonCards.value = [...dashboardCards.value]
+    skeletonCards.value = [...visibleDashboardCards.value]
         .sort((a, b) => {
             const aLayout = getInitialGridLayout(a)
             const bLayout = getInitialGridLayout(b)
