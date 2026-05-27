@@ -1,123 +1,222 @@
 <template>
-    <div class="form-wrapper" :class="{ focused: focus || modelValue !== null }">
-        <label style="z-index:5" :class="['form-plc']">{{ placeHolder }}</label> 
-        <drop-selector 
-            ref="selector"
-            :class="['facilitySelector']"            
-            v-model="selected_items" 
-            name="selected_items" 
-            :options="options"
-            @search:focus.once="getPossibleItems"
-            @search:focus="focus = true"
-            @search:blur="focus = false"
-            :components="{Deselect}"
-            :selectable="(option) => option.availablity"
-            :reduce="option => option.id"
-            :loading="spinner"
-            label="label"
-        >
-            <template #no-options="{ search, searching, loading }">
-                <div style="font-size: 14px;opacity: 0.8;padding:10px 0;">アイテムはありません。</div>        
-            </template>   
-            <template #spinner="{ loading }">
-                <Transition name="modalFade">
-                    <div v-if="loading" class="spinner-mini"></div>
-                </Transition>
-            </template>
-        </drop-selector>
+    <div style="background:inherit;">
+        <div ref="selectorRef" class="facility-selector-shell">
+            <v-select
+                v-model="selectedItems"
+                :items="options"
+                item-title="label"
+                item-value="id"
+                :item-props="facilityItemProps"
+                :label="placeHolder"
+                :loading="spinner"
+                :menu-props="{ scrollStrategy: 'close', maxWidth: selectorRef ? selectorRef.clientWidth : undefined }"
+                autocomplete="off"
+                class="facilitySelector"
+                clearable
+                :clear-icon="CloseIcon"
+                flat
+                hide-details
+                name="selected_items"
+                tile
+                @update:menu="handleMenuUpdate"
+            >
+                <template #selection="{ item }">
+                    <v-chip
+                        v-if="item.raw"
+                        :close-icon="CloseIcon"
+                        :text="item.raw.label"
+                        class="facility-selector-chip"
+                        closable
+                        density="compact"
+                        rounded="0"
+                        size="small"
+                        @click:close.stop="selectedItems = null"
+                    ></v-chip>
+                </template>
+                <template #item="{ item, props }">
+                    <v-list-item
+                        v-bind="props"
+                        :disabled="!item.raw.availablity"
+                        :ripple="false"
+                        :text="item.raw.label"
+                        class="facility-selector-item"
+                        density="compact"
+                        rounded="0"
+                        variant="flat"
+                    ></v-list-item>
+                </template>
+                <template #no-data>
+                    <div style="font-size: 14px;opacity: 0.8;padding:10px 0;">アイテムはありません。</div>
+                </template>
+                <template #loader="{ isActive }">
+                    <Transition name="modalFade">
+                        <div v-if="isActive">
+                            <div class="spinner-nano" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
+                        </div>
+                    </Transition>
+                </template>
+            </v-select>
+        </div>
     </div>
 </template>
-<script setup>
+<script setup lang="ts">
+import { ref, useTemplateRef, watch } from 'vue';
 import { useApi } from '@/composables/api';
-import { markRaw, ref, watchEffect } from 'vue';
-    const props = defineProps([
-        'placeHolder', 
-        'repeatSpan', 
-        'repetitionFlag', 
-        'target', 
-        'time_start', 
-        'time_end', 
-        'once_date', 
-        'facility', 
-        'editId', 
-        'edit_all_record', 
-        'modelValue'
-    ])
-    const emit = defineEmits(['setItems'])
-    const selected_items = defineModel()
-    const options = ref([])
-    const focus = ref(false)
-    const Deselect = markRaw({
-        template: `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 32 32"><path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path></svg>`
-    })      
+import CloseIcon from '@/components/Form/CloseIcon.vue';
+import type { RepeatDataType } from '@/interface/calendarInterface';
+import 'styles/selector.css';
+
+    type FacilityTarget = 'qualified_institution' | 'qualified_car' | 'zoom_value'
+
+    type FacilityOption = {
+        label: string
+        id: string
+        availablity: boolean
+    }
+
+    type FacilityItemProps = {
+        title: string
+        disabled: boolean
+    }
+
+    interface Props {
+        placeHolder: string
+        repeatSpan: RepeatDataType
+        repetitionFlag: number
+        target: FacilityTarget
+        time_start: string
+        time_end: string
+        once_date: string
+        facility?: unknown
+        editId: number | string | null
+        edit_all_record: boolean
+    }
+
+    const props = defineProps<Props>()
+    const selectedItems = defineModel<string | null>()
+    const options = ref<FacilityOption[]>([])
     const spinner = ref(false)
-    const selector = ref(null)
+    const selectorRef = useTemplateRef<HTMLElement>('selectorRef')
     const api = useApi()
+    const fetchedOnce = ref(false)
+    let requestSerial = 0
+
     const getPossibleItems = async () => {
         const params = {
             editId: props.editId,
             target: props.target,
-            repeat: props.repetitionFlag, 
+            repeat: props.repetitionFlag,
             repeat_span: props.repeatSpan,
             time_start: props.time_start,
             time_end: props.time_end,
             once_date: props.once_date,
-            edit_repeat: props.edit_all_record 
+            edit_repeat: props.edit_all_record,
         }
-        if (isValidTime(params.time_start) && isValidTime(params.time_end)) {
-            const data = await api.post('/get_possible_facilities', params, {
-                loadingRef: spinner,
-            })    
-            options.value = data        
-        }
-        
-    }
-    const isValidTime = (time) => {
-        const timeRegex = /^\d{1,2}:\d{2}$/; // Regex to check format HH:mm
-        if (!timeRegex.test(time)) {
-            return false;
-        }
-        const [hour, minute] = time.split(':').map(Number);
-        return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59; 
-    }
-    watchEffect(() => {
-        getPossibleItems()
-    })
 
+        if (!isValidTime(params.time_start) || !isValidTime(params.time_end)) return
+
+        const serial = ++requestSerial
+        const data = await api.post('/get_possible_facilities', params, {
+            loadingRef: spinner,
+        }) as FacilityOption[] | null
+
+        if (serial !== requestSerial || !data) return
+
+        options.value = data
+        fetchedOnce.value = true
+    }
+
+    const handleMenuUpdate = (isOpen: boolean) => {
+        if (!isOpen) return
+        if (!fetchedOnce.value) getPossibleItems()
+    }
+
+    const facilityItemProps = (option: FacilityOption): FacilityItemProps => {
+        return {
+            title: option.label,
+            disabled: !option.availablity,
+        }
+    }
+
+    const isValidTime = (time: string) => {
+        const timeRegex = /^\d{1,2}:\d{2}$/
+        if (!timeRegex.test(time)) {
+            return false
+        }
+
+        const [hour, minute] = time.split(':').map(Number)
+        return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59
+    }
+
+    watch(
+        () => [
+            props.editId,
+            props.target,
+            props.repetitionFlag,
+            props.repeatSpan,
+            props.time_start,
+            props.time_end,
+            props.once_date,
+            props.edit_all_record,
+        ],
+        () => {
+            void getPossibleItems()
+        },
+        { deep: true, immediate: true },
+    )
 </script>
 <style lang="scss">
+.facility-selector-shell {
+    background: inherit;
+    border: 1px solid var(--primary-color);
+    position: relative;
+}
 
-.facilitySelector{
-    border: 1px solid var(--primary-color) !important;
+.facilitySelector {
+    background: inherit !important;
+    border: none !important;
     width: 100%;
-}
-.facilitySelector{
-    .vs__actions {
-        display: flex; 
-        margin-right: 10px;
-        padding: 0;
-        align-items: center;
-        margin-top: -10px;
+
+    .v-field,
+    .v-field__field,
+    .v-field__input,
+    .v-field__overlay {
+        background: inherit !important;
+        background-color: inherit !important;
     }
-    .vs__clear{
-        fill: var(--primary-color);
-        svg{
-            width: 10px;
-            height: 10px;
-        }
+
+    .v-field__clearable {
+        color: var(--primary-color);
+    }
+
+    .v-field__loader {
+        left: auto;
+        right: 15px;
+        top: 20px;
+        width: fit-content;
+    }
+
+    .facility-selector-chip {
+        max-width: 100%;
     }
 }
-.facilitySelector > .vs__dropdown-menu > .vs__dropdown-option{
-    padding: 10px;
-}
-.selectorFocus{
-    border: 1px solid var(--primary-color) !important;
-}
-.vs__dropdown-option--disabled{
+
+.facility-selector-item.v-list-item--disabled {
     background: inherit !important;
     color: inherit !important;
     opacity: 0.4;
-
 }
 
+@supports selector(:focus-visible) {
+    .v-list-item:after {
+        background: var(--bg2);
+        border: none !important;
+        border-radius: 0;
+        color: var(--primary-color);
+    }
+
+    .v-list-item:focus-visible:after {
+        opacity: 0.5;
+    }
+}
 </style>

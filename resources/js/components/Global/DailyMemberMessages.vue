@@ -53,6 +53,7 @@ import DailyMessageItem from './DailyMessageItem.vue';
 import { DailyMessageUser } from '@/interface/globalInterface';
 import { useAuthUserStore } from '@/store/auth';
 import AddIcon from '../Form/AddIcon.vue';
+import MasonryWall from '@yeger/vue-masonry-wall'
 const emit = defineEmits<{
     refresh: [data: DailyMessageUser]
     create: [comment: string]

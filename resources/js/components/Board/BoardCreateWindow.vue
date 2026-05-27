@@ -30,9 +30,9 @@
                         name="boardMembers"
                         ref="boardMembers"
                         path="board_possible_users"
-                        :exclude="[auth.id]"
+                        :exclude="auth.id ? [auth.id] : []"
                         :closeOnSelect="chatType == 1 ? true : false"
-                        :limit="chatType == 1 ? 1 : null"
+                        :limit="chatType == 1 ? 1 : undefined"
                         :multiple="true"
                         v-model="board_users"
                     />
@@ -99,7 +99,7 @@ import ColorPicker from '../Global/ColorPicker.vue';
 import Cropper from '../Global/Cropper.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
-import { BoardMember } from '@/interface/globalInterface';
+import { User } from '@/interface/globalInterface';
 import Modal from '../Global/Modal.vue';
     const auth = useAuthUserStore()
     const emit = defineEmits(['close', 'reload'])
@@ -110,7 +110,7 @@ import Modal from '../Global/Modal.vue';
     const upFileArray = ref([])
     const title = ref('')
     const icon_path = ref('')
-    const board_users = ref<BoardMember[]>([])
+    const board_users = ref<User[]>([])
     const boardTitle = useTemplateRef('boardTitle')
     const boardMembers = useTemplateRef('boardMembers')
     const iconBg = ref('000')

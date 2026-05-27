@@ -13,7 +13,7 @@
                     @create="createComment"
                 />
 
-                <div v-if="commentLoading > 0 && (!dailyMessageUserList || !dailyMessageUserList.length)">
+                <div class="text-[gray] text-center mt-6 text-[14px]" v-if="commentLoading > 0 && (!dailyMessageUserList || !dailyMessageUserList.length)">
                     <p>まだ投稿はありません。最初のひとことを追加してください。</p>
                 </div>
                 

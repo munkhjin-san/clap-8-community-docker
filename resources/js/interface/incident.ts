@@ -1,5 +1,7 @@
-import { User } from './globalInterface';
+import { CommonFile, User } from './globalInterface';
 import type { Project } from './projectInterface';
+import type { UpdateLog } from './updateLog';
+import type { AppComment } from './appComment';
 
 export type IncidentStatus = 'open' | 'in_progress' | 'resolved' | 'closed' | '完了' | (string & {});
 
@@ -41,16 +43,20 @@ export interface Incident {
     incident_punishment_id?: number | null;
     reason?: string | null;
     prevention?: string | null;
+    prevention_apply_status?: string | null;
     instruction?: string | null;
     resolution?: string | null;
     occured_location?: string | null;
     memo?: string | null;
+    aftermath_comment?: string | null;
     occurred_date: string | null;
     instruction_date?: string | null;
     related_parties?: string | null;
     project_record_id: number | null;
     status: IncidentStatus | null;
     amount_of_damage?: number | null;
+    payee?: string | null;
+    expense_details?: string | null;
     risk_level?: number | null;
     severity_level?: number | null;
     private_notes?: string | null;
@@ -60,15 +66,20 @@ export interface Incident {
     deleted_at?: string | null;
     created_at?: string;
     updated_at?: string;
+    comments_count?: number;
+    file_ids?: number[];
 
     // Relationships
     reportedByUser?: User;
     causedByUser?: User;
-    projectRecord?: Pick<Project, 'id' | 'name' | 'date_start' | 'date_end' | 'category'>;
+    projectRecord?: Pick<Project, 'id' | 'name' | 'date_start' | 'date_end' | 'category' | 'members' | 'manager'>;
     reported_by_user?: User;
     caused_by_user?: User;
-    project_record?: Pick<Project, 'id' | 'name' | 'date_start' | 'date_end' | 'category'>;
+    project_record?: Pick<Project, 'id' | 'name' | 'date_start' | 'date_end' | 'category' | 'members' | 'manager'>;
     category?: IncidentCategory;
     punishment?: IncidentPunishment;
     reports?: IncidentReport[];
+    logs?: UpdateLog[];
+    comments?: AppComment[];
+    files?: CommonFile[];
 }

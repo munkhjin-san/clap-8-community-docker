@@ -9,7 +9,7 @@
                     name="calendarTitle" 
                     placeHolder="タイトルを入力（必須）" 
                     :rules="'required|max:50'"
-                    :initialValue="editTarget ? editTarget.title : ''"
+                    :initialValue="formTarget ? formTarget.title : ''"
                     customClass="full"
                     ref="calendarTitle"
                     type="text"
@@ -347,7 +347,7 @@
                         name="calendarUrl" 
                         placeHolder="URL" 
                         rules=""
-                        :initialValue="editTarget ? editTarget.referrer : ''"
+                        :initialValue="formTarget ? formTarget.referrer : ''"
                         customClass="full"
                         ref="calendarUrl"
                         type="text"
@@ -393,44 +393,46 @@ import { CommonFile } from '@/interface/globalInterface';
 
     const props = defineProps([
         'editTarget', 
+        'duplicateTarget',
         'preSelected', 
         'edit_all_record', 
         'preSelectedMembers', 
         'preSelectedDepartment'
     ])
     const emit = defineEmits(['close'])
+    const formTarget = computed(() => props.editTarget ?? props.duplicateTarget)
 
-    const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : "")
-    const remarks = ref(props.editTarget && props.editTarget.remarks ? props.editTarget.remarks : sharingData.active ? sharingData.text : '')
-    const calendar_users = ref(props.editTarget && props.editTarget.calendar_users ? props.editTarget.calendar_users : props.preSelectedMembers)
-    const calendar_view_users = ref(props.editTarget && props.editTarget.calendar_view_users ? props.editTarget.calendar_view_users : [])
-    const referrer = ref(props.editTarget && props.editTarget.referrer ? props.editTarget.referrer : "")
-    const release_flag = ref(props.editTarget && props.editTarget.release_flag ? true : false)
-    const edit_all = ref(props.editTarget && props.editTarget.edit_all ? true : false)
-    const zoom_waiting_room = ref(props.editTarget && props.editTarget.zoom_waiting_room ? true : false)
-    const zoom_ai_companion = ref(props.editTarget && props.editTarget.zoom_ai_companion ? true : false)
-    const repetition_type = ref(props.editTarget && props.editTarget.repetition_type && props.edit_all_record ? props.editTarget.repetition_type : 0)            
-    const all_day = ref(props.editTarget &&  Math.abs(DateTime.fromSQL(props.editTarget.date_start).diff(DateTime.fromSQL(props.editTarget.date_end), 'hours').as('hour')) >= 23 ? true : false)   
+    const title = ref(formTarget.value?.title ?? "")
+    const remarks = ref(formTarget.value?.remarks ? formTarget.value.remarks : sharingData.active ? sharingData.text : '')
+    const calendar_users = ref(formTarget.value?.calendar_users ?? props.preSelectedMembers)
+    const calendar_view_users = ref(formTarget.value?.calendar_view_users ?? [])
+    const referrer = ref(formTarget.value?.referrer ?? "")
+    const release_flag = ref(formTarget.value?.release_flag ? true : false)
+    const edit_all = ref(formTarget.value?.edit_all ? true : false)
+    const zoom_waiting_room = ref(formTarget.value?.zoom_waiting_room ? true : false)
+    const zoom_ai_companion = ref(formTarget.value?.zoom_ai_companion ? true : false)
+    const repetition_type = ref(formTarget.value?.repetition_type && (!props.editTarget || props.edit_all_record) ? formTarget.value.repetition_type : 0)            
+    const all_day = ref(formTarget.value &&  Math.abs(DateTime.fromSQL(formTarget.value.date_start).diff(DateTime.fromSQL(formTarget.value.date_end), 'hours').as('hour')) >= 23 ? true : false)   
     
-    const time_start = ref(props.editTarget && props.editTarget.date_start ? DateTime.fromSQL(props.editTarget.date_start).toFormat('HH:mm'): props.preSelected  ? DateTime.fromSQL(props.preSelected).toFormat('HH:mm'): DateTime.now().plus({hour: 1}).startOf('hour').toFormat('HH:mm'))
-    const time_end = ref(props.editTarget && props.editTarget.date_end ? DateTime.fromSQL(props.editTarget.date_end).toFormat('HH:mm'): props.preSelected  ? DateTime.fromSQL(props.preSelected ).plus({hour: 1}).toFormat('HH:mm'): DateTime.now().plus({hour: 2}).startOf('hour').toFormat('HH:mm'))
-    const once_date = ref<string>(props.editTarget && props.editTarget.date_end ? DateTime.fromSQL(props.editTarget.date_start).toISODate() as string : props.preSelected  ? DateTime.fromSQL(props.preSelected).toISODate() as string : DateTime.now().toISODate())
+    const time_start = ref(formTarget.value?.date_start ? DateTime.fromSQL(formTarget.value.date_start).toFormat('HH:mm'): props.preSelected  ? DateTime.fromSQL(props.preSelected).toFormat('HH:mm'): DateTime.now().plus({hour: 1}).startOf('hour').toFormat('HH:mm'))
+    const time_end = ref(formTarget.value?.date_end ? DateTime.fromSQL(formTarget.value.date_end).toFormat('HH:mm'): props.preSelected  ? DateTime.fromSQL(props.preSelected ).plus({hour: 1}).toFormat('HH:mm'): DateTime.now().plus({hour: 2}).startOf('hour').toFormat('HH:mm'))
+    const once_date = ref<string>(formTarget.value?.date_end ? DateTime.fromSQL(formTarget.value.date_start).toISODate() as string : props.preSelected  ? DateTime.fromSQL(props.preSelected).toISODate() as string : DateTime.now().toISODate())
     const repeat_span = ref<RepeatDataType>({
         weekly: {
             selected_days: [false, true, false, false, false, false, false],
-            repeat_date_from: props.editTarget && props.editTarget.repetition_type > 0 ? DateTime.fromFormat(props.editTarget.expiration_start, "yyyy-MM-dd HH:mm:ss").toISODate() as string : DateTime.now().toISODate(),
-            repeat_date_to: props.editTarget && props.editTarget.repetition_type > 0 ? DateTime.fromFormat(props.editTarget.expiration_end, "yyyy-MM-dd HH:mm:ss").toISODate() as string : DateTime.now().plus({week: 1}).toISODate(),
+            repeat_date_from: formTarget.value && formTarget.value.repetition_type > 0 ? DateTime.fromFormat(formTarget.value.expiration_start, "yyyy-MM-dd HH:mm:ss").toISODate() as string : DateTime.now().toISODate(),
+            repeat_date_to: formTarget.value && formTarget.value.repetition_type > 0 ? DateTime.fromFormat(formTarget.value.expiration_end, "yyyy-MM-dd HH:mm:ss").toISODate() as string : DateTime.now().plus({week: 1}).toISODate(),
         },
         monthly: {
-            selected_day: props.editTarget && props.editTarget.repeat_days !== null ? parseInt(props.editTarget.repeat_days) : DateTime.now().day, 
-            repeat_date_from: props.editTarget && props.editTarget.repetition_type > 0 ? DateTime.fromISO(props.editTarget.expiration_start).toISODate() as string : DateTime.now().toISODate(),
-            repeat_date_to: props.editTarget && props.editTarget.repetition_type > 0 ? DateTime.fromISO(props.editTarget.expiration_end).toISODate() as string : DateTime.now().plus({month: 1}).toISODate(),
+            selected_day: formTarget.value && formTarget.value.repeat_days !== null ? parseInt(formTarget.value.repeat_days) : DateTime.now().day, 
+            repeat_date_from: formTarget.value && formTarget.value.repetition_type > 0 ? DateTime.fromISO(formTarget.value.expiration_start).toISODate() as string : DateTime.now().toISODate(),
+            repeat_date_to: formTarget.value && formTarget.value.repetition_type > 0 ? DateTime.fromISO(formTarget.value.expiration_end).toISODate() as string : DateTime.now().plus({month: 1}).toISODate(),
         },
         yearly: {
-            selected_month: DateTime.now().plus({month: 1}).month,
-            selected_day: props.editTarget && props.editTarget.repeat_days !== null ? parseInt(props.editTarget.repeat_days) : DateTime.now().day,
-            year_from: props.editTarget && props.editTarget.repetition_type > 0 ? DateTime.fromISO(props.editTarget.expiration_start).year : DateTime.now().year,
-            year_to: props.editTarget && props.editTarget.repetition_type > 0 ? DateTime.fromISO(props.editTarget.expiration_start).year : DateTime.now().plus({year: 1}).year
+            selected_month: formTarget.value && formTarget.value.repeat_month !== null ? parseInt(formTarget.value.repeat_month) : DateTime.now().plus({month: 1}).month,
+            selected_day: formTarget.value && formTarget.value.repeat_days !== null ? parseInt(formTarget.value.repeat_days) : DateTime.now().day,
+            year_from: formTarget.value && formTarget.value.repetition_type > 0 ? DateTime.fromISO(formTarget.value.expiration_start).year : DateTime.now().year,
+            year_to: formTarget.value && formTarget.value.repetition_type > 0 ? DateTime.fromISO(formTarget.value.expiration_end).year : DateTime.now().plus({year: 1}).year
         }
     })
     type FacilityForm = {
@@ -445,40 +447,40 @@ import { CommonFile } from '@/interface/globalInterface';
         zoom_value: number | null
     }
     const facility = ref<FacilityForm>({
-        qualified_institution: props.editTarget?.qualified_institution != null
-            ? props.editTarget.qualified_institution.toString()
+        qualified_institution: formTarget.value?.qualified_institution != null
+            ? formTarget.value.qualified_institution.toString()
             : null,
-        qualified_car: props.editTarget?.qualified_car != null
-            ? props.editTarget.qualified_car.toString()
+        qualified_car: formTarget.value?.qualified_car != null
+            ? formTarget.value.qualified_car.toString()
             : null,
-        zoom_value: props.editTarget?.zoom_value != null
-            ? props.editTarget.zoom_value.toString()
+        zoom_value: formTarget.value?.zoom_value != null
+            ? formTarget.value.zoom_value.toString()
             : null,
     })
-    const uploadedFiles = ref(props.editTarget && props.editTarget.files ? props.editTarget.files : [])
+    const uploadedFiles = ref(formTarget.value?.files ?? [])
     const processing = ref(false)
     const calendarRemark = ref(null)
-    const department_id = ref(props.editTarget?.department_id ?? props.preSelectedDepartment?.id ?? '')
-    const members_only = ref(props.editTarget?.members_only ? true : false)
+    const department_id = ref(formTarget.value?.department_id ?? props.preSelectedDepartment?.id ?? '')
+    const members_only = ref(formTarget.value?.members_only ? true : false)
     const {  facilitiesList, departmentsList } = useCalendar()
     const endTouched = ref(false)
     onMounted(() => {
-        if(props.editTarget && props.editTarget.repetition_type == 1 && props.editTarget.repeat_week){
-            const repeats = props.editTarget.repeat_week.split(',').map(Number);
+        if(formTarget.value && formTarget.value.repetition_type == 1 && formTarget.value.repeat_week){
+            const repeats = formTarget.value.repeat_week.split(',').map(Number);
             let pre = [false, false, false, false, false, false, false]
             repeats.forEach((val: number) => {                
                 pre[val] = true
             });
             repeat_span.value.weekly.selected_days = pre
         }
-        if(!props.editTarget){
+        if(!formTarget.value){
             const editAll = localStorage.getItem('editAllDefault')
             if(editAll && Number(editAll) == 1){
                 edit_all.value = true
             }
         }
         const calendarDepartment = localStorage.getItem('calendarDepartment')
-        if (calendarDepartment) {
+        if (!formTarget.value && !props.preSelectedDepartment && calendarDepartment) {
             department_id.value = Number(calendarDepartment)
         }
     })

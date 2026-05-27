@@ -1,6 +1,6 @@
 <template>
     <div>
-        <div class="form-wrapper" :class="{focused: modelValue}"> 
+        <div class="form-wrapper" :class="{focused: (modelValue !== '' && modelValue !== null && modelValue !== undefined) || type === 'date'}"> 
              
             <input 
                 @input="validate(true)"

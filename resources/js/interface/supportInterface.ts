@@ -79,3 +79,25 @@ export interface SystemUpdateRecord {
     must_read: boolean;
     checked_by_user?: boolean;
 }
+
+export type EmergencyContactStatus = 'pending' | 'complete';
+
+export interface EmergencyContactRecord {
+    id: number;
+    user_id: number;
+    content: string;
+    status: EmergencyContactStatus;
+    actions_count: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface EmergencyContactAction {
+    id: number;
+    emergency_contact_id: number;
+    user_id: number;
+    text: string;
+    created_at: string;
+    updated_at: string;
+    user: User;
+}

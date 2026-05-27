@@ -185,6 +185,7 @@
             <CalendarCreate 
                 v-if="createWindow"   
                 :editTarget="editTarget"   
+                :duplicateTarget="duplicateTarget"
                 :preSelectedDepartment="preSelectedDepartment"  
                 :preSelected="preSelected"
                 :edit_all_record="edit_all_record"
@@ -216,7 +217,6 @@ import DayPicker from './DayPicker.vue';
 // import SearchResult from './SearchResult.vue';
 import DragItem from './DragItem.vue';
 import ShiftButton from './ShiftButton.vue';
-import holiday_jp from '@holiday-jp/holiday_jp'
 import FastCreateButton from './FastCreateButton.vue'
 import { useRoute } from 'vue-router'
 import { useAuthUserStore } from '@/store/auth'
@@ -235,6 +235,7 @@ import FloatButton from '../Global/FloatButton.vue';
 import AddIcon from '../Form/AddIcon.vue';
 import { useDialog } from '@/composables/dialog';
 import { useApi } from '@/composables/api';
+import { usePublicHolidayStore } from '@/store/publicHoliday';
 import Gear from '../Icons/Gear.vue';
 import CalendarSettings from './CalendarSettings.vue';
 import Error from '@/components/Global/Error.vue'
@@ -257,6 +258,7 @@ import Error from '@/components/Global/Error.vue'
     const sharingData = useSharingDataStore()
     const menu = useMenuStore()
     const auth = useAuthUserStore()
+    const publicHolidayStore = usePublicHolidayStore()
     const route = useRoute()
     const responsive = useResponsive()
     const tempRecord = useTempRecord()
@@ -274,6 +276,7 @@ import Error from '@/components/Global/Error.vue'
     const activeYear = ref(DateTime.now().year) 
     const createWindow = ref(false)
     const editTarget = ref<CalendarRecord | null>(null)
+    const duplicateTarget = ref<CalendarRecord | null>(null)
     const initialLoader = ref(true)
     const viewType = ref(-1)
     const slideCount = ref(-1)
@@ -311,6 +314,7 @@ import Error from '@/components/Global/Error.vue'
         window.removeEventListener("keydown", onKeyDown);        
     })        
     onMounted(() => {
+        publicHolidayStore.ensureLoaded()
         const typeRaw = localStorage.getItem('viewType')
         const type = typeRaw ? Number(typeRaw) : 1
         viewType.value = type > -1 ? type : 1  
@@ -378,7 +382,7 @@ import Error from '@/components/Global/Error.vue'
         return selectedDateInstance.value.toISODate() as string
     })
     const holidays = computed(() => {
-        const holidays = holiday_jp.between(new Date(activeYear.value - 1 + '-12-01'), new Date(activeYear.value + 1 + '-1-31'));
+        const holidays = publicHolidayStore.between(new Date(activeYear.value - 1 + '-12-01'), new Date(activeYear.value + 1 + '-1-31'));
         return holidays
     })
     const daysOfMonth = computed(() => {
@@ -529,6 +533,12 @@ import Error from '@/components/Global/Error.vue'
         }
 
     }
+    const duplicateRecord = (record: CalendarRecord) => {
+        duplicateTarget.value = record
+        editTarget.value = null
+        edit_all_record.value = true
+        createWindow.value = true
+    }
     const searchStart = async (word:string) => {
         searchKey.value = word
         menu.setMenu( {id : 26, name: 'calendarSearchResultWindow'})
@@ -669,6 +679,7 @@ import Error from '@/components/Global/Error.vue'
         createWindow.value = false
         tempReserveWindow.value = false
         editTarget.value = null
+        duplicateTarget.value = null
         preSelected.value = ''
         edit_all_record.value = true
         if(val){
@@ -865,6 +876,7 @@ import Error from '@/components/Global/Error.vue'
     }
     provide('deleteCalendar', deleteRecord)
     provide('editRecord', editRecord)
+    provide('duplicateRecord', duplicateRecord)
     provide('dropFinish', dropFinish)
     provide('setSummaryViewing', setSummaryViewing)
     provide('holidays', holidays)

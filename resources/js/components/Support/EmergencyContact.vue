@@ -1,6 +1,6 @@
 <template>
     <div class="support-content text-[14px] px-4 under960:px-1">
-        <div class="support-content-inner">
+        <div class="support-content-inner">            
             <div class="si-box">
                 <LongInput
                     v-model="content"
@@ -13,22 +13,32 @@
             <div class="si-box">
                 <LoaderButton content="送信" :loading="sending" @triggered="send" />
             </div>
+            <router-link v-if="hasPrivilage" class="jump-link" :to="{ name: 'emergency_contact_history' }">緊急連絡履歴</router-link>
+        </div>
+        <div>
+            <router-view />
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import LongInput from '../Form/LongInput.vue';
 import LoaderButton from '../Global/LoaderButton.vue';
 import { useDialog } from '@/composables/dialog';
 import { useApi } from '@/composables/api';
+import { useAuthUserStore } from '@/store/auth';
+
+const contactType = ref('emergency');
 
 const content = ref('');
 const sending = ref(false);
 const { ping, toast } = useDialog();
 const api = useApi();
-
+const auth = useAuthUserStore()
+const hasPrivilage = computed(() => {
+    return auth.isAdmin || auth.isBoss
+});
 const send = async () => {
     if (content.value === '') {
         ping('内容を入力してください。');
@@ -38,7 +48,7 @@ const send = async () => {
     sending.value = true;
 
     try {
-        await api.post('/emergency_contact', { content: content.value });
+        await api.post('/add_emergency_contact', { content: content.value, type: contactType.value });
         toast('緊急連絡が送信されました。');
         content.value = '';
     } catch (error) {

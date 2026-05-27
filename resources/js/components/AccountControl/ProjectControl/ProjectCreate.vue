@@ -573,7 +573,7 @@
                                             <v-chip
                                                 closable
                                                 v-bind="props"
-                                                :text="item.label"
+                                                :text="item.raw.label"
                                                 :close-icon="CloseIcon"
                                                 rounded="0"
                                                 density="compact"
@@ -622,7 +622,7 @@
                                             <v-chip
                                                 closable
                                                 v-bind="props"
-                                                :text="item.label"
+                                                :text="item.raw.label"
                                                 :close-icon="CloseIcon"
                                                 rounded="0"
                                                 density="compact"

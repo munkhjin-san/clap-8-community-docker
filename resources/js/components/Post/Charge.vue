@@ -1,62 +1,97 @@
 <template>
-<div class="overlay" @mousedown="closeChargeModal()">          
-    <div class="chatCreate" style="height:auto;max-width: 70%;" @mousedown.stop>            
-        <div class="recordFormTitle" style="display:flex">
-            <p>チャージする</p>
-                <div class="cursor-pointer" @click="closeChargeModal()" style="position:unset; margin:auto 0 auto auto">
-                    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" class="modalWindowCloseButton" viewBox="0 0 32 32">
-                        <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
-                    </svg>                        
-                </div> 
-            </div>
-            <div class="sm" style="display:inline-flex;margin:0 auto;margin: 30px 0px auto auto;line-height: 30px;font-size: 14px;margin-bottom: 10px;">
-                <span>チャージ可能金額:</span>
-                
-                <span style="display: flex;align-items: center;margin-left: 5px;" v-if="!fetched && possibleAmount == null">
-                    <div id="loaderMicro" style="margin:0 5px;width: fit-content;">
-                        <div class="spinner-micro" style="border: 3px var(--primary-color) solid;border-top: 3px transparent solid;width:15px;height:15px;"></div>
-                    </div>  
-                </span>
-                <span v-else>{{`${possibleAmount}円`}}</span>
-            </div>
-            
-            <div :class="['form-wrapper', {focused: value.length || charge_bet || focus}]">
-
-            
-                <span style="z-index: 5;" class="form-plc">チャージ金額を選択</span> 
-                <drop-selector
-                    @input="value = $event.target.value"
-                    :class="['taskUserSelecArea']"   
-                    style="background-image: unset; margin:0px;width: 100%;border: 1px solid var(--primary-color);" 
-                    v-model="charge_bet" 
-                    name="charge" 
-                    :options="chargeOptions"
-                    inputId="chargeSelector"
-                    @search:focus="focus = true"
-                    @search:blur="focus = false"
-                > 
-                    <template v-slot:no-options="{ search, searching }">                    
-                        <div style="font-size: 13px;opacity: 0.5;padding: 10px 0">お探しのチャージ額は見つかりません。</div>
-                    </template>
-                </drop-selector> 
-            </div>
-            <div style="margin-top:20px">
-                <LoaderButton 
-                    :loading="chargeLock"
-                    content="チャージする"
-                    @triggered="challengeChargeBet"
-                />
-            </div>
-            
+<Modal :loader="fetching" @close="closeChargeModal()" :custom-class="'!h-auto !w-[70%] max-w-[70%]'">
+    <template #title>
+        <p>チャージする</p>
+    </template>
+    <template #content>
+        <div class="text-center my-8 text-[14px]">
+            <span>チャージ可能金額</span>
+            <span v-if="!fetched && possibleAmount == null" class="ml-1 inline-flex items-center">
+                <div id="loaderMicro" class="mx-[5px] w-fit">
+                    <div class="spinner-micro h-[15px] w-[15px] border-[3px] border-solid border-[var(--primary-color)] border-t-transparent"></div>
+                </div>  
+            </span>
+            <span class="py-1 px-4 bg-[var(--bg3)] ml-1" v-else>{{amountOfMoneyParser(possibleAmount)}}円</span>
         </div>
-    </div>  
+        <p class="text-center text-[12px] text-[gray] my-3" v-if="isMini">ミニチャレンジのため、最大のチャージ額は500円までです</p>
+        <div v-if="chargeQuickOptions.length" class="flex flex-wrap justify-center gap-3 mt-2" >
+            <button
+                v-for="option in chargeQuickOptions"
+                :key="option.value"
+                type="button"
+                @click="selectQuickCharge(option)"
+                :class="[
+                    'border border-solid border-[var(--formBorder)] px-[15px] py-[5px] text-[13px] font-semibold',
+                    charge_bet?.value === option.value
+                        ? 'bg-[var(--primary-color)] text-[var(--background-color)]'
+                        : 'bg-transparent text-[var(--primary-color)]'
+                ]"
+            >
+                {{ option.label }}
+            </button>
+        </div>
+        <div v-if="maxChargeAmount >= minChargeAmount" class="mt-8">
+            <div class="flex items-center justify-center gap-3">
+                <button
+                    type="button"
+                    @click="stepCharge(-chargeStep)"
+                    :disabled="chargeAmount <= minChargeAmount"
+                    class="w-11 h-11 rounded-full border border-[var(--primary-color)] text-[24px] leading-none text-[var(--primary-color)] disabled:opacity-40"
+                >
+                    -
+                </button>
+                <div class="flex items-center justify-center bg-[var(--bg3)] px-5 py-3 min-w-[100px]">
+                    <span class="mr-1 text-[18px] font-semibold">¥</span>
+                    <input
+                        name="charge-pick"
+                        :value="chargeInput"
+                        type="number"
+                        :min="minChargeAmount"
+                        :max="maxChargeAmount"
+                        :step="chargeStep"
+                        inputmode="numeric"
+                        class="w-full bg-transparent text-center text-[18px] outline-none"
+                        @input="handleChargeAmountInput"
+                        @blur="syncChargeAmount"
+                    >
+                </div>
+                <button
+                    type="button"
+                    @click="stepCharge(chargeStep)"
+                    :disabled="chargeAmount >= maxChargeAmount"
+                    class="w-11 h-11 rounded-full border border-[var(--primary-color)] text-[24px] leading-none text-[var(--primary-color)] disabled:opacity-40"
+                >
+                    +
+                </button>
+            </div>
+            <div class="mt-3 text-center text-[13px] opacity-70">
+                Min ¥{{ amountOfMoneyParser(minChargeAmount) }} / Max ¥{{ amountOfMoneyParser(maxChargeAmount) }}
+            </div>
+            <div v-if="chargeInputError" class="mt-2 text-center text-[11px] text-[tomato] absolute left-1/2 -translate-x-1/2">
+                {{ chargeInputError }}
+            </div>
+        </div>
+        <div class="si-box">
+            <LoaderButton 
+                :loading="chargeLock"
+                content="チャージする"
+                @triggered="challengeChargeBet"
+            />
+        </div>
+    </template>
+</Modal>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import Modal from '../Global/Modal.vue'
 import LoaderButton from '../Global/LoaderButton.vue'
 import { onMounted } from 'vue';
 import { useApi } from '@/composables/api';
+import { amountOfMoneyParser } from '@/utils/tools';
+    type ChargeOption = { value: number, label: string }
+    const minChargeAmount = 100
+    const chargeStep = 100
     const props = defineProps<{
         chargeTarget: number,
         isMini: boolean
@@ -65,41 +100,41 @@ import { useApi } from '@/composables/api';
         'close': [number | undefined]
     }>()
     const possibleAmount = ref<number>(0)
-    const charge_bet = ref<{value: number, label: string} | null>(null)
-    const chargeOptions = ref<{value: number, label: string}[]>([])
+    const charge_bet = ref<ChargeOption | null>(null)
     const chargeLock = ref(false)
-    const value = ref('')
+    const chargeInput = ref('')
+    const inputTouched = ref(false)
     const fetched = ref(false)
-    const focus = ref(false)
+    const fetching = ref(false)
     const api = useApi()
     onMounted(() => {
         getMyCharge()
     })
 
+    const maxChargeAmount = computed(() => Math.min(props.isMini ? 500 : possibleAmount.value, 15000))
+    const chargeAmount = computed(() => charge_bet.value?.value ?? 0)
+    const numericChargeInput = computed(() => Number.parseInt(chargeInput.value, 10))
+
     const closeChargeModal = (id?: number) => {
         emit('close', id)
     }
     const getMyCharge = async () => {
+        if (fetching.value) return
+        fetching.value = true
         const data = await api.get('/post_get_possible_charge')  
     
         possibleAmount.value = data  
-        pushChargeSelect(possibleAmount.value)   
-        fetched.value = true                          
+        const defaultChargeAmount = getDefaultChargeAmount(maxChargeAmount.value)
+        if (defaultChargeAmount >= minChargeAmount) {
+            setChargeAmount(defaultChargeAmount)
+        }
+        fetched.value = true        
+        fetching.value = false                  
        
     }
-    const pushChargeSelect = (my_charge: number) => {
-        var award_bit = my_charge/100;
-        var charges: {label: string, value: number}[]= [];
-        if (props.isMini) {
-            award_bit = 5; // ミニチャレンジは最大500円まで
-        }
-        for (let step = 1; step < award_bit + 1; step++) {
-            charges.push({ label : step * 100 + '円' , value : step * 100 });
-        }
-        chargeOptions.value = charges;
-
-    }
     const challengeChargeBet = async() => {
+
+        inputTouched.value = true
 
         if(chargeLock.value|| !props.chargeTarget || !charge_bet.value || charge_bet.value.value == 0) return
 
@@ -110,6 +145,149 @@ import { useApi } from '@/composables/api';
 
         closeChargeModal(props.chargeTarget)                 
     }
-        
+    const buildQuickChargeOptions = (maximumOption: number): ChargeOption[] => {
+        if (maximumOption < minChargeAmount) {
+            return []
+        }
+
+        const preferredOptions = [100, 300, 500, 1000, 3000, 5000, 10000, 15000]
+        const valuesBelowMax = preferredOptions.filter((amount) => amount < maximumOption)
+        const quickValues = [...valuesBelowMax.slice(-4), maximumOption]
+
+        const normalizedQuickValues = Array.from(new Set(quickValues))
+            .filter((amount) => amount >= minChargeAmount && amount <= maximumOption)
+            .sort((left, right) => left - right)
+
+        const trimmedQuickValues = maximumOption >= 1000
+            ? normalizedQuickValues.filter((amount) => amount !== 100)
+            : normalizedQuickValues
+
+        return trimmedQuickValues.map((amount) => ({
+            label: `¥${amountOfMoneyParser(amount)}`,
+            value: amount,
+        }))
+    }
+
+    const getDefaultChargeAmount = (maximumOption: number) => {
+        if (maximumOption < minChargeAmount) {
+            return 0
+        }
+
+        return Math.min(3000, maximumOption)
+    }
+
+    const normalizeChargeAmount = (amount: number) => {
+        if (maxChargeAmount.value < minChargeAmount) {
+            return 0
+        }
+
+        const boundedAmount = Math.min(Math.max(amount, minChargeAmount), maxChargeAmount.value)
+        const normalizedAmount = Math.round(boundedAmount / chargeStep) * chargeStep
+
+        return Math.min(maxChargeAmount.value, Math.max(minChargeAmount, normalizedAmount))
+    }
+
+    const setChargeAmount = (amount: number) => {
+        const normalizedAmount = normalizeChargeAmount(amount)
+
+        if (!normalizedAmount) {
+            charge_bet.value = null
+            return
+        }
+
+        chargeInput.value = String(normalizedAmount)
+        charge_bet.value = {
+            label: `¥${amountOfMoneyParser(normalizedAmount)}`,
+            value: normalizedAmount,
+        }
+    }
+
+    const getChargeInputError = (rawAmount: string) => {
+        if (!inputTouched.value) {
+            return ''
+        }
+
+        if (!rawAmount.trim()) {
+            return '金額を入力してください。'
+        }
+
+        if (!/^\d+$/.test(rawAmount.trim())) {
+            return '有効な金額を入力してください。'
+        }
+
+        const amount = Number.parseInt(rawAmount, 10)
+
+        if (amount < minChargeAmount || amount > maxChargeAmount.value) {
+            return `¥${amountOfMoneyParser(minChargeAmount)}〜¥${amountOfMoneyParser(maxChargeAmount.value)}で入力してください。`
+        }
+
+        if (amount % chargeStep !== 0) {
+            return `${chargeStep}円単位で入力してください。`
+        }
+
+        return ''
+    }
+
+    const chargeInputError = computed(() => getChargeInputError(chargeInput.value))
+
+    const syncChargeSelectionFromInput = () => {
+        if (chargeInputError.value) {
+            charge_bet.value = null
+            return
+        }
+
+        const amount = Number.parseInt(chargeInput.value, 10)
+
+        if (Number.isNaN(amount)) {
+            charge_bet.value = null
+            return
+        }
+
+        charge_bet.value = {
+            label: `¥${amountOfMoneyParser(amount)}`,
+            value: amount,
+        }
+    }
+
+    const chargeQuickOptions = computed(() => {
+        const maximumOption = maxChargeAmount.value
+
+        return buildQuickChargeOptions(maximumOption)
+    })
+
+    const selectQuickCharge = (option: ChargeOption) => {
+        inputTouched.value = false
+        setChargeAmount(option.value)
+    }
+
+    const stepCharge = (step: number) => {
+        const baseAmount = Number.isNaN(numericChargeInput.value)
+            ? (charge_bet.value?.value || getDefaultChargeAmount(maxChargeAmount.value))
+            : numericChargeInput.value
+
+        inputTouched.value = false
+        setChargeAmount(baseAmount + step)
+    }
+
+    const handleChargeAmountInput = (event: Event) => {
+        const target = event.target as HTMLInputElement
+        inputTouched.value = true
+        chargeInput.value = target.value
+        syncChargeSelectionFromInput()
+    }
+
+    const syncChargeAmount = (event: Event) => {
+        const target = event.target as HTMLInputElement
+        inputTouched.value = true
+        chargeInput.value = target.value
+
+        if (!chargeInputError.value) {
+            setChargeAmount(Number.parseInt(chargeInput.value, 10))
+            inputTouched.value = false
+            return
+        }
+
+        syncChargeSelectionFromInput()
+    }
     
 </script>

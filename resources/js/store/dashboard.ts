@@ -126,7 +126,9 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         collection.value.timesheet.pendingTimesheets.length + 
         collection.value.notices.length + collection.value.projects.assign_approval_waiting.length + 
         collection.value.projects.officer_approval_waiting.length +
-        collection.value.incidents.attention.length + collection.value.systemUpdates.length
+        collection.value.incidents.attention.length + collection.value.systemUpdates.length + 
+        collection.value.systemUpdates.length
+
         return total
     })
     const goalsStore = useDashboardGoalsStore()
@@ -139,7 +141,8 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
 
         const needed = (goalsStore.requiredGoalData?.this_span?.needed_count || 0) + (goalsStore.requiredGoalData?.previous_span?.needed_count || 0) + (goalsStore.unfinishedPreviousSpanGoals.length ?? 0)
         const pendingAttendanceCount = collection.value.timesheet.pendingAttendance ? 1 : 0
-        return overdueGoals.length + overdueApprovalGoalsCount + needed + pendingAttendanceCount + overdueCheckMessages
+        const incidentsNeedingAttention = collection.value.incidents.attention.length
+        return overdueGoals.length + overdueApprovalGoalsCount + needed + pendingAttendanceCount + overdueCheckMessages + incidentsNeedingAttention
     })
     const getAnnualLeaveData = async () => {
         try {

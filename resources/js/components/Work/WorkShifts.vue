@@ -200,7 +200,6 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useTheme } from '@/store/theme';
 import { useResponsive } from '@/store/responsive';
 import ShortInput from '../Form/ShortInput.vue';
-import holiday_jp from '@holiday-jp/holiday_jp'
 import { getShiftData } from '../../utils/workApi';
 import WorkPaidLeave from './WorkPaidLeave.vue';
 import { useBadgeStore } from '@/store/badge';
@@ -211,6 +210,7 @@ import { useDialog } from '@/composables/dialog';
 import YearPicker from '../Global/YearPicker.vue';
 import { useRoute } from 'vue-router';
 import { useDashboardStore } from '@/store/dashboard';
+import { usePublicHolidayStore } from '@/store/publicHoliday';
     const responsive = useResponsive()
     const theme = useTheme()
     const emit = defineEmits(['closeModal', 'reload', 'viewPaidLeave'])
@@ -264,17 +264,22 @@ import { useDashboardStore } from '@/store/dashboard';
     const plannedLeaveTargetYear = ref(DateTime.now().year)
     const yearOptions = [DateTime.now().minus({year: 1}).year, DateTime.now().year, DateTime.now().plus({year: 1}).year]
     const { getBatchDashboardData } = useDashboardStore()
+    const publicHolidayStore = usePublicHolidayStore()
     onMounted(async() => {
+        publicHolidayStore.ensureLoaded()
         propsCheck()
         getRemainingDays()
         await fetchShiftData()
         isShiftRecord()
     })
     const shiftDateInstance = computed(() => DateTime.fromObject({ year: shiftYear.value, month: shiftMonth.value }))
+    const yearlyHolidays = computed(() => {
+        return publicHolidayStore.between(new Date(shiftYear.value + '-01-01'), new Date(shiftYear.value + '-12-31'))
+    })
     const dataLoad = computed(() => {
         const firstDay = shiftDateInstance.value.startOf('week')
         const lastDay = shiftDateInstance.value.endOf("month").endOf("week");
-        const holidays = holiday_jp.between(new Date(shiftYear.value + '-01-01'), new Date(shiftYear.value + '-12-31'));
+        const holidays = yearlyHolidays.value
         
         const calendar = [];
         let i = firstDay

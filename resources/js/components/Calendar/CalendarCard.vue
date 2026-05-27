@@ -85,6 +85,7 @@
         <div v-if="expanded && editable && record.shift == 0 && !record.task" style="align-self: normal;position: absolute;right: 10px;top: 10px;" @click.stop>
             <ItemMenu :items="[
                 {title: '編集する', action: () => edit(record)},
+                {title: '複製する', action: () => duplicate(record)},
                 {title: '削除する', action: () => removeItem(record)},
                 {title: '最終更新者', action: () => viewDetails = !viewDetails}
             ]"/>
@@ -145,6 +146,7 @@ import { CalendarGroupUser, CalendarRecord } from '@/interface/calendarInterface
         remove(rec)        
     }
     const edit = inject<Function>('editRecord') as Function
+    const duplicate = inject<Function>('duplicateRecord') as Function
 
     const confirmTemp = inject<Function>('confirmTemp') as Function
 

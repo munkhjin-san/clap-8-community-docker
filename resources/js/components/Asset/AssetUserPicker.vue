@@ -1,6 +1,6 @@
 <template>
-    <div class="relative h-full">
-        <button @click.stop="toggle" class="flex items-center px-2 cursor-pointer w-fit h-full" :class="{'!cursor-not-allowed pointer-events-none': disabled}">        
+    <div class="relative flex min-h-[35px] items-stretch">
+        <button @click.stop="toggle" class="flex min-h-[35px] items-center px-2 cursor-pointer w-fit" :class="{'!cursor-not-allowed pointer-events-none': disabled}">        
             <div v-if="selectedUsers.length" class="flex gap-2 flex-wrap">
                 <UserPanel size="20" v-for="user in selectedUsers" :key="user.id" :user="user" :with-name="!(selectedUsers.length > 5 || responsive.mobile)" disable-instant/>
             </div>
@@ -9,7 +9,7 @@
                 <Back class="rotate-[-90deg] ml-3" size="10"/>
             </div>
         </button>
-        <Teleport defer to="#assetSort" :disabled="responsive.mobile ? false : true">
+        <Teleport defer :to="teleportTarget" :disabled="responsive.mobile ? false : true">
             <Transition name="slidePop">
                 <div @click.stop @touchstart.stop id="p-user-pick" v-if="menu.parent == 'p-user-pick'" class="max-w-[80vw] left-0 absolute top-full w-max max-h-[400px] bg-[var(--background-color)] border border-solid border-[var(--secondary-background)] shadow-lg rounded-md overflow-auto z-[4]">
                     <div class="sticky top-0 bg-[var(--background-color)] z-[2] p-3">                
@@ -56,9 +56,14 @@ import { computed, ref } from 'vue';
 
 const user = defineModel<number[] | null>();
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     disabled?: boolean
-}>()
+    users?: User[]
+    teleportTarget?: string
+}>(), {
+    users: undefined,
+    teleportTarget: '#assetSort',
+})
 
 const menu = useMenuStore()
 
@@ -66,10 +71,11 @@ const selectedTab = ref<string>('self');
 const searchName = ref<string>('');
 
 const { userList } = useAsset()
+const pickerUsers = computed(() => props.users ?? userList.value)
 
 const searchResult = computed(() => {
-    if(!searchName.value.length) return userList.value;
-    const totalList:User[] = userList.value;
+    if(!searchName.value.length) return pickerUsers.value;
+    const totalList:User[] = pickerUsers.value;
     if(!searchName.value.length) return [];
     const lowerSearch = searchName.value.toLowerCase();
     return totalList.filter(user => {
@@ -80,7 +86,7 @@ const searchResult = computed(() => {
 })
 
 const selectedUsers = computed(() => {
-    return userList.value.filter(u => user.value?.includes(u.id)) ?? [];
+    return pickerUsers.value.filter(u => user.value?.includes(u.id)) ?? [];
 })
 
 const responsive = useResponsive()

@@ -102,7 +102,6 @@
 import { ref, computed, onMounted } from 'vue';
 import CommandButton from '../Global/CommandButton.vue';
 import { useAuthUserStore } from '@/store/auth';
-import holiday_jp from '@holiday-jp/holiday_jp'
 import { useMenuStore } from '@/store/menu';
 import { getShiftWithWorkGroup } from '../../utils/workApi';
 import WorkMembers from './WorkMembers.vue';
@@ -112,6 +111,7 @@ import MonthPickerNew from '../Global/MonthPickerNew.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import { useDashboardStore } from '@/store/dashboard';
+import { usePublicHolidayStore } from '@/store/publicHoliday';
     const props = defineProps([
         'selectedYear',
         'selectedMonth',
@@ -146,11 +146,17 @@ import { useDashboardStore } from '@/store/dashboard';
     const api = useApi()
     const { ask, ping } = useDialog()
     const { getBatchDashboardData } = useDashboardStore()
+    const publicHolidayStore = usePublicHolidayStore()
     onMounted(async() => {
+        publicHolidayStore.ensureLoaded()
         console.log('usersCheckArray', props.usersCheckArray)
         await fetchWorkGroups()
         const exist = workUsers.value.filter(ob => props.usersCheckArray.includes(ob.id))
         checkedUsers.value = exist.map(ob => ob.id)
+    })
+
+    const yearlyHolidays = computed(() => {
+        return publicHolidayStore.between(new Date(props.selectedYear + '-01-01'), new Date(props.selectedYear + '-12-31'))
     })
 
     const filterGroups = computed(() => {
@@ -170,8 +176,9 @@ import { useDashboardStore } from '@/store/dashboard';
         return shift && [0,5,14,15,16,3].includes(shift?.id) ? 'shift-sunday' : ''
     }
     const holiday = (day) => {
-        const holidays = holiday_jp.between(new Date(props.selectedYear + '-01-01'), new Date(props.selectedYear + '-12-31'));
-        return holidays.find(h => DateTime.fromSQL(h.date).hasSame(day, 'day'));
+        const dayInstance = DateTime.fromSQL(day)
+
+        return yearlyHolidays.value.find(h => DateTime.fromJSDate(h.date).hasSame(dayInstance, 'day'));
     }
     const dayFormatter = (value) => {
         if(value){

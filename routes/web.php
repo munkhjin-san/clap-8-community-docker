@@ -36,7 +36,9 @@ use App\Http\Controllers\OpenAiController;
 use App\Http\Controllers\ProjectPlanController;
 use App\Http\Controllers\PublicSurveyController;
 use App\Http\Controllers\PushController;
+use App\Http\Controllers\PublicHolidayController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\AppCommentController;
 use App\Models\User;
 /*
 |--------------------------------------------------------------------------
@@ -372,6 +374,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/save_google_calendar_settings', [GoogleController::class, 'save_google_calendar_settings']);
         Route::post('/disconnect_google_calendar', [GoogleController::class, 'disconnect_google_calendar']);
         Route::post('/get_google_calendar_events', [GoogleController::class, 'get_google_calendar_events']);
+        Route::get('/public_holidays', [PublicHolidayController::class, 'index']);
 
         Route::post('/get_members_list', [MemberController::class, 'get_members_list']);
         Route::post('/get_kadai_list', [MemberController::class, 'get_kadai_list']);
@@ -489,7 +492,11 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/update_consult_status', [SupportController::class, 'update_consult_status']);
         Route::post('/support_add_message', [SupportController::class, 'support_add_message']);
         Route::get('/search_regulations_from_files', [SupportController::class, 'search_regulations_from_files']);
-        Route::post('emergency_contact', [SupportController::class, 'emergency_contact']);
+        Route::post('/add_emergency_contact', [SupportController::class, 'add_emergency_contact']);
+        Route::get('/get_emergency_contacts', [SupportController::class, 'get_emergency_contacts']);
+        Route::post('/update_emergency_contact_status', [SupportController::class, 'update_emergency_contact_status']);
+        Route::get('/get_emergency_contact_actions', [SupportController::class, 'get_emergency_contact_actions']);
+        Route::post('/add_emergency_contact_action', [SupportController::class, 'add_emergency_contact_action']);
         Route::get('/system_updates', [SupportController::class, 'get_system_updates']);
         Route::post('/system_update_save', [SupportController::class, 'save_system_update']);
         Route::post('/system_update_delete', [SupportController::class, 'delete_system_update']);
@@ -823,7 +830,29 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/must_sync_check', [AutoJobController::class, 'must_sync_check']);
 
         Route::get('/dashboard_data', [DashboardController::class, 'dashboard_data']);
+        Route::get('/app_comments', [AppCommentController::class, 'index']);
+        Route::post('/app_comments', [AppCommentController::class, 'store']);
+        Route::get('/app_comment_mentionable_users', [AppCommentController::class, 'mentionableUsers']);
         Route::get('/get_incidents', [DashboardController::class, 'getIncidents']);
+        Route::get('/incident_page', [DashboardController::class, 'getIncidentPage']);
+        Route::get('/incident_options', [DashboardController::class, 'getIncidentOptions']);
+        Route::get('/incident_settings', [DashboardController::class, 'getIncidentSettings']);
+        Route::post('/incident_category', [DashboardController::class, 'createIncidentCategory']);
+        Route::put('/incident_category', [DashboardController::class, 'updateIncidentCategory']);
+        Route::delete('/incident_category', [DashboardController::class, 'deleteIncidentCategory']);
+        Route::post('/incident_categories/reorder', [DashboardController::class, 'reorderIncidentCategories']);
+        Route::post('/incident_status', [DashboardController::class, 'createIncidentStatus']);
+        Route::put('/incident_status', [DashboardController::class, 'updateIncidentStatus']);
+        Route::delete('/incident_status', [DashboardController::class, 'deleteIncidentStatus']);
+        Route::post('/incident_statuses/reorder', [DashboardController::class, 'reorderIncidentStatuses']);
+        Route::post('/incident_punishment', [DashboardController::class, 'createIncidentPunishment']);
+        Route::put('/incident_punishment', [DashboardController::class, 'updateIncidentPunishment']);
+        Route::delete('/incident_punishment', [DashboardController::class, 'deleteIncidentPunishment']);
+        Route::post('/incident_punishments/reorder', [DashboardController::class, 'reorderIncidentPunishments']);
+        Route::get('/incident_logs', [DashboardController::class, 'getIncidentLogs']);
+        Route::post('/incident_record_create', [DashboardController::class, 'createIncidentRecord']);
+        Route::post('/incident_record_update', [DashboardController::class, 'updateIncidentRecord']);
+        Route::post('/incident_record_delete', [DashboardController::class, 'deleteIncidentRecord']);
         Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
 });
      Route::post('/tts_stream', [OpenAiController::class, 'stream_tts']);

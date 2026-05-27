@@ -47,9 +47,9 @@
 <script setup lang="ts">
 import { useMenuStore } from '@/store/menu';
 import { DateTime, WeekdayNumbers } from 'luxon';
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { WeeksArray, NormalMonthDay } from '@/interface/calendarInterface'
-import holiday_jp from '@holiday-jp/holiday_jp'
+import { usePublicHolidayStore } from '@/store/publicHoliday'
 import Back from '../Icons/Back.vue';
 import { ref } from 'vue';
 const props = defineProps<{
@@ -57,6 +57,11 @@ const props = defineProps<{
 }>()
 const date = defineModel<string>()
 const menu = useMenuStore()
+const publicHolidayStore = usePublicHolidayStore()
+
+onMounted(() => {
+    publicHolidayStore.ensureLoaded()
+})
 
 const parsedDate = computed(() => {
     if(!instance.value) return ''
@@ -69,7 +74,7 @@ const weekDay = (num:number) => {
 }
 const holidays = computed(() => {
     if(!instance.value) return []
-    const holidays = holiday_jp.between(instance.value.startOf('year').toJSDate(), instance.value.endOf('year').toJSDate());
+    const holidays = publicHolidayStore.between(instance.value.startOf('year').toJSDate(), instance.value.endOf('year').toJSDate());
     return holidays
 })
 

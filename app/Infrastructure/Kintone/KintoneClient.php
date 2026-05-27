@@ -5,6 +5,8 @@ namespace App\Infrastructure\Kintone;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
+use Psr\Http\Message\ResponseInterface;
+
 class KintoneClient
 {
     private string $authHeader;
@@ -116,6 +118,57 @@ class KintoneClient
 
             return json_decode((string) $resp->getBody(), true) ?? [];
 
+        } catch (ClientException $e) {
+            $body = $e->hasResponse()
+                ? (string) $e->getResponse()->getBody()
+                : 'no response body';
+            throw new \RuntimeException("Kintone API request failed: {$e->getMessage()} | Body: {$body}", 0, $e);
+        }
+    }
+    public function getComments(string|int $appId, string|int $recordId): array
+    {
+        $queryString = http_build_query([
+            'app' => $appId,
+            'record'  => $recordId,
+        ]);
+
+        try {
+            $resp = $this->http->get("record/comments.json?{$queryString}", [
+                'headers' => [
+                    'X-Cybozu-Authorization' => $this->authHeader,
+                    'X-Requested-With'       => 'XMLHttpRequest',
+                    'Accept'                 => 'application/json',
+                ],
+                'timeout' => 15,
+            ]);
+
+            $data = json_decode((string) $resp->getBody(), true);
+
+            return $data['comments'] ?? [];
+        } catch (ClientException $e) {
+            $body = $e->hasResponse()
+                ? (string) $e->getResponse()->getBody()
+                : 'no response body';
+            throw new \RuntimeException("Kintone API request failed: {$e->getMessage()} | Body: {$body}", 0, $e);
+        }
+    }
+    public function getFiles(string $fileKey): ResponseInterface
+    {
+        $queryString = http_build_query([
+            'fileKey' => $fileKey,
+        ]);
+
+        try {
+            $resp = $this->http->get("file.json?{$queryString}", [
+                'headers' => [
+                    'X-Cybozu-Authorization' => $this->authHeader,
+                    'X-Requested-With'       => 'XMLHttpRequest',
+                    'Accept'                 => '*/*',
+                ],
+                'timeout' => 15,
+            ]);
+
+            return $resp;
         } catch (ClientException $e) {
             $body = $e->hasResponse()
                 ? (string) $e->getResponse()->getBody()

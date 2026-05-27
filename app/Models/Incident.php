@@ -44,4 +44,31 @@ class Incident extends Model
     {
         return $this->hasMany(IncidentReport::class, 'incident_id', 'id')->with('user');
     }
+
+    public function logs()
+    {
+        return $this->morphMany(UpdateLog::class, 'loggable')
+            ->with('user')
+            ->orderByDesc('created_at');
+    }
+
+    public function comments()
+    {
+        return $this->morphMany(AppComment::class, 'commentable')
+            ->with(['user', 'files'])
+            ->orderBy('created_at');
+    }
+
+    public function fileAttachments()
+    {
+        return $this->morphMany(FileAttachment::class, 'attachable');
+    }
+
+    public function files()
+    {
+        return $this->belongsToMany(FileRecord::class, 'file_attachments', 'attachable_id', 'file_id')
+            ->wherePivot('attachable_type', self::class)
+            ->wherePivot('collection', 'attachments')
+            ->where('file_records.deleted_flag', 0);
+    }
 }

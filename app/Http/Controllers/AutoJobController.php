@@ -67,14 +67,19 @@ use Illuminate\Validation\ValidationException;
 use App\Models\Incident;
 use App\Models\IncidentCategory;
 use App\Models\IncidentPunishment;
+use App\Models\FileAttachment;
+use App\Models\AppComment;
+use App\Infrastructure\Kintone\KintoneClient;
+use Intervention\Image\Laravel\Facades\Image;
 class AutoJobController extends Controller
 
 {
     protected $sharedService;
     protected $gemini_url;
-    public function __construct(SharedService $sharedService)
+    public function __construct(SharedService $sharedService, private KintoneClient $kintoneClient)
     {
         $this->sharedService = $sharedService;
+        
 
         $this->gemini_url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
         // $this->middleware('throttle:3,1');
@@ -843,14 +848,61 @@ class AutoJobController extends Controller
         return response()->json($result_users);
     }
     public function incident_fill(){
+
+        
+
+        // $records = $this->kintoneClient->getRecord(33, 347,[]);
+        // $comments = $this->kintoneClient->getComments(33, 347);
+        // dd($comments);
+        // $fileKey = '202605192346225D02572457214AECA775BFEF2538F16C302';
+        // $response = $this->kintoneClient->getFiles($fileKey);
+        // $contentDisposition = $response->getHeaderLine('Content-Disposition');
+        // $rawFileName = $fileKey;
+
+        // foreach (explode(';', $contentDisposition) as $segment) {
+        //     $segment = trim($segment);
+
+        //     if (Str::startsWith($segment, 'filename*=')) {
+        //         $rawFileName = preg_replace('/^filename\*=UTF-8\'\'/i', '', $segment);
+        //         break;
+        //     }
+
+        //     if (Str::startsWith($segment, 'filename=')) {
+        //         $rawFileName = trim(substr($segment, strlen('filename=')), '"');
+        //         break;
+        //     }
+        // }
+
+        // $fileName = urldecode(basename($rawFileName));
+        // $storagePath = 'incident_files/' . $fileName;
+
+        // Storage::disk('local')->put($storagePath, $response->getBody()->getContents());
+
+
+
+
         $users = User::select('id', 'name')->get();
         $userMap = $users->pluck('name', 'id')->toArray();
         $userListNoSpace = $users->mapWithKeys(function ($user) {
             return [$user->id => str_replace(' ', '', $user->name)];
         })->toArray();
 
-        $loadedJsonFile = Storage::disk('local')->get('incident.json');
-        $incidents = json_decode($loadedJsonFile, true);
+        // $loadedJsonFile = Storage::disk('local')->get('incident.json');
+        $records = $this->kintoneClient->getRecords(33, 'limit 350',[]);
+        $recordsValues = array_map(function($record) {
+            $keys = array_keys($record);
+            $values = array_map(function($key) use ($record) {
+                return $record[$key]['value'] ?? null;
+            }, $keys);
+            return array_combine($keys, $values);
+        }, $records);
+        // dd($recordsValues[3]);
+
+
+        
+
+
+        $incidents = $recordsValues;
 
         $projects = ProjectRecord::pluck('id', 'name')->toArray();
         $projectListNoSpace = collect($projects)->mapWithKeys(function ($id, $name) {
@@ -867,58 +919,281 @@ class AutoJobController extends Controller
             return [$id => $name];
         })->toArray();
 
+        $nullableNumber = function ($value) {
+            if ($value === null) {
+                return null;
+            }
+
+            $normalized = str_replace(',', '', trim((string) $value));
+
+            return $normalized === '' || !is_numeric($normalized) ? null : (float) $normalized;
+        };
+
+        $nullableInteger = function ($value) use ($nullableNumber) {
+            $number = $nullableNumber($value);
+
+            return $number === null ? null : (int) $number;
+        };
+
         foreach($incidents as $incident){
             $reporter_id = null;
             $causer_id = null;
             $project_record_id = null;
             $incident_category_id = null;
             $incident_punishment_id = null;
-            $memo1 = $incident['memo'] ?? '';
-            $memo2 = $incident['memo2'] ?? '';
-            $memo_combined = $memo1 . ' ' . $memo2;
-            $created_at = $incident['created_at'] ? Carbon::parse($incident['created_at']) : now();
-            $updated_at = $incident['updated_at'] ? Carbon::parse($incident['updated_at']) : now();
-            $committee_decision_date = $incident['committee_decision_date'] ? Carbon::parse($incident['committee_decision_date']) : null;
-            $private_note1 = $incident['private_notes'] ?? '';
-            $private_note2 = $incident['private_notes2'] ?? '';
+            $memo_combined = $incident['詳細メモ'] ?? '';
+            $created_at = $incident['作成日時'] ? Carbon::parse($incident['作成日時']) : now();
+            $updated_at = $incident['更新日時'] ? Carbon::parse($incident['更新日時']) : now();
+            $committee_decision_date = $incident['懲罰委員会日付＿'] ? Carbon::parse($incident['懲罰委員会日付＿']) : null;
+            $private_note1 = $incident['経営管理本部MEMO'] ?? '';
+            $private_note2 = $incident['経営管理部記入欄'] ?? '';
             $private_note_combined = $private_note1 . ' ' . $private_note2;
             
-            if($incident['reported_by']){
-                $reporter_id = array_search($incident['reported_by'], $userListNoSpace);          
+            if($incident['報告者']){
+                $reporter_id = array_search($incident['報告者'], $userListNoSpace);          
             }
-            if($incident['caused_by']){
-                $causer_id = array_search($incident['caused_by'], $userListNoSpace);                
+            if($incident['当事者']){
+                $causer_id = array_search($incident['当事者'], $userListNoSpace);                
             }
-            if($incident['occurred_date']){
-                $incident['occurred_date'] = Carbon::parse($incident['occurred_date'])->format('Y-m-d');
+            if($incident['発生日']){
+                $incident['発生日'] = Carbon::parse($incident['発生日'])->format('Y-m-d');
             }
-            if($incident['project_record_id']){
-                $project_record_id = array_search($incident['project_record_id'], $projectListNoSpace);                
+            if($incident['部門']){
+                $project_record_id = array_search($incident['部門'], $projectListNoSpace);                
             }
-            if($incident['incident_category']){
-                $incident_category_id = array_search($incident['incident_category'], $incidentCategoryList);                
+            if($incident['区分']){
+                $incident_category_id = array_search($incident['区分'], $incidentCategoryList);                
             }
-            if($incident['incident_punishment']){
-                $incident_punishment_id = array_search($incident['incident_punishment'], $incidentPunishmentList);                
+            if($incident['懲罰区分']){
+                $incident_punishment_id = array_search($incident['懲罰区分'], $incidentPunishmentList);                
             }
             
             // dd($reporter_id);
-            $incident['private_notes'] = $private_note_combined ? $private_note_combined : null;
-            $incident['memo'] = $memo_combined ? $memo_combined : null;
-            $incident['reported_by'] = $reporter_id;
-            $incident['caused_by'] = $causer_id;
-            $incident['project_record_id'] = $project_record_id;
-            $incident['incident_category_id'] = $incident_category_id;
-            $incident['incident_punishment_id'] = $incident_punishment_id;
-            $incident['created_at'] = $created_at;
-            $incident['updated_at'] = $updated_at;
-            $incident['committee_decision_date'] = $committee_decision_date;
-            $incident['instruction_date'] = $incident['instruction_date'] ? Carbon::parse($incident['instruction_date'])->format('Y-m-d') : null;
+            
 
-            //drop memo2, private_note2, and original string fields
-            unset($incident['memo2'], $incident['private_notes2'], $incident['incident_category'], $incident['incident_punishment']);
-            $createRecord = Incident::create($incident);
-            echo('Created incident record with ID: ' . $createRecord->id . "\n");            
+            $dataPrepared = [
+                'private_notes' => $private_note_combined ? $private_note_combined : null,
+                'memo' => $memo_combined ? $memo_combined : null,
+                'reported_by' => $reporter_id,
+                'caused_by' => $causer_id,
+                'project_record_id' => $project_record_id,
+                'incident_category_id' => $incident_category_id,
+                'incident_punishment_id' => $incident_punishment_id,
+                'occurred_date' => $incident['発生日'] ?? null,
+                'created_at' => $created_at,
+                'updated_at' => $updated_at,
+                'committee_decision_date' => $committee_decision_date,
+                'committee_members' => $incident['懲罰委員会メンバー'] ?? null,
+                'instruction_date' => $incident['指導日'] ? Carbon::parse($incident['指導日'])->format('Y-m-d') : null,
+                'occured_location' => $incident['事故発生場所'] ?? null,
+                'related_parties' => $incident['相手先'] ?? null,
+                'description' => $incident['概要及び時系列'] ?? null,
+                'reason' => $incident['根本原因'] ?? null,
+                'resolution' => $incident['対応状況'] ?? null,
+                'prevention' => $incident['文字列__複数行＿2'] ?? null,
+                'amount_of_damage' => $nullableNumber($incident['損害額'] ?? null),
+                'risk_level' => $nullableInteger($incident['リスクレベル'] ?? null),
+                'severity_level' => $nullableInteger($incident['損害レベル'] ?? null),
+                'instruction' => $incident['文字列__複数行__2'] ?? null,
+                'reason' => $incident['文字列__複数行__0'] ?? null,
+                'status' => $incident['ステー_タス'] ?? null,
+
+                'prevention_apply_status' => $incident['再発防止策対応状況'] ?? null,                
+                'payee' => $incident['文字列__1行_'] ?? null,
+                'expense_details' => $incident['文字列__複数行_'] ?? null,
+                'aftermath_comment' => $incident['文字列__複数行__4'] ?? null,
+
+            ];
+
+            $createRecord = Incident::create($dataPrepared);
+            echo('<pre>Created incident record with ID: ' . $createRecord->id . "</pre><br>");
+            
+            $incidentId = $incident['$id'] ?? null;
+            if($incidentId){
+                $comments = $this->kintoneClient->getComments(33, $incidentId);
+
+                foreach ($comments as $comment) {
+                    if (empty($comment['text'])) {
+                        continue;
+                    }
+
+                    AppComment::create([
+                        'commentable_type' => Incident::class,
+                        'commentable_id' => $createRecord->id,
+                        'user_id' => null,
+                        'content' => $comment['text'],
+                        'mentioned_user_ids' => [],
+                        'created_at' => !empty($comment['createdAt'])
+                            ? Carbon::parse($comment['createdAt'])
+                            : now(),
+                        'updated_at' => !empty($comment['createdAt'])
+                            ? Carbon::parse($comment['createdAt'])
+                            : now(),
+                    ]);
+                }
+            }
+            
+            
+            $files = $incident['添付ファイル'] ?? [];
+            foreach ($files as $file) {
+                $fileKey = $file['fileKey'];
+                $response = $this->kintoneClient->getFiles($fileKey);
+                $contentDisposition = $response->getHeaderLine('Content-Disposition');
+                $headerFileName = null;
+
+                foreach (explode(';', $contentDisposition) as $segment) {
+                    $segment = trim($segment);
+
+                    if (Str::startsWith($segment, 'filename*=')) {
+                        $headerFileName = preg_replace('/^filename\*=UTF-8\'\'/i', '', $segment);
+                        break;
+                    }
+
+                    if (Str::startsWith($segment, 'filename=')) {
+                        $headerFileName = trim(substr($segment, strlen('filename=')), '"');
+                        break;
+                    }
+                }
+
+                $fileName = $this->bestKintoneFileName([
+                    $file['name'] ?? null,
+                    $headerFileName,
+                    $fileKey,
+                ]);
+                $mimeType = $response->getHeaderLine('Content-Type') ?: ($file['contentType'] ?? 'application/octet-stream');
+                $fileType = explode('/', $mimeType)[0] ?: 'application';
+                $fileExtension = $this->safeImportedFileExtension($fileName, $mimeType);
+                $fileContent = $response->getBody()->getContents();
+                $filePath = date("YmdHis") . md5(uniqid());
+                $userId = $reporter_id ?: Auth::id();
+
+                $fileRecord = new FileRecord;
+                $fileRecord->path = $filePath;
+                $fileRecord->name = $fileName;
+                $fileRecord->mime_type = $fileType;
+                $fileRecord->extension = $fileExtension;
+                $fileRecord->user_id = $userId;
+                $fileRecord->save();
+
+                $path = 'incident_files';
+                $storageDirectory = storage_path('app/' . $path);
+                $setPath = $fileRecord->id . '_' . $fileRecord->user_id . '_' . $filePath . '.' . $fileExtension;
+                $thumbnailPath = 'thumbnail/' . $fileRecord->id . '_' . $fileRecord->user_id . '_' . $filePath . '_thumbnail.webp';
+
+                File::isDirectory($storageDirectory) or File::makeDirectory($storageDirectory, 0755, true, true);
+
+                if ($fileType === 'image' && $fileExtension !== 'svg') {
+                    $img = Image::read($fileContent);
+                    if (method_exists($img, 'strip')) {
+                        $img->strip();
+                    }
+                    $img = $img->scaleDown(height: 1080);
+                    $img->save($storageDirectory . '/' . $setPath, 30);
+
+                    File::isDirectory($storageDirectory . '/thumbnail') or File::makeDirectory($storageDirectory . '/thumbnail', 0755, true, true);
+                    $thumbnail = $img->scale(height: 130);
+                    $thumbnail->toWebp()->save($storageDirectory . '/' . $thumbnailPath);
+                } else {
+                    Storage::disk('local')->put($path . '/' . $setPath, $fileContent);
+                }
+
+                $fileRecord->size = File::size($storageDirectory . '/' . $setPath);
+                $fileRecord->save();
+
+                FileAttachment::firstOrCreate([
+                    'file_id' => $fileRecord->id,
+                    'attachable_type' => Incident::class,
+                    'attachable_id' => $createRecord->id,
+                    'collection' => 'attachments',
+                ]);
+            }
+           
         }   
     }
+
+    private function bestKintoneFileName(array $candidates): string
+    {
+        $fallback = null;
+
+        foreach ($candidates as $candidate) {
+            if (!$candidate) {
+                continue;
+            }
+
+            $decoded = $this->decodeKintoneFileName($candidate);
+            $decoded = $this->sanitizeImportedFileName($decoded);
+            $fallback ??= $decoded;
+
+            if (!str_contains($decoded, '=?') && $this->safeImportedFileExtension($decoded) !== 'bin') {
+                return $decoded;
+            }
+        }
+
+        return $fallback ?? date("YmdHis") . md5(uniqid()) . '.bin';
+    }
+
+    private function decodeKintoneFileName(string $rawFileName): string
+    {
+        $decoded = urldecode($rawFileName);
+        $decoded = preg_replace_callback('/=\?([^?]+)\?([bBqQ])\?(.+?)\?=/', function ($matches) {
+            $charset = $matches[1];
+            $encoding = strtoupper($matches[2]);
+            $payload = preg_replace('/\s+/', '', $matches[3]);
+
+            if ($encoding === 'B') {
+                $bytes = base64_decode($payload, true);
+                if ($bytes === false) {
+                    $payload .= str_repeat('=', (4 - strlen($payload) % 4) % 4);
+                    $bytes = base64_decode($payload, false);
+                }
+            } else {
+                $bytes = quoted_printable_decode(str_replace('_', ' ', $payload));
+            }
+
+            if ($bytes === false) {
+                return $matches[0];
+            }
+
+            return @mb_convert_encoding($bytes, 'UTF-8', $charset) ?: $bytes;
+        }, $decoded) ?? $decoded;
+
+        return basename($decoded);
+    }
+
+    private function sanitizeImportedFileName(string $fileName): string
+    {
+        $fileName = basename(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $fileName));
+        $fileName = preg_replace('/[\x00-\x1F\x7F]+/u', '', $fileName) ?? $fileName;
+        $fileName = trim($fileName, " \t\n\r\0\x0B\"'");
+
+        return $fileName !== '' ? $fileName : date("YmdHis") . md5(uniqid()) . '.bin';
+    }
+
+    private function safeImportedFileExtension(string $fileName, ?string $mimeType = null): string
+    {
+        $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION) ?: '');
+
+        if (preg_match('/^[a-z0-9]{1,10}$/', $extension) === 1) {
+            return $extension;
+        }
+
+        return match (strtolower((string) $mimeType)) {
+            'application/pdf' => 'pdf',
+            'application/msword' => 'doc',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+            'application/vnd.ms-excel' => 'xls',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+            'application/vnd.ms-powerpoint' => 'ppt',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation' => 'pptx',
+            'text/plain' => 'txt',
+            'text/csv' => 'csv',
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            'image/svg+xml' => 'svg',
+            default => 'bin',
+        };
+    }
+
 }

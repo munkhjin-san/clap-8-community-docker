@@ -45,6 +45,7 @@ class Kernel extends ConsoleKernel
         $schedule->job(new CheckUserEvaluation())->dailyAt('01:00');
 
         $schedule->command('posts:close-expired')->dailyAt('02:00');
+        $schedule->command('app:sync-public-holidays')->monthlyOn(1, '01:00');
         $schedule->command('alerts:variance --period='.now()->toDateString())->monthlyOn(20, '18:00');
         $schedule->command('logs:prune-activity-logs')->quarterly();
         $schedule->command('goals:check-alert-streak')->dailyAt('02:00');

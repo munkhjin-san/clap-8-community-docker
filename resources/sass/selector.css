@@ -23,11 +23,21 @@
 .v-menu>.v-overlay__content {
     border-radius: 0;
 }
+
 .v-chip.v-chip--size-small {
     height: 35px !important;
     padding: 0 10px !important;
     font-size: 14px !important;
     fill: var(--primary-color);
+}
+.tag-selector-combo .v-chip.v-chip--size-small {
+    height: 28px !important;
+}
+.v-chip__content{
+    color: var(--primary-color) !important;
+}
+.tag-selector-combo .v-chip__content{
+    font-size: 12px;
 }
 .v-chip__close {
     background: transparent !important;

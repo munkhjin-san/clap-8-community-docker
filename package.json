@@ -20,8 +20,6 @@
     },
     "dependencies": {
         "@cyhnkckali/vue3-color-picker": "^2.0.7",
-        "@holiday-jp/holiday_jp": "^2.4.0",
-        "@pusher/push-notifications-web": "^2.1.0",
         "@tiptap/extension-bullet-list": "^2.12.0",
         "@tiptap/extension-color": "^2.12.0",
         "@tiptap/extension-dropcursor": "^2.12.0",
@@ -45,6 +43,7 @@
         "driver.js": "^1.4.0",
         "export-to-csv": "^1.2.2",
         "filesize": "^10.0.7",
+        "gridstack": "^12.6.0",
         "interactjs": "^1.10.27",
         "luxon": "^3.5.0",
         "marked": "^12.0.2",
@@ -54,7 +53,7 @@
         "sass-embedded": "^1.97.2",
         "signature_pad": "^5.0.2",
         "socket.io-client": "^4.7.5",
-        "sortablejs": "^1.15.6",
+        "sortablejs": "^1.15.7",
         "swiper": "^12.1.3",
         "vite-plugin-vuetify": "^2.0.3",
         "vue": "^3.5.31",
@@ -62,10 +61,8 @@
         "vue-component-type-helpers": "^2.1.10",
         "vue-ios-pwa-prompt": "^1.0.4",
         "vue-router": "^4.6.4",
-        "vue-select": "^4.0.0-beta.6",
         "vue3-emoji-picker": "^1.1.8",
         "vue3-lazyload": "^0.3.8",
-        "vue3-touch-events": "^4.2.0",
         "vuetify": "^3.7.4"
     },
     "type": "module"

@@ -320,7 +320,6 @@ import { useTheme } from '@/store/theme';
 import WeekPicker from '../Global/WeekPicker.vue';
 import Back from '../Icons/Back.vue';
 import DayHeader from './TempReserve/DayHeader.vue';
-import * as holiday_jp from '@holiday-jp/holiday_jp';
 import { DailySchedule, DateSchedule, FacList } from '@/interface/calendarInterface';
 import DayRow from './TempReserve/DayRow.vue';
 import LongInput from '../Form/LongInput.vue';
@@ -328,6 +327,7 @@ import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import UserPanel from '../Global/UserPanel.vue';
 import CommandButton from '../Global/CommandButton.vue';
+import { usePublicHolidayStore } from '@/store/publicHoliday';
 
 const emit = defineEmits<{
     close: [flag: boolean];
@@ -337,6 +337,7 @@ const api = useApi()
 const { ping, toast } = useDialog()
 const auth = useAuthUserStore()
 const theme = useTheme()
+const publicHolidayStore = usePublicHolidayStore()
 const targetUsers = ref<User[]>([auth.user as unknown as User]);
 const searching = ref(false)
 const targetUsersRef = useTemplateRef('targetUsersRef')
@@ -369,6 +370,7 @@ const facilites = ref<FacList>({
     qualified_care: []
 })
 onMounted(() => {
+    publicHolidayStore.ensureLoaded()
     blockData.value = initBlockData()
     const savedBufferTime = localStorage.getItem('tempReserveBuffer')
     buffer.value = savedBufferTime ? parseInt(savedBufferTime) : 0;
@@ -409,7 +411,7 @@ const bodyStyle = computed(() => {
     }
 })
 const holidays = computed(() => {
-    const holidays = holiday_jp.between(DateTime.fromISO(startDate.value).startOf('year').toJSDate(), DateTime.fromISO(startDate.value).endOf('year').toJSDate());
+    const holidays = publicHolidayStore.between(DateTime.fromISO(startDate.value).startOf('year').toJSDate(), DateTime.fromISO(startDate.value).endOf('year').toJSDate());
     return holidays as {date: Date, name: string}[]
 }) 
 const hourOptions = computed(() => {

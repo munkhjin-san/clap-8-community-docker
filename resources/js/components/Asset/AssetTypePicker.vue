@@ -29,7 +29,7 @@
                     <template v-slot:item="{ props, item }">
                         <v-list-item v-bind="props" :text="item.raw" rounded="0" density="compact" :ripple="false" variant="flat"></v-list-item>                    
                     </template>
-                    <template v-slot:loader="{ props, isActive}">
+                    <template v-slot:loader="{ isActive}">
                         <Transition name="modalFade">
                             <div v-if="isActive">
                                 <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>

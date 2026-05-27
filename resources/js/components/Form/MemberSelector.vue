@@ -1,152 +1,410 @@
 <template>
-    <div>        
-        <div>
-            <div style="border: 1px solid var(--primary-color);" class="form-wrapper" :class="{focused: (multiple ? modelValue?.length : modelValue) || focus}">
-                <label style="z-index:5" class="form-plc">{{ placeHolder }}</label>
-                 
-                <drop-selector 
-                    label="name"
-                    :class="['global-user-select']"            
-                    v-model="qualified_users" 
-                    name="qualified_users" 
-                    :options="options"
-                    :multiple="multiple"
-                    :noDrop="noDrop"
-                    :inputId="'taskUserSelector'"
-                    :components="{Deselect}"
-                    :disabled="disabled"
-                    :closeOnSelect="closeOnSelect"
-                    @search:focus="focus = true"
-                    @search:blur="focus = false"
-                    :rules="rules"
-                >
-                    <template #selected-option="option">
-                        <div style="display: flex;align-items: center;gap:10px;font-size: 13px;padding: 5px 0;margin-right: 5px;">
-                            <UserPanel :disableInstant="true" :user="option" size="25"/>
-                            <p>{{ option.name }}</p>
+    <div>
+        <div
+            class="member-selector-shell"
+            :class="{ 'member-selector-disabled': disabled }"
+            ref="selectorRef"
+            @keydown.down.capture="focusPendingOption"
+            @keydown.enter.capture="rememberKeyboardOptionIndex"
+        >
+            <v-autocomplete
+                :model-value="qualifiedUsers"
+                :chips="multiple"
+                :clear-icon="CloseIcon"
+                clear-on-select
+                :closable-chips="multiple && !disabled"
+                :close-on-select="effectiveCloseOnSelect"
+                :disabled="disabled"
+                :hide-selected="multiple"
+                :item-props="userItemProps"
+                :items="options"
+                :label="placeHolder"
+                :menu="menuOpen"
+                :menu-props="{ maxWidth: selectorRef ? selectorRef.clientWidth : undefined }"
+                :multiple="multiple"
+                auto-select-first
+                autocomplete="off"
+                class="global-user-select"
+                flat
+                hide-details
+                item-title="name"
+                item-value="id"
+                :name="name"
+                return-object
+                tile
+                @update:focused="focus = $event"
+                @update:menu="updateMenuState"
+                @update:modelValue="updateQualifiedUsers"
+            >
+                <template #chip="{ props: chipProps, item }">
+                    <v-chip
+                        v-if="item.raw"
+                        v-bind="chipProps"
+                        :close-icon="CloseIcon"
+                        class="member-selector-chip"
+                        closable
+                        density="compact"
+                        rounded="0"
+                        size="small"
+                    >
+                        <div class="member-selector-user">
+                            <UserPanel :disableInstant="true" :user="item.raw" size="25"/>
+                            <p>{{ item.raw.name }}</p>
                         </div>
-                    </template>
-                    <template #no-options="{ search, searching, loading }">
-                        <template v-if="searching">
-                            <div style="font-size: 14px;opacity: 0.8;padding:10px 0;">メンバーが見つかりません。</div>                    
+                    </v-chip>
+                </template>
+                <template #selection="{ item }">
+                    <div v-if="item.raw && !multiple" class="member-selector-user member-selector-single">
+                        <UserPanel :disableInstant="true" :user="item.raw" size="25"/>
+                        <p>{{ item.raw.name }}</p>
+                    </div>
+                </template>
+                <template #item="{ item, props }">
+                    <v-list-item
+                        v-bind="props"
+                        :disabled="isOptionDisabled(item.raw)"
+                        :ripple="false"
+                        class="member-selector-option"
+                        density="compact"
+                        rounded="0"
+                        variant="flat"
+                        @keydown.enter.capture="rememberKeyboardOptionIndexFromEvent"
+                    >
+                        <template #title>
+                            <div class="member-selector-user">
+                                <UserPanel :disableInstant="true" :user="item.raw" size="25"/>
+                                <p>{{ item.raw.name }}</p>
+                            </div>
                         </template>
-                        <div v-else style="font-size: 14px;opacity: 0.8;padding:10px 0;">お名前を入力してください。</div>
-                    </template>
-                    <template slot="option" slot-scope="option" v-slot:option="option" >
-                        <div style="display: flex;align-items: center;gap:10px;font-size: 13px;padding: 5px 0;">
-                            <UserPanel :disableInstant="true" :user="option" size="25"/>
-                            <p>{{ option.name }}</p>
-                        </div>
-                    
-                    </template>
-                    
-                </drop-selector>
-                
-            </div>
-            <p v-if="error" class="i-error">{{error}}</p>
+                    </v-list-item>
+                </template>
+                <template #no-data>
+                    <div v-if="focus" class="text-[12px] text-[gray] p-3">メンバーが見つかりません。</div>
+                </template>
+            </v-autocomplete>
         </div>
+        <p v-if="error" class="i-error">{{ error }}</p>
     </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import UserPanel from '@/components/Global/UserPanel.vue'
-import { computed, markRaw, onMounted, ref, watch } from 'vue';
+import CloseIcon from '@/components/Form/CloseIcon.vue'
+import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { validator } from '@/validation/validator'
 import { useApi } from '@/composables/api';
+import 'styles/selector.css';
+import { User } from '@/interface/globalInterface';
 
-    const props = defineProps([
-        'placeHolder', 
-        'name', 
-        'rules', 
-        'path', 
-        'limit', 
-        'closeOnSelect', 
-        'selectAll', 
-        'multiple', 
-        'options',
-        'exclude',
-        'modelValue',
-        'disabled'
-    ])
-    const error = ref('')
-    const trigger = ref(false)
-    const emit = defineEmits(['setUser'])
-    const options = ref([])
-    const focus = ref(false)
-    const Deselect = markRaw({
-        template: `<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 32 32"><path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path></svg>`
-    })      
-    const api = useApi()
-    onMounted(() => {
-        if(props.options){
-            options.value = props.options
-        }else if(props.path){
-            getPossibleMembers()
-        }
-        
-    })  
 
-    const qualified_users = defineModel()
-    watch(() => props.options, () => {
+
+type UserItemProps = {
+    title: string
+    disabled: boolean
+}
+
+interface Props {
+    placeHolder?: string
+    name?: string
+    rules?: string
+    path?: string
+    limit?: number
+    closeOnSelect?: boolean
+    selectAll?: boolean
+    multiple?: boolean
+    options?: User[]
+    exclude?: number[]
+    disabled?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+    placeHolder: '',
+    name: 'qualified_users',
+    rules: '',
+    path: '',
+    limit: undefined,
+    selectAll: false,
+    multiple: true,
+    options: undefined,
+    exclude: () => [],
+    disabled: false,
+})
+const error = ref('')
+const trigger = ref(false)
+defineEmits<{
+    setUser: [users: User[] | User | null]
+}>()
+const options = ref<User[]>([])
+const focus = ref(false)
+const menuOpen = ref(false)
+const lastKeyboardOptionIndex = ref<number | null>(null)
+const pendingOptionIndex = ref<number | null>(null)
+const api = useApi()
+const qualifiedUsers = defineModel<User[] | User | null>()
+const selectorRef = useTemplateRef<HTMLElement>('selectorRef')
+
+const selectedList = computed<User[]>(() => {
+    if (!qualifiedUsers.value) return []
+    return Array.isArray(qualifiedUsers.value) ? qualifiedUsers.value : [qualifiedUsers.value]
+})
+
+const limitReached = computed(() => {
+    return props.multiple && !!props.limit && selectedList.value.length >= props.limit
+})
+
+const effectiveCloseOnSelect = computed(() => {
+    if (!props.multiple) return true
+
+    return props.closeOnSelect ?? false
+})
+
+onMounted(() => {
+    if (props.options) {
         options.value = props.options
-    })
-    watch(() => props.path, () => {
+    } else if (props.path) {
         getPossibleMembers()
+    }
+})
+
+watch(() => props.options, () => {
+    if (props.options) options.value = props.options
+})
+
+watch(() => props.path, () => {
+    getPossibleMembers()
+})
+
+watch(() => props.selectAll, (after) => {
+    if (!props.multiple) return
+
+    qualifiedUsers.value = after ? options.value : []
+})
+
+const getPossibleMembers = async () => {
+    if (!props.path) return
+
+    const exclude = props.exclude && props.exclude.length ? props.exclude : []
+    options.value = await api.post(`/${props.path}`, { exclude }) ?? []
+}
+
+const userItemProps = (user: User): UserItemProps => {
+    return {
+        title: user.name || 'ユーザー',
+        disabled: isOptionDisabled(user),
+    }
+}
+
+const isOptionDisabled = (user: User) => {
+    if (!limitReached.value) return false
+    return !selectedList.value.some(selected => selected.id === user.id)
+}
+
+const focusInput = async () => {
+    await nextTick()
+    selectorRef.value?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true })
+}
+
+const getVisibleOptionElements = () => {
+    return Array.from(document.querySelectorAll<HTMLElement>('.member-selector-option'))
+        .filter(element => !element.classList.contains('v-list-item--disabled') && element.offsetParent !== null)
+}
+
+const rememberKeyboardOptionIndex = () => {
+    const activeElement = document.activeElement
+    const optionIndex = getVisibleOptionElements().findIndex(element => {
+        return element === activeElement || element.contains(activeElement)
     })
-    watch(() => props.selectAll, (after) => {
-        if (after) {
-            qualified_users.value = options.value
-        }else{
-            qualified_users.value = []
-        }
-    })        
 
-    const getPossibleMembers = async() => {
-        if(props.path){
-            const exclude = props.exclude && props.exclude.length ? props.exclude : []
-            options.value = await api.post(`/${props.path}`, {exclude: exclude})
-        }
-    }
-    const noDrop = computed(() =>{
-        if(props.limit){
-            return qualified_users.value.length >= props.limit
-        }
-        return false
+    lastKeyboardOptionIndex.value = optionIndex >= 0 ? optionIndex : null
+}
+
+const rememberKeyboardOptionIndexFromEvent = (event: KeyboardEvent) => {
+    const currentTarget = event.currentTarget
+    if (!(currentTarget instanceof HTMLElement)) return
+
+    const optionIndex = getVisibleOptionElements().findIndex(element => {
+        return element === currentTarget || element.contains(currentTarget)
     })
 
-    const validate = async (passive) => {
-        if(passive && !trigger.value) return
+    lastKeyboardOptionIndex.value = optionIndex >= 0 ? optionIndex : null
+}
 
-        const { isValid, errorMessage }= await validator(props.rules, qualified_users.value)
-        error.value = errorMessage
-        trigger.value = true
-        return {valid: isValid}
-    };
+const focusPendingOption = (event: KeyboardEvent) => {
+    if (pendingOptionIndex.value === null) return
 
-    const selectAll = (flag) => {
-        qualified_users.value = flag ? options.value : []
+    event.preventDefault()
+    event.stopPropagation()
+
+    const optionElements = getVisibleOptionElements()
+    const targetIndex = Math.min(pendingOptionIndex.value, optionElements.length - 1)
+    const target = targetIndex >= 0 ? optionElements[targetIndex] : null
+
+    pendingOptionIndex.value = null
+
+    if (target) {
+        target.focus({ preventScroll: true })
+    } else {
+        focusInput()
     }
-    const selectBy = (list) => {
-        console.log('list', list)
-        list.forEach(user => {
-            const valid = options.value.some(ob => ob.id == user.id)
-            if(!valid){
-                options.value.push(user)
-            }
-            const exist = qualified_users.value?.some(ob => ob.id == user.id)
-            if(!exist){
-                qualified_users.value?.push(user)
-            }
-        });
-    }
-    defineExpose({validate, selectAll, selectBy, options})
+}
 
+const closeMenu = async () => {
+    await nextTick()
+    menuOpen.value = false
+}
+
+const updateMenuState = (value: boolean) => {
+    menuOpen.value = value
+
+    if (!value) {
+        pendingOptionIndex.value = null
+        lastKeyboardOptionIndex.value = null
+    }
+}
+
+const updateQualifiedUsers = (value: User[] | User | null) => {
+    if (!props.multiple) {
+        qualifiedUsers.value = value as User | null
+        if (effectiveCloseOnSelect.value) closeMenu()
+        return
+    }
+
+    const values = Array.isArray(value) ? value : value ? [value] : []
+    const nextValues = props.limit ? values.slice(0, props.limit) : values
+    qualifiedUsers.value = nextValues
+
+    if (effectiveCloseOnSelect.value || (props.limit && nextValues.length >= props.limit)) {
+        closeMenu()
+    } else {
+        pendingOptionIndex.value = lastKeyboardOptionIndex.value
+        lastKeyboardOptionIndex.value = null
+        focusInput()
+    }
+}
+
+const validate = async (passive?: boolean) => {
+    if (passive && !trigger.value) return
+
+    const { isValid, errorMessage } = await validator(props.rules, qualifiedUsers.value)
+    error.value = errorMessage || ''
+    trigger.value = true
+    return { valid: isValid }
+}
+
+const selectAll = (flag: boolean) => {
+    if (!props.multiple) return
+
+    qualifiedUsers.value = flag ? options.value : []
+}
+
+const selectBy = (list: User[]) => {
+    if (!props.multiple) {
+        const user = list[0] ?? null
+        if (user && !options.value.some(option => option.id === user.id)) {
+            options.value.push(user)
+        }
+        qualifiedUsers.value = user
+        return
+    }
+
+    const selected = selectedList.value
+
+    list.forEach(user => {
+        const valid = options.value.some(option => option.id === user.id)
+        if (!valid) {
+            options.value.push(user)
+        }
+
+        const exists = selected.some(option => option.id === user.id)
+        if (!exists) {
+            selected.push(user)
+        }
+    })
+
+    qualifiedUsers.value = props.limit ? selected.slice(0, props.limit) : selected
+}
+
+defineExpose({ validate, selectAll, selectBy, options })
 </script>
 <style lang="scss">
-.selectorFocus{
-    border: 1px solid var(--primary-color) !important;
+.member-selector-shell {
+    background: inherit;
+    border: 1px solid var(--primary-color);
+    position: relative;
 }
-.global-user-select{
+
+.member-selector-disabled {
+    opacity: 0.75;
+}
+
+.global-user-select {
+    background: inherit !important;
     border: none !important;
     width: 100%;
+
+    .v-field,
+    .v-field__field,
+    .v-field__input,
+    .v-field__overlay {
+        background: inherit !important;
+        background-color: inherit !important;
+    }
+
+    .v-field__clearable {
+        color: var(--primary-color);
+    }
+}
+
+.member-selector-user {
+    align-items: center;
+    display: flex;
+    font-size: 13px;
+    gap: 10px;
+    min-width: 0;
+    padding: 5px 0;
+
+    p {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.member-selector-single {
+    margin-right: 5px;
+}
+
+.member-selector-chip {
+    max-width: 100%;
+}
+
+.member-selector-option {
+    color: var(--primary-color) !important;
+
+    &:after {
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .v-list-item__content,
+    .v-list-item-title {
+        color: var(--primary-color) !important;
+        position: relative;
+        z-index: 1;
+    }
+}
+
+.member-selector-option:focus,
+.member-selector-option:focus-visible,
+.member-selector-option.v-list-item--active,
+.member-selector-option.v-list-item--focus,
+.member-selector-option.v-list-item--highlighted,
+.member-selector-option[aria-selected="true"] {
+    background: var(--bg2) !important;
+}
+
+.member-selector-option.v-list-item--disabled {
+    background: inherit !important;
+    color: inherit !important;
+    opacity: 0.4;
 }
 </style>

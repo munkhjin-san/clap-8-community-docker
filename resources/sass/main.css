@@ -2269,6 +2269,7 @@ textarea {
   margin-left: 5px;
   line-height: 1.5;
   margin-right: 20px;
+  max-width: 20ch;
 }
 
 .shared-file-icon {
@@ -2350,7 +2351,6 @@ textarea {
 }
 
 .file-wrap-rec {
-  max-width: calc(20% - 10px);
   display: flex;
   align-items: center;
   position: relative;
@@ -4745,6 +4745,7 @@ input:-webkit-autofill:active {
   background: inherit;
   align-items: center;
   cursor: pointer;
+  justify-content: center;
 }
 
 .boardMenuContainer:hover {

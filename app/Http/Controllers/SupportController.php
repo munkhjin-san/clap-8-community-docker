@@ -29,6 +29,10 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Http;
+use App\Models\EmergencyContact;
+use App\Models\EmergencyContactAction;
+use App\Services\EmergencySmsService;
+use App\Models\Incident;
 use OpenAI;
 
 class SupportController extends Controller
@@ -51,6 +55,17 @@ class SupportController extends Controller
         if (!$this->isSupportAdmin()) {
             abort(403);
         }
+    }
+
+    private function resolveEmergencyContactForCurrentUser(int $id): EmergencyContact
+    {
+        $query = EmergencyContact::query()->where('id', $id);
+
+        if (!$this->isSupportAdmin()) {
+            $query->where('user_id', $this->active_user()->id);
+        }
+
+        return $query->firstOrFail();
     }
     public function support_record_list(Request $request){
         $record_list = questionAndAnswerRecord::where('deleted_flag','=', 0)->with(['qanda_use_tags' => function($q){
@@ -1020,4 +1035,106 @@ class SupportController extends Controller
 
         return (int) $matches[1];
     }
+    public function add_emergency_contact(Request $request)
+    {
+        $request->validate([
+            'type' => 'required|string',
+            'content' => 'required|string',
+        ]);
+
+        $user_id = $this->active_user()->id;
+        $type = $request->type;
+        if($type == 'emergency'){
+            $create = EmergencyContact::create([
+                'user_id' => $user_id,
+                'content' => $request->content,
+                'status' => EmergencyContact::STATUS_PENDING,
+            ]);
+            $user = Auth::user();
+            $sendContent = "緊急連絡がありました\nユーザー: {$user->name}\n内容: {$request->content}";
+            $emergencySmsService = new EmergencySmsService();
+            $emergencySmsService->send($sendContent);
+
+            return response()->json($create);
+        }else if ($type == 'incident'){
+            $create = Incident::create([
+                'reported_by' => $user_id,
+                'description' => $request->content,
+                'status' => '報告済み',
+            ]);
+            $create->logs()->create([
+                'user_id' => $user_id,
+                'action' => 'created',
+                'changes' => [
+                    'description' => ['old' => null, 'new' => $request->content],
+                    'status' => ['old' => null, 'new' => '報告済み'],
+                ],
+            ]);
+            return response()->json($create);
+        }
+        
+
+        
+    }
+
+    public function get_emergency_contacts()
+    {
+        $contacts = EmergencyContact::query()
+            ->withCount('actions')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json($contacts);
+    }
+
+    public function update_emergency_contact_status(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => 'required|integer',
+            'status' => 'required|string|in:pending,complete',
+        ]);
+
+        $contact = EmergencyContact::query()
+            ->where('id', $validated['id'])
+            ->where('user_id', $this->active_user()->id)
+            ->firstOrFail();
+
+        $contact->update([
+            'status' => $validated['status'],
+        ]);
+
+        return response()->json($contact->fresh());
+    }
+
+    public function get_emergency_contact_actions(Request $request)
+    {
+        $validated = $request->validate([
+            'emergency_contact_id' => 'required|integer',
+        ]);
+
+        $contact = $this->resolveEmergencyContactForCurrentUser($validated['emergency_contact_id']);
+
+        $actions = $contact->actions()->with('user')->get();
+
+        return response()->json($actions);
+    }
+
+    public function add_emergency_contact_action(Request $request)
+    {
+        $validated = $request->validate([
+            'emergency_contact_id' => 'required|integer',
+            'text' => 'required|string|max:2000',
+        ]);
+
+        $contact = $this->resolveEmergencyContactForCurrentUser($validated['emergency_contact_id']);
+
+        $action = EmergencyContactAction::create([
+            'emergency_contact_id' => $contact->id,
+            'user_id' => Auth::id(),
+            'text' => $validated['text'],
+        ]);
+
+        return response()->json($action->load('user'));
+    }
+
 }

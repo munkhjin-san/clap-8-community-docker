@@ -61,8 +61,7 @@
 </template>
 <script setup>
 import { VDataTableVirtual } from 'vuetify/components/VDataTable'
-import { ref, computed } from 'vue';
-import holiday_jp from '@holiday-jp/holiday_jp'
+import { ref, computed, onMounted } from 'vue';
 import { mkConfig, generateCsv, download } from "export-to-csv";
 import WorkRecordRow from './WorkRecordRow.vue';
 import WorkProcedureButtons from './WorkProcedureButtons.vue'
@@ -72,6 +71,7 @@ import { useBadgeStore } from '@/store/badge';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
 import { useDashboardStore } from '@/store/dashboard';
+import { usePublicHolidayStore } from '@/store/publicHoliday';
     const props = defineProps([
         'monthAverage',
         'usersData',
@@ -87,8 +87,14 @@ import { useDashboardStore } from '@/store/dashboard';
     const tempItem = ref(null)
     const badge = useBadgeStore()
     const { getBatchDashboardData } = useDashboardStore()
+    const publicHolidayStore = usePublicHolidayStore()
+
+    onMounted(() => {
+        publicHolidayStore.ensureLoaded()
+    })
+
     const holidays = computed(() => {
-        const holidays = holiday_jp.between(new Date(props.selectedYear + '-01-01'), new Date(props.selectedYear + '-12-31'));
+        const holidays = publicHolidayStore.between(new Date(props.selectedYear + '-01-01'), new Date(props.selectedYear + '-12-31'));
         return holidays
     })
     const wrapper = ref(null)

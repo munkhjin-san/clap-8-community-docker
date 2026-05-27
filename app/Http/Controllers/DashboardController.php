@@ -23,8 +23,14 @@ use App\Models\shiftRecord;
 use App\Models\attendanceRecord;
 use App\Models\NoticeRecord;
 use App\Models\Incident;
+use App\Models\IncidentCategory;
+use App\Models\IncidentPunishment;
+use App\Models\IncidentStatus;
+use App\Models\FileRecord;
 use App\Models\SystemUpdateCheck;
 use App\Models\SystemUpdateRecord;
+use App\Models\UserLeaveRecord;
+use Illuminate\Support\Facades\DB;
 
 
 class DashboardController extends Controller
@@ -821,13 +827,17 @@ class DashboardController extends Controller
                 'incident_punishment_id',
                 'reason',
                 'prevention',
+                'prevention_apply_status',
                 'instruction',
                 'resolution',
                 'occured_location',
                 'memo',
+                'aftermath_comment',
                 'instruction_date',
                 'related_parties',
                 'amount_of_damage',
+                'payee',
+                'expense_details',
                 'risk_level',
                 'severity_level',
                 'private_notes',
@@ -840,6 +850,7 @@ class DashboardController extends Controller
 
         return Incident::query()
             ->select(array_values(array_unique($columns)))
+            ->withCount('comments')
             ->with([
                 'reportedByUser',
                 'causedByUser',
@@ -847,41 +858,935 @@ class DashboardController extends Controller
                 'punishment',
                 'projectRecord:id,name,date_start,date_end,category',
                 'projectRecord.manager',
+                'files',
             ]);
     }
 
     public function getIncidents(Request $request)
     {
-        return $this->incidentQuery()
-            ->orderByRaw('occurred_date is null')
-            ->orderByDesc('occurred_date')
-            ->orderByDesc('created_at')
+        $activeUser = $this->active_user();
+
+        if (!$this->canViewIncidentList($activeUser)) {
+            abort(403);
+        }
+
+        $query = $this->incidentListQuery($activeUser);
+        $this->applyIncidentFilters($query, $request);
+
+        return $this->orderIncidentList($query)
             ->paginate((int) $request->input('per_page', 50));
+    }
+
+    public function getIncidentPage(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:incidents,id'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $activeUser = $this->active_user();
+
+        if (!$this->canViewIncidentList($activeUser)) {
+            abort(403);
+        }
+
+        $perPage = (int) ($validated['per_page'] ?? 50);
+        $query = $this->incidentListQuery($activeUser);
+        $this->applyIncidentFilters($query, $request);
+
+        $ids = $this->orderIncidentList($query)
+            ->pluck('id')
+            ->values();
+        $index = $ids->search((int) $validated['id']);
+
+        if ($index === false) {
+            abort(404);
+        }
+
+        return response()->json([
+            'id' => (int) $validated['id'],
+            'page' => (int) floor($index / $perPage) + 1,
+        ]);
+    }
+
+    public function getIncidentOptions()
+    {
+        $activeUser = $this->active_user();
+        $canManage = $this->canManageIncidentAdministration($activeUser);
+        $canView = $this->canViewIncidentList($activeUser);
+        $filterQuery = $this->incidentListQuery($activeUser);
+        $filterUserIds = (clone $filterQuery)->pluck('caused_by')
+            ->merge((clone $filterQuery)->pluck('reported_by'))
+            ->filter()
+            ->unique()
+            ->values();
+        $filterProjectIds = (clone $filterQuery)->pluck('project_record_id')
+            ->filter()
+            ->unique()
+            ->values();
+        $filterStatuses = (clone $filterQuery)
+            ->whereNotNull('status')
+            ->select('status')
+            ->distinct()
+            ->orderBy('status')
+            ->pluck('status')
+            ->values();
+
+        return response()->json([
+            'categories' => IncidentCategory::query()
+                ->select('id', 'name', 'description', 'sort_order')
+                ->orderByRaw('sort_order is null')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(),
+            'punishments' => IncidentPunishment::query()
+                ->select('id', 'name', 'description', 'sort_order')
+                ->orderByRaw('sort_order is null')
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(),
+            'users' => User::query()
+                ->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
+                ->where('retire', 0)
+                ->where('hide_flag', 0)
+                ->orderByRaw('users.id = ? desc', [$activeUser->id])
+                ->orderBy('name')
+                ->get(),
+            'projects' => ProjectRecord::query()
+                ->select('id', 'name', 'date_start', 'date_end', 'category')
+                ->orderByRaw(
+                    'exists (select 1 from project_members where project_members.project_id = project_records.id and project_members.user_id = ?) desc',
+                    [$activeUser->id]
+                )
+                ->orderByDesc('created_at')
+                ->get(),
+            'filter_users' => User::query()
+                ->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
+                ->whereIn('id', $filterUserIds)
+                ->orderBy('name')
+                ->get(),
+            'filter_projects' => ProjectRecord::query()
+                ->select('id', 'name', 'date_start', 'date_end', 'category')
+                ->whereIn('id', $filterProjectIds)
+                ->orderByDesc('created_at')
+                ->get(),
+            'statuses' => $this->incidentStatusNames($filterStatuses),
+            'can_manage' => $canManage,
+            'can_view' => $canView,
+        ]);
+    }
+
+    public function getIncidentSettings()
+    {
+        $this->ensureCanManageIncidentSettings();
+
+        return response()->json([
+            'categories' => $this->incidentCategoryList(),
+            'statuses' => $this->incidentStatusList(),
+            'punishments' => $this->incidentPunishmentList(),
+        ]);
+    }
+
+    public function createIncidentCategory(Request $request)
+    {
+        $this->ensureCanManageIncidentSettings();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'unique:incident_categories,name'],
+            'description' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $category = IncidentCategory::create([
+            ...$validated,
+            'sort_order' => $this->nextSortOrder(IncidentCategory::query()),
+        ]);
+
+        return response()->json($category);
+    }
+
+    public function updateIncidentCategory(Request $request)
+    {
+        $this->ensureCanManageIncidentSettings();
+
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:incident_categories,id'],
+            'name' => ['required', 'string', 'max:255', 'unique:incident_categories,name,' . $request->input('id')],
+            'description' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $category = IncidentCategory::findOrFail($validated['id']);
+        $category->update([
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+        ]);
+
+        return response()->json($category);
+    }
+
+    public function deleteIncidentCategory(Request $request)
+    {
+        $this->ensureCanManageIncidentSettings();
+
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:incident_categories,id'],
+        ]);
+
+        $category = IncidentCategory::findOrFail($validated['id']);
+        abort_if($category->incidents()->exists(), 422, '利用中の区分は削除できません。');
+        $category->delete();
+
+        return response()->json(['deleted' => true]);
+    }
+
+    public function reorderIncidentCategories(Request $request)
+    {
+        $this->ensureCanManageIncidentSettings();
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array'],
+            'ids.*' => ['integer', 'distinct', 'exists:incident_categories,id'],
+        ]);
+
+        $this->persistSortOrder(IncidentCategory::class, $validated['ids']);
+
+        return response()->json(['updated' => true]);
+    }
+
+    public function createIncidentStatus(Request $request)
+    {
+        $this->ensureCanManageIncidentSettings();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'unique:incident_statuses,name'],
+        ]);
+
+        $status = IncidentStatus::create([
+            'name' => $validated['name'],
+            'sort_order' => $this->nextSortOrder(IncidentStatus::query()),
+        ]);
+
+        return response()->json($status);
+    }
+
+    public function updateIncidentStatus(Request $request)
+    {
+        $this->ensureCanManageIncidentSettings();
+
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:incident_statuses,id'],
+            'name' => ['required', 'string', 'max:255', 'unique:incident_statuses,name,' . $request->input('id')],
+        ]);
+
+        $status = IncidentStatus::findOrFail($validated['id']);
+        DB::transaction(function () use ($status, $validated) {
+            $oldName = $status->name;
+            $status->update(['name' => $validated['name']]);
+
+            if ($oldName !== $validated['name']) {
+                Incident::where('status', $oldName)->update(['status' => $validated['name']]);
+            }
+        });
+
+        return response()->json($status->fresh());
+    }
+
+    public function deleteIncidentStatus(Request $request)
+    {
+        $this->ensureCanManageIncidentSettings();
+
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:incident_statuses,id'],
+        ]);
+
+        $status = IncidentStatus::findOrFail($validated['id']);
+        abort_if(Incident::where('status', $status->name)->exists(), 422, '利用中のステータスは削除できません。');
+        $status->delete();
+
+        return response()->json(['deleted' => true]);
+    }
+
+    public function reorderIncidentStatuses(Request $request)
+    {
+        $this->ensureCanManageIncidentSettings();
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array'],
+            'ids.*' => ['integer', 'distinct', 'exists:incident_statuses,id'],
+        ]);
+
+        $this->persistSortOrder(IncidentStatus::class, $validated['ids']);
+
+        return response()->json(['updated' => true]);
+    }
+
+    public function createIncidentPunishment(Request $request)
+    {
+        $this->ensureCanManageIncidentSettings();
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'unique:incident_punishments,name'],
+            'description' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $punishment = IncidentPunishment::create([
+            ...$validated,
+            'sort_order' => $this->nextSortOrder(IncidentPunishment::query()),
+        ]);
+
+        return response()->json($punishment);
+    }
+
+    public function updateIncidentPunishment(Request $request)
+    {
+        $this->ensureCanManageIncidentSettings();
+
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:incident_punishments,id'],
+            'name' => ['required', 'string', 'max:255', 'unique:incident_punishments,name,' . $request->input('id')],
+            'description' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $punishment = IncidentPunishment::findOrFail($validated['id']);
+        $punishment->update([
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+        ]);
+
+        return response()->json($punishment);
+    }
+
+    public function deleteIncidentPunishment(Request $request)
+    {
+        $this->ensureCanManageIncidentSettings();
+
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:incident_punishments,id'],
+        ]);
+
+        $punishment = IncidentPunishment::findOrFail($validated['id']);
+        abort_if($punishment->incidents()->exists(), 422, '利用中の懲罰区分は削除できません。');
+        $punishment->delete();
+
+        return response()->json(['deleted' => true]);
+    }
+
+    public function reorderIncidentPunishments(Request $request)
+    {
+        $this->ensureCanManageIncidentSettings();
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array'],
+            'ids.*' => ['integer', 'distinct', 'exists:incident_punishments,id'],
+        ]);
+
+        $this->persistSortOrder(IncidentPunishment::class, $validated['ids']);
+
+        return response()->json(['updated' => true]);
+    }
+
+    public function getIncidentLogs(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:incidents,id'],
+        ]);
+
+        $incident = Incident::findOrFail($validated['id']);
+        $activeUser = $this->active_user();
+
+        if (!$this->canAccessIncident($incident, $activeUser)) {
+            abort(403);
+        }
+
+        return $this->resolveIncidentLogDisplayValues($incident->logs()->get());
+    }
+
+    public function createIncidentRecord(Request $request)
+    {
+        $activeUser = $this->active_user();
+
+        $validated = $request->validate([
+            'title' => ['sometimes', 'nullable', 'string'],
+            'description' => ['sometimes', 'nullable', 'string'],
+            'caused_by' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
+            'incident_category_id' => ['sometimes', 'nullable', 'integer', 'exists:incident_categories,id'],
+            'incident_punishment_id' => ['sometimes', 'nullable', 'integer', 'exists:incident_punishments,id'],
+            'reason' => ['sometimes', 'nullable', 'string'],
+            'prevention' => ['sometimes', 'nullable', 'string'],
+            'prevention_apply_status' => ['sometimes', 'nullable', 'string'],
+            'instruction' => ['sometimes', 'nullable', 'string'],
+            'resolution' => ['sometimes', 'nullable', 'string'],
+            'occured_location' => ['sometimes', 'nullable', 'string'],
+            'memo' => ['sometimes', 'nullable', 'string'],
+            'aftermath_comment' => ['sometimes', 'nullable', 'string'],
+            'occurred_date' => ['sometimes', 'nullable', 'date'],
+            'instruction_date' => ['sometimes', 'nullable', 'date'],
+            'related_parties' => ['sometimes', 'nullable', 'string'],
+            'project_record_id' => ['sometimes', 'nullable', 'integer', 'exists:project_records,id'],
+            'status' => ['sometimes', 'nullable', 'string'],
+            'amount_of_damage' => ['sometimes', 'nullable', 'numeric'],
+            'payee' => ['sometimes', 'nullable', 'string'],
+            'expense_details' => ['sometimes', 'nullable', 'string'],
+            'risk_level' => ['sometimes', 'nullable', 'integer'],
+            'severity_level' => ['sometimes', 'nullable', 'integer'],
+            'private_notes' => ['sometimes', 'nullable', 'string'],
+            'committee_members' => ['sometimes', 'nullable', 'string'],
+            'committee_decision' => ['sometimes', 'nullable', 'string'],
+            'committee_decision_date' => ['sometimes', 'nullable', 'date'],
+            'file_ids' => ['sometimes', 'array'],
+            'file_ids.*' => ['integer', 'distinct', 'exists:file_records,id'],
+        ]);
+
+        $fileIds = $validated['file_ids'] ?? [];
+        unset($validated['file_ids']);
+
+        if (!$this->canViewIncidentList($activeUser)) {
+            abort(403);
+        }
+
+        if (
+            !$this->canManageIncidentAdministration($activeUser)
+            && array_intersect(array_keys($validated), $this->incidentManagementFields())
+        ) {
+            abort(403);
+        }
+
+        $createdIncident = DB::transaction(function () use ($validated, $fileIds, $activeUser) {
+            $incident = Incident::create([
+                ...$validated,
+                'reported_by' => $activeUser->id,
+                'status' => $validated['status'] ?? '報告済み',
+            ]);
+
+            if (!empty($fileIds)) {
+                $incident->files()->syncWithPivotValues($fileIds, [
+                    'attachable_type' => Incident::class,
+                    'collection' => 'attachments',
+                ]);
+            }
+
+            $changes = collect($validated)
+                ->filter(fn ($value) => $value !== null && $value !== '')
+                ->map(fn ($value) => ['old' => null, 'new' => $value])
+                ->all();
+
+            if (!empty($fileIds)) {
+                $changes['files'] = ['old' => [], 'new' => $fileIds];
+            }
+            if (!array_key_exists('status', $changes) && $incident->status) {
+                $changes['status'] = ['old' => null, 'new' => $incident->status];
+            }
+
+            $incident->logs()->create([
+                'user_id' => $activeUser->id,
+                'action' => 'created',
+                'changes' => $changes,
+            ]);
+
+            return $this->incidentQuery()->whereKey($incident->id)->firstOrFail();
+        });
+
+        return response()->json([
+            'incident' => $createdIncident,
+            'created' => true,
+        ]);
+    }
+
+    public function updateIncidentRecord(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:incidents,id'],
+            'title' => ['sometimes', 'nullable', 'string'],
+            'description' => ['sometimes', 'nullable', 'string'],
+            'reported_by' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
+            'caused_by' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
+            'incident_category_id' => ['sometimes', 'nullable', 'integer', 'exists:incident_categories,id'],
+            'incident_punishment_id' => ['sometimes', 'nullable', 'integer', 'exists:incident_punishments,id'],
+            'reason' => ['sometimes', 'nullable', 'string'],
+            'prevention' => ['sometimes', 'nullable', 'string'],
+            'prevention_apply_status' => ['sometimes', 'nullable', 'string'],
+            'instruction' => ['sometimes', 'nullable', 'string'],
+            'resolution' => ['sometimes', 'nullable', 'string'],
+            'occured_location' => ['sometimes', 'nullable', 'string'],
+            'memo' => ['sometimes', 'nullable', 'string'],
+            'aftermath_comment' => ['sometimes', 'nullable', 'string'],
+            'occurred_date' => ['sometimes', 'nullable', 'date'],
+            'instruction_date' => ['sometimes', 'nullable', 'date'],
+            'related_parties' => ['sometimes', 'nullable', 'string'],
+            'project_record_id' => ['sometimes', 'nullable', 'integer', 'exists:project_records,id'],
+            'status' => ['sometimes', 'nullable', 'string'],
+            'amount_of_damage' => ['sometimes', 'nullable', 'numeric'],
+            'payee' => ['sometimes', 'nullable', 'string'],
+            'expense_details' => ['sometimes', 'nullable', 'string'],
+            'risk_level' => ['sometimes', 'nullable', 'integer'],
+            'severity_level' => ['sometimes', 'nullable', 'integer'],
+            'private_notes' => ['sometimes', 'nullable', 'string'],
+            'committee_members' => ['sometimes', 'nullable', 'string'],
+            'committee_decision' => ['sometimes', 'nullable', 'string'],
+            'committee_decision_date' => ['sometimes', 'nullable', 'date'],
+            'file_ids' => ['sometimes', 'array'],
+            'file_ids.*' => ['integer', 'distinct', 'exists:file_records,id'],
+        ]);
+
+        $incidentId = $validated['id'];
+        unset($validated['id']);
+        $fileIds = $validated['file_ids'] ?? null;
+        unset($validated['file_ids']);
+
+        if (empty($validated) && $fileIds === null) {
+            return response()->json([
+                'incident' => $this->incidentQuery()->whereKey($incidentId)->firstOrFail(),
+                'updated' => false,
+            ]);
+        }
+
+        $activeUser = $this->active_user();
+
+        if (
+            !$this->canManageIncidentAdministration($activeUser)
+            && array_intersect(array_keys($validated), $this->incidentManagementFields())
+        ) {
+            abort(403);
+        }
+
+        $updatedIncident = DB::transaction(function () use ($incidentId, $validated, $fileIds, $activeUser) {
+            $incident = Incident::lockForUpdate()->findOrFail($incidentId);
+
+            if (!$this->canAccessIncident($incident, $activeUser)) {
+                abort(403);
+            }
+
+            $changes = [];
+
+            foreach ($validated as $field => $newValue) {
+                $oldValue = $incident->getAttribute($field);
+
+                if ($oldValue == $newValue) {
+                    continue;
+                }
+
+                $changes[$field] = [
+                    'old' => $oldValue,
+                    'new' => $newValue,
+                ];
+
+                $incident->setAttribute($field, $newValue);
+            }
+
+            if ($fileIds !== null) {
+                $currentFileIds = $incident->files()->pluck('file_records.id')->sort()->values()->all();
+                $nextFileIds = collect($fileIds)->map(fn ($id) => (int) $id)->sort()->values()->all();
+
+                if ($currentFileIds !== $nextFileIds) {
+                    $changes['files'] = [
+                        'old' => $currentFileIds,
+                        'new' => $nextFileIds,
+                    ];
+                }
+            }
+
+            if (empty($changes)) {
+                return $this->incidentQuery()->whereKey($incidentId)->firstOrFail();
+            }
+
+            $incident->save();
+
+            if ($fileIds !== null) {
+                $incident->files()->syncWithPivotValues($fileIds, [
+                    'attachable_type' => Incident::class,
+                    'collection' => 'attachments',
+                ]);
+            }
+
+            $singleField = count($changes) === 1 ? array_key_first($changes) : null;
+
+            $incident->logs()->create([
+                'user_id' => $activeUser->id,
+                'action' => $singleField === 'status' ? 'status_changed' : 'updated',
+                'field' => $singleField,
+                'old_value' => $singleField ? $changes[$singleField]['old'] : null,
+                'new_value' => $singleField ? $changes[$singleField]['new'] : null,
+                'changes' => $changes,
+            ]);
+
+            return $this->incidentQuery()->whereKey($incident->id)->firstOrFail();
+        });
+
+        return response()->json([
+            'incident' => $updatedIncident,
+            'updated' => true,
+        ]);
+    }
+
+    public function deleteIncidentRecord(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:incidents,id'],
+        ]);
+
+        $activeUser = $this->active_user();
+
+        if (!$this->canManageIncidentAdministration($activeUser)) {
+            abort(403);
+        }
+
+        DB::transaction(function () use ($validated, $activeUser) {
+            $incident = Incident::lockForUpdate()->findOrFail($validated['id']);
+
+            if (!$this->canAccessIncident($incident, $activeUser)) {
+                abort(403);
+            }
+
+            $incident->logs()->create([
+                'user_id' => $activeUser->id,
+                'action' => 'deleted',
+                'changes' => [
+                    'deleted_at' => [
+                        'old' => null,
+                        'new' => now()->toDateTimeString(),
+                    ],
+                ],
+            ]);
+
+            $incident->delete();
+        });
+
+        return response()->json([
+            'deleted' => true,
+            'id' => $validated['id'],
+        ]);
     }
 
     private function incidents() {
         $activeUser = $this->active_user();
 
+        $query = $this->incidentQuery()->where(function ($statusQuery) {
+            $statusQuery->whereNull('status')
+                ->orWhere('status', '!=', '完了');
+        });
+        $isPM = $activeUser->position_id == 6;
+        $isBoss = $activeUser->position_id && $activeUser->position_id < 6;
+        $isAdmin = in_array($activeUser->id, [610, 608], true);
+
+        if (!$isBoss && !$isAdmin) {
+            if (!$isPM) {
+                return ['attention' => collect()];
+            }
+
+            $query->whereHas('projectRecord.manager', function ($managerQuery) use ($activeUser) {
+                $managerQuery->where('users.id', $activeUser->id);
+            });
+        }
+        $query->orderByDesc('created_at')
+        ->get();
+        
+
         return [
-            'attention' => $this->incidentQuery(false)
-            ->where(function ($query) use ($activeUser) {
-                $query->where('caused_by', $activeUser->id)
-                    ->orWhereHas('projectRecord.manager', function ($managerQuery) use ($activeUser) {
-                        $managerQuery->where('users.id', $activeUser->id);
-                    });
-            })
-            ->where(function ($query) {
-                $query->whereNull('status')
-                    ->orWhere('status', '!=', '完了');
-            })
-            ->orderByRaw('occurred_date is null')
-            ->orderByDesc('occurred_date')
-            ->orderByDesc('created_at')
-            ->get(),
+            'attention' => $query->get(),
         ];
     }
+
+    private function canAccessIncident(Incident $incident, User $user): bool
+    {
+        $isPM = $user->position_id == 6;
+        $isBoss = $user->position_id && $user->position_id < 6;
+        $isAdmin = in_array($user->id, [610, 608], true);
+
+        if ($isBoss || $isAdmin) {
+            return true;
+        }
+
+        if ($isPM) {
+            return $incident->projectRecord()
+                ->whereHas('manager', function ($managerQuery) use ($user) {
+                    $managerQuery->where('users.id', $user->id);
+                })
+                ->exists();
+        }
+
+        return false;
+    }
+
+    private function canManageIncidentAdministration(User $user): bool
+    {
+        return ($user->position_id && $user->position_id < 6) || in_array($user->id, [608, 610], true);
+    }
+
+    private function incidentManagementFields(): array
+    {
+        return [
+            'risk_level',
+            'severity_level',
+            'amount_of_damage',
+            'payee',
+            'expense_details',
+            'committee_decision_date',
+            'committee_members',
+            'committee_decision',
+            'memo',
+            'aftermath_comment',
+            'private_notes',
+        ];
+    }
+
+    private function canViewIncidentList(User $user): bool
+    {
+        if ($this->canManageIncidentAdministration($user)) {
+            return true;
+        }
+
+        if ($user->position_id != 6) {
+            return false;
+        }
+
+        return ProjectRecord::query()
+            ->whereHas('manager', function ($managerQuery) use ($user) {
+                $managerQuery->where('users.id', $user->id);
+            })
+            ->exists();
+    }
+
+    private function ensureCanManageIncidentSettings(): void
+    {
+        abort_unless($this->canManageIncidentAdministration($this->active_user()), 403);
+    }
+
+    private function incidentCategoryList()
+    {
+        return IncidentCategory::query()
+            ->select('id', 'name', 'description', 'sort_order')
+            ->orderByRaw('sort_order is null')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function incidentStatusList()
+    {
+        return IncidentStatus::query()
+            ->select('id', 'name', 'sort_order')
+            ->orderByRaw('sort_order is null')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function incidentPunishmentList()
+    {
+        return IncidentPunishment::query()
+            ->select('id', 'name', 'description', 'sort_order')
+            ->orderByRaw('sort_order is null')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function resolveIncidentLogDisplayValues($logs)
+    {
+        $relationshipFields = [
+            'caused_by' => ['model' => User::class, 'label' => 'name'],
+            'reported_by' => ['model' => User::class, 'label' => 'name'],
+            'project_record_id' => ['model' => ProjectRecord::class, 'label' => 'name'],
+            'incident_category_id' => ['model' => IncidentCategory::class, 'label' => 'name'],
+            'incident_punishment_id' => ['model' => IncidentPunishment::class, 'label' => 'name'],
+            'files' => ['model' => FileRecord::class, 'label' => 'name'],
+        ];
+
+        $idsByField = [];
+        foreach ($logs as $log) {
+            foreach (($log->changes ?? []) as $field => $change) {
+                if (!isset($relationshipFields[$field])) {
+                    continue;
+                }
+
+                foreach (['old', 'new'] as $key) {
+                    $value = $change[$key] ?? null;
+                    if (is_array($value)) {
+                        foreach ($value as $id) {
+                            if ($id !== null && $id !== '') {
+                                $idsByField[$field][] = (int) $id;
+                            }
+                        }
+                    } elseif ($value !== null && $value !== '') {
+                        $idsByField[$field][] = (int) $value;
+                    }
+                }
+            }
+        }
+
+        $labelsByField = [];
+        foreach ($idsByField as $field => $ids) {
+            $config = $relationshipFields[$field];
+            $labelsByField[$field] = $config['model']::query()
+                ->whereIn('id', array_values(array_unique($ids)))
+                ->pluck($config['label'], 'id')
+                ->all();
+        }
+
+        return $logs->map(function ($log) use ($labelsByField) {
+            $displayChanges = [];
+
+            foreach (($log->changes ?? []) as $field => $change) {
+                $displayChanges[$field] = [
+                    'old' => $change['old'] ?? null,
+                    'new' => $change['new'] ?? null,
+                    'display_old' => $this->resolveIncidentLogDisplayValue($field, $change['old'] ?? null, $labelsByField),
+                    'display_new' => $this->resolveIncidentLogDisplayValue($field, $change['new'] ?? null, $labelsByField),
+                ];
+            }
+
+            $log->setAttribute('display_changes', $displayChanges);
+
+            return $log;
+        });
+    }
+
+    private function resolveIncidentLogDisplayValue(string $field, mixed $value, array $labelsByField): mixed
+    {
+        if ($value === null || $value === '') {
+            return $value;
+        }
+
+        if (!isset($labelsByField[$field])) {
+            return $value;
+        }
+
+        if (is_array($value)) {
+            return collect($value)
+                ->map(fn ($id) => $labelsByField[$field][(int) $id] ?? $id)
+                ->values()
+                ->all();
+        }
+
+        return $labelsByField[$field][(int) $value] ?? $value;
+    }
+
+    private function incidentStatusNames($fallbackStatuses)
+    {
+        $statuses = $this->incidentStatusList()->pluck('name')->values();
+
+        return $statuses->isNotEmpty() ? $statuses : $fallbackStatuses;
+    }
+
+    private function nextSortOrder($query): int
+    {
+        $maxSort = (clone $query)->max('sort_order');
+
+        return is_numeric($maxSort) ? ((int) $maxSort + 1) : 1;
+    }
+
+    private function persistSortOrder(string $modelClass, array $ids): void
+    {
+        DB::transaction(function () use ($modelClass, $ids) {
+            foreach (array_values($ids) as $index => $id) {
+                $modelClass::where('id', $id)->update([
+                    'sort_order' => $index + 1,
+                ]);
+            }
+        });
+    }
+
+    private function incidentListQuery(User $user)
+    {
+        $isPM = $user->position_id == 6;
+        $isBoss = $user->position_id && $user->position_id < 6;
+        $isAdmin = in_array($user->id, [610, 608], true);
+        $query = $this->incidentQuery();
+
+        if (!$isBoss && !$isAdmin) {
+            if (!$isPM) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            $query->whereHas('projectRecord.manager', function ($managerQuery) use ($user) {
+                $managerQuery->where('users.id', $user->id);
+            });
+        }
+
+        return $query;
+    }
+
+    private function applyIncidentFilters($query, Request $request): void
+    {
+        $keyword = trim((string) $request->input('keyword', ''));
+
+        if ($keyword !== '') {
+            $query->where(function ($keywordQuery) use ($keyword) {
+                $keywordQuery->where('title', 'like', "%{$keyword}%")
+                    ->orWhere('description', 'like', "%{$keyword}%")
+                    ->orWhere('reason', 'like', "%{$keyword}%")
+                    ->orWhere('prevention', 'like', "%{$keyword}%")
+                    ->orWhere('prevention_apply_status', 'like', "%{$keyword}%")
+                    ->orWhere('instruction', 'like', "%{$keyword}%")
+                    ->orWhere('resolution', 'like', "%{$keyword}%")
+                    ->orWhere('occured_location', 'like', "%{$keyword}%")
+                    ->orWhere('memo', 'like', "%{$keyword}%")
+                    ->orWhere('aftermath_comment', 'like', "%{$keyword}%")
+                    ->orWhere('related_parties', 'like', "%{$keyword}%")
+                    ->orWhere('payee', 'like', "%{$keyword}%")
+                    ->orWhere('expense_details', 'like', "%{$keyword}%")
+                    ->orWhere('status', 'like', "%{$keyword}%")
+                    ->orWhereHas('causedByUser', function ($userQuery) use ($keyword) {
+                        $userQuery->where('name', 'like', "%{$keyword}%");
+                    })
+                    ->orWhereHas('reportedByUser', function ($userQuery) use ($keyword) {
+                        $userQuery->where('name', 'like', "%{$keyword}%");
+                    })
+                    ->orWhereHas('projectRecord', function ($projectQuery) use ($keyword) {
+                        $projectQuery->where('name', 'like', "%{$keyword}%");
+                    })
+                    ->orWhereHas('category', function ($categoryQuery) use ($keyword) {
+                        $categoryQuery->where('name', 'like', "%{$keyword}%");
+                    });
+            });
+        }
+
+        $this->applyWhereInFilter($query, 'caused_by', $request->input('caused_by'));
+        $this->applyWhereInFilter($query, 'reported_by', $request->input('reported_by'));
+        $this->applyWhereInFilter($query, 'project_record_id', $request->input('project_record_id'));
+        $this->applyWhereInFilter($query, 'incident_category_id', $request->input('incident_category_id'));
+        $this->applyWhereInFilter($query, 'status', $request->input('status'));
+
+        if ($request->filled('occurred_from')) {
+            $query->whereDate('occurred_date', '>=', $request->input('occurred_from'));
+        }
+
+        if ($request->filled('occurred_to')) {
+            $query->whereDate('occurred_date', '<=', $request->input('occurred_to'));
+        }
+
+        if ($request->filled('point_value')) {
+            $operators = [
+                'gt' => '>',
+                'gte' => '>=',
+                'eq' => '=',
+                'lte' => '<=',
+                'lt' => '<',
+            ];
+            $operator = $operators[$request->input('point_operator', 'gte')] ?? '>=';
+
+            $query->whereRaw(
+                "(COALESCE(risk_level, 0) * COALESCE(severity_level, 0)) {$operator} ?",
+                [(int) $request->input('point_value')]
+            );
+        }
+    }
+
+    private function applyWhereInFilter($query, string $column, mixed $values): void
+    {
+        $values = collect(is_array($values) ? $values : ($values !== null && $values !== '' ? [$values] : []))
+            ->filter(fn ($value) => $value !== null && $value !== '')
+            ->values();
+
+        if ($values->isNotEmpty()) {
+            $query->whereIn($column, $values->all());
+        }
+    }
+
+    private function orderIncidentList($query)
+    {
+        return $query->orderByDesc('created_at');
+    }
     public function systemUpdates() {
-        return [];
         $activeUser = $this->active_user();
         $target_positions = [
             6, //執行役員,
@@ -889,11 +1794,19 @@ class DashboardController extends Controller
             11, //正社員,
             12 //契約社員
         ];
-        if (!in_array($activeUser->position_id, $target_positions, true)) {
-            return 0;
+        $userLeaves = UserLeaveRecord::where('user_id', $activeUser->id)->where('active', 1)->exists();
+        if (!in_array($activeUser->position_id, $target_positions, true) || $userLeaves) {
+            return [];
         }
+        $otherUserLeaves = UserLeaveRecord::where('user_id', $activeUser->id)->whereNotNull('leave_start')->whereNotNull('leave_end')->get();
         $thresholdDate = Carbon::parse('2026-05-01');
-        $count = SystemUpdateRecord::where('must_read', true)
+        $count = SystemUpdateRecord::
+        where(function ($query) use ($otherUserLeaves) {
+            foreach ($otherUserLeaves as $leave) {
+                $query->whereNotBetween('created_at', [$leave->leave_start, $leave->leave_end]);
+            }
+        })
+        ->where('must_read', true)
         ->where('created_at', '>=', $thresholdDate)
         ->whereDoesntHave('systemUpdateChecks', function ($query) use ($activeUser) {
             $query->where('user_id', $activeUser->id);
