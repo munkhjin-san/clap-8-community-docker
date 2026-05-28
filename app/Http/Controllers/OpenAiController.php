@@ -6,6 +6,7 @@ use App\Jobs\GenerateLunchChallenge;
 use App\Models\User;
 use App\Services\ChallengeSuggestionService;
 use App\Services\Contracts\CachedContractExtractionService;
+use App\Services\Contracts\GeminiContractOcrService;
 use Illuminate\Http\Request;
 use Illuminate\Http\StreamedEvent;
 use Illuminate\Support\Facades\Cache;
@@ -262,7 +263,11 @@ TXT
         }
         return response()->json($reply);
     }
-    public function review_document(Request $request, CachedContractExtractionService $contractExtractionService){
+    public function review_document(
+        Request $request,
+        CachedContractExtractionService $contractExtractionService,
+        GeminiContractOcrService $geminiContractOcrService,
+    ){
         $CRITERIA = [
         '乙' => <<<TXT
         - 乙に対する無制限または上限なしの損害賠償責任、間接・特別損害の包含
@@ -286,6 +291,8 @@ TXT
             'role' => 'required|string',
             'type' => 'required|string',
             'review_type' => 'required|string',
+            'rendered_pages' => 'nullable|array|max:80',
+            'rendered_pages.*' => 'file|mimes:png,jpg,jpeg,webp|max:20480',
         ]);
         abort_if(!isset($data['file']), 400, 'Missing file');
         $file = $data['file'];
@@ -312,8 +319,39 @@ TXT
         ];
 
         if ($this->shouldUseExtractedContractText($file, $contractExtractionService)) {
+            $renderedPages = $request->file('rendered_pages', []);
+            $renderedPages = is_array($renderedPages) ? array_values($renderedPages) : [$renderedPages];
+
+            if ($renderedPages === [] && $this->requiresClientRenderedPdfPages()) {
+                return response()->json([
+                    'message' => 'PDF_RENDERED_PAGES_REQUIRED',
+                    'code' => 'rendered_pages_required',
+                ], 422);
+            }
+
             try {
-                $documentIndex = $contractExtractionService->extractIndex($file->getRealPath(), 'pdf', true);
+                if ($renderedPages !== []) {
+                    $documentIndex = $contractExtractionService->rememberExtractedIndex(
+                        $file->getRealPath(),
+                        'pdf',
+                        true,
+                        function () use ($contractExtractionService, $geminiContractOcrService, $renderedPages) {
+                            $pages = $geminiContractOcrService->extractImagePages($renderedPages);
+
+                            return [
+                                'document_index' => $contractExtractionService->buildIndexFromPages($pages),
+                                'extraction' => [
+                                    'extension' => 'pdf',
+                                    'method' => 'gemini_rendered_image_ocr',
+                                    'rendered_pages' => count($renderedPages),
+                                    'text_length' => $this->countDocumentPageTextLength($pages),
+                                ],
+                            ];
+                        }
+                    );
+                } else {
+                    $documentIndex = $contractExtractionService->extractIndex($file->getRealPath(), 'pdf', true);
+                }
                 $contractText = $this->formatDocumentIndexForReview($documentIndex);
             } catch (Throwable $exception) {
                 abort(422, 'PDF OCR extraction failed: '.$exception->getMessage());
@@ -395,6 +433,22 @@ TXT
         }
 
         return (bool) ($preflight['requires_ocr'] ?? false);
+    }
+
+    private function requiresClientRenderedPdfPages(): bool
+    {
+        return filter_var(config('services.google.contract_ocr_client_render_pages', true), FILTER_VALIDATE_BOOL);
+    }
+
+    private function countDocumentPageTextLength(array $pages): int
+    {
+        $text = '';
+
+        foreach ($pages as $page) {
+            $text .= (string) ($page['text'] ?? '');
+        }
+
+        return mb_strlen(trim($text), 'UTF-8');
     }
 
     private function formatDocumentIndexForReview(array $documentIndex): string

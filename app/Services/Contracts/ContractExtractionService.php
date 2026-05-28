@@ -31,6 +31,11 @@ class ContractExtractionService
         return $this->lastExtractionMetadata;
     }
 
+    public function buildIndexFromPages(array $pages): array
+    {
+        return $this->buildDocumentIndex($pages);
+    }
+
     public function extractIndex(string $absolutePath, string $extension, bool $allowOcr = false): array
     {
         $extension = strtolower($extension);

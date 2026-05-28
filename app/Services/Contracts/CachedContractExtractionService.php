@@ -21,6 +21,28 @@ class CachedContractExtractionService
     public function extractIndex(string $absolutePath, string $extension, bool $allowOcr = false): array
     {
         $extension = strtolower($extension);
+        return $this->rememberExtractedIndex(
+            $absolutePath,
+            $extension,
+            $allowOcr,
+            function () use ($absolutePath, $extension, $allowOcr) {
+                $documentIndex = $this->contractExtractionService->extractIndex($absolutePath, $extension, $allowOcr);
+
+                return [
+                    'document_index' => $documentIndex,
+                    'extraction' => $this->contractExtractionService->lastExtractionMetadata(),
+                ];
+            }
+        );
+    }
+
+    public function rememberExtractedIndex(
+        string $absolutePath,
+        string $extension,
+        bool $allowOcr,
+        callable $extractor,
+    ): array {
+        $extension = strtolower($extension);
         $cacheKey = $this->cacheKey($absolutePath, $extension, $allowOcr);
         $cacheTtl = $this->cacheTtl();
 
@@ -36,8 +58,18 @@ class CachedContractExtractionService
             }
         }
 
-        $documentIndex = $this->contractExtractionService->extractIndex($absolutePath, $extension, $allowOcr);
-        $extraction = $this->contractExtractionService->lastExtractionMetadata();
+        $result = $extractor();
+        $documentIndex = is_array($result) && is_array($result['document_index'] ?? null)
+            ? $result['document_index']
+            : [];
+        $extraction = is_array($result) && is_array($result['extraction'] ?? null)
+            ? $result['extraction']
+            : [];
+
+        if (!$this->isValidDocumentIndex($documentIndex)) {
+            throw new \RuntimeException('Contract extraction did not return a valid document index.');
+        }
+
         $this->lastExtractionMetadata = $this->withCachedFlag($extraction, false);
 
         if ($cacheTtl > 0) {
@@ -55,13 +87,22 @@ class CachedContractExtractionService
         return $this->lastExtractionMetadata;
     }
 
+    public function buildIndexFromPages(array $pages): array
+    {
+        return $this->contractExtractionService->buildIndexFromPages($pages);
+    }
+
     private function isValidCachedExtraction(mixed $cached): bool
     {
         return is_array($cached)
-            && isset($cached['document_index'])
-            && is_array($cached['document_index'])
-            && isset($cached['document_index']['pages'])
-            && is_array($cached['document_index']['pages']);
+            && $this->isValidDocumentIndex($cached['document_index'] ?? null);
+    }
+
+    private function isValidDocumentIndex(mixed $documentIndex): bool
+    {
+        return is_array($documentIndex)
+            && isset($documentIndex['pages'])
+            && is_array($documentIndex['pages']);
     }
 
     private function withCachedFlag(array $extraction, bool $cached): array

@@ -624,6 +624,7 @@ type ContractComparisonAiSummary = {
 const INLINE_PREVIEW_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt']
 const UPLOAD_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.odt,.ods,.odp'
 const MAX_UPLOAD_BYTES = 209715 * 1024
+const PDFJS_BASE_PATH = '/pdf-reader'
 
 const { selectedProject } = useProject()
 const api = useApi()
@@ -669,6 +670,7 @@ let currentTextIndexRequestId = 0
 let compareTextIndexRequestId = 0
 const documentIndexCache = new Map<string, ContractDocumentIndex>()
 const documentIndexRequests = new Map<string, Promise<ContractDocumentIndex | null>>()
+let pdfJsModuleRequest: Promise<any> | null = null
 
 const contracts = computed<ProjectContractResponse[]>(() => {
     if (fetchAttempted.value) {
@@ -1017,6 +1019,124 @@ const resolveErrorMessage = (error: unknown, fallback: string) => {
     return fallback
 }
 
+const isRenderedPagesRequiredError = (error: any) => {
+    return error?.response?.data?.code === 'rendered_pages_required'
+        || error?.response?.data?.message === 'PDF_RENDERED_PAGES_REQUIRED'
+}
+
+const loadPdfJs = async () => {
+    if (!pdfJsModuleRequest) {
+        const pdfJsAssetUrl = (path: string) => new URL(path, window.location.origin).toString()
+        pdfJsModuleRequest = import(/* @vite-ignore */ pdfJsAssetUrl(`${PDFJS_BASE_PATH}/build/pdf.mjs`)).then((module: any) => {
+            module.GlobalWorkerOptions.workerSrc = pdfJsAssetUrl(`${PDFJS_BASE_PATH}/build/pdf.worker.mjs`)
+            return module
+        })
+    }
+
+    return pdfJsModuleRequest
+}
+
+const renderPdfPagesForOcr = async (file: File) => {
+    const pdfjs = await loadPdfJs()
+    const pdfJsAssetUrl = (path: string) => new URL(path, window.location.origin).toString()
+    const documentTask = pdfjs.getDocument({
+        data: await file.arrayBuffer(),
+        cMapUrl: pdfJsAssetUrl(`${PDFJS_BASE_PATH}/web/cmaps/`),
+        cMapPacked: true,
+        standardFontDataUrl: pdfJsAssetUrl(`${PDFJS_BASE_PATH}/web/standard_fonts/`),
+        wasmUrl: pdfJsAssetUrl(`${PDFJS_BASE_PATH}/web/wasm/`),
+    })
+    const pdf = await documentTask.promise
+    const renderedPages: File[] = []
+
+    try {
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+            const page = await pdf.getPage(pageNumber)
+            const viewport = page.getViewport({ scale: 2 })
+            const canvas = document.createElement('canvas')
+            const context = canvas.getContext('2d')
+            if (!context) {
+                throw new Error('PDFページの画像化に失敗しました。')
+            }
+
+            canvas.width = Math.ceil(viewport.width)
+            canvas.height = Math.ceil(viewport.height)
+
+            await page.render({ canvasContext: context, viewport }).promise
+
+            const blob = await new Promise<Blob>((resolve, reject) => {
+                canvas.toBlob(result => {
+                    if (result) {
+                        resolve(result)
+                        return
+                    }
+
+                    reject(new Error('PDFページのPNG生成に失敗しました。'))
+                }, 'image/png')
+            })
+
+            renderedPages.push(new File([blob], `page-${String(pageNumber).padStart(3, '0')}.png`, { type: 'image/png' }))
+            page.cleanup?.()
+            canvas.width = 0
+            canvas.height = 0
+        }
+    } finally {
+        await pdf.destroy?.()
+    }
+
+    return renderedPages
+}
+
+const buildReviewForm = (
+    file: File,
+    role: string,
+    type: string,
+    reviewType: 'quick' | 'deep',
+    renderedPages: File[] = [],
+) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('role', role)
+    formData.append('type', type)
+    formData.append('review_type', reviewType)
+
+    renderedPages.forEach(page => {
+        formData.append('rendered_pages[]', page, page.name)
+    })
+
+    return formData
+}
+
+const reviewDocumentWithRenderedRetry = async (
+    file: File,
+    role: string,
+    type: string,
+    reviewType: 'quick' | 'deep',
+    loadingRef: typeof uploadLoading,
+) => {
+    try {
+        return await api.post('/review_document', buildReviewForm(file, role, type, reviewType), {
+            loadingRef,
+            silent: true,
+        })
+    } catch (error) {
+        if (!isRenderedPagesRequiredError(error)) {
+            throw error
+        }
+
+        loadingRef.value = true
+        try {
+            const renderedPages = await renderPdfPagesForOcr(file)
+            return await api.post('/review_document', buildReviewForm(file, role, type, reviewType, renderedPages), {
+                loadingRef,
+                silent: true,
+            })
+        } finally {
+            loadingRef.value = false
+        }
+    }
+}
+
 const stopElapsedTimer = (
     timerRef: { value: ReturnType<typeof setInterval> | null },
     secondsRef: { value: number },
@@ -1131,13 +1251,23 @@ const coerceDocumentIndex = (response: ContractExtractResponse | null | undefine
     return buildContractDocumentIndexFromText(response?.text ?? '')
 }
 
-const documentIndexCacheKey = (targetContract: ProjectContractResponse, projectId: number) => [
-    projectId,
-    targetContract.id,
-    targetContract.file_path ?? '',
-    targetContract.file_size ?? targetContract.size ?? '',
-    targetContract.updated_at ?? targetContract.created_at ?? '',
+const documentIndexSourceKey = (targetContract: ProjectContractResponse | null | undefined, projectId = selectedProject.value?.id ?? null) => [
+    projectId ?? '',
+    targetContract?.id ?? '',
+    targetContract?.file_path ?? '',
+    targetContract?.file_size ?? targetContract?.size ?? '',
 ].join('|')
+
+const documentIndexCacheKey = (targetContract: ProjectContractResponse, projectId: number) => documentIndexSourceKey(targetContract, projectId)
+
+const getCachedDocumentIndex = (targetContract: ProjectContractResponse) => {
+    const projectId = selectedProject.value?.id
+    if (!projectId) {
+        return null
+    }
+
+    return documentIndexCache.get(documentIndexCacheKey(targetContract, projectId)) ?? null
+}
 
 const fetchContractTextIndex = async (
     targetContract: ProjectContractResponse,
@@ -1225,6 +1355,12 @@ const syncCurrentDocumentIndex = async () => {
         return
     }
 
+    const cachedIndex = getCachedDocumentIndex(targetContract)
+    if (cachedIndex) {
+        currentDocumentIndex.value = cachedIndex
+        return
+    }
+
     currentDocumentIndex.value = null
 
     try {
@@ -1251,6 +1387,12 @@ const syncBaseCompareIndex = async () => {
         return
     }
 
+    const cachedIndex = getCachedDocumentIndex(targetContract)
+    if (cachedIndex) {
+        compareDocumentIndex.value = cachedIndex
+        return
+    }
+
     compareDocumentIndex.value = null
 
     try {
@@ -1263,6 +1405,17 @@ const syncBaseCompareIndex = async () => {
             ping(resolveErrorMessage(error, '比較元の契約テキストを読み取れませんでした。'))
         }
     }
+}
+
+const syncCompareDocumentIndexes = async () => {
+    if (!compareOpen.value || !compareContract.value) {
+        return
+    }
+
+    await Promise.all([
+        syncCurrentDocumentIndex(),
+        syncBaseCompareIndex(),
+    ])
 }
 
 const confirmDiscardDeepReview = async () => {
@@ -1341,17 +1494,7 @@ const runDeepReview = async (selected: ProjectContractResponse) => {
     try {
         const blob = await getContractBlob()
         const file = new File([blob], fileMeta.value.name, { type: blob.type || 'application/octet-stream' })
-        const formData = new FormData()
-
-        formData.append('file', file)
-        formData.append('role', selected.role)
-        formData.append('type', selected.contract_type)
-        formData.append('review_type', 'deep')
-
-        const data = await api.post('/review_document', formData, {
-            loadingRef: aiLoading,
-            silent: true,
-        })
+        const data = await reviewDocumentWithRenderedRetry(file, selected.role, selected.contract_type, 'deep', aiLoading)
 
         if (data) {
             deepResult.value = data
@@ -1492,16 +1635,13 @@ const uploadContract = async () => {
     }
 
     try {
-        const reviewForm = new FormData()
-        reviewForm.append('file', uploadFile.value)
-        reviewForm.append('role', uploadRole.value)
-        reviewForm.append('type', uploadContractType.value)
-        reviewForm.append('review_type', 'quick')
-
-        const review = await api.post('/review_document', reviewForm, {
-            loadingRef: uploadLoading,
-            silent: true,
-        })
+        const review = await reviewDocumentWithRenderedRetry(
+            uploadFile.value,
+            uploadRole.value,
+            uploadContractType.value,
+            'quick',
+            uploadLoading,
+        )
 
         if (!review?.json || !review?.path) {
             throw new Error('レビュー結果の取得に失敗しました。')
@@ -1604,7 +1744,7 @@ watch(
 
 watch(
     () => contract.value,
-    newContract => {
+    (newContract, oldContract) => {
         if (newContract?.role) {
             uploadRole.value = newContract.role
         } else {
@@ -1618,8 +1758,10 @@ watch(
         }
 
         deepResult.value = null
-        invalidateCurrentDocumentIndexRequest()
-        focusRequest.value = null
+        if (documentIndexSourceKey(newContract) !== documentIndexSourceKey(oldContract)) {
+            invalidateCurrentDocumentIndexRequest()
+            focusRequest.value = null
+        }
     },
     { immediate: true }
 )
@@ -1662,7 +1804,7 @@ watch(compareRenderKey, () => {
 })
 
 watch(
-    () => [shouldLoadCurrentDocumentIndex.value, contract.value?.id],
+    () => [shouldLoadCurrentDocumentIndex.value, documentIndexSourceKey(contract.value)],
     ([shouldLoad]) => {
         if (shouldLoad && contract.value) {
             void syncCurrentDocumentIndex()
@@ -1675,10 +1817,10 @@ watch(
 )
 
 watch(
-    () => [compareOpen.value, compareContract.value?.id],
+    () => [compareOpen.value, documentIndexSourceKey(compareContract.value), documentIndexSourceKey(contract.value)],
     () => {
         if (compareOpen.value && compareContract.value) {
-            void syncBaseCompareIndex()
+            void syncCompareDocumentIndexes()
             return
         }
 
