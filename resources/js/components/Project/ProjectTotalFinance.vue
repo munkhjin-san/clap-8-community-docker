@@ -162,9 +162,9 @@
                                 <button @click="tab = 'table'"
                                     :class="['sub-tab-item', { 'selected-sub-tab': tab == 'table' }]">テーブル</button>
                                 <button @click="tab = 'monthlyBar'"
-                                    :class="['sub-tab-item', { 'selected-sub-tab': tab == 'monthlyBar' }]">月別棒グラフ</button>
+                                    :class="['sub-tab-item', { 'selected-sub-tab': tab == 'monthlyBar' }]">月別</button>
                                 <button @click="tab = 'bar'"
-                                    :class="['sub-tab-item', { 'selected-sub-tab': tab == 'bar' }]">棒グラフ</button>
+                                    :class="['sub-tab-item', { 'selected-sub-tab': tab == 'bar' }]">プロジェクト別</button>
                             </div>
                             <div v-if="tab === 'table'" class="flex items-center gap-2 text-sm pc">
                                 <label class="text-xs opacity-70">並び替え</label>
@@ -272,7 +272,7 @@
                                     :disabled="!hasSelectedProjects || financeAnalysisLoading"
                                     @click="analyzeFinance"
                                 >
-                                    <AiIcon size="20" fill="#fff"/>
+                                    <AiIcon size="16" fill="#fff"/>
                                     <span>{{ financeAnalysisButtonLabel }}</span>
                                 </button>
                                 <div
@@ -4247,7 +4247,7 @@ td[data-cell=right-border], th[data-cell=right-border] {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    min-height: 30px;
+    min-height: 25px;
     border: 1px solid var(--primary-button);
     border-radius: 4px;
     background: var(--primary-button);

@@ -255,35 +255,35 @@ const missingInTarget = computed(() => {
 .contract-compare-article-view__layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 300px;
-    gap: 18px;
+    gap: 10px;
 }
 
 .contract-compare-article-view__content {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 10px;
 }
 
 .contract-compare-article-view__header,
 .contract-compare-article-view__row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px;
+    gap: 10px;
 }
 
 .contract-compare-article-view__doc {
-    padding: 14px 16px;
+    padding: 10px 12px;
     border: 1px solid var(--calendarBorder);
-    border-radius: 12px;
+    border-radius: 0;
     background: var(--background-color);
 }
 
 .contract-compare-article-view__doc--base {
-    box-shadow: inset 0 0 0 1px rgba(210, 131, 8, 0.1);
+    border-color: rgba(210, 131, 8, 0.28);
 }
 
 .contract-compare-article-view__doc--target {
-    box-shadow: inset 0 0 0 1px rgba(24, 143, 87, 0.1);
+    border-color: rgba(24, 143, 87, 0.26);
 }
 
 .contract-compare-article-view__label,
@@ -296,7 +296,7 @@ const missingInTarget = computed(() => {
 
 .contract-compare-article-view__title {
     margin: 6px 0 0;
-    font-size: 17px;
+    font-size: 14px;
     line-height: 1.5;
     font-weight: 700;
     color: var(--primary-color);
@@ -306,14 +306,14 @@ const missingInTarget = computed(() => {
 .contract-compare-article-view__rows {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
 }
 
 .contract-compare-article-view__card {
-    min-height: 140px;
-    padding: 18px;
+    min-height: 120px;
+    padding: 12px;
     border: 1px solid var(--calendarBorder);
-    border-radius: 14px;
+    border-radius: 0;
     background: var(--background-color);
     box-sizing: border-box;
 }
@@ -322,24 +322,24 @@ const missingInTarget = computed(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, rgba(214, 214, 214, 0.92), rgba(188, 188, 188, 0.9));
+    background: var(--bg3);
     border-color: rgba(160, 160, 160, 0.55);
 }
 
 .contract-compare-article-view__card--base-changed {
     border-color: rgba(210, 131, 8, 0.22);
-    box-shadow: inset 3px 0 0 rgba(210, 131, 8, 0.24);
+    background: rgba(255, 186, 59, 0.06);
 }
 
 .contract-compare-article-view__card--target-changed {
     border-color: rgba(24, 143, 87, 0.2);
-    box-shadow: inset 3px 0 0 rgba(24, 143, 87, 0.24);
+    background: rgba(41, 196, 122, 0.06);
 }
 
 .contract-compare-article-view__card-title {
     margin: 0;
-    font-size: 18px;
-    line-height: 1.7;
+    font-size: 15px;
+    line-height: 1.6;
     font-weight: 700;
     color: var(--primary-color);
     white-space: pre-wrap;
@@ -349,15 +349,15 @@ const missingInTarget = computed(() => {
 .contract-compare-article-view__paragraphs {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-top: 12px;
+    gap: 8px;
+    margin-top: 8px;
 }
 
 .contract-compare-article-view__paragraph,
 .contract-compare-article-view__empty-label {
     margin: 0;
-    font-size: 14px;
-    line-height: 1.95;
+    font-size: 13px;
+    line-height: 1.8;
     color: var(--primary-color);
     white-space: pre-wrap;
     word-break: break-word;
@@ -369,18 +369,16 @@ const missingInTarget = computed(() => {
 }
 
 .contract-compare-article-view__fragment {
-    border-radius: 3px;
+    border-radius: 0;
     transition: background-color 0.18s ease;
 }
 
 .contract-compare-article-view__fragment--changed-base {
     background: rgba(255, 186, 59, 0.14);
-    box-shadow: inset 0 -1px 0 rgba(210, 131, 8, 0.12);
 }
 
 .contract-compare-article-view__fragment--changed-target {
     background: rgba(41, 196, 122, 0.12);
-    box-shadow: inset 0 -1px 0 rgba(24, 143, 87, 0.14);
 }
 
 .contract-compare-article-view__sidebar {
@@ -389,13 +387,13 @@ const missingInTarget = computed(() => {
     align-self: start;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
 }
 
 .contract-compare-article-view__sidebar-section {
-    padding: 16px;
+    padding: 12px;
     border: 1px solid var(--calendarBorder);
-    border-radius: 14px;
+    border-radius: 0;
     background: var(--background-color);
 }
 
@@ -422,12 +420,12 @@ const missingInTarget = computed(() => {
 
 .contract-compare-article-view__switch {
     position: relative;
-    width: 52px;
-    min-width: 52px;
-    height: 30px;
+    width: 48px;
+    min-width: 48px;
+    height: 28px;
     padding: 2px;
     border: 1px solid rgba(120, 120, 120, 0.18);
-    border-radius: 999px;
+    border-radius: 0;
     background: rgba(160, 160, 160, 0.22);
     cursor: pointer;
     transition: background-color 0.18s ease, border-color 0.18s ease;
@@ -440,31 +438,30 @@ const missingInTarget = computed(() => {
 
 .contract-compare-article-view__switch-thumb {
     display: block;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    border-radius: 0;
     background: #fff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
     transition: transform 0.18s ease;
 }
 
 .contract-compare-article-view__switch--on .contract-compare-article-view__switch-thumb {
-    transform: translateX(22px);
+    transform: translateX(20px);
 }
 
 .contract-compare-article-view__sidebar-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-top: 12px;
+    gap: 8px;
+    margin-top: 10px;
 }
 
 .contract-compare-article-view__sidebar-item {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 12px;
-    border-radius: 12px;
+    padding: 10px;
+    border-radius: 0;
     border: 1px solid transparent;
 }
 
@@ -522,11 +519,11 @@ const missingInTarget = computed(() => {
     }
 
     .contract-compare-article-view__card-title {
-        font-size: 17px;
+        font-size: 15px;
     }
 
     .contract-compare-article-view__paragraph {
-        font-size: 14px;
+        font-size: 13px;
     }
 }
 </style>

@@ -1477,8 +1477,9 @@ class ProjectController extends Controller
 
         $absolutePath = $disk->path($filePath);
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $allowOcr = !$request->has('ocr') || $request->boolean('ocr');
         try {
-            $documentIndex = $this->contractExtractionService->extractIndex($absolutePath, $extension);
+            $documentIndex = $this->contractExtractionService->extractIndex($absolutePath, $extension, $allowOcr);
         } catch (\Throwable $exception) {
             abort(422, $exception->getMessage() ?: '契約書の比較テキスト抽出に失敗しました。');
         }

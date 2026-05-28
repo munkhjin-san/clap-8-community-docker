@@ -67,7 +67,7 @@
                             <button type="button" class="legal-btn legal-btn--secondary" @click="toggleCompare">
                                 {{ compareOpen ? '比較を閉じる' : '比較する' }}
                             </button>
-                            <button type="button" class="legal-btn legal-btn--danger" @click="removeContract">削除</button>
+                            <button type="button" class="legal-btn legal-btn--danger" :disabled="reviewActionLocked" @click="removeContract">削除</button>
                         </div>
                     </div>
 
@@ -179,7 +179,7 @@
                     <div class="legal-upload-panel__form">
                         <div class="legal-upload-panel__field">
                             <label class="legal-upload-panel__label">契約種別</label>
-                            <select v-model="uploadContractType" class="legal-upload-panel__select">
+                            <select v-model="uploadContractType" class="legal-upload-panel__select" :disabled="uploadLocked">
                                 <option
                                     v-for="type in contractTypeDefaults"
                                     :key="type.value"
@@ -201,6 +201,7 @@
                                     class="legal-upload-panel__chip"
                                     :class="{ 'legal-upload-panel__chip--active': uploadRole === role.value }"
                                     :aria-pressed="uploadRole === role.value"
+                                    :disabled="uploadLocked"
                                     @click="uploadRole = role.value"
                                 >
                                     {{ role.label }}
@@ -214,9 +215,11 @@
                         :class="{
                             'legal-upload--filled': !!uploadFileMeta,
                             'legal-upload--dragging': uploadDragging,
+                            'legal-upload--disabled': uploadLocked,
                         }"
                         role="button"
-                        tabindex="0"
+                        :aria-disabled="uploadLocked"
+                        :tabindex="uploadLocked ? -1 : 0"
                         @click="triggerUploadInput"
                         @keydown.enter.prevent="triggerUploadInput"
                         @keydown.space.prevent="triggerUploadInput"
@@ -230,6 +233,7 @@
                             type="file"
                             class="legal-upload__input"
                             :accept="uploadAccept"
+                            :disabled="uploadLocked"
                             @change="handleUploadChange"
                         />
 
@@ -258,8 +262,8 @@
                                     </div>
                                 </div>
                                 <div class="legal-upload__actions">
-                                    <button type="button" class="legal-btn legal-btn--secondary" @click.stop="triggerUploadInput">ファイルを変更</button>
-                                    <button type="button" class="legal-btn legal-btn--ghost" @click.stop="clearUploadFile">削除</button>
+                                    <button type="button" class="legal-btn legal-btn--secondary" :disabled="uploadLocked" @click.stop="triggerUploadInput">ファイルを変更</button>
+                                    <button type="button" class="legal-btn legal-btn--ghost" :disabled="uploadLocked" @click.stop="clearUploadFile">削除</button>
                                 </div>
                             </div>
                         </template>
@@ -268,7 +272,7 @@
                     <p v-if="uploadError" class="legal-upload-panel__error">{{ uploadError }}</p>
 
                     <div class="legal-upload-panel__actions">
-                        <button type="button" class="legal-btn legal-btn--ghost" @click="toggleRenewal">閉じる</button>
+                        <button type="button" class="legal-btn legal-btn--ghost" :disabled="uploadLocked" @click="toggleRenewal">閉じる</button>
                         <button
                             type="button"
                             class="legal-btn legal-btn--primary"
@@ -787,6 +791,8 @@ const uploadFileMeta = computed(() => {
 
 const uploadFocus = computed(() => contractTypeDefaults.find(item => item.value === uploadContractType.value)?.focus ?? '')
 const uploadAccept = computed(() => UPLOAD_ACCEPT)
+const uploadLocked = computed(() => uploadLoading.value)
+const reviewActionLocked = computed(() => aiLoading.value || saveLoading.value || uploadLoading.value)
 
 const reviewTypeLabel = computed(() => {
     if (!contract.value) return ''
@@ -946,6 +952,8 @@ const toggleDetail = () => {
 }
 
 const toggleRenewal = () => {
+    if (uploadLocked.value) return
+
     renewalOpen.value = !renewalOpen.value
     uploadError.value = ''
 }
@@ -1257,6 +1265,7 @@ const saveReview = async (selected: ProjectContractResponse) => {
 }
 
 const removeContract = async () => {
+    if (reviewActionLocked.value) return
     if (!selectedProject.value?.id || !contract.value) return
 
     const answer = await ask('選択中の契約レビューを削除します。よろしいですか？')
@@ -1284,6 +1293,8 @@ const removeContract = async () => {
 }
 
 const assignUploadFile = (file: File | null) => {
+    if (uploadLocked.value) return
+
     uploadError.value = ''
 
     if (!file) {
@@ -1302,10 +1313,14 @@ const assignUploadFile = (file: File | null) => {
 }
 
 const triggerUploadInput = () => {
+    if (uploadLocked.value) return
+
     uploadInput.value?.click()
 }
 
 const handleUploadChange = (event: Event) => {
+    if (uploadLocked.value) return
+
     const target = event.target as HTMLInputElement
     const file = target.files ? target.files[0] : null
     assignUploadFile(file)
@@ -1313,11 +1328,15 @@ const handleUploadChange = (event: Event) => {
 
 const handleUploadDrop = (event: DragEvent) => {
     uploadDragging.value = false
+    if (uploadLocked.value) return
+
     const file = event.dataTransfer?.files?.[0] ?? null
     assignUploadFile(file)
 }
 
 const clearUploadFile = () => {
+    if (uploadLocked.value) return
+
     uploadFile.value = null
     uploadError.value = ''
     if (uploadInput.value) {
@@ -1326,6 +1345,8 @@ const clearUploadFile = () => {
 }
 
 const uploadContract = async () => {
+    if (uploadLocked.value) return
+
     if (!selectedProject.value?.id) {
         ping('プロジェクトが見つかりません。')
         return
@@ -1487,9 +1508,9 @@ onBeforeUnmount(() => {
 .legal-tab {
     --legal-surface: var(--background-color);
     --legal-surface-muted: var(--bg3);
-    --legal-border: var(--calendarBorder);
+    --legal-border: var(--normalBorder, var(--calendarBorder));
     --legal-text: var(--primary-color);
-    --legal-muted: var(--font-color, #666);
+    --legal-muted: var(--normalText, var(--font-color, #666));
     display: flex;
     flex-direction: column;
     min-height: 100%;
@@ -1500,8 +1521,8 @@ onBeforeUnmount(() => {
 .legal-tab__body {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding: 16px;
+    gap: 10px;
+    padding: 12px;
     height: 100%;
     box-sizing: border-box;
     overflow: auto;
@@ -1514,7 +1535,7 @@ onBeforeUnmount(() => {
 .legal-detail__findings,
 .legal-state-card {
     border: 1px solid var(--legal-border);
-    border-radius: 12px;
+    border-radius: 0;
     background: var(--legal-surface);
 }
 
@@ -1545,9 +1566,9 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 6px;
-    padding: 10px 12px;
-    border-radius: 10px;
+    gap: 4px;
+    padding: 8px 10px;
+    border-radius: 0;
     border: 1px solid var(--legal-border);
     background: var(--legal-surface-muted);
 }
@@ -1573,10 +1594,10 @@ onBeforeUnmount(() => {
 .legal-banner {
     display: flex;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
     align-items: center;
-    padding: 12px 14px;
-    border-radius: 10px;
+    padding: 10px 12px;
+    border-radius: 0;
 }
 
 .legal-banner--error {
@@ -1605,14 +1626,14 @@ onBeforeUnmount(() => {
 .legal-main-grid {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
 }
 
 .legal-files {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 12px;
+    gap: 8px;
+    padding: 10px;
     min-height: 0;
 }
 
@@ -1633,7 +1654,7 @@ onBeforeUnmount(() => {
 .legal-files__list {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 8px;
+    gap: 6px;
     max-height: none;
     overflow: visible;
 }
@@ -1644,8 +1665,8 @@ onBeforeUnmount(() => {
     gap: 8px;
     width: 100%;
     min-width: 0;
-    padding: 10px;
-    border-radius: 10px;
+    padding: 8px;
+    border-radius: 0;
     border: 1px solid var(--legal-border);
     background: var(--legal-surface-muted);
     text-align: left;
@@ -1664,9 +1685,9 @@ onBeforeUnmount(() => {
 }
 
 .legal-files__item-icon {
-    width: 36px;
-    min-width: 36px;
-    height: 36px;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1699,8 +1720,8 @@ onBeforeUnmount(() => {
 }
 
 .legal-files__item-version {
-    padding: 2px 8px;
-    border-radius: 999px;
+    padding: 2px 6px;
+    border-radius: 0;
     background: var(--legal-border);
     color: var(--legal-text);
     font-size: 9px;
@@ -1718,39 +1739,39 @@ onBeforeUnmount(() => {
 .legal-summary {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 14px;
+    gap: 10px;
+    padding: 10px;
 }
 
 .legal-summary__head {
     display: flex;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
     align-items: flex-start;
 }
 
 .legal-summary__file {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
     min-width: 0;
 }
 
 .legal-summary__icon {
-    width: 48px;
-    min-width: 48px;
-    height: 48px;
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 10px;
+    border-radius: 0;
     background: var(--legal-surface-muted);
 }
 
 .legal-summary__info {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     min-width: 0;
 }
 
@@ -1763,7 +1784,7 @@ onBeforeUnmount(() => {
 
 .legal-summary__title {
     margin: 0;
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.25;
     font-weight: 700;
     color: var(--legal-text);
@@ -1771,8 +1792,8 @@ onBeforeUnmount(() => {
 }
 
 .legal-summary__version {
-    padding: 2px 6px;
-    border-radius: 999px;
+    padding: 1px 5px;
+    border-radius: 0;
     font-size: 9px;
     font-weight: 700;
     color: var(--legal-text);
@@ -1790,14 +1811,14 @@ onBeforeUnmount(() => {
 .legal-summary__chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
 }
 
 .legal-chip {
     display: inline-flex;
     align-items: center;
-    padding: 4px 8px;
-    border-radius: 999px;
+    padding: 2px 6px;
+    border-radius: 0;
     border: 1px solid var(--legal-border);
     background: var(--legal-surface-muted);
     font-size: 10px;
@@ -1812,7 +1833,7 @@ onBeforeUnmount(() => {
 .legal-state-card__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 
 .legal-summary__actions {
@@ -1822,22 +1843,22 @@ onBeforeUnmount(() => {
 .legal-summary__stats {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    gap: 6px;
 }
 
 .legal-summary__details {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    gap: 6px;
     margin: 0;
 }
 
 .legal-summary__detail {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 10px;
-    border-radius: 10px;
+    gap: 3px;
+    padding: 8px 10px;
+    border-radius: 0;
     background: var(--legal-surface-muted);
     border: 1px solid var(--legal-border);
 }
@@ -1863,8 +1884,8 @@ onBeforeUnmount(() => {
     align-self: flex-start;
     min-width: 52px;
     max-width: 100%;
-    padding: 3px 10px;
-    border-radius: 999px;
+    padding: 2px 8px;
+    border-radius: 0;
     font-size: 11px;
     font-weight: 700;
     border: 1px solid var(--legal-border);
@@ -1905,10 +1926,10 @@ onBeforeUnmount(() => {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    min-height: 32px;
-    padding: 0 10px;
-    border-radius: 6px;
+    gap: 6px;
+    min-height: 28px;
+    padding: 0 9px;
+    border-radius: 0;
     border: 1px solid transparent;
     font-size: 11px;
     font-weight: 700;
@@ -1952,8 +1973,8 @@ onBeforeUnmount(() => {
     align-items: flex-start;
     justify-content: center;
     gap: 8px;
-    min-height: 220px;
-    padding: 18px;
+    min-height: 180px;
+    padding: 12px;
 }
 
 .legal-state-card--locked {
@@ -1985,14 +2006,14 @@ onBeforeUnmount(() => {
 .legal-upload-panel {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 14px;
+    gap: 10px;
+    padding: 10px;
 }
 
 .legal-upload-panel__head {
     display: flex;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
 }
 
@@ -2012,8 +2033,8 @@ onBeforeUnmount(() => {
 
 .legal-upload-panel__badge {
     margin: 0;
-    padding: 4px 8px;
-    border-radius: 999px;
+    padding: 2px 6px;
+    border-radius: 0;
     background: var(--legal-surface-muted);
     color: var(--legal-text);
     font-size: 10px;
@@ -2025,7 +2046,7 @@ onBeforeUnmount(() => {
 .legal-upload-panel__form {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
 }
 
 .legal-upload-panel__field {
@@ -2041,13 +2062,18 @@ onBeforeUnmount(() => {
 }
 
 .legal-upload-panel__select {
-    min-height: 36px;
-    padding: 0 10px;
-    border-radius: 8px;
+    min-height: 32px;
+    padding: 0 8px;
+    border-radius: 0;
     border: 1px solid var(--legal-border);
     background: var(--background-color);
     color: var(--legal-text);
     font-size: 12px;
+}
+
+.legal-upload-panel__select:disabled {
+    cursor: default;
+    opacity: 0.65;
 }
 
 .legal-upload-panel__hint {
@@ -2060,13 +2086,13 @@ onBeforeUnmount(() => {
 .legal-upload-panel__chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
 }
 
 .legal-upload-panel__chip {
-    min-height: 34px;
-    padding: 0 10px;
-    border-radius: 999px;
+    min-height: 30px;
+    padding: 0 8px;
+    border-radius: 0;
     border: 1px solid var(--legal-border);
     background: var(--background-color);
     color: var(--legal-muted);
@@ -2081,10 +2107,15 @@ onBeforeUnmount(() => {
     color: var(--legal-text);
 }
 
+.legal-upload-panel__chip:disabled {
+    cursor: default;
+    opacity: 0.65;
+}
+
 .legal-upload-panel__error {
     margin: 0;
-    padding: 10px;
-    border-radius: 8px;
+    padding: 8px 10px;
+    border-radius: 0;
     background: var(--legal-surface-muted);
     border: 1px solid rgba(209, 67, 67, 0.18);
     color: #b12e2e;
@@ -2095,10 +2126,10 @@ onBeforeUnmount(() => {
 .legal-upload {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 14px;
-    border-radius: 10px;
-    border: 1px dashed var(--primary-color);
+    gap: 10px;
+    padding: 10px;
+    border-radius: 0;
+    border: 1px dashed var(--legal-border);
     background: var(--legal-surface-muted);
     cursor: pointer;
     transition: border-color 0.2s ease, background-color 0.2s ease;
@@ -2108,6 +2139,15 @@ onBeforeUnmount(() => {
 .legal-upload--dragging {
     border-color: var(--primary-color);
     background: var(--background-color);
+}
+
+.legal-upload--disabled,
+.legal-upload--disabled:hover,
+.legal-upload--disabled.legal-upload--dragging {
+    border-color: var(--legal-border);
+    background: var(--legal-surface-muted);
+    cursor: default;
+    opacity: 0.72;
 }
 
 .legal-upload--filled {
@@ -2121,13 +2161,13 @@ onBeforeUnmount(() => {
 .legal-upload__placeholder {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 .legal-upload__icon {
-    width: 42px;
-    min-width: 42px;
-    height: 42px;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2165,7 +2205,7 @@ onBeforeUnmount(() => {
 .legal-upload__info {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .legal-upload__filename {
@@ -2175,7 +2215,7 @@ onBeforeUnmount(() => {
 .legal-upload__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 
 .legal-review-panel {
@@ -2198,9 +2238,9 @@ onBeforeUnmount(() => {
 .legal-review-panel__header {
     display: flex;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
     align-items: center;
-    padding: 16px 18px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--legal-border);
     background: var(--background-color);
 }
@@ -2208,18 +2248,18 @@ onBeforeUnmount(() => {
 .legal-review-panel__header-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     min-width: 0;
 }
 
 .legal-review-panel__back {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    min-height: 34px;
-    padding: 0 12px 0 10px;
+    gap: 6px;
+    min-height: 30px;
+    padding: 0 10px 0 8px;
     border: 1px solid var(--legal-border);
-    border-radius: 6px;
+    border-radius: 0;
     background: var(--legal-surface-muted);
     color: var(--legal-text);
     font-size: 12px;
@@ -2258,15 +2298,15 @@ onBeforeUnmount(() => {
 .legal-review-panel__header-actions,
 .legal-review-panel__footer {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
 }
 
 .legal-review-panel__body {
     display: grid;
     grid-template-columns: minmax(0, 1.45fr) minmax(420px, 0.95fr);
-    gap: 14px;
-    padding: 14px;
+    gap: 10px;
+    padding: 10px;
     flex: 1;
     min-height: 0;
     height: calc(100vh - 67px);
@@ -2281,28 +2321,28 @@ onBeforeUnmount(() => {
 .legal-review-panel__findings {
     min-height: 0;
     border: 1px solid var(--legal-border);
-    border-radius: 10px;
+    border-radius: 0;
     background: var(--legal-surface);
 }
 
 .legal-review-panel__preview {
     display: flex;
     flex-direction: column;
-    padding: 14px;
+    padding: 10px;
 }
 
 .legal-review-panel__findings {
     display: flex;
     flex-direction: column;
-    padding: 14px;
+    padding: 10px;
 }
 
 .legal-review-panel__section-head {
     display: flex;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
     align-items: flex-start;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 .legal-review-panel__section-title {
@@ -2322,7 +2362,7 @@ onBeforeUnmount(() => {
 .legal-review-panel__preview-frame {
     flex: 1;
     min-height: 0;
-    border-radius: 10px;
+    border-radius: 0;
     overflow: hidden;
     border: 1px solid var(--legal-border);
     background: var(--background-color);
@@ -2352,8 +2392,8 @@ onBeforeUnmount(() => {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    border-radius: 10px;
+    gap: 6px;
+    border-radius: 0;
     border: 1px dashed var(--legal-border);
     background: var(--legal-surface-muted);
     text-align: center;
@@ -2383,10 +2423,10 @@ onBeforeUnmount(() => {
 .legal-compare-workspace {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding: 16px 18px 24px;
+    gap: 10px;
+    padding: 10px 12px 14px;
     border: 1px solid var(--legal-border);
-    border-radius: 10px;
+    border-radius: 0;
     background: var(--legal-surface);
     height: 100%;
     overflow: auto;
@@ -2404,13 +2444,12 @@ onBeforeUnmount(() => {
     min-width: 200px;
     max-width: 100%;
     border: 1px solid var(--calendarBorder);
-    border-radius: 8px;
+    border-radius: 0;
     background: var(--bg3);
     color: var(--primary-color);
-    padding: 8px 10px;
+    padding: 6px 8px;
     font-size: 12px;
     font-weight: 600;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
     color-scheme: dark;
     box-sizing: border-box !important;
 }
@@ -2418,9 +2457,6 @@ onBeforeUnmount(() => {
 .legal-compare__select:focus {
     outline: none;
     border-color: rgba(41, 196, 122, 0.34);
-    box-shadow:
-        0 0 0 3px rgba(41, 196, 122, 0.12),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 .legal-compare__select option {
@@ -2431,17 +2467,17 @@ onBeforeUnmount(() => {
 .legal-compare__stats {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 
 .legal-compare__stat-chip {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    min-height: 30px;
-    padding: 0 12px 0 10px;
-    border-radius: 999px;
+    gap: 6px;
+    min-height: 28px;
+    padding: 0 8px;
+    border-radius: 0;
     border: 1px solid var(--legal-border);
     background: var(--legal-surface);
     color: var(--legal-text);
@@ -2449,14 +2485,13 @@ onBeforeUnmount(() => {
     font-weight: 800;
     letter-spacing: 0.02em;
     white-space: nowrap;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .legal-compare__stat-chip::before {
     content: '';
     width: 8px;
     height: 8px;
-    border-radius: 999px;
+    border-radius: 0;
     background: currentColor;
     flex: 0 0 auto;
 }
@@ -2464,69 +2499,45 @@ onBeforeUnmount(() => {
 .legal-compare__stat-chip--added {
     color: #188f57;
     border-color: rgba(24, 143, 87, 0.28);
-    background:
-        linear-gradient(var(--legal-surface), var(--legal-surface)) padding-box,
-        linear-gradient(90deg, rgba(24, 143, 87, 0.45), rgba(24, 143, 87, 0.12)) border-box;
-    border: 1px solid transparent;
+    background: rgba(24, 143, 87, 0.08);
 }
 
 .legal-compare__stat-chip--removed {
     color: #d28308;
     border-color: rgba(210, 131, 8, 0.28);
-    background:
-        linear-gradient(var(--legal-surface), var(--legal-surface)) padding-box,
-        linear-gradient(90deg, rgba(210, 131, 8, 0.42), rgba(210, 131, 8, 0.12)) border-box;
-    border: 1px solid transparent;
+    background: rgba(210, 131, 8, 0.08);
 }
 
 .legal-compare__stat-chip--modified {
     color: var(--legal-text);
-    background:
-        linear-gradient(
-            90deg,
-            var(--legal-surface) 0%,
-            var(--legal-surface) 100%
-        ) padding-box,
-        linear-gradient(
-            90deg,
-            rgba(210, 131, 8, 0.55) 0%,
-            rgba(210, 131, 8, 0.55) 48%,
-            rgba(24, 143, 87, 0.5) 52%,
-            rgba(24, 143, 87, 0.5) 100%
-        ) border-box;
-    border: 1px solid transparent;
+    border-color: var(--legal-border);
+    background: var(--legal-surface-muted);
 }
 
 .legal-compare__stat-chip--modified::before {
-    background: linear-gradient(
-        90deg,
-        rgba(210, 131, 8, 0.95) 0%,
-        rgba(210, 131, 8, 0.95) 48%,
-        rgba(24, 143, 87, 0.9) 52%,
-        rgba(24, 143, 87, 0.9) 100%
-    );
+    background: var(--legal-text);
 }
 
 .legal-compare__tabs {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 
 .legal-compare-summary {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 14px 16px;
+    gap: 10px;
+    padding: 10px 12px;
     border: 1px solid var(--legal-border);
-    border-radius: 12px;
+    border-radius: 0;
     background: var(--legal-surface-muted);
 }
 
 .legal-compare-summary__head {
     display: flex;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
     align-items: flex-start;
 }
 
@@ -2548,8 +2559,8 @@ onBeforeUnmount(() => {
 
 .legal-compare-summary__empty {
     margin: 0;
-    padding: 12px;
-    border-radius: 10px;
+    padding: 10px;
+    border-radius: 0;
     border: 1px dashed var(--legal-border);
     background: var(--legal-surface);
     color: var(--legal-muted);
@@ -2559,8 +2570,8 @@ onBeforeUnmount(() => {
 
 .legal-compare-summary__error {
     margin: 0;
-    padding: 10px 12px;
-    border-radius: 10px;
+    padding: 8px 10px;
+    border-radius: 0;
     border: 1px solid rgba(209, 67, 67, 0.22);
     background: rgba(209, 67, 67, 0.08);
     color: #e58d8d;
@@ -2572,7 +2583,7 @@ onBeforeUnmount(() => {
 .legal-compare-summary__lists {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 8px;
 }
 
 .legal-compare-summary__lists {
@@ -2583,9 +2594,9 @@ onBeforeUnmount(() => {
 .legal-compare-summary__list-card {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 12px;
-    border-radius: 10px;
+    gap: 6px;
+    padding: 10px;
+    border-radius: 0;
     border: 1px solid rgba(255, 255, 255, 0.04);
     background: var(--legal-surface);
 }
@@ -2609,10 +2620,10 @@ onBeforeUnmount(() => {
 }
 
 .legal-compare__tab {
-    min-height: 36px;
-    padding: 0 14px;
+    min-height: 30px;
+    padding: 0 10px;
     border: 1px solid var(--legal-border);
-    border-radius: 999px;
+    border-radius: 0;
     background: var(--legal-surface-muted);
     color: var(--legal-text);
     font-size: 12px;
@@ -2626,8 +2637,8 @@ onBeforeUnmount(() => {
 }
 
 .legal-review-panel__footer {
-    margin-top: 12px;
-    padding-top: 12px;
+    margin-top: 10px;
+    padding-top: 10px;
     border-top: 1px solid var(--legal-border);
 }
 
@@ -2658,7 +2669,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 899px) {
     .legal-tab__body {
-        padding: 16px;
+        padding: 10px;
     }
 
     .legal-summary__stats,
@@ -2673,21 +2684,21 @@ onBeforeUnmount(() => {
     .legal-summary,
     .legal-files,
     .legal-state-card {
-        padding: 12px;
+        padding: 10px;
     }
 
     .legal-review-panel__header {
-        padding: 12px;
+        padding: 10px;
     }
 
     .legal-review-panel__body {
         height: calc(100vh - 61px);
-        padding: 12px;
+        padding: 10px;
     }
 
     .legal-review-panel__preview,
     .legal-review-panel__findings {
-        padding: 12px;
+        padding: 10px;
     }
 }
 
@@ -2714,7 +2725,7 @@ onBeforeUnmount(() => {
     }
 
     .legal-state-card__title {
-        font-size: 18px;
+        font-size: 14px;
     }
 
     .legal-review-panel__body {

@@ -49,12 +49,18 @@ class Kernel extends ConsoleKernel
         $schedule->command('alerts:variance --period='.now()->toDateString())->monthlyOn(20, '18:00');
         $schedule->command('logs:prune-activity-logs')->quarterly();
         $schedule->command('goals:check-alert-streak')->dailyAt('02:00');
+        $schedule->command('goals:report-outcome-incidents')->dailyAt('09:20')->withoutOverlapping()->appendOutputTo(storage_path('logs/incidents/outcome-goal-incidents.log'));
         $schedule->command('refresh:expire')->monthlyOn(2, '08:00');
         $schedule->command('app:auto-attendance-confirm')->monthlyOn(3, '08:00');
         $schedule->command('app:refresh-automation')->monthlyOn(1, '08:00');
         $schedule->command('contact-batches:poll')->everyFifteenMinutes();
         $schedule->command('app:seal-audit-daily-digest')->dailyAt('02:00')->appendOutputTo(storage_path('logs/timecard-audit-seal.log'));
         $schedule->command('app:verify-timecard-audit-integrity --require-digest --date='.now()->subDay()->toDateString())->dailyAt('03:00')->appendOutputTo(storage_path('logs/timecard-audit-integrity.log'));
+        // $schedule->command('app:approve-daily-report')->dailyAt('04:00')->appendOutputTo(storage_path('logs/daily-report-approval.log'));
+        // Finance weekly digest — every Monday at 08:00 JST
+        // $schedule->command('finance:weekly-digest')->weeklyOn(1, '08:00')->appendOutputTo(storage_path('logs/finance-digest-cron.log'));
+        
+        $schedule->command('timesheet:daily-report-confirmation')->dailyAt('08:00')->appendOutputTo(storage_path('logs/incidents/daily-report-confirmation.log'));
     }
 
     /**

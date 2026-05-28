@@ -318,7 +318,7 @@ TXT
 
         if ($this->shouldUseExtractedContractText($file, $contractExtractionService)) {
             try {
-                $documentIndex = $contractExtractionService->extractIndex($file->getRealPath(), 'pdf');
+                $documentIndex = $contractExtractionService->extractIndex($file->getRealPath(), 'pdf', true);
                 $contractText = $this->formatDocumentIndexForReview($documentIndex);
             } catch (Throwable $exception) {
                 abort(422, 'PDF OCR extraction failed: '.$exception->getMessage());

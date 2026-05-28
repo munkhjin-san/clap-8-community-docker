@@ -124,6 +124,7 @@ import { useKeyboardStore } from '@/store/keyboardStore'
 import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 import { useBoardList } from '@/composables/board'
+import { buildMessagePayload, resolveMessageBoardId } from '@/utils/messagePagination'
 import { Board, CopyData, Message, UnreadMessages } from '@/interface/globalInterface'
 import { BoardMethodsKey, MessageMethodsKey } from '@/interface/keys'
 import { DateTime } from 'luxon'
@@ -567,6 +568,8 @@ import Error from '@/components/Global/Error.vue'
     const closeMessageContainer = () => {
         keyboardStore.setKeyboardHeight(0)
         messageList.value = [];
+        nextMessageCursor.value = null
+        reachedMessageEnd.value = false
         // messageContainerKey.value ++
     }
     const reachedTop = () => {
@@ -674,16 +677,19 @@ import Error from '@/components/Global/Error.vue'
         });
     }
     const getMessageList = async(source?:string, queue?:any, chatId?:number) => {
-        const boardId = Number(route.params.chatId) || chatId 
-        if(!boardId) return
-        
-        const payload: any = {}
-        const useCursor = source !== 'pusher' && nextMessageCursor.value
-        if (useCursor) payload.cursor = nextMessageCursor.value
-        payload.record_id = boardId
         const message_id = unreadMessages.value?.id ?? null
         const message_count = unreadMessages.value?.count ?? 0
-        if (message_id && message_count > 30) payload.message_id = message_id
+        const payload = buildMessagePayload({
+            routeChatId: route.params.chatId,
+            explicitChatId: chatId,
+            source,
+            nextMessageCursor: nextMessageCursor.value,
+            unreadMessageId: message_id,
+            unreadMessageCount: message_count,
+        })
+        if(!payload) return
+
+        const boardId = payload.record_id
         const response = await api.post('/get_messages', payload, { cancel: source !== 'pusher' })
         if(!response) {
             if(source == 'infiniteLoader'){
@@ -692,9 +698,16 @@ import Error from '@/components/Global/Error.vue'
             }
             return
         }
+        if(resolveMessageBoardId(route.params.chatId) !== boardId){
+            if(source == 'infiniteLoader'){
+                pageLimiter.value = false
+                microLoader.value = false
+            }
+            return
+        }
         const rows = response?.messages?.data ?? []
         listType.value = 'normal' 
-        if (source == 'first_load') {
+        if (source == 'first_load' || source == 'refresh' || !source) {
             messageList.value = []
             messageList.value = rows
         } else if (source == 'pusher') {
@@ -709,7 +722,7 @@ import Error from '@/components/Global/Error.vue'
                     messageList.value = freshRows.concat(messageList.value)
                 }
             }
-        } else {
+        } else if (source == 'infiniteLoader') {
             messageList.value.push(...rows)
         }
         if(source == 'infiniteLoader'){                        
