@@ -574,7 +574,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { DateTime } from 'luxon'
 import { filesize } from 'filesize'
 import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
@@ -1202,6 +1202,7 @@ const toggleCompare = () => {
         compareOpen.value = true
         detailOpen.value = true
         compareContractId.value = compareContractId.value ?? compareCandidates.value[0]?.id ?? null
+        void nextTick(() => syncCompareDocumentIndexes())
         return
     }
 
@@ -1286,7 +1287,12 @@ const fetchContractTextIndex = async (
 
     const pending = documentIndexRequests.get(cacheKey)
     if (pending) {
-        return pending
+        loadingRef.value = true
+        try {
+            return await pending
+        } finally {
+            loadingRef.value = false
+        }
     }
 
     const request = (async () => {
@@ -1795,6 +1801,10 @@ watch(compareContractId, value => {
 
     if (!value) {
         return
+    }
+
+    if (compareOpen.value) {
+        void syncCompareDocumentIndexes()
     }
 })
 
