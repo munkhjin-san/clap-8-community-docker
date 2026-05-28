@@ -321,12 +321,73 @@ onMounted(async () => {
     await getNews()
     
 })
+
+const fetchWordPressPosts = async (params: Record<string, string>) => {
+    const searchParams = new URLSearchParams({
+        rest_route: '/wp/v2/posts/',
+        _embed: '1',
+        ...params,
+    })
+
+    const response = await fetch(`https://news.glowd.co.jp/index.php?${searchParams.toString()}`)
+    return response.json()
+}
+
+const normalizeMentionedPersonName = (value: string) => {
+    return value.replace(/\s+/g, ' ').trim()
+}
+
+const buildMentionedPersonSlug = (name: string) => {
+    return normalizeMentionedPersonName(name).replace(/\s+/g, '-')
+}
+
+const fetchMentionedPersonTermId = async (name: string) => {
+    const searchParams = new URLSearchParams({
+        rest_route: '/wp/v2/mentioned_person',
+        search: name,
+        per_page: '20',
+    })
+
+    const response = await fetch(`https://news.glowd.co.jp/index.php?${searchParams.toString()}`)
+    const data = await response.json()
+
+    if (!Array.isArray(data) || !data.length) {
+        return null
+    }
+
+    const normalizedName = normalizeMentionedPersonName(name)
+    const matchedTerm = data.find((term: { id?: number; name?: string; slug?: string }) => {
+        if (typeof term?.id !== 'number') {
+            return false
+        }
+
+        return normalizeMentionedPersonName(term.name ?? '') === normalizedName
+            || (term.slug ?? '') === buildMentionedPersonSlug(normalizedName)
+    })
+
+    return typeof matchedTerm?.id === 'number' ? matchedTerm.id : null
+}
+
 const getNews = async () => {
-    if (!userData.value) return
+    if (!userData.value?.name) {
+        newsItems.value = []
+        newsLoading.value = false
+        return
+    }
+
     newsLoading.value = true
-    const data = await fetch(`https://news.glowd.co.jp/index.php?rest_route=/wp/v2/posts/&search=${userData.value.name}&_embed&`).then(response => response.json())
-    newsItems.value = data
-    newsLoading.value = false
+
+    try {
+        const termId = await fetchMentionedPersonTermId(userData.value.name)
+        newsItems.value = termId
+            ? await fetchWordPressPosts({ mentioned_person: String(termId) })
+            : []
+    } catch (error) {
+        console.error('Failed to load WordPress news', error)
+        newsItems.value = []
+    } finally {
+        newsLoading.value = false
+    }
 }
 const fetchUserData = async () => {
     console.log('ff')

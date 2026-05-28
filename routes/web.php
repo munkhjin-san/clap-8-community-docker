@@ -150,6 +150,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     });
         
     Route::get('/employee', function () {return redirect("/members");});
+    Route::get('/notice/{id}', function ($id) {return redirect("/dashboard/notice?notice_id={$id}");});
 
     Route::get('/{name}/{any?}',[BoardController::class, "index"])
     ->whereIn('name', [
@@ -164,7 +165,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         'timesheet', 
         'admin_control', 
         'support', 
-        'notice', 
         'settings', 
         'user', 
         'learning', 
