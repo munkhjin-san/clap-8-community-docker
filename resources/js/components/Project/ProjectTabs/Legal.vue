@@ -6,7 +6,7 @@
         </div>
 
         <div v-else class="legal-tab__body">
-            <AiLoader v-if="aiLoading" message="徹底的な検査中です。<br>この処理には数分かかる場合があります。" />
+            <AiLoader v-if="aiLoading" :message="deepReviewLoadingMessage" />
 
             <div v-if="fetchError" class="legal-banner legal-banner--error">
                 <div>
@@ -271,6 +271,14 @@
 
                     <p v-if="uploadError" class="legal-upload-panel__error">{{ uploadError }}</p>
 
+                    <div v-if="uploadLoading" class="legal-processing-note" aria-live="polite">
+                        <span class="legal-loading-mark" aria-hidden="true"></span>
+                        <div>
+                            <p class="legal-processing-note__title">AIレビューを実行中です</p>
+                            <p class="legal-processing-note__text">{{ uploadReviewStatusText }}</p>
+                        </div>
+                    </div>
+
                     <div class="legal-upload-panel__actions">
                         <button type="button" class="legal-btn legal-btn--ghost" :disabled="uploadLocked" @click="toggleRenewal">閉じる</button>
                         <button
@@ -279,6 +287,7 @@
                             :disabled="uploadLoading"
                             @click="uploadContract"
                         >
+                            <span v-if="uploadLoading" class="legal-loading-mark legal-loading-mark--button" aria-hidden="true"></span>
                             {{ uploadLoading ? 'レビュー中...' : 'AIレビューして追加' }}
                         </button>
                     </div>
@@ -346,12 +355,13 @@
                                     />
                                     <div
                                         v-else-if="currentTextIndexLoading"
-                                        class="legal-review-panel__preview-empty"
+                                        class="legal-review-panel__preview-empty legal-review-panel__preview-empty--loading"
                                         aria-live="polite"
                                         >
+                                        <span class="legal-loading-mark legal-loading-mark--large" aria-hidden="true"></span>
                                         <p class="legal-review-panel__preview-empty-title">抽出テキストを準備しています</p>
                                         <p class="legal-review-panel__preview-empty-text">
-                                            契約書の条文と段落を整理して、リスク箇所へ移動できるようにしています。
+                                            {{ currentTextIndexLoadingStatusText }}
                                         </p>
                                     </div>
                                 </div>
@@ -491,9 +501,13 @@
                                         :target-meta="compareTargetMeta"
                                     />
 
-                                    <p v-else-if="compareIndexLoading" class="legal-compare__empty">
-                                        比較用の契約テキストを読み込み中...
-                                    </p>
+                                    <div v-else-if="compareIndexLoading" class="legal-processing-note legal-processing-note--inline" aria-live="polite">
+                                        <span class="legal-loading-mark" aria-hidden="true"></span>
+                                        <div>
+                                            <p class="legal-processing-note__title">比較用の契約テキストを読み込み中です</p>
+                                            <p class="legal-processing-note__text">{{ compareTextIndexLoadingStatusText }}</p>
+                                        </div>
+                                    </div>
                                     <p v-else class="legal-compare__empty">
                                         比較画面を準備しています...
                                     </p>
@@ -520,6 +534,14 @@
                                         :export-filename="riskExportFilename"
                                         @focus-finding="focusFinding"
                                     />
+                                </div>
+
+                                <div v-if="aiLoading" class="legal-processing-note" aria-live="polite">
+                                    <span class="legal-loading-mark" aria-hidden="true"></span>
+                                    <div>
+                                        <p class="legal-processing-note__title">ディープレビューを実行中です</p>
+                                        <p class="legal-processing-note__text">{{ deepReviewStatusText }}</p>
+                                    </div>
                                 </div>
 
                                 <div class="legal-review-panel__footer">
@@ -616,6 +638,14 @@ const fetchError = ref('')
 const aiLoading = ref(false)
 const saveLoading = ref(false)
 const uploadLoading = ref(false)
+const aiElapsedSeconds = ref(0)
+const uploadElapsedSeconds = ref(0)
+const currentTextIndexElapsedSeconds = ref(0)
+const compareTextIndexElapsedSeconds = ref(0)
+const aiElapsedTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const uploadElapsedTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const currentTextIndexElapsedTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const compareTextIndexElapsedTimer = ref<ReturnType<typeof setInterval> | null>(null)
 const renewalOpen = ref(false)
 const compareOpen = ref(false)
 const compareContractId = ref<number | null>(null)
@@ -637,6 +667,8 @@ const compareDocumentIndex = ref<ContractDocumentIndex | null>(null)
 const focusRequest = ref<{ token: number; page?: number; query?: string | null; fallbackQuery?: string | null } | null>(null)
 let currentTextIndexRequestId = 0
 let compareTextIndexRequestId = 0
+const documentIndexCache = new Map<string, ContractDocumentIndex>()
+const documentIndexRequests = new Map<string, Promise<ContractDocumentIndex | null>>()
 
 const contracts = computed<ProjectContractResponse[]>(() => {
     if (fetchAttempted.value) {
@@ -658,7 +690,7 @@ const contract = computed<ProjectContractResponse | null>(() => {
     if (!contracts.value.length) return null
     if (selectedContractId.value) {
         const current = contracts.value.find(item => item.id === selectedContractId.value)
-        if (current) return current
+        return current ?? null
     }
     return contracts.value[0]
 })
@@ -793,6 +825,44 @@ const uploadFocus = computed(() => contractTypeDefaults.find(item => item.value 
 const uploadAccept = computed(() => UPLOAD_ACCEPT)
 const uploadLocked = computed(() => uploadLoading.value)
 const reviewActionLocked = computed(() => aiLoading.value || saveLoading.value || uploadLoading.value)
+
+const formatElapsed = (seconds: number) => {
+    if (seconds <= 0) return ''
+
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+
+    return minutes > 0 ? `${minutes}分${remainingSeconds.toString().padStart(2, '0')}秒` : `${remainingSeconds}秒`
+}
+
+const elapsedSuffix = (seconds: number) => {
+    const elapsed = formatElapsed(seconds)
+    return elapsed ? `（経過 ${elapsed}）` : ''
+}
+
+const deepReviewStatusText = computed(() => {
+    const elapsed = elapsedSuffix(aiElapsedSeconds.value)
+    return `OCRが必要なPDFは3-4分かかる場合があります。画面を閉じずにお待ちください。${elapsed}`
+})
+
+const deepReviewLoadingMessage = computed(() => {
+    return `徹底的な検査中です。<br>${deepReviewStatusText.value}`
+})
+
+const uploadReviewStatusText = computed(() => {
+    const elapsed = elapsedSuffix(uploadElapsedSeconds.value)
+    return `OCRが必要なPDFは3-4分かかる場合があります。画面を閉じずにお待ちください。${elapsed}`
+})
+
+const currentTextIndexLoadingStatusText = computed(() => {
+    const elapsed = elapsedSuffix(currentTextIndexElapsedSeconds.value)
+    return `契約書の条文と段落を整理して、リスク箇所へ移動できるようにしています。PDFによって数分かかる場合があります。${elapsed}`
+})
+
+const compareTextIndexLoadingStatusText = computed(() => {
+    const elapsed = elapsedSuffix(compareTextIndexElapsedSeconds.value)
+    return `比較用の条文と段落を整理しています。PDFによって数分かかる場合があります。${elapsed}`
+})
 
 const reviewTypeLabel = computed(() => {
     if (!contract.value) return ''
@@ -947,6 +1017,38 @@ const resolveErrorMessage = (error: unknown, fallback: string) => {
     return fallback
 }
 
+const stopElapsedTimer = (
+    timerRef: { value: ReturnType<typeof setInterval> | null },
+    secondsRef: { value: number },
+) => {
+    if (timerRef.value) {
+        clearInterval(timerRef.value)
+    }
+
+    timerRef.value = null
+    secondsRef.value = 0
+}
+
+const startElapsedTimer = (
+    timerRef: { value: ReturnType<typeof setInterval> | null },
+    secondsRef: { value: number },
+) => {
+    stopElapsedTimer(timerRef, secondsRef)
+    timerRef.value = setInterval(() => {
+        secondsRef.value += 1
+    }, 1000)
+}
+
+const invalidateCurrentDocumentIndexRequest = () => {
+    currentTextIndexRequestId += 1
+    currentDocumentIndex.value = null
+}
+
+const invalidateCompareDocumentIndexRequest = () => {
+    compareTextIndexRequestId += 1
+    compareDocumentIndex.value = null
+}
+
 const toggleDetail = () => {
     detailOpen.value = !detailOpen.value
 }
@@ -960,7 +1062,7 @@ const toggleRenewal = () => {
 
 const resetCompareState = () => {
     compareContractId.value = null
-    compareDocumentIndex.value = null
+    invalidateCompareDocumentIndexRequest()
     compareViewMode.value = 'full'
     comparisonAiSummary.value = null
     comparisonSummaryError.value = ''
@@ -1029,24 +1131,57 @@ const coerceDocumentIndex = (response: ContractExtractResponse | null | undefine
     return buildContractDocumentIndexFromText(response?.text ?? '')
 }
 
+const documentIndexCacheKey = (targetContract: ProjectContractResponse, projectId: number) => [
+    projectId,
+    targetContract.id,
+    targetContract.file_path ?? '',
+    targetContract.file_size ?? targetContract.size ?? '',
+    targetContract.updated_at ?? targetContract.created_at ?? '',
+].join('|')
+
 const fetchContractTextIndex = async (
     targetContract: ProjectContractResponse,
     loadingRef: typeof currentTextIndexLoading,
 ) => {
-    if (!selectedProject.value?.id) {
+    const projectId = selectedProject.value?.id
+    if (!projectId) {
         return null
     }
 
-    const response = await api.get(
-        `/projects/${selectedProject.value.id}/contract/extract?contract_id=${targetContract.id}`,
-        null,
-        {
-            loadingRef,
-            silent: true,
-        }
-    ) as ContractExtractResponse | null
+    const cacheKey = documentIndexCacheKey(targetContract, projectId)
+    const cached = documentIndexCache.get(cacheKey)
+    if (cached) {
+        return cached
+    }
 
-    return coerceDocumentIndex(response)
+    const pending = documentIndexRequests.get(cacheKey)
+    if (pending) {
+        return pending
+    }
+
+    const request = (async () => {
+        const response = await api.get(
+            `/projects/${projectId}/contract/extract?contract_id=${targetContract.id}`,
+            null,
+            {
+                loadingRef,
+                silent: true,
+            }
+        ) as ContractExtractResponse | null
+
+        const index = coerceDocumentIndex(response)
+        documentIndexCache.set(cacheKey, index)
+
+        return index
+    })()
+
+    documentIndexRequests.set(cacheKey, request)
+
+    try {
+        return await request
+    } finally {
+        documentIndexRequests.delete(cacheKey)
+    }
 }
 
 const summarizeComparison = async (force = false) => {
@@ -1142,7 +1277,7 @@ const selectContract = async (id: number) => {
 
     selectedContractId.value = id
     deepResult.value = null
-    currentDocumentIndex.value = null
+    invalidateCurrentDocumentIndexRequest()
     focusRequest.value = null
     if (compareContractId.value === id) {
         compareContractId.value = null
@@ -1397,6 +1532,54 @@ const uploadContract = async () => {
 }
 
 watch(
+    aiLoading,
+    isLoading => {
+        if (isLoading) {
+            startElapsedTimer(aiElapsedTimer, aiElapsedSeconds)
+            return
+        }
+
+        stopElapsedTimer(aiElapsedTimer, aiElapsedSeconds)
+    }
+)
+
+watch(
+    uploadLoading,
+    isLoading => {
+        if (isLoading) {
+            startElapsedTimer(uploadElapsedTimer, uploadElapsedSeconds)
+            return
+        }
+
+        stopElapsedTimer(uploadElapsedTimer, uploadElapsedSeconds)
+    }
+)
+
+watch(
+    currentTextIndexLoading,
+    isLoading => {
+        if (isLoading) {
+            startElapsedTimer(currentTextIndexElapsedTimer, currentTextIndexElapsedSeconds)
+            return
+        }
+
+        stopElapsedTimer(currentTextIndexElapsedTimer, currentTextIndexElapsedSeconds)
+    }
+)
+
+watch(
+    compareTextIndexLoading,
+    isLoading => {
+        if (isLoading) {
+            startElapsedTimer(compareTextIndexElapsedTimer, compareTextIndexElapsedSeconds)
+            return
+        }
+
+        stopElapsedTimer(compareTextIndexElapsedTimer, compareTextIndexElapsedSeconds)
+    }
+)
+
+watch(
     () => selectedProject.value?.id,
     () => {
         contractsState.value = []
@@ -1406,11 +1589,13 @@ watch(
         compareOpen.value = false
         compareContractId.value = null
         deepResult.value = null
-        currentDocumentIndex.value = null
-        compareDocumentIndex.value = null
+        invalidateCurrentDocumentIndexRequest()
+        invalidateCompareDocumentIndexRequest()
         focusRequest.value = null
         fetchAttempted.value = false
         fetchError.value = ''
+        documentIndexCache.clear()
+        documentIndexRequests.clear()
         clearUploadFile()
         fetchContract()
     },
@@ -1433,7 +1618,7 @@ watch(
         }
 
         deepResult.value = null
-        currentDocumentIndex.value = null
+        invalidateCurrentDocumentIndexRequest()
         focusRequest.value = null
     },
     { immediate: true }
@@ -1464,7 +1649,7 @@ watch(detailOpen, isOpen => {
 })
 
 watch(compareContractId, value => {
-    compareDocumentIndex.value = null
+    invalidateCompareDocumentIndexRequest()
 
     if (!value) {
         return
@@ -1484,7 +1669,7 @@ watch(
             return
         }
 
-        currentDocumentIndex.value = null
+        invalidateCurrentDocumentIndexRequest()
     },
     { immediate: true }
 )
@@ -1494,13 +1679,20 @@ watch(
     () => {
         if (compareOpen.value && compareContract.value) {
             void syncBaseCompareIndex()
+            return
         }
+
+        invalidateCompareDocumentIndexRequest()
     },
     { immediate: true }
 )
 
 onBeforeUnmount(() => {
     document.body.style.overflow = ''
+    stopElapsedTimer(aiElapsedTimer, aiElapsedSeconds)
+    stopElapsedTimer(uploadElapsedTimer, uploadElapsedSeconds)
+    stopElapsedTimer(currentTextIndexElapsedTimer, currentTextIndexElapsedSeconds)
+    stopElapsedTimer(compareTextIndexElapsedTimer, compareTextIndexElapsedSeconds)
 })
 </script>
 
@@ -1534,7 +1726,9 @@ onBeforeUnmount(() => {
 .legal-detail__preview,
 .legal-detail__findings,
 .legal-state-card {
-    border: 1px solid var(--legal-border);
+    border: 0;
+    border-top: 1px solid var(--legal-border);
+    border-bottom: 1px solid var(--legal-border);
     border-radius: 0;
     background: var(--legal-surface);
 }
@@ -1567,10 +1761,10 @@ onBeforeUnmount(() => {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
-    padding: 8px 10px;
+    padding: 7px 10px;
     border-radius: 0;
-    border: 1px solid var(--legal-border);
-    background: var(--legal-surface-muted);
+    border: 0;
+    background: transparent;
 }
 
 .legal-stat-card__label,
@@ -1632,7 +1826,7 @@ onBeforeUnmount(() => {
 .legal-files {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     padding: 10px;
     min-height: 0;
 }
@@ -1652,9 +1846,11 @@ onBeforeUnmount(() => {
 }
 
 .legal-files__list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-top: 1px solid var(--legal-border);
+    border-bottom: 1px solid var(--legal-border);
     max-height: none;
     overflow: visible;
 }
@@ -1665,23 +1861,28 @@ onBeforeUnmount(() => {
     gap: 8px;
     width: 100%;
     min-width: 0;
-    padding: 8px;
+    padding: 8px 10px 8px 8px;
     border-radius: 0;
-    border: 1px solid var(--legal-border);
-    background: var(--legal-surface-muted);
+    border: 0;
+    border-left: 2px solid transparent;
+    background: transparent;
     text-align: left;
     cursor: pointer;
     transition: background-color 0.2s ease, border-color 0.2s ease;
     box-sizing: border-box !important;
 }
 
+.legal-files__item + .legal-files__item {
+    border-top: 1px solid var(--legal-border);
+}
+
 .legal-files__item:hover {
-    background: var(--background-color);
+    background: var(--legal-surface-muted);
 }
 
 .legal-files__item--active {
-    border-color: var(--primary-color);
-    background: var(--background-color);
+    border-left-color: var(--primary-color);
+    background: var(--legal-surface-muted);
 }
 
 .legal-files__item-icon {
@@ -1798,7 +1999,7 @@ onBeforeUnmount(() => {
     font-weight: 700;
     color: var(--legal-text);
     background: var(--legal-surface-muted);
-    border: 1px solid var(--legal-border);
+    border: 0;
 }
 
 .legal-summary__lead {
@@ -1817,9 +2018,9 @@ onBeforeUnmount(() => {
 .legal-chip {
     display: inline-flex;
     align-items: center;
-    padding: 2px 6px;
+    padding: 1px 5px;
     border-radius: 0;
-    border: 1px solid var(--legal-border);
+    border: 0;
     background: var(--legal-surface-muted);
     font-size: 10px;
     color: var(--legal-muted);
@@ -1843,13 +2044,16 @@ onBeforeUnmount(() => {
 .legal-summary__stats {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
+    gap: 0;
+    border-top: 1px solid var(--legal-border);
+    border-bottom: 1px solid var(--legal-border);
 }
 
 .legal-summary__details {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
+    gap: 0;
+    border-bottom: 1px solid var(--legal-border);
     margin: 0;
 }
 
@@ -1857,10 +2061,15 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     gap: 3px;
-    padding: 8px 10px;
+    padding: 7px 10px;
     border-radius: 0;
-    background: var(--legal-surface-muted);
-    border: 1px solid var(--legal-border);
+    background: transparent;
+    border: 0;
+}
+
+.legal-summary__stats > * + *,
+.legal-summary__details > * + * {
+    border-left: 1px solid var(--legal-border);
 }
 
 .legal-summary__detail dt {
@@ -1888,7 +2097,7 @@ onBeforeUnmount(() => {
     border-radius: 0;
     font-size: 11px;
     font-weight: 700;
-    border: 1px solid var(--legal-border);
+    border: 0;
     white-space: nowrap;
 }
 
@@ -1965,6 +2174,63 @@ onBeforeUnmount(() => {
     background: var(--legal-surface-muted);
     color: #b12e2e;
     border-color: rgba(209, 67, 67, 0.24);
+}
+
+.legal-loading-mark {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--legal-border);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    display: inline-flex;
+    flex: 0 0 auto;
+    margin-top: 2px;
+    box-sizing: border-box;
+    animation: legal-loading-spin 0.8s linear infinite;
+}
+
+.legal-loading-mark--button {
+    width: 10px;
+    height: 10px;
+    margin-top: 0;
+    border-color: rgba(255, 255, 255, 0.45);
+    border-top-color: #fff;
+}
+
+.legal-loading-mark--large {
+    width: 22px;
+    height: 22px;
+    margin: 0 0 4px;
+}
+
+.legal-processing-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 0;
+    border-left: 2px solid var(--legal-border);
+    background: var(--legal-surface-muted);
+}
+
+.legal-processing-note--inline {
+    width: fit-content;
+    max-width: 100%;
+}
+
+.legal-processing-note__title {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    font-weight: 700;
+    color: var(--legal-text);
+}
+
+.legal-processing-note__text {
+    margin: 2px 0 0;
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--legal-muted);
 }
 
 .legal-state-card {
@@ -2411,6 +2677,7 @@ onBeforeUnmount(() => {
     font-size: 11px;
     line-height: 1.6;
     color: var(--legal-muted);
+    max-width: 460px;
 }
 
 .legal-review-panel__findings-content {
@@ -2653,6 +2920,10 @@ onBeforeUnmount(() => {
     transform: translateY(10px);
 }
 
+@keyframes legal-loading-spin {
+    to { transform: rotate(360deg); }
+}
+
 @media (max-width: 1279px) {
     .legal-summary__head {
         flex-direction: column;
@@ -2678,6 +2949,21 @@ onBeforeUnmount(() => {
     .legal-compare-summary__grid,
     .legal-compare-summary__lists {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .legal-summary__stats > *,
+    .legal-summary__details > * {
+        border-left: 0;
+    }
+
+    .legal-summary__stats > *:nth-child(even),
+    .legal-summary__details > *:nth-child(even) {
+        border-left: 1px solid var(--legal-border);
+    }
+
+    .legal-summary__stats > *:nth-child(n+3),
+    .legal-summary__details > *:nth-child(n+3) {
+        border-top: 1px solid var(--legal-border);
     }
 
     .legal-upload-panel,

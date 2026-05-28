@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\GenerateLunchChallenge;
 use App\Models\User;
 use App\Services\ChallengeSuggestionService;
-use App\Services\Contracts\ContractExtractionService;
+use App\Services\Contracts\CachedContractExtractionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\StreamedEvent;
 use Illuminate\Support\Facades\Cache;
@@ -262,7 +262,7 @@ TXT
         }
         return response()->json($reply);
     }
-    public function review_document(Request $request, ContractExtractionService $contractExtractionService){
+    public function review_document(Request $request, CachedContractExtractionService $contractExtractionService){
         $CRITERIA = [
         '乙' => <<<TXT
         - 乙に対する無制限または上限なしの損害賠償責任、間接・特別損害の包含
@@ -295,7 +295,6 @@ TXT
         $configKey = $review_type === 'deep' ? "services.openai.prompts.legal_deep_review" : "services.openai.prompts.legal_quick_review";
         $promptId = config($configKey);
         $mime = $file->getClientMimeType();
-        $base64String = base64_encode(file_get_contents($file));
         $fileName = $file->getClientOriginalName();
         
         if(!$promptId){
@@ -305,11 +304,7 @@ TXT
         $type = $data['type'];
         $criteria = $CRITERIA[$role] ?? $CRITERIA['乙'];
         
-        $inputContent = [[
-            'type' => "input_file",
-            "file_data" => "data:${mime};base64,${base64String}",
-            "filename" => $fileName
-        ]];
+        $inputContent = null;
         $documentInput = [
             'method' => 'openai_file',
             'filename' => $fileName,
@@ -338,6 +333,13 @@ TXT
                 'mime' => $mime,
                 'extraction' => $contractExtractionService->lastExtractionMetadata(),
             ];
+        } else {
+            $base64String = base64_encode((string) file_get_contents($file->getRealPath()));
+            $inputContent = [[
+                'type' => "input_file",
+                "file_data" => "data:${mime};base64,${base64String}",
+                "filename" => $fileName
+            ]];
         }
 
         $resp = $client->responses()->create([
@@ -379,7 +381,7 @@ TXT
         ]);
     }
 
-    private function shouldUseExtractedContractText($file, ContractExtractionService $contractExtractionService): bool
+    private function shouldUseExtractedContractText($file, CachedContractExtractionService $contractExtractionService): bool
     {
         $extension = strtolower($file->getClientOriginalExtension() ?: pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION));
         if ($extension !== 'pdf') {
