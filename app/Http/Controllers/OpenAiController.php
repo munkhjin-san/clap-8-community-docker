@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Jobs\GenerateLunchChallenge;
 use App\Models\User;
 use App\Services\ChallengeSuggestionService;
+use App\Services\Contracts\ContractExtractionService;
 use Illuminate\Http\Request;
 use Illuminate\Http\StreamedEvent;
 use Illuminate\Support\Facades\Cache;
@@ -16,6 +17,7 @@ use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Http;
 use OpenAI;
 use Generator;
+use Throwable;
 
 class OpenAiController extends Controller
 {
@@ -260,7 +262,7 @@ TXT
         }
         return response()->json($reply);
     }
-    public function review_document(Request $request){
+    public function review_document(Request $request, ContractExtractionService $contractExtractionService){
         $CRITERIA = [
         '乙' => <<<TXT
         - 乙に対する無制限または上限なしの損害賠償責任、間接・特別損害の包含
@@ -303,6 +305,41 @@ TXT
         $type = $data['type'];
         $criteria = $CRITERIA[$role] ?? $CRITERIA['乙'];
         
+        $inputContent = [[
+            'type' => "input_file",
+            "file_data" => "data:${mime};base64,${base64String}",
+            "filename" => $fileName
+        ]];
+        $documentInput = [
+            'method' => 'openai_file',
+            'filename' => $fileName,
+            'mime' => $mime,
+        ];
+
+        if ($this->shouldUseExtractedContractText($file, $contractExtractionService)) {
+            try {
+                $documentIndex = $contractExtractionService->extractIndex($file->getRealPath(), 'pdf');
+                $contractText = $this->formatDocumentIndexForReview($documentIndex);
+            } catch (Throwable $exception) {
+                abort(422, 'PDF OCR extraction failed: '.$exception->getMessage());
+            }
+
+            if (trim($contractText) === '') {
+                abort(422, 'PDF OCR extraction returned no reviewable text.');
+            }
+
+            $inputContent = [[
+                'type' => 'input_text',
+                'text' => $this->buildExtractedContractReviewInput($fileName, $contractText),
+            ]];
+            $documentInput = [
+                'method' => 'extracted_text',
+                'filename' => $fileName,
+                'mime' => $mime,
+                'extraction' => $contractExtractionService->lastExtractionMetadata(),
+            ];
+        }
+
         $resp = $client->responses()->create([
             'prompt' => [
                 "id" => $promptId,
@@ -319,13 +356,7 @@ TXT
             'input' => [
                 [
                     "role" => "user",
-                    "content" => [
-                        [
-                            'type' => "input_file", 
-                            "file_data" => "data:${mime};base64,${base64String}",
-                            "filename" => $fileName
-                        ],
-                    ],
+                    "content" => $inputContent,
                 ],
             ],
         ]);
@@ -343,8 +374,56 @@ TXT
             'json'   => $json ?? null,
             'path' => $filePath,
             'role' => $role,
-            'type' => $type
+            'type' => $type,
+            'document_input' => $documentInput,
         ]);
+    }
+
+    private function shouldUseExtractedContractText($file, ContractExtractionService $contractExtractionService): bool
+    {
+        $extension = strtolower($file->getClientOriginalExtension() ?: pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION));
+        if ($extension !== 'pdf') {
+            return false;
+        }
+
+        try {
+            $preflight = $contractExtractionService->inspectPdf($file->getRealPath());
+        } catch (Throwable) {
+            return false;
+        }
+
+        return (bool) ($preflight['requires_ocr'] ?? false);
+    }
+
+    private function formatDocumentIndexForReview(array $documentIndex): string
+    {
+        $pageTexts = [];
+
+        foreach (($documentIndex['pages'] ?? []) as $page) {
+            $text = trim((string) ($page['text'] ?? ''));
+            if ($text === '') {
+                continue;
+            }
+
+            $pageNumber = (int) ($page['page'] ?? count($pageTexts) + 1);
+            $pageTexts[] = "【Page {$pageNumber}】\n".$text;
+        }
+
+        $text = trim(implode("\n\n", $pageTexts));
+
+        return Str::limit($text, 180000, "\n\n[contract text truncated]");
+    }
+
+    private function buildExtractedContractReviewInput(string $fileName, string $contractText): string
+    {
+        return <<<TXT
+The uploaded PDF could not be reviewed reliably as a raw PDF because it has no usable embedded text layer.
+The contract text below was extracted with OCR. Review this extracted text as the source contract.
+
+Filename: {$fileName}
+
+{$contractText}
+TXT;
     }
     public function stream_tts(Request $request){
         $request->validate([

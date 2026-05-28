@@ -1493,6 +1493,7 @@ class ProjectController extends Controller
             'extension' => $extension,
             'text' => $text,
             'document_index' => $documentIndex,
+            'extraction' => $this->contractExtractionService->lastExtractionMetadata(),
         ]);
     }
 

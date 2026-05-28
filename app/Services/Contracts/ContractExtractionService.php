@@ -3,6 +3,8 @@
 namespace App\Services\Contracts;
 
 use RuntimeException;
+use Symfony\Component\Process\Exception\ProcessTimedOutException;
+use Symfony\Component\Process\Process;
 use ZipArchive;
 
 class ContractExtractionService
@@ -17,9 +19,27 @@ class ContractExtractionService
     private const OPEN_PUNCTUATION_PATTERN = '/[（「『【〈《〔［｛]$/u';
     private const CLOSE_PUNCTUATION_PATTERN = '/^[、。，．）】〉》〕］｝」』：；！？]/u';
 
+    private array $lastExtractionMetadata = [];
+
+    public function __construct(
+        private ?GeminiContractOcrService $geminiContractOcrService = null,
+    ) {
+    }
+
+    public function lastExtractionMetadata(): array
+    {
+        return $this->lastExtractionMetadata;
+    }
+
     public function extractIndex(string $absolutePath, string $extension): array
     {
-        $pages = match (strtolower($extension)) {
+        $extension = strtolower($extension);
+        $this->lastExtractionMetadata = [
+            'extension' => $extension,
+            'method' => $extension === 'pdf' ? null : $extension,
+        ];
+
+        $pages = match ($extension) {
             'pdf' => $this->extractPdfPages($absolutePath),
             'docx' => $this->extractDocxPages($absolutePath),
             'txt' => $this->extractPlainTextPages($absolutePath),
@@ -30,6 +50,40 @@ class ContractExtractionService
     }
 
     public function extractPdfPages(string $absolutePath): array
+    {
+        $preflight = $this->inspectPdf($absolutePath);
+        $this->lastExtractionMetadata = [
+            'extension' => 'pdf',
+            'method' => null,
+            'preflight' => $preflight,
+        ];
+
+        if ($preflight['requires_ocr']) {
+            return $this->extractPdfPagesWithGeminiOcr($absolutePath, $preflight['reason']);
+        }
+
+        try {
+            $pages = $this->extractPdfPagesWithParserTimeout($absolutePath);
+            $textLength = $this->countExtractedTextLength($pages);
+
+            if ($textLength === 0 && ($preflight['image_count'] ?? 0) > 0) {
+                return $this->extractPdfPagesWithGeminiOcr($absolutePath, 'empty_parser_result');
+            }
+
+            $this->lastExtractionMetadata['method'] = 'smalot';
+            $this->lastExtractionMetadata['text_length'] = $textLength;
+
+            return $pages;
+        } catch (\Throwable $exception) {
+            if ($this->isGeminiConfigured()) {
+                return $this->extractPdfPagesWithGeminiOcr($absolutePath, 'parser_failed: '.$exception->getMessage());
+            }
+
+            throw new RuntimeException('PDF text extraction failed: '.$exception->getMessage(), previous: $exception);
+        }
+    }
+
+    public function extractPdfPagesWithSmalot(string $absolutePath): array
     {
         $this->ensurePdfParserLoaded();
 
@@ -60,6 +114,175 @@ class ContractExtractionService
         }
 
         return $pages;
+    }
+
+    public function inspectPdf(string $absolutePath): array
+    {
+        $contents = (string) file_get_contents($absolutePath);
+
+        if ($contents === '') {
+            throw new RuntimeException('PDF file is empty or unreadable.');
+        }
+
+        $inspectionContents = $this->appendDecodedPdfStreams($contents);
+        $pageCount = preg_match_all('/\/Type\s*\/Page\b/', $inspectionContents) ?: 0;
+        $fontCount = preg_match_all('/\/Type\s*\/Font\b|\/Font\s*<</', $inspectionContents) ?: 0;
+        $imageCount = preg_match_all('/\/Subtype\s*\/Image\b/', $inspectionContents) ?: 0;
+        $type0FontCount = preg_match_all('/\/Subtype\s*\/Type0\b/', $inspectionContents) ?: 0;
+        $toUnicodeCount = substr_count($inspectionContents, '/ToUnicode');
+        $japaneseFontCount = preg_match_all(
+            '/90m?s?p?-RKSJ|RKSJ-H|UniJIS|Identity-H|Adobe-Japan|Ryumin|Gothic|MSPGothic/i',
+            $inspectionContents
+        ) ?: 0;
+
+        $hasTextLayer = $fontCount > 0 || $type0FontCount > 0;
+        $requiresOcr = false;
+        $reason = 'text_pdf';
+
+        if ($pageCount > 0 && !$hasTextLayer && $imageCount > 0) {
+            $requiresOcr = true;
+            $reason = 'image_only';
+        } elseif ($type0FontCount > 0 && $toUnicodeCount === 0 && $japaneseFontCount > 0) {
+            $requiresOcr = true;
+            $reason = 'missing_unicode_map';
+        } elseif ($pageCount > 0 && !$hasTextLayer) {
+            $requiresOcr = true;
+            $reason = 'no_text_layer';
+        }
+
+        return [
+            'page_count' => $pageCount,
+            'font_count' => $fontCount,
+            'image_count' => $imageCount,
+            'type0_font_count' => $type0FontCount,
+            'to_unicode_count' => $toUnicodeCount,
+            'japanese_font_count' => $japaneseFontCount,
+            'encrypted' => str_contains($contents, '/Encrypt'),
+            'requires_ocr' => $requiresOcr,
+            'reason' => $reason,
+        ];
+    }
+
+    private function appendDecodedPdfStreams(string $contents): string
+    {
+        if (!str_contains($contents, 'stream')) {
+            return $contents;
+        }
+
+        $decodedContents = '';
+        preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $contents, $matches);
+
+        foreach ($matches[1] ?? [] as $stream) {
+            $decoded = @zlib_decode($stream);
+            if ($decoded === false) {
+                $decoded = @gzuncompress($stream);
+            }
+
+            if ($decoded !== false && $decoded !== '') {
+                $decodedContents .= "\n".$decoded;
+            }
+        }
+
+        return $decodedContents === '' ? $contents : $contents."\n".$decodedContents;
+    }
+
+    private function extractPdfPagesWithParserTimeout(string $absolutePath): array
+    {
+        $timeout = max(1, (int) config('services.google.contract_pdf_parser_timeout', 15));
+        $script = <<<'PHP'
+require $argv[1];
+try {
+    $service = new \App\Services\Contracts\ContractExtractionService(null);
+    echo json_encode([
+        'ok' => true,
+        'pages' => $service->extractPdfPagesWithSmalot($argv[2]),
+    ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+} catch (\Throwable $exception) {
+    echo json_encode([
+        'ok' => false,
+        'error' => $exception->getMessage(),
+    ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+    exit(1);
+}
+PHP;
+        $process = new Process(
+            [$this->phpCliBinary(), '-r', $script, base_path('vendor/autoload.php'), $absolutePath],
+            base_path(),
+            null,
+            null,
+            $timeout
+        );
+
+        try {
+            $process->run();
+        } catch (ProcessTimedOutException $exception) {
+            throw new RuntimeException("PDF parser timed out after {$timeout} seconds.", previous: $exception);
+        }
+
+        $output = trim($process->getOutput());
+        $decoded = $output !== '' ? json_decode($output, true) : null;
+
+        if (!is_array($decoded)) {
+            $message = trim($process->getErrorOutput()) ?: 'PDF parser returned invalid output.';
+            throw new RuntimeException($message);
+        }
+
+        if (!$process->isSuccessful() || ($decoded['ok'] ?? false) !== true) {
+            $message = (string) ($decoded['error'] ?? trim($process->getErrorOutput()) ?: 'PDF parser failed.');
+            throw new RuntimeException($message);
+        }
+
+        $pages = $decoded['pages'] ?? null;
+        if (!is_array($pages)) {
+            throw new RuntimeException('PDF parser did not return pages.');
+        }
+
+        return $pages;
+    }
+
+    private function extractPdfPagesWithGeminiOcr(string $absolutePath, string $reason): array
+    {
+        $pages = $this->geminiContractOcrService()->extractPdfPages($absolutePath);
+        $this->lastExtractionMetadata['method'] = 'gemini_ocr';
+        $this->lastExtractionMetadata['ocr_reason'] = $reason;
+        $this->lastExtractionMetadata['text_length'] = $this->countExtractedTextLength($pages);
+
+        return $pages;
+    }
+
+    private function countExtractedTextLength(array $pages): int
+    {
+        $text = '';
+
+        foreach ($pages as $page) {
+            $text .= (string) ($page['text'] ?? '');
+        }
+
+        return mb_strlen(trim($text), 'UTF-8');
+    }
+
+    private function isGeminiConfigured(): bool
+    {
+        return trim((string) config('services.google.gemini_api_key')) !== '';
+    }
+
+    private function geminiContractOcrService(): GeminiContractOcrService
+    {
+        if ($this->geminiContractOcrService === null) {
+            $this->geminiContractOcrService = app(GeminiContractOcrService::class);
+        }
+
+        return $this->geminiContractOcrService;
+    }
+
+    private function phpCliBinary(): string
+    {
+        $configured = trim((string) config('services.php_cli_binary'));
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        return PHP_SAPI === 'cli' ? PHP_BINARY : 'php';
     }
 
     private function extractDocxPages(string $absolutePath): array
