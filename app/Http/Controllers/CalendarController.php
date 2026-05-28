@@ -1013,6 +1013,8 @@ class CalendarController extends Controller
 
         $members = User::where('retire', 0)
                         ->where('deleted_flag', 0)
+                        ->select('id', 'name', 'icon_path', 'icon_bg')
+                        ->where('id', '>', 105)
                         ->get();
         $groups = MyGroup::where('user_id', $this->active_user()->id)->where('deleted_flag', 0)->with('users')->get();
         $res = [

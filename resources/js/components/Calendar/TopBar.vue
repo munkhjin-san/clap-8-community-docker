@@ -165,6 +165,7 @@ import Back from '../Icons/Back.vue'
 import { useCalendar } from '@/composables/calendar'
 import { useApi } from '@/composables/api'
 import AddIcon from '../Form/AddIcon.vue'
+import { User } from '@/interface/globalInterface'
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const api = useApi()
@@ -172,20 +173,18 @@ import AddIcon from '../Form/AddIcon.vue'
     const emit = defineEmits(['jumpToday', 'updated', 'setActiveMembers', 'refresh'])
     const list = ref<CalendarGroup[]>([])
     const addUsersWindow = ref(false)
-    const selectedUsers = ref([])
+    const selectedUsers = ref<CalendarGroup[]>([])
     const loading = ref(false)
     const tempGroup = ref<CalendarGroup | null>(null)
-    const editingUserList = ref<any[]>([])
+    const editingUserList = ref<User[]>([])
     const title = ref('')
-    const workGroupList = ref([])
-    const myWorkGroupList = ref([])
-    const allMembers = ref([])
+    const allMembers = ref<User[]>([])
     const createWindow = ref(false) 
     const menuId = ref(null)
     const groupTitle = useTemplateRef('groupTitle')
     const groupUsers = useTemplateRef('groupUsers')
     const keywords = ref('')
-    const { facilitiesList, setFacility, departmentsList, setSelectedDepartment, selectedDepartment } = useCalendar()
+    const { facilitiesList, setFacility, departmentsList, setSelectedDepartment, selectedDepartment, getMyGroupData, myGroupData } = useCalendar()
     const myGroups = computed(() => {
         return list.value ? list.value : []
     })        
@@ -281,16 +280,14 @@ import AddIcon from '../Form/AddIcon.vue'
     }
     
     const getMyGroup = async (flag?:number) => {
-        const data = await api.post('/get_my_groups', {
-            year: props.selectedYear,
-            month: props.selectedMonth
-        })
-            
-        list.value = data.my_groups
-        selectedUsers.value = data.my_groups
-        workGroupList.value = data.work_groups
-        myWorkGroupList.value = data.my_work_groups
-        allMembers.value = data.all_members
+        // const data = await api.post('/get_my_groups', {
+        //     year: props.selectedYear,
+        //     month: props.selectedMonth
+        // })
+        await getMyGroupData()
+        list.value = myGroupData.value?.my_groups ? myGroupData.value.my_groups : []
+        selectedUsers.value = myGroupData.value?.my_groups ? myGroupData.value.my_groups : []
+        allMembers.value = myGroupData.value?.all_members ? myGroupData.value.all_members : []
         const uniqueUserIds = new Set();
         const memberList:CalendarGroupUser[] = [];
         selectedUsers.value.forEach((group: CalendarGroup) => {

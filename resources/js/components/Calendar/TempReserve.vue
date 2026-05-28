@@ -2,122 +2,13 @@
     <Modal size="large" @close="emit('close', false)" persist :body-style="bodyStyle">
         <template #title>
             <div class="flex items-center gap-[15px]">
-                <div v-if="step > 1" @click="step--" class="flex items-center justify-center w-[30px] h-[30px] min-w-[30px] cursor-pointer ml-[-15px]">
+                <div v-if="step > 2" @click="step--" class="flex items-center justify-center w-[30px] h-[30px] min-w-[30px] cursor-pointer ml-[-15px]">
                     <Back size="15" />
                 </div>
-                <div>{{ steps[step - 1] }}</div>
+                <div>{{ stepTitle }}</div>
             </div>
         </template>
         <template #content>
-            <div v-show="step == 1">  
-                <div>
-                    <ShortInput 
-                        type="text"
-                        v-model="title"
-                        :placeHolder="'タイトル'"
-                    />
-                </div>          
-                <div class="si-box">
-                    <p>メンバー選択</p>
-                    <div class="mt-[20px]">
-                        <GroupSelector place-holder="グループ・プロジェクトから選択" v-model="targetUsers"/>
-                    </div>
-                    <div class="mt-[20px]">
-                        <MemberSelector 
-                            placeHolder="メンバー選択"
-                            rules="required"
-                            name="calendarUsers"
-                            ref="targetUsersRef"
-                            path="calendar_more_users"
-                            :multiple="true"
-                            :closeOnSelect="false"
-                            v-model="targetUsers"
-                        />
-                    </div>
-                </div>
-                <div class="mt-[20px] flex items-center gap-[15px]">
-                    <p class="min-w-[70px]">所要時間</p>
-                    <select ref="durationHourRef" 
-                        id="durationHour"
-                        v-model="duration.hour"
-                        class="appearance-none px-[10px] h-[30px] text-[13px] border border-solid border-[var(--primary-color)] cursor-pointer"
-                        :class="[{ 'date-color': theme.dark }]">
-                        <option
-                            v-for="hour in hourOptions"
-                            :key="hour.value" :value="hour.value">
-                            {{ hour.label }}
-                        </option>
-                    </select>
-                    <select ref="durationMinuteRef" 
-                        id="durationMinute"
-                        v-if="duration.hour < 24"
-                        v-model="duration.minute"
-                        class="appearance-none px-[10px] h-[30px] text-[13px] border border-solid border-[var(--primary-color)] cursor-pointer"
-                        :class="[{ 'date-color': theme.dark }]">
-                        <option
-                            v-for="hour in [{value: 0, label: '0分'}, {value: 15, label: '15分'}, {value: 30, label: '30分'}, {value: 45, label: '45分'}]"
-                            :key="hour.value" :value="hour.value">
-                            {{ hour.label }}
-                        </option>
-                    </select>
-                </div>
-                <div class="mt-[20px] flex items-center gap-[15px]">
-                    <p class="min-w-[70px]">バッファ</p>
-                    <select
-                        id="buffer"
-                        v-model="buffer"
-                        @change="saveBufferTime"
-                        class="appearance-none px-[10px] h-[30px] text-[13px] border border-solid border-[var(--primary-color)] cursor-pointer"
-                        :class="[{ 'date-color': theme.dark }]">
-                        <option
-                            v-for="bufferOp in bufferOptions"
-                            :key="bufferOp.value" :value="bufferOp.value">
-                            {{ bufferOp.label }}
-                        </option>
-                    </select>
-                </div>
-                <div class="mt-[20px] flex items-center gap-[15px]">
-                    <p class="min-w-[70px]">施設</p>
-                    <select
-                        id="facility"
-                        v-model="selectedRoom"
-                        class="appearance-none px-[10px] h-[30px] text-[13px] border border-solid border-[var(--primary-color)] cursor-pointer"
-                        :class="[{ 'date-color': theme.dark }]">
-                        <option :value="null">未選択</option>
-                        <option
-                            v-for="room in facilites.qualified_institution"
-                            :key="room.value" :value="room.value">
-                            {{ room.label }}
-                        </option>
-                    </select>
-                </div>
-                <div class="mt-[20px] flex items-center gap-[15px]">
-                    <p class="min-w-[70px]">WEB会議</p>
-                    <select 
-                        id="zoon"
-                        v-model="selectedZoom"
-                        class="appearance-none px-[10px] h-[30px] text-[13px] border border-solid border-[var(--primary-color)] cursor-pointer"
-                        :class="[{ 'date-color': theme.dark }]">
-                        <option :value="null">未選択</option>
-                        <option
-                            v-for="zoom in facilites.zoom_value"
-                            :key="zoom.value" :value="zoom.value">
-                            {{ zoom.label }}
-                        </option>
-                    </select>
-                </div>
-
-                <div class="si-box">
-                    <LongInput 
-                        type="text"
-                        v-model="content"
-                        :placeHolder="'メモ'"
-                    />
-                </div>
-                <div class="si-box">
-                    <LoaderButton @triggered="search()" content="日時設定へ"/>
-                </div>
-            </div>
             <div v-show="step == 2" class="h-full">            
                 <div
                     ref="reserveTableWrapper"
@@ -132,26 +23,8 @@
                         </div>
                     </Transition>
                     <div class="reserve-table-toolbar">
-                        <WeekPicker v-model="startDate"/>
-                        <div class="reserve-table-toolbar-sub">
-                            <div class="reserve-table-legend" aria-label="凡例">
-                                <div class="reserve-legend-item">
-                                    <span class="reserve-legend-swatch available"></span>
-                                    <span>予約可</span>
-                                </div>
-                                <div class="reserve-legend-item">
-                                    <span class="reserve-legend-swatch unavailable"></span>
-                                    <span>予約不可</span>
-                                </div>
-                                <div class="reserve-legend-item">
-                                    <span class="reserve-legend-swatch selected-available"></span>
-                                    <span>選択（予約可）</span>
-                                </div>
-                                <div class="reserve-legend-item">
-                                    <span class="reserve-legend-swatch selected-unavailable"></span>
-                                    <span>選択（予約不可含む）</span>
-                                </div>
-                            </div>
+                        <div class="reserve-primary-row">
+                            <WeekPicker v-model="startDate"/>
                             <div class="reserve-view-switch" role="tablist" aria-label="表示切替">
                                 <label :class="{ active: reserveView === 'dayTime' }">
                                     <input
@@ -175,16 +48,113 @@
                                 </label>
                             </div>
                         </div>
+                        <div class="reserve-option-grid">
+                            <div class="reserve-option-field reserve-option-users">
+                                <span>メンバー</span>
+                                <TempReserveUserPicker v-model="targetUsers"/>
+                            </div>
+                            <label class="reserve-option-field reserve-duration-field">
+                                <span>所要時間</span>
+                                <div class="reserve-inline-selects">
+                                    <select
+                                        id="durationHour"
+                                        v-model="duration.hour"
+                                        class="reserve-option-select"
+                                        :class="[{ 'date-color': theme.dark }]"
+                                    >
+                                        <option
+                                            v-for="hour in hourOptions"
+                                            :key="hour.value"
+                                            :value="hour.value"
+                                        >
+                                            {{ hour.label }}
+                                        </option>
+                                    </select>
+                                    <select
+                                        id="durationMinute"
+                                        v-model="duration.minute"
+                                        class="reserve-option-select"
+                                        :class="[{ 'date-color': theme.dark }]"
+                                    >
+                                        <option
+                                            v-for="minute in minuteOptions"
+                                            :key="minute.value"
+                                            :value="minute.value"
+                                        >
+                                            {{ minute.label }}
+                                        </option>
+                                    </select>
+                                </div>
+                            </label>
+                            <label class="reserve-option-field reserve-option-buffer">
+                                <span>バッファ</span>
+                                <select
+                                    id="buffer"
+                                    v-model="buffer"
+                                    class="reserve-option-select"
+                                    :class="[{ 'date-color': theme.dark }]"
+                                >
+                                    <option
+                                        v-for="bufferOp in bufferOptions"
+                                        :key="bufferOp.value"
+                                        :value="bufferOp.value"
+                                    >
+                                        {{ bufferOp.label }}
+                                    </option>
+                                </select>
+                            </label>
+                            <label class="reserve-option-field reserve-option-facility">
+                                <span>施設</span>
+                                <select
+                                    id="facility"
+                                    v-model="selectedRoom"
+                                    class="reserve-option-select"
+                                    :class="[{ 'date-color': theme.dark }]"
+                                >
+                                    <option :value="null">未選択</option>
+                                    <option
+                                        v-for="room in facilites.qualified_institution"
+                                        :key="room.value"
+                                        :value="room.value"
+                                    >
+                                        {{ room.label }}
+                                    </option>
+                                </select>
+                            </label>
+                            <label class="reserve-option-field reserve-option-zoom">
+                                <span>WEB会議</span>
+                                <select
+                                    id="zoom"
+                                    v-model="selectedZoom"
+                                    class="reserve-option-select"
+                                    :class="[{ 'date-color': theme.dark }]"
+                                >
+                                    <option :value="null">未選択</option>
+                                    <option
+                                        v-for="zoom in facilites.zoom_value"
+                                        :key="zoom.value"
+                                        :value="zoom.value"
+                                    >
+                                        {{ zoom.label }}
+                                    </option>
+                                </select>
+                            </label>
+                        </div>
                     </div>
-                    <table v-if="reserveView === 'dayTime'" class="temp-reserve-table">
-                        <thead class="sticky top-[70px] z-[10] bg-[var(--background-color)]">
-                            <td class="!border-0 !w-[45px] !max-w-[45px]"></td>      
-                            <DayHeader 
-                                v-for="(date) in Object.keys(blockData)" 
-                                :key="date" 
-                                :date="date"
-                                :holidays="holidays"
-                            />
+                    <div v-if="!hasReserveOption" class="reserve-empty-state">
+                        <p>メンバー・施設・WEB会議のいずれかを選択してください。</p>
+                    </div>
+                    <table v-else-if="reserveView === 'dayTime'" class="temp-reserve-table">
+                        <thead class="reserve-table-head sticky z-[10] bg-[var(--background-color)] top-[116px]">  
+                            <tr class="">
+                                <td style="border:none"></td>
+                                <DayHeader 
+                                    v-for="(date) in Object.keys(blockData)" 
+                                    :key="date" 
+                                    :date="date"
+                                    :holidays="holidays"
+                                />
+                            </tr>
                         </thead>
                         <tbody>
                             <DayRow 
@@ -203,16 +173,18 @@
                         class="temp-reserve-table member-time-table"
                         @mousedown="onReserveMouseDown"
                     >
-                        <thead class="sticky top-[70px] z-[10] bg-[var(--background-color)]">
-                            <td class="member-time-date-cell member-time-label-header">日付</td>
-                            <td class="member-time-resource-cell member-time-label-header">メンバー</td>
-                            <td
+                        <thead class="reserve-table-head sticky z-[10] bg-[var(--background-color)] top-[116px]">
+                            <tr>
+                            <th class="member-time-date-cell member-time-label-header">日付</th>
+                            <th class="member-time-resource-cell member-time-label-header">メンバー</th>
+                            <th
                                 v-for="hour in hourColumns"
                                 :key="hour"
                                 class="member-time-hour-header"
                             >
                                 {{ DateTime.fromFormat(hour, 'HH:mm').toFormat('H時') }}
-                            </td>
+                            </th>
+                            </tr>
                         </thead>
                         <tbody>
                             <template v-for="[date, dayData] in scheduleEntries" :key="date">
@@ -261,41 +233,83 @@
                         </tbody>
                     </table>
                 </div>    
+                <div class="reserve-table-legend mt-3" aria-label="凡例">
+                    <div class="reserve-legend-item">
+                        <span class="reserve-legend-swatch available"></span>
+                        <span>予約可</span>
+                    </div>
+                    <div class="reserve-legend-item">
+                        <span class="reserve-legend-swatch unavailable"></span>
+                        <span>予約不可</span>
+                    </div>
+                    <div class="reserve-legend-item">
+                        <span class="reserve-legend-swatch selected-available"></span>
+                        <span>選択（予約可）</span>
+                    </div>
+                    <div class="reserve-legend-item">
+                        <span class="reserve-legend-swatch selected-unavailable"></span>
+                        <span>選択（予約不可含む）</span>
+                    </div>
+                </div>
                 <div class="mt-[25px]">
                     <LoaderButton @triggered="toConfirm" :loading="saving" content="内容確認へ"/>
                 </div>
             </div>  
-            <div v-show="step == 3">
-                
-                <div ref="confirmDetail" class="leading-normal whitespace-break-spaces text-[14px] flex flex-col gap-[20px]">
-                    <p>タイトル：{{ title || '予定あり' }}</p>
-                    <div>
-                        <p class="mb-2.5">メンバー：</p>
-                        <div class="flex flex-col gap-[5px]">
-                            <div v-for="user in targetUsers" :key="user.id" >
-                                <UserPanel :user="user" with-name disable-instant/>
-                            </div>
+            <div v-show="step == 3" class="temp-confirm-step">
+                <div ref="confirmDetail" class="temp-confirm-panel">
+                    <div class="temp-confirm-edit">
+                        <label class="temp-confirm-field">
+                            <span>タイトル</span>
+                            <input v-model="title" type="text" placeholder="予定">
+                        </label>
+                        <label class="temp-confirm-field">
+                            <span>説明</span>
+                            <textarea v-model="content" rows="3" placeholder="予定"></textarea>
+                        </label>
+                    </div>
 
-                        </div>
-                    </div>
-                    <div>
-                        <p class="mb-2.5">日時：</p>
-                        <div class="flex flex-col gap-[5px]">
-                            <div v-for="date in tempHighlighted" :key="date">
-                                {{ DateTime.fromFormat(date, 'yyyy-MM-dd HH:mm').toFormat('M月d日 (ccc) HH:mm') }} ~ 
-                                {{ DateTime.fromFormat(date, 'yyyy-MM-dd HH:mm').plus({ hours: duration.hour, minutes: duration.minute }).toFormat('HH:mm') }}
+                    <div class="temp-confirm-summary">
+                        <section class="temp-confirm-section">
+                            <div class="temp-confirm-section-title">メンバー</div>
+                            <div class="temp-confirm-member-list">
+                                <div v-for="user in targetUsers" :key="user.id" class="temp-confirm-member">
+                                    <UserPanel :user="user" with-name disable-instant/>
+                                </div>
                             </div>
-                        </div>
+                        </section>
+
+                        <section class="temp-confirm-section">
+                            <div class="temp-confirm-section-title">日時</div>
+                            <div class="temp-confirm-date-list">
+                                <div v-for="date in tempHighlighted" :key="date" class="temp-confirm-date-item">
+                                    <span>{{ DateTime.fromFormat(date, 'yyyy-MM-dd HH:mm').toFormat('M月d日 (ccc)') }}</span>
+                                    <strong>
+                                        {{ DateTime.fromFormat(date, 'yyyy-MM-dd HH:mm').toFormat('HH:mm') }} ~ 
+                                        {{ DateTime.fromFormat(date, 'yyyy-MM-dd HH:mm').plus({ hours: duration.hour, minutes: duration.minute }).toFormat('HH:mm') }}
+                                    </strong>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="temp-confirm-meta">
+                            <div>
+                                <span>所要時間</span>
+                                <strong>{{ duration.hour }}時間{{ duration.minute }}分</strong>
+                            </div>
+                            <div>
+                                <span>施設</span>
+                                <strong>{{ selectedRoomLabel }}</strong>
+                            </div>
+                            <div>
+                                <span>WEB会議</span>
+                                <strong>{{ selectedZoomLabel }}</strong>
+                            </div>
+                        </section>
                     </div>
-                    
-                    <p>所要時間：{{ duration.hour }}時間{{ duration.minute }}分</p>
-                    <p>施設：{{ selectedRoom !== null ? facilites.qualified_institution.find(f => f.value === selectedRoom)?.label : 'なし' }}</p>
-                    <p>WEB会議：{{ selectedZoom !== null ? facilites.zoom_value.find(f => f.value === selectedZoom)?.label : 'なし' }}</p>
-                    <p>メモ：{{ content || 'なし'}}</p>  
                 </div>
                 <div class="mt-[25px]">
                     <CommandButton :buttons="[{
-                        title: '日時コピー', action: () => copy()
+                        title: '内容をコピー', action: () => copy()
                     }]"/>
                 </div>
                  <div class="mt-[25px]">
@@ -307,12 +321,9 @@
 </template>
 <script setup lang="ts">
 import Modal from '@/components/Global/Modal.vue';
-import MemberSelector from '../Form/MemberSelector.vue';
-import GroupSelector from '../Form/GroupSelector.vue';
 import { computed, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue';
 import LoaderButton from '../Global/LoaderButton.vue';
 import { User } from '@/interface/globalInterface';
-import ShortInput from '../Form/ShortInput.vue';
 import { DateTime, Interval } from 'luxon';
 import { useAuthUserStore } from '@/store/auth';
 import 'styles/customForm.css'
@@ -322,17 +333,20 @@ import Back from '../Icons/Back.vue';
 import DayHeader from './TempReserve/DayHeader.vue';
 import { DailySchedule, DateSchedule, FacList } from '@/interface/calendarInterface';
 import DayRow from './TempReserve/DayRow.vue';
-import LongInput from '../Form/LongInput.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import UserPanel from '../Global/UserPanel.vue';
 import CommandButton from '../Global/CommandButton.vue';
 import { usePublicHolidayStore } from '@/store/publicHoliday';
+import TempReserveUserPicker from './TempReserve/TempReserveUserPicker.vue';
 
 const emit = defineEmits<{
     close: [flag: boolean];
 }>()
-const steps = ['基本情報', '日時設定', '予約内容確認'];
+const stepTitles: Record<number, string> = {
+    2: '日時設定',
+    3: '予約内容確認',
+}
 const api = useApi()
 const { ping, toast } = useDialog()
 const auth = useAuthUserStore()
@@ -340,21 +354,24 @@ const theme = useTheme()
 const publicHolidayStore = usePublicHolidayStore()
 const targetUsers = ref<User[]>([auth.user as unknown as User]);
 const searching = ref(false)
-const targetUsersRef = useTemplateRef('targetUsersRef')
 const startDate = ref( DateTime.now().startOf('week').toISODate())
 const endDate = ref(DateTime.now().plus({ days: 1 }).toISODate())
 const selectedRoom = ref<number | null>(null)
 const selectedZoom = ref<number| null>(null)
 const buffer = ref(0)
 const saving = ref(false)
-const step = ref(1)
+const step = ref(2)
 const reserveView = ref<'dayTime' | 'memberTime'>('dayTime')
 const reserveTableWrapper = useTemplateRef('reserveTableWrapper')
 const reserveCursorPos = ref([0, 0])
 const isReserveDragging = ref(false)
 const hasReserveDragged = ref(false)
-const title = ref('')
-const content = ref('')
+const title = ref('予定')
+const content = ref('予定')
+const storageKey = 'tempReserveOptions'
+const restoringOptions = ref(false)
+let searchTimer: ReturnType<typeof window.setTimeout> | null = null
+let latestSearchId = 0
 const bufferOptions = [
     { value: 0, label: 'なし' },
     { value: 15, label: '前後15分' },
@@ -363,17 +380,37 @@ const bufferOptions = [
     { value: 60, label: '前後60分' },
     { value: 120, label: '前後120分' }
 ]
+const minuteOptions = [
+    { value: 0, label: '0分' },
+    { value: 15, label: '15分' },
+    { value: 30, label: '30分' },
+    { value: 45, label: '45分' }
+]
+type TempReserveOptions = {
+    targetUsers?: User[];
+    duration?: {
+        hour?: number;
+        minute?: number;
+    };
+    buffer?: number;
+    selectedRoom?: number | null;
+    selectedZoom?: number | null;
+    reserveView?: 'dayTime' | 'memberTime';
+}
 
 const facilites = ref<FacList>({
     qualified_institution: [],
     zoom_value: [],
     qualified_care: []
 })
-onMounted(() => {
+onMounted(async() => {
+    restoringOptions.value = true
     publicHolidayStore.ensureLoaded()
+    restoreOptions()
     blockData.value = initBlockData()
-    const savedBufferTime = localStorage.getItem('tempReserveBuffer')
-    buffer.value = savedBufferTime ? parseInt(savedBufferTime) : 0;
+    facilites.value = await api.get('/all_facility_items')
+    restoringOptions.value = false
+    search()
 })
 const initBlockData = () => {
     const data: DateSchedule = {}
@@ -391,6 +428,59 @@ const initBlockData = () => {
     }
     return data;
 }
+
+const restoreOptions = () => {
+    try {
+        const raw = localStorage.getItem(storageKey)
+        const savedOptions = raw ? JSON.parse(raw) as TempReserveOptions : null
+        if (!savedOptions) {
+            return
+        }
+
+        if (Array.isArray(savedOptions.targetUsers)) {
+            targetUsers.value = savedOptions.targetUsers.filter((user): user is User => {
+                return Boolean(user && typeof user.id === 'number')
+            })
+        }
+
+        if (typeof savedOptions.duration?.hour === 'number') {
+            duration.value.hour = savedOptions.duration.hour
+        }
+        if (typeof savedOptions.duration?.minute === 'number') {
+            duration.value.minute = savedOptions.duration.minute
+        }
+        if (typeof savedOptions.buffer === 'number') {
+            buffer.value = savedOptions.buffer
+        } else {
+            const savedBufferTime = localStorage.getItem('tempReserveBuffer')
+            buffer.value = savedBufferTime ? parseInt(savedBufferTime) : 0
+        }
+        if (typeof savedOptions.selectedRoom === 'number' || savedOptions.selectedRoom === null) {
+            selectedRoom.value = savedOptions.selectedRoom
+        }
+        if (typeof savedOptions.selectedZoom === 'number' || savedOptions.selectedZoom === null) {
+            selectedZoom.value = savedOptions.selectedZoom
+        }
+        if (savedOptions.reserveView === 'dayTime' || savedOptions.reserveView === 'memberTime') {
+            reserveView.value = savedOptions.reserveView
+        }
+    } catch (error) {
+        console.error('Failed to restore temp reserve options:', error)
+    }
+}
+
+const saveOptions = () => {
+    const options: TempReserveOptions = {
+        targetUsers: targetUsers.value.filter((user): user is User => Boolean(user && typeof user.id === 'number')),
+        duration: duration.value,
+        buffer: buffer.value,
+        selectedRoom: selectedRoom.value,
+        selectedZoom: selectedZoom.value,
+        reserveView: reserveView.value,
+    }
+    localStorage.setItem(storageKey, JSON.stringify(options))
+    localStorage.setItem('tempReserveBuffer', buffer.value.toString())
+}
 const blockData = ref<DateSchedule>({})
 const tempHighlighted = ref<string[]>([])
 const duration = ref({
@@ -398,10 +488,10 @@ const duration = ref({
     minute: 0
 })
 const confirmDetail = useTemplateRef('confirmDetail')
-onMounted(async() => {
-    facilites.value = await api.get('/all_facility_items')
-})
 onUnmounted(() => {
+    if (searchTimer !== null) {
+        window.clearTimeout(searchTimer)
+    }
     window.removeEventListener('mousemove', onReserveMouseHold)
     window.removeEventListener('mouseup', onReserveMouseUp)
 })
@@ -410,10 +500,23 @@ const bodyStyle = computed(() => {
         return 'height: calc(100% - 110px); overflow:hidden;'
     }
 })
+const stepTitle = computed(() => stepTitles[step.value] ?? '日時設定')
 const holidays = computed(() => {
     const holidays = publicHolidayStore.between(DateTime.fromISO(startDate.value).startOf('year').toJSDate(), DateTime.fromISO(startDate.value).endOf('year').toJSDate());
     return holidays as {date: Date, name: string}[]
 }) 
+const selectedRoomLabel = computed(() => {
+    if (selectedRoom.value === null) {
+        return 'なし'
+    }
+    return facilites.value.qualified_institution.find(f => f.value === selectedRoom.value)?.label ?? 'なし'
+})
+const selectedZoomLabel = computed(() => {
+    if (selectedZoom.value === null) {
+        return 'なし'
+    }
+    return facilites.value.zoom_value.find(f => f.value === selectedZoom.value)?.label ?? 'なし'
+})
 const hourOptions = computed(() => {
     const options:{value: number, label:string}[] = []
     for (let i = 0; i <= 8; i++) {
@@ -500,6 +603,8 @@ const reserveResources = computed(() => {
 
     return resources
 })
+
+const hasReserveOption = computed(() => reserveResources.value.length > 0)
 
 const quarterHours = (hour: string) => {
     const start = DateTime.fromFormat(hour, 'HH:mm')
@@ -623,35 +728,41 @@ const dayClass = (date: string) => {
     }
 }
 const search = async () => {
-
-    if (!validateDate()) {
+    const searchId = ++latestSearchId
+    if (!hasReserveOption.value) {
+        step.value = 2
+        searching.value = false
+        tempHighlighted.value = []
+        blockData.value = initBlockData()
         return
     }
-    const validTargets = [targetUsersRef.value].filter(ref => ref !== null)
-    let result = true
-    for (const ref of validTargets) {
-        const val = await ref.validate()
-        result = result && (val?.valid ? true : false)
-    }
-    if (!result) {
-        ping('必須項目を入力してください')
+    if (!validateDate()) {
+        searching.value = false
         return
     }
     if(duration.value.hour < 1 && duration.value.minute < 15){
+        searching.value = false
         ping('所要時間は最低15分以上を設定してください')
         return
     }
     searching.value = true
     step.value = 2
-    blockData.value = await api.post('/calendar_temp_reserve', {
-        users: targetUsers.value ?? [],
-        start_date: startDate.value,
-        buffer: buffer.value,
-        zoom: selectedZoom.value,
-        room: selectedRoom.value,
-    })   
-
-    searching.value = false
+    try {
+        const data = await api.post('/calendar_temp_reserve', {
+            users: targetUsers.value ?? [],
+            start_date: startDate.value,
+            buffer: buffer.value,
+            zoom: selectedZoom.value,
+            room: selectedRoom.value,
+        })
+        if (searchId === latestSearchId) {
+            blockData.value = data
+        }
+    } finally {
+        if (searchId === latestSearchId) {
+            searching.value = false
+        }
+    }
 
 }
 
@@ -716,9 +827,9 @@ const toConfirm = () => {
 const save = async() => {
     
     
-    let convertableFacilities = {
-        qualified_institution:<number | null> selectedRoom.value,
-        zoom_value:<number | null> selectedZoom.value,
+    let convertableFacilities: { qualified_institution: number | null, zoom_value: number | null, qualified_car: number | null } = {
+        qualified_institution: selectedRoom.value,
+        zoom_value: selectedZoom.value,
         qualified_car: null
     }  
 
@@ -746,8 +857,8 @@ const save = async() => {
             editId: null,
             release_flag: 0,
             temp_flag: true,
-            title: title.value ? title.value : '予約あり',
-            remarks: content.value,
+            title: title.value || '予定',
+            remarks: content.value || '予定',
             users: targetUsers.value.filter(u => u !== null).map(ob => ob.id),
             edit_all: false,
             repetition_type: 0,
@@ -767,12 +878,26 @@ const save = async() => {
     data && emit('close', true)          
 }
 const copy = () => {
-    console.log('copy', confirmDetail.value)
-    if(!confirmDetail.value) return
-    const textData = confirmDetail.value.innerText
-
-    // remove empty lines
-    const cleanedText = textData.split('\n').filter(line => line.trim() !== '').join('\n');
+    const dateText = tempHighlighted.value.map(date => {
+        const dateInstance = DateTime.fromFormat(date, 'yyyy-MM-dd HH:mm')
+        return `${dateInstance.toFormat('M月d日 (ccc) HH:mm')} ~ ${dateInstance.plus({ hours: duration.value.hour, minutes: duration.value.minute }).toFormat('HH:mm')}`
+    }).join('\n')
+    const memberText = targetUsers.value
+        .filter((user): user is User => Boolean(user))
+        .map(user => user.name)
+        .filter(Boolean)
+        .join('\n')
+    const cleanedText = [
+        `タイトル：${title.value || '予定'}`,
+        `説明：${content.value || '予定'}`,
+        'メンバー：',
+        memberText,
+        '日時：',
+        dateText,
+        `所要時間：${duration.value.hour}時間${duration.value.minute}分`,
+        `施設：${selectedRoomLabel.value}`,
+        `WEB会議：${selectedZoomLabel.value}`,
+    ].filter(line => line.trim() !== '').join('\n')
     try {
         navigator.clipboard.writeText(cleanedText)
         toast('内容をコピーしました')
@@ -782,16 +907,44 @@ const copy = () => {
     }
 }
 
-watch(startDate, (newValue) => {
-    if (!validateDate()) {
+const scheduleSearch = () => {
+    if (searchTimer !== null) {
+        window.clearTimeout(searchTimer)
+    }
+    searchTimer = window.setTimeout(() => {
+        search()
+    }, 250)
+}
+
+const targetUserIds = computed(() => targetUsers.value
+    .filter((user): user is User => Boolean(user && typeof user.id === 'number'))
+    .map(user => user.id)
+    .sort((a, b) => a - b)
+    .join(',')
+)
+
+watch([startDate, buffer, selectedRoom, selectedZoom, targetUserIds], () => {
+    if (restoringOptions.value) {
         return
     }
-    search()
+    tempHighlighted.value = []
+    saveOptions()
+    scheduleSearch()
 })
 
-const saveBufferTime = () => {
-    localStorage.setItem('tempReserveBuffer', buffer.value.toString())
-}
+watch(reserveView, () => {
+    if (!restoringOptions.value) {
+        saveOptions()
+    }
+})
+
+watch(duration, () => {
+    if (restoringOptions.value) {
+        return
+    }
+    tempHighlighted.value = []
+    saveOptions()
+}, { deep: true })
 </script>
 <style lang="scss">
 .temp-reserve-table {
@@ -816,9 +969,7 @@ const saveBufferTime = () => {
         border-bottom: solid thin var(--calendarBorder);
     }
 
-    th:first-child, td:first-child {
-        border-right: solid thin var(--calendarBorder);
-    }
+
 
     td {
         border-right: solid thin var(--calendarBorder);
@@ -861,27 +1012,114 @@ const saveBufferTime = () => {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     position: sticky;
     top: 0;
     left: 0;
     z-index: 15;
-    min-height: 70px;
-    width: calc(100% - 60px);
+    min-height: var(--reserve-toolbar-height);
+    width: 100%;
     background-color: var(--background-color);
-    padding: 0 30px;
+    gap: 10px;
 }
 
-.reserve-table-toolbar-sub {
+.reserve-primary-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
+    gap: 15px;
     width: 100%;
-    min-height: 30px;
-    padding: 0 15px;
+    min-height: 34px;
+}
+
+.reserve-option-grid {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 16px;
+    width: 100%;
+    overflow: visible;
+}
+
+.reserve-option-field {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    font-size: 11px;
+
+    span {
+        color: var(--sub-text);
+        height: 14px;
+        line-height: 1;
+    }
+}
+
+
+
+.reserve-duration-field {
+    width: 124px;
+}
+
+.reserve-option-buffer {
+    width: 108px;
+}
+
+.reserve-option-facility,
+.reserve-option-zoom {
+    width: 128px;
+}
+
+.reserve-option-select {
+    min-width: 0;
+    height: 32px;
+    padding: 0 24px 0 10px;
+    border: solid 1px var(--calendarBorder);
+    border-radius: 6px;
+    background-color: var(--secondary-background);
+    color: var(--primary-color);
+    font-size: 12px;
     box-sizing: border-box;
-    margin-top: 10px;
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reserve-option-select {
+    appearance: none;
+    cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--primary-color) 50%), linear-gradient(135deg, var(--primary-color) 50%, transparent 50%);
+    background-position: calc(100% - 14px) 14px, calc(100% - 9px) 14px;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+
+    &:hover,
+    &:focus {
+        border-color: var(--primary-color);
+        background-color: var(--background-color);
+        box-shadow: inset 0 0 0 1px var(--primary-color);
+        outline: none !important;
+    }
+}
+
+.reserve-inline-selects {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
+
+    .reserve-option-select:first-child {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    .reserve-option-select:last-child {
+        margin-left: -1px;
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+}
+
+.reserve-table-head th {
+    top: var(--reserve-toolbar-height);
 }
 
 .reserve-table-legend {
@@ -943,6 +1181,132 @@ const saveBufferTime = () => {
     }
 }
 
+.reserve-empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 260px;
+    padding: 30px;
+    color: gray;
+    font-size: 13px;
+    text-align: center;
+}
+
+.temp-confirm-step {
+    margin: 0 auto;
+}
+
+.temp-confirm-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.temp-confirm-edit {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    border: solid 1px var(--calendarBorder);
+    background: var(--secondary-background);
+}
+
+.temp-confirm-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    span {
+        font-size: 12px;
+        color: gray;
+    }
+
+    input,
+    textarea {
+        border: solid 1px var(--formBorder);
+        background: var(--background-color);
+        color: var(--primary-color);
+        font-size: 14px;
+        box-sizing: border-box;
+    }
+
+    input {
+        height: 38px;
+        padding: 0 12px;
+    }
+
+    textarea {
+        min-height: 78px;
+        padding: 10px 12px;
+        resize: vertical;
+    }
+}
+
+.temp-confirm-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+    gap: 14px;
+}
+
+.temp-confirm-section,
+.temp-confirm-meta {
+    padding: 14px;
+    border: solid 1px var(--calendarBorder);
+    background: var(--background-color);
+}
+
+.temp-confirm-section-title {
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: gray;
+}
+
+.temp-confirm-member-list,
+.temp-confirm-date-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.temp-confirm-member {
+    width: fit-content;
+}
+
+.temp-confirm-date-item,
+.temp-confirm-meta > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.temp-confirm-date-item {
+    padding-bottom: 8px;
+    border-bottom: solid 1px var(--calendarBorder);
+
+    &:last-child {
+        padding-bottom: 0;
+        border-bottom: 0;
+    }
+}
+
+.temp-confirm-date-item span,
+.temp-confirm-meta span {
+    color: gray;
+}
+
+.temp-confirm-date-item strong,
+.temp-confirm-meta strong {
+    font-weight: 600;
+}
+
+.temp-confirm-meta {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 8px;
+}
+
 .member-time-table {
     width: 100%;
     min-width: 1096px;
@@ -964,7 +1328,6 @@ const saveBufferTime = () => {
         border-bottom: solid thin var(--calendarBorder);
         font-size: 12px;
         background-color: var(--background-color);
-        box-shadow: inset 1px 0 0 var(--calendarBorder);
     }
 
     .member-time-date-cell.cal-todayTitle {
@@ -1041,11 +1404,9 @@ const saveBufferTime = () => {
 }
 
 .reserve-table-wrapper {
+    --reserve-toolbar-height: 116px;
     position: relative;
-    width: calc(100% + 60px);
-    margin-left: -30px;
-    margin-right: -30px;
-    height: calc(100% - 70px);
+    height: calc(100% - 90px);
     overflow-y: auto;
     overflow-x: auto;
 
@@ -1075,6 +1436,7 @@ const saveBufferTime = () => {
         }
     }
     .reserve-table-wrapper {
+        --reserve-toolbar-height: 204px;
         width: calc(100% + 60px);
         margin-left: -30px;
         margin-right: -30px;
@@ -1084,10 +1446,25 @@ const saveBufferTime = () => {
         padding-left: 30px;
         padding-right: 30px;
     }
-    .reserve-table-toolbar-sub {
-        padding: 0;
-        gap: 10px;
-        flex-wrap: wrap;
+    .reserve-primary-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .reserve-option-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        justify-content: stretch;
+    }
+    .reserve-option-users,
+    .reserve-duration-field,
+    .reserve-option-buffer,
+    .reserve-option-facility,
+    .reserve-option-zoom {
+        width: auto;
+    }
+    .reserve-option-users {
+        grid-column: 1 / -1;
     }
     .reserve-table-legend {
         flex-wrap: wrap;
@@ -1095,6 +1472,15 @@ const saveBufferTime = () => {
     }
     .reserve-view-switch {
         margin-left: auto;
+    }
+    .temp-confirm-summary {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .temp-confirm-date-item,
+    .temp-confirm-meta > div {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 2px;
     }
 }
 

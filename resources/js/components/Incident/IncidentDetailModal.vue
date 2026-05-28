@@ -37,6 +37,7 @@
                                     v-model="mutableParams.occurred_date"
                                     type="date"
                                     class="custom-a-input"
+                                    :class="{'date-color' : theme.dark }"
                                 />
                             </div>
                             <strong v-else>{{ formatDate(localIncident.occurred_date) }}</strong>
@@ -48,6 +49,7 @@
                                     v-model="mutableParams.instruction_date"
                                     type="date"
                                     class="custom-a-input"
+                                    :class="{'date-color' : theme.dark }"
                                 />
                             </div>
                             <strong v-else>{{ formatDate(localIncident.instruction_date) }}</strong>
@@ -380,6 +382,7 @@ import ShortInput from '../Form/ShortInput.vue';
 import AppCommentSection from '@/components/Global/AppCommentSection.vue';
 import FileUploader from '@/components/Form/FileUploader.vue';
 import PostFiles from '@/components/Post/PostFiles.vue';
+import { useTheme } from '@/store/theme.js';
 
 const props = defineProps<{
     incident?: Incident
@@ -479,7 +482,7 @@ const adminOnlyKeys = [
     'memo',
     'aftermath_comment',
 ] as const satisfies readonly (keyof Incident)[]
-
+const theme = useTheme()
 const isProjectManager = computed(() => {
     return localIncident.value.project_record?.members?.some(member => member.id === auth.user?.id) || false
 })

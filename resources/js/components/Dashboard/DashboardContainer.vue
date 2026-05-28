@@ -99,7 +99,7 @@
                                         v-for="block in 4"
                                         :key="`${card.type}-block-${block}`"
                                         @click.stop.prevent="setCardWidth(card.type, block)" 
-                                        :class="{'bg-[var(--bg2)]': getCardSpan(card) >= block}" 
+                                        :class="{'bg-[var(--primary-color)] text-[var(--background-color)]': getCardSpan(card) >= block}" 
                                         class="dashboard-customize-block">
                                         <span>{{ block }}</span>
                                     </div>
@@ -111,7 +111,7 @@
             </div>
             <Transition name="downShiftPop">
                 <div class="fixed bottom-4 w-fit left-0 right-0 mx-auto z-[14] flex items-center gap-2" v-if="canCustomizeGrid()">
-                    <button type="button" class="rounded-full bg-[var(--background-color)] text-[var(--primary-color)] px-4 py-2 text-[12px] shadow-lg" @click="autoArrangeDashboard">
+                    <button type="button" class="rounded-full bg-[var(--background-color)] !text-[var(--primary-color)] px-4 py-2 text-[12px] shadow-lg" @click="autoArrangeDashboard">
                         <div>自動整列</div>
                     </button>
                     <button type="button" class="rounded-full bg-[var(--primary-color)] !text-[var(--background-color)] px-4 py-2 text-[12px] shadow-lg" @click="customize">

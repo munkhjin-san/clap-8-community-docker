@@ -88,7 +88,7 @@
                     title="インシデント設定"
                     @click="settingsOpen = true"
                 >
-                    <Gear size="16" />
+                    <Gear size="16" fill="var(--primary-color)"/>
                     設定
                 </button>
             </div>
@@ -121,7 +121,7 @@
                             <td><div class="inner-col"><span class="mobile">区分</span>{{ incident.category?.name || '-' }}</div></td>
                             <td><div class="inner-col"><span class="mobile">ステータス</span>{{ incident.status || '未設定' }}</div></td>
                             <td><div class="inner-col"><span class="mobile">ポイント</span>
-                                <div v-if="(incident.risk_level ?? 0) * (incident.severity_level ?? 0)" :style="{backgroundColor: riskLevelColor(incident)}" class="w-6 h-6 rounded-full flex items-center justify-center text-[12px]">
+                                <div v-if="(incident.risk_level ?? 0) * (incident.severity_level ?? 0)" :style="{backgroundColor: riskLevelColor(incident)}" class="text-black w-6 h-6 rounded-full flex items-center justify-center text-[12px]">
                                     {{ (incident.risk_level ?? 0) * (incident.severity_level ?? 0) || '' }}
                                 </div>
                             </div></td>

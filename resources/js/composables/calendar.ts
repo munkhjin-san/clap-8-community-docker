@@ -1,4 +1,5 @@
-import { CalendarRecord, FacilityData } from "@/interface/calendarInterface";
+import { CalendarGroup, CalendarRecord, FacilityData } from "@/interface/calendarInterface";
+import { User } from "@/interface/globalInterface";
 import { Project } from "@/interface/projectInterface";
 import axios from "axios";
 import { computed, ref } from "vue";
@@ -7,6 +8,11 @@ const list = ref<FacilityData>({
     qualified_institution: [],
     zoom_value: []
 })
+
+const myGroupData = ref<{
+    all_members: User[],
+    my_groups: CalendarGroup[]
+}>()
 
 
 
@@ -19,6 +25,12 @@ export function useCalendar() {
 
     const setFacility = (index: keyof FacilityData, sub_index: number, value: boolean) => {
         list.value[index][sub_index].selected = value
+    }
+
+    const getMyGroupData = async () => {
+        try {
+            await axios.post('/get_my_groups').then(res => myGroupData.value = res.data)
+        } catch (e) {}
     }
 
     const getFacilities = async () => {
@@ -68,7 +80,9 @@ export function useCalendar() {
         selectedDepartment,
         setSelectedDepartment,
         draggingCalendar,
-        setDraggingCalendar
+        setDraggingCalendar,
+        getMyGroupData,
+        myGroupData
     }
 
 }
