@@ -130,7 +130,7 @@
                     </template>
                 </template>
                 <tr v-else-if="fetchCount > 0">
-                    <td colspan="9" class="!text-center">データがありません</td>
+                    <td colspan="8" class="!text-center">データがありません</td>
                 </tr>
             </tbody>
         </table>
