@@ -6,7 +6,7 @@
         </div>
 
         <div v-else class="legal-tab__body">
-            <AiLoader v-if="aiLoading" message="徹底的な検査中です。<br>この処理には数分かかる場合があります。" />
+            <AiLoader v-if="aiLoading" :message="deepReviewLoadingMessage" />
 
             <div v-if="fetchError" class="legal-banner legal-banner--error">
                 <div>
@@ -67,7 +67,7 @@
                             <button type="button" class="legal-btn legal-btn--secondary" @click="toggleCompare">
                                 {{ compareOpen ? '比較を閉じる' : '比較する' }}
                             </button>
-                            <button type="button" class="legal-btn legal-btn--danger" @click="removeContract">削除</button>
+                            <button type="button" class="legal-btn legal-btn--danger" :disabled="reviewActionLocked" @click="removeContract">削除</button>
                         </div>
                     </div>
 
@@ -179,7 +179,7 @@
                     <div class="legal-upload-panel__form">
                         <div class="legal-upload-panel__field">
                             <label class="legal-upload-panel__label">契約種別</label>
-                            <select v-model="uploadContractType" class="legal-upload-panel__select">
+                            <select v-model="uploadContractType" class="legal-upload-panel__select" :disabled="uploadLocked">
                                 <option
                                     v-for="type in contractTypeDefaults"
                                     :key="type.value"
@@ -201,6 +201,7 @@
                                     class="legal-upload-panel__chip"
                                     :class="{ 'legal-upload-panel__chip--active': uploadRole === role.value }"
                                     :aria-pressed="uploadRole === role.value"
+                                    :disabled="uploadLocked"
                                     @click="uploadRole = role.value"
                                 >
                                     {{ role.label }}
@@ -214,9 +215,11 @@
                         :class="{
                             'legal-upload--filled': !!uploadFileMeta,
                             'legal-upload--dragging': uploadDragging,
+                            'legal-upload--disabled': uploadLocked,
                         }"
                         role="button"
-                        tabindex="0"
+                        :aria-disabled="uploadLocked"
+                        :tabindex="uploadLocked ? -1 : 0"
                         @click="triggerUploadInput"
                         @keydown.enter.prevent="triggerUploadInput"
                         @keydown.space.prevent="triggerUploadInput"
@@ -230,6 +233,7 @@
                             type="file"
                             class="legal-upload__input"
                             :accept="uploadAccept"
+                            :disabled="uploadLocked"
                             @change="handleUploadChange"
                         />
 
@@ -258,8 +262,8 @@
                                     </div>
                                 </div>
                                 <div class="legal-upload__actions">
-                                    <button type="button" class="legal-btn legal-btn--secondary" @click.stop="triggerUploadInput">ファイルを変更</button>
-                                    <button type="button" class="legal-btn legal-btn--ghost" @click.stop="clearUploadFile">削除</button>
+                                    <button type="button" class="legal-btn legal-btn--secondary" :disabled="uploadLocked" @click.stop="triggerUploadInput">ファイルを変更</button>
+                                    <button type="button" class="legal-btn legal-btn--ghost" :disabled="uploadLocked" @click.stop="clearUploadFile">削除</button>
                                 </div>
                             </div>
                         </template>
@@ -267,14 +271,23 @@
 
                     <p v-if="uploadError" class="legal-upload-panel__error">{{ uploadError }}</p>
 
+                    <div v-if="uploadLoading" class="legal-processing-note" aria-live="polite">
+                        <span class="legal-loading-mark" aria-hidden="true"></span>
+                        <div>
+                            <p class="legal-processing-note__title">AIレビューを実行中です</p>
+                            <p class="legal-processing-note__text">{{ uploadReviewStatusText }}</p>
+                        </div>
+                    </div>
+
                     <div class="legal-upload-panel__actions">
-                        <button type="button" class="legal-btn legal-btn--ghost" @click="toggleRenewal">閉じる</button>
+                        <button type="button" class="legal-btn legal-btn--ghost" :disabled="uploadLocked" @click="toggleRenewal">閉じる</button>
                         <button
                             type="button"
                             class="legal-btn legal-btn--primary"
                             :disabled="uploadLoading"
                             @click="uploadContract"
                         >
+                            <span v-if="uploadLoading" class="legal-loading-mark legal-loading-mark--button" aria-hidden="true"></span>
                             {{ uploadLoading ? 'レビュー中...' : 'AIレビューして追加' }}
                         </button>
                     </div>
@@ -342,12 +355,13 @@
                                     />
                                     <div
                                         v-else-if="currentTextIndexLoading"
-                                        class="legal-review-panel__preview-empty"
+                                        class="legal-review-panel__preview-empty legal-review-panel__preview-empty--loading"
                                         aria-live="polite"
                                         >
+                                        <span class="legal-loading-mark legal-loading-mark--large" aria-hidden="true"></span>
                                         <p class="legal-review-panel__preview-empty-title">抽出テキストを準備しています</p>
                                         <p class="legal-review-panel__preview-empty-text">
-                                            契約書の条文と段落を整理して、リスク箇所へ移動できるようにしています。
+                                            {{ currentTextIndexLoadingStatusText }}
                                         </p>
                                     </div>
                                 </div>
@@ -487,9 +501,13 @@
                                         :target-meta="compareTargetMeta"
                                     />
 
-                                    <p v-else-if="compareIndexLoading" class="legal-compare__empty">
-                                        比較用の契約テキストを読み込み中...
-                                    </p>
+                                    <div v-else-if="compareIndexLoading" class="legal-processing-note legal-processing-note--inline" aria-live="polite">
+                                        <span class="legal-loading-mark" aria-hidden="true"></span>
+                                        <div>
+                                            <p class="legal-processing-note__title">比較用の契約テキストを読み込み中です</p>
+                                            <p class="legal-processing-note__text">{{ compareTextIndexLoadingStatusText }}</p>
+                                        </div>
+                                    </div>
                                     <p v-else class="legal-compare__empty">
                                         比較画面を準備しています...
                                     </p>
@@ -516,6 +534,14 @@
                                         :export-filename="riskExportFilename"
                                         @focus-finding="focusFinding"
                                     />
+                                </div>
+
+                                <div v-if="aiLoading" class="legal-processing-note" aria-live="polite">
+                                    <span class="legal-loading-mark" aria-hidden="true"></span>
+                                    <div>
+                                        <p class="legal-processing-note__title">ディープレビューを実行中です</p>
+                                        <p class="legal-processing-note__text">{{ deepReviewStatusText }}</p>
+                                    </div>
                                 </div>
 
                                 <div class="legal-review-panel__footer">
@@ -548,7 +574,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { DateTime } from 'luxon'
 import { filesize } from 'filesize'
 import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
@@ -598,6 +624,7 @@ type ContractComparisonAiSummary = {
 const INLINE_PREVIEW_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt']
 const UPLOAD_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.odt,.ods,.odp'
 const MAX_UPLOAD_BYTES = 209715 * 1024
+const PDFJS_BASE_PATH = '/pdf-reader'
 
 const { selectedProject } = useProject()
 const api = useApi()
@@ -612,6 +639,14 @@ const fetchError = ref('')
 const aiLoading = ref(false)
 const saveLoading = ref(false)
 const uploadLoading = ref(false)
+const aiElapsedSeconds = ref(0)
+const uploadElapsedSeconds = ref(0)
+const currentTextIndexElapsedSeconds = ref(0)
+const compareTextIndexElapsedSeconds = ref(0)
+const aiElapsedTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const uploadElapsedTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const currentTextIndexElapsedTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const compareTextIndexElapsedTimer = ref<ReturnType<typeof setInterval> | null>(null)
 const renewalOpen = ref(false)
 const compareOpen = ref(false)
 const compareContractId = ref<number | null>(null)
@@ -633,6 +668,9 @@ const compareDocumentIndex = ref<ContractDocumentIndex | null>(null)
 const focusRequest = ref<{ token: number; page?: number; query?: string | null; fallbackQuery?: string | null } | null>(null)
 let currentTextIndexRequestId = 0
 let compareTextIndexRequestId = 0
+const documentIndexCache = new Map<string, ContractDocumentIndex>()
+const documentIndexRequests = new Map<string, Promise<ContractDocumentIndex | null>>()
+let pdfJsModuleRequest: Promise<any> | null = null
 
 const contracts = computed<ProjectContractResponse[]>(() => {
     if (fetchAttempted.value) {
@@ -654,7 +692,7 @@ const contract = computed<ProjectContractResponse | null>(() => {
     if (!contracts.value.length) return null
     if (selectedContractId.value) {
         const current = contracts.value.find(item => item.id === selectedContractId.value)
-        if (current) return current
+        return current ?? null
     }
     return contracts.value[0]
 })
@@ -787,6 +825,46 @@ const uploadFileMeta = computed(() => {
 
 const uploadFocus = computed(() => contractTypeDefaults.find(item => item.value === uploadContractType.value)?.focus ?? '')
 const uploadAccept = computed(() => UPLOAD_ACCEPT)
+const uploadLocked = computed(() => uploadLoading.value)
+const reviewActionLocked = computed(() => aiLoading.value || saveLoading.value || uploadLoading.value)
+
+const formatElapsed = (seconds: number) => {
+    if (seconds <= 0) return ''
+
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+
+    return minutes > 0 ? `${minutes}分${remainingSeconds.toString().padStart(2, '0')}秒` : `${remainingSeconds}秒`
+}
+
+const elapsedSuffix = (seconds: number) => {
+    const elapsed = formatElapsed(seconds)
+    return elapsed ? `（経過 ${elapsed}）` : ''
+}
+
+const deepReviewStatusText = computed(() => {
+    const elapsed = elapsedSuffix(aiElapsedSeconds.value)
+    return `OCRが必要なPDFは3-4分かかる場合があります。画面を閉じずにお待ちください。${elapsed}`
+})
+
+const deepReviewLoadingMessage = computed(() => {
+    return `徹底的な検査中です。<br>${deepReviewStatusText.value}`
+})
+
+const uploadReviewStatusText = computed(() => {
+    const elapsed = elapsedSuffix(uploadElapsedSeconds.value)
+    return `OCRが必要なPDFは3-4分かかる場合があります。画面を閉じずにお待ちください。${elapsed}`
+})
+
+const currentTextIndexLoadingStatusText = computed(() => {
+    const elapsed = elapsedSuffix(currentTextIndexElapsedSeconds.value)
+    return `契約書の条文と段落を整理して、リスク箇所へ移動できるようにしています。PDFによって数分かかる場合があります。${elapsed}`
+})
+
+const compareTextIndexLoadingStatusText = computed(() => {
+    const elapsed = elapsedSuffix(compareTextIndexElapsedSeconds.value)
+    return `比較用の条文と段落を整理しています。PDFによって数分かかる場合があります。${elapsed}`
+})
 
 const reviewTypeLabel = computed(() => {
     if (!contract.value) return ''
@@ -941,18 +1019,170 @@ const resolveErrorMessage = (error: unknown, fallback: string) => {
     return fallback
 }
 
+const isRenderedPagesRequiredError = (error: any) => {
+    return error?.response?.data?.code === 'rendered_pages_required'
+        || error?.response?.data?.message === 'PDF_RENDERED_PAGES_REQUIRED'
+}
+
+const loadPdfJs = async () => {
+    if (!pdfJsModuleRequest) {
+        const pdfJsAssetUrl = (path: string) => new URL(path, window.location.origin).toString()
+        pdfJsModuleRequest = import(/* @vite-ignore */ pdfJsAssetUrl(`${PDFJS_BASE_PATH}/build/pdf.mjs`)).then((module: any) => {
+            module.GlobalWorkerOptions.workerSrc = pdfJsAssetUrl(`${PDFJS_BASE_PATH}/build/pdf.worker.mjs`)
+            return module
+        })
+    }
+
+    return pdfJsModuleRequest
+}
+
+const renderPdfPagesForOcr = async (file: File) => {
+    const pdfjs = await loadPdfJs()
+    const pdfJsAssetUrl = (path: string) => new URL(path, window.location.origin).toString()
+    const documentTask = pdfjs.getDocument({
+        data: await file.arrayBuffer(),
+        cMapUrl: pdfJsAssetUrl(`${PDFJS_BASE_PATH}/web/cmaps/`),
+        cMapPacked: true,
+        standardFontDataUrl: pdfJsAssetUrl(`${PDFJS_BASE_PATH}/web/standard_fonts/`),
+        wasmUrl: pdfJsAssetUrl(`${PDFJS_BASE_PATH}/web/wasm/`),
+    })
+    const pdf = await documentTask.promise
+    const renderedPages: File[] = []
+
+    try {
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+            const page = await pdf.getPage(pageNumber)
+            const viewport = page.getViewport({ scale: 2 })
+            const canvas = document.createElement('canvas')
+            const context = canvas.getContext('2d')
+            if (!context) {
+                throw new Error('PDFページの画像化に失敗しました。')
+            }
+
+            canvas.width = Math.ceil(viewport.width)
+            canvas.height = Math.ceil(viewport.height)
+
+            await page.render({ canvasContext: context, viewport }).promise
+
+            const blob = await new Promise<Blob>((resolve, reject) => {
+                canvas.toBlob(result => {
+                    if (result) {
+                        resolve(result)
+                        return
+                    }
+
+                    reject(new Error('PDFページのPNG生成に失敗しました。'))
+                }, 'image/png')
+            })
+
+            renderedPages.push(new File([blob], `page-${String(pageNumber).padStart(3, '0')}.png`, { type: 'image/png' }))
+            page.cleanup?.()
+            canvas.width = 0
+            canvas.height = 0
+        }
+    } finally {
+        await pdf.destroy?.()
+    }
+
+    return renderedPages
+}
+
+const buildReviewForm = (
+    file: File,
+    role: string,
+    type: string,
+    reviewType: 'quick' | 'deep',
+    renderedPages: File[] = [],
+) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('role', role)
+    formData.append('type', type)
+    formData.append('review_type', reviewType)
+
+    renderedPages.forEach(page => {
+        formData.append('rendered_pages[]', page, page.name)
+    })
+
+    return formData
+}
+
+const reviewDocumentWithRenderedRetry = async (
+    file: File,
+    role: string,
+    type: string,
+    reviewType: 'quick' | 'deep',
+    loadingRef: typeof uploadLoading,
+) => {
+    try {
+        return await api.post('/review_document', buildReviewForm(file, role, type, reviewType), {
+            loadingRef,
+            silent: true,
+        })
+    } catch (error) {
+        if (!isRenderedPagesRequiredError(error)) {
+            throw error
+        }
+
+        loadingRef.value = true
+        try {
+            const renderedPages = await renderPdfPagesForOcr(file)
+            return await api.post('/review_document', buildReviewForm(file, role, type, reviewType, renderedPages), {
+                loadingRef,
+                silent: true,
+            })
+        } finally {
+            loadingRef.value = false
+        }
+    }
+}
+
+const stopElapsedTimer = (
+    timerRef: { value: ReturnType<typeof setInterval> | null },
+    secondsRef: { value: number },
+) => {
+    if (timerRef.value) {
+        clearInterval(timerRef.value)
+    }
+
+    timerRef.value = null
+    secondsRef.value = 0
+}
+
+const startElapsedTimer = (
+    timerRef: { value: ReturnType<typeof setInterval> | null },
+    secondsRef: { value: number },
+) => {
+    stopElapsedTimer(timerRef, secondsRef)
+    timerRef.value = setInterval(() => {
+        secondsRef.value += 1
+    }, 1000)
+}
+
+const invalidateCurrentDocumentIndexRequest = () => {
+    currentTextIndexRequestId += 1
+    currentDocumentIndex.value = null
+}
+
+const invalidateCompareDocumentIndexRequest = () => {
+    compareTextIndexRequestId += 1
+    compareDocumentIndex.value = null
+}
+
 const toggleDetail = () => {
     detailOpen.value = !detailOpen.value
 }
 
 const toggleRenewal = () => {
+    if (uploadLocked.value) return
+
     renewalOpen.value = !renewalOpen.value
     uploadError.value = ''
 }
 
 const resetCompareState = () => {
     compareContractId.value = null
-    compareDocumentIndex.value = null
+    invalidateCompareDocumentIndexRequest()
     compareViewMode.value = 'full'
     comparisonAiSummary.value = null
     comparisonSummaryError.value = ''
@@ -972,6 +1202,7 @@ const toggleCompare = () => {
         compareOpen.value = true
         detailOpen.value = true
         compareContractId.value = compareContractId.value ?? compareCandidates.value[0]?.id ?? null
+        void nextTick(() => syncCompareDocumentIndexes())
         return
     }
 
@@ -1021,24 +1252,72 @@ const coerceDocumentIndex = (response: ContractExtractResponse | null | undefine
     return buildContractDocumentIndexFromText(response?.text ?? '')
 }
 
+const documentIndexSourceKey = (targetContract: ProjectContractResponse | null | undefined, projectId = selectedProject.value?.id ?? null) => [
+    projectId ?? '',
+    targetContract?.id ?? '',
+    targetContract?.file_path ?? '',
+    targetContract?.file_size ?? targetContract?.size ?? '',
+].join('|')
+
+const documentIndexCacheKey = (targetContract: ProjectContractResponse, projectId: number) => documentIndexSourceKey(targetContract, projectId)
+
+const getCachedDocumentIndex = (targetContract: ProjectContractResponse) => {
+    const projectId = selectedProject.value?.id
+    if (!projectId) {
+        return null
+    }
+
+    return documentIndexCache.get(documentIndexCacheKey(targetContract, projectId)) ?? null
+}
+
 const fetchContractTextIndex = async (
     targetContract: ProjectContractResponse,
     loadingRef: typeof currentTextIndexLoading,
 ) => {
-    if (!selectedProject.value?.id) {
+    const projectId = selectedProject.value?.id
+    if (!projectId) {
         return null
     }
 
-    const response = await api.get(
-        `/projects/${selectedProject.value.id}/contract/extract?contract_id=${targetContract.id}`,
-        null,
-        {
-            loadingRef,
-            silent: true,
-        }
-    ) as ContractExtractResponse | null
+    const cacheKey = documentIndexCacheKey(targetContract, projectId)
+    const cached = documentIndexCache.get(cacheKey)
+    if (cached) {
+        return cached
+    }
 
-    return coerceDocumentIndex(response)
+    const pending = documentIndexRequests.get(cacheKey)
+    if (pending) {
+        loadingRef.value = true
+        try {
+            return await pending
+        } finally {
+            loadingRef.value = false
+        }
+    }
+
+    const request = (async () => {
+        const response = await api.get(
+            `/projects/${projectId}/contract/extract?contract_id=${targetContract.id}`,
+            null,
+            {
+                loadingRef,
+                silent: true,
+            }
+        ) as ContractExtractResponse | null
+
+        const index = coerceDocumentIndex(response)
+        documentIndexCache.set(cacheKey, index)
+
+        return index
+    })()
+
+    documentIndexRequests.set(cacheKey, request)
+
+    try {
+        return await request
+    } finally {
+        documentIndexRequests.delete(cacheKey)
+    }
 }
 
 const summarizeComparison = async (force = false) => {
@@ -1082,6 +1361,12 @@ const syncCurrentDocumentIndex = async () => {
         return
     }
 
+    const cachedIndex = getCachedDocumentIndex(targetContract)
+    if (cachedIndex) {
+        currentDocumentIndex.value = cachedIndex
+        return
+    }
+
     currentDocumentIndex.value = null
 
     try {
@@ -1108,6 +1393,12 @@ const syncBaseCompareIndex = async () => {
         return
     }
 
+    const cachedIndex = getCachedDocumentIndex(targetContract)
+    if (cachedIndex) {
+        compareDocumentIndex.value = cachedIndex
+        return
+    }
+
     compareDocumentIndex.value = null
 
     try {
@@ -1122,6 +1413,17 @@ const syncBaseCompareIndex = async () => {
     }
 }
 
+const syncCompareDocumentIndexes = async () => {
+    if (!compareOpen.value || !compareContract.value) {
+        return
+    }
+
+    await Promise.all([
+        syncCurrentDocumentIndex(),
+        syncBaseCompareIndex(),
+    ])
+}
+
 const confirmDiscardDeepReview = async () => {
     if (!deepSummary.value) return true
     const answer = await ask('未保存のディープレビュー結果があります。破棄して契約を切り替えますか？')
@@ -1134,7 +1436,7 @@ const selectContract = async (id: number) => {
 
     selectedContractId.value = id
     deepResult.value = null
-    currentDocumentIndex.value = null
+    invalidateCurrentDocumentIndexRequest()
     focusRequest.value = null
     if (compareContractId.value === id) {
         compareContractId.value = null
@@ -1198,17 +1500,7 @@ const runDeepReview = async (selected: ProjectContractResponse) => {
     try {
         const blob = await getContractBlob()
         const file = new File([blob], fileMeta.value.name, { type: blob.type || 'application/octet-stream' })
-        const formData = new FormData()
-
-        formData.append('file', file)
-        formData.append('role', selected.role)
-        formData.append('type', selected.contract_type)
-        formData.append('review_type', 'deep')
-
-        const data = await api.post('/review_document', formData, {
-            loadingRef: aiLoading,
-            silent: true,
-        })
+        const data = await reviewDocumentWithRenderedRetry(file, selected.role, selected.contract_type, 'deep', aiLoading)
 
         if (data) {
             deepResult.value = data
@@ -1257,6 +1549,7 @@ const saveReview = async (selected: ProjectContractResponse) => {
 }
 
 const removeContract = async () => {
+    if (reviewActionLocked.value) return
     if (!selectedProject.value?.id || !contract.value) return
 
     const answer = await ask('選択中の契約レビューを削除します。よろしいですか？')
@@ -1284,6 +1577,8 @@ const removeContract = async () => {
 }
 
 const assignUploadFile = (file: File | null) => {
+    if (uploadLocked.value) return
+
     uploadError.value = ''
 
     if (!file) {
@@ -1302,10 +1597,14 @@ const assignUploadFile = (file: File | null) => {
 }
 
 const triggerUploadInput = () => {
+    if (uploadLocked.value) return
+
     uploadInput.value?.click()
 }
 
 const handleUploadChange = (event: Event) => {
+    if (uploadLocked.value) return
+
     const target = event.target as HTMLInputElement
     const file = target.files ? target.files[0] : null
     assignUploadFile(file)
@@ -1313,11 +1612,15 @@ const handleUploadChange = (event: Event) => {
 
 const handleUploadDrop = (event: DragEvent) => {
     uploadDragging.value = false
+    if (uploadLocked.value) return
+
     const file = event.dataTransfer?.files?.[0] ?? null
     assignUploadFile(file)
 }
 
 const clearUploadFile = () => {
+    if (uploadLocked.value) return
+
     uploadFile.value = null
     uploadError.value = ''
     if (uploadInput.value) {
@@ -1326,6 +1629,8 @@ const clearUploadFile = () => {
 }
 
 const uploadContract = async () => {
+    if (uploadLocked.value) return
+
     if (!selectedProject.value?.id) {
         ping('プロジェクトが見つかりません。')
         return
@@ -1336,16 +1641,13 @@ const uploadContract = async () => {
     }
 
     try {
-        const reviewForm = new FormData()
-        reviewForm.append('file', uploadFile.value)
-        reviewForm.append('role', uploadRole.value)
-        reviewForm.append('type', uploadContractType.value)
-        reviewForm.append('review_type', 'quick')
-
-        const review = await api.post('/review_document', reviewForm, {
-            loadingRef: uploadLoading,
-            silent: true,
-        })
+        const review = await reviewDocumentWithRenderedRetry(
+            uploadFile.value,
+            uploadRole.value,
+            uploadContractType.value,
+            'quick',
+            uploadLoading,
+        )
 
         if (!review?.json || !review?.path) {
             throw new Error('レビュー結果の取得に失敗しました。')
@@ -1376,6 +1678,54 @@ const uploadContract = async () => {
 }
 
 watch(
+    aiLoading,
+    isLoading => {
+        if (isLoading) {
+            startElapsedTimer(aiElapsedTimer, aiElapsedSeconds)
+            return
+        }
+
+        stopElapsedTimer(aiElapsedTimer, aiElapsedSeconds)
+    }
+)
+
+watch(
+    uploadLoading,
+    isLoading => {
+        if (isLoading) {
+            startElapsedTimer(uploadElapsedTimer, uploadElapsedSeconds)
+            return
+        }
+
+        stopElapsedTimer(uploadElapsedTimer, uploadElapsedSeconds)
+    }
+)
+
+watch(
+    currentTextIndexLoading,
+    isLoading => {
+        if (isLoading) {
+            startElapsedTimer(currentTextIndexElapsedTimer, currentTextIndexElapsedSeconds)
+            return
+        }
+
+        stopElapsedTimer(currentTextIndexElapsedTimer, currentTextIndexElapsedSeconds)
+    }
+)
+
+watch(
+    compareTextIndexLoading,
+    isLoading => {
+        if (isLoading) {
+            startElapsedTimer(compareTextIndexElapsedTimer, compareTextIndexElapsedSeconds)
+            return
+        }
+
+        stopElapsedTimer(compareTextIndexElapsedTimer, compareTextIndexElapsedSeconds)
+    }
+)
+
+watch(
     () => selectedProject.value?.id,
     () => {
         contractsState.value = []
@@ -1385,11 +1735,13 @@ watch(
         compareOpen.value = false
         compareContractId.value = null
         deepResult.value = null
-        currentDocumentIndex.value = null
-        compareDocumentIndex.value = null
+        invalidateCurrentDocumentIndexRequest()
+        invalidateCompareDocumentIndexRequest()
         focusRequest.value = null
         fetchAttempted.value = false
         fetchError.value = ''
+        documentIndexCache.clear()
+        documentIndexRequests.clear()
         clearUploadFile()
         fetchContract()
     },
@@ -1398,7 +1750,7 @@ watch(
 
 watch(
     () => contract.value,
-    newContract => {
+    (newContract, oldContract) => {
         if (newContract?.role) {
             uploadRole.value = newContract.role
         } else {
@@ -1412,8 +1764,10 @@ watch(
         }
 
         deepResult.value = null
-        currentDocumentIndex.value = null
-        focusRequest.value = null
+        if (documentIndexSourceKey(newContract) !== documentIndexSourceKey(oldContract)) {
+            invalidateCurrentDocumentIndexRequest()
+            focusRequest.value = null
+        }
     },
     { immediate: true }
 )
@@ -1443,10 +1797,14 @@ watch(detailOpen, isOpen => {
 })
 
 watch(compareContractId, value => {
-    compareDocumentIndex.value = null
+    invalidateCompareDocumentIndexRequest()
 
     if (!value) {
         return
+    }
+
+    if (compareOpen.value) {
+        void syncCompareDocumentIndexes()
     }
 })
 
@@ -1456,30 +1814,37 @@ watch(compareRenderKey, () => {
 })
 
 watch(
-    () => [shouldLoadCurrentDocumentIndex.value, contract.value?.id],
+    () => [shouldLoadCurrentDocumentIndex.value, documentIndexSourceKey(contract.value)],
     ([shouldLoad]) => {
         if (shouldLoad && contract.value) {
             void syncCurrentDocumentIndex()
             return
         }
 
-        currentDocumentIndex.value = null
+        invalidateCurrentDocumentIndexRequest()
     },
     { immediate: true }
 )
 
 watch(
-    () => [compareOpen.value, compareContract.value?.id],
+    () => [compareOpen.value, documentIndexSourceKey(compareContract.value), documentIndexSourceKey(contract.value)],
     () => {
         if (compareOpen.value && compareContract.value) {
-            void syncBaseCompareIndex()
+            void syncCompareDocumentIndexes()
+            return
         }
+
+        invalidateCompareDocumentIndexRequest()
     },
     { immediate: true }
 )
 
 onBeforeUnmount(() => {
     document.body.style.overflow = ''
+    stopElapsedTimer(aiElapsedTimer, aiElapsedSeconds)
+    stopElapsedTimer(uploadElapsedTimer, uploadElapsedSeconds)
+    stopElapsedTimer(currentTextIndexElapsedTimer, currentTextIndexElapsedSeconds)
+    stopElapsedTimer(compareTextIndexElapsedTimer, compareTextIndexElapsedSeconds)
 })
 </script>
 
@@ -1487,9 +1852,9 @@ onBeforeUnmount(() => {
 .legal-tab {
     --legal-surface: var(--background-color);
     --legal-surface-muted: var(--bg3);
-    --legal-border: var(--calendarBorder);
+    --legal-border: var(--normalBorder, var(--calendarBorder));
     --legal-text: var(--primary-color);
-    --legal-muted: var(--font-color, #666);
+    --legal-muted: var(--normalText, var(--font-color, #666));
     display: flex;
     flex-direction: column;
     min-height: 100%;
@@ -1500,8 +1865,8 @@ onBeforeUnmount(() => {
 .legal-tab__body {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding: 16px;
+    gap: 10px;
+    padding: 12px;
     height: 100%;
     box-sizing: border-box;
     overflow: auto;
@@ -1513,8 +1878,8 @@ onBeforeUnmount(() => {
 .legal-detail__preview,
 .legal-detail__findings,
 .legal-state-card {
-    border: 1px solid var(--legal-border);
-    border-radius: 12px;
+    border: 0;
+    border-radius: 0;
     background: var(--legal-surface);
 }
 
@@ -1545,10 +1910,14 @@ onBeforeUnmount(() => {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 6px;
-    padding: 10px 12px;
-    border-radius: 10px;
-    border: 1px solid var(--legal-border);
+    gap: 4px;
+    padding: 7px 10px;
+    border-radius: 0;
+    border: 0;
+    background: transparent;
+}
+
+.legal-summary__stats .legal-metric-card {
     background: var(--legal-surface-muted);
 }
 
@@ -1573,10 +1942,10 @@ onBeforeUnmount(() => {
 .legal-banner {
     display: flex;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
     align-items: center;
-    padding: 12px 14px;
-    border-radius: 10px;
+    padding: 10px 12px;
+    border-radius: 0;
 }
 
 .legal-banner--error {
@@ -1605,14 +1974,14 @@ onBeforeUnmount(() => {
 .legal-main-grid {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 10px;
 }
 
 .legal-files {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 12px;
+    gap: 6px;
+    padding: 10px;
     min-height: 0;
 }
 
@@ -1631,9 +2000,10 @@ onBeforeUnmount(() => {
 }
 
 .legal-files__list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border: 0;
     max-height: none;
     overflow: visible;
 }
@@ -1644,29 +2014,34 @@ onBeforeUnmount(() => {
     gap: 8px;
     width: 100%;
     min-width: 0;
-    padding: 10px;
-    border-radius: 10px;
-    border: 1px solid var(--legal-border);
-    background: var(--legal-surface-muted);
+    padding: 8px 10px 8px 8px;
+    border-radius: 0;
+    border: 0;
+    border-left: 2px solid transparent;
+    background: transparent;
     text-align: left;
     cursor: pointer;
     transition: background-color 0.2s ease, border-color 0.2s ease;
     box-sizing: border-box !important;
 }
 
+.legal-files__item + .legal-files__item {
+    border-top: 0;
+}
+
 .legal-files__item:hover {
-    background: var(--background-color);
+    background: var(--legal-surface-muted);
 }
 
 .legal-files__item--active {
-    border-color: var(--primary-color);
-    background: var(--background-color);
+    border-left-color: var(--primary-color);
+    background: var(--legal-surface-muted);
 }
 
 .legal-files__item-icon {
-    width: 36px;
-    min-width: 36px;
-    height: 36px;
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1699,8 +2074,8 @@ onBeforeUnmount(() => {
 }
 
 .legal-files__item-version {
-    padding: 2px 8px;
-    border-radius: 999px;
+    padding: 2px 6px;
+    border-radius: 0;
     background: var(--legal-border);
     color: var(--legal-text);
     font-size: 9px;
@@ -1718,39 +2093,39 @@ onBeforeUnmount(() => {
 .legal-summary {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 14px;
+    gap: 10px;
+    padding: 10px;
 }
 
 .legal-summary__head {
     display: flex;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
     align-items: flex-start;
 }
 
 .legal-summary__file {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
     min-width: 0;
 }
 
 .legal-summary__icon {
-    width: 48px;
-    min-width: 48px;
-    height: 48px;
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 10px;
+    border-radius: 0;
     background: var(--legal-surface-muted);
 }
 
 .legal-summary__info {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     min-width: 0;
 }
 
@@ -1763,7 +2138,7 @@ onBeforeUnmount(() => {
 
 .legal-summary__title {
     margin: 0;
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.25;
     font-weight: 700;
     color: var(--legal-text);
@@ -1771,13 +2146,13 @@ onBeforeUnmount(() => {
 }
 
 .legal-summary__version {
-    padding: 2px 6px;
-    border-radius: 999px;
+    padding: 1px 5px;
+    border-radius: 0;
     font-size: 9px;
     font-weight: 700;
     color: var(--legal-text);
     background: var(--legal-surface-muted);
-    border: 1px solid var(--legal-border);
+    border: 0;
 }
 
 .legal-summary__lead {
@@ -1790,15 +2165,15 @@ onBeforeUnmount(() => {
 .legal-summary__chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
 }
 
 .legal-chip {
     display: inline-flex;
     align-items: center;
-    padding: 4px 8px;
-    border-radius: 999px;
-    border: 1px solid var(--legal-border);
+    padding: 1px 5px;
+    border-radius: 0;
+    border: 0;
     background: var(--legal-surface-muted);
     font-size: 10px;
     color: var(--legal-muted);
@@ -1812,7 +2187,7 @@ onBeforeUnmount(() => {
 .legal-state-card__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 
 .legal-summary__actions {
@@ -1822,24 +2197,31 @@ onBeforeUnmount(() => {
 .legal-summary__stats {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    gap: 6px;
+    border: 0;
 }
 
 .legal-summary__details {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    gap: 6px;
+    border: 0;
     margin: 0;
 }
 
 .legal-summary__detail {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 10px;
-    border-radius: 10px;
+    gap: 3px;
+    padding: 7px 10px;
+    border-radius: 0;
     background: var(--legal-surface-muted);
-    border: 1px solid var(--legal-border);
+    border: 0;
+}
+
+.legal-summary__stats > * + *,
+.legal-summary__details > * + * {
+    border-left: 0;
 }
 
 .legal-summary__detail dt {
@@ -1863,11 +2245,11 @@ onBeforeUnmount(() => {
     align-self: flex-start;
     min-width: 52px;
     max-width: 100%;
-    padding: 3px 10px;
-    border-radius: 999px;
+    padding: 2px 8px;
+    border-radius: 0;
     font-size: 11px;
     font-weight: 700;
-    border: 1px solid var(--legal-border);
+    border: 0;
     white-space: nowrap;
 }
 
@@ -1905,10 +2287,10 @@ onBeforeUnmount(() => {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    min-height: 32px;
-    padding: 0 10px;
-    border-radius: 6px;
+    gap: 6px;
+    min-height: 28px;
+    padding: 0 9px;
+    border-radius: 0;
     border: 1px solid transparent;
     font-size: 11px;
     font-weight: 700;
@@ -1946,14 +2328,71 @@ onBeforeUnmount(() => {
     border-color: rgba(209, 67, 67, 0.24);
 }
 
+.legal-loading-mark {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--legal-border);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    display: inline-flex;
+    flex: 0 0 auto;
+    margin-top: 2px;
+    box-sizing: border-box;
+    animation: legal-loading-spin 0.8s linear infinite;
+}
+
+.legal-loading-mark--button {
+    width: 10px;
+    height: 10px;
+    margin-top: 0;
+    border-color: rgba(255, 255, 255, 0.45);
+    border-top-color: #fff;
+}
+
+.legal-loading-mark--large {
+    width: 22px;
+    height: 22px;
+    margin: 0 0 4px;
+}
+
+.legal-processing-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 0;
+    border-left: 2px solid var(--legal-border);
+    background: var(--legal-surface-muted);
+}
+
+.legal-processing-note--inline {
+    width: fit-content;
+    max-width: 100%;
+}
+
+.legal-processing-note__title {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+    font-weight: 700;
+    color: var(--legal-text);
+}
+
+.legal-processing-note__text {
+    margin: 2px 0 0;
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--legal-muted);
+}
+
 .legal-state-card {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
     gap: 8px;
-    min-height: 220px;
-    padding: 18px;
+    min-height: 180px;
+    padding: 12px;
 }
 
 .legal-state-card--locked {
@@ -1985,14 +2424,14 @@ onBeforeUnmount(() => {
 .legal-upload-panel {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 14px;
+    gap: 10px;
+    padding: 10px;
 }
 
 .legal-upload-panel__head {
     display: flex;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
 }
 
@@ -2012,8 +2451,8 @@ onBeforeUnmount(() => {
 
 .legal-upload-panel__badge {
     margin: 0;
-    padding: 4px 8px;
-    border-radius: 999px;
+    padding: 2px 6px;
+    border-radius: 0;
     background: var(--legal-surface-muted);
     color: var(--legal-text);
     font-size: 10px;
@@ -2025,7 +2464,7 @@ onBeforeUnmount(() => {
 .legal-upload-panel__form {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
 }
 
 .legal-upload-panel__field {
@@ -2041,13 +2480,18 @@ onBeforeUnmount(() => {
 }
 
 .legal-upload-panel__select {
-    min-height: 36px;
-    padding: 0 10px;
-    border-radius: 8px;
+    min-height: 32px;
+    padding: 0 8px;
+    border-radius: 0;
     border: 1px solid var(--legal-border);
     background: var(--background-color);
     color: var(--legal-text);
     font-size: 12px;
+}
+
+.legal-upload-panel__select:disabled {
+    cursor: default;
+    opacity: 0.65;
 }
 
 .legal-upload-panel__hint {
@@ -2060,13 +2504,13 @@ onBeforeUnmount(() => {
 .legal-upload-panel__chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
 }
 
 .legal-upload-panel__chip {
-    min-height: 34px;
-    padding: 0 10px;
-    border-radius: 999px;
+    min-height: 30px;
+    padding: 0 8px;
+    border-radius: 0;
     border: 1px solid var(--legal-border);
     background: var(--background-color);
     color: var(--legal-muted);
@@ -2081,10 +2525,15 @@ onBeforeUnmount(() => {
     color: var(--legal-text);
 }
 
+.legal-upload-panel__chip:disabled {
+    cursor: default;
+    opacity: 0.65;
+}
+
 .legal-upload-panel__error {
     margin: 0;
-    padding: 10px;
-    border-radius: 8px;
+    padding: 8px 10px;
+    border-radius: 0;
     background: var(--legal-surface-muted);
     border: 1px solid rgba(209, 67, 67, 0.18);
     color: #b12e2e;
@@ -2095,10 +2544,10 @@ onBeforeUnmount(() => {
 .legal-upload {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 14px;
-    border-radius: 10px;
-    border: 1px dashed var(--primary-color);
+    gap: 10px;
+    padding: 10px;
+    border-radius: 0;
+    border: 1px dashed var(--legal-border);
     background: var(--legal-surface-muted);
     cursor: pointer;
     transition: border-color 0.2s ease, background-color 0.2s ease;
@@ -2108,6 +2557,15 @@ onBeforeUnmount(() => {
 .legal-upload--dragging {
     border-color: var(--primary-color);
     background: var(--background-color);
+}
+
+.legal-upload--disabled,
+.legal-upload--disabled:hover,
+.legal-upload--disabled.legal-upload--dragging {
+    border-color: var(--legal-border);
+    background: var(--legal-surface-muted);
+    cursor: default;
+    opacity: 0.72;
 }
 
 .legal-upload--filled {
@@ -2121,13 +2579,13 @@ onBeforeUnmount(() => {
 .legal-upload__placeholder {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 .legal-upload__icon {
-    width: 42px;
-    min-width: 42px;
-    height: 42px;
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2165,7 +2623,7 @@ onBeforeUnmount(() => {
 .legal-upload__info {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .legal-upload__filename {
@@ -2175,7 +2633,7 @@ onBeforeUnmount(() => {
 .legal-upload__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 
 .legal-review-panel {
@@ -2198,9 +2656,9 @@ onBeforeUnmount(() => {
 .legal-review-panel__header {
     display: flex;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
     align-items: center;
-    padding: 16px 18px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--legal-border);
     background: var(--background-color);
 }
@@ -2208,18 +2666,18 @@ onBeforeUnmount(() => {
 .legal-review-panel__header-left {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     min-width: 0;
 }
 
 .legal-review-panel__back {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    min-height: 34px;
-    padding: 0 12px 0 10px;
+    gap: 6px;
+    min-height: 30px;
+    padding: 0 10px 0 8px;
     border: 1px solid var(--legal-border);
-    border-radius: 6px;
+    border-radius: 0;
     background: var(--legal-surface-muted);
     color: var(--legal-text);
     font-size: 12px;
@@ -2258,15 +2716,15 @@ onBeforeUnmount(() => {
 .legal-review-panel__header-actions,
 .legal-review-panel__footer {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
 }
 
 .legal-review-panel__body {
     display: grid;
     grid-template-columns: minmax(0, 1.45fr) minmax(420px, 0.95fr);
-    gap: 14px;
-    padding: 14px;
+    gap: 10px;
+    padding: 10px;
     flex: 1;
     min-height: 0;
     height: calc(100vh - 67px);
@@ -2281,28 +2739,28 @@ onBeforeUnmount(() => {
 .legal-review-panel__findings {
     min-height: 0;
     border: 1px solid var(--legal-border);
-    border-radius: 10px;
+    border-radius: 0;
     background: var(--legal-surface);
 }
 
 .legal-review-panel__preview {
     display: flex;
     flex-direction: column;
-    padding: 14px;
+    padding: 10px;
 }
 
 .legal-review-panel__findings {
     display: flex;
     flex-direction: column;
-    padding: 14px;
+    padding: 10px;
 }
 
 .legal-review-panel__section-head {
     display: flex;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
     align-items: flex-start;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 .legal-review-panel__section-title {
@@ -2322,7 +2780,7 @@ onBeforeUnmount(() => {
 .legal-review-panel__preview-frame {
     flex: 1;
     min-height: 0;
-    border-radius: 10px;
+    border-radius: 0;
     overflow: hidden;
     border: 1px solid var(--legal-border);
     background: var(--background-color);
@@ -2352,8 +2810,8 @@ onBeforeUnmount(() => {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    border-radius: 10px;
+    gap: 6px;
+    border-radius: 0;
     border: 1px dashed var(--legal-border);
     background: var(--legal-surface-muted);
     text-align: center;
@@ -2371,6 +2829,7 @@ onBeforeUnmount(() => {
     font-size: 11px;
     line-height: 1.6;
     color: var(--legal-muted);
+    max-width: 460px;
 }
 
 .legal-review-panel__findings-content {
@@ -2383,10 +2842,10 @@ onBeforeUnmount(() => {
 .legal-compare-workspace {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    padding: 16px 18px 24px;
+    gap: 10px;
+    padding: 10px 12px 14px;
     border: 1px solid var(--legal-border);
-    border-radius: 10px;
+    border-radius: 0;
     background: var(--legal-surface);
     height: 100%;
     overflow: auto;
@@ -2404,13 +2863,12 @@ onBeforeUnmount(() => {
     min-width: 200px;
     max-width: 100%;
     border: 1px solid var(--calendarBorder);
-    border-radius: 8px;
+    border-radius: 0;
     background: var(--bg3);
     color: var(--primary-color);
-    padding: 8px 10px;
+    padding: 6px 8px;
     font-size: 12px;
     font-weight: 600;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
     color-scheme: dark;
     box-sizing: border-box !important;
 }
@@ -2418,9 +2876,6 @@ onBeforeUnmount(() => {
 .legal-compare__select:focus {
     outline: none;
     border-color: rgba(41, 196, 122, 0.34);
-    box-shadow:
-        0 0 0 3px rgba(41, 196, 122, 0.12),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 .legal-compare__select option {
@@ -2431,17 +2886,17 @@ onBeforeUnmount(() => {
 .legal-compare__stats {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 
 .legal-compare__stat-chip {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    min-height: 30px;
-    padding: 0 12px 0 10px;
-    border-radius: 999px;
+    gap: 6px;
+    min-height: 28px;
+    padding: 0 8px;
+    border-radius: 0;
     border: 1px solid var(--legal-border);
     background: var(--legal-surface);
     color: var(--legal-text);
@@ -2449,14 +2904,13 @@ onBeforeUnmount(() => {
     font-weight: 800;
     letter-spacing: 0.02em;
     white-space: nowrap;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .legal-compare__stat-chip::before {
     content: '';
     width: 8px;
     height: 8px;
-    border-radius: 999px;
+    border-radius: 0;
     background: currentColor;
     flex: 0 0 auto;
 }
@@ -2464,69 +2918,45 @@ onBeforeUnmount(() => {
 .legal-compare__stat-chip--added {
     color: #188f57;
     border-color: rgba(24, 143, 87, 0.28);
-    background:
-        linear-gradient(var(--legal-surface), var(--legal-surface)) padding-box,
-        linear-gradient(90deg, rgba(24, 143, 87, 0.45), rgba(24, 143, 87, 0.12)) border-box;
-    border: 1px solid transparent;
+    background: rgba(24, 143, 87, 0.08);
 }
 
 .legal-compare__stat-chip--removed {
     color: #d28308;
     border-color: rgba(210, 131, 8, 0.28);
-    background:
-        linear-gradient(var(--legal-surface), var(--legal-surface)) padding-box,
-        linear-gradient(90deg, rgba(210, 131, 8, 0.42), rgba(210, 131, 8, 0.12)) border-box;
-    border: 1px solid transparent;
+    background: rgba(210, 131, 8, 0.08);
 }
 
 .legal-compare__stat-chip--modified {
     color: var(--legal-text);
-    background:
-        linear-gradient(
-            90deg,
-            var(--legal-surface) 0%,
-            var(--legal-surface) 100%
-        ) padding-box,
-        linear-gradient(
-            90deg,
-            rgba(210, 131, 8, 0.55) 0%,
-            rgba(210, 131, 8, 0.55) 48%,
-            rgba(24, 143, 87, 0.5) 52%,
-            rgba(24, 143, 87, 0.5) 100%
-        ) border-box;
-    border: 1px solid transparent;
+    border-color: var(--legal-border);
+    background: var(--legal-surface-muted);
 }
 
 .legal-compare__stat-chip--modified::before {
-    background: linear-gradient(
-        90deg,
-        rgba(210, 131, 8, 0.95) 0%,
-        rgba(210, 131, 8, 0.95) 48%,
-        rgba(24, 143, 87, 0.9) 52%,
-        rgba(24, 143, 87, 0.9) 100%
-    );
+    background: var(--legal-text);
 }
 
 .legal-compare__tabs {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 
 .legal-compare-summary {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 14px 16px;
+    gap: 10px;
+    padding: 10px 12px;
     border: 1px solid var(--legal-border);
-    border-radius: 12px;
+    border-radius: 0;
     background: var(--legal-surface-muted);
 }
 
 .legal-compare-summary__head {
     display: flex;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
     align-items: flex-start;
 }
 
@@ -2548,8 +2978,8 @@ onBeforeUnmount(() => {
 
 .legal-compare-summary__empty {
     margin: 0;
-    padding: 12px;
-    border-radius: 10px;
+    padding: 10px;
+    border-radius: 0;
     border: 1px dashed var(--legal-border);
     background: var(--legal-surface);
     color: var(--legal-muted);
@@ -2559,8 +2989,8 @@ onBeforeUnmount(() => {
 
 .legal-compare-summary__error {
     margin: 0;
-    padding: 10px 12px;
-    border-radius: 10px;
+    padding: 8px 10px;
+    border-radius: 0;
     border: 1px solid rgba(209, 67, 67, 0.22);
     background: rgba(209, 67, 67, 0.08);
     color: #e58d8d;
@@ -2572,7 +3002,7 @@ onBeforeUnmount(() => {
 .legal-compare-summary__lists {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 8px;
 }
 
 .legal-compare-summary__lists {
@@ -2583,9 +3013,9 @@ onBeforeUnmount(() => {
 .legal-compare-summary__list-card {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 12px;
-    border-radius: 10px;
+    gap: 6px;
+    padding: 10px;
+    border-radius: 0;
     border: 1px solid rgba(255, 255, 255, 0.04);
     background: var(--legal-surface);
 }
@@ -2609,10 +3039,10 @@ onBeforeUnmount(() => {
 }
 
 .legal-compare__tab {
-    min-height: 36px;
-    padding: 0 14px;
+    min-height: 30px;
+    padding: 0 10px;
     border: 1px solid var(--legal-border);
-    border-radius: 999px;
+    border-radius: 0;
     background: var(--legal-surface-muted);
     color: var(--legal-text);
     font-size: 12px;
@@ -2626,8 +3056,8 @@ onBeforeUnmount(() => {
 }
 
 .legal-review-panel__footer {
-    margin-top: 12px;
-    padding-top: 12px;
+    margin-top: 10px;
+    padding-top: 10px;
     border-top: 1px solid var(--legal-border);
 }
 
@@ -2640,6 +3070,10 @@ onBeforeUnmount(() => {
 .slide-fade-leave-to {
     opacity: 0;
     transform: translateY(10px);
+}
+
+@keyframes legal-loading-spin {
+    to { transform: rotate(360deg); }
 }
 
 @media (max-width: 1279px) {
@@ -2658,7 +3092,7 @@ onBeforeUnmount(() => {
 
 @media (max-width: 899px) {
     .legal-tab__body {
-        padding: 16px;
+        padding: 10px;
     }
 
     .legal-summary__stats,
@@ -2669,25 +3103,40 @@ onBeforeUnmount(() => {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .legal-summary__stats > *,
+    .legal-summary__details > * {
+        border-left: 0;
+    }
+
+    .legal-summary__stats > *:nth-child(even),
+    .legal-summary__details > *:nth-child(even) {
+        border-left: 1px solid var(--legal-border);
+    }
+
+    .legal-summary__stats > *:nth-child(n+3),
+    .legal-summary__details > *:nth-child(n+3) {
+        border-top: 1px solid var(--legal-border);
+    }
+
     .legal-upload-panel,
     .legal-summary,
     .legal-files,
     .legal-state-card {
-        padding: 12px;
+        padding: 10px;
     }
 
     .legal-review-panel__header {
-        padding: 12px;
+        padding: 10px;
     }
 
     .legal-review-panel__body {
         height: calc(100vh - 61px);
-        padding: 12px;
+        padding: 10px;
     }
 
     .legal-review-panel__preview,
     .legal-review-panel__findings {
-        padding: 12px;
+        padding: 10px;
     }
 }
 
@@ -2714,7 +3163,7 @@ onBeforeUnmount(() => {
     }
 
     .legal-state-card__title {
-        font-size: 18px;
+        font-size: 14px;
     }
 
     .legal-review-panel__body {

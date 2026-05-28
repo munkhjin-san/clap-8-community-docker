@@ -31,7 +31,12 @@ class ContractExtractionService
         return $this->lastExtractionMetadata;
     }
 
-    public function extractIndex(string $absolutePath, string $extension): array
+    public function buildIndexFromPages(array $pages): array
+    {
+        return $this->buildDocumentIndex($pages);
+    }
+
+    public function extractIndex(string $absolutePath, string $extension, bool $allowOcr = false): array
     {
         $extension = strtolower($extension);
         $this->lastExtractionMetadata = [
@@ -40,7 +45,7 @@ class ContractExtractionService
         ];
 
         $pages = match ($extension) {
-            'pdf' => $this->extractPdfPages($absolutePath),
+            'pdf' => $this->extractPdfPages($absolutePath, $allowOcr),
             'docx' => $this->extractDocxPages($absolutePath),
             'txt' => $this->extractPlainTextPages($absolutePath),
             default => throw new RuntimeException('このファイル形式の比較テキスト抽出にはまだ対応していません。'),
@@ -49,7 +54,7 @@ class ContractExtractionService
         return $this->buildDocumentIndex($pages);
     }
 
-    public function extractPdfPages(string $absolutePath): array
+    public function extractPdfPages(string $absolutePath, bool $allowOcr = false): array
     {
         $preflight = $this->inspectPdf($absolutePath);
         $this->lastExtractionMetadata = [
@@ -57,6 +62,10 @@ class ContractExtractionService
             'method' => null,
             'preflight' => $preflight,
         ];
+
+        if ($preflight['requires_ocr'] && !$allowOcr) {
+            return $this->buildEmptyPdfPages((int) ($preflight['page_count'] ?? 1), $preflight['reason']);
+        }
 
         if ($preflight['requires_ocr']) {
             return $this->extractPdfPagesWithGeminiOcr($absolutePath, $preflight['reason']);
@@ -66,7 +75,7 @@ class ContractExtractionService
             $pages = $this->extractPdfPagesWithParserTimeout($absolutePath);
             $textLength = $this->countExtractedTextLength($pages);
 
-            if ($textLength === 0 && ($preflight['image_count'] ?? 0) > 0) {
+            if ($textLength === 0 && ($preflight['image_count'] ?? 0) > 0 && $allowOcr) {
                 return $this->extractPdfPagesWithGeminiOcr($absolutePath, 'empty_parser_result');
             }
 
@@ -75,7 +84,7 @@ class ContractExtractionService
 
             return $pages;
         } catch (\Throwable $exception) {
-            if ($this->isGeminiConfigured()) {
+            if ($allowOcr && $this->isGeminiConfigured()) {
                 return $this->extractPdfPagesWithGeminiOcr($absolutePath, 'parser_failed: '.$exception->getMessage());
             }
 
@@ -161,6 +170,24 @@ class ContractExtractionService
             'requires_ocr' => $requiresOcr,
             'reason' => $reason,
         ];
+    }
+
+    private function buildEmptyPdfPages(int $pageCount, string $reason): array
+    {
+        $this->lastExtractionMetadata['method'] = 'ocr_required';
+        $this->lastExtractionMetadata['ocr_reason'] = $reason;
+        $this->lastExtractionMetadata['text_length'] = 0;
+
+        $pages = [];
+        for ($pageNumber = 1; $pageNumber <= max(1, $pageCount); $pageNumber++) {
+            $pages[] = [
+                'page' => $pageNumber,
+                'lines' => [],
+                'text' => '',
+            ];
+        }
+
+        return $pages;
     }
 
     private function appendDecodedPdfStreams(string $contents): string

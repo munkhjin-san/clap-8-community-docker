@@ -226,7 +226,7 @@ watch(
 
 .contract-risk-review__header {
     flex-shrink: 0;
-    padding: 16px 18px;
+    padding: 10px 12px;
     border-bottom: 1px solid var(--calendarBorder);
     background: var(--background-color);
 }
@@ -241,7 +241,7 @@ watch(
 
 .contract-risk-review__title {
     margin: 6px 0 0;
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.5;
     font-weight: 700;
     color: var(--primary-color);
@@ -253,13 +253,13 @@ watch(
     flex-direction: column;
     flex: 1;
     min-height: 0;
-    gap: 18px;
-    padding: 18px;
+    gap: 12px;
+    padding: 12px;
     overflow: auto;
 }
 
 .contract-risk-review__section {
-    padding: 0 0 18px;
+    padding: 0 0 12px;
     border-bottom: 1px solid rgba(120, 120, 120, 0.12);
 }
 
@@ -278,13 +278,13 @@ watch(
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 12px;
+    gap: 8px;
 }
 
 .contract-risk-review__section-title {
     margin: 0;
-    font-size: 18px;
-    line-height: 1.7;
+    font-size: 15px;
+    line-height: 1.6;
     font-weight: 700;
     color: var(--primary-color);
     white-space: pre-wrap;
@@ -297,7 +297,7 @@ watch(
     justify-content: center;
     min-height: 24px;
     padding: 0 8px;
-    border-radius: 999px;
+    border-radius: 0;
     border: 1px solid var(--calendarBorder);
     background: var(--bg3);
     font-size: 11px;
@@ -309,25 +309,24 @@ watch(
 .contract-risk-review__paragraphs {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-top: 12px;
+    gap: 8px;
+    margin-top: 8px;
 }
 
 .contract-risk-review__paragraph {
     margin: 0;
     padding: 3px 0;
-    border-radius: 4px;
-    font-size: 15px;
-    line-height: 2;
+    border-radius: 0;
+    font-size: 13px;
+    line-height: 1.8;
     color: var(--primary-color);
     white-space: pre-wrap;
     word-break: break-word;
-    transition: background-color 0.18s ease, box-shadow 0.18s ease;
+    transition: background-color 0.18s ease;
 }
 
 .contract-risk-review__paragraph--active {
     background: rgba(255, 186, 59, 0.14);
-    box-shadow: inset 0 -1px 0 rgba(210, 131, 8, 0.14);
 }
 
 .contract-risk-review__empty {
@@ -342,15 +341,15 @@ watch(
 
 @media (max-width: 899px) {
     .contract-risk-review__content {
-        padding: 16px;
+        padding: 10px;
     }
 
     .contract-risk-review__section-title {
-        font-size: 17px;
+        font-size: 15px;
     }
 
     .contract-risk-review__paragraph {
-        font-size: 14px;
+        font-size: 13px;
     }
 }
 </style>

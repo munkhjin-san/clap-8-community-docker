@@ -133,33 +133,33 @@ const fragmentClass = (changed: boolean, side: 'base' | 'target') => ({
 .contract-compare-text-view {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 10px;
 }
 
 .contract-compare-text-view__header,
 .contract-compare-text-view__documents {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px;
+    gap: 10px;
 }
 
 .contract-compare-text-view__doc,
 .contract-compare-text-view__document {
     border: 1px solid var(--calendarBorder);
-    border-radius: 14px;
+    border-radius: 0;
     background: var(--background-color);
 }
 
 .contract-compare-text-view__doc {
-    padding: 14px 16px;
+    padding: 10px 12px;
 }
 
 .contract-compare-text-view__doc--base {
-    box-shadow: inset 0 0 0 1px rgba(210, 131, 8, 0.1);
+    border-color: rgba(210, 131, 8, 0.28);
 }
 
 .contract-compare-text-view__doc--target {
-    box-shadow: inset 0 0 0 1px rgba(24, 143, 87, 0.1);
+    border-color: rgba(24, 143, 87, 0.26);
 }
 
 .contract-compare-text-view__doc-label,
@@ -172,7 +172,7 @@ const fragmentClass = (changed: boolean, side: 'base' | 'target') => ({
 
 .contract-compare-text-view__doc-title {
     margin: 6px 0 0;
-    font-size: 17px;
+    font-size: 14px;
     line-height: 1.5;
     font-weight: 700;
     color: var(--primary-color);
@@ -180,15 +180,15 @@ const fragmentClass = (changed: boolean, side: 'base' | 'target') => ({
 }
 
 .contract-compare-text-view__document {
-    padding: 18px 20px 24px;
+    padding: 12px;
 }
 
 .contract-compare-text-view__section {
-    padding: 0 0 18px;
+    padding: 0 0 12px;
 }
 
 .contract-compare-text-view__section + .contract-compare-text-view__section {
-    padding-top: 18px;
+    padding-top: 12px;
     border-top: 1px solid rgba(120, 120, 120, 0.12);
 }
 
@@ -206,8 +206,8 @@ const fragmentClass = (changed: boolean, side: 'base' | 'target') => ({
 
 .contract-compare-text-view__title {
     margin: 0;
-    font-size: 18px;
-    line-height: 1.75;
+    font-size: 15px;
+    line-height: 1.6;
     font-weight: 700;
     color: var(--primary-color);
     white-space: pre-wrap;
@@ -217,32 +217,30 @@ const fragmentClass = (changed: boolean, side: 'base' | 'target') => ({
 .contract-compare-text-view__paragraphs {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-top: 10px;
+    gap: 8px;
+    margin-top: 8px;
 }
 
 .contract-compare-text-view__paragraph {
     margin: 0;
-    font-size: 15px;
-    line-height: 2;
+    font-size: 13px;
+    line-height: 1.8;
     color: var(--primary-color);
     white-space: pre-wrap;
     word-break: break-word;
 }
 
 .contract-compare-text-view__fragment {
-    border-radius: 3px;
+    border-radius: 0;
     transition: background-color 0.18s ease;
 }
 
 .contract-compare-text-view__fragment--changed-base {
     background: rgba(255, 186, 59, 0.14);
-    box-shadow: inset 0 -1px 0 rgba(210, 131, 8, 0.12);
 }
 
 .contract-compare-text-view__fragment--changed-target {
     background: rgba(41, 196, 122, 0.12);
-    box-shadow: inset 0 -1px 0 rgba(24, 143, 87, 0.14);
 }
 
 @media (max-width: 899px) {
@@ -252,15 +250,15 @@ const fragmentClass = (changed: boolean, side: 'base' | 'target') => ({
     }
 
     .contract-compare-text-view__document {
-        padding: 16px 16px 20px;
+        padding: 10px;
     }
 
     .contract-compare-text-view__title {
-        font-size: 17px;
+        font-size: 15px;
     }
 
     .contract-compare-text-view__paragraph {
-        font-size: 14px;
+        font-size: 13px;
     }
 }
 </style>

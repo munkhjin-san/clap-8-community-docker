@@ -32,7 +32,7 @@ use App\Models\ProjectCheckitemTemplate;
 use App\Models\ProjectCheckitems;
 use App\Models\ProjectRecordReadState;
 use App\Models\ProjectAssignRecord;
-use App\Services\Contracts\ContractExtractionService;
+use App\Services\Contracts\CachedContractExtractionService;
 use App\Services\MentionAndNotify;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ProjectMention;
@@ -92,7 +92,7 @@ class ProjectController extends Controller
         BoardController $boardController, 
         SharedService $sharedService, 
         OpenAiController $openAiController,
-        private ContractExtractionService $contractExtractionService,
+        private CachedContractExtractionService $contractExtractionService,
         private KintoneClient $api,
         private GoogleSheetsClient $client,
         private ProjectPlanFormulaService $planFormulaService,
@@ -1477,24 +1477,23 @@ class ProjectController extends Controller
 
         $absolutePath = $disk->path($filePath);
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $allowOcr = !$request->has('ocr') || $request->boolean('ocr');
+
         try {
-            $documentIndex = $this->contractExtractionService->extractIndex($absolutePath, $extension);
+            $documentIndex = $this->contractExtractionService->extractIndex($absolutePath, $extension, $allowOcr);
         } catch (\Throwable $exception) {
             abort(422, $exception->getMessage() ?: '契約書の比較テキスト抽出に失敗しました。');
         }
 
-        $text = trim(implode("\n\n", array_map(
-            fn (array $page) => (string) ($page['text'] ?? ''),
-            $documentIndex['pages'] ?? []
-        )));
+        $extraction = $this->contractExtractionService->lastExtractionMetadata();
 
-        return response()->json([
-            'contract_id' => $contract->id,
-            'extension' => $extension,
-            'text' => $text,
-            'document_index' => $documentIndex,
-            'extraction' => $this->contractExtractionService->lastExtractionMetadata(),
-        ]);
+        return response()->json($this->contractExtractionPayload(
+            $contract,
+            $extension,
+            $documentIndex,
+            $extraction,
+            (bool) ($extraction['cached'] ?? false),
+        ));
     }
 
     public function store_contract(Request $request, ProjectRecord $project)
@@ -5051,6 +5050,29 @@ class ProjectController extends Controller
         }
 
         return $query->first();
+    }
+
+    protected function contractExtractionPayload(
+        ProjectContract $contract,
+        string $extension,
+        array $documentIndex,
+        array $extraction,
+        bool $cached,
+    ): array {
+        $text = trim(implode("\n\n", array_map(
+            fn (array $page) => (string) ($page['text'] ?? ''),
+            $documentIndex['pages'] ?? []
+        )));
+
+        $extraction['cached'] = $cached;
+
+        return [
+            'contract_id' => $contract->id,
+            'extension' => $extension,
+            'text' => $text,
+            'document_index' => $documentIndex,
+            'extraction' => $extraction,
+        ];
     }
 
     protected function extractContractTextFromDocx(string $absolutePath): string

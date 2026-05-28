@@ -317,7 +317,7 @@ const clearFilter = () => {
 .contract-findings {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 10px;
     color: var(--primary-color);
 }
 
@@ -349,7 +349,7 @@ const clearFilter = () => {
     min-width: 52px;
     max-width: 100%;
     padding: 2px 8px;
-    border-radius: 999px;
+    border-radius: 0;
     border: 1px solid var(--calendarBorder);
     font-size: 11px;
     font-weight: 600;
@@ -382,15 +382,15 @@ const clearFilter = () => {
 .contract-findings__filters {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
 }
 
 .contract-findings__filter {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
-    border-radius: 999px;
+    padding: 3px 8px;
+    border-radius: 0;
     border: 1px solid var(--calendarBorder);
     background: var(--bg3);
     color: var(--primary-color);
@@ -406,7 +406,7 @@ const clearFilter = () => {
     justify-content: center;
     min-width: 18px;
     padding: 0 5px;
-    border-radius: 999px;
+    border-radius: 0;
     color: inherit;
 }
 
@@ -429,13 +429,12 @@ const clearFilter = () => {
 }
 
 .contract-findings__filter--active {
-    box-shadow: inset 0 0 0 1px currentColor;
-    transform: translateY(-1px);
+    border-color: currentColor;
 }
 
 .contract-findings__filter-reset {
-    padding: 4px 10px;
-    border-radius: 8px;
+    padding: 3px 8px;
+    border-radius: 0;
     border: 1px solid var(--calendarBorder);
     background: var(--bg3);
     color: var(--primary-color);
@@ -445,8 +444,8 @@ const clearFilter = () => {
 
 .contract-findings__export {
     flex-shrink: 0;
-    padding: 4px 10px;
-    border-radius: 8px;
+    padding: 3px 8px;
+    border-radius: 0;
     border: 1px solid var(--calendarBorder);
     background: var(--bg3);
     color: var(--primary-color);
@@ -465,10 +464,10 @@ const clearFilter = () => {
 }
 
 .contract-findings__item {
-    padding: 12px;
+    padding: 10px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .contract-findings__item + .contract-findings__item {
@@ -484,7 +483,7 @@ const clearFilter = () => {
 .contract-findings__item-actions {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: 6px;
 }
 
 .contract-findings__item-meta {
@@ -524,7 +523,7 @@ const clearFilter = () => {
 .contract-findings__item-body {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     font-size: 12px;
     color: var(--primary-color);
     line-height: 1.5;
@@ -545,9 +544,9 @@ const clearFilter = () => {
 }
 
 .contract-findings__jump {
-    padding: 4px 8px;
+    padding: 3px 8px;
     border: 1px solid var(--calendarBorder);
-    border-radius: 8px;
+    border-radius: 0;
     background: var(--bg3);
     color: var(--primary-color);
     font-size: 11px;
@@ -573,7 +572,7 @@ const clearFilter = () => {
 
 @media (max-width: 959px) {
     .contract-findings__item {
-        padding: 12px 14px;
+        padding: 10px;
     }
 
     .contract-findings__item-title {
