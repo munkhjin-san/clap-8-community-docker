@@ -30,6 +30,12 @@
                 :theme-records="[]" 
                 :selected-date="activeSpan"
                 :evaluation-data="null"
+                @edit-goal="(item) => {
+                    editData = item
+                    createWindow = true
+                }"
+                @apply-edit="(item) => applyEdit(item)"
+                @delete-goal="(item) => deleteGoal(item)"
                 
             />
         </Teleport>
@@ -143,7 +149,30 @@ const createGoal = () => {
 const deny = () => {
     ping('権限がありません。')
 }
+const { invalidateCache } = useDashboardGoalsStore()
+const deleteGoal = async (goal: ProjectGoal) => {
 
+
+    await api.del(`/delete_project_goal`, {
+        id: goal.id,
+    }, {
+        ask: '成果目標を削除しますか？\n削除すると、昇給課題も一緒に削除されます。',
+        toast: '成果目標を削除しました。'
+    })
+    invalidateCache()
+    getGoals(goal.user_id, goal.year, goal.which_half)
+
+}
+
+const applyEdit = async (goal: ProjectGoal) => {
+
+    await api.put('/approve_outcome_goal', {id: goal.id, status: 4}, {
+        toast: '変更申請しました。',
+        ask: 'この成果目標の変更を申請しますか？'
+    })
+    invalidateCache()
+    getGoals(goal.user_id, goal.year, goal.which_half)
+}
 watch(() => route.query.span, (newVal) => {
     if(newVal && activeUser.value){
         const [ year, span ] = String(newVal).split('-') 

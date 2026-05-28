@@ -211,19 +211,38 @@ prefsStore.applyLayoutToCards(defaultDashboardCards)
 
 const dashboardCards = ref<DashboardCard[]>(prefsStore.applyOrderToCards(defaultDashboardCards))
 const canSeeIncidentCard = computed(() => auth.isPM || auth.isBoss || auth.isAdmin)
-const visibleDashboardCards = computed(() => dashboardCards.value.filter((card) => {
+const permissionAllowedDashboardCards = computed(() => dashboardCards.value.filter((card) => {
     if (card.type === 'incidents' && !canSeeIncidentCard.value) {
         return route.params.type === card.type
     }
 
-    return shouldShowCard(card)
+    return true
 }))
+const visibleDashboardCards = computed(() => permissionAllowedDashboardCards.value.filter((card) => shouldShowCard(card)))
 const grid = ref<GridStack | null>(null)
 const customizing = ref(false)
 const GRID_COLUMNS = 4
 // GridStack snaps height to whole rows. A small row keeps auto-sized cards close to their real content height.
 const GRID_CELL_HEIGHT = 4
 const GRID_MARGIN = 10
+const DEFAULT_CARD_HEIGHT_BY_TYPE: Record<string, number> = {
+    remindedMessages: 260,
+    mustCheckMessages: 180,
+    mustSignMessages: 180,
+    unfinishedTasks: 180,
+    untouchedTasks: 180,
+    pendingApprovalTasks: 180,
+    forms: 180,
+    overdueGoals: 420,
+    projects: 220,
+    challenges: 220,
+    assets: 180,
+    incidents: 220,
+    schedules: 180,
+    timesheet: 220,
+    notice: 160,
+    personnelEvaluation: 220,
+}
 let viewportResizeTimer: ReturnType<typeof setTimeout> | undefined
 let suppressGridClickUntil = 0
 let isRestoringGrid = false
@@ -252,10 +271,18 @@ const getSavedCardWidth = (card: DashboardCard) => {
     return clampGridWidth(prefsStore.getGridLayout(card.type)?.w ?? getCardSpan(card))
 }
 
-const getGridRowsFromContentHeight = (height: unknown) => {
+const getDefaultCardHeight = (type: string) => DEFAULT_CARD_HEIGHT_BY_TYPE[type] ?? 180
+
+const getGridRowsFromContentHeight = (height: unknown, fallbackHeight = 180) => {
     const contentHeight = Number(height)
-    if (!Number.isFinite(contentHeight) || contentHeight <= 0) return 2
+    if (!Number.isFinite(contentHeight) || contentHeight <= 0) {
+        return Math.max(1, Math.ceil((fallbackHeight + GRID_MARGIN * 2) / GRID_CELL_HEIGHT))
+    }
     return Math.max(1, Math.ceil((contentHeight + GRID_MARGIN * 2) / GRID_CELL_HEIGHT))
+}
+
+const getSavedOrDefaultGridRows = (card: DashboardCard) => {
+    return getGridRowsFromContentHeight(prefsStore.heights[card.type], getDefaultCardHeight(card.type))
 }
 
 const buildPackedGridLayouts = (cards: DashboardCard[]) => {
@@ -267,7 +294,7 @@ const buildPackedGridLayouts = (cards: DashboardCard[]) => {
     for (const card of cards) {
         const stored = prefsStore.getGridLayout(card.type)
         const w = getSavedCardWidth(card)
-        const h = Math.max(1, stored?.h ?? getGridRowsFromContentHeight(prefsStore.heights[card.type]))
+        const h = Math.max(1, stored?.h ?? getSavedOrDefaultGridRows(card))
 
         if (x + w > GRID_COLUMNS) {
             x = 0
@@ -292,7 +319,7 @@ const buildPackedGridLayouts = (cards: DashboardCard[]) => {
 const getInitialGridLayout = (card: DashboardCard, cards = dashboardCards.value): GridStackWidget => {
     const stored = prefsStore.getGridLayout(card.type)
     const w = getSavedCardWidth(card)
-    const h = Math.max(1, stored?.h ?? getGridRowsFromContentHeight(prefsStore.heights[card.type]))
+    const h = Math.max(1, stored?.h ?? getSavedOrDefaultGridRows(card))
 
     if (stored?.x !== undefined && stored?.y !== undefined) {
         return { x: stored.x, y: stored.y, w, h }
@@ -370,9 +397,24 @@ const syncGridItemHeight = (type: string) => {
     const rows = Math.max(1, Math.ceil((contentHeight + GRID_MARGIN * 2) / GRID_CELL_HEIGHT))
     prefsStore.setHeight(type, contentHeight)
 
-    if (item.gridstackNode.h === rows) return
+    if (item.gridstackNode.h === rows) {
+        prefsStore.setGridLayoutNow(type, {
+            x: item.gridstackNode.x,
+            y: item.gridstackNode.y,
+            w: clampGridWidth(item.gridstackNode.w),
+            h: rows,
+        })
+        return
+    }
     grid.value.setAnimation(false)
     grid.value.update(item, { h: rows })
+    writeGridStackAttributes(item)
+    prefsStore.setGridLayoutNow(type, {
+        x: item.gridstackNode.x,
+        y: item.gridstackNode.y,
+        w: clampGridWidth(item.gridstackNode.w),
+        h: rows,
+    })
     requestAnimationFrame(() => {
         grid.value?.setAnimation(true)
     })
@@ -399,6 +441,7 @@ const syncVisibleGridHeights = async () => {
     for (const card of visibleDashboardCards.value) {
         syncGridItemHeight(card.type)
     }
+    saveGridState(true)
 }
 
 const syncGridAfterViewportChange = () => {
@@ -445,16 +488,17 @@ const handleGlobalGridKeydown = (event: KeyboardEvent) => {
 const buildSkeletonCards = () => {
     const isSingleColumn = typeof window !== 'undefined' && window.innerWidth <= 959
     let mobileY = 0
+    const skeletonSourceCards = permissionAllowedDashboardCards.value
 
-    skeletonCards.value = [...visibleDashboardCards.value]
+    skeletonCards.value = [...skeletonSourceCards]
         .sort((a, b) => {
-            const aLayout = getInitialGridLayout(a)
-            const bLayout = getInitialGridLayout(b)
+            const aLayout = getInitialGridLayout(a, skeletonSourceCards)
+            const bLayout = getInitialGridLayout(b, skeletonSourceCards)
             return (aLayout.y ?? 0) - (bLayout.y ?? 0) || (aLayout.x ?? 0) - (bLayout.x ?? 0)
         })
         .map((card) => {
-            const layout = getInitialGridLayout(card)
-            const h = Math.max(1, layout.h ?? getGridRowsFromContentHeight(prefsStore.heights[card.type] ?? 180))
+            const layout = getInitialGridLayout(card, skeletonSourceCards)
+            const h = Math.max(1, layout.h ?? getSavedOrDefaultGridRows(card))
             const y = isSingleColumn ? mobileY : Number(layout.y ?? 0)
             if (isSingleColumn) mobileY += h
 
@@ -591,9 +635,9 @@ const handleScroll = () => {
     prevScrollTime.value = now
 }
 
-const saveGridState = () => {
+const saveGridState = (force = false) => {
     if (!grid.value) return
-    if (isRestoringGrid) return
+    if (isRestoringGrid && !force) return
 
     const layouts: Record<string, { x?: number; y?: number; w?: number; h?: number }> = {}
     const orderedTypes: string[] = []

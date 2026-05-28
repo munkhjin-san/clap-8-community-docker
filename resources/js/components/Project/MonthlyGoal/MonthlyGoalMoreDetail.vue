@@ -9,6 +9,19 @@
                 </div>       
             </div>
         </template>
+        <template #menu>
+            <ItemMenu
+                v-if="editable"
+                :items="[
+                    {title: '編集する', action: () => emit('editGoal', goal)},
+                    {title: '削除する', action: () => emit('deleteGoal', goal)}
+                ]"
+            /> 
+            <ItemMenu 
+                v-else-if="auth.id === goal.user_id && goal?.status >= 2 && goal?.status < 7 && goal?.status != 4" 
+                :items="[{title: '変更申請', action: () => emit('applyEdit', goal)}]"
+            /> 
+        </template>
         <template #content>
             <div class="kadai-root !w-[calc(100%-2px)] ml-[1px]">                
                 <div v-if="sub_tab === 0" class="flex flex-col gap-[30px] relative">
@@ -171,6 +184,7 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
 import { storeToRefs } from 'pinia';
 import SalaryIssueSection from './SalaryIssueSection.vue';
 import GoalStatus from './GoalStatus.vue';
+import ItemMenu from '@/components/Global/ItemMenu.vue';
 
 
 const props = defineProps<{
@@ -178,7 +192,13 @@ const props = defineProps<{
     themeRecords: any[],
     selectedDate: string,
 }>()
-const emit = defineEmits(['close'])
+const emit = defineEmits<{
+    editGoal: [goal: ProjectGoal],
+    deleteGoal: [goal: ProjectGoal],
+    applyEdit: [goal: ProjectGoal],
+    close: []
+
+}>()
 const auth = useAuthUserStore()
 const goalsStore = useDashboardGoalsStore()
 const { evaluationData } = storeToRefs(goalsStore)
@@ -189,6 +209,10 @@ const reviewing = ref(false)
 const api = useApi()
 const selectedGoalStatus = ref<number | null>(props.goal?.status ?? null)
 const selectedSalaryIssueStatus = ref<number | null>(props.goal?.salary_issue?.status ?? null)
+    const editable = computed(() => {
+    return (props.goal.status < 2) && (auth.activeUser.id === props.goal.user_id || isManager.value || isMember.value || auth.isAdmin)
+})
+
 const passingData = {
     path: '/project_goal_comment_create',
     title: '進捗報告・メッセージ',
@@ -217,6 +241,9 @@ const canConfirmOrDeny = computed(() => {
 
 const isManager = computed(() => {
     return props.goal.project?.is_manager
+})
+const isMember = computed(() => {
+    return props.goal.project?.is_member
 })
 
 watch(

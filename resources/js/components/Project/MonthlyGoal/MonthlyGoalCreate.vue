@@ -261,15 +261,25 @@ const keys = reactive({
 })
 const release = ref(props.editGoalData && props.editGoalData.id ? true : false)
 
-const targetProject = ref<Project | null>(usersProjects.value.length > 0 ? usersProjects.value[0] : null)
+const targetProject = ref<Project | null>(null)
 
 const goalTitleRef = useTemplateRef<InstanceType<typeof ShortInput>>('goalTitleRef')
 const misoRef = useTemplateRef<InstanceType<typeof LongInput>>('misoRef')
 const kgiRef = useTemplateRef<InstanceType<typeof LongInput>>('kgiRef')
 const kpiRef = useTemplateRef<InstanceType<typeof ShortInput>[]>('kpiRef')
 
-onMounted(() => {
-    getEvaluationData()
+onMounted(async () => {
+    await getEvaluationData()
+    if(props.editGoalData && props.editGoalData.project_id){
+        const findUserProject = usersProjects.value.find(project => project.id === props.editGoalData?.project_id)
+        console.log('findUserProject', findUserProject)
+        if(findUserProject){
+            targetProject.value = findUserProject
+        }
+    }else {
+        targetProject.value = usersProjects.value.length > 0 ? usersProjects.value[0] : null
+    }
+    
 })
 
 const selectedDate = computed(() => {
