@@ -1879,8 +1879,6 @@ onBeforeUnmount(() => {
 .legal-detail__findings,
 .legal-state-card {
     border: 0;
-    border-top: 1px solid var(--legal-border);
-    border-bottom: 1px solid var(--legal-border);
     border-radius: 0;
     background: var(--legal-surface);
 }
@@ -1917,6 +1915,10 @@ onBeforeUnmount(() => {
     border-radius: 0;
     border: 0;
     background: transparent;
+}
+
+.legal-summary__stats .legal-metric-card {
+    background: var(--legal-surface-muted);
 }
 
 .legal-stat-card__label,
@@ -2000,9 +2002,8 @@ onBeforeUnmount(() => {
 .legal-files__list {
     display: flex;
     flex-direction: column;
-    gap: 0;
-    border-top: 1px solid var(--legal-border);
-    border-bottom: 1px solid var(--legal-border);
+    gap: 2px;
+    border: 0;
     max-height: none;
     overflow: visible;
 }
@@ -2025,7 +2026,7 @@ onBeforeUnmount(() => {
 }
 
 .legal-files__item + .legal-files__item {
-    border-top: 1px solid var(--legal-border);
+    border-top: 0;
 }
 
 .legal-files__item:hover {
@@ -2196,16 +2197,15 @@ onBeforeUnmount(() => {
 .legal-summary__stats {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0;
-    border-top: 1px solid var(--legal-border);
-    border-bottom: 1px solid var(--legal-border);
+    gap: 6px;
+    border: 0;
 }
 
 .legal-summary__details {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0;
-    border-bottom: 1px solid var(--legal-border);
+    gap: 6px;
+    border: 0;
     margin: 0;
 }
 
@@ -2215,13 +2215,13 @@ onBeforeUnmount(() => {
     gap: 3px;
     padding: 7px 10px;
     border-radius: 0;
-    background: transparent;
+    background: var(--legal-surface-muted);
     border: 0;
 }
 
 .legal-summary__stats > * + *,
 .legal-summary__details > * + * {
-    border-left: 1px solid var(--legal-border);
+    border-left: 0;
 }
 
 .legal-summary__detail dt {
