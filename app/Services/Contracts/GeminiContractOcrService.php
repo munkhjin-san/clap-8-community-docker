@@ -16,7 +16,7 @@ class GeminiContractOcrService
     {
         $apiKey = config('services.google.gemini_api_key');
         $baseUrl = rtrim(config('services.google.gemini_url') ?: 'https://generativelanguage.googleapis.com/v1beta', '/');
-        $model = config('services.google.contract_ocr_model', 'models/gemini-3.1-flash-preview');
+        $model = config('services.google.contract_ocr_model', 'models/gemini-3-flash-preview');
         $timeout = max(10, (int) config('services.google.contract_ocr_page_timeout', 90));
 
         if (!$apiKey) {
@@ -94,7 +94,7 @@ class GeminiContractOcrService
 
         $apiKey = config('services.google.gemini_api_key');
         $baseUrl = rtrim(config('services.google.gemini_url') ?: 'https://generativelanguage.googleapis.com/v1beta', '/');
-        $model = config('services.google.contract_ocr_model', 'models/gemini-3.1-flash-preview');
+        $model = config('services.google.contract_ocr_model', 'models/gemini-3-flash-preview');
         $timeout = max(10, (int) config('services.google.contract_ocr_timeout', 120));
         $pageTimeout = max(10, (int) config('services.google.contract_ocr_page_timeout', 90));
         $maxOutputTokens = max(2048, (int) config('services.google.contract_ocr_max_output_tokens', 32768));
