@@ -52,6 +52,8 @@ return [
             'receipt_ocr_model' => env('GEMINI_RECEIPT_OCR_MODEL', 'models/gemini-3-flash-preview'),
             'contract_ocr_model' => env('GEMINI_CONTRACT_OCR_MODEL', env('GEMINI_RECEIPT_OCR_MODEL', 'models/gemini-3-flash-preview')),
             'contract_ocr_timeout' => env('GEMINI_CONTRACT_OCR_TIMEOUT', 120),
+            'contract_ocr_page_timeout' => env('GEMINI_CONTRACT_OCR_PAGE_TIMEOUT', 90),
+            'contract_ocr_chunk_pages' => env('GEMINI_CONTRACT_OCR_CHUNK_PAGES', true),
             'contract_ocr_max_output_tokens' => env('GEMINI_CONTRACT_OCR_MAX_OUTPUT_TOKENS', 32768),
             'contract_pdf_parser_timeout' => env('CONTRACT_PDF_PARSER_TIMEOUT', 15),
             'contact_card_split_model' => env('GEMINI_CONTACT_CARD_SPLIT_MODEL', 'models/gemini-3-flash-preview'),

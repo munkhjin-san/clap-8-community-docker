@@ -3,8 +3,10 @@
 namespace App\Services\Contracts;
 
 use Illuminate\Support\Arr;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
+use Throwable;
 
 class GeminiContractOcrService
 {
@@ -29,10 +31,16 @@ class GeminiContractOcrService
         $baseUrl = rtrim(config('services.google.gemini_url') ?: 'https://generativelanguage.googleapis.com/v1beta', '/');
         $model = config('services.google.contract_ocr_model', 'models/gemini-3-flash-preview');
         $timeout = max(10, (int) config('services.google.contract_ocr_timeout', 120));
+        $pageTimeout = max(10, (int) config('services.google.contract_ocr_page_timeout', 90));
         $maxOutputTokens = max(2048, (int) config('services.google.contract_ocr_max_output_tokens', 32768));
 
         if (!$apiKey) {
             throw new RuntimeException('Gemini API key is not configured.');
+        }
+
+        $pageCount = $this->estimatePdfPageCount($absolutePath);
+        if ($pageCount > 1 && filter_var(config('services.google.contract_ocr_chunk_pages', true), FILTER_VALIDATE_BOOL)) {
+            return $this->extractPdfPagesOneAtATime($absolutePath, $pageCount, $baseUrl, $model, $apiKey, $pageTimeout);
         }
 
         $payload = [
@@ -84,17 +92,18 @@ TEXT,
             ],
         ];
 
-        $response = Http::timeout($timeout)
-            ->withHeaders(['Content-Type' => 'application/json'])
-            ->post("{$baseUrl}/{$model}:generateContent?key={$apiKey}", $payload);
+        $response = $this->postGemini($baseUrl, $model, $apiKey, $payload, $timeout);
 
         if (!$response->successful()) {
-            throw new RuntimeException('Gemini contract OCR failed: '.$response->body());
+            throw new RuntimeException('Gemini contract OCR failed: '.$this->sanitizeGeminiError($response->body()));
         }
 
-        $rawResponse = $response->json();
-        $rawText = $this->extractResponseText(is_array($rawResponse) ? $rawResponse : []);
+        return $this->parseGeminiPages($response->json());
+    }
 
+    private function parseGeminiPages(mixed $rawResponse): array
+    {
+        $rawText = $this->extractResponseText(is_array($rawResponse) ? $rawResponse : []);
         if ($rawText === '') {
             throw new RuntimeException('Gemini contract OCR returned an empty response.');
         }
@@ -125,6 +134,103 @@ TEXT,
         }
 
         return $this->normalizePages($pages);
+    }
+
+    private function extractPdfPagesOneAtATime(
+        string $absolutePath,
+        int $pageCount,
+        string $baseUrl,
+        string $model,
+        string $apiKey,
+        int $timeout,
+    ): array {
+        $pages = [];
+        $pdfData = base64_encode((string) file_get_contents($absolutePath));
+
+        for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++) {
+            $payload = [
+                'contents' => [[
+                    'role' => 'user',
+                    'parts' => [
+                        [
+                            'text' => $this->pageOnlyPrompt($pageNumber, $pageCount),
+                        ],
+                        [
+                            'inline_data' => [
+                                'data' => $pdfData,
+                                'mimeType' => 'application/pdf',
+                            ],
+                        ],
+                    ],
+                ]],
+                'generationConfig' => [
+                    'temperature' => 0.0,
+                    'maxOutputTokens' => 8192,
+                    'responseMimeType' => 'application/json',
+                    'responseSchema' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'pages' => [
+                                'type' => 'array',
+                                'items' => [
+                                    'type' => 'object',
+                                    'properties' => [
+                                        'page' => ['type' => 'integer'],
+                                        'text' => ['type' => 'string'],
+                                    ],
+                                    'required' => ['page', 'text'],
+                                ],
+                            ],
+                        ],
+                        'required' => ['pages'],
+                    ],
+                ],
+            ];
+
+            $response = $this->postGemini($baseUrl, $model, $apiKey, $payload, $timeout);
+            if (!$response->successful()) {
+                throw new RuntimeException('Gemini contract OCR failed on page '.$pageNumber.': '.$this->sanitizeGeminiError($response->body()));
+            }
+
+            $pageResults = $this->parseGeminiPages($response->json());
+            $pageText = trim(implode("\n\n", array_map(
+                static fn (array $page) => (string) ($page['text'] ?? ''),
+                $pageResults
+            )));
+            $pages[] = [
+                'page' => $pageNumber,
+                'text' => $pageText,
+            ];
+        }
+
+        return $this->normalizePages($pages);
+    }
+
+    private function pageOnlyPrompt(int $pageNumber, int $pageCount): string
+    {
+        return <<<TEXT
+You are extracting visible text from a Japanese contract PDF.
+OCR only page {$pageNumber} of {$pageCount}. Ignore all other pages.
+Ignore broken embedded/selectable text layers and OCR the rendered visual page.
+Return only visible text. Do not summarize, translate, explain, or add missing clauses.
+Do not preserve layout whitespace. Never emit more than one blank line in a row.
+Return compact JSON only in this shape:
+{"pages":[{"page":{$pageNumber},"text":"..."}]}
+TEXT;
+    }
+
+    private function postGemini(string $baseUrl, string $model, string $apiKey, array $payload, int $timeout): Response
+    {
+        try {
+            return Http::timeout($timeout)
+                ->withHeaders(['Content-Type' => 'application/json'])
+                ->post("{$baseUrl}/{$model}:generateContent?key={$apiKey}", $payload);
+        } catch (Throwable $exception) {
+            throw new RuntimeException(
+                'Gemini contract OCR request failed: '.$this->sanitizeGeminiError($exception->getMessage()),
+                previous: $exception
+            );
+        }
     }
 
     private function extractPagesFromMalformedJson(string $rawText): array
@@ -184,6 +290,46 @@ TEXT,
             || str_starts_with($trimmed, '[')
             || str_contains($text, '"pages"')
             || str_contains($text, "'pages'");
+    }
+
+    private function estimatePdfPageCount(string $absolutePath): int
+    {
+        $contents = (string) file_get_contents($absolutePath);
+        $inspectionContents = $this->appendDecodedPdfStreams($contents);
+        $pageCount = preg_match_all('/\/Type\s*\/Page\b/', $inspectionContents) ?: 0;
+
+        return max(1, $pageCount);
+    }
+
+    private function appendDecodedPdfStreams(string $contents): string
+    {
+        if (!str_contains($contents, 'stream')) {
+            return $contents;
+        }
+
+        $decodedContents = '';
+        preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $contents, $matches);
+
+        foreach ($matches[1] ?? [] as $stream) {
+            $decoded = @zlib_decode($stream);
+            if ($decoded === false) {
+                $decoded = @gzuncompress($stream);
+            }
+
+            if ($decoded !== false && $decoded !== '') {
+                $decodedContents .= "\n".$decoded;
+            }
+        }
+
+        return $decodedContents === '' ? $contents : $contents."\n".$decodedContents;
+    }
+
+    private function sanitizeGeminiError(string $message): string
+    {
+        $message = preg_replace('/([?&]key=)[^&\s)]+/i', '$1[redacted]', $message) ?? $message;
+        $message = preg_replace('/AIza[0-9A-Za-z_\-]{20,}/', '[redacted-api-key]', $message) ?? $message;
+
+        return $message;
     }
 
     private function extractResponseText(array $rawResponse): string
