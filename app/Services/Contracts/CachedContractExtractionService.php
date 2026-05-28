@@ -122,7 +122,7 @@ class CachedContractExtractionService
         }
 
         $fingerprint = implode('|', [
-            'v2',
+            'v3',
             $extension,
             $allowOcr ? 'ocr' : 'no-ocr',
             $fileSize,

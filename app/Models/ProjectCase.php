@@ -36,6 +36,6 @@ class ProjectCase extends Model
     }
     public function timecardRecord()
     {
-        return $this->belongsTo(TimecardRecord::class);
+        return $this->belongsTo(timecardRecord::class);
     }
 }

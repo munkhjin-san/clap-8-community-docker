@@ -64,7 +64,9 @@ class GeminiContractOcrService
                 throw new RuntimeException('Gemini contract OCR failed on rendered page '.$pageNumber.': '.$this->sanitizeGeminiError($response->body()));
             }
 
-            $pageResults = $this->parseGeminiPages($response->json());
+            $rawResponse = $response->json();
+            $this->ensureCompleteGeminiResponse(is_array($rawResponse) ? $rawResponse : [], 'rendered page '.$pageNumber);
+            $pageResults = $this->parseGeminiPages($rawResponse);
             $pages[] = [
                 'page' => $pageNumber,
                 'text' => trim(implode("\n\n", array_map(
@@ -174,7 +176,10 @@ TEXT,
             throw new RuntimeException('Gemini contract OCR failed: '.$this->sanitizeGeminiError($response->body()));
         }
 
-        return $this->parseGeminiPages($response->json());
+        $rawResponse = $response->json();
+        $this->ensureCompleteGeminiResponse(is_array($rawResponse) ? $rawResponse : [], 'PDF OCR');
+
+        return $this->parseGeminiPages($rawResponse);
     }
 
     private function parseGeminiPages(mixed $rawResponse): array
@@ -247,7 +252,9 @@ TEXT,
                 throw new RuntimeException('Gemini contract OCR failed on page '.$pageNumber.': '.$this->sanitizeGeminiError($response->body()));
             }
 
-            $pageResults = $this->parseGeminiPages($response->json());
+            $rawResponse = $response->json();
+            $this->ensureCompleteGeminiResponse(is_array($rawResponse) ? $rawResponse : [], 'page '.$pageNumber);
+            $pageResults = $this->parseGeminiPages($rawResponse);
             $pageText = trim(implode("\n\n", array_map(
                 static fn (array $page) => (string) ($page['text'] ?? ''),
                 $pageResults
@@ -301,7 +308,9 @@ TEXT,
                 throw new RuntimeException('Gemini contract OCR failed on rendered page '.$pageNumber.': '.$this->sanitizeGeminiError($response->body()));
             }
 
-            $pageResults = $this->parseGeminiPages($response->json());
+            $rawResponse = $response->json();
+            $this->ensureCompleteGeminiResponse(is_array($rawResponse) ? $rawResponse : [], 'rendered page '.$pageNumber);
+            $pageResults = $this->parseGeminiPages($rawResponse);
             $pageText = trim(implode("\n\n", array_map(
                 static fn (array $page) => (string) ($page['text'] ?? ''),
                 $pageResults
@@ -321,7 +330,9 @@ TEXT,
 You are extracting visible text from a Japanese contract PDF.
 OCR only page {$pageNumber} of {$pageCount}. Ignore all other pages.
 Ignore broken embedded/selectable text layers and OCR the rendered visual page.
-Return only visible text. Do not summarize, translate, explain, or add missing clauses.
+Transcribe every visible heading, article title, numbered paragraph, bullet, table cell, footer, and signature label.
+Return only visible text. Do not summarize, translate, explain, rewrite, or add missing clauses.
+If a small part is unreadable, write [illegible] at that position instead of skipping the surrounding line.
 Do not preserve layout whitespace. Never emit more than one blank line in a row.
 Return compact JSON only in this shape:
 {"pages":[{"page":{$pageNumber},"text":"..."}]}
@@ -333,7 +344,9 @@ TEXT;
         return <<<TEXT
 You are extracting visible text from a rendered image of a Japanese contract page.
 OCR this image as page {$pageNumber} of {$pageCount}.
-Return only visible text. Do not summarize, translate, explain, or add missing clauses.
+Transcribe every visible heading, article title, numbered paragraph, bullet, table cell, footer, and signature label.
+Return only visible text. Do not summarize, translate, explain, rewrite, or add missing clauses.
+If a small part is unreadable, write [illegible] at that position instead of skipping the surrounding line.
 Preserve reading order and useful line breaks.
 Do not preserve layout whitespace. Never emit more than one blank line in a row.
 Return compact JSON only in this shape:
@@ -345,7 +358,7 @@ TEXT;
     {
         return [
             'temperature' => 0.0,
-            'maxOutputTokens' => 8192,
+            'maxOutputTokens' => max(8192, (int) config('services.google.contract_ocr_max_output_tokens', 32768)),
             'responseMimeType' => 'application/json',
             'responseSchema' => [
                 'type' => 'object',
@@ -365,6 +378,18 @@ TEXT;
                 'required' => ['pages'],
             ],
         ];
+    }
+
+    private function ensureCompleteGeminiResponse(array $rawResponse, string $context): void
+    {
+        $finishReason = Arr::get($rawResponse, 'candidates.0.finishReason');
+        if (!is_string($finishReason) || $finishReason === '' || $finishReason === 'STOP') {
+            return;
+        }
+
+        throw new RuntimeException(
+            'Gemini contract OCR stopped before completing '.$context.' (finishReason: '.$finishReason.').'
+        );
     }
 
     private function guessImageMimeType(string $path): string
