@@ -285,7 +285,7 @@ function mdToHtml(md: string): string {
     align-items: center;
     gap: 7px;
     padding: 10px 18px;
-    background: var(--primary-color);
+    background: var(--primary-button);
     color: #fff;
     border: none;
     border-radius: 4px;
@@ -346,7 +346,7 @@ function mdToHtml(md: string): string {
     width: 30px;
     height: 30px;
     border-radius: 8px;
-    background: var(--primary-color);
+    background: var(--primary-button);
     color: #fff;
     display: flex;
     align-items: center;
@@ -419,8 +419,8 @@ function mdToHtml(md: string): string {
     transition: background .12s, border-color .12s, color .12s;
 }
 .mcp-chip:hover:not(:disabled) {
-    background: var(--primary-color);
-    border-color: var(--primary-color);
+    background: var(--primary-button);
+    border-color: var(--primary-button);
     color: #fff;
 }
 .mcp-chip:disabled { opacity: .4; cursor: not-allowed; }
@@ -489,7 +489,7 @@ function mdToHtml(md: string): string {
     text-align: left;
     transition: background .12s;
 }
-.mcp-starter:hover { background: var(--primary-color); color: #fff; }
+.mcp-starter:hover { background: var(--primary-button); color: #fff; }
 
 /* Message rows */
 .mcp-row {
