@@ -40,6 +40,7 @@ class FileController extends Controller
         $view_from = $usercheck->view_from;
         $keyword = mb_strtolower(trim((string) $request->input('keyword', '')));
         $allFiles = messageFile::where('board_id', $request->board_id)
+        ->whereNull('original_file_id')
         ->whereHas('message_records')
         ->when($view_from, function ($query) use ($view_from) {
             $query->where('created_at', '>=', $view_from);
