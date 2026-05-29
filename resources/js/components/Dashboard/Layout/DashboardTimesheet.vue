@@ -6,7 +6,6 @@
         :type="data.type" 
         :can-resize="data.canResize"
         :can-fullscreen="data.canFullscreen"
-        :highlight-time-sheet="highlightTimeSheet"
         @toggle="(el, title) =>emit('toggle', el, data.type)" 
         @resize="emit('resize', data.type)"
     >
@@ -184,7 +183,7 @@
 import UserPanel from '@/components/Global/UserPanel.vue';
 import BaseLayout from './BaseLayout.vue';
 import { DateTime } from 'luxon';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import WorkMessage from '@/components/Work/WorkMessage.vue';
 import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
@@ -215,7 +214,6 @@ const props = defineProps<{
         col: string
     }
     fullscreen: boolean
-    highlightTimeSheet: boolean
 }>()
 
 const emit = defineEmits<{
@@ -223,7 +221,7 @@ const emit = defineEmits<{
     toggle: [el: HTMLElement | null, title: string]
 }>()
 const router = useRouter()
-
+const route = useRoute()
 const dashboardStore = useDashboardStore();
 const auth = useAuthUserStore();
 const departureReportCount = computed(() => {
@@ -240,7 +238,9 @@ const actionCount = computed(() => {
         props.data.data.pendingTimesheets.length
     )
 })
-
+const highlightTimeSheet = computed(() => {
+    return route.query.timesheet === 'true'
+})
 onMounted(() => {
     if(auth?.user?.user_code){
         if(!dashboardStore.annualLeaveData.fetched && !dashboardStore.annualLeaveData.fetching){

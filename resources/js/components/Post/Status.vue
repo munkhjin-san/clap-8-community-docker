@@ -26,7 +26,7 @@
                     v-model="resultMessage"
                 />
             </div>
-            <div class="si-box" v-if="selected > 0">
+            <div class="si-box" v-if="selected > 0 || isProgressReportInput">
                 <FileUploader
                     v-model="uploadedFiles"
                     path="/post_files"
@@ -45,7 +45,6 @@
                     <input type="checkbox" v-model="challengeRelayEnabled">
                     <span>ミニチャレンジのバトンを渡しますか？</span>
                 </label>
-                <p class="challenge-relay-note">バトンを渡すメンバーを選んでください。</p>
                 <MemberSelector
                     v-if="challengeRelayEnabled"
                     placeHolder="バトンを渡すメンバー"
@@ -258,6 +257,7 @@ import { useAuthUserStore } from '@/store/auth';
         gap: 8px;
         font-size: 13px;
         cursor: pointer;
+        margin-bottom: 12px;
     }
     .challenge-relay-note{
         font-size: 12px;

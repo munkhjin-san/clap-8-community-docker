@@ -226,7 +226,7 @@ import UserPanel from '@/components/Global/UserPanel.vue';
 import { storeToRefs } from 'pinia';
 import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
-
+import { useRoute } from 'vue-router';
 type OutcomeGoalGroup = {
     year: number;
     which_half: string;
@@ -245,7 +245,6 @@ const props = defineProps<{
         col: string
     },
     fullscreen: boolean,
-    highlightGoals?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -259,9 +258,12 @@ const { getGoals } = goalsStore
 
 const auth = useAuthUserStore()
 const selectedUser = ref<User | null>(auth.user)
-
+const route = useRoute()
 const targetDates = detailedDateOptions()
 const selectedDate = ref<typeof targetDates[0]>({ name: '', year: '0', which_half: '', short_name: '' })
+const highlightGoals = computed(() => {
+    return route.query.goal_pending === 'true'
+})
 onMounted(() => {
 
     const now = DateTime.local();

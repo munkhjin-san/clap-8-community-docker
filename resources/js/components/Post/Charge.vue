@@ -23,7 +23,7 @@
                 :class="[
                     'border border-solid border-[var(--formBorder)] px-[15px] py-[5px] text-[13px] font-semibold',
                     charge_bet?.value === option.value
-                        ? 'bg-[var(--primary-color)] text-[var(--background-color)]'
+                        ? 'bg-[var(--primary-color)] !text-[var(--background-color)]'
                         : 'bg-transparent text-[var(--primary-color)]'
                 ]"
             >
