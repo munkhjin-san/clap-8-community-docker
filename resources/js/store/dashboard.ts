@@ -73,6 +73,17 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         fetching: false,
     })
     const lastUpdated = ref<DateTime | null>(null);
+    const dashboardPostReminderTypes = [
+        'nice_follow_up',
+        'challenge_relay_received',
+        'challenge_relay_returned',
+    ]
+    const dashboardPostBadgeCount = computed(() => {
+        return collection.value.challenges.filter((challenge) => {
+            const attentionType = (challenge as Post & { attention_type?: string }).attention_type
+            return !dashboardPostReminderTypes.includes(attentionType ?? '')
+        }).length
+    })
 
     const getBatchDashboardData = async (requestedData?: string[]) => {
         try {
@@ -117,13 +128,12 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         const inconfirmedAssets = 0
         const total = departuresCount + 
         inconfirmedAssets + collection.value.assets.waiting_approval.length + 
-        collection.value.challenges.length + collection.value.forms.length + 
+        dashboardPostBadgeCount.value + collection.value.forms.length + 
         collection.value.pendingGoalsUserForHR.length + 
         collection.value.schedules.temp_schedules.length + collection.value.pendingDailyReports.length +
         normalCheckMessages + collection.value.mustSignMessages.length + 
         collection.value.unfinishedTasks.length + collection.value.untouchedTasks.length +
         collection.value.personnelEvaluation.pendingEvaluations.length + 
-        collection.value.timesheet.pendingTimesheets.length + 
         collection.value.notices.length + collection.value.projects.assign_approval_waiting.length + 
         collection.value.projects.officer_approval_waiting.length +
         collection.value.incidents.attention.length + collection.value.systemUpdates.length + 
@@ -138,11 +148,11 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         const overdueApprovalGoalsCount =
             goalsStore.pendingMembers.flatMap(user => user.outcome_goals ?? []).filter(goalsStore.isGoalOverWeek).length +
             goalsStore.managersGoals.flatMap(user => user.outcome_goals ?? []).filter(goalsStore.isGoalOverWeek).length
-
+        const pendingTimesheetsCount = collection.value.timesheet.pendingTimesheets.length
         const needed = (goalsStore.requiredGoalData?.this_span?.needed_count || 0) + (goalsStore.requiredGoalData?.previous_span?.needed_count || 0) + (goalsStore.unfinishedPreviousSpanGoals.length ?? 0)
         const pendingAttendanceCount = collection.value.timesheet.pendingAttendance ? 1 : 0
         const incidentsNeedingAttention = collection.value.incidents.attention.length
-        return overdueGoals.length + overdueApprovalGoalsCount + needed + pendingAttendanceCount + overdueCheckMessages + incidentsNeedingAttention
+        return overdueGoals.length + overdueApprovalGoalsCount + needed + pendingAttendanceCount + overdueCheckMessages + pendingTimesheetsCount + incidentsNeedingAttention
     })
     const getAnnualLeaveData = async () => {
         try {

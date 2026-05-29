@@ -1,7 +1,7 @@
 <template>
     <div class="recordFile">                                                
         <div class="recordFile-inner">                                        
-            <div class="swiper" style="border:none;">
+            <div :class="`swiper swiper-${uniqueId}`" style="border:none;">
                 <div class="swiper-wrapper">
                     <div class="swiper-slide" v-for="(image, index) in images" :key="index">
                         <div class="swiper-slide-square" @click="previewImage(image, index)">
@@ -37,19 +37,26 @@ import { ref } from 'vue';
 import { useFilePreview } from '@/store/filePreview';
 import { CommonFile } from '@/interface/globalInterface';
     // const props = defineProps(['items', 'path'])
-    const props = defineProps<{
+    const props = withDefaults(defineProps<{
         items: CommonFile[]
         path?: string
-    }>()
+        slidesCount?: number
+    }>(), {
+        path: 'post_files',
+        slidesCount: 10
+    });
     const path = ref(props.path ?? 'post_files')
     const filePreview = useFilePreview()
+    const uniqueId = computed(() => {
+        return Math.random().toString(36).substring(5)
+    })
     onMounted(() => {
-        new Swiper('.swiper', {
+        new Swiper(`.swiper-${uniqueId.value}`, {
             slidesPerView: 4,
             spaceBetween: 6,
             breakpoints: {
                 640: { slidesPerView: 5, spaceBetween: 8 },
-                1024: { slidesPerView: 10, spaceBetween: 20 },
+                1024: { slidesPerView: props.slidesCount, spaceBetween: 20 },
             }
         })
     })

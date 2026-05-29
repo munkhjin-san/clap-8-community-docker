@@ -28,8 +28,8 @@
                         style="font-size: 14px;line-height: 2;white-space: break-spaces;outline: none;word-break: break-word;display: inline-block;" 
                         v-html="urlCheck(comment.messages)">
                     </p>
-                    
                 </div>
+                <PostFiles v-if="comment.progress_files.length" :slidesCount="5" :items="comment.progress_files"/>
             </div>
             <div class="flex w-fit relative items-center gap-2">
                 <div class="cursor-pointer mt-1" @click.stop="emoteAction">
@@ -72,7 +72,8 @@ import { useApi } from '@/composables/api';
 import { useModal } from '@/composables/modal';
 import { PostComment } from '@/interface/postInterface';
 import Error from '@/components/Global/Error.vue'
-    const auth = useAuthUserStore()
+import PostFiles from './PostFiles.vue';
+   const auth = useAuthUserStore()
     const menu = useMenuStore()
     const api = useApi()
     const { setEmoteUsers } = useModal()

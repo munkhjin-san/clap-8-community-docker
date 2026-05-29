@@ -31,7 +31,7 @@
                         </div>
                     </div>
                 </div>
-                <div v-if="!fullscreen" class="m-5">
+                <div v-if="!fullscreen" class="m-5" :class="{ 'pulse-border': highlightGoals }">
                     <div v-for="item in approvaNeeded" class="mb-4">
                         <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis flex items-center gap-2">
                             <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 py-0.5">{{ item.chip }}</span>
@@ -244,7 +244,8 @@ const props = defineProps<{
         canFullscreen?: boolean
         col: string
     },
-    fullscreen: boolean
+    fullscreen: boolean,
+    highlightGoals?: boolean
 }>()
 
 const emit = defineEmits<{

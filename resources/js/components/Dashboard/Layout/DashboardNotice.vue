@@ -31,7 +31,7 @@
                     >
                         <template #title="{ expanded }">
                             <PanelTitle :expanded="expanded" @click="loadBody(notice.id)">
-                                <div v-if="!expanded" class="text-[14px] flex-1 whitespace-nowrap overflow-hidden text-ellipsis leading-normal flex items-center">
+                                <div class="text-[14px] flex-1 whitespace-nowrap overflow-hidden text-ellipsis leading-normal flex items-center">
                                     <div v-if="!notice.read" class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5"></div>
                                     <div class="text-[14px] flex-1 whitespace-nowrap overflow-hidden text-ellipsis leading-normal" v-html="notice.title"></div>
                                 </div>                                
@@ -39,11 +39,14 @@
                         </template>
                         <template #body>
                             <PanelData class="px-4 py-4 pt-0">
-                                <p class="mb-5">{{ notice.title }}</p>
+                                <!-- <p class="mb-5">{{ notice.title }}</p> -->
                                 <div v-if="bodyLoading.includes(notice.id)" class="py-3 flex items-center justify-center">
                                     <div class="spinner-micro"></div>
                                 </div>
                                 <div class="whitespace-pre-wrap text-[13px] leading-normal" v-html="urlCheck(notice.body)"></div>
+                                <div v-if="notice.files && notice.files.length" class="file-area-content mt-3">
+                                    <NoticeFiles :list="notice.files"/>
+                                </div>
                             </PanelData>
                         </template>
                     </ExpansionPanelItem>
@@ -77,6 +80,7 @@ import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
 import Notice from '@/components/Notice/Notice.vue';
 import { NoticeRecord } from '@/interface/notice';
+import NoticeFiles from '@/components/Notice/NoticeFiles.vue';
 
 
 const props = defineProps<{

@@ -4,6 +4,7 @@ use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetCategoryController;
 use App\Http\Controllers\CustomFormController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectCustomerReportController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,7 @@ use App\Http\Controllers\FileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\AdminAccountController;
+use App\Http\Controllers\AdminCostMasterController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\WorkController;
 use App\Http\Controllers\CustomfieldController;
@@ -34,11 +36,17 @@ use App\Http\Controllers\GoogleController;
 use App\Http\Controllers\CommunityController;
 use App\Http\Controllers\OpenAiController;
 use App\Http\Controllers\ProjectPlanController;
+use App\Http\Controllers\ProjectProfitPlanController;
 use App\Http\Controllers\PublicSurveyController;
 use App\Http\Controllers\PushController;
 use App\Http\Controllers\PublicHolidayController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\AppCommentController;
+use App\Http\Controllers\GoalToolController;
+use App\Http\Controllers\GoalChatController;
+use App\Http\Controllers\FinanceToolController;
+use App\Http\Controllers\TimesheetToolController;
+use App\Http\Controllers\FinanceChatController;
 use App\Models\User;
 /*
 |--------------------------------------------------------------------------
@@ -50,7 +58,7 @@ use App\Models\User;
 | contains the "web" middleware group. Now create something great!
 |
 */
-Route::get('/incident_fill', [AutoJobController::class, 'incident_fill']);
+// Route::get('/incident_fill', [AutoJobController::class, 'incident_fill']);
 //for home page
 Route::get('get_team_external', [ProjectController::class, 'get_team_external']);
 Route::get('get_projects_external', [ProjectController::class, 'get_projects_external']);
@@ -110,6 +118,8 @@ Route::prefix('cdn_external')->group(function () {
 Route::get('/public-surveys/{token}', [PublicSurveyController::class, 'show']);
 Route::get('/public-surveys/{token}/data', [PublicSurveyController::class, 'data']);
 Route::post('/public-surveys/{token}/answers', [PublicSurveyController::class, 'submit'])->middleware('throttle:20,1');
+Route::get('/customer-reports/{token}', [ProjectCustomerReportController::class, 'showPublic']);
+Route::get('/customer-reports/{token}/data', [ProjectCustomerReportController::class, 'publicData']);
 Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::post('/push/subscribe', [PushController::class, 'subscribe']);
     Route::get('/push/test', [PushController::class, 'test']);
@@ -275,6 +285,13 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/clap_statistics', [AdminAccountController::class, 'clap_statistics']);
         Route::post('/get_planned_shifts', [AdminWorkController::class, 'get_planned_shifts']);
         Route::post('/change_planned_shifts', [AdminWorkController::class, 'change_planned_shifts']);
+        Route::get('/admin/cost-items', [AdminCostMasterController::class, 'index']);
+        Route::post('/admin/cost-items', [AdminCostMasterController::class, 'store']);
+        Route::put('/admin/cost-items/{costItem}', [AdminCostMasterController::class, 'update']);
+        Route::delete('/admin/cost-items/{costItem}', [AdminCostMasterController::class, 'destroy']);
+        Route::post('/admin/cost-items/{costItem}/rates', [AdminCostMasterController::class, 'storeRate']);
+        Route::put('/admin/cost-items/{costItem}/rates/{rate}', [AdminCostMasterController::class, 'updateRate']);
+        Route::delete('/admin/cost-items/{costItem}/rates/{rate}', [AdminCostMasterController::class, 'destroyRate']);
         Route::post('/one_shot_confirmation', [WorkController::class, 'one_shot_confirmation']);    
         
         //User
@@ -319,6 +336,10 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/post_comment_edit', [PostController::class, 'post_comment_edit']);
         Route::post('/post_comment_delete', [PostController::class, 'post_comment_delete']);
         Route::post('/post_status_update', [PostController::class, 'post_status_update']);
+        Route::post('/challenge_relay_pass', [PostController::class, 'challenge_relay_pass']);
+        Route::post('/challenge_relay_reassign', [PostController::class, 'challenge_relay_reassign']);
+        Route::post('/challenge_relay_close', [PostController::class, 'challenge_relay_close']);
+        Route::post('/nice_follow_up_dismiss', [PostController::class, 'nice_follow_up_dismiss']);
         Route::post('/post_get_post_users', [PostController::class, 'post_get_post_users']);
         Route::post('/post_get_all_possible_users', [PostController::class, 'post_get_all_possible_users']);
         Route::post('/post_get_challenge_users', [PostController::class, 'post_get_challenge_users']);
@@ -448,6 +469,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/remand_time_card', [WorkController::class, 'remandTimeCard']);
         Route::post('/approve_time_card', [WorkController::class, 'approveTimeCard']);
         Route::post('/cancel_time_card', [WorkController::class, 'cancelTimeCard']);
+        Route::post('/approve_timecard_project_segment', [WorkController::class, 'approveTimecardProjectSegment']);
+        Route::post('/reject_timecard_project_segment', [WorkController::class, 'rejectTimecardProjectSegment']);
         Route::post('/attendance_confirm', [WorkController::class, 'attendanceConfirm']);
         Route::post('/attendance_delete', [WorkController::class, 'attendanceDelete']);
         Route::post('/attendance_closed', [WorkController::class, 'attendanceClose']);
@@ -596,10 +619,16 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_yearly_plan', [ProjectController::class, 'get_yearly_plan']);
         Route::get('/get_profit', [ProjectController::class, 'get_profit']);
         Route::get('/get_settlement', [ProjectController::class, 'get_settlement']);
+        Route::get('/projects/{project}/customer-report', [ProjectCustomerReportController::class, 'index']);
+        Route::post('/projects/{project}/customer-report/generate', [ProjectCustomerReportController::class, 'generate']);
+        Route::put('/projects/{project}/customer-report/{report}', [ProjectCustomerReportController::class, 'update']);
+        Route::post('/projects/{project}/customer-report/{report}/ai-improve', [ProjectCustomerReportController::class, 'improve']);
+        Route::post('/projects/{project}/customer-report/{report}/publish', [ProjectCustomerReportController::class, 'publish']);
         Route::post('/get_partners_tags', [ProjectController::class, 'get_partners_tags']);
         Route::get('/get_task_comment_badge', [ProjectController::class, 'get_task_comment_badge']);
         Route::get('/get_dispatch_data', [ProjectController::class, 'get_dispatch_data']);
         Route::get('/get_total_finance', [ProjectController::class, 'get_total_finance']);
+        Route::post('/finance/analyze', [ProjectController::class, 'analyze_finance']);
         Route::post('/set_project_goal_step_status', [ProjectController::class, 'set_project_goal_step_status']);
         Route::post('/project_goal_report_create', [ProjectController::class, 'project_goal_report_create']);
         Route::post('/get_previous_goals', [ProjectController::class, 'get_previous_goals']);
@@ -641,6 +670,13 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/projects/{project}/accounts/sync-template', [ProjectPlanController::class, 'syncTemplate']);
         Route::put('/projects/{project}/accounts/{account}', [ProjectPlanController::class, 'accountUpdate']);
         Route::delete('/projects/{project}/accounts/{account}', [ProjectPlanController::class, 'accountDestroy']);
+
+        Route::get('/projects/{project}/profit-plan', [ProjectProfitPlanController::class, 'show']);
+        Route::post('/projects/{project}/profit-plan', [ProjectProfitPlanController::class, 'save']);
+        Route::post('/projects/{project}/profit-plan/submit', [ProjectProfitPlanController::class, 'submit']);
+        Route::post('/projects/{project}/profit-plan/confirm', [ProjectProfitPlanController::class, 'confirm']);
+        Route::post('/projects/{project}/profit-plan/unlock', [ProjectProfitPlanController::class, 'unlock']);
+        Route::post('/projects/{project}/profit-plan/monthly-revision', [ProjectProfitPlanController::class, 'monthlyRevision']);
         Route::get('/projects/{project}/cases', [ProjectController::class, 'project_cases']);
         Route::post('/projects/{project}/cases', [ProjectController::class, 'project_case_store']);
         Route::put('/projects/{project}/cases/{case}', [ProjectController::class, 'project_case_update']);
@@ -854,5 +890,12 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/incident_record_update', [DashboardController::class, 'updateIncidentRecord']);
         Route::post('/incident_record_delete', [DashboardController::class, 'deleteIncidentRecord']);
         Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
+
+        // Goal & KPI MCP Server (Model Context Protocol / JSON-RPC 2.0)
+        Route::post('/mcp/goal', [GoalToolController::class, 'handle']);
+        Route::post('/mcp/goal/chat', [GoalChatController::class, 'chat']);
+
+        // Unified AI Chat — Goal + Finance + Timesheet (role-based)
+        Route::post('/mcp/chat', [FinanceChatController::class, 'chat']);
 });
      Route::post('/tts_stream', [OpenAiController::class, 'stream_tts']);

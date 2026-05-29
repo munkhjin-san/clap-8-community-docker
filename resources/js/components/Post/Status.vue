@@ -26,10 +26,35 @@
                     v-model="resultMessage"
                 />
             </div>
-            <div class="si-box" v-if="selected > 0 && !isProgressReportInput">
+            <div class="si-box" v-if="selected > 0">
                 <FileUploader
                     v-model="uploadedFiles"
                     path="/post_files"
+                />
+            </div>
+            <div class="si-box" v-if="challengeRelayHistory.length">
+                <p class="text-[13px] mb-2">チャレンジリレー履歴</p>
+                <div class="grid gap-1">
+                    <p class="text-[12px] text-[gray]" v-for="relay in challengeRelayHistory" :key="relay.id">
+                        {{ challengeRelayStatusText(relay) }}
+                    </p>
+                </div>
+            </div>
+            <div class="si-box" v-if="canPassChallengeRelay">
+                <label class="challenge-relay-option">
+                    <input type="checkbox" v-model="challengeRelayEnabled">
+                    <span>ミニチャレンジのバトンを渡しますか？</span>
+                </label>
+                <p class="challenge-relay-note">バトンを渡すメンバーを選んでください。</p>
+                <MemberSelector
+                    v-if="challengeRelayEnabled"
+                    placeHolder="バトンを渡すメンバー"
+                    rules="required"
+                    name="challengeRelayUser"
+                    :multiple="false"
+                    path="post_get_challenge_users"
+                    :exclude="auth.id ? [auth.id] : []"
+                    v-model="challengeRelayUser"
                 />
             </div>
             <div class="si-box">
@@ -42,15 +67,18 @@
 import LoaderButton from '../Global/LoaderButton.vue';
 import FileUploader from '../Form/FileUploader.vue';
 import LongInput from '../Form/LongInput.vue';
+import MemberSelector from '../Form/MemberSelector.vue';
 import { computed, onMounted, ref } from 'vue';
 import { customParser } from '@/utils/tools';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
-import { Post } from '@/interface/postInterface';
+import { Post, PostRelay } from '@/interface/postInterface';
+import { User } from '@/interface/globalInterface';
 import { useBadgeStore } from '@/store/badge';
 import { useRoute } from 'vue-router';
 import { useDashboardStore } from '@/store/dashboard';
 import { useDialog } from '@/composables/dialog';
+import { useAuthUserStore } from '@/store/auth';
     const props = defineProps<{
         record: Post
     }>()
@@ -63,6 +91,9 @@ import { useDialog } from '@/composables/dialog';
     const route = useRoute()
     const { getBatchDashboardData } = useDashboardStore()
     const { ping } = useDialog()
+    const auth = useAuthUserStore()
+    const challengeRelayEnabled = ref(false)
+    const challengeRelayUser = ref<User | null>(null)
     const progressReportMode = computed(() => String(route.query.status ?? '') === '5')
     const canSelectProgressReport = computed(() => {
         const start = DateTime.fromISO(props.record.date_start)
@@ -72,6 +103,8 @@ import { useDialog } from '@/composables/dialog';
         return start.isValid && end.isValid && now >= start && now <= end && [0, 5].includes(props.record.status_flag)
     })
     const isProgressReportInput = computed(() => progressReportMode.value || (selected.value === 5 && canSelectProgressReport.value))
+    const canPassChallengeRelay = computed(() => !progressReportMode.value && props.record.app_type == 2 && props.record.mini && selected.value === 1)
+    const challengeRelayHistory = computed(() => (props.record.post_relays ?? []).filter(relay => relay.relay_type === 'challenge'))
     const progressCheckpoint = computed(() => {
         const queryCheckpoint = parseInt(String(route.query.progress_checkpoint ?? ''))
         if (!Number.isNaN(queryCheckpoint)) {
@@ -104,9 +137,10 @@ import { useDialog } from '@/composables/dialog';
             }
         }
     })
-    const statuses = computed(() => {           
+    const statuses = computed(() => {      
+        const endDate = props.record?.mini ? DateTime.fromISO(props.record.created_at).plus({ days: 7 }) :  DateTime.fromISO(props.record.created_at).plus({ days: 14 });     
         const items = [
-            { id: 0, state : DateTime.now() <= customParser(props.record.date_end) ? 'チャージ受付中' : '結果待ち' },
+            { id: 0, state : DateTime.now() <= endDate ? 'チャージ受付中' : '結果待ち' },
         ]
 
         if (canSelectProgressReport.value) {
@@ -133,7 +167,8 @@ import { useDialog } from '@/composables/dialog';
                 record_id: props.record.id,
                 message: resultMessage.value,
                 comment_type: 'progress_report',
-                progress_checkpoint: progressCheckpoint.value
+                progress_checkpoint: progressCheckpoint.value,
+                progress_files: uploadedFiles.value.map(ob => ob.id)
             }, {
                 toast: '進捗報告を保存しました。',
                 loadingRef: processing,
@@ -143,11 +178,16 @@ import { useDialog } from '@/composables/dialog';
             badge.updatePostBadge('post')
             return
         }
+        if (canPassChallengeRelay.value && challengeRelayEnabled.value && !challengeRelayUser.value?.id) {
+            ping('バトンを渡すメンバーを選択してください。')
+            return
+        }
         const params = {
             id: props.record.id,
             status: selected.value,
             result: resultMessage.value,
-            resultFiles: uploadedFiles.value.map(ob => ob.id)
+            resultFiles: uploadedFiles.value.map(ob => ob.id),
+            challenge_relay_to_user_id: canPassChallengeRelay.value && challengeRelayEnabled.value ? challengeRelayUser.value?.id : null,
         }
         await api.post('post_status_update', params, {
             toast: 'ステータスを更新しました。',
@@ -160,6 +200,37 @@ import { useDialog } from '@/composables/dialog';
     const selectStatus = (id: number) => {
         selected.value = id
         resultMessage.value = id === 5 ? '' : props.record.result ?? ''
+        if (id !== 1) {
+            challengeRelayEnabled.value = false
+            challengeRelayUser.value = null
+        }
+    }
+    const relayDate = (value?: string | null) => {
+        if (!value) return ''
+
+        const parsed = DateTime.fromISO(value)
+        return parsed.isValid ? parsed.toFormat('yyyy/MM/dd') : ''
+    }
+    const challengeRelayStatusText = (relay: PostRelay) => {
+        const toUserName = relay.to_user?.name ?? 'メンバー'
+        if (relay.status === 0) {
+            const deadline = relayDate(relay.deadline_at)
+            return deadline ? `${toUserName}さんへ送信中（締切: ${deadline}）` : `${toUserName}さんへ送信中`
+        }
+
+        if (relay.status === 1) {
+            return `${relay.declined_by_user?.name ?? toUserName}さんがパスしました。`
+        }
+
+        if (relay.status === 2) {
+            return `${relay.closed_by_user?.name ?? '誰か'}さんがリレーを終了しました。`
+        }
+
+        if (relay.status === 3) {
+            return `${toUserName}さんが「${relay.accepted_post?.title ?? 'チャレンジ'}」を作成しました。`
+        }
+
+        return `${toUserName}さんへ送信しました。`
     }
 </script>
 <style>
@@ -174,5 +245,23 @@ import { useDialog } from '@/composables/dialog';
     .current-state{
         border: solid 1px var(--hoverBorder);
         background: var(--bg2);
+    }
+    .challenge-relay-box{
+        border: solid 1px var(--hoverBorder);
+        border-radius: 8px;
+        padding: 12px;
+        background: var(--bg2);
+    }
+    .challenge-relay-option{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        cursor: pointer;
+    }
+    .challenge-relay-note{
+        font-size: 12px;
+        color: gray;
+        margin: 8px 0 12px;
     }
 </style>

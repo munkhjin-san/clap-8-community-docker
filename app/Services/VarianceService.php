@@ -5,8 +5,9 @@ namespace App\Services;
 final class VarianceService
 {
     public static function pct(?float $num, ?float $den): ?float
-    {   
-        if ($den == 0.0 && $num > 0.0) return 0;
+    {
+        // When plan is zero but actuals exist, variance is undefined — not 0% and not -100%.
+        if ($den == 0.0 && $num > 0.0) return null;
         if ($num === null || $den === null || $den == 0.0 || is_nan($num) || is_nan($den)) return null;
         return ($num / $den) * 100.0;
     }
@@ -18,7 +19,7 @@ final class VarianceService
 
     public static function anyOverThreshold(array $v, int|float $threshold): bool
     {
-        foreach (['sales','expense','profit'] as $k) {
+        foreach (['sales','expense','expenses','profit'] as $k) {
             $x = $v[$k] ?? null;
             if ($x !== null && abs($x) >= $threshold) return true;
         }

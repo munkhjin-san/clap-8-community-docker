@@ -67,15 +67,21 @@
                 @close="savePWAStatus"
             />
         </Transition>
-        
-
+        <Warning 
+            v-if="checkWarningDisplay" 
+            :pending="activeWarning?.pending"
+            :message="activeWarning?.message"
+            :href="activeWarning?.href"
+            :link-text="activeWarning?.linkText"
+            @close="handleWarningClose"
+        />
     </div>
 
 </template>
 <script setup lang="ts">
 import SideMenu from './Global/SideMenu.vue';
 import Footer from './Header/Footer.vue';
-import { computed, onBeforeMount, onMounted, onUnmounted, provide, ref, watch, nextTick, useTemplateRef } from 'vue';
+import { computed, onBeforeMount, onMounted, onUnmounted, provide, ref, watch, useTemplateRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Dialog from './Global/Dialog.vue';
 import LunchChallengePopup from './Global/LunchChallengePopup.vue';
@@ -95,6 +101,9 @@ import { DateTime } from 'luxon';
 import { useDialog } from '@/composables/dialog';
 import { initPush } from '@/utils/push';
 import { useDashboardGoalsStore } from '@/store/dashboardGoals';
+import Warning from './Global/Warning.vue';
+import { useDashboardStore } from '@/store/dashboard';
+import { storeToRefs } from 'pinia';
     const props = defineProps(['session', 'auth_user', 'initial_date'])
     const route = useRoute()
     const router = useRouter()
@@ -127,6 +136,16 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
     const confused = ref(false)
     const dashboardGoalsStore = useDashboardGoalsStore()
     const { initDashboardData, initGoalData } = dashboardGoalsStore
+    const { activeOutcomeGoalWarning } = storeToRefs(dashboardGoalsStore)
+    const { pendingTimeSheets } = storeToRefs(useDashboardStore())
+    const warningClosedTimes = ref<Record<string, string | null>>({})
+    type RootWarning = {
+        type: string
+        pending?: boolean
+        message?: string
+        href?: string
+        linkText?: string
+    }
     // const socket = ref()
     onBeforeMount(() => {
         auth.setUser(props.auth_user)
@@ -218,7 +237,64 @@ import { useDashboardGoalsStore } from '@/store/dashboardGoals';
 
         await Promise.all(jobs)
     }
+    const warningStorageKey = (type: string) => `warning_closed_time_${type}`
 
+    const getWarningClosedTime = (type: string) => {
+        const inMemory = warningClosedTimes.value[type]
+        if(inMemory) return inMemory
+
+        const stored = localStorage.getItem(warningStorageKey(type))
+        if(stored) return stored
+    }
+
+    const warningIsInCooldown = (type: string) => {
+        const closedTime = getWarningClosedTime(type)
+        if(closedTime){
+            const closedDate = DateTime.fromISO(closedTime)
+            if(DateTime.now().diff(closedDate, 'hours').hours < 3){
+                return true
+            }
+        }
+        return false
+    }
+
+    const activeWarning = computed<RootWarning | null>(() => {
+        if(pendingTimeSheets.value && route.name !== 'dashboard' && route.name !== 'timesheet' && !warningIsInCooldown('timesheet')){
+            return {
+                type: 'timesheet',
+                pending: pendingTimeSheets.value,
+            }
+        }
+
+        const goalWarning = activeOutcomeGoalWarning.value
+        if(goalWarning && route.name !== 'dashboard' && !warningIsInCooldown(goalWarning.type)){
+            return {
+                type: goalWarning.type,
+                message: goalWarning.message,
+                href: goalWarning.href,
+                linkText: goalWarning.linkText,
+            }
+        }
+
+        return null
+    })
+
+    const checkWarningDisplay = computed(() => {
+        return Boolean(activeWarning.value)
+    })
+    const handleWarningClose = () => {
+        // 3時間後に再表示するため、ローカルストレージに閉じた時間を保存
+        const warning = activeWarning.value
+        if(!warning) return
+
+        const closeTime = DateTime.now().toISO()
+        localStorage.setItem(warningStorageKey(warning.type), closeTime)
+        
+        warningClosedTimes.value = {
+            ...warningClosedTimes.value,
+            [warning.type]: closeTime,
+        }
+    }
     const postHandler = () => {
         console.debug('post:badge event received, refreshing board badge')
         if(!auth.isPartner){

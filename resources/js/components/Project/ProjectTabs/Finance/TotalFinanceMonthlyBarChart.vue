@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 import {
     Chart as ChartJS,
     registerables,
@@ -13,6 +13,7 @@ ChartJS.register(...registerables);
 type GroupingMode = 'range' | 'fiscal'
 type MetricKey = 'sales' | 'expense' | 'profit'
 type ScenarioKey = 'yearly_plan' | 'profit' | 'settlement'
+type ChartComparisonKey = 'yearly_plan:settlement' | 'profit:settlement' | 'yearly_plan:profit'
 
 interface UnitData {
     sales?: number
@@ -83,7 +84,7 @@ const scenarioColors: Record<ScenarioKey, string> = {
 };
 
 const comparisonPairs: Array<{
-    key: string
+    key: ChartComparisonKey
     base: ScenarioKey
     target: ScenarioKey
     label: string
@@ -108,7 +109,9 @@ const comparisonPairs: Array<{
     },
 ];
 
-const selectedComparisonKey = ref('yearly_plan:settlement');
+const selectedComparisonKey = defineModel<ChartComparisonKey>('comparisonKey', {
+    default: 'yearly_plan:settlement',
+});
 
 const yenFormatter = new Intl.NumberFormat('ja-JP', {
     maximumFractionDigits: 0,

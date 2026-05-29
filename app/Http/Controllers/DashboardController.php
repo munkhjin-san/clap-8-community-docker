@@ -16,6 +16,7 @@ use Carbon\Carbon;
 use App\Models\ProjectRecord;
 use App\Models\CalendarRecord;
 use App\Models\PostRecord;
+use App\Models\PostRelay;
 use App\Models\AssetRecord;
 use App\Models\workTemp;
 use App\Models\timecardRecord;
@@ -367,7 +368,7 @@ class DashboardController extends Controller
         $target_users = [];
         $workGroupIds = [];
         $list = [];
-
+        $today = $date->copy()->format('Y-m-d');
         $headquartersIds = [];
         $hqProject = ProjectRecord::where('id', 20)->first();
         if($hqProject){
@@ -423,21 +424,34 @@ class DashboardController extends Controller
                                     })->selectRaw('MONTH(shift_day) as month, COUNT(*) as count, user_id')
                                     ->groupByRaw('MONTH(shift_day), user_id');
                             }
-                        ])->select('id', 'name', 'icon_path', 'icon_bg')->get();
+                        ])
+                        ->select('id', 'name', 'icon_path', 'icon_bg')
+                        ->withExists([
+                            'time_card_records as has_pending_timecards' => function ($q) use ($today, $workGroupIds, $prev_month_start) {
+                                $q->where('day', '>=', $prev_month_start)
+                                    ->where('day', '<', $today)
+                                    ->where('status_flag', 1)
+                                    ->whereIn('work_group_id', $workGroupIds);
+                            },
+                        ])
+                        ->get();
         foreach($user_list as $user){
             $timeCardsCount = $user->time_card_records;
             $overtimeRequests = $user->shift_overtime->count();
             $shiftCount = $user->shift_records;
+            $hasPendingTimecards = (bool) $user->has_pending_timecards;
             
              $d = [
                 "user" => $user,
                 "timecard" => $timeCardsCount,
+                "has_pending_timecards" => $hasPendingTimecards,
                 "overtime" => $overtimeRequests,
                 "shift" => $shiftCount,
             ];
-            if($timeCardsCount->count() || $overtimeRequests || $shiftCount->count()){                    
+            if($hasPendingTimecards || $timeCardsCount->count() || $overtimeRequests || $shiftCount->count()){                    
                 $list[] = $d;
             }
+
         }
         // $data = [
         //     "remind_timesheet" => $list
@@ -501,6 +515,7 @@ class DashboardController extends Controller
     {
         $now = now();
         $active_user = $this->active_user();
+        $challengeRelays = $this->challengeRelayReminders($active_user->id, $now);
         $niceReminders = $this->niceFollowUpReminders($active_user->id, $now);
         $challengesQuery = PostRecord::query()
             ->where('app_type', 2)
@@ -555,8 +570,66 @@ class DashboardController extends Controller
         });
         $final = $data->concat($updateNeed)->sortBy('date_start')->values();
 
-        return $niceReminders->concat($final)->values();
+        return $challengeRelays->concat($niceReminders)->concat($final)->values();
 
+    }
+    private function challengeRelayReminders(int $userId, Carbon $now)
+    {
+        $pendingRelays = PostRelay::query()
+            ->where('relay_type', PostRelay::TYPE_CHALLENGE)
+            ->where('status', PostRelay::STATUS_PENDING)
+            ->where('to_user_id', $userId)
+            ->with(['fromUser', 'toUser', 'sourcePost'])
+            ->orderBy('deadline_at')
+            ->get()
+            ->filter(function (PostRelay $relay) use ($userId) {
+                return !PostRecord::query()
+                    ->where('app_type', 2)
+                    ->where('user_id', $userId)
+                    ->where('created_at', '>=', $relay->assigned_at ?? $relay->created_at)
+                    ->exists();
+            })
+            ->map(function (PostRelay $relay) use ($now) {
+                return [
+                    'id' => "challenge-relay-{$relay->id}",
+                    'relay_id' => $relay->id,
+                    'title' => 'チャレンジリレー',
+                    'attention_type' => 'challenge_relay_received',
+                    'attention_deadline' => optional($relay->deadline_at)->toIso8601String(),
+                    'attention_is_overdue' => $relay->deadline_at ? $now->gt($relay->deadline_at) : false,
+                    'user' => $relay->fromUser,
+                    'to_user' => $relay->toUser,
+                    'source_post_id' => $relay->source_post_id,
+                    'source_post_title' => optional($relay->sourcePost)->title,
+                    'created_at' => optional($relay->assigned_at)->toIso8601String(),
+                ];
+            });
+
+        $returnedRelays = PostRelay::query()
+            ->where('relay_type', PostRelay::TYPE_CHALLENGE)
+            ->where('status', PostRelay::STATUS_DECLINED)
+            ->where('from_user_id', $userId)
+            ->whereNull('closed_at')
+            ->with(['declinedByUser', 'toUser', 'sourcePost'])
+            ->orderByDesc('declined_at')
+            ->get()
+            ->map(function (PostRelay $relay) {
+                return [
+                    'id' => "challenge-relay-returned-{$relay->id}",
+                    'relay_id' => $relay->id,
+                    'title' => 'チャレンジリレー',
+                    'attention_type' => 'challenge_relay_returned',
+                    'attention_deadline' => null,
+                    'attention_is_overdue' => false,
+                    'user' => $relay->toUser,
+                    'declined_by_user' => $relay->declinedByUser,
+                    'source_post_id' => $relay->source_post_id,
+                    'source_post_title' => optional($relay->sourcePost)->title,
+                    'created_at' => optional($relay->declined_at)->toIso8601String(),
+                ];
+            });
+
+        return $pendingRelays->concat($returnedRelays)->values();
     }
     private function latestReachedProgressCheckpoint(Carbon $start, Carbon $end, Carbon $now): ?int
     {
@@ -580,6 +653,10 @@ class DashboardController extends Controller
     }
     private function niceFollowUpReminders(int $userId, Carbon $now)
     {
+        if (in_array($userId, PostRelay::EXCLUDED_USER_IDS, true)) {
+            return collect();
+        }
+
         $niceReminderStartDate = Carbon::create(2026, 4, 1)->startOfDay();
 
         $receivedNicePosts = PostRecord::query()
@@ -602,16 +679,32 @@ class DashboardController extends Controller
             ->where('user_id', $userId)
             ->orderBy('created_at')
             ->get(['id', 'created_at']);
-
         return $receivedNicePosts
-            ->filter(function ($post) use ($sentNicePosts) {
-                return !$sentNicePosts->contains(function ($sentPost) use ($post) {
-                    return $sentPost->created_at->gt($post->created_at);
+            ->map(fn ($post) => $this->firstOrCreateNiceRelay($post, $userId))
+            ->filter(fn (PostRelay $relay) => $relay->status === PostRelay::STATUS_PENDING)
+            ->filter(function (PostRelay $relay) use ($sentNicePosts) {
+                $sentPost = $sentNicePosts->first(function ($sentPost) use ($relay) {
+                    return $sentPost->created_at->gt($relay->sourcePost->created_at);
                 });
+
+                if ($sentPost) {
+                    $relay->update([
+                        'status' => PostRelay::STATUS_COMPLETED,
+                        'accepted_post_id' => $sentPost->id,
+                        'closed_by_user_id' => $relay->to_user_id,
+                        'closed_at' => $sentPost->created_at,
+                    ]);
+                    $this->closePendingNiceRelaySiblings($relay, $relay->to_user_id, $sentPost->created_at);
+                    return false;
+                }
+
+                return true;
             })
-            ->map(function ($post) use ($now) {
-                $deadline = Carbon::parse($post->created_at)->addWeek();
+            ->map(function (PostRelay $relay) use ($now) {
+                $post = $relay->sourcePost;
+                $deadline = $relay->deadline_at ?? Carbon::parse($post->created_at)->addWeek();
                 $post['attention_type'] = 'nice_follow_up';
+                $post['relay_id'] = $relay->id;
                 $post['attention_deadline'] = $deadline->toIso8601String();
                 $post['attention_is_overdue'] = $now->gt($deadline);
 
@@ -624,6 +717,34 @@ class DashboardController extends Controller
                 return $post['attention_is_overdue'] ? 1 : 0;
             })
             ->values();
+    }
+    private function closePendingNiceRelaySiblings(PostRelay $relay, int $closedByUserId, $closedAt): void
+    {
+        PostRelay::where('relay_type', PostRelay::TYPE_NICE)
+            ->where('source_post_id', $relay->source_post_id)
+            ->where('status', PostRelay::STATUS_PENDING)
+            ->where('id', '!=', $relay->id)
+            ->update([
+                'status' => PostRelay::STATUS_CLOSED,
+                'closed_by_user_id' => $closedByUserId,
+                'closed_at' => $closedAt,
+            ]);
+    }
+    private function firstOrCreateNiceRelay(PostRecord $post, int $userId): PostRelay
+    {
+        return PostRelay::firstOrCreate(
+            [
+                'relay_type' => PostRelay::TYPE_NICE,
+                'source_post_id' => $post->id,
+                'from_user_id' => $post->user_id,
+                'to_user_id' => $userId,
+            ],
+            [
+                'status' => PostRelay::STATUS_PENDING,
+                'assigned_at' => $post->created_at,
+                'deadline_at' => Carbon::parse($post->created_at)->addWeek(),
+            ]
+        )->loadMissing(['sourcePost.user', 'sourcePost.to_users']);
     }
     public function departuresReportUsers($badge = false) {
         if(!in_array(Auth::id(), [833,832])){
@@ -803,6 +924,7 @@ class DashboardController extends Controller
                     $query->where('users.id', $userId);
                 },
             ])
+            ->with('files')
             ->get();
 
         return $unreadNotices;

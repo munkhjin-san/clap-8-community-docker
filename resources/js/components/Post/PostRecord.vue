@@ -249,6 +249,30 @@
                 </div>
 
             </div>
+            <div v-if="relayChainUserCount > 1" class="post-meta-note relay-chain-footer">
+                <p class="mb-[10px] text-xs">{{ record.app_type === 2 ? 'ミニチャレンジリレー' : 'ナイスリレー' }}</p>
+                
+                <div class="relay-chain-row">
+                    <template v-for="(group, index) in relayChainGroups" :key="`relay-group-${index}`">
+                        <span
+                            v-if="index > 0"
+                            :class="[
+                                'relay-chain-line',
+                                group.connector === 'dashed' ? 'relay-chain-line--dashed' : 'relay-chain-line--solid'
+                            ]"
+                        ></span>
+                        <span class="relay-chain-user-group">
+                            <UserPanel
+                                v-for="user in group.users"
+                                :key="user.id"
+                                :user="user"
+                                :disableInstant="true"
+                                size="24"
+                            />
+                        </span>
+                    </template>
+                </div>
+            </div>
             <transition name="commentArea">
                 <PostComment v-if="isExpanded" :key="`comment-${record.id}-${isExpanded ? 'open' : 'close'}`"
                     :app_name="appName" :record="record" />
@@ -394,6 +418,46 @@ const bodyNeedsMore = ref(false)
 const goalNeedsMore = ref(false)
 const resultNeedsMore = ref(false)
 const viewEntries = ref(false)
+const excludedRelayUserIds = [100, 101, 102, 103, 608, 610, 830]
+const relayChainGroups = computed(() => {
+    if (props.record.relay_chain_groups?.length) {
+        return props.record.relay_chain_groups.filter(group => group.connector !== 'dashed')
+    }
+
+    if (props.record.app_type === 0 && props.record.post_relays?.length) {
+        const niceRelays = props.record.post_relays.filter(relay => relay.relay_type === 'nice' && !excludedRelayUserIds.includes(relay.to_user_id))
+        const continuedRelay = niceRelays.find(relay => relay.accepted_post_id)
+        const visibleRelays = continuedRelay
+            ? [continuedRelay]
+            : niceRelays.filter(relay => Number(relay.status) === 0)
+        const relayUsers = visibleRelays
+            .map(relay => relay.to_user ?? props.record.to_users.find(user => user.id === relay.to_user_id))
+            .filter((user): user is User => Boolean(user))
+
+        if (relayUsers.length) {
+            return [
+                { users: [props.record.user] },
+                {
+                    users: relayUsers,
+                    connector: 'solid' as const,
+                }
+            ]
+        }
+    }
+
+    if (props.record.relay_chain?.length) {
+        return props.record.relay_chain.filter(node => node.connector !== 'dashed').map(node => ({
+            users: [node.user],
+            connector: node.connector,
+        }))
+    }
+
+    return (props.record.relay_chain_users ?? []).map(user => ({
+        users: [user],
+        connector: 'solid' as const,
+    }))
+})
+const relayChainUserCount = computed(() => relayChainGroups.value.reduce((count, group) => count + group.users.length, 0))
 onMounted(() => {
     const to_user = toUsersRef.value
     if (to_user && to_user.scrollHeight > to_user.clientHeight) {
@@ -745,6 +809,37 @@ const totalCalories = computed(() => {
     font-size: 12px;
     line-height: 1.5;
     color: var(--sub-color);
+}
+
+.relay-chain-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.relay-chain-footer {
+    margin-top: 10px;
+}
+
+.relay-chain-user-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.relay-chain-line {
+    width: 18px;
+    border-top: 2px solid var(--sub-color);
+    opacity: 0.7;
+}
+
+.relay-chain-line--dashed {
+    border-top-style: dashed;
+}
+
+.relay-chain-line--solid {
+    border-top-style: solid;
 }
 
 .post-content-stack {

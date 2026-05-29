@@ -2,7 +2,7 @@
     <div class="overlay" @mousedown="canClose">   
         <div :class="['chatCreate', 'relative', 'bg-[var(--background-color)]', '!p-0', size, customClass]">      
             <Transition name="modalFade">            
-                <div v-if="loader" class="absolute w-full h-full top-0 left-0 bg-inherit z-[6] flex items-center justify-center">          
+                <div v-if="loader" class="absolute w-full h-full top-0 left-0 bg-inherit z-[6] flex items-center justify-center pointer-events-none">
                     <div class="spinner-mini" style="border-color: transparent rgb(134, 134, 134) rgb(134, 134, 134);"></div>     
                 </div>  
             </Transition>               

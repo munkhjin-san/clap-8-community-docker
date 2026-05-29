@@ -26,6 +26,10 @@ class CommentRecord extends Model
     {
         return $this->morphMany(Stamp::class, 'stampable');
     }
+    public function progress_files()
+    {
+        return $this->belongsToMany(FileRecord::class, 'post_use_files', 'record_id', 'file_id')->wherePivot('progress', 1);
+    }
     protected $guarded = [];
     protected $casts = [
         'user_id' => 'int',  

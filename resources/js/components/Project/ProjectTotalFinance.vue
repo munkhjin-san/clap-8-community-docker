@@ -1718,6 +1718,7 @@
 
                                 <div>
                                     <TotalFinanceMonthlyBarChart
+                                        v-model:comparison-key="monthlyBarComparison"
                                         :grouping="totalGrouping"
                                         :periods="periods"
                                         :projectNames="selectedProjectNames"
@@ -1732,6 +1733,7 @@
                             <div v-if="tab == 'bar'">
                                 <div>
                                     <BarChart
+                                        v-model:comparison-key="projectBarComparison"
                                         :projectsData="barChartProjectsData"
                                         :summaryData="barChartSummaryData"
                                         :activeView="activeType"
@@ -1974,6 +1976,15 @@ const emptyUnit: UnitData = {
 }
 
 type Key = 'sales' | 'expense' | 'profit';
+type FinanceChartTab = 'table' | 'monthlyBar' | 'bar'
+type ChartComparisonKey = 'yearly_plan:settlement' | 'profit:settlement' | 'yearly_plan:profit'
+const metricKeys: Key[] = ['sales', 'expense', 'profit']
+const chartComparisonKeys: ChartComparisonKey[] = ['yearly_plan:settlement', 'profit:settlement', 'yearly_plan:profit']
+const isMetricKey = (value: unknown): value is Key => metricKeys.includes(value as Key)
+const isChartComparisonKey = (value: unknown): value is ChartComparisonKey =>
+    chartComparisonKeys.includes(value as ChartComparisonKey)
+const isFinanceChartTab = (value: unknown): value is FinanceChartTab =>
+    value === 'table' || value === 'monthlyBar' || value === 'bar'
 const hasSettlementEntry = (unit?: UnitData | null) => unit?.has_data === true
 const settlementValue = (unit: UnitData | undefined, key: Key) => hasSettlementEntry(unit) ? Math.round(Number(unit?.[key] ?? 0)) : NaN
 const settlementProfitValue = (unit: UnitData | undefined) => hasSettlementEntry(unit) ? Math.round(Number(unit?.profit ?? 0)) : NaN
@@ -2097,6 +2108,12 @@ type TotalFinanceViewState = {
     rangeStart?: string
     rangeEnd?: string
     sortMode?: 'name' | 'manager'
+    tab?: FinanceChartTab
+    chartMetric?: Key
+    monthlyBarComparison?: ChartComparisonKey
+    projectBarComparison?: ChartComparisonKey
+    selectedProjectIds?: number[]
+    selectedManagerIds?: number[]
 }
 
 const MAX_RANGE_MONTHS = 12
@@ -2137,6 +2154,12 @@ const readSavedTotalFinanceView = (): TotalFinanceViewState => {
         localStorage.removeItem(storageTotalFinanceViewKey)
         return {}
     }
+}
+const normalizeStoredIds = (value: unknown, allowedIds: number[] = []) => {
+    if (!Array.isArray(value)) return []
+    return value
+        .map(id => Number(id))
+        .filter(id => Number.isInteger(id) && (!allowedIds.length || allowedIds.includes(id)))
 }
 const parseStoredPeriod = (value: unknown) => {
     if (typeof value !== 'string') return null
@@ -2285,12 +2308,14 @@ const scrollIntoCurrent = () => {
         scrollPosition.scrollIntoView({ behavior: 'instant', block: 'end' });
     }
 }
-const selectedManagers = ref<number[]>([])
+const selectedManagers = ref<number[]>(normalizeStoredIds(savedTotalFinanceView.selectedManagerIds))
 const mobileProjectKeywords = ref('')
 const mobileManagerKeywords = ref('')
 const loader = ref(true)
 const badgeLoader = ref(0)
-const tab = ref<'table' | 'monthlyBar' | 'bar'>('table')
+const tab = ref<FinanceChartTab>(
+    isFinanceChartTab(savedTotalFinanceView.tab) ? savedTotalFinanceView.tab : 'table'
+)
 const responsive = useResponsive()
 const menu = useMenuStore()
 const leftTab = ref<'project' | 'manager'>('project')
@@ -2488,23 +2513,33 @@ const possibleTypes: Array<{ value: Key; label: string }> = [
     { value: 'expense', label: '販管費' },
     { value: 'profit', label: '利益' },
 ]
-const activeType = ref<Key>('sales')
+const activeType = ref<Key>(
+    isMetricKey(savedTotalFinanceView.chartMetric) ? savedTotalFinanceView.chartMetric : 'sales'
+)
+const monthlyBarComparison = ref<ChartComparisonKey>(
+    isChartComparisonKey(savedTotalFinanceView.monthlyBarComparison)
+        ? savedTotalFinanceView.monthlyBarComparison
+        : 'yearly_plan:settlement'
+)
+const projectBarComparison = ref<ChartComparisonKey>(
+    isChartComparisonKey(savedTotalFinanceView.projectBarComparison)
+        ? savedTotalFinanceView.projectBarComparison
+        : 'yearly_plan:settlement'
+)
 const hasPrivilage = computed(() => {
     return auth.user?.position_id && auth.user?.position_id <= 6 || auth.activeUser.id === 610
 })
 const defaultProjectSelection = (projectIds: number[]) => {
     if (!projectIds.length) return []
 
+    const savedViewProjectIds = normalizeStoredIds(savedTotalFinanceView.selectedProjectIds, projectIds)
+    if (savedViewProjectIds.length) return savedViewProjectIds
+
     const savedProjectIds = localStorage.getItem(storageProjectIdsKey)
     if (savedProjectIds) {
         try {
-            const parsedIds = JSON.parse(savedProjectIds)
-            if (Array.isArray(parsedIds)) {
-                const filteredIds = parsedIds
-                    .map(id => Number(id))
-                    .filter(id => projectIds.includes(id))
-                if (filteredIds.length) return filteredIds
-            }
+            const filteredIds = normalizeStoredIds(JSON.parse(savedProjectIds), projectIds)
+            if (filteredIds.length) return filteredIds
         } catch {
             localStorage.removeItem(storageProjectIdsKey)
         }
@@ -3317,7 +3352,20 @@ const analyzeFinance = async () => {
 }
 
 watch(
-    [totalGrouping, selectedFiscalYearStart, selectedFiscalYearEnd, periodStartIso, periodEndIso, sortMode],
+    [
+        totalGrouping,
+        selectedFiscalYearStart,
+        selectedFiscalYearEnd,
+        periodStartIso,
+        periodEndIso,
+        sortMode,
+        tab,
+        activeType,
+        monthlyBarComparison,
+        projectBarComparison,
+        selectedProjects,
+        selectedManagers,
+    ],
     () => {
         localStorage.setItem(storageTotalFinanceViewKey, JSON.stringify({
             grouping: totalGrouping.value,
@@ -3326,8 +3374,15 @@ watch(
             rangeStart: periodStartIso.value,
             rangeEnd: periodEndIso.value,
             sortMode: sortMode.value,
+            tab: tab.value,
+            chartMetric: activeType.value,
+            monthlyBarComparison: monthlyBarComparison.value,
+            projectBarComparison: projectBarComparison.value,
+            selectedProjectIds: selectedProjects.value,
+            selectedManagerIds: selectedManagers.value,
         }))
-    }
+    },
+    { deep: true }
 )
 
 watch(selectedProjects, (projects) => {
@@ -3392,6 +3447,12 @@ watch(selectedManagers, (managers) => {
         selectedProjects.value = []
     }
 })
+let restoredSavedManagers = false
+watch(allManagerIds, (managerIds) => {
+    if (restoredSavedManagers || !managerIds.length || !selectedManagers.value.length) return
+    restoredSavedManagers = true
+    selectedManagers.value = normalizeStoredIds(selectedManagers.value, managerIds)
+}, { immediate: true })
 // watch(
 //   [() => props.projects, () => selectedManagers.value],
 //   ([projects, managers]) => {

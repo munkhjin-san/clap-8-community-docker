@@ -21,6 +21,22 @@ class ReportService
         $this->taskController = $taskController;
     }
 
+    public function sendRawMessage($override_user_id, $board_id, $message)
+    {
+        $override_user = User::select('id', 'name', 'icon_path', 'icon_bg')
+                             ->findOrFail($override_user_id);
+
+        $requestData = [
+            'record_id'          => $board_id,
+            'override_user_id'   => $override_user_id,
+            'message'            => $message,
+            'override_user'      => $override_user,
+        ];
+        $request = new Request($requestData);
+
+        return $this->boardController->chatAdd($request, app(MentionAndNotify::class));
+    }
+
     public function sendMessage($override_user_id, $board_id, $type)
     {
         $override_user = User::select('id', 'name', 'icon_path', 'icon_bg')

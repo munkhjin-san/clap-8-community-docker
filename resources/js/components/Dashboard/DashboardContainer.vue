@@ -35,6 +35,24 @@
                         </div>
                     </div>
                 </div>
+                <component
+                    v-for="card in dashboardCards"
+                    :key="`${card.type}-${updateKey}`"
+                    v-show="!initialLoader && shouldShowCard(card)"
+                    :is="DASHBOARD_COMPONENTS[card.layout]"
+                    class="dashboard-card-item"
+                    :class="[card.col, 'min-w-0 w-full']"
+                    :fullscreen="route.params.type === card.type"
+                    :data="card"
+                    :id="`card-${card.type}`"
+                    :highlightTimeSheet="highlightTimeSheet"
+                    :highlightGoals="highlightGoals"
+                    ref="cardLayouts"
+                    @toggle="toggle"
+                    @resize="(type:string) => resize(type)"
+                    @refreshData="refreshData"
+                />
+
             </div>
             <div
                 v-else
@@ -553,6 +571,12 @@ const stopDashboardCardHeightObservers = () => {
     heightObservers.clear()
 }
 
+const highlightGoals = computed(() => {
+    return route.query.goal_pending === 'true'
+})
+const highlightTimeSheet = computed(() => {
+    return route.query.timesheet === 'true'
+})
 const setupDashboardCardHeightObservers = () => {
     if (!cardLayouts.value || !Array.isArray(cardLayouts.value)) return
 

@@ -79,6 +79,7 @@ class RefreshAutoAllocation implements ShouldQueue
             ->whereYear('date_end', $lastMonth->year)
             ->whereMonth('date_end', $lastMonth->month)
             ->where('status_flag', 1)
+            ->where('donatable', 0)
             ->with(['to_users:id,position_id', 'awards:id', 'grants:id,post_record_id,expenses'])
             ->get();
         

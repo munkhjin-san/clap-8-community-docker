@@ -85,6 +85,11 @@
                         <PostIcon which="2" size="16" class="under400:hidden"/>
                         {{ apps[2] }}
                     </router-link>
+                    <router-link :to="`/${appName}?app_type=3`" :class="['cat-chip', { 'cat-chip--active': getQuery?.app_type == '3' }]">
+                        <PostIcon which="3" size="12" class="hidden under400:block"/>
+                        <PostIcon which="3" size="16" class="under400:hidden"/>
+                        {{ apps[3] }}
+                    </router-link>
                     <router-link :to="`/${appName}?app_type=6`" :class="['cat-chip', { 'cat-chip--active': getQuery?.app_type == '6' }]">
                         <PostIcon which="6" size="12" class="hidden under400:block"/>
                         <PostIcon which="6" size="16" class="under400:hidden"/>
@@ -137,6 +142,7 @@
                     :key="`${notice.type}_${notice.id}`"
                     class="post-notice-row"
                 >
+                    <div class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5"></div>
                     <span class="post-notice-title">{{ notice.title || 'タイトルなし' }}</span>
                     <span class="post-notice-message">{{ notice.message }}</span>
                     <div class="post-notice-link" type="button" @click="jumpToBadgePost(notice)">
@@ -271,7 +277,7 @@ type PostNoticeRow = {
     const router = useRouter()
     const infiniteLoader = ref(false)
     const queryRefreshing = ref(false)
-    const apps = ['ナイス', 'ナレッジ', 'チャレンジ', 'ノート', 'ヘルプ', 'グラリンピック', 'リフレッシュ']
+    const apps = ['ナイス', 'ナレッジ','チャレンジ', 'ニュース', 'ヘルプ', 'グラリンピック', 'リフレッシュ']
     const api = useApi()
     const viewFullRanking = ref(false)
     const entryData = ref({
@@ -702,10 +708,11 @@ type PostNoticeRow = {
     text-overflow: ellipsis;
     white-space: nowrap;
     font-weight: 600;
+    color: var(--primary-color);
 }
 
 .post-notice-message {
-    color: var(--subText);
+    color: var(--primary-color);
     white-space: nowrap;
 }
 

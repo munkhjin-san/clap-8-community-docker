@@ -4068,7 +4068,10 @@ input:-webkit-autofill:active {
   cursor: pointer;
   user-select: none;
 }
-
+.jump-link:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
 .nice-arrow {
   min-width: 25px;
   width: 25px;

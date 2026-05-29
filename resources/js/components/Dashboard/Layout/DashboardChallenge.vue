@@ -6,7 +6,7 @@
         :type="data.type"
         :can-resize="data.canResize"
         :can-fullscreen="data.canFullscreen"
-        :pulse="hasOverdueNiceReminder"
+        :pulse="hasPulseReminder"
         @toggle="(el, title) => emit('toggle', el, data.type)"
         @resize="emit('resize', data.type)"
     >
@@ -16,17 +16,19 @@
             </svg>
         </template>
         <div v-if="!fullscreen" class="m-5">
-            <p class="mb-3 text-[13px]">{{ summaryText }}</p>
-            <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
-                <ExpansionPanelItem
-                    v-for="(challenge, index) in data.data"
-                    :key="challenge.id ?? index"
-                    :value="challenge.id ?? index"
-                    hide-actions
-                    static
-                    :tile="true"
-                    class="rm-p"
-                >
+            <div class="grid gap-5">
+                <section v-for="section in challengeSections" :key="section.key" class="grid gap-2">
+                    <p class="text-[13px]">{{ section.title }} ({{ section.items.length }})</p>
+                    <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                        <ExpansionPanelItem
+                            v-for="(challenge, index) in section.items"
+                            :key="`${section.key}-${challenge.id ?? index}`"
+                            :value="challenge.id ?? `${section.key}-${index}`"
+                            hide-actions
+                            static
+                            :tile="true"
+                            class="rm-p"
+                        >
                     <template #title="{ expanded }">
                         <PanelTitle :expanded="expanded">
                             <div class="flex gap-2 items-center">
@@ -35,20 +37,99 @@
                                 <Challenge v-else size="16"/>
                                 <div class="overflow-hidden text-ellipsis">
                                     
-                                    {{ isNiceReminder(challenge) ? `${challenge.user?.name ?? '誰か'}さんからナイスが届きました` : challenge.title }}
+                                    {{ titleText(challenge) }}
                                 </div>
                             </div>
                             
                         </PanelTitle>
                     </template>
                     <template #body>
-                        <PanelData v-if="isNiceReminder(challenge)">
+                        <PanelData v-if="isChallengeRelayReceived(challenge)">
+                            <p class="text-[12px]" :class="challenge.attention_is_overdue ? 'text-[tomato]' : 'text-[gray]'">
+                                {{ challenge.user?.name ?? '誰か' }}さんからチャレンジリレーのバトンが届きました。1週間以内にチャレンジを作成するか、パスしてください。
+                            </p>
+                            <p v-if="challenge.source_post_title" class="mt-2 text-[11px] text-[gray]">
+                                元のチャレンジ: {{ challenge.source_post_title }}
+                            </p>
+                            <p v-if="challenge.attention_deadline" class="mt-1 text-[11px] text-[gray]">
+                                締切: {{ formatDeadline(challenge.attention_deadline) }}
+                            </p>
+                            <div class="mt-3 flex items-center justify-end gap-3 text-right">
+                                <router-link v-if="challenge.source_post_id" :to="{ name: 'post', query: { id: challenge.source_post_id, app_type: 2 } }">見る</router-link>
+                                <router-link :to="{ name: 'post', query: { app_type: 2, create: '1', relay_id: challenge.relay_id } }">作成</router-link>
+                                <button
+                                    type="button"
+                                    class="jump-link !bg-inherit"
+                                    :disabled="isRelayProcessing(challenge)"
+                                    @click="passChallengeRelay(challenge)"
+                                >
+                                    パス
+                                </button>
+                            </div>
+                        </PanelData>
+                        <PanelData v-else-if="isChallengeRelayReturned(challenge)">
+                            <p class="text-[12px] text-[gray]">
+                                {{ challenge.declined_by_user?.name ?? challenge.user?.name ?? 'メンバー' }}さんがチャレンジリレーをパスしました。別のメンバーへ渡すか、バトンを終了してください。
+                            </p>
+                            <p v-if="challenge.source_post_title" class="mt-2 text-[11px] text-[gray]">
+                                元のチャレンジ: {{ challenge.source_post_title }}
+                            </p>
+                            <div v-if="!isRelayReassignOpen(challenge)" class="mt-3 flex items-center justify-end gap-3 text-right">
+                                <button
+                                    type="button"
+                                    class="jump-link !bg-inherit"
+                                    :disabled="isRelayProcessing(challenge)"
+                                    @click="openRelayReassign(challenge)"
+                                >
+                                    他の人へ渡す
+                                </button>
+                                <button
+                                    type="button"
+                                    class="jump-link !bg-inherit"
+                                    :disabled="isRelayProcessing(challenge)"
+                                    @click="closeChallengeRelay(challenge)"
+                                >
+                                    渡さない
+                                </button>
+                            </div>
+                            <div v-else class="mt-3">
+                                <MemberSelector
+                                    placeHolder="次に渡すメンバー"
+                                    rules="required"
+                                    name="challengeRelayTarget"
+                                    :multiple="false"
+                                    path="post_get_challenge_users"
+                                    :exclude="relayExcludeIds(challenge)"
+                                    v-model="relayTargets[relayId(challenge)]"
+                                />
+                                <div class="mt-3 flex items-center justify-end gap-3 text-right">
+                                    <button
+                                        type="button"
+                                        class="jump-link !bg-inherit"
+                                        :disabled="isRelayProcessing(challenge)"
+                                        @click="reassignChallengeRelay(challenge)"
+                                    >
+                                        渡す
+                                    </button>
+                                    <button type="button" class="jump-link !bg-inherit" @click="cancelRelayReassign(challenge)">キャンセル</button>
+                                </div>
+                            </div>
+                        </PanelData>
+                        <PanelData v-else-if="isNiceReminder(challenge)">
                             <p class="text-[12px]" :class="challenge.attention_is_overdue ? 'text-[tomato]' : 'text-[gray]'">
                                 {{ challenge.user?.name ?? '誰か' }}さんからナイスが届きました。1週間以内にナイスを送ってみましょう。
                             </p>
                             <div class="mt-3 flex items-center justify-end gap-3 text-right">
                                 <router-link :to="{ name: 'post', query: { id: challenge.id, app_type: 0 } }">見る</router-link>
                                 <router-link :to="{ name: 'post', query: { app_type: 0, create: '1' } }">作成</router-link>
+                                <button
+                                    type="button"
+                                    class="jump-link !bg-inherit"
+                                    :disabled="isNiceProcessing(challenge)"
+                                    @click="dismissNiceReminder(challenge)"
+                                >
+                                    送らない
+                                </button>
                             </div>
                         </PanelData>
                         <PanelData v-else>
@@ -66,30 +147,43 @@
                             </div>
                         </PanelData>
                     </template>
-                </ExpansionPanelItem>
-            </ExpansionGrid>
+                        </ExpansionPanelItem>
+                    </ExpansionGrid>
+                </section>
+            </div>
         </div>
     </BaseLayout>
 </template>
 
 <script setup lang="ts">
 import { Post } from '@/interface/postInterface';
+import { User } from '@/interface/globalInterface';
 import BaseLayout from './BaseLayout.vue';
 import { DateTime } from 'luxon';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
 import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import Nice from '@/components/Icons/Nice.vue';
 import Challenge from '@/components/Icons/Challenge.vue';
+import MemberSelector from '@/components/Form/MemberSelector.vue';
+import { useApi } from '@/composables/api';
+import { useDashboardStore } from '@/store/dashboard';
+import { useDialog } from '@/composables/dialog';
+import { useAuthUserStore } from '@/store/auth';
 
-type DashboardPostReminder = Post & {
-    attention_type?: 'nice_follow_up' | 'progress_need' | 'update_need'
+type DashboardPostReminder = Omit<Post, 'id'> & {
+    id: number | string
+    relay_id?: number
+    attention_type?: 'nice_follow_up' | 'progress_need' | 'update_need' | 'challenge_relay_received' | 'challenge_relay_returned'
     attention_checkpoint?: number
     attention_deadline?: string | null
     attention_is_overdue?: boolean
     attention_progress_percent?: number
+    declined_by_user?: User | null
+    source_post_id?: number
+    source_post_title?: string | null
 }
 
 const props = defineProps<{
@@ -110,9 +204,21 @@ const emit = defineEmits<{
     toggle: [el: HTMLElement | null, title: string]
 }>()
 
+const api = useApi()
+const auth = useAuthUserStore()
+const { getBatchDashboardData } = useDashboardStore()
+const { ping } = useDialog()
+const relayTargets = ref<Record<number, User | null>>({})
+const relayReassignOpen = ref<Record<number, boolean>>({})
+const relayProcessing = ref<Record<number, boolean>>({})
+const niceProcessing = ref<Record<number, boolean>>({})
+
 const isNiceReminder = (challenge: DashboardPostReminder) => challenge.attention_type === 'nice_follow_up'
 const isProgressNeed = (challenge: DashboardPostReminder) => challenge.attention_type === 'progress_need'
 const isUpdateNeed = (challenge: DashboardPostReminder) => challenge.attention_type === 'update_need'
+const isChallengeRelayReceived = (challenge: DashboardPostReminder) => challenge.attention_type === 'challenge_relay_received'
+const isChallengeRelayReturned = (challenge: DashboardPostReminder) => challenge.attention_type === 'challenge_relay_returned'
+const isChallengeRelay = (challenge: DashboardPostReminder) => isChallengeRelayReceived(challenge) || isChallengeRelayReturned(challenge)
 
 const isOverdue = (challenge: DashboardPostReminder) => {
     const endData = DateTime.fromISO(challenge.date_end);
@@ -121,23 +227,20 @@ const isOverdue = (challenge: DashboardPostReminder) => {
     return diff < 0;
 }
 
-const hasOverdueNiceReminder = computed(() => {
-    return props.data.data.some(challenge => isNiceReminder(challenge) && challenge.attention_is_overdue)
+const hasPulseReminder = computed(() => {
+    return props.data.data.some(challenge => (isNiceReminder(challenge) || isChallengeRelayReceived(challenge)) && challenge.attention_is_overdue)
 })
 
-const summaryText = computed(() => {
-    const niceReminderCount = props.data.data.filter(isNiceReminder).length
-    const challengeReminderCount = props.data.data.length - niceReminderCount
+const challengeSections = computed(() => {
+    const challengeRelays = props.data.data.filter(isChallengeRelay)
+    const niceRelays = props.data.data.filter(isNiceReminder)
+    const progressAndResultNeeds = props.data.data.filter(challenge => !isChallengeRelay(challenge) && !isNiceReminder(challenge))
 
-    if (niceReminderCount && challengeReminderCount) {
-        return `ナイスリレー・進捗・結果報告依頼 (${props.data.data.length})`
-    }
-
-    if (niceReminderCount) {
-        return `ナイスリレー (${niceReminderCount})`
-    }
-
-    return `進捗・結果報告依頼（${challengeReminderCount}件）`
+    return [
+        { key: 'challenge-relay', title: 'チャレンジリレー', items: challengeRelays },
+        { key: 'nice-relay', title: 'ナイスリレー', items: niceRelays },
+        { key: 'progress-result', title: '進捗・結果報告依頼', items: progressAndResultNeeds },
+    ].filter(section => section.items.length)
 })
 
 const formatDeadline = (deadline?: string | null) => {
@@ -149,7 +252,129 @@ const formatDeadline = (deadline?: string | null) => {
     return parsed.isValid ? parsed.toFormat('yyyy/MM/dd') : ''
 }
 
+const titleText = (challenge: DashboardPostReminder) => {
+    if (isNiceReminder(challenge)) {
+        return `${challenge.user?.name ?? '誰か'}さんからナイスが届きました`
+    }
+
+    if (isChallengeRelayReceived(challenge)) {
+        return `${challenge.user?.name ?? '誰か'}さんからバトンが届きました`
+    }
+
+    if (isChallengeRelayReturned(challenge)) {
+        return `${challenge.declined_by_user?.name ?? challenge.user?.name ?? 'メンバー'}さんがバトンをパスしました`
+    }
+
+    return challenge.title
+}
+
+const relayId = (challenge: DashboardPostReminder) => Number(challenge.relay_id ?? 0)
+const isRelayProcessing = (challenge: DashboardPostReminder) => !!relayProcessing.value[relayId(challenge)]
+const isRelayReassignOpen = (challenge: DashboardPostReminder) => !!relayReassignOpen.value[relayId(challenge)]
+const setRelayProcessing = (challenge: DashboardPostReminder, value: boolean) => {
+    relayProcessing.value[relayId(challenge)] = value
+}
+
+const relayExcludeIds = (challenge: DashboardPostReminder) => {
+    return Array.from(new Set([
+        auth.id,
+        challenge.user?.id,
+        challenge.declined_by_user?.id,
+    ].filter((id): id is number => typeof id === 'number')))
+}
+
+const refreshChallenges = async () => {
+    await getBatchDashboardData(['challenges'])
+}
+
+const passChallengeRelay = async (challenge: DashboardPostReminder) => {
+    const id = relayId(challenge)
+    if (!id) return
+
+    setRelayProcessing(challenge, true)
+    try {
+        await api.post('challenge_relay_pass', { relay_id: id }, { toast: 'チャレンジリレーをパスしました。' })
+        await refreshChallenges()
+    } catch {
+        // useApi already shows the error dialog.
+    } finally {
+        setRelayProcessing(challenge, false)
+    }
+}
+
+const openRelayReassign = (challenge: DashboardPostReminder) => {
+    const id = relayId(challenge)
+    if (!id) return
+
+    relayTargets.value[id] = null
+    relayReassignOpen.value[id] = true
+}
+
+const cancelRelayReassign = (challenge: DashboardPostReminder) => {
+    const id = relayId(challenge)
+    if (!id) return
+
+    relayTargets.value[id] = null
+    relayReassignOpen.value[id] = false
+}
+
+const reassignChallengeRelay = async (challenge: DashboardPostReminder) => {
+    const id = relayId(challenge)
+    const target = relayTargets.value[id]
+    if (!id) return
+
+    if (!target?.id) {
+        ping('バトンを渡すメンバーを選択してください。')
+        return
+    }
+
+    setRelayProcessing(challenge, true)
+    try {
+        await api.post('challenge_relay_reassign', { relay_id: id, to_user_id: target.id }, { toast: 'チャレンジリレーを渡しました。' })
+        relayReassignOpen.value[id] = false
+        relayTargets.value[id] = null
+        await refreshChallenges()
+    } catch {
+        // useApi already shows the error dialog.
+    } finally {
+        setRelayProcessing(challenge, false)
+    }
+}
+
+const closeChallengeRelay = async (challenge: DashboardPostReminder) => {
+    const id = relayId(challenge)
+    if (!id) return
+
+    setRelayProcessing(challenge, true)
+    try {
+        await api.post('challenge_relay_close', { relay_id: id }, { toast: 'チャレンジリレーを終了しました。' })
+        await refreshChallenges()
+    } catch {
+        // useApi already shows the error dialog.
+    } finally {
+        setRelayProcessing(challenge, false)
+    }
+}
+
+const nicePostId = (challenge: DashboardPostReminder) => Number(challenge.id ?? 0)
+const isNiceProcessing = (challenge: DashboardPostReminder) => !!niceProcessing.value[nicePostId(challenge)]
+const dismissNiceReminder = async (challenge: DashboardPostReminder) => {
+    const id = nicePostId(challenge)
+    if (!id) return
+
+    niceProcessing.value[id] = true
+    try {
+        await api.post('nice_follow_up_dismiss', { post_id: id }, { toast: 'ナイスリレーを閉じました。' })
+        await refreshChallenges()
+    } catch {
+        // useApi already shows the error dialog.
+    } finally {
+        niceProcessing.value[id] = false
+    }
+}
+
 defineExpose({
     cardType: props.data.type,
 })
 </script>
+

@@ -10,10 +10,11 @@
     import Help from '../Icons/Help.vue';
     import Glolympic from '../Icons/Glolympic.vue';
     import Refresh from '../Icons/Refresh.vue';
+    import News from '../Icons/News.vue';
 
     const props = defineProps(['which', 'size'])
 
-    const bank = [Nice, Knowledge, Challenge, Note, Help, Glolympic, Refresh]
+    const bank = [Nice, Knowledge, Challenge, News, Help, Glolympic, Refresh]
 
     const iconComponent = computed(() => bank[Number(props.which)] ?? null)
 </script>

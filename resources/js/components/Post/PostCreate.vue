@@ -19,6 +19,10 @@
                     <PostIcon which="2" size="20"/>
                     チャレンジ
                 </div>
+                <div @click="app_type = 3" :class="['pt-selector', { ptSelected: app_type == 3}]">
+                    <PostIcon which="3" size="20"/>
+                    ニュース
+                </div>
                 <div @click="app_type = 6" :class="['pt-selector', { ptSelected: app_type == 6}]">
                     <PostIcon which="6" size="20"/>
                     リフレッシュ
@@ -326,7 +330,7 @@
             </div>
             <div class="si-box" v-if="app_type == 6">
                 <FileUploader 
-                    customPlaceHolder="領収（必須）（未公開）" 
+                    customPlaceHolder="領収（必須）（非公開）" 
                     v-model="uploadedReceipts" 
                     path="/post_receipts"
                     rules="required"
@@ -379,8 +383,12 @@ import {
 } from '@/utils/challengeCategory'
 import CommandButton from '../Global/CommandButton.vue'
 import AiIcon from '../Icons/AiIcon.vue'
+import { useRoute } from 'vue-router'
+import { useDashboardStore } from '@/store/dashboard'
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
+    const route = useRoute()
+    const { getBatchDashboardData } = useDashboardStore()
 
     const props = defineProps<{
         appNameJp: string,
@@ -409,6 +417,11 @@ import AiIcon from '../Icons/AiIcon.vue'
     const to_users = ref<User[]>(props.editTarget && props.editTarget.to_users ? props.editTarget.to_users : [])
     const referrer = ref(props.editTarget && props.editTarget.referrer ? props.editTarget.referrer : "")
     const refresh_amount = ref(props.editTarget && props.editTarget.refresh_amount ? props.editTarget.refresh_amount : "")
+    const challengeRelayId = computed(() => {
+        const id = parseInt(String(route.query.relay_id ?? ''))
+        return Number.isNaN(id) ? null : id
+    })
+    const isRelayChallengeCreate = computed(() => app_type.value == 2 && !props.editTarget && Boolean(challengeRelayId.value))
     
     const tags = ref(props.editTarget && props.editTarget.tags ? props.editTarget.tags : [])    
     const date_start = ref(props.editTarget && props.editTarget.date_start ? props.editTarget.date_start : "")
@@ -475,7 +488,7 @@ import AiIcon from '../Icons/AiIcon.vue'
         file_path: string | null
     }[]>([])
     const loading = ref(false)
-    const isMiniLocked = computed(() => Boolean(props.popup))
+    const isMiniLocked = computed(() => Boolean(props.popup) || isRelayChallengeCreate.value)
     const refreshPlaceholder = computed(() => {
         return app_type.value == 6 ? 'リフレッシュ写真（必須）（公開）' : 'ファイル'
     })
@@ -562,6 +575,21 @@ import AiIcon from '../Icons/AiIcon.vue'
     const possiblePath = computed(() => {
         return app_type.value == 2 ? 'post_get_challenge_users' : `post_get_post_users`
     })
+    const applyRelayChallengeDefaults = () => {
+        if (!isRelayChallengeCreate.value || !auth.activeUser?.id) {
+            return
+        }
+
+        mini.value = true
+        const currentUser = {
+            ...auth.activeUser,
+            name: auth.activeUser.name ?? '',
+        } as User
+
+        if (!to_users.value.some(user => user && user.id == currentUser.id)) {
+            to_users.value.push(currentUser)
+        }
+    }
     const dateComparsionError = computed(() =>{
         const duration = (DateTime.fromISO(date_end.value).diff(DateTime.fromISO(date_start.value), 'days').toObject().days ?? 0)
         
@@ -622,8 +650,8 @@ import AiIcon from '../Icons/AiIcon.vue'
             }
         }
     })
-    watch(() => props.popup, (isPopup) => {
-        if (isPopup) {
+    watch([() => props.popup, isRelayChallengeCreate], ([isPopup, isRelay]) => {
+        if (isPopup || isRelay) {
             mini.value = true
         }
     }, { immediate: true })
@@ -655,6 +683,7 @@ import AiIcon from '../Icons/AiIcon.vue'
         applySuggestedCategory(false)
     }, { immediate: true })
     watch(app_type, (newVal) => {
+        applyRelayChallengeDefaults()
         if(newVal == 0 && auth.user){
             to_users.value = to_users.value.filter(user => user && user.id != auth.id)
         }
@@ -668,6 +697,15 @@ import AiIcon from '../Icons/AiIcon.vue'
         }else{
             refreshSummary.value = null
         }
+    }, { immediate: true })
+    watch(() => auth.activeUser?.id, () => {
+        applyRelayChallengeDefaults()
+    })
+    watch(to_users, () => {
+        applyRelayChallengeDefaults()
+    }, { deep: true })
+    watch(isRelayChallengeCreate, () => {
+        applyRelayChallengeDefaults()
     })
     watch(selectedChallengeMainCategory, () => {
         challengeCategoryValidationError.value = false
@@ -784,7 +822,8 @@ import AiIcon from '../Icons/AiIcon.vue'
             challenge_main_category: app_type.value == 2 ? selectedChallengeMainCategory.value : null,
             challenge_sub_category: app_type.value == 2 ? selectedChallengeSubCategory.value : null,
             grants: costs,
-            mini: mini.value
+            mini: mini.value,
+            challenge_relay_id: app_type.value == 2 ? challengeRelayId.value : null,
         }
 
         const data = await api.post('/post_add_record', params, {
@@ -792,6 +831,9 @@ import AiIcon from '../Icons/AiIcon.vue'
             loadingRef: processing,
             
         })
+        if (!props.editTarget && [0, 2].includes(Number(app_type.value))) {
+            await getBatchDashboardData(['challenges'])
+        }
 
         closeModal(true, data.record.id)               
     }
@@ -818,7 +860,10 @@ import AiIcon from '../Icons/AiIcon.vue'
         const user_id = user_ids.includes(auth.user.id)
             ? auth.user.id
             : user_ids[0] ?? null
-        if (!user_id) return
+        if (!user_id) {
+            ping('プレイヤーを選択してください。')
+            return
+        }
         const data = await api.post('/suggest_challenge', { challenger: user_id, idea: challengeIdea.value, mini: mini.value }, {
             loadingRef: loading
         })

@@ -6,6 +6,7 @@
         :type="data.type" 
         :can-resize="data.canResize"
         :can-fullscreen="data.canFullscreen"
+        :highlight-time-sheet="highlightTimeSheet"
         @toggle="(el, title) =>emit('toggle', el, data.type)" 
         @resize="emit('resize', data.type)"
     >
@@ -120,7 +121,7 @@
                     </div>
                 </div>
             </div>
-            <div v-if="data.data.pendingTimesheets.length" class="mt-3">
+            <div v-if="data.data.pendingTimesheets.length" class="mt-3" :class="{ 'pulse-border': highlightTimeSheet }">
                 <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis">
                     <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 py-0.5">PM</span>
                     承認依頼
@@ -135,6 +136,7 @@
                     >
                         <template #title="{ expanded }">
                             <PanelTitle :expanded="expanded">
+                                <div class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
                                 <div class="flex items-center">
                                     <UserPanel disable-instant with-name size="25" :user="item.user"/>
                                     <span class="text-[gray] text-[12px]">（{{ 
@@ -213,6 +215,7 @@ const props = defineProps<{
         col: string
     }
     fullscreen: boolean
+    highlightTimeSheet: boolean
 }>()
 
 const emit = defineEmits<{
@@ -253,3 +256,19 @@ defineExpose({
 })
 
 </script>
+<style scoped>
+
+.highlight-border {
+  animation: highlight-border 1s ease-in-out 5;
+}
+
+@keyframes highlight-border {
+  0%, 100% {
+    border-color: transparent;
+  }
+
+  50% {
+    border-color: tomato;
+  }
+}
+</style>

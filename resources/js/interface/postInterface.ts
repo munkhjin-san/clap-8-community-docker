@@ -2,6 +2,36 @@
 import { LocationQueryValue } from "vue-router";
 import { CommonFile, EmoteUser, User } from "./globalInterface";
 
+export interface PostRelay {
+    id: number;
+    relay_type: 'challenge' | 'nice';
+    source_post_id: number;
+    accepted_post_id: number | null;
+    from_user_id: number;
+    to_user_id: number;
+    declined_by_user_id: number | null;
+    closed_by_user_id: number | null;
+    status: number;
+    assigned_at: string | null;
+    deadline_at: string | null;
+    declined_at: string | null;
+    closed_at: string | null;
+    from_user?: User;
+    to_user?: User;
+    declined_by_user?: User | null;
+    closed_by_user?: User | null;
+    source_post?: Pick<Post, 'id' | 'title'> | null;
+    accepted_post?: Pick<Post, 'id' | 'title'> | null;
+}
+export interface RelayChainNode {
+    user: User;
+    connector?: 'solid' | 'dashed' | null;
+}
+export interface RelayChainGroup {
+    users: User[];
+    connector?: 'solid' | 'dashed' | null;
+}
+
 export interface Post{
     app_type: number;
     claps: Clap[];
@@ -40,6 +70,11 @@ export interface Post{
     grantable: boolean;
     emoted_users: EmoteUser[];
     mini?: boolean;
+    post_relays?: PostRelay[];
+    accepted_post_relay?: PostRelay | null;
+    relay_chain?: RelayChainNode[];
+    relay_chain_groups?: RelayChainGroup[];
+    relay_chain_users?: User[];
 }
 interface PostGrant {
     id: number;
@@ -117,6 +152,7 @@ export interface PostComment {
     user_id: number;
     claps: Clap[];
     emoted_users: EmoteUser[];
+    progress_files: CommonFile[];
 }
 export interface TopEntryUser {
     user: User;

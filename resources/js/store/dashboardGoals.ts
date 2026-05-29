@@ -8,6 +8,17 @@ import type { Evaluation, ProjectGoal, ProjectGoalStep } from '@/interface/proje
 import type { User, UserWithGoals } from '@/interface/globalInterface'
 import type { GoalRequiredData } from '@/interface/dashboard'
 
+type OutcomeGoalWarningType = 'goal_submission' | 'goal_approval'
+
+type OutcomeGoalWarning = {
+    type: OutcomeGoalWarningType
+    message: string
+    href: string
+    linkText: string
+    count: number
+    goals: ProjectGoal[]
+}
+
 /**
  * Dashboard Goals Store
  * Manages goal-specific state and operations for the dashboard
@@ -23,6 +34,47 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         if (!deadline.isValid) return false
 
         return now.diff(deadline, 'days').days > 7
+    }
+
+    const goalTitle = (goal: ProjectGoal): string => {
+        return goal.title || goal.outcome_goal || '成果目標'
+    }
+
+    const uniqueGoals = (items: ProjectGoal[]): ProjectGoal[] => {
+        return Array.from(new Map(items.map(goal => [goal.id, goal])).values())
+    }
+
+    const isGoalPastEndDate = (goal: ProjectGoal): boolean => {
+        if ([7, 9].includes(goal.status) || !goal.end_date) return false
+        const now = DateTime.local()
+        const deadline = DateTime.fromISO(goal.end_date).endOf('day')
+
+        return deadline.isValid && now > deadline
+    }
+
+    const latestResultSubmittedAt = (goal: ProjectGoal): DateTime | null => {
+        const submittedDates = (goal.status_logs ?? [])
+            .filter(log => log.after_number === 7)
+            .map(log => DateTime.fromISO(log.created_at))
+            .filter(date => date.isValid)
+
+        if (submittedDates.length) {
+            return submittedDates.reduce((latest, date) => date > latest ? date : latest)
+        }
+
+        if (!goal.updated_at || goal.status !== 7) return null
+
+        const updatedAt = DateTime.fromISO(goal.updated_at)
+        return updatedAt.isValid ? updatedAt : null
+    }
+
+    const isGoalWaitingForPmApprovalWarning = (goal: ProjectGoal): boolean => {
+        if (goal.status !== 7) return false
+
+        const submittedAt = latestResultSubmittedAt(goal)
+        if (!submittedAt) return false
+
+        return DateTime.local().diff(submittedAt, 'days').days >= 1
     }
     
     // State
@@ -259,6 +311,51 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         return myGoalComments
     })
 
+    const ownerOutcomeGoalWarnings = computed(() => {
+        return uniqueGoals([...myGoals.value, ...unfinishedPreviousSpanGoals.value])
+            .filter(isGoalPastEndDate)
+    })
+
+    const pmOutcomeGoalWarnings = computed(() => {
+        return pendingMembers.value
+            .flatMap(user => user.outcome_goals ?? [])
+            .filter(isGoalWaitingForPmApprovalWarning)
+    })
+
+    const activeOutcomeGoalWarning = computed<OutcomeGoalWarning | null>(() => {
+        if (ownerOutcomeGoalWarnings.value.length) {
+            const count = ownerOutcomeGoalWarnings.value.length
+            const firstGoal = ownerOutcomeGoalWarnings.value[0]
+            const message = `期日が過ぎている成果目標があります。\nご確認・ご対応をお願いいたします。`
+
+            return {
+                type: 'goal_submission',
+                message,
+                href: '/dashboard/overdueGoals',
+                linkText: '成果目標へ',
+                count,
+                goals: ownerOutcomeGoalWarnings.value,
+            }
+        }
+
+        if (pmOutcomeGoalWarnings.value.length) {
+            const count = pmOutcomeGoalWarnings.value.length
+            const firstGoal = pmOutcomeGoalWarnings.value[0]
+            const message = `承認待ちの成果目標があります。\nご確認・ご対応をお願いいたします。`
+
+            return {
+                type: 'goal_approval',
+                message,
+                href: '/dashboard?goal_pending=true',
+                linkText: 'ダッシュボードへ',
+                count,
+                goals: pmOutcomeGoalWarnings.value,
+            }
+        }
+
+        return null
+    })
+
     return {
         // State
         goals,
@@ -291,12 +388,15 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         overallScore,
         markAsRead,
         isGoalOverWeek,
+        isGoalPastEndDate,
+        isGoalWaitingForPmApprovalWarning,
 
         // Computed
         totalOverallScore,
         pulseBadgeCount,
         normalBadgeCount,
-        commentCount
+        commentCount,
+        activeOutcomeGoalWarning,
     }
 })
 

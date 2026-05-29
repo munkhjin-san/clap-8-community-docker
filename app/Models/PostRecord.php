@@ -75,6 +75,14 @@ class PostRecord extends Model
     {
         return $this->hasOne(RefreshUsage::class, 'post_record_id', 'id');
     }
+    public function postRelays()
+    {
+        return $this->hasMany(PostRelay::class, 'source_post_id');
+    }
+    public function acceptedPostRelay()
+    {
+        return $this->hasOne(PostRelay::class, 'accepted_post_id');
+    }
     protected $guarded = [];
 
     protected $casts = [

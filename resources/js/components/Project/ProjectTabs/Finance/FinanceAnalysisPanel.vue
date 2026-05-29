@@ -69,6 +69,7 @@
                 </div>
             </div>
         </div>
+        <FinanceChatPanel v-if="!loading"/>
     </section>
 </template>
 
@@ -76,6 +77,7 @@
 import AiIcon from '@/components/Icons/AiIcon.vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue';
 import { computed } from 'vue'
+import FinanceChatPanel from '../../FinanceChatPanel.vue';
 
 type FinanceAnalysisScope = {
     grouping: 'range' | 'fiscal'

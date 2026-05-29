@@ -13,6 +13,7 @@ use App\Models\FileRecord;
 use App\Models\ClapRecord;
 use App\Models\SearchHistoryRecord;
 use App\Models\CommentRecord;
+use App\Models\PostRelay;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\Comment;
 use Illuminate\Support\Facades\File; 
@@ -23,6 +24,8 @@ use App\Jobs\PostStatusChangeNotification;
 use App\Services\BadgeService;
 use Illuminate\Support\Facades\Auth;
 use App\Jobs\SocketEmitter;
+use Carbon\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class PostController extends Controller
 {
@@ -161,7 +164,12 @@ class PostController extends Controller
             'entries' => fn ($query) => $query->withCount('comments')->withCount('claps')->with('claps')->orderBy('created_at', 'desc'),    
             'awards',
             'result_files',
-            'emotedUsers'
+            'emotedUsers',
+            'postRelays' => fn ($query) => $query
+                ->with(['fromUser', 'toUser', 'declinedByUser', 'closedByUser', 'acceptedPost:id,title'])
+                ->orderByDesc('updated_at'),
+            'acceptedPostRelay' => fn ($query) => $query
+                ->with(['fromUser', 'sourcePost:id,title'])
         ])
         ->withCount('comments')
         ->when(!$has_id, function ($query) use($skip) {
@@ -171,6 +179,7 @@ class PostController extends Controller
         ->orderBy('updated_at', 'desc')
         ->take(10)        
         ->get();
+        $this->appendRelayChainUsers($qr);
         return response()->json($qr);
 
 
@@ -189,6 +198,13 @@ class PostController extends Controller
             'awards',
             'result_files',
             'emotedUsers',
+            'postRelays' => function ($query) {
+                $query->with(['fromUser', 'toUser', 'declinedByUser', 'closedByUser', 'acceptedPost:id,title'])
+                    ->orderByDesc('updated_at');
+            },
+            'acceptedPostRelay' => function ($query) {
+                $query->with(['fromUser', 'sourcePost:id,title']);
+            },
             'entries' => function ($query) {
                 $query->withCount('comments')
                     ->withCount('claps')
@@ -197,8 +213,204 @@ class PostController extends Controller
             },
         ]);
         $post->loadCount('comments');
+        $this->appendRelayChainUsers(collect([$post]));
 
         return $post;
+    }
+    private function appendRelayChainUsers($posts): void
+    {
+        foreach ($posts as $post) {
+            $relayType = $this->relayTypeForPost($post);
+            if (!$relayType) {
+                continue;
+            }
+
+            $groups = $this->relayChainGroups($post, $relayType);
+            $chain = $this->flattenRelayChainGroups($groups);
+            $post->setAttribute('relay_chain_groups', $groups);
+            $post->setAttribute('relay_chain', $chain);
+            $post->setAttribute('relay_chain_users', array_map(fn ($node) => $node['user'], $chain));
+        }
+    }
+    private function relayTypeForPost(PostRecord $post): ?string
+    {
+        return match ((int) $post->app_type) {
+            0 => PostRelay::TYPE_NICE,
+            2 => PostRelay::TYPE_CHALLENGE,
+            default => null,
+        };
+    }
+    private function relayChainGroups(PostRecord $post, string $relayType): array
+    {
+        $root = $this->relayRootPost($post, $relayType);
+        $current = $root;
+        $groups = [];
+        $visitedPostIds = [];
+
+        while ($current && !in_array((int) $current->id, $visitedPostIds, true)) {
+            $visitedPostIds[] = (int) $current->id;
+            $current->loadMissing('user');
+            $this->pushRelayChainGroup($groups, [$current->user]);
+
+            $relays = PostRelay::where('relay_type', $relayType)
+                ->where('source_post_id', $current->id)
+                ->whereNotIn('to_user_id', PostRelay::EXCLUDED_USER_IDS)
+                ->with(['toUser', 'acceptedPost.user'])
+                ->orderBy('assigned_at')
+                ->orderBy('id')
+                ->get();
+
+            if ($relays->isEmpty()) {
+                break;
+            }
+
+            if ($relayType === PostRelay::TYPE_NICE) {
+                $nextPost = $this->appendNiceRelayChainGroup($groups, $relays, $current);
+                if (!$nextPost) {
+                    break;
+                }
+
+                $current = $nextPost;
+                continue;
+            }
+
+            $nextPost = null;
+            foreach ($relays as $relay) {
+                if ($this->relayWasPassed($relay)) {
+                    continue;
+                }
+
+                $this->pushRelayChainGroup($groups, [$relay->toUser], $this->relayConnector($relay));
+
+                if ($relay->acceptedPost) {
+                    $nextPost = $relay->acceptedPost;
+                    break;
+                }
+
+                if ((int) $relay->status === PostRelay::STATUS_PENDING) {
+                    break;
+                }
+            }
+
+            if (!$nextPost) {
+                break;
+            }
+
+            $current = $nextPost;
+        }
+
+        return $groups;
+    }
+    private function appendNiceRelayChainGroup(array &$groups, $relays, PostRecord $sourcePost): ?PostRecord
+    {
+        $sourcePost->loadMissing('to_users');
+        $continuedRelay = $relays->first(fn (PostRelay $relay) => $relay->acceptedPost);
+
+        if ($continuedRelay) {
+            $users = $relays
+                ->map(fn (PostRelay $relay) => $relay->toUser ?? $sourcePost->to_users->firstWhere('id', $relay->to_user_id))
+                ->filter()
+                ->values()
+                ->all();
+            $this->pushRelayChainGroup($groups, $users, 'solid');
+            return $continuedRelay->acceptedPost;
+        }
+
+        $users = $relays
+            ->filter(fn (PostRelay $relay) => (int) $relay->status === PostRelay::STATUS_PENDING)
+            ->map(fn (PostRelay $relay) => $relay->toUser ?? $sourcePost->to_users->firstWhere('id', $relay->to_user_id))
+            ->filter()
+            ->values()
+            ->all();
+        $this->pushRelayChainGroup($groups, $users, 'solid');
+
+        return null;
+    }
+    private function flattenRelayChainGroups(array $groups): array
+    {
+        $chain = [];
+        foreach ($groups as $group) {
+            foreach ($group['users'] as $user) {
+                $node = ['user' => $user];
+                if (empty($chain) && isset($group['connector'])) {
+                    $node['connector'] = $group['connector'];
+                } elseif (!empty($chain)) {
+                    $node['connector'] = $group['connector'] ?? 'solid';
+                }
+                $chain[] = $node;
+            }
+        }
+
+        return $chain;
+    }
+    private function relayConnector(PostRelay $relay): string
+    {
+        return $this->relayWasPassed($relay)
+            ? 'dashed'
+            : 'solid';
+    }
+    private function relayWasPassed(PostRelay $relay): bool
+    {
+        return (bool) $relay->declined_at || (int) $relay->status === PostRelay::STATUS_DECLINED;
+    }
+    private function relayRootPost(PostRecord $post, string $relayType): PostRecord
+    {
+        $current = $post;
+        $visitedPostIds = [];
+
+        while (!in_array((int) $current->id, $visitedPostIds, true)) {
+            $visitedPostIds[] = (int) $current->id;
+            $incomingRelay = PostRelay::where('relay_type', $relayType)
+                ->where('accepted_post_id', $current->id)
+                ->with('sourcePost.user')
+                ->orderBy('assigned_at')
+                ->orderBy('id')
+                ->first();
+
+            if (!$incomingRelay?->sourcePost) {
+                break;
+            }
+
+            $current = $incomingRelay->sourcePost;
+        }
+
+        return $current;
+    }
+    private function pushRelayChainGroup(array &$groups, array $users, ?string $connector = null): void
+    {
+        $formattedUsers = [];
+        foreach ($users as $user) {
+            if (!$user) {
+                continue;
+            }
+
+            $formattedUser = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'icon_path' => $user->icon_path,
+                'icon_bg' => $user->icon_bg,
+            ];
+
+            if (!collect($formattedUsers)->contains(fn ($existing) => (int) $existing['id'] === (int) $formattedUser['id'])) {
+                $formattedUsers[] = $formattedUser;
+            }
+        }
+
+        if (empty($formattedUsers)) {
+            return;
+        }
+
+        $last = end($groups);
+        if ($last && collect($formattedUsers)->every(fn ($user) => collect($last['users'])->contains(fn ($lastUser) => (int) $lastUser['id'] === (int) $user['id']))) {
+            return;
+        }
+
+        $group = ['users' => $formattedUsers];
+        if ($connector) {
+            $group['connector'] = $connector;
+        }
+
+        $groups[] = $group;
     }
     public function post_get_suggested_tags(Request $request){
         $super = $request->super;
@@ -370,10 +582,25 @@ class PostController extends Controller
 
             $request->validate([
                 'path' => 'required',
+                'challenge_relay_id' => 'nullable|integer|exists:post_relays,id',
             ]);
             $nameSpace = '\\App\\Models\\'. ucfirst($request->path) . 'Record'; 
 
             $record = $request->edit_id ? $nameSpace::findOrFail($request->edit_id) : new $nameSpace; 
+            if((int) $request->app_type === 2 && !$request->edit_id && $request->filled('challenge_relay_id')){
+                if (!$request->boolean('mini')) {
+                    throw ValidationException::withMessages([
+                        'mini' => 'リレーから作成するチャレンジはミニチャレンジにしてください。',
+                    ]);
+                }
+
+                PostRelay::where('id', $request->challenge_relay_id)
+                    ->where('relay_type', PostRelay::TYPE_CHALLENGE)
+                    ->where('to_user_id', Auth::id())
+                    ->where('status', PostRelay::STATUS_PENDING)
+                    ->firstOrFail();
+                $this->validateRelayChallengePlayers($request);
+            }
             $record->user_id = Auth::id();
             $record->title = $request->title;
             if($request->app_type == 2){
@@ -404,11 +631,20 @@ class PostController extends Controller
                 $record->timestamps = false;
             }
             $record->save();
+            if((int) $request->app_type === 2 && !$request->edit_id){
+                $request->filled('challenge_relay_id')
+                    ? $this->completeChallengeRelayWithPost($record, (int) $request->challenge_relay_id)
+                    : $this->closePendingChallengeRelaysForUser($record);
+            }
             $user = Auth::user();
             $user->user_last_record()->firstOrCreate()->touch();
             $this->badgeService->invalidateBadgeSummaryCache();
             if($request->app_type == 2 || $request->app_type == 0){
                 $record->to_users()->sync($request->to_users);
+                if ((int) $request->app_type === 0 && !$request->edit_id) {
+                    $this->completePendingNiceRelaysForUser($record);
+                    $this->createNiceRelaysForPost($record, $request->to_users ?? []);
+                }
             }           
             if ($request->grantable) {
                 $record->grants()->createMany($request->grants);
@@ -438,7 +674,7 @@ class PostController extends Controller
                 ["event" => 'post:badge', "data" => []]
             ]);
             return response()->json([
-                "record" => $record
+                "record" => $this->post_refresh($record)
             ]);
         }
     }
@@ -466,9 +702,9 @@ class PostController extends Controller
         $comments = CommentRecord::where('record_id', $request->record_id)
                                 ->where('app_name', $request->app_name)
                                 ->where('deleted_flag', 0)
-                                ->with('user')
-                                ->with('claps')
-                                ->with('emotedUsers')
+                                ->with(['user' => function ($query) {
+                                    $query->select('id', 'name', 'icon_path', 'icon_bg');
+                                }, 'progress_files', 'emotedUsers', 'claps'])
                                 ->get();
         return response()->json($comments);  
     }
@@ -501,7 +737,8 @@ class PostController extends Controller
             'record_id' => 'required',
             'message' => 'required',
             'comment_type' => 'nullable|string',
-            'progress_checkpoint' => 'nullable|integer'
+            'progress_checkpoint' => 'nullable|integer',
+            'progress_files' => 'nullable|array',
         ]);
         $comment = new CommentRecord;
         $comment->app_name = $request->app_name;
@@ -510,8 +747,14 @@ class PostController extends Controller
         $comment->comment_type = $request->comment_type ?? 'normal';
         $comment->progress_checkpoint = $request->progress_checkpoint;
         $comment->user_id = Auth::id();
+        $fileIds = $request->progress_files ?? [];
         $comment->emoji_flag = $this->containsOnlyEmojis($request->message);
         $comment->save();
+        $pivotValues = [];
+        foreach ($fileIds as $fileId) {
+            $pivotValues[$fileId] = ['progress' => 1];
+        }
+        $comment->progress_files()->sync($pivotValues);
         if ($request->app_name === 'post' && $comment->comment_type === 'progress_report') {
             $this->badgeService->invalidateBadgeSummaryCache();
         }
@@ -646,7 +889,8 @@ class PostController extends Controller
         
         $request->validate([
             'id' => 'required',
-            'status' => 'required'
+            'status' => 'required',
+            'challenge_relay_to_user_id' => 'nullable|integer|exists:users,id',
         ]);
 
         
@@ -666,6 +910,15 @@ class PostController extends Controller
         $record->status_flag = $request->status;
         $record->result = $request->result;
         $record->save();
+        if ((int) $record->app_type === 2 && (int) $request->status === 1 && $request->filled('challenge_relay_to_user_id')) {
+            if (!$record->mini) {
+                throw ValidationException::withMessages([
+                    'challenge_relay_to_user_id' => 'ミニチャレンジのみバトンを渡せます。',
+                ]);
+            }
+
+            $this->upsertChallengeRelay($record, (int) $request->challenge_relay_to_user_id);
+        }
         $user = Auth::user();
         $user->user_last_record()->firstOrCreate()->touch();
         $this->badgeService->invalidateBadgeSummaryCache();
@@ -673,13 +926,355 @@ class PostController extends Controller
         
         return response()->json($record);  
     }
+    private function upsertChallengeRelay(PostRecord $record, int $toUserId): void
+    {
+        if ($toUserId === Auth::id()) {
+            throw ValidationException::withMessages([
+                'challenge_relay_to_user_id' => '自分以外のメンバーを選択してください。',
+            ]);
+        }
+        $this->ensureEligibleChallengeRelayTarget($toUserId);
+        $this->ensureChallengeRelayTargetHasNoHistory(
+            $record->id,
+            Auth::id(),
+            $toUserId,
+            'challenge_relay_to_user_id'
+        );
+
+        $now = Carbon::now();
+        $values = [
+            'to_user_id' => $toUserId,
+            'declined_by_user_id' => null,
+            'status' => PostRelay::STATUS_PENDING,
+            'assigned_at' => $now,
+            'deadline_at' => $now->copy()->addWeek(),
+            'declined_at' => null,
+            'accepted_post_id' => null,
+            'closed_by_user_id' => null,
+            'closed_at' => null,
+        ];
+        $openRelay = PostRelay::where('relay_type', PostRelay::TYPE_CHALLENGE)
+            ->where('source_post_id', $record->id)
+            ->where('from_user_id', Auth::id())
+            ->where('status', PostRelay::STATUS_PENDING)
+            ->whereNull('closed_at')
+            ->first();
+
+        if ($openRelay) {
+            $openRelay->update($values);
+            return;
+        }
+
+        PostRelay::updateOrCreate(
+            [
+                'relay_type' => PostRelay::TYPE_CHALLENGE,
+                'source_post_id' => $record->id,
+                'from_user_id' => Auth::id(),
+                'to_user_id' => $toUserId,
+            ],
+            $values
+        );
+    }
+    private function closePendingChallengeRelaysForUser(PostRecord $record): void
+    {
+        PostRelay::where('relay_type', PostRelay::TYPE_CHALLENGE)
+            ->where('to_user_id', Auth::id())
+            ->where('status', PostRelay::STATUS_PENDING)
+            ->where(function ($query) use ($record) {
+                $query->whereNull('assigned_at')
+                    ->orWhere('assigned_at', '<=', $record->created_at);
+            })
+            ->update([
+                'status' => PostRelay::STATUS_COMPLETED,
+                'accepted_post_id' => $record->id,
+                'closed_by_user_id' => Auth::id(),
+                'closed_at' => Carbon::now(),
+            ]);
+    }
+    private function completeChallengeRelayWithPost(PostRecord $record, int $relayId): void
+    {
+        $relay = PostRelay::where('id', $relayId)
+            ->where('relay_type', PostRelay::TYPE_CHALLENGE)
+            ->where('to_user_id', Auth::id())
+            ->where('status', PostRelay::STATUS_PENDING)
+            ->firstOrFail();
+
+        $relay->update([
+            'status' => PostRelay::STATUS_COMPLETED,
+            'accepted_post_id' => $record->id,
+            'closed_by_user_id' => Auth::id(),
+            'closed_at' => Carbon::now(),
+        ]);
+    }
+    private function validateRelayChallengePlayers(Request $request): void
+    {
+        $playerIds = collect($request->input('to_users', []))
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if (!$playerIds->contains(Auth::id())) {
+            throw ValidationException::withMessages([
+                'to_users' => 'リレーから作成する場合、自分をプレイヤーに含めてください。',
+            ]);
+        }
+    }
+    public function challenge_relay_pass(Request $request)
+    {
+        $request->validate([
+            'relay_id' => 'required|integer|exists:post_relays,id',
+        ]);
+
+        $relay = PostRelay::where('id', $request->relay_id)
+            ->where('relay_type', PostRelay::TYPE_CHALLENGE)
+            ->where('to_user_id', Auth::id())
+            ->where('status', PostRelay::STATUS_PENDING)
+            ->firstOrFail();
+
+        $relay->update([
+            'status' => PostRelay::STATUS_DECLINED,
+            'declined_by_user_id' => Auth::id(),
+            'declined_at' => Carbon::now(),
+            'accepted_post_id' => null,
+            'closed_by_user_id' => null,
+            'closed_at' => null,
+        ]);
+        $this->badgeService->invalidateBadgeSummaryCache();
+
+        return response()->json($relay);
+    }
+    public function challenge_relay_reassign(Request $request)
+    {
+        $request->validate([
+            'relay_id' => 'required|integer|exists:post_relays,id',
+            'to_user_id' => 'required|integer|exists:users,id',
+        ]);
+
+        $relay = PostRelay::where('id', $request->relay_id)
+            ->where('relay_type', PostRelay::TYPE_CHALLENGE)
+            ->where('from_user_id', Auth::id())
+            ->where('status', PostRelay::STATUS_DECLINED)
+            ->whereNull('closed_at')
+            ->firstOrFail();
+
+        $toUserId = (int) $request->to_user_id;
+        if ($toUserId === Auth::id() || $toUserId === (int) $relay->declined_by_user_id) {
+            throw ValidationException::withMessages([
+                'to_user_id' => '別のメンバーを選択してください。',
+            ]);
+        }
+        $this->ensureEligibleChallengeRelayTarget($toUserId);
+        $this->ensureChallengeRelayTargetHasNoHistory(
+            $relay->source_post_id,
+            Auth::id(),
+            $toUserId,
+            'to_user_id'
+        );
+
+        $now = Carbon::now();
+        $relay->update([
+            'closed_by_user_id' => Auth::id(),
+            'closed_at' => $now,
+        ]);
+
+        $newRelay = PostRelay::updateOrCreate(
+            [
+                'relay_type' => PostRelay::TYPE_CHALLENGE,
+                'source_post_id' => $relay->source_post_id,
+                'from_user_id' => Auth::id(),
+                'to_user_id' => $toUserId,
+            ],
+            [
+                'declined_by_user_id' => null,
+                'status' => PostRelay::STATUS_PENDING,
+                'assigned_at' => $now,
+                'deadline_at' => $now->copy()->addWeek(),
+                'declined_at' => null,
+                'accepted_post_id' => null,
+                'closed_by_user_id' => null,
+                'closed_at' => null,
+            ]
+        );
+        $newRelay->loadMissing(['fromUser', 'toUser']);
+        $this->badgeService->invalidateBadgeSummaryCache();
+
+        return response()->json($newRelay);
+    }
+    public function challenge_relay_close(Request $request)
+    {
+        $request->validate([
+            'relay_id' => 'required|integer|exists:post_relays,id',
+        ]);
+
+        $relay = PostRelay::where('id', $request->relay_id)
+            ->where('relay_type', PostRelay::TYPE_CHALLENGE)
+            ->where('from_user_id', Auth::id())
+            ->where('status', PostRelay::STATUS_DECLINED)
+            ->whereNull('closed_at')
+            ->firstOrFail();
+
+        $relay->update([
+            'status' => PostRelay::STATUS_CLOSED,
+            'closed_by_user_id' => Auth::id(),
+            'closed_at' => Carbon::now(),
+        ]);
+        $this->badgeService->invalidateBadgeSummaryCache();
+
+        return response()->json($relay);
+    }
+    public function nice_follow_up_dismiss(Request $request)
+    {
+        $request->validate([
+            'post_id' => 'required|integer|exists:post_records,id',
+        ]);
+
+        if (in_array(Auth::id(), PostRelay::EXCLUDED_USER_IDS, true)) {
+            return response()->json();
+        }
+
+        $post = PostRecord::where('id', $request->post_id)
+            ->where('app_type', 0)
+            ->where('user_id', '!=', Auth::id())
+            ->whereHas('to_users', function ($query) {
+                $query->where('users.id', Auth::id());
+            })
+            ->firstOrFail();
+
+        PostRelay::updateOrCreate(
+            [
+                'relay_type' => PostRelay::TYPE_NICE,
+                'source_post_id' => $post->id,
+                'from_user_id' => $post->user_id,
+                'to_user_id' => Auth::id(),
+            ],
+            [
+                'status' => PostRelay::STATUS_CLOSED,
+                'assigned_at' => $post->created_at,
+                'deadline_at' => Carbon::parse($post->created_at)->addWeek(),
+                'closed_by_user_id' => Auth::id(),
+                'closed_at' => Carbon::now(),
+            ]
+        );
+        $this->badgeService->invalidateBadgeSummaryCache();
+
+        return response()->json();
+    }
+    private function createNiceRelaysForPost(PostRecord $post, array $toUserIds): void
+    {
+        $now = Carbon::now();
+        collect($toUserIds)
+            ->filter(fn ($id) => is_numeric($id)
+                && (int) $id !== (int) $post->user_id
+                && !in_array((int) $id, PostRelay::EXCLUDED_USER_IDS, true))
+            ->unique()
+            ->each(function ($userId) use ($post, $now) {
+                PostRelay::firstOrCreate(
+                    [
+                        'relay_type' => PostRelay::TYPE_NICE,
+                        'source_post_id' => $post->id,
+                        'from_user_id' => $post->user_id,
+                        'to_user_id' => (int) $userId,
+                    ],
+                    [
+                        'status' => PostRelay::STATUS_PENDING,
+                        'assigned_at' => $post->created_at ?? $now,
+                        'deadline_at' => Carbon::parse($post->created_at ?? $now)->addWeek(),
+                    ]
+                );
+            });
+    }
+    private function completePendingNiceRelaysForUser(PostRecord $post): void
+    {
+        $closedAt = $post->created_at ?? Carbon::now();
+        $relays = PostRelay::where('relay_type', PostRelay::TYPE_NICE)
+            ->where('to_user_id', Auth::id())
+            ->where('status', PostRelay::STATUS_PENDING)
+            ->where(function ($query) use ($post) {
+                $query->whereNull('assigned_at')
+                    ->orWhere('assigned_at', '<=', $post->created_at);
+            })
+            ->get();
+
+        foreach ($relays as $relay) {
+            $relay->update([
+                'status' => PostRelay::STATUS_COMPLETED,
+                'accepted_post_id' => $post->id,
+                'closed_by_user_id' => Auth::id(),
+                'closed_at' => $closedAt,
+            ]);
+
+            $this->closePendingNiceRelaySiblings($relay, Auth::id(), $closedAt);
+        }
+    }
+    private function closePendingNiceRelaySiblings(PostRelay $relay, int $closedByUserId, $closedAt): void
+    {
+        PostRelay::where('relay_type', PostRelay::TYPE_NICE)
+            ->where('source_post_id', $relay->source_post_id)
+            ->where('status', PostRelay::STATUS_PENDING)
+            ->where('id', '!=', $relay->id)
+            ->update([
+                'status' => PostRelay::STATUS_CLOSED,
+                'closed_by_user_id' => $closedByUserId,
+                'closed_at' => $closedAt,
+            ]);
+    }
     public function post_get_all_possible_users(Request $request){
         $other_users = User::where('retire', 0)->where('deleted_flag', 0)->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')->get();
         return response()->json($other_users); 
     }
     public function post_get_challenge_users(Request $request){
-        $other_users = User::where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')->get();
+        $exclude = collect($request->input('exclude', []))
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+        $other_users = $this->eligibleChallengeMemberQuery()
+            ->whereNotIn('id', array_values(array_unique(array_merge($exclude, PostRelay::EXCLUDED_USER_IDS))))
+            ->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')
+            ->get();
         return response()->json($other_users); 
+    }
+    private function eligibleChallengeMemberQuery()
+    {
+        return User::where('retire', 0)
+            ->where('deleted_flag', 0)
+            ->whereNotIn('id', PostRelay::EXCLUDED_USER_IDS)
+            ->where(function ($query) {
+                $query->where('position_id', '<=', 12)
+                    ->orWhere('position_id', 16);
+            });
+    }
+    private function ensureEligibleChallengeRelayTarget(int $userId): void
+    {
+        if (!$this->eligibleChallengeMemberQuery()->where('id', $userId)->exists()) {
+            throw ValidationException::withMessages([
+                'to_user_id' => '対象メンバーを選択してください。',
+            ]);
+        }
+    }
+    private function ensureChallengeRelayTargetHasNoHistory(int $sourcePostId, int $fromUserId, int $toUserId, string $field): void
+    {
+        $handledRelayExists = PostRelay::where('relay_type', PostRelay::TYPE_CHALLENGE)
+            ->where('source_post_id', $sourcePostId)
+            ->where('from_user_id', $fromUserId)
+            ->where('to_user_id', $toUserId)
+            ->where(function ($query) {
+                $query->whereNotNull('declined_at')
+                    ->orWhereNotNull('accepted_post_id')
+                    ->orWhereIn('status', [
+                        PostRelay::STATUS_DECLINED,
+                        PostRelay::STATUS_CLOSED,
+                        PostRelay::STATUS_COMPLETED,
+                    ]);
+            })
+            ->exists();
+
+        if ($handledRelayExists) {
+            throw ValidationException::withMessages([
+                $field => '別のメンバーを選択してください。',
+            ]);
+        }
     }
     public function post_get_post_users(Request $request){
         $other_users = User::where('retire', 0)->where('deleted_flag', 0)->where('id', '!=', Auth::id())->where('id', '>', 99)->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')->get();
