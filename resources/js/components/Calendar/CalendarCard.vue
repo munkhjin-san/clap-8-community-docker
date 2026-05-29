@@ -204,7 +204,7 @@ import { CalendarGroupUser, CalendarRecord } from '@/interface/calendarInterface
         if(selectedDepartment.value){
             return '#fff'
         }
-        const me = props.record.calendar_users.filter((ob: CalendarGroupUser) => ob.id == auth.activeUser.id)
+        const me = props.record.calendar_users.filter((ob: CalendarGroupUser) => ob.id == auth.id)
         return me.length && theme.dark ? 'var(--background-color)' : 'var(--primary-color)'
     })
 
