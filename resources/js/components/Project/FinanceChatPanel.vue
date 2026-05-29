@@ -503,7 +503,7 @@ function mdToHtml(md: string): string {
     width: 26px;
     height: 26px;
     border-radius: 8px;
-    background: var(--primary-color);
+    background: var(--primary-button);
     color: #fff;
     font-size: 9px;
     font-weight: 700;
@@ -521,12 +521,12 @@ function mdToHtml(md: string): string {
     line-height: 1.6;
 }
 .mcp-row.user .mcp-bubble {
-    background: var(--primary-color);
+    background: var(--primary-button);
     color: #fff;
     border-bottom-right-radius: 3px;
 }
 .mcp-row.assistant .mcp-bubble {
-    background: var(--bg3);
+    background: var(--background-color);
     color: var(--primary-color);
     border-bottom-left-radius: 3px;
 }
