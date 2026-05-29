@@ -95,7 +95,7 @@ type DiffResult = {
     targetFragments: ContractCompareFragment[]
 }
 
-export type ContractCompareChangeType = 'unchanged' | 'added' | 'removed' | 'modified'
+export type ContractCompareChangeType = 'unchanged' | 'added' | 'removed' | 'modified' | 'ocr_suspected'
 
 export type ContractCompareFragment = {
     text: string
@@ -190,6 +190,7 @@ const DIFF_TOKEN_PATTERN = /\s+|[A-Za-z]+(?:[A-Za-z0-9._/-]+)?|\d+(?:[.,]\d+)?|[
 // FIX 4: raised from 0.52 → 0.65 to prevent unrelated paragraphs from pairing
 const PARAGRAPH_MATCH_THRESHOLD = 0.65
 const PARAGRAPH_GAP_PENALTY = 0.34
+const OCR_SUSPECT_SIMILARITY_THRESHOLD = 0.985
 
 // ─── Text normalisation (unchanged) ──────────────────────────────────────────
 
@@ -206,8 +207,18 @@ export const normalizeContractText = (value?: string | null) => {
 
 const normalizeWidthVariants = (value: string) => value.normalize('NFKC')
 
+const normalizeOcrCompareVariants = (value: string) => value
+    .replace(/[_＿]{3,}/g, '')
+    .replace(/ヵ/g, 'カ')
+    .replace(/ヶ/g, 'ケ')
+    .replace(/受け入/g, '受入')
+    .replace(/受け容/g, '受入')
+    .replace(/手続き/g, '手続')
+    .replace(/申し込/g, '申込')
+    .replace(/すべて/g, '全て')
+
 const normalizeCompareText = (value?: string | null) => {
-    return normalizeWidthVariants(normalizeContractText(value))
+    return normalizeOcrCompareVariants(normalizeWidthVariants(normalizeContractText(value)))
         .replace(/\s+/g, '')
         .toLowerCase()
 }
@@ -217,7 +228,7 @@ const normalizeDiffToken = (value: string) => {
         return ' '
     }
 
-    return normalizeWidthVariants(value).toLowerCase()
+    return normalizeOcrCompareVariants(normalizeWidthVariants(value)).toLowerCase()
 }
 
 const extractClauseReference = (value?: string | null) => {
@@ -909,7 +920,13 @@ const resolveChangeType = (baseClause: ContractClauseIndex | null, targetClause:
         return 'unchanged'
     }
 
-    return baseClause.normalizedText === targetClause.normalizedText ? 'unchanged' : 'modified'
+    if (normalizeCompareText(baseClause.text) === normalizeCompareText(targetClause.text)) {
+        return 'unchanged'
+    }
+
+    return isLikelyOcrNoiseDifference(baseClause.text, targetClause.text)
+        ? 'ocr_suspected'
+        : 'modified'
 }
 
 // ─── Fix 1: buildLcsPairs ─────────────────────────────────────────────────────
@@ -1001,6 +1018,61 @@ const calculateTextSimilarity = (left: string, right: string) => {
     })
 
     return (2 * matches) / (leftBigrams.length + rightBigrams.length)
+}
+
+const calculateEditDistanceWithinLimit = (left: string, right: string, limit: number) => {
+    if (Math.abs(left.length - right.length) > limit) {
+        return limit + 1
+    }
+
+    let previous = Array.from({ length: right.length + 1 }, (_, index) => index)
+
+    for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+        const current = [leftIndex]
+        let rowMinimum = current[0]
+
+        for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+            const substitutionCost = left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1
+            const value = Math.min(
+                previous[rightIndex] + 1,
+                current[rightIndex - 1] + 1,
+                previous[rightIndex - 1] + substitutionCost,
+            )
+
+            current[rightIndex] = value
+            rowMinimum = Math.min(rowMinimum, value)
+        }
+
+        if (rowMinimum > limit) {
+            return limit + 1
+        }
+
+        previous = current
+    }
+
+    return previous[right.length]
+}
+
+const isLikelyOcrNoiseDifference = (baseText: string, targetText: string) => {
+    const normalizedBase = normalizeCompareText(baseText)
+    const normalizedTarget = normalizeCompareText(targetText)
+
+    if (!normalizedBase || !normalizedTarget || normalizedBase === normalizedTarget) {
+        return false
+    }
+
+    const longestLength = Math.max(normalizedBase.length, normalizedTarget.length)
+    const distanceLimit = Math.max(2, Math.min(6, Math.floor(longestLength * 0.018)))
+
+    if (Math.abs(normalizedBase.length - normalizedTarget.length) > distanceLimit) {
+        return false
+    }
+
+    if (calculateTextSimilarity(normalizedBase, normalizedTarget) < OCR_SUSPECT_SIMILARITY_THRESHOLD) {
+        return false
+    }
+
+    return calculateEditDistanceWithinLimit(normalizedBase, normalizedTarget, distanceLimit) <= distanceLimit
 }
 
 const tokenizeDiffText = (text: string) => {
@@ -1494,8 +1566,9 @@ export const compareContractIndexes = (
     }
 
     const rows = buildContractComparisonRows(baseIndex, targetIndex)
+    const legalChangeTypes: ContractCompareChangeType[] = ['added', 'removed', 'modified']
     const changes: ContractComparisonChange[] = rows
-        .filter(row => row.changeType !== 'unchanged')
+        .filter(row => legalChangeTypes.includes(row.changeType))
         .map(row => ({
             id: row.id,
             change_type: row.changeType as 'added' | 'removed' | 'modified',
@@ -1527,6 +1600,7 @@ export const compareContractIndexes = (
             added: changes.filter(change => change.change_type === 'added').length,
             removed: changes.filter(change => change.change_type === 'removed').length,
             modified: changes.filter(change => change.change_type === 'modified').length,
+            ocr_suspected: rows.filter(row => row.changeType === 'ocr_suspected').length,
         },
         changes,
     }

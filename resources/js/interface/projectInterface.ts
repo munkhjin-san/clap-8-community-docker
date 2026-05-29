@@ -54,6 +54,7 @@ export interface ContractComparisonResult {
         added: number;
         removed: number;
         modified: number;
+        ocr_suspected?: number;
     };
     changes: ContractComparisonChange[];
 }
@@ -302,6 +303,7 @@ interface ProjectGoal {
     year: number;
     which_half: string
     user: User;
+    updated_at?: string;
     goal_notifications_count?: number;
     status_logs?: StatusLog[];
     due_plus_7?: string

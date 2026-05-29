@@ -400,6 +400,12 @@
                                         <span class="legal-compare__stat-chip legal-compare__stat-chip--added">追加 {{ comparisonResult.summary.added }}</span>
                                         <span class="legal-compare__stat-chip legal-compare__stat-chip--removed">削除 {{ comparisonResult.summary.removed }}</span>
                                         <span class="legal-compare__stat-chip legal-compare__stat-chip--modified">変更 {{ comparisonResult.summary.modified }}</span>
+                                        <span
+                                            v-if="comparisonResult.summary.ocr_suspected"
+                                            class="legal-compare__stat-chip legal-compare__stat-chip--ocr"
+                                        >
+                                            OCR確認 {{ comparisonResult.summary.ocr_suspected }}
+                                        </span>
                                     </div>
 
                                     <section v-if="compareDataReady" class="legal-compare-summary">
@@ -625,6 +631,8 @@ const INLINE_PREVIEW_EXTENSIONS = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', '
 const UPLOAD_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.rtf,.odt,.ods,.odp'
 const MAX_UPLOAD_BYTES = 209715 * 1024
 const PDFJS_BASE_PATH = '/pdf-reader'
+const PDF_OCR_RENDER_SCALE = 2.5
+const PDF_OCR_MAX_CANVAS_PIXELS = 12000000
 
 const { selectedProject } = useProject()
 const api = useApi()
@@ -1036,6 +1044,12 @@ const loadPdfJs = async () => {
     return pdfJsModuleRequest
 }
 
+const pdfOcrRenderScale = (width: number, height: number) => {
+    const maxScale = Math.sqrt(PDF_OCR_MAX_CANVAS_PIXELS / Math.max(1, width * height))
+
+    return Math.max(1, Math.min(PDF_OCR_RENDER_SCALE, maxScale))
+}
+
 const renderPdfPagesForOcr = async (file: File) => {
     const pdfjs = await loadPdfJs()
     const pdfJsAssetUrl = (path: string) => new URL(path, window.location.origin).toString()
@@ -1052,17 +1066,28 @@ const renderPdfPagesForOcr = async (file: File) => {
     try {
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
             const page = await pdf.getPage(pageNumber)
-            const viewport = page.getViewport({ scale: 2 })
+            const baseViewport = page.getViewport({ scale: 1 })
+            const viewport = page.getViewport({
+                scale: pdfOcrRenderScale(baseViewport.width, baseViewport.height),
+            })
             const canvas = document.createElement('canvas')
-            const context = canvas.getContext('2d')
+            const context = canvas.getContext('2d', { alpha: false })
             if (!context) {
                 throw new Error('PDFページの画像化に失敗しました。')
             }
 
             canvas.width = Math.ceil(viewport.width)
             canvas.height = Math.ceil(viewport.height)
+            context.imageSmoothingEnabled = true
+            context.imageSmoothingQuality = 'high'
+            context.fillStyle = '#fff'
+            context.fillRect(0, 0, canvas.width, canvas.height)
 
-            await page.render({ canvasContext: context, viewport }).promise
+            await page.render({
+                canvasContext: context,
+                viewport,
+                background: 'rgb(255, 255, 255)',
+            }).promise
 
             const blob = await new Promise<Blob>((resolve, reject) => {
                 canvas.toBlob(result => {
@@ -2935,6 +2960,16 @@ onBeforeUnmount(() => {
 
 .legal-compare__stat-chip--modified::before {
     background: var(--legal-text);
+}
+
+.legal-compare__stat-chip--ocr {
+    color: #7b5b05;
+    border-color: rgba(123, 91, 5, 0.24);
+    background: rgba(123, 91, 5, 0.07);
+}
+
+.legal-compare__stat-chip--ocr::before {
+    background: #7b5b05;
 }
 
 .legal-compare__tabs {

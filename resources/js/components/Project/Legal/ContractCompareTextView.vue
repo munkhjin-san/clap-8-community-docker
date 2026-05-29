@@ -19,7 +19,7 @@
                     v-for="block in baseBlocks"
                     :key="block.id"
                     class="contract-compare-text-view__section"
-                    :class="{ 'contract-compare-text-view__section--changed-base': block.changed }"
+                    :class="sectionClass(block, 'base')"
                 >
                     <h3 v-if="hasVisibleTitle(block)" class="contract-compare-text-view__title">
                         <template v-for="(fragment, fragmentIndex) in visibleTitleFragments(block)" :key="`${block.id}-base-title-${fragmentIndex}`">
@@ -47,7 +47,7 @@
                     v-for="block in targetBlocks"
                     :key="block.id"
                     class="contract-compare-text-view__section"
-                    :class="{ 'contract-compare-text-view__section--changed-target': block.changed }"
+                    :class="sectionClass(block, 'target')"
                 >
                     <h3 v-if="hasVisibleTitle(block)" class="contract-compare-text-view__title">
                         <template v-for="(fragment, fragmentIndex) in visibleTitleFragments(block)" :key="`${block.id}-target-title-${fragmentIndex}`">
@@ -121,6 +121,12 @@ const visibleTitleFragments = (block: ContractCompareClauseView) => {
 }
 
 const hasVisibleTitle = (block: ContractCompareClauseView) => visibleTitleFragments(block).length > 0
+
+const sectionClass = (block: ContractCompareClauseView, side: 'base' | 'target') => ({
+    'contract-compare-text-view__section--changed-base': block.changed && side === 'base' && block.changeType !== 'ocr_suspected',
+    'contract-compare-text-view__section--changed-target': block.changed && side === 'target' && block.changeType !== 'ocr_suspected',
+    'contract-compare-text-view__section--ocr-suspected': block.changed && block.changeType === 'ocr_suspected',
+})
 
 const fragmentClass = (changed: boolean, side: 'base' | 'target') => ({
     'contract-compare-text-view__fragment': true,
@@ -200,6 +206,12 @@ const fragmentClass = (changed: boolean, side: 'base' | 'target') => ({
 
 .contract-compare-text-view__section--changed-target {
     border-left: 3px solid rgba(24, 143, 87, 0.28);
+    padding-left: 14px;
+    margin-left: -14px;
+}
+
+.contract-compare-text-view__section--ocr-suspected {
+    border-left: 3px solid rgba(123, 91, 5, 0.24);
     padding-left: 14px;
     margin-left: -14px;
 }

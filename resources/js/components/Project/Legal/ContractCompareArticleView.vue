@@ -215,6 +215,7 @@ const cardClass = (
     'contract-compare-article-view__card--empty': !hasClause,
     'contract-compare-article-view__card--base-changed': hasClause && side === 'base' && (changeType === 'removed' || changeType === 'modified'),
     'contract-compare-article-view__card--target-changed': hasClause && side === 'target' && (changeType === 'added' || changeType === 'modified'),
+    'contract-compare-article-view__card--ocr-suspected': hasClause && changeType === 'ocr_suspected',
 })
 
 const fragmentClass = (changed: boolean, side: 'base' | 'target') => ({
@@ -334,6 +335,11 @@ const missingInTarget = computed(() => {
 .contract-compare-article-view__card--target-changed {
     border-color: rgba(24, 143, 87, 0.2);
     background: rgba(41, 196, 122, 0.06);
+}
+
+.contract-compare-article-view__card--ocr-suspected {
+    border-color: rgba(123, 91, 5, 0.22);
+    background: rgba(123, 91, 5, 0.055);
 }
 
 .contract-compare-article-view__card-title {
