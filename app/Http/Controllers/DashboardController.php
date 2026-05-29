@@ -246,6 +246,7 @@ class DashboardController extends Controller
                     });
                 });
             })
+            ->where('status', 0)
             ->with([
                 'users',
                 'admins',
