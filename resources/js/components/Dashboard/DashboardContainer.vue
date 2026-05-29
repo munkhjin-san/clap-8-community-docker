@@ -1,6 +1,6 @@
 <template>
     <div id="dashBoardContainer" class="w-full h-full overflow-hidden relative">
-        <div class="w-full h-full overflow-y-scroll bg-[var(--bg3)] relative" :class="{'hidescroll' : route.params.type}" ref="sortParent" @scroll="handleScroll">
+        <div class="w-full h-full overflow-y-scroll bg-[var(--bg3)] relative" :class="{'hidescroll' : route.params.type}" ref="sortParent">
             <div class="mem-header-section mobile" :style="{'transform': `translateY(${offset}px)`}">        
                 <div class="post-header sticky top-0 z-[11] bg-[var(--background-color)]" >
                     <HamBurger />       
@@ -202,7 +202,6 @@ import {
     shouldShowCard
 } from '@/config/dashboardCards';
 import './dashboard.css'
-import SortIcon from '../Icons/SortIcon.vue';
 import Badge from '../Global/Badge.vue';
 
 const auth = useAuthUserStore()
@@ -610,63 +609,6 @@ const { ping, toast } = useDialog()
 const sortParent = useTemplateRef('sortParent')
 
 const offset = ref(0)
-const prevScrollPosition = ref(0)
-const prevScrollTime = ref<number>(typeof performance !== 'undefined' ? performance.now() : Date.now())
-const accumulatedScrollUp = ref(0)
-
-const handleScroll = () => {
-    if (!sortParent.value) return
-
-    // iOS (and some touch browsers) can emit "rubber-band" scroll where scrollTop
-    // temporarily goes <= 0. In that case we always show the header.
-    const rawScrollTop = sortParent.value.scrollTop
-    const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
-    if (rawScrollTop <= 0) {
-        offset.value = 0
-        prevScrollPosition.value = 0
-        prevScrollTime.value = now
-        accumulatedScrollUp.value = 0
-        return
-    }
-
-    // Normalize and add a tiny dead-zone to avoid jitter.
-    const currentScrollTop = Math.max(0, rawScrollTop)
-    const delta = currentScrollTop - prevScrollPosition.value
-    const dt = Math.max(1, now - prevScrollTime.value)
-
-    const JITTER_PX = 2
-    const HIDE_AFTER_PX = 30
-    const SHOW_UP_VELOCITY_PX_PER_MS = 0.55 // ~550px/s
-    const SHOW_AFTER_UP_PX = 80
-
-    if (Math.abs(delta) < JITTER_PX) return
-
-    // Only hide once the user has scrolled down a bit.
-    if (delta > 0) {
-        accumulatedScrollUp.value = 0
-        if (currentScrollTop > HIDE_AFTER_PX) offset.value = -95
-    }
-
-    // More native-like: on upward scroll, only show if user scrolls up fast
-    // (flick) or has scrolled up a meaningful distance.
-    if (delta < 0) {
-        const upDistance = -delta
-        const upVelocity = upDistance / dt
-        accumulatedScrollUp.value += upDistance
-
-        if (
-            currentScrollTop <= HIDE_AFTER_PX ||
-            upVelocity >= SHOW_UP_VELOCITY_PX_PER_MS ||
-            accumulatedScrollUp.value >= SHOW_AFTER_UP_PX
-        ) {
-            offset.value = 0
-            accumulatedScrollUp.value = 0
-        }
-    }
-
-    prevScrollPosition.value = currentScrollTop
-    prevScrollTime.value = now
-}
 
 const saveGridState = (force = false) => {
     if (!grid.value) return
