@@ -886,6 +886,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::delete('/incident_punishment', [DashboardController::class, 'deleteIncidentPunishment']);
         Route::post('/incident_punishments/reorder', [DashboardController::class, 'reorderIncidentPunishments']);
         Route::get('/incident_logs', [DashboardController::class, 'getIncidentLogs']);
+        Route::post('/incident_read_history', [DashboardController::class, 'markIncidentRead']);
         Route::post('/incident_record_create', [DashboardController::class, 'createIncidentRecord']);
         Route::post('/incident_record_update', [DashboardController::class, 'updateIncidentRecord']);
         Route::post('/incident_record_delete', [DashboardController::class, 'deleteIncidentRecord']);

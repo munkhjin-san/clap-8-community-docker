@@ -14,9 +14,9 @@
         <div id="pageNavigator01" v-if="possiblePage > 6" class="search-navi-button cursor-pointer" style="position:relative;padding:0;">
             <p @click.stop="menu.setMenu( {name: 'pageJumperList01', id: 367})" style="padding:10px;">...</p>
             <Transition name="modalFade">
-            <div v-if="menu.name == 'pageJumperList01' && menu.id == 367" id="pageJumperList01" class="boxMenu" style="top: auto;bottom:30px;left: 50%; transform: translate(-50%, 0); margin-left: auto; margin-right: auto;max-height: 145px;max-width:145px;overflow: auto;">
-                <p @click="emit('setActivePage', number), menu.setMenu( {name: '', id: null})" class="boxMenuItems" :key="number" v-for="number in possiblePage">{{number}}</p>
-            </div>
+                <div v-if="menu.name == 'pageJumperList01' && menu.id == 367" id="pageJumperList01" class="boxMenu" style="top: auto;bottom:30px;left: 50%; transform: translate(-50%, 0); margin-left: auto; margin-right: auto;max-height: 145px;max-width:145px;overflow: hidden auto;">
+                    <p @click="emit('setActivePage', number), menu.setMenu( {name: '', id: null})" class="boxMenuItems" :key="number" v-for="number in possiblePage">{{number}}</p>
+                </div>
             </Transition>                    
         </div>
         <button class="search-navi-button" style="display:flex;" @click="setNavi(1)">
@@ -63,7 +63,7 @@ import { useMenuStore } from "@/store/menu";
         display: none;  /* Safari and Chrome */
     }
     .selectedPageButton{
-        background-color: var(--bg3);
-        // color:var(--background-color) !important;
+        background-color: var(--primary-color) !important;
+        color:var(--background-color) !important;
     }
 </style>

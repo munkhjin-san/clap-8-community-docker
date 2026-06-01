@@ -24,6 +24,7 @@ export interface UpdateLog {
         display_new?: unknown;
     }> | null;
     note: string | null;
+    is_unread?: boolean;
     user?: User;
     created_at?: string;
 }

@@ -114,7 +114,17 @@
                             :class="{ expanded: activeIncident?.id === incident.id }"
                             @click.stop="openIncidentDetail(incident)"
                         >
-                            <td><div class="inner-col"><span class="mobile">発生日</span><p class="text-[gray] text-[12px]">{{ formatDate(incident.occurred_date) }}</p></div></td>
+                            <td>
+                                <div class="inner-col flex !items-center gap-2 relative">
+                                    <span
+                                        v-if="shouldShowUnreadDot(incident)"
+                                        class="incident-unread-dot"
+                                        :class="{ 'custom-heartbeat': isNewIncident(incident) }"
+                                    ></span>
+                                    <span class="mobile">発生日</span>
+                                    <p class="text-[gray] text-[12px] under960:ml-auto">{{ formatDate(incident.occurred_date) }}</p>
+                                </div>
+                            </td>
                             <td><div class="inner-col"><span class="mobile">対象者</span><UserPanel v-if="incident.caused_by_user" :user="incident.caused_by_user" with-name size="20" disable-instant/></div></td>
                             <td><div class="inner-col"><span class="mobile">報告者</span><UserPanel v-if="incident.reported_by_user" :user="incident.reported_by_user" with-name size="20" disable-instant/></div></td>
                             <td class="max-w-[180px] overflow-hidden text-ellipsis"><div class="inner-col"><span class="mobile">プロジェクト</span><p class="truncate">{{ incident.project_record?.name || '-' }}</p></div></td>
@@ -125,7 +135,15 @@
                                     {{ (incident.risk_level ?? 0) * (incident.severity_level ?? 0) || '' }}
                                 </div>
                             </div></td>
-                            <td><div class="inner-col"><span class="mobile">コメント</span>{{ incident.comments_count && incident.comments_count > 0 ? `${incident.comments_count}件` : '' }}</div></td>
+                            <td>
+                                <div class="inner-col">
+                                    <span class="mobile">コメント</span>
+                                    <div class="flex items-center gap-2">
+                                        <span>{{ incident.comments_count && incident.comments_count > 0 ? `${incident.comments_count}件` : '' }}</span>
+                                        <Badge style="position: unset" v-if="incident.unread_comments_count" :count="incident.unread_comments_count" color="orange"/>
+                                    </div>
+                                </div>
+                            </td>
                         </tr>
                     </template>
                 </template>
@@ -134,7 +152,7 @@
                 </tr>
             </tbody>
         </table>
-        <div class="mt-3">
+        <div class="mt-3 pb-3">
             <PostSearchPager
                 style="margin: 0;"
                 :possiblePage="incidentsData.last_page"
@@ -201,10 +219,13 @@ import FloatButton from '../Global/FloatButton.vue';
 import AddIcon from '../Form/AddIcon.vue';
 import IncidentDetailModal from './IncidentDetailModal.vue';
 import IncidentSettingsManager from './IncidentSettingsManager.vue';
+import { useDashboardStore } from '@/store/dashboard';
+import Badge from '../Global/Badge.vue';
 
 const api = useApi()
 const route = useRoute()
 const router = useRouter()
+const dashboardStore = useDashboardStore()
 const loading = ref(false)
 const fetchCount = ref(0)
 const activeIncident = ref<Incident | null>(null)
@@ -234,6 +255,8 @@ const incidentOptions = ref<IncidentFilterOptions>({
     can_manage: false,
     can_view: false,
 })
+const isNewIncident = (incident: Incident) => !incident.last_read_at && !(incident.read_histories?.length)
+const shouldShowUnreadDot = (incident: Incident) => (isNewIncident(incident) || (incident.unread_update_logs_count ?? 0) > 0) && incident.status !== '完了'
 const filters = reactive<IncidentFilters>({
     keyword: '',
     occurred_from: '',
@@ -511,6 +534,10 @@ const handleIncidentUpdated = (incident: Incident) => {
     if (index !== -1) {
         incidentsData.value.data[index] = incident
     }
+    const attentionIndex = dashboardStore.collection.incidents.attention.findIndex(item => item.id === incident.id)
+    if (attentionIndex !== -1) {
+        dashboardStore.collection.incidents.attention[attentionIndex] = incident
+    }
 }
 
 const handleIncidentCreated = (incident: Incident) => {
@@ -738,6 +765,30 @@ const riskLevelColor = (incident: Incident) => {
     border-bottom: none;
 }
 
+.incident-unread-dot{
+    display: inline-block;
+    width: 6px;
+    min-width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: tomato;
+    position: unset;
+}
+
+.incident-comment-unread-badge{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: orange;
+    color: white;
+    font-size: 11px;
+    line-height: 1;
+}
+
 .incident-table .row-toggle{
     display: inline-flex;
     align-items: center;
@@ -753,6 +804,17 @@ const riskLevelColor = (incident: Incident) => {
 }
 
 @media screen and (max-width: 959px) {
+    .incident-unread-dot{
+        display: inline-block;
+        position: absolute;
+        right: -12px;
+        top: -14px;
+        width: 10px;
+        min-width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: tomato;
+    }
     .incident-toolbar{
         flex-direction: column;
         align-items: stretch;

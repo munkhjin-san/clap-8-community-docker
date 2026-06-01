@@ -59,6 +59,11 @@ class Incident extends Model
             ->orderBy('created_at');
     }
 
+    public function readHistories()
+    {
+        return $this->morphMany(UserReadHistory::class, 'readable');
+    }
+
     public function fileAttachments()
     {
         return $this->morphMany(FileAttachment::class, 'attachable');

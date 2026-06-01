@@ -2,7 +2,18 @@
     <Modal size="large" custom-class="incident-detail-modal" @close="emit('close', false)">
         <template #title>{{ isCreateMode ? 'インシデント報告【新規作成】' : editMode ? 'インシデント報告【編集】' : 'インシデント報告' }}</template>
         <template #menu>
-            <ItemMenu v-if="!isCreateMode && canEditIncident && menuItems.length" :items="menuItems" />
+            <div class="incident-detail-menu">
+                <button
+                    v-if="unreadBadgeVisible && unreadBadge"
+                    type="button"
+                    class="incident-read-badge"
+                    :class="{ 'incident-read-badge--new': unreadBadge.type === 'new' }"
+                    @click="handleUnreadBadgeClick"
+                >
+                    {{ unreadBadge.type === 'new' ? '新規インシデント' : `更新 ${unreadBadge.count}件` }}
+                </button>
+                <ItemMenu v-if="!isCreateMode && canEditIncident && menuItems.length" :items="menuItems" />
+            </div>
         </template>
         <template #content>
             <div v-if="viewMode === 'detail'" class="incident-detail-shell">
@@ -323,7 +334,10 @@
                     <div v-for="log in incidentLogs" :key="log.id" class="incident-history-item">
                         <div class="incident-history-meta">
                             <div>
-                                <strong>{{ actionLabel(log.action) }}</strong>
+                                <strong class="inline-flex items-center gap-2">
+                                    <span v-if="log.is_unread" class="incident-history-unread-dot"></span>
+                                    {{ actionLabel(log.action) }}
+                                </strong>
                                 <span>{{ formatDateTime(log.created_at) }}</span>
                             </div>
                             <UserPanel v-if="log.user" :user="log.user" with-name size="22" disable-instant/>
@@ -363,7 +377,7 @@
 
 <script setup lang="ts">
 import { DateTime } from 'luxon';
-import { computed, h, onMounted, ref, watch } from 'vue';
+import { computed, h, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import Modal from '@/components/Global/Modal.vue';
 import UserPanel from '@/components/Global/UserPanel.vue';
 import { Incident, IncidentCategory, IncidentPunishment } from '@/interface/incident';
@@ -429,6 +443,15 @@ const mutableParams = ref<Partial<Incident>>({ ...(props.incident ?? createBlank
 const selectedCausedByUser = ref<User | null>(props.incident?.caused_by_user ?? null)
 const uploadedFiles = ref<CommonFile[]>([...(props.incident?.files ?? [])])
 const incidentLogs = ref<UpdateLog[]>([])
+const markedReadIncidentIds = ref<Set<number>>(new Set())
+type IncidentUnreadBadge = {
+    type: 'new' | 'updated'
+    count: number
+    readBefore: string | null
+}
+const unreadBadge = ref<IncidentUnreadBadge | null>(null)
+const unreadBadgeVisible = ref(false)
+let unreadBadgeHideTimer: ReturnType<typeof setTimeout> | undefined
 type IncidentProjectOption = Pick<Project, 'id' | 'name' | 'date_start' | 'date_end' | 'category'>
 const incidentOptions = ref<{
     categories: IncidentCategory[]
@@ -587,12 +610,21 @@ const projectOptions = computed(() => {
 
 onMounted(() => {
     loadIncidentOptions()
+    initializeUnreadBadge(localIncident.value)
+    markIncidentRead()
+})
+
+onBeforeUnmount(() => {
+    if (unreadBadgeHideTimer) clearTimeout(unreadBadgeHideTimer)
 })
 
 watch(
     () => props.incident,
     (incident) => {
         const nextIncident = incident ?? createBlankIncident()
+        const isSameIncident = nextIncident.id === localIncident.value.id
+        const shouldKeepUnreadBadge = isSameIncident && Boolean(unreadBadge.value)
+
         localIncident.value = { ...nextIncident }
         mutableParams.value = { ...nextIncident }
         selectedCausedByUser.value = nextIncident.caused_by_user ?? null
@@ -600,8 +632,87 @@ watch(
         editMode.value = isCreateMode.value
         viewMode.value = 'detail'
         incidentLogs.value = []
+
+        if (!shouldKeepUnreadBadge) {
+            initializeUnreadBadge(nextIncident)
+        }
+
+        markIncidentRead()
     },
 )
+
+const getIncidentLastReadAt = (incident: Incident) => {
+    return incident.last_read_at ?? incident.read_histories?.[0]?.last_read_at ?? null
+}
+
+const initializeUnreadBadge = (incident: Incident) => {
+    if (isCreateMode.value || !incident.id || incident.status === '完了') {
+        unreadBadge.value = null
+        unreadBadgeVisible.value = false
+        return
+    }
+
+    const readBefore = getIncidentLastReadAt(incident)
+    const updateCount = incident.unread_update_logs_count ?? 0
+
+    if (!readBefore) {
+        unreadBadge.value = { type: 'new', count: updateCount, readBefore: null }
+        unreadBadgeVisible.value = true
+        return
+    }
+
+    if (updateCount > 0) {
+        unreadBadge.value = { type: 'updated', count: updateCount, readBefore }
+        unreadBadgeVisible.value = true
+        return
+    }
+
+    unreadBadge.value = null
+    unreadBadgeVisible.value = false
+}
+
+const scheduleUnreadBadgeHide = () => {
+    if (unreadBadgeHideTimer) clearTimeout(unreadBadgeHideTimer)
+    unreadBadgeHideTimer = setTimeout(() => {
+        unreadBadgeVisible.value = false
+    }, 3000)
+}
+
+const handleUnreadBadgeClick = async () => {
+    if (!unreadBadge.value) return
+    if (unreadBadge.value.type === 'updated') {
+        await showHistory(true)
+    }
+    scheduleUnreadBadgeHide()
+}
+
+const markIncidentRead = async () => {
+    if (isCreateMode.value || !localIncident.value.id) return
+    if (markedReadIncidentIds.value.has(localIncident.value.id)) return
+
+    markedReadIncidentIds.value.add(localIncident.value.id)
+    let response
+    try {
+        response = await api.post('/incident_read_history', { id: localIncident.value.id }, { silent: true })
+    } catch {
+        markedReadIncidentIds.value.delete(localIncident.value.id)
+        return
+    }
+
+    if (!response?.last_read_at) return
+
+    localIncident.value.last_read_at = response.last_read_at
+    localIncident.value.unread_update_logs_count = 0
+    localIncident.value.unread_comments_count = 0
+    mutableParams.value.last_read_at = response.last_read_at
+    mutableParams.value.unread_update_logs_count = 0
+    mutableParams.value.unread_comments_count = 0
+    emit('updated', { ...localIncident.value })
+
+    if (unreadBadge.value?.type === 'new') {
+        scheduleUnreadBadgeHide()
+    }
+}
 const loadIncidentOptions = async () => {
     const data = await api.get('/incident_options', null, { silent: true })
     if (!data) return
@@ -693,16 +804,19 @@ const cancelEdit = () => {
     editMode.value = false
 }
 
-const showHistory = async () => {
+const showHistory = async (forceReload = false) => {
     if (isCreateMode.value) return
     editMode.value = false
     viewMode.value = 'history'
 
-    if (incidentLogs.value.length) return
+    if (incidentLogs.value.length && !forceReload) return
 
     historyLoading.value = true
     try {
-        const data = await api.get('/incident_logs', { id: localIncident.value.id })
+        const data = await api.get('/incident_logs', {
+            id: localIncident.value.id,
+            read_before: unreadBadge.value?.readBefore ?? undefined,
+        })
         incidentLogs.value = data ?? []
     } finally {
         historyLoading.value = false
@@ -865,6 +979,27 @@ const formatLogValue = (value: unknown) => {
     white-space: nowrap;
 }
 
+.incident-detail-menu{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.incident-read-badge{
+    border: 1px solid tomato;
+    color: tomato;
+    background: rgba(255, 99, 71, 0.08);
+    padding: 4px 8px;
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: 0.02em;
+}
+
+.incident-read-badge--new{
+    background: tomato;
+    color: white;
+}
+
 .incident-detail-shell{
     display: grid;
     grid-template-columns: 220px minmax(0, 1fr);
@@ -1025,6 +1160,15 @@ const formatLogValue = (value: unknown) => {
 .incident-history-note{
     color: gray;
     font-size: 11px;
+}
+
+.incident-history-unread-dot{
+    display: inline-block;
+    width: 6px;
+    min-width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: tomato;
 }
 
 .incident-history-note{
