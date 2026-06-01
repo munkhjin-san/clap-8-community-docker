@@ -201,7 +201,7 @@ const posts = ref<PostPagination>({
     total: 0,
 });
 const searchWord = ref('');
-const selectedStatus = ref<RefreshStatus>('all');
+const selectedStatus = ref<RefreshStatus>('pending');
 const openedDetails = ref<number[]>([]);
 const activeActionId = ref<number | null>(null);
 
