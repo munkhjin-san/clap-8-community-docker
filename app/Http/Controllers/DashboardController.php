@@ -28,6 +28,7 @@ use App\Models\IncidentCategory;
 use App\Models\IncidentPunishment;
 use App\Models\IncidentStatus;
 use App\Models\FileRecord;
+use App\Models\UserReadHistory;
 use App\Models\SystemUpdateCheck;
 use App\Models\SystemUpdateRecord;
 use App\Models\UserLeaveRecord;
@@ -930,7 +931,7 @@ class DashboardController extends Controller
 
         return $unreadNotices;
     }
-    private function incidentQuery(bool $withDetail = true)
+    private function incidentQuery(bool $withDetail = true, ?int $readUserId = null)
     {
         $columns = [
             'id',
@@ -971,9 +972,40 @@ class DashboardController extends Controller
             ]);
         }
 
+        $readUserId ??= $this->active_user()->id;
+
         return Incident::query()
             ->select(array_values(array_unique($columns)))
-            ->withCount('comments')
+            ->selectSub(function ($query) use ($readUserId) {
+                $query->from('user_read_histories')
+                    ->select('last_read_at')
+                    ->whereColumn('readable_id', 'incidents.id')
+                    ->where('readable_type', Incident::class)
+                    ->where('user_id', $readUserId)
+                    ->limit(1);
+            }, 'last_read_at')
+            ->withCount([
+                'comments',
+                'comments as unread_comments_count' => function ($commentQuery) use ($readUserId) {
+                    $commentQuery
+                        ->whereRaw('incidents.created_at >= ?', ['2026-05-01 00:00:00'])
+                        ->where(function ($ownerQuery) use ($readUserId) {
+                            $ownerQuery->whereNull('app_comments.user_id')
+                                ->orWhere('app_comments.user_id', '!=', $readUserId);
+                        })
+                        ->whereRaw(
+                            'app_comments.created_at > COALESCE((
+                            SELECT user_read_histories.last_read_at
+                            FROM user_read_histories
+                            WHERE user_read_histories.readable_type = ?
+                                AND user_read_histories.readable_id = incidents.id
+                                AND user_read_histories.user_id = ?
+                            LIMIT 1
+                        ), ?)',
+                            [Incident::class, $readUserId, '1970-01-01 00:00:00'],
+                        );
+                },
+            ])
             ->with([
                 'reportedByUser',
                 'causedByUser',
@@ -997,6 +1029,31 @@ class DashboardController extends Controller
         $this->applyIncidentFilters($query, $request);
 
         return $this->orderIncidentList($query)
+            ->with([
+                    'readHistories' => function ($readQuery) use ($activeUser) {
+                        $readQuery->where('user_id', $activeUser->id);
+                },
+            ])
+            ->withCount([
+                'logs as unread_update_logs_count' => function ($logQuery) use ($activeUser) {
+                    $logQuery
+                        ->where(function ($ownerQuery) use ($activeUser) {
+                            $ownerQuery->whereNull('update_logs.user_id')
+                                ->orWhere('update_logs.user_id', '!=', $activeUser->id);
+                        })
+                        ->whereRaw(
+                            'update_logs.created_at > COALESCE((
+                            SELECT user_read_histories.last_read_at
+                            FROM user_read_histories
+                            WHERE user_read_histories.readable_type = ?
+                                AND user_read_histories.readable_id = update_logs.loggable_id
+                                AND user_read_histories.user_id = ?
+                            LIMIT 1
+                        ), ?)',
+                            [Incident::class, $activeUser->id, '1970-01-01 00:00:00'],
+                        );
+                },
+            ])
             ->paginate((int) $request->input('per_page', 50));
     }
 
@@ -1311,6 +1368,7 @@ class DashboardController extends Controller
     {
         $validated = $request->validate([
             'id' => ['required', 'integer', 'exists:incidents,id'],
+            'read_before' => ['sometimes', 'nullable', 'date'],
         ]);
 
         $incident = Incident::findOrFail($validated['id']);
@@ -1320,7 +1378,40 @@ class DashboardController extends Controller
             abort(403);
         }
 
-        return $this->resolveIncidentLogDisplayValues($incident->logs()->get());
+        $readBefore = array_key_exists('read_before', $validated)
+            ? ($validated['read_before'] ? Carbon::parse($validated['read_before']) : null)
+            : optional($incident->readHistories()->where('user_id', $activeUser->id)->first())->last_read_at;
+
+        return $this->resolveIncidentLogDisplayValues($incident->logs()->get(), $readBefore);
+    }
+
+    public function markIncidentRead(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:incidents,id'],
+        ]);
+
+        $activeUser = $this->active_user();
+        $incident = Incident::findOrFail($validated['id']);
+
+        if (!$this->canAccessIncident($incident, $activeUser)) {
+            abort(403);
+        }
+
+        $readHistory = UserReadHistory::updateOrCreate(
+            [
+                'readable_type' => Incident::class,
+                'readable_id' => $incident->id,
+                'user_id' => $activeUser->id,
+            ],
+            [
+                'last_read_at' => now(),
+            ],
+        );
+
+        return response()->json([
+            'last_read_at' => $readHistory->last_read_at?->toDateTimeString(),
+        ]);
     }
 
     public function createIncidentRecord(Request $request)
@@ -1582,10 +1673,36 @@ class DashboardController extends Controller
     private function incidents() {
         $activeUser = $this->active_user();
 
-        $query = $this->incidentQuery()->where(function ($statusQuery) {
-            $statusQuery->whereNull('status')
-                ->orWhere('status', '!=', '完了');
-        });
+        $query = $this->incidentQuery(true, $activeUser->id)
+            ->with([
+                'readHistories' => function ($readQuery) use ($activeUser) {
+                    $readQuery->where('user_id', $activeUser->id);
+                },
+            ])
+            ->withCount([
+                'logs as unread_update_logs_count' => function ($logQuery) use ($activeUser) {
+                    $logQuery
+                        ->where(function ($ownerQuery) use ($activeUser) {
+                            $ownerQuery->whereNull('update_logs.user_id')
+                                ->orWhere('update_logs.user_id', '!=', $activeUser->id);
+                        })
+                        ->whereRaw(
+                            'update_logs.created_at > COALESCE((
+                            SELECT user_read_histories.last_read_at
+                            FROM user_read_histories
+                            WHERE user_read_histories.readable_type = ?
+                                AND user_read_histories.readable_id = update_logs.loggable_id
+                                AND user_read_histories.user_id = ?
+                            LIMIT 1
+                        ), ?)',
+                            [Incident::class, $activeUser->id, '1970-01-01 00:00:00'],
+                        );
+                },
+            ])
+            ->where(function ($statusQuery) {
+                $statusQuery->whereNull('status')
+                    ->orWhere('status', '!=', '完了');
+            });
         $isPM = $activeUser->position_id == 6;
         $isBoss = $activeUser->position_id && $activeUser->position_id < 6;
         $isAdmin = in_array($activeUser->id, [610, 608], true);
@@ -1599,12 +1716,8 @@ class DashboardController extends Controller
                 $managerQuery->where('users.id', $activeUser->id);
             });
         }
-        $query->orderByDesc('created_at')
-        ->get();
-        
-
         return [
-            'attention' => $query->get(),
+            'attention' => $query->orderByDesc('created_at')->get(),
         ];
     }
 
@@ -1703,7 +1816,7 @@ class DashboardController extends Controller
             ->get();
     }
 
-    private function resolveIncidentLogDisplayValues($logs)
+    private function resolveIncidentLogDisplayValues($logs, $readBefore = null)
     {
         $relationshipFields = [
             'caused_by' => ['model' => User::class, 'label' => 'name'],
@@ -1745,7 +1858,7 @@ class DashboardController extends Controller
                 ->all();
         }
 
-        return $logs->map(function ($log) use ($labelsByField) {
+        return $logs->map(function ($log) use ($labelsByField, $readBefore) {
             $displayChanges = [];
 
             foreach (($log->changes ?? []) as $field => $change) {
@@ -1758,6 +1871,7 @@ class DashboardController extends Controller
             }
 
             $log->setAttribute('display_changes', $displayChanges);
+            $log->setAttribute('is_unread', $readBefore === null || $log->created_at->gt($readBefore));
 
             return $log;
         });
@@ -1813,7 +1927,7 @@ class DashboardController extends Controller
         $isPM = $user->position_id == 6;
         $isBoss = $user->position_id && $user->position_id < 6;
         $isAdmin = in_array($user->id, [610, 608], true);
-        $query = $this->incidentQuery();
+        $query = $this->incidentQuery(true, $user->id);
 
         if (!$isBoss && !$isAdmin) {
             if (!$isPM) {

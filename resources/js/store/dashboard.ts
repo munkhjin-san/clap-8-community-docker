@@ -84,6 +84,12 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
             return !dashboardPostReminderTypes.includes(attentionType ?? '')
         }).length
     })
+    const isNewIncident = (incident: Incident) => !incident.last_read_at && !(incident.read_histories?.length)
+    const hasUnreadIncidentUpdates = (incident: Incident) => !isNewIncident(incident) && (incident.unread_update_logs_count ?? 0) > 0
+    const unreadIncidentCommentCount = computed(() => collection.value.incidents.attention.reduce((total, incident) => total + (incident.unread_comments_count ?? 0), 0))
+    const newIncidentCount = computed(() => collection.value.incidents.attention.filter(isNewIncident).length)
+    const updatedIncidentCount = computed(() => collection.value.incidents.attention.filter(hasUnreadIncidentUpdates).length)
+    const incidentBadgeCount = computed(() => updatedIncidentCount.value + unreadIncidentCommentCount.value)
 
     const getBatchDashboardData = async (requestedData?: string[]) => {
         try {
@@ -136,7 +142,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         collection.value.personnelEvaluation.pendingEvaluations.length + 
         collection.value.notices.length + collection.value.projects.assign_approval_waiting.length + 
         collection.value.projects.officer_approval_waiting.length +
-        collection.value.incidents.attention.length + collection.value.systemUpdates.length + 
+        incidentBadgeCount.value + collection.value.systemUpdates.length +
         collection.value.systemUpdates.length
 
         return total
@@ -151,8 +157,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         const pendingTimesheetsCount = collection.value.timesheet.pendingTimesheets.length
         const needed = (goalsStore.requiredGoalData?.this_span?.needed_count || 0) + (goalsStore.requiredGoalData?.previous_span?.needed_count || 0) + (goalsStore.unfinishedPreviousSpanGoals.length ?? 0)
         const pendingAttendanceCount = collection.value.timesheet.pendingAttendance ? 1 : 0
-        const incidentsNeedingAttention = collection.value.incidents.attention.length
-        return overdueGoals.length + overdueApprovalGoalsCount + needed + pendingAttendanceCount + overdueCheckMessages + pendingTimesheetsCount + incidentsNeedingAttention
+        return overdueGoals.length + overdueApprovalGoalsCount + needed + pendingAttendanceCount + overdueCheckMessages + pendingTimesheetsCount + newIncidentCount.value
     })
     const getAnnualLeaveData = async () => {
         try {
@@ -179,6 +184,10 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         annualLeaveData,
         getAnnualLeaveData,
         pulseBadgeCount,
-        pendingTimeSheets
+        pendingTimeSheets,
+        newIncidentCount,
+        updatedIncidentCount,
+        unreadIncidentCommentCount,
+        incidentBadgeCount,
     }
 });

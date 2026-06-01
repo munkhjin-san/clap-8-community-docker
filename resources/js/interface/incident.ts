@@ -2,6 +2,7 @@ import { CommonFile, User } from './globalInterface';
 import type { Project } from './projectInterface';
 import type { UpdateLog } from './updateLog';
 import type { AppComment } from './appComment';
+import type { UserReadHistory } from './userReadHistory';
 
 export type IncidentStatus = 'open' | 'in_progress' | 'resolved' | 'closed' | '完了' | (string & {});
 
@@ -66,7 +67,10 @@ export interface Incident {
     deleted_at?: string | null;
     created_at?: string;
     updated_at?: string;
+    last_read_at?: string | null;
     comments_count?: number;
+    unread_comments_count?: number;
+    unread_update_logs_count?: number;
     file_ids?: number[];
 
     // Relationships
@@ -82,4 +86,5 @@ export interface Incident {
     logs?: UpdateLog[];
     comments?: AppComment[];
     files?: CommonFile[];
+    read_histories?: UserReadHistory[];
 }
