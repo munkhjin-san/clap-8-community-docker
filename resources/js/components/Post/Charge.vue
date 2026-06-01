@@ -50,7 +50,7 @@
                         :max="maxChargeAmount"
                         :step="chargeStep"
                         inputmode="numeric"
-                        class="w-full bg-transparent text-center text-[18px] outline-none"
+                        class="w-full bg-transparent text-center text-[18px] outline-none text-[var(--primary-color)]"
                         @input="handleChargeAmountInput"
                         @blur="syncChargeAmount"
                     >
