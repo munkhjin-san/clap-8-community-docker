@@ -1719,7 +1719,6 @@ watch(duration, () => {
         th:first-child, td:first-child {
             font-size: 11px;
             height: 30px;       
-            border-right: solid thin var(--calendarBorder);
         }
         th{
             border-bottom: solid thin var(--calendarBorder);
