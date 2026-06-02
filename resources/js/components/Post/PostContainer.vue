@@ -109,11 +109,10 @@
                             {{ cat.label }}
                         </router-link>
                     </div>
-                    <div class="cat-filter-subshell" :class="{ 'cat-filter-subshell--visible': !!activeChallengeCategory }">
+                    <div v-if="activeChallengeCategory" class="cat-filter-subshell" :class="{ 'cat-filter-subshell--visible': !!activeChallengeCategory }">
                         <div class="cat-filter-subshell__inner mt-3">
                             <Transition name="subRowSwap" mode="out-in">
                                 <div
-                                    v-if="activeChallengeCategory"
                                     :key="activeMainCategory ?? 'challenge-subcategories'"
                                     class="cat-filter-row cat-filter-row--sub"
                                 >
@@ -128,6 +127,20 @@
                                 </div>
                             </Transition>
                         </div>
+                    </div>
+                    <div class="cat-filter-row cat-filter-row--donation mt-3">
+                        <router-link
+                            :to="buildDonationTargetPath(activeDonationFilter === 'exists' ? null : 'exists')"
+                            :class="['cat-chip', { 'cat-chip--active': activeDonationFilter === 'exists' }]"
+                        >
+                            寄付先あり
+                        </router-link>
+                        <router-link
+                            :to="buildDonationTargetPath(activeDonationFilter === 'missing' ? null : 'missing')"
+                            :class="['cat-chip', { 'cat-chip--active': activeDonationFilter === 'missing' }]"
+                        >
+                            寄付先なし
+                        </router-link>
                     </div>
                 </template>
             </div>
@@ -255,6 +268,11 @@ type PostNoticeRow = {
     type: PostNoticeType
     message: string
 }
+type DonationFilter = 'exists' | 'missing'
+const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
+    const filter = Array.isArray(value) ? value[0] : value
+    return filter === 'exists' || filter === 'missing' ? filter : null
+}
     const badge = useBadgeStore()
     const sharingData = useSharingDataStore()
     const auth = useAuthUserStore()
@@ -266,7 +284,7 @@ type PostNoticeRow = {
     const filesToShare = ref(null)
     const hasQuery = computed(() => {
         const q = route.query
-        return !!(q.app_type || q.member || q.search_tags || q.main_category || q.sub_category)
+        return !!(q.app_type || q.member || q.search_tags || q.main_category || q.sub_category || normalizeDonationFilter(q.donation_target))
     })
     const chargeTarget =  ref<number | null>(null)
     const isMini = ref(false)
@@ -303,6 +321,9 @@ type PostNoticeRow = {
     const activeSubCategory = computed(() => {
         return route.query.sub_category ? String(route.query.sub_category) : null
     })
+    const activeDonationFilter = computed(() => {
+        return normalizeDonationFilter(route.query.donation_target)
+    })
     const activeChallengeCategory = computed(() => {
         return challengeCategories.find(c => c.label === activeMainCategory.value) ?? null
     })
@@ -334,6 +355,18 @@ type PostNoticeRow = {
         }
         if (main) params.set('main_category', main)
         if (sub) params.set('sub_category', sub)
+        if (activeDonationFilter.value) params.set('donation_target', activeDonationFilter.value)
+        const qs = params.toString()
+        return `/${appName.value}${qs ? '?' + qs : ''}`
+    }
+    const buildDonationTargetPath = (target: DonationFilter | null): string => {
+        const params = new URLSearchParams()
+        if (appName.value === 'post') {
+            params.set('app_type', String(getQuery.value?.app_type ?? 2))
+        }
+        if (activeMainCategory.value) params.set('main_category', activeMainCategory.value)
+        if (activeSubCategory.value) params.set('sub_category', activeSubCategory.value)
+        if (target) params.set('donation_target', target)
         const qs = params.toString()
         return `/${appName.value}${qs ? '?' + qs : ''}`
     }
@@ -389,6 +422,7 @@ type PostNoticeRow = {
             app_type: route.query.app_type,
             main_category: route.query.main_category,
             sub_category: route.query.sub_category,
+            donation_target: route.query.donation_target,
             member: route.query.member,
             search_tags: route.query.search_tags,
         }),
@@ -481,6 +515,7 @@ type PostNoticeRow = {
         const search_type = route.query.hasOwnProperty('app_type') && route.query.app_type ? route.query.app_type : null
         const main_category = route.query.hasOwnProperty('main_category') && route.query.main_category ? route.query.main_category : null
         const sub_category = route.query.hasOwnProperty('sub_category') && route.query.sub_category ? route.query.sub_category : null
+        const donation_target = normalizeDonationFilter(route.query.donation_target)
         const query = {
             id: id,
             search_tags: search_tags,
@@ -488,6 +523,7 @@ type PostNoticeRow = {
             app_type: search_type,
             main_category: main_category,
             sub_category: sub_category,
+            donation_target: donation_target,
         }
         return query
     })
@@ -733,6 +769,10 @@ type PostNoticeRow = {
 
 .cat-filter-row--sub {
     padding-left: 4px;
+}
+
+.cat-filter-row--donation {
+    gap: 4px;
 }
 
 .cat-filter-subshell {

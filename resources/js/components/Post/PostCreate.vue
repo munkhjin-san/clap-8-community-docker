@@ -381,6 +381,7 @@ import {
     challengeSuggestionRules,
     type ChallengeCategorySuggestion
 } from '@/utils/challengeCategory'
+import { donationTargets } from '@/utils/donationTargets'
 import CommandButton from '../Global/CommandButton.vue'
 import AiIcon from '../Icons/AiIcon.vue'
 import { useRoute } from 'vue-router'
@@ -443,22 +444,7 @@ import { useDashboardStore } from '@/store/dashboard'
     const chargeable = ref(true)
     const donatable = ref(false)
     const mini = ref(props.editTarget?.mini ?? false)
-    const npoList = [
-        'e-Education',
-        'にこスマ九州',
-        'カラフルチェンジラボ',
-        'アニマルレスキューハッピーりぼん',
-        '日本赤十字社',
-        '日本パラリンピック委員会',
-        'カタリバ',
-        'グリーンピース・ジャパン',
-        '動物愛護団体NYANS',
-        '宇和島NPOセンター',
-        'はぴねすDOG',
-        '大学女性協会',
-        'NPO法人 Baby ぼけっと',
-        '一般社団法人バクチャー普及研究協議会'
-    ]
+    const npoList = donationTargets
     const api = useApi()
     const { ping, ask } = useDialog()
     const refreshSummary = ref<{ current_balance: number } | null>(null)

@@ -185,6 +185,7 @@ import { storeToRefs } from 'pinia';
 import SalaryIssueSection from './SalaryIssueSection.vue';
 import GoalStatus from './GoalStatus.vue';
 import ItemMenu from '@/components/Global/ItemMenu.vue';
+import { User } from '@/interface/globalInterface.js';
 
 
 const props = defineProps<{
@@ -290,13 +291,29 @@ const back = () => {
 }
 const loaderBank = ref<Record<number, boolean>>({})
 
+const getNextGoalStatus = (status: number, user?: User | null) => {
+  const isDirector = !!user?.position_id && user.position_id < 6
+
+  if (isDirector) {
+    const directorStatusMap: Record<number, number> = {
+      3: 5, // 目標承認 → skip to final approved
+    }
+
+    return directorStatusMap[status] ?? status
+  }
+
+  return status
+}
+
 const updateGoalStatus = async(status: number, action: string) => {
     
     loaderBank.value[status] = true
+    const goalStatus = getNextGoalStatus(status, props.goal.user)
+
     const params = {
         id: props.goal.id,
         params: {
-            status: status,
+            status: goalStatus,
         },
     }
     const result = await api.put('/update_project_progress', params, {

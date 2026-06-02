@@ -78,7 +78,13 @@
                             </span>
                         </div>
                         <div v-if="record.donation_target" class="post-meta-note">
-                            寄付先: {{ record.donation_target }}
+                            寄付先:
+                            <RouterLink
+                                :to="donationTargetRoute()"
+                                class="post-meta-note-link"
+                            >
+                                {{ record.donation_target }}
+                            </RouterLink>
                         </div>
                     </div>
                 </div>
@@ -391,6 +397,22 @@ const emit = defineEmits<{
 }>()
 const { updateRecord } = inject(PostMethodsKey) as PostMethods
 const route = useRoute()
+const donationTargetRoute = () => {
+    const query = { ...route.query }
+    delete query.id
+    delete query.create
+    delete query.status
+    delete query.progress_checkpoint
+
+    return {
+        path: '/post',
+        query: {
+            ...query,
+            app_type: '2',
+            donation_target: 'exists',
+        },
+    }
+}
 const maxLength = ref(200)
 const truncated = ref<{
     type: string,
@@ -809,6 +831,15 @@ const totalCalories = computed(() => {
     font-size: 12px;
     line-height: 1.5;
     color: var(--sub-color);
+}
+
+.post-meta-note-link {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+.post-meta-note-link:hover {
+    text-decoration: underline;
 }
 
 .relay-chain-row {

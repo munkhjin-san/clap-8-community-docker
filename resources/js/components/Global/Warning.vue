@@ -58,4 +58,9 @@ const warningHref = computed(() => props.href ?? `/dashboard?timesheet=${props.p
 .warning p {
     white-space: pre-line;
 }
+@media screen and (max-width: 959px) {
+    .warning {
+        width: 80%;
+    }
+}
 </style>

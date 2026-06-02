@@ -21,7 +21,7 @@
             <table>
                 <thead>
                     <tr>
-                        <th>メンバー</th>
+                        <th class="sticky-left first-col">メンバー</th>
                         <th>雇用形態</th>
                         <th>メンター</th>
                         <th>職階</th>
@@ -44,7 +44,7 @@
                 </thead>
                 <tbody>
                     <tr v-for="user in searchResults">
-                        <td>
+                        <td class="sticky-left first-col">
                             <span>{{user.name}}</span>
                         </td>
                         <td>{{ user?.positions?.name }}</td>
@@ -435,18 +435,22 @@ const copy = () => {
 </script>
 <style scoped>
     table{
-        width: 100%;
-        border-collapse: collapse;
+        width: max-content;
+        min-width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
         background-color: var(--background-color);
         font-size: 14px;
 
     }
     th, td {
-        border: 1px solid var(--calendarBorder);
+        border-right: 1px solid var(--calendarBorder);
+        border-bottom: 1px solid var(--calendarBorder);
         padding: 8px;
         text-align: left;
         font-size: 13px;
         white-space: nowrap;
+        background-color: var(--background-color);
     }
     thead {
         background-color: var(--background-color);
@@ -454,8 +458,32 @@ const copy = () => {
         top: 0;
         z-index: 10;
     }
+    thead th {
+        border-top: 1px solid var(--calendarBorder);
+        background-color: var(--bg3);
+    }
+    thead th.sticky-left {
+        z-index: 11;
+    }
     .evaluation-date{
         font-size: 16px;
         font-weight: 600;
+    }
+    .sticky-left {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+    }
+
+    .first-col {
+        left: 0;
+        min-width: 175px;
+        max-width: 175px;
+        border-left: solid thin var(--calendarBorder);
+        border-right: solid thin var(--calendarBorder);
+        background-color: var(--background-color);
+    }
+    thead .first-col {
+        background-color: var(--bg3);
     }
 </style>

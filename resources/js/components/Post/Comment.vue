@@ -29,7 +29,7 @@
                         v-html="urlCheck(comment.messages)">
                     </p>
                 </div>
-                <PostFiles v-if="comment.progress_files.length" :slidesCount="5" :items="comment.progress_files"/>
+                <PostFiles v-if="comment.progress_files && comment.progress_files.length" :slidesCount="5" :items="comment.progress_files"/>
             </div>
             <div class="flex w-fit relative items-center gap-2">
                 <div class="cursor-pointer mt-1" @click.stop="emoteAction">
