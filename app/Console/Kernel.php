@@ -49,7 +49,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('alerts:variance --period='.now()->toDateString())->monthlyOn(20, '18:00');
         $schedule->command('logs:prune-activity-logs')->quarterly();
         $schedule->command('goals:check-alert-streak')->dailyAt('02:00');
-        $schedule->command('goals:report-outcome-incidents')->dailyAt('09:20')->withoutOverlapping()->appendOutputTo(storage_path('logs/incidents/outcome-goal-incidents.log'));
+        $schedule->command('goals:report-outcome-incidents')->dailyAt('09:15')->withoutOverlapping()->appendOutputTo(storage_path('logs/incidents/outcome-goal-incidents.log'));
         $schedule->command('refresh:expire')->monthlyOn(2, '08:00');
         $schedule->command('app:auto-attendance-confirm')->monthlyOn(3, '08:00');
         $schedule->command('app:refresh-automation')->monthlyOn(1, '08:00');

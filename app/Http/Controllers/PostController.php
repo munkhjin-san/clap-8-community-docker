@@ -99,7 +99,8 @@ class PostController extends Controller
         $app_type = $params['app_type'] ?? null;
         $main_category = $params['main_category'] ?? null;
         $sub_category = $params['sub_category'] ?? null;
-        $qr = $records->when($params, function ($query) use($params, $search_tags, $target_users, $path, $app_type, $main_category, $sub_category) {
+        $donation_target = $params['donation_target'] ?? null;
+        $qr = $records->when($params, function ($query) use($params, $search_tags, $target_users, $path, $app_type, $main_category, $sub_category, $donation_target) {
             $query->when(array_key_exists('id', $params) && $params['id'], function ($query) use($params) {
                 $query->where('id', $params['id']);
             });
@@ -145,6 +146,18 @@ class PostController extends Controller
 
             $query->when($sub_category, function ($query) use ($sub_category) {
                 $query->where('challenge_sub_category', $sub_category);
+            });
+
+            $query->when($donation_target === 'exists', function ($query) {
+                $query->whereNotNull('donation_target')
+                    ->where('donation_target', '!=', '');
+            });
+
+            $query->when($donation_target === 'missing', function ($query) {
+                $query->where(function ($query) {
+                    $query->whereNull('donation_target')
+                        ->orWhere('donation_target', '');
+                });
             });
 
             $query->when($app_type == 2, function ($q) {
