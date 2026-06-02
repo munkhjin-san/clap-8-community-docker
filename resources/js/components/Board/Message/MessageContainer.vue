@@ -92,7 +92,7 @@ import { useBoardList } from "@/composables/board";
         'messageLoader', 
         'searchTargetId',
         'messageListType',
-        'unreadMessages',
+        'unreadMessages'
     ])
     const resetInstantUser = <Function>inject('resetInstantUser')
     const { openedBoard } = useBoardList()
@@ -128,7 +128,7 @@ import { useBoardList } from "@/composables/board";
         if(width > 959){
             return props.queuedMessages
         }else{
-            return props.queuedMessages.reverse()
+            return [...props.queuedMessages].reverse()
         }
         
     })
