@@ -1420,9 +1420,7 @@ watch(duration, () => {
         line-height: 1;
     }
 
-    .member-resource-chip--zoom {
-        color: var(--selected-background);
-    }
+
 
     .member-resource-slot {
         width: 58px;
