@@ -207,7 +207,7 @@ import ForwardWindowMessage from './ForwardWindowMessage.vue'
 import EmojiPicker from 'vue3-emoji-picker'
 import FileIcon from '../Mixed/FileIcon.vue'
 import MentionBox from './MentionBox.vue'
-import { computed, inject, onMounted, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, inject, onMounted, onUnmounted, ref, useTemplateRef, nextTick } from 'vue'
 import { useFilePreview } from '@/store/filePreview'
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from "@/store/menu";
@@ -573,7 +573,7 @@ import type { AxiosProgressEvent } from 'axios'
             
         }
     }
-    const pasteListener = (e: ClipboardEvent) => {                    
+    const pasteListener = async (e: ClipboardEvent) => {                    
         if(!messageInputArea.value || !e.clipboardData) return
         var text = e.clipboardData.getData("text/plain");            
         if(!text || text == ''){           
@@ -603,9 +603,13 @@ import type { AxiosProgressEvent } from 'axios'
                 }               
             } 
             uploadStart(formData)
+            await nextTick()
             msgSave();
+            return
         }    
-        msgSave()
+        setTimeout(() => {
+            msgSave();
+        }, 0);
     }
     const caretPos = (event: Event) => {
         const target = event.target as HTMLElement;
