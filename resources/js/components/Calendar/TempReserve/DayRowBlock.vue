@@ -14,9 +14,9 @@
                 }"
             >
                 <div 
-                    class="h-full w-full opacity-80 text-[11px] leading-normal text-[white] flex items-center justify-center flex-col cursor-pointer"
+                    class="h-full w-full opacity-80 text-[11px] leading-normal text-[var(--primary-color)] flex items-center justify-center flex-col cursor-pointer"
                     :style="{
-                        backgroundColor: includeUnavailableSlot ? 'tomato' : 'var(--link-color)',
+                        backgroundColor: includeUnavailableSlot ? 'tomato' : 'var(--selected-background)',
                     }"      
                     :id="`highlight-${date.toString()}-${hour}`"   
                               

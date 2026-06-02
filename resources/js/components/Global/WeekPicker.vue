@@ -1,27 +1,32 @@
 <template>
-<div class="relative w-[300px] text-center flex justify-between items-center">
-    <Back @click="shiftWeek(-1)" size="12"/>
+<div class="relative text-center flex justify-between items-center week-pick-main">
+    <div class="w-shift-button l-shift" @click="shiftWeek(-1)">
+        <Back size="10"/>
+    </div>   
     
-    <button @click.stop="menu.setMenu({parent: 'weekPicker'}), offset = 0" :style="{background: 'inherit', color: 'inherit'}">{{ parsedDate }}
-        <Back class="rotate-[270deg]" size="9"/>
+    <button class="w-window-trigger" @click.stop="menu.setMenu({parent: 'weekPicker'}), offset = 0" :style="{ padding: '0 15px'}">{{ parsedDate }}
+        <Back class="rotate-[270deg] mt-1" size="8"/>
     </button>  
-    <Back @click="shiftWeek(1)" size="12" class="rotate-[180deg]"/>
+    <div class="w-shift-button r-shift" @click="shiftWeek(1)">
+        <Back size="10" class="rotate-[180deg]"/>
+    </div>
+    
     <Transition name="slidePop">
         <div id="weekPicker" v-if="menu.parent=='weekPicker'" class="month-grid z-[7] !top-[30px]" :style="{background: 'var(--background-color)', color: 'inherit'}">
             <div class="flex items-center justify-between mt-[5px]">
                 <button @click="offset--" class="px-[15px] flex items-center gap-[10px] text-[13px] min-h-[40px] min-w-[40px] justify-center bg-inherit">
-                    <Back/>
+                    <Back size="10"/>
                 </button>
-                <div>{{ instance ? instance.plus({month: offset}).toFormat('yyyy年M月') : '' }}</div>
+                <div class="text-[13px]">{{ instance ? instance.plus({month: offset}).toFormat('yyyy年M月') : '' }}</div>
                 <button @click="offset++" class="px-[15px] flex items-center gap-[10px] text-[13px] min-h-[40px] min-w-[40px] justify-center bg-inherit">
-                    <Back style="transform: rotate(180deg);"/>
+                    <Back size="10" style="transform: rotate(180deg);"/>
                 </button>
             </div>
             <div class="px-[10px] pb-[10px]">            
                 <table class="text-[13px]">
                     <thead>
                         <tr>
-                            <th v-for="num in 7">{{ weekDay(num) }}</th>
+                            <th class="font-normal" v-for="num in 7">{{ weekDay(num) }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -52,12 +57,14 @@ import { WeeksArray, NormalMonthDay } from '@/interface/calendarInterface'
 import { usePublicHolidayStore } from '@/store/publicHoliday'
 import Back from '../Icons/Back.vue';
 import { ref } from 'vue';
+import { useResponsive } from '@/store/responsive.js';
 const props = defineProps<{
     
 }>()
 const date = defineModel<string>()
 const menu = useMenuStore()
 const publicHolidayStore = usePublicHolidayStore()
+const responsive = useResponsive()
 
 onMounted(() => {
     publicHolidayStore.ensureLoaded()
@@ -65,6 +72,15 @@ onMounted(() => {
 
 const parsedDate = computed(() => {
     if(!instance.value) return ''
+    if(responsive.mobile){
+        const start = instance.value;
+        const end = instance.value.plus({ days: 6 });
+        const now = DateTime.now()
+        if(start.hasSame(end, 'year') && now.hasSame(start, 'year')){
+            return `${start.toFormat('M月d日')} ~ ${end.toFormat('M月d日')}`
+        }
+        return `${start.toFormat('yyyy年M月d日')} ~ ${end.toFormat('yyyy年M月d日')}`
+    }
     return `${instance.value.toFormat('yyyy / M / d')} ~ ${instance.value.plus({ days: 6 }).toFormat('yyyy / M / d')}`
 })
 const weekDay = (num:number) => {
@@ -153,5 +169,65 @@ td, th {
 }
 .w-row:hover  {
   background-color: var(--bg3); /* Light green background for hovered cell */
+}
+.week-pick-main {
+    min-height: 32px;
+    height: 32px;
+    /* border: solid 1px var(--calendarBorder);
+    border-radius: 6px; */
+    /* background-color: var(--bg3); */
+    color: var(--primary-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    /* &:hover,
+    &:focus {
+        border-color: var(--primary-color);
+        background-color: var(--background-color);
+        box-shadow: inset 0 0 0 1px var(--primary-color);
+        outline: none !important;
+    } */
+
+}
+.w-shift-button, .w-window-trigger {
+    display: flex;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: var(--bg3);
+    &:hover,
+    &:focus {
+        border-color: var(--primary-color);
+        background-color: var(--background-color);
+        box-shadow: inset 0 0 0 0px var(--primary-color);
+        outline: none !important;
+        z-index: 1;
+    }
+}
+.w-window-trigger {
+    width: auto;
+    border: solid 1px var(--calendarBorder);
+    box-sizing: border-box !important;
+    margin: 0 -1px;
+    gap: 5px;
+    font-size: 13px;
+}
+.l-shift {
+    border: solid 1px var(--calendarBorder);
+    border-radius: 6px 0 0 6px;
+    box-sizing: border-box !important;
+}
+.r-shift {
+    border: solid 1px var(--calendarBorder);
+    border-radius: 0 6px 6px 0;
+    box-sizing: border-box !important;
+}
+@media (max-width: 500px) {
+    .w-window-trigger {
+        padding: 0 10px !important;
+        font-size: 11px !important;
+    }
 }
 </style>
