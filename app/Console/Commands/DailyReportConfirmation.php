@@ -50,7 +50,10 @@ class DailyReportConfirmation extends Command
 
         // Warning: yesterday missing — send email to each user
         foreach ($warningUsers as $userId) {
-            $user = User::select('id', 'name', 'email')->find($userId);
+            $user = User::where('id', $userId)
+                ->where('retire', 0)
+                ->select('id', 'name', 'email')
+                ->first();
             if (!$user) continue;
 
             $validEmail = filter_var($user->email, FILTER_VALIDATE_EMAIL);
@@ -65,8 +68,11 @@ class DailyReportConfirmation extends Command
         // Incident: day before yesterday missing — send email + collect for board
         $incidentLines = [];
         foreach ($incidentUsers as $userId) {
-            // $user = User::select('id', 'name', 'email')->find($userId);
-            // if (!$user) continue;
+            $user = User::where('id', $userId)
+                ->where('retire', 0)
+                ->select('id', 'name', 'email')
+                ->first();
+            if (!$user) continue;
 
             // $validEmail = filter_var($user->email, FILTER_VALIDATE_EMAIL);
             // if ($validEmail) {
