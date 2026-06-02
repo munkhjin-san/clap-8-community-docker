@@ -111,7 +111,7 @@ import { amountOfMoneyParser } from '@/utils/tools';
         getMyCharge()
     })
 
-    const maxChargeAmount = computed(() => Math.min(props.isMini ? 500 : possibleAmount.value, 15000))
+    const maxChargeAmount = computed(() => Math.min(possibleAmount.value, props.isMini ? 500 : 15000))
     const chargeAmount = computed(() => charge_bet.value?.value ?? 0)
     const numericChargeInput = computed(() => Number.parseInt(chargeInput.value, 10))
 
