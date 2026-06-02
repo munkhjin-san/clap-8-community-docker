@@ -9,7 +9,7 @@
             </div>
         </template>
         <template #content>
-            <div v-show="step == 2" class="h-full">            
+            <div v-show="step == 2" class="temp-reserve-step h-full">            
                 <div
                     ref="reserveTableWrapper"
                     class="reserve-table-wrapper"
@@ -276,6 +276,24 @@
                         </tbody>
                     </table>
                 </div>    
+                <button
+                    v-if="hasReserveOption"
+                    type="button"
+                    class="reserve-week-nav reserve-week-nav--prev"
+                    title="前の週"
+                    @click.stop="moveReserveWeek(-1)"
+                >
+                    <Back size="10" />
+                </button>
+                <button
+                    v-if="hasReserveOption"
+                    type="button"
+                    class="reserve-week-nav reserve-week-nav--next"
+                    title="次の週"
+                    @click.stop="moveReserveWeek(1)"
+                >
+                    <Back size="10" />
+                </button>
                 <div class="reserve-table-legend mt-3" aria-label="凡例">
                     <div class="reserve-legend-item">
                         <span class="reserve-legend-swatch available"></span>
@@ -390,7 +408,7 @@ const emit = defineEmits<{
     close: [flag: boolean];
 }>()
 const stepTitles: Record<number, string> = {
-    2: '日時設定',
+    2: 'スケジュール調整',
     3: '予約内容確認',
 }
 const api = useApi()
@@ -600,6 +618,14 @@ const validateDate = () => {
         return false
     }
     return true
+}
+
+const moveReserveWeek = (weekDelta: number) => {
+    const currentStart = DateTime.fromISO(startDate.value)
+    if (!currentStart.isValid) {
+        return
+    }
+    startDate.value = currentStart.plus({ weeks: weekDelta }).toISODate()
 }
 
 
@@ -1186,7 +1212,7 @@ watch(duration, () => {
 
 
 .reserve-duration-field {
-    width: 124px;
+    width: 140px;
 }
 
 .reserve-option-buffer {
@@ -1326,6 +1352,49 @@ watch(duration, () => {
     color: gray;
     font-size: 13px;
     text-align: center;
+}
+
+.temp-reserve-step {
+    position: relative;
+}
+
+.reserve-week-nav {
+    position: absolute;
+    top: calc((100% - 100px) / 2 + 28px);
+    z-index: 12;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin-top: -16px;
+    border: solid 1px color-mix(in srgb, var(--calendarBorder) 72%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--background-color) 88%, transparent);
+    color: var(--primary-color);
+    cursor: pointer;
+    box-shadow: 0 6px 16px color-mix(in srgb, black 14%, transparent);
+    backdrop-filter: blur(6px);
+    transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+
+    &:hover,
+    &:focus {
+        border-color: var(--primary-color);
+        background: var(--background-color);
+        outline: none;
+    }
+}
+
+.reserve-week-nav--prev {
+    left: 10px;
+}
+
+.reserve-week-nav--next {
+    right: 10px;
+
+    svg {
+        transform: rotate(180deg);
+    }
 }
 
 .member-resource-table {
