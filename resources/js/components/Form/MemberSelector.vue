@@ -4,8 +4,9 @@
             class="member-selector-shell"
             :class="{ 'member-selector-disabled': disabled }"
             ref="selectorRef"
-            @keydown.down.capture="focusPendingOption"
-            @keydown.enter.capture="rememberKeyboardOptionIndex"
+            @compositionstart="isComposing = true"
+            @compositionend="isComposing = false"
+            @keydown.capture="handleKeydown"
         >
             <v-autocomplete
                 :model-value="qualifiedUsers"
@@ -68,7 +69,7 @@
                         density="compact"
                         rounded="0"
                         variant="flat"
-                        @keydown.enter.capture="rememberKeyboardOptionIndexFromEvent"
+                        @keydown.enter.capture="handleOptionEnterKeydown"
                     >
                         <template #title>
                             <div class="member-selector-user">
@@ -138,6 +139,7 @@ const focus = ref(false)
 const menuOpen = ref(false)
 const lastKeyboardOptionIndex = ref<number | null>(null)
 const pendingOptionIndex = ref<number | null>(null)
+const isComposing = ref(false)
 const api = useApi()
 const qualifiedUsers = defineModel<User[] | User | null>()
 const selectorRef = useTemplateRef<HTMLElement>('selectorRef')
@@ -226,6 +228,39 @@ const rememberKeyboardOptionIndexFromEvent = (event: KeyboardEvent) => {
     })
 
     lastKeyboardOptionIndex.value = optionIndex >= 0 ? optionIndex : null
+}
+
+const handleKeydown = (event: KeyboardEvent) => {
+    if (isImeComposing(event) && isImeControlKey(event)) {
+        event.stopPropagation()
+        return
+    }
+
+    if (event.key === 'ArrowDown') {
+        focusPendingOption(event)
+        return
+    }
+
+    if (event.key === 'Enter') {
+        rememberKeyboardOptionIndex()
+    }
+}
+
+const handleOptionEnterKeydown = (event: KeyboardEvent) => {
+    if (isImeComposing(event)) {
+        event.stopPropagation()
+        return
+    }
+
+    rememberKeyboardOptionIndexFromEvent(event)
+}
+
+const isImeComposing = (event: KeyboardEvent) => {
+    return isComposing.value || event.isComposing || event.keyCode === 229
+}
+
+const isImeControlKey = (event: KeyboardEvent) => {
+    return ['Enter', 'ArrowUp', 'ArrowDown'].includes(event.key)
 }
 
 const focusPendingOption = (event: KeyboardEvent) => {

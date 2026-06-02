@@ -28,7 +28,9 @@
                     class="tag-selector-combo"
                     @update:modelValue="updateSelectedTag"
                     @update:search="handleSearch"
-                    @keydown.enter="handleEnterKey"
+                    @compositionstart="isComposing = true"
+                    @compositionend="isComposing = false"
+                    @keydown.capture="handleKeydown"
                 >
                     <template v-slot:chip="{ props, item }">
                         <v-chip 
@@ -85,6 +87,7 @@ import 'styles/selector.css';
     const selectedTag = defineModel<TagOption[]>({ default: [] })
     const superCounter = ref(0)
     const searchKeyword = ref('')
+    const isComposing = ref(false)
     const api = useApi()
     const tagSelectorRef = useTemplateRef('tagSelectorRef')
 
@@ -122,11 +125,26 @@ import 'styles/selector.css';
         search(keyword)
     }
 
-    const handleEnterKey = (event: KeyboardEvent) => {
+    const handleKeydown = (event: KeyboardEvent) => {
+        if (isImeComposing(event) && isImeControlKey(event)) {
+            event.stopPropagation()
+            return
+        }
+
+        if (event.key !== 'Enter') return
         if (!canCreateTag.value) return
 
         event.preventDefault()
+        event.stopPropagation()
         addCustomTag()
+    }
+
+    const isImeComposing = (event: KeyboardEvent) => {
+        return isComposing.value || event.isComposing || event.keyCode === 229
+    }
+
+    const isImeControlKey = (event: KeyboardEvent) => {
+        return ['Enter', 'ArrowUp', 'ArrowDown'].includes(event.key)
     }
 
     const toTagOption = (value: TagOption | string) => {
