@@ -1,6 +1,5 @@
 <template>
     <div class="boardOuterContainer"> 
-        <Error/>
         <div class="boardInnerContainer relative">        
             <Transition name="searchHide">
                 <BoardSearchBar 
