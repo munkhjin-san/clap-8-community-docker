@@ -251,7 +251,7 @@
                                                             :checked="condition.element_ids?.includes(Number(element.id))"
                                                             @change="toggleConditionElement(block, conditionIndex, Number(element.id))"
                                                         />
-                                                        <span>{{ element.value ? element.value : '（未入力）' }}</span>
+                                                        <span class="leading-normal whitespace-break-spaces">{{ element.value ? element.value : '（未入力）' }}</span>
                                                     </label>
                                                 </div>
                                             </div>

@@ -60,11 +60,13 @@ export interface CustomFormBlockElement {
     value: string
     has_sub_text: boolean
     has_sub_text_required: boolean	
+    has_file_attachment?: boolean
     is_required: boolean
     created_at?: string	
     updated_at?: string	
     answers?: SurverBlockElementAnswer[]
     placeholder?: string
+    files?: FileRecord[]
 }
 
 export interface CustomFormBlockDependsOn {

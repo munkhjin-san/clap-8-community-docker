@@ -61,6 +61,13 @@
     font-size: 13px;
     color: var(--primary-color);
 }
+textarea.custom-o-textarea{
+    line-height: 1.5;
+    min-height: 44px;
+    min-width: min(420px, 100%);
+    resize: vertical;
+    width: min(420px, 100%);
+}
 .custom-q-input{
     border-bottom: solid thin transparent;
     color: var(--primary-color);

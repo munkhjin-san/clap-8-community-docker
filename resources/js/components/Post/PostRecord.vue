@@ -260,21 +260,23 @@
                 
                 <div class="relay-chain-row">
                     <template v-for="(group, index) in relayChainGroups" :key="`relay-group-${index}`">
-                        <span
+                        <!-- <span
                             v-if="index > 0"
                             :class="[
                                 'relay-chain-line',
                                 group.connector === 'dashed' ? 'relay-chain-line--dashed' : 'relay-chain-line--solid'
                             ]"
-                        ></span>
+                        ></span> -->
+                        <Back v-if="index > 0" class="rotate-180" size="12" fill="gray"/>
                         <span class="relay-chain-user-group">
                             <UserPanel
-                                v-for="user in group.users"
+                                v-for="user in group.users.slice(0, 3)"
                                 :key="user.id"
                                 :user="user"
                                 :disableInstant="true"
                                 size="24"
                             />
+                            <p @click="viewRelayUsers(group.users)" style="margin-top:2px;cursor:pointer;font-size:12px;margin-left: 3px;" v-if="group.users.length > 3">({{group.users.length}})</p> 
                         </span>
                     </template>
                 </div>
@@ -706,6 +708,14 @@ const viewSupporters = () => {
     }
     messageUsers.setMessageUsers(data)
 }
+const viewRelayUsers = (users: User[]) => {
+    const data = {
+        active: true,
+        userList: users,
+        title: 'リレー参加者'
+    }
+    messageUsers.setMessageUsers(data)
+}
 const viewParticipants = () => {
     const data = {
         active: true,
@@ -856,7 +866,6 @@ const totalCalories = computed(() => {
 .relay-chain-user-group {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
 }
 
 .relay-chain-line {

@@ -18,7 +18,7 @@ class CustomFormBlock extends Model
         "categories" => 'array',
     ];
     public function elements(){
-        return $this->hasMany(CustomFormBlockElement::class);
+        return $this->hasMany(CustomFormBlockElement::class)->with('files');
     }
 
     public function answers() {

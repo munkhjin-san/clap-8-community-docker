@@ -161,8 +161,9 @@
                                         <div class="text-sm leading-normal">{{ block.question }}</div>
                                         <div class="ml-[10px] mt-[10px] leading-normal text-[13px]">
                                             <div v-for="ans in block.answers">
-                                                <div>{{ ans.value }}</div>
+                                                <div class="whitespace-break-spaces">{{ ans.value }}</div>
                                                 <div class="ml-[10px] text-[gray]">{{ ans.sub_text }}</div>
+                                                <Files v-if="ans.files?.length" class="ml-[10px] mt-[10px]" :items="ans.files" :path="'survey_files'"/>
                                             </div>
                                         </div>
                                         <Files v-if="block.type === 'file'" :items="block.answers" :path="'survey_files'"/>
@@ -204,7 +205,8 @@
                                 <div v-else>
                                     <div class="flex flex-col gap-[20px]">
                                         <div v-for="element in block.elements" class="flex flex-col gap-[10px]">
-                                            <div>{{ element.value }}</div>
+                                            <div class="whitespace-break-spaces">{{ element.value }}</div>
+                                            <Files v-if="element.files?.length" :items="element.files" :path="'survey_files'"/>
                                             <div class="m-[10px] ml-[10px] flex flex-col gap-[10px]">
                                                 <div v-for="el_answer in element.answers" class="flex items-center gap-[10px] text-[13px]">
                                                    <UserPanel v-if="el_answer.user" size="25" :user="el_answer.user" disable-instant with-name>
@@ -275,6 +277,7 @@
 <script setup lang="ts">
 import UserPanel from '@/components/Global/UserPanel.vue';
 import { CustomForm, CustomFormBlock, SurveyAnswer } from '@/interface/customFormInterface';
+import { FileRecord } from '@/interface/trayInterface';
 import { User } from '@/interface/globalInterface';
 import type { ProjectMember, ProjectType } from '@/interface/projectInterface';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
@@ -310,7 +313,7 @@ interface SimpleAnswer{
     data: {
         question: string,
         type: string,
-        answers: { value: string, sub_text: string }[]
+        answers: { value: string, sub_text: string, files?: FileRecord[] }[]
     }[]
 }
 interface LinkedProject {

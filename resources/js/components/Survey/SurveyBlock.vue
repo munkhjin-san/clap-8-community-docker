@@ -7,11 +7,11 @@
         <div v-if="(block.type == 'radio' || block.type == 'checkbox') && block.elements" class="flex flex-col gap-[15px] mt-[15px]">
             <div v-for="element in block.elements">
                 <div>
-                    <label class="flex items-center gap-[10px] cursor-pointer">
+                    <label class="flex items-start gap-[10px] cursor-pointer">
                         <input 
                             v-if="block.type == 'radio'"
                             ref="target" 
-                            :class="[`custom-f-${block.type}`, {'invalid-box' : validateOn && block.is_required && !radioModel}]" 
+                            :class="[`custom-f-${block.type}`, 'mt-[2px]', {'invalid-box' : validateOn && block.is_required && !radioModel}]"
                             :name="`radio_values_${block.id}`" 
                             type="radio" 
                             :value="element.id"
@@ -20,19 +20,20 @@
                         <input 
                             v-if="block.type == 'checkbox'"
                             ref="target" 
-                            :class="[`custom-f-${block.type}`, {'invalid-box' :  validateOn && element.is_required && !checkboxModel.includes(element.id)}]" 
+                            :class="[`custom-f-${block.type}`, 'mt-[2px]', {'invalid-box' :  validateOn && element.is_required && !checkboxModel.includes(element.id)}]"
                             :name="`radio_values_${block.id}`" 
                             type="checkbox" 
                             :value="element.id"
                             v-model="checkboxModel"
                         >
-                        <div>{{element.value}}<span class="text-[gray] text-[12px] ml-[5px]">{{ element.is_required ? '(必須)' : '' }}</span> </div>
+                        <div class="leading-normal whitespace-break-spaces min-w-0">{{ element.value }}<span class="text-[gray] text-[12px] ml-[5px]">{{ element.is_required ? '(必須)' : '' }}</span> </div>
                     </label>                    
                     <Transition name="customInputGroup">
                         <div class="mt-[10px] ml-[25px]" v-if="element.has_sub_text && (radioModel == element.id || checkboxModel.includes(element.id))">
                             <input :class="['custom-a-input' , {'invalid-input': validateOn && element.has_sub_text_required && !sub_texts[Number(element.id)]}]" v-model="sub_texts[Number(element.id)]" :placeholder="element.placeholder ? element.placeholder : '回答'" back type="text"/>
                         </div>
                     </Transition>
+                    <Files v-if="element.has_file_attachment && element.files?.length" class="mt-[10px] ml-[25px]" :items="element.files" path="survey_files"/>
                 </div>
             </div>
         </div>
@@ -74,6 +75,7 @@ import 'styles/customForm.css'
 import { useTheme } from '@/store/theme';
 import FileUploader from '../Form/FileUploader.vue';
 import { urlCheck } from '@/utils/tools';
+import Files from '../Global/Files.vue';
 const props = defineProps<{
     block: CustomFormBlock
     answer?: SurveyBlockAnswer | null

@@ -7,6 +7,7 @@ use App\Models\ProjectRecord;
 use App\Models\ProjectCheckitemCategory;
 use App\Models\ProjectType;
 use App\Models\SurveyAnswer;
+use App\Models\CustomFormBlockElement;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -39,8 +40,9 @@ class CustomFormController extends Controller
                 $q->with(['answers' => function($q)use($active_user)  {
                     $q->where('user_id', $active_user->id)->with('files');                    
                 }])->with(['elements' => function($q) use($active_user) {
+                    $q->with('files');
                     $q->with(['answers' => function($q)use($active_user)  {
-                        $q->where('user_id', $active_user->id);  
+                        $q->where('user_id', $active_user->id);
                     }]);
                 }]);
             }])
@@ -60,7 +62,7 @@ class CustomFormController extends Controller
             'id' => 'required'
         ]);
 
-        $form = CustomForm::with(['blocks.checkitemCategories', 'users', 'admins'])->findOrFail($request->id);
+        $form = CustomForm::with(['blocks.elements.files', 'blocks.checkitemCategories', 'users', 'admins'])->findOrFail($request->id);
         $usage = $this->normalizeUsage($form->usage);
         $status = (int) ($form->status ?? 0);
         $this->ensureExclusiveActiveProjectCreationForm($usage, $status, null, $form->project_type_id);
@@ -86,6 +88,7 @@ class CustomFormController extends Controller
                 $new_element = $element->replicate();
                 $new_element->custom_form_block_id = $new_block->id;
                 $new_element->save();
+                $this->syncElementFiles($new_element, $element->files);
                 $element_id_map[$element->id] = $new_element->id;
             });
         });
@@ -233,7 +236,9 @@ class CustomFormController extends Controller
             'blocks.*.elements.*.is_required' => 'boolean',
             'blocks.*.elements.*.has_sub_text_required' => 'boolean',
             'blocks.*.elements.*.has_sub_text' => 'boolean',
+            'blocks.*.elements.*.has_file_attachment' => 'boolean',
             'blocks.*.elements.*.placeholder' => 'nullable|string',
+            'blocks.*.elements.*.files' => 'nullable|array',
             'blocks.*.depends_on' => 'nullable|array',
             'blocks.*.depends_on.block_id' => 'nullable|integer',
             'blocks.*.depends_on.type' => 'nullable|string|in:radio,checkbox',
@@ -320,6 +325,9 @@ class CustomFormController extends Controller
 
         $form = CustomForm::findOrFail($request->id);
         $form->blocks->each(function($block){
+            $block->elements->each(function($element){
+                $element->fileAttachments()->delete();
+            });
             $block->elements()->delete();
         });
         $form->blocks()->delete();
@@ -377,7 +385,10 @@ class CustomFormController extends Controller
             $save_result = $this->saveElements($blockModel, Arr::get($block, 'elements', []), $element_id_map);
             $element_ids = $save_result['element_ids'];
             $element_id_map = $save_result['element_id_map'];
-            $blockModel->elements()->whereNotIn('id', $element_ids)->delete();
+            $blockModel->elements()->whereNotIn('id', $element_ids)->get()->each(function ($element) {
+                $element->fileAttachments()->delete();
+                $element->delete();
+            });
             $saved_blocks[] = ['model' => $blockModel, 'data' => $block];
         }
         foreach ($saved_blocks as $saved) {
@@ -403,8 +414,13 @@ class CustomFormController extends Controller
                     'is_required' => Arr::get($element, 'is_required', false),
                     'has_sub_text_required' => Arr::get($element, 'has_sub_text_required', false),
                     'has_sub_text' => Arr::get($element, 'has_sub_text'),
+                    'has_file_attachment' => Arr::get($element, 'has_file_attachment', false),
                     'placeholder' => Arr::get($element, 'placeholder'),
                 ]
+            );
+            $this->syncElementFiles(
+                $el_record,
+                Arr::get($element, 'has_file_attachment', false) ? Arr::get($element, 'files', []) : []
             );
             $element_ids[] = $el_record->id;
             $original_element_id = Arr::get($element, 'id');
@@ -674,8 +690,8 @@ class CustomFormController extends Controller
                     "text_answer" => $block['text_answer'],
                     "custom_form_block_id" => $block['custom_form_block_id']
                 ]);
-                $block_answer->files()->sync($block['files']);
-                $elements = $block['element_answers'];
+                $block_answer->files()->sync(Arr::get($block, 'files', []));
+                $elements = Arr::get($block, 'element_answers', []);
                 foreach($elements as $element){
                     $block_answer->element_answers()->create([
                         "user_id" => $active_user->id,
@@ -706,6 +722,37 @@ class CustomFormController extends Controller
         
 
     }
+    private function syncElementFiles(CustomFormBlockElement $element, mixed $files): void
+    {
+        $element->files()->syncWithPivotValues(
+            $this->normalizeFileIds($files),
+            [
+                'attachable_type' => CustomFormBlockElement::class,
+                'collection' => 'attachments',
+                'created_at' => now(),
+            ]
+        );
+    }
+    private function normalizeFileIds(mixed $files): array
+    {
+        return collect($files ?? [])
+            ->map(function ($file) {
+                if (is_array($file)) {
+                    return Arr::get($file, 'id');
+                }
+
+                if (is_object($file)) {
+                    return $file->id ?? null;
+                }
+
+                return $file;
+            })
+            ->filter(fn ($fileId) => is_numeric($fileId))
+            ->map(fn ($fileId) => (int) $fileId)
+            ->unique()
+            ->values()
+            ->all();
+    }
     public function get_survey_answers(Request $request){
 
         $repeat = $request->repeat_setting;
@@ -717,6 +764,11 @@ class CustomFormController extends Controller
         ->when($repeat == 1, function($q) use($target_date){
             $q->where('target_date', $target_date);
         })
+        ->with([
+            'user',
+            'block_answers.files',
+            'block_answers.element_answers',
+        ])
         ->get();
         $custom_form = CustomForm::with(['blocks' => function($q) use($repeat, $target_date) {
             $q->with(['answers' => function($q) use($repeat, $target_date) {
@@ -732,6 +784,7 @@ class CustomFormController extends Controller
                 ])->orderBy('created_at', 'desc');                    
             }])
             ->with(['elements' => function($q)  {
+                $q->with('files');
                 $q->with(['answers' => function($q)  {
                     $q->whereHas('survey_block_answer', function($q){
                         $q->whereHas('survey_answer', function($q){
@@ -779,6 +832,7 @@ class CustomFormController extends Controller
                                     $anwsers[] = [
                                         'value' => $element->value,
                                         'sub_text' => $element_answer->sub_text,
+                                        'files' => $element->files,
                                     ];
                                 }
                             }
@@ -831,6 +885,7 @@ class CustomFormController extends Controller
                 $q->with(['answers' => function($q)use($active_user)  {
                     $q->where('user_id', $active_user->id)->with('files');
                 }])->with(['elements' => function($q) use($active_user) {
+                    $q->with('files');
                     $q->with(['answers' => function($q)use($active_user)  {
                         $q->where('user_id', $active_user->id);
                     }]);

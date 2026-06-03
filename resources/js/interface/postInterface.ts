@@ -113,6 +113,7 @@ export interface PostQuery {
     member: string | LocationQueryValue[] | null;
     main_category: string | LocationQueryValue[] | null;
     sub_category: string | LocationQueryValue[] | null;
+    donation_target: string | LocationQueryValue[] | null;
 }
 
 
