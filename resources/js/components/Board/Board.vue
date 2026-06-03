@@ -1,108 +1,108 @@
 <template>
-        <div class="boardOuterContainer" style="width: 100%;height: 100%;display:flex;flex-grow: 1;overflow: hidden;">     
-            <div class="boardInnerContainer relative">        
-                <Transition name="searchHide">
+    <div class="boardOuterContainer"> 
+        <Error/>
+        <div class="boardInnerContainer relative">        
+            <Transition name="searchHide">
                 <BoardSearchBar 
                     v-if="searchView"
                     @openBoard="openTargetBoard"
                     @openMessageSearch="openMessageSearch"
                 />
-                </Transition>
-                <BoardList 
-                    v-show="!responsive.mobile || (responsive.mobile && route.name == 'board')"  
-                    :failedMessagesList="failedMessagesList"  
-                    :key="listKey"
-                    @onScroll="onScroll"  
-                />
-                <div v-if="boardLoader" id="infiniteLoader" style="top: auto; bottom: 20px;">
-                    <div class="spinner-micro color-change"></div>
-                </div>
-            </div>
-            <Transition name="modalFade">
-                <BoardDetails v-if="detailedBoard" :board="detailedBoard" @close="detailedBoard = null"/>
             </Transition>
-            
-            <Transition name="modalFade">
-                <SearchMessage 
-                    v-if="searchMessageView"
-                    :advancedSearchWord="advancedSearchWord"
-                    :filteredAllBoard="filteredAllBoard"
-                    :privateSearch="privateSearch"
-                    :key="searchWindowKey"
-                    @closeMessageSearch="closeMessageSearch"
-                    @jumpToMessage="jumpToMessage"
-                />
-            </Transition>
-            <Transition name="modalFade" mode="out-in">
-                <BoardEdit 
-                    v-if="activeEditBoard"
-                    :editTarget="activeEditBoard"
-                    @close="activeEditBoard = null"
-                />
-            </Transition>
-
-            
-            <router-view v-slot="{ Component }">
-                <transition name="slideFromRight">
-                    <component 
-                        ref="messageContainerRef"
-                        :is="Component" 
-                        :messageLoader="messageLoader"
-                        :key="messageContainerKey"
-                        :messageList="messageList"
-                        :openedBoard="openedBoard"
-                        :microLoader="microLoader"
-                        :queuedMessages="queuedMessages"  
-                        :messageListType="listType" 
-                        :searchTargetId="searchTargetId"
-                        :unreadMessages="unreadMessages"
-                        @reload="getMessageList"    
-                        @appendSearchResult="appendSearchResult"
-                        @afterRequestHandled="afterRequestHandled"
-                        @closeContainer="closeMessageContainer"      
-                        @reachedTop="reachedTop"                
-                        @jumpToMessage="jumpMessageFromFile"
-                    />
-                </transition>
-            </router-view> 
-            
-            <TrayComponent
-                v-if="openedBoard && !responsive.mobile"
-                :key="`${trayComponentKey}_${openedBoard.id}`" 
-                :board="openedBoard"
-                :trayItemWhich="trayItemWhich"
-                @setTrayItem="setTrayItem"
-                @jumpToMessage="jumpMessageFromFile"
+            <BoardList 
+                v-show="!responsive.mobile || (responsive.mobile && route.name == 'board')"  
+                :failedMessagesList="failedMessagesList"  
+                :key="listKey"
+                @onScroll="onScroll"  
             />
-            <Transition name="modalFade">
-                <CopyWindow v-if="copyData" :data="copyData" @close="copyData = null"/>
-            </Transition>
-            <Transition name="modalFade">
-                <ConfirmWindow @reload="getMessageList" v-if="checkRequestData" :requestType="requestType" :message="checkRequestData" @close="checkRequestData = null"/>
-            </Transition>  
-            <Transition name="modalFade">
-                <InviteMember @close="inviteTarget = null" v-if="inviteTarget" :item="inviteTarget" @reload="boardEditFinished"/>
-            </Transition>      
-            <Transition name="modalFade">
-                <BoardCreateWindow 
-                    @close="newBoardWindow = false" 
-                    v-if="newBoardWindow"
-                    @reload="boardEditFinished"
-                />
-            </Transition> 
-
-            <Transition name="modalFade">
-                <BoardMembers 
-                    :board="reactiveMemberList"
-                    @close="viewingMembersOf = null" 
-                    v-if="viewingMembersOf && reactiveMemberList"
-                    @reload="boardEditFinished"
-                    @afterRequestHandled="afterRequestHandled"
-                />
-            </Transition> 
+            <div v-if="boardLoader" id="infiniteLoader" style="top: auto; bottom: 20px;">
+                <div class="spinner-micro color-change"></div>
+            </div>
         </div>
-    <!-- </Transition> -->
-    </template>
+        <Transition name="modalFade">
+            <BoardDetails v-if="detailedBoard" :board="detailedBoard" @close="detailedBoard = null"/>
+        </Transition>
+        
+        <Transition name="modalFade">
+            <SearchMessage 
+                v-if="searchMessageView"
+                :advancedSearchWord="advancedSearchWord"
+                :filteredAllBoard="filteredAllBoard"
+                :privateSearch="privateSearch"
+                :key="searchWindowKey"
+                @closeMessageSearch="closeMessageSearch"
+                @jumpToMessage="jumpToMessage"
+            />
+        </Transition>
+        <Transition name="modalFade" mode="out-in">
+            <BoardEdit 
+                v-if="activeEditBoard"
+                :editTarget="activeEditBoard"
+                @close="activeEditBoard = null"
+            />
+        </Transition>
+
+        
+        <router-view v-slot="{ Component }">
+            <transition name="slideFromRight">
+                <component 
+                    ref="messageContainerRef"
+                    :is="Component" 
+                    :messageLoader="messageLoader"
+                    :key="messageContainerKey"
+                    :messageList="messageList"
+                    :openedBoard="openedBoard"
+                    :microLoader="microLoader"
+                    :queuedMessages="queuedMessages"  
+                    :messageListType="listType" 
+                    :searchTargetId="searchTargetId"
+                    :unreadMessages="unreadMessages"
+                    @reload="getMessageList"    
+                    @appendSearchResult="appendSearchResult"
+                    @afterRequestHandled="afterRequestHandled"
+                    @closeContainer="closeMessageContainer"      
+                    @reachedTop="reachedTop"                
+                    @jumpToMessage="jumpMessageFromFile"
+                />
+            </transition>
+        </router-view> 
+        
+        <TrayComponent
+            v-if="openedBoard && !responsive.mobile"
+            :key="`${trayComponentKey}_${openedBoard.id}`" 
+            :board="openedBoard"
+            :trayItemWhich="trayItemWhich"
+            @setTrayItem="setTrayItem"
+            @jumpToMessage="jumpMessageFromFile"
+        />
+        <Transition name="modalFade">
+            <CopyWindow v-if="copyData" :data="copyData" @close="copyData = null"/>
+        </Transition>
+        <Transition name="modalFade">
+            <ConfirmWindow @reload="getMessageList" v-if="checkRequestData" :requestType="requestType" :message="checkRequestData" @close="checkRequestData = null"/>
+        </Transition>  
+        <Transition name="modalFade">
+            <InviteMember @close="inviteTarget = null" v-if="inviteTarget" :item="inviteTarget" @reload="boardEditFinished"/>
+        </Transition>      
+        <Transition name="modalFade">
+            <BoardCreateWindow 
+                @close="newBoardWindow = false" 
+                v-if="newBoardWindow"
+                @reload="boardEditFinished"
+            />
+        </Transition> 
+
+        <Transition name="modalFade">
+            <BoardMembers 
+                :board="reactiveMemberList"
+                @close="viewingMembersOf = null" 
+                v-if="viewingMembersOf && reactiveMemberList"
+                @reload="boardEditFinished"
+                @afterRequestHandled="afterRequestHandled"
+            />
+        </Transition> 
+    </div>
+</template>
     
 <script setup lang="ts">
 import BoardList from './BoardList.vue'
