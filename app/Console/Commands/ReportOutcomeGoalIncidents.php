@@ -58,13 +58,8 @@ class ReportOutcomeGoalIncidents extends Command
         $fiscalYear = $now->month >= 4 ? $now->year : $now->year - 1;
         $currentHalf = $now->month >= 4 && $now->month <= 9 ? 'first' : 'second';
 
-        $previousPeriod = $currentHalf === 'first'
-            ? ['year' => $fiscalYear - 1, 'which_half' => 'second']
-            : ['year' => $fiscalYear, 'which_half' => 'first'];
-
         return [
             ['year' => $fiscalYear, 'which_half' => $currentHalf],
-            $previousPeriod,
         ];
     }
 
@@ -79,6 +74,7 @@ class ReportOutcomeGoalIncidents extends Command
             ->whereNotIn('status', [7, 9])
             ->whereRaw("DATE_ADD(CONCAT(end_date, ' 23:59:59'), INTERVAL 7 DAY) < ?", [$now->toDateTimeString()])
             ->whereNotIn('id', $reportedGoalIds)
+            ->whereHas('user', fn ($q) => $q->where('retire', 0))
             ->with([
                 'user:id,name',
                 'project:id,name',
@@ -96,6 +92,7 @@ class ReportOutcomeGoalIncidents extends Command
             ->inAllowedHalves($allowedPeriods)
             ->where('status', 7)
             ->whereNotIn('id', $reportedGoalIds)
+            ->whereHas('user', fn ($q) => $q->where('retire', 0))
             ->whereHas('project.members', function ($memberQuery) {
                 $memberQuery->whereColumn('users.id', 'project_goals.user_id');
             })
