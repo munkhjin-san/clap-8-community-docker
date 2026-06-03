@@ -74,7 +74,7 @@ class ReportOutcomeGoalIncidents extends Command
             ->whereNotIn('status', [7, 9])
             ->whereRaw("DATE_ADD(CONCAT(end_date, ' 23:59:59'), INTERVAL 7 DAY) < ?", [$now->toDateTimeString()])
             ->whereNotIn('id', $reportedGoalIds)
-            ->whereHas('user', fn ($q) => $q->where('retire', 0))
+            ->whereHas('user', fn ($q) => $q->where('retire', 0)->where('partner_flag', 0))
             ->with([
                 'user:id,name',
                 'project:id,name',
@@ -86,13 +86,13 @@ class ReportOutcomeGoalIncidents extends Command
     {
         $reportedGoalIds = ProjectGoalIncidentReport::where('incident_type', self::TYPE_PM_APPROVAL)
             ->pluck('project_goal_id');
-        $approvalDeadline = $now->copy()->subDays(7);
+        $approvalDeadline = $now->copy()->subDays(14);
 
         return ProjectGoal::query()
             ->inAllowedHalves($allowedPeriods)
             ->where('status', 7)
             ->whereNotIn('id', $reportedGoalIds)
-            ->whereHas('user', fn ($q) => $q->where('retire', 0))
+            ->whereHas('user', fn ($q) => $q->where('retire', 0)->where('partner_flag', 0))
             ->whereHas('project.members', function ($memberQuery) {
                 $memberQuery->whereColumn('users.id', 'project_goals.user_id');
             })
@@ -154,7 +154,8 @@ class ReportOutcomeGoalIncidents extends Command
         [To:全員:]
         【成果目標インシデント】
 
-        以下の成果目標が期限内に処理されませんでした。
+        以下の成果目標について、期限内に結果入力が完了していません。
+        プロジェクトマネージャーは、対象スタッフへ確認・入力依頼を行い、1週間以内に対応を完了してください。
 
         {$sections}
 
