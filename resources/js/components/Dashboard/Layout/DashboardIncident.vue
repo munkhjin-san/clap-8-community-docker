@@ -7,6 +7,7 @@
         :type="data.type"
         :can-resize="data.canResize"
         :can-fullscreen="data.canFullscreen"
+        :highlightIncidents="unreadIncidentsCount > 0"
         @toggle="(el) => emit('toggle', el, data.type)"
         @resize="emit('resize', data.type)"
         :class="{ 'incident-card--warning': data.data.attention.length > 0 }"
@@ -133,7 +134,7 @@ const auth = useAuthUserStore()
 const canSeeIncidentCard = computed(() => auth.isPM || auth.isBoss || auth.isAdmin)
 const isNewIncident = (incident: Incident) => !incident.last_read_at && !(incident.read_histories?.length)
 const shouldShowUnreadDot = (incident: Incident) => (isNewIncident(incident) || (incident.unread_update_logs_count ?? 0) > 0) && incident.status !== '完了'
-
+const unreadIncidentsCount = computed(() => props.data.data.attention.filter(incident => shouldShowUnreadDot(incident)).length)
 const formatDate = (date?: string | null) => {
     if (!date) return '発生日未設定'
     const parsed = DateTime.fromISO(date)

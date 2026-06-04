@@ -6,6 +6,7 @@
         :type="data.type" 
         :can-resize="data.canResize"
         :can-fullscreen="data.canFullscreen"
+        :highlight-time-sheet="data.data.pendingTimesheets.length > 0"
         @toggle="(el, title) =>emit('toggle', el, data.type)" 
         @resize="emit('resize', data.type)"
     >
@@ -120,7 +121,7 @@
                     </div>
                 </div>
             </div>
-            <div v-if="data.data.pendingTimesheets.length" class="mt-3" :class="{ 'pulse-border': highlightTimeSheet }">
+            <div v-if="data.data.pendingTimesheets.length" class="mt-3">
                 <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis">
                     <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 py-0.5">PM</span>
                     承認依頼
@@ -237,9 +238,6 @@ const actionCount = computed(() => {
         departureReportCount.value +
         props.data.data.pendingTimesheets.length
     )
-})
-const highlightTimeSheet = computed(() => {
-    return route.query.timesheet === 'true'
 })
 onMounted(() => {
     if(auth?.user?.user_code){

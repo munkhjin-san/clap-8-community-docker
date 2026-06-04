@@ -346,7 +346,7 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
             return {
                 type: 'goal_approval',
                 message,
-                href: '/dashboard?goal_pending=true',
+                href: '/dashboard',
                 linkText: 'ダッシュボードへ',
                 count,
                 goals: pmOutcomeGoalWarnings.value,

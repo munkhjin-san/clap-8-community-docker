@@ -6,6 +6,7 @@
         :type="data.type"
         :can-resize="data.canResize"
         :can-fullscreen="data.canFullscreen"
+        :highlightGoals="approvaNeeded.length > 0"
         @toggle="(el, title) => emit('toggle', el, data.type)" 
         @resize="emit('resize', data.type)"
     >
@@ -31,7 +32,7 @@
                         </div>
                     </div>
                 </div>
-                <div v-if="!fullscreen" class="m-5" :class="{ 'pulse-border': highlightGoals }">
+                <div v-if="!fullscreen" class="m-5">
                     <div v-for="item in approvaNeeded" class="mb-4">
                         <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis flex items-center gap-2">
                             <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 py-0.5">{{ item.chip }}</span>
@@ -50,6 +51,7 @@
                                 <template #title="{ expanded }">
                                     <PanelTitle :expanded="expanded">
                                         <div v-if="approvalUserHasOverWeekGoal(member)" class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
+                                        <div v-else class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5"></div>
                                         <UserPanel size="25" :user="member" disable-instant/>
                                         <div class="overflow-hidden whitespace-nowrap text-ellipsis ml-2">{{ member.name }}</div>
                                         <div class="ml-1 text-[12px] text-[gray] whitespace-nowrap">({{ member.outcome_goals.length }}件)</div>                       
@@ -261,9 +263,6 @@ const selectedUser = ref<User | null>(auth.user)
 const route = useRoute()
 const targetDates = detailedDateOptions()
 const selectedDate = ref<typeof targetDates[0]>({ name: '', year: '0', which_half: '', short_name: '' })
-const highlightGoals = computed(() => {
-    return route.query.goal_pending === 'true'
-})
 onMounted(() => {
 
     const now = DateTime.local();

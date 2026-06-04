@@ -37,7 +37,7 @@ const props = withDefaults(defineProps<{
     linkText: 'ダッシュボードへ',
 });
 const warningMessage = computed(() => props.message ?? '未承認日報があります。\nご確認・ご対応をお願いいたします。');
-const warningHref = computed(() => props.href ?? `/dashboard?timesheet=${props.pending}`);
+const warningHref = computed(() => props.href ?? `/dashboard`);
 </script>
 <style scoped>
 .warning {
