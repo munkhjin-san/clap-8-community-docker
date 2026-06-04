@@ -6,9 +6,9 @@
         :type="data.type" 
         :can-resize="data.canResize"
         :can-fullscreen="data.canFullscreen"
-        :highlight-time-sheet="data.data.pendingTimesheets.length > 0"
         @toggle="(el, title) =>emit('toggle', el, data.type)" 
         @resize="emit('resize', data.type)"
+        :class="{'pulse-border' : data.data.pendingTimesheets.length > 0 && !fullscreen}"
     >
         <template #icon>
             <svg class="side-app-icon mr-1" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" style="width: auto; height: 17px;">

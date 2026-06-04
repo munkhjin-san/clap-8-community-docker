@@ -7,10 +7,9 @@
         :type="data.type"
         :can-resize="data.canResize"
         :can-fullscreen="data.canFullscreen"
-        :highlightIncidents="unreadIncidentsCount > 0"
         @toggle="(el) => emit('toggle', el, data.type)"
         @resize="emit('resize', data.type)"
-        :class="{ 'incident-card--warning': data.data.attention.length > 0 }"
+        :class="{ 'incident-card--warning': data.data.attention.length > 0, 'pulse-border': unreadIncidentsCount > 0 && !fullscreen }"
     >
         <template #icon>
             <svg :style="{fill: data.data.attention.length ? 'tomato' : 'var(--primary-color)'}" xmlns="http://www.w3.org/2000/svg" class="mr-1" width="18" height="18" viewBox="0 0 555.42749 492.03711">
