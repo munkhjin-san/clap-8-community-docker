@@ -1,7 +1,7 @@
 <template>    
     <div>
         <Teleport defer :disabled="!fullscreen" to="#dashBoardContainer">
-        <div ref="parent" class="panel" :class="{ fullscreen }">
+        <div ref="parent" class="panel" :class="{ fullscreen, 'pulse-border': highlightGoals || highlightTimeSheet }">
             <div class="flex items-center justify-between px-3 panel-header">
                 <div class="flex items-center overflow-x-hidden min-w-0 h-full">
                     <slot name="icon"></slot>
@@ -53,6 +53,9 @@ const props = defineProps<{
     type: string
     canResize?: boolean
     canFullscreen?: boolean
+    highlightTimeSheet?: boolean
+    highlightGoals?: boolean
+    highlightIncidents?: boolean
 }>()
 
 const emit = defineEmits<{
