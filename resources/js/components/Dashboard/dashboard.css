@@ -216,7 +216,7 @@
     width: 100%;
     height: 100%;
 }
-.pulse-border {
+.pulse-border .panel {
   border: 1px solid tomato;
   animation: pulse-border 1.5s ease-in-out infinite;
 }
