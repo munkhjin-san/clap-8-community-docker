@@ -104,6 +104,17 @@ class AppCommentController extends Controller
             return true;
         }
 
+        if (
+            $incident->caused_by === $user->id
+            || $incident->reported_by === $user->id
+        ) {
+            return true;
+        }
+
+        if ($this->hasActiveIncidentAssignment($incident, $user)) {
+            return true;
+        }
+
         if ($isPM) {
             return $incident->projectRecord()
                 ->whereHas('manager', function ($managerQuery) use ($user) {
@@ -112,7 +123,25 @@ class AppCommentController extends Controller
                 ->exists();
         }
 
-        return $incident->caused_by === $user->id || $incident->reported_by === $user->id;
+        return false;
+    }
+
+    private function hasActiveIncidentAssignment(Incident $incident, User $user): bool
+    {
+        if ($incident->status === '完了') {
+            return false;
+        }
+
+        $incident->loadMissing('reports.assignees');
+        $latestReport = $incident->reports
+            ->sort(fn ($a, $b) => [$b->step, $b->id] <=> [$a->step, $a->id])
+            ->first();
+
+        if (!$latestReport) {
+            return false;
+        }
+
+        return $latestReport->assignees->contains(fn ($assignee) => $assignee->user_id === $user->id);
     }
 
     private function mentionedUserIds(string $content): array

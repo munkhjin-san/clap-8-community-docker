@@ -1458,16 +1458,26 @@ class DashboardController extends Controller
             'committee_decision_date' => ['sometimes', 'nullable', 'date'],
             'file_ids' => ['sometimes', 'array'],
             'file_ids.*' => ['integer', 'distinct', 'exists:file_records,id'],
+            'assignment_request' => ['sometimes', 'nullable', 'string'],
+            'assignee_ids' => ['sometimes', 'array', 'min:1'],
+            'assignee_ids.*' => ['integer', 'distinct', 'exists:users,id'],
         ]);
 
         $fileIds = $validated['file_ids'] ?? [];
+        $assignmentRequest = $validated['assignment_request'] ?? null;
+        $assigneeIds = $validated['assignee_ids'] ?? null;
         unset($validated['file_ids']);
+        unset($validated['assignment_request'], $validated['assignee_ids']);
 
         if (!$this->canCreateIncidentRecord($activeUser) || $this->hasDisallowedIncidentFields($activeUser, array_keys($validated))) {
             abort(403);
         }
 
-        $createdIncident = DB::transaction(function () use ($validated, $fileIds, $activeUser) {
+        if ($assigneeIds !== null && !$this->canManageIncidentWorkflow($activeUser)) {
+            abort(403);
+        }
+
+        $createdIncident = DB::transaction(function () use ($validated, $fileIds, $assignmentRequest, $assigneeIds, $activeUser) {
             $incident = Incident::create([
                 ...$validated,
                 'reported_by' => $activeUser->id,
@@ -1481,7 +1491,7 @@ class DashboardController extends Controller
                 ]);
             }
 
-            $this->createInitialIncidentReportForProjectManagers($incident, $activeUser);
+            $this->createInitialIncidentReport($incident, $activeUser, $assigneeIds, $assignmentRequest);
 
             $changes = collect($validated)
                 ->filter(fn ($value) => $value !== null && $value !== '')
@@ -1493,6 +1503,9 @@ class DashboardController extends Controller
             }
             if (!array_key_exists('status', $changes) && $incident->status) {
                 $changes['status'] = ['old' => null, 'new' => $incident->status];
+            }
+            if (!empty($assigneeIds)) {
+                $changes['incident_assignees'] = ['old' => [], 'new' => array_values($assigneeIds)];
             }
 
             $incident->logs()->create([
@@ -1985,35 +1998,49 @@ class DashboardController extends Controller
         return $incident->status === null || $incident->status === '処分未決定';
     }
 
-    private function createInitialIncidentReportForProjectManagers(Incident $incident, User $activeUser): void
+    private function createInitialIncidentReport(
+        Incident $incident,
+        User $activeUser,
+        ?array $assigneeIds = null,
+        ?string $request = null
+    ): void
     {
-        if (!$incident->project_record_id) {
-            return;
-        }
+        $userIds = $assigneeIds;
 
-        $project = ProjectRecord::query()
-            ->whereKey($incident->project_record_id)
-            ->first();
+        if ($userIds === null) {
+            if (!$incident->project_record_id) {
+                return;
+            }
 
-        $managerIds = $project
-            ? $project->manager()
-                ->pluck('users.id')
+            $project = ProjectRecord::query()
+                ->whereKey($incident->project_record_id)
+                ->first();
+
+            $userIds = $project
+                ? $project->manager()
+                    ->pluck('users.id')
+                    ->unique()
+                    ->values()
+                    ->all()
+                : [];
+        } else {
+            $userIds = collect($userIds)
                 ->unique()
                 ->values()
-                ->all()
-            : [];
+                ->all();
+        }
 
-        if (empty($managerIds)) {
+        if (empty($userIds)) {
             return;
         }
 
         $report = $incident->reports()->create([
             'step' => 1,
-            'request' => null,
+            'request' => $request,
             'created_by' => $activeUser->id,
         ]);
 
-        $this->createIncidentAssignees($report, $managerIds);
+        $this->createIncidentAssignees($report, $userIds);
     }
 
     private function createIncidentAssignees(IncidentReport $report, array $userIds): void

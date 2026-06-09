@@ -70,7 +70,7 @@
                             <div v-if="canEditField('incident_category_id')" class="mt-3 w-full">
                                 <select
                                     v-model="mutableParams.incident_category_id"
-                                    class="custom-a-input"
+                                    class="custom-a-input max-w-[140px]"
                                 >
                                     <option :value="null">未設定</option>
                                     <option
@@ -89,7 +89,7 @@
                             <div v-if="canEditField('incident_punishment_id')" class="mt-3 w-full">
                                 <select
                                     v-model="mutableParams.incident_punishment_id"
-                                    class="custom-a-input"
+                                    class="custom-a-input max-w-[140px]"
                                 >
                                     <option :value="null">未設定</option>
                                     <option
@@ -392,10 +392,10 @@
                         @count-changed="handleCommentCountChanged"
                     />
                 </main>
-                <aside v-if="!isCreateMode" class="incident-detail-assignment">
+                <aside v-if="!isCreateMode || canCreateNextAssignment" class="incident-detail-assignment">
                     <section class="incident-detail-section incident-assignment-section">
-                        <div class="post-separetor"><div>対応ログ</div></div>
-                        <div v-if="incidentReports.length" class="incident-assignment-steps">
+                        <div class="post-separetor"><div>{{ isCreateMode ? '初回担当者' : '対応ログ' }}</div></div>
+                        <div v-if="!isCreateMode && incidentReports.length" class="incident-assignment-steps">
                             <div
                                 v-for="reportStep in incidentReports"
                                 :key="reportStep.id"
@@ -446,19 +446,21 @@
                                 </div>
                             </div>
                         </div>
-                        <div v-else class="incident-assignment-empty">対応担当はまだ設定されていません。</div>
+                        <div v-else-if="!isCreateMode" class="incident-assignment-empty">対応担当はまだ設定されていません。</div>
                         <div v-if="canCreateNextAssignment" class="incident-next-assignment">
+                            <p v-if="isCreateMode" class="incident-assignment-empty">作成時に最初の対応担当として設定されます。</p>
                             <LongInput
                                 v-model="nextAssignmentRequest"
-                                place-holder="次の担当者への依頼内容"
+                                :place-holder="isCreateMode ? '担当者への依頼内容' : '次の担当者への依頼内容'"
                             />
                             <MemberSelector
                                 v-model="nextAssigneeUsers"
                                 :multiple="true"
                                 :options="userOptions"
-                                place-holder="次の担当者を選択"
+                                :place-holder="isCreateMode ? '担当者を選択' : '次の担当者を選択'"
                             />
                             <LoaderButton
+                                v-if="!isCreateMode"
                                 content="次の担当者を設定"
                                 :loading="creatingNextAssignment"
                                 @click="createNextAssignment"
@@ -714,7 +716,8 @@ const activeUserLatestAssignee = computed(() => {
     return latestIncidentReport.value?.assignees?.find(assignee => assignee.user_id === activeUserId) ?? null
 })
 const canCreateNextAssignment = computed(() => {
-    if (isCreateMode.value || isIncidentCompleted.value) return false
+    if (isCreateMode.value) return canEditManagerFields.value
+    if (isIncidentCompleted.value) return false
     if (!latestIncidentReport.value) return canEditManagerFields.value
     return latestIncidentReportComplete.value
         && (canEditManagerFields.value || Boolean(activeUserLatestAssignee.value))
@@ -765,6 +768,14 @@ const buildPayload = () => {
             const nextFileIds = uploadedFiles.value.map(file => file.id).sort((a, b) => a - b)
             if (nextFileIds.length) {
                 ;(payload as Partial<Incident> & { file_ids: number[] }).file_ids = nextFileIds
+            }
+        }
+
+        if (canCreateNextAssignment.value) {
+            const assigneeIds = nextAssigneeUsers.value.map(user => user.id)
+            if (assigneeIds.length) {
+                ;(payload as Partial<Incident> & { assignee_ids: number[]; assignment_request?: string | null }).assignee_ids = assigneeIds
+                ;(payload as Partial<Incident> & { assignee_ids?: number[]; assignment_request: string | null }).assignment_request = nextAssignmentRequest.value
             }
         }
 

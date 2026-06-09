@@ -11,24 +11,31 @@
                     インシデント報告
                 </label>
             </div>
-            <div class="si-box">
+            <div v-if="contactType === 'emergency'" class="si-box">
                 <LongInput
                     v-model="content"
-                    :placeHolder="contactType === 'emergency' ? '緊急連絡内容' : 'インシデント報告内容'"
+                    placeHolder="緊急連絡内容"
                     name="emergencyContactContent"
                     rules="max:2000"
                 />
             </div>
             <p v-if="contactType === 'emergency'" class="text-[12px] text-[gray] mt-3">入力した内容は経営管理本部の担当者及び取締役員に優先的に通知されます。</p>
-            <button
-                v-if="contactType === 'incident'"
-                type="button"
-                class="jump-link mt-4"
-                @click="detailModalOpen = true"
-            >
-                詳細情報入力する
-            </button>
-            <div class="si-box">
+            <div v-if="contactType === 'incident'" class="incident-report-area">
+                <div class="incident-report-actions">
+                    <div>
+                        <strong>インシデント報告</strong>
+                        <p>ガイドラインを確認し、必要な内容を入力して報告してください。</p>
+                    </div>
+                    <LoaderButton
+                        content="インシデント報告を作成"
+                        @triggered="detailModalOpen = true"
+                        style="margin: 0 0 0 auto"
+                    />
+                </div>
+                <IncidentGuideline inline />
+            </div>
+
+            <div v-if="contactType === 'emergency'" class="si-box">
                 <LoaderButton content="送信" :loading="sending" @triggered="send" />
             </div>
             <router-link v-if="hasPrivilage" class="jump-link" :to="{ name: 'emergency_contact_history' }">緊急連絡履歴</router-link>
@@ -61,6 +68,7 @@ import { useApi } from '@/composables/api';
 import { useAuthUserStore } from '@/store/auth';
 import IncidentDetailModal from '@/components/Incident/IncidentDetailModal.vue';
 import type { Incident } from '@/interface/incident';
+import IncidentGuideline from '../Incident/IncidentGuideline.vue';
 
 type ContactType = 'emergency' | 'incident';
 
@@ -110,3 +118,53 @@ watch(
     },
 );
 </script>
+
+<style scoped>
+.incident-report-area{
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    margin-top: 18px;
+}
+
+.incident-report-actions{
+    border: 1px solid var(--calendarBorder);
+    background: var(--bg3);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 18px;
+}
+
+.incident-report-actions strong{
+    display: block;
+    margin-bottom: 6px;
+    font-size: 16px;
+}
+
+.incident-report-actions p{
+    margin: 0;
+    color: gray;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.incident-create-button{
+    flex-shrink: 0;
+    border: 1px solid var(--mainColor);
+    background: var(--mainColor);
+    color: white;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+@media screen and (max-width: 959px) {
+    .incident-report-actions{
+        align-items: stretch;
+        flex-direction: column;
+    }
+}
+</style>
