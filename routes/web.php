@@ -537,6 +537,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
         // Lessons
         Route::get('/get_lessons', [LessonController::class, 'get_lessons']);
+        Route::get('/get_lesson_view', [LessonController::class, 'get_lesson_view']);
         Route::get('/get_learning_themes', [LessonController::class, 'get_learning_themes']);
         Route::get('/get_lesson_themes', [LessonController::class, 'get_lesson_themes']);
         Route::post('/lesson_add_record', [LessonController::class, 'lesson_add_record']);
@@ -547,6 +548,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/save_lesson_form', [LessonController::class, 'save_lesson_form']);
         Route::get('/get_portfolio_view', [LessonController::class, 'get_portfolio_view']);
         Route::get('/get_material_list', [LessonController::class, 'get_material_list']);
+        Route::get('/admin/learning/themes/{theme}/progress', [LessonController::class, 'get_admin_theme_progress']);
         Route::get('/get_material', [LessonController::class, 'get_material']);
         Route::get('/get_completed_lesson_themes', [LessonController::class, 'get_completed_lesson_themes']);
 
@@ -890,6 +892,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/incident_record_create', [DashboardController::class, 'createIncidentRecord']);
         Route::post('/incident_record_update', [DashboardController::class, 'updateIncidentRecord']);
         Route::post('/incident_record_delete', [DashboardController::class, 'deleteIncidentRecord']);
+        Route::post('/incident_assignee_report', [DashboardController::class, 'saveIncidentAssigneeReport']);
+        Route::post('/incident_assignee_complete', [DashboardController::class, 'completeIncidentAssigneeReport']);
+        Route::post('/incident_report_assignment', [DashboardController::class, 'createIncidentReportAssignment']);
         Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
 
         // Goal & KPI MCP Server (Model Context Protocol / JSON-RPC 2.0)

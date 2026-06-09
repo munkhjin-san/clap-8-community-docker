@@ -23,6 +23,7 @@ import DashboardProject from '@/components/Dashboard/Layout/DashboardProject.vue
 import { useAuthUserStore } from '@/store/auth'
 import { Project, ProjectAssignRecord } from '@/interface/projectInterface'
 import { Incident } from '@/interface/incident'
+import type { EmergencyContactRecord } from '@/interface/supportInterface'
 
 /**
  * Layout type constants
@@ -268,6 +269,7 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         order: undefined,
         data: {
             attention: [] as Incident[],
+            emergency_contacts: [] as EmergencyContactRecord[],
         },
         canFullscreen: true,
         canResize: true,

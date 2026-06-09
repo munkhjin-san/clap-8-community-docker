@@ -3,7 +3,7 @@
         <div v-if="loading" class="spinner-micro fixed top-2/4 left-2/4"></div>
         <div v-if="optionsLoaded && !canViewIncidents" class="incident-no-permission mx-4">
             <h3>インシデント管理の権限がありません</h3>
-            <p>インシデント一覧は管理者、上席者、または担当プロジェクトのPMのみ閲覧できます。</p>
+            <p>インシデント一覧は管理者、上席者、担当プロジェクトのPM、または当事者・報告者のみ閲覧できます。</p>
         </div>
         <template v-else-if="canViewIncidents">
         <div class="incident-toolbar mx-4">
@@ -102,6 +102,7 @@
                     <td>プロジェクト</td>
                     <td>区分</td>
                     <td>ステータス</td>
+                    <td>現在の担当者</td>
                     <td>ポイント</td>
                     <td>コメント</td>
                 </tr>
@@ -130,6 +131,27 @@
                             <td class="max-w-[180px] overflow-hidden text-ellipsis"><div class="inner-col"><span class="mobile">プロジェクト</span><p class="truncate">{{ incident.project_record?.name || '-' }}</p></div></td>
                             <td><div class="inner-col"><span class="mobile">区分</span>{{ incident.category?.name || '-' }}</div></td>
                             <td><div class="inner-col"><span class="mobile">ステータス</span>{{ incident.status || '未設定' }}</div></td>
+                            <td>
+                                <div class="inner-col">
+                                    <span class="mobile">現在の担当者</span>
+                                    <div v-if="currentIncidentAssignees(incident).length" class="incident-current-assignees">
+                                        <div
+                                            v-for="user in currentIncidentAssignees(incident).slice(0, 3)"
+                                            :key="user.id"
+                                            class="incident-current-assignee"
+                                        >
+                                            <UserPanel
+                                                :user="user"
+                                                size="22"
+                                                disable-instant
+                                            />
+                                        </div>
+                                        <span v-if="currentIncidentAssignees(incident).length > 3" class="incident-current-assignees-more">
+                                            +{{ currentIncidentAssignees(incident).length - 3 }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </td>
                             <td><div class="inner-col"><span class="mobile">ポイント</span>
                                 <div v-if="(incident.risk_level ?? 0) * (incident.severity_level ?? 0)" :style="{backgroundColor: riskLevelColor(incident)}" class="text-black w-6 h-6 rounded-full flex items-center justify-center text-[12px]">
                                     {{ (incident.risk_level ?? 0) * (incident.severity_level ?? 0) || '' }}
@@ -148,7 +170,7 @@
                     </template>
                 </template>
                 <tr v-else-if="fetchCount > 0">
-                    <td colspan="8" class="!text-center">データがありません</td>
+                    <td colspan="9" class="!text-center">データがありません</td>
                 </tr>
             </tbody>
         </table>
@@ -257,6 +279,22 @@ const incidentOptions = ref<IncidentFilterOptions>({
 })
 const isNewIncident = (incident: Incident) => !incident.last_read_at && !(incident.read_histories?.length)
 const shouldShowUnreadDot = (incident: Incident) => (isNewIncident(incident) || (incident.unread_update_logs_count ?? 0) > 0) && incident.status !== '完了'
+const currentIncidentAssignees = (incident: Incident): User[] => {
+    if (incident.status === '完了') return []
+
+    const latestReport = [...(incident.reports ?? [])]
+        .sort((a, b) => ((b.step ?? 0) - (a.step ?? 0)) || (b.id - a.id))
+        .at(0)
+    const reportAssignees = (latestReport?.assignees ?? [])
+        .map(assignee => assignee.user)
+        .filter((user): user is User => Boolean(user))
+
+    if (reportAssignees.length) {
+        return reportAssignees
+    }
+
+    return [...(incident.project_record?.manager ?? [])]
+}
 const filters = reactive<IncidentFilters>({
     keyword: '',
     occurred_from: '',
@@ -787,6 +825,25 @@ const riskLevelColor = (incident: Incident) => {
     color: white;
     font-size: 11px;
     line-height: 1;
+}
+
+.incident-current-assignees{
+    display: flex;
+    align-items: center;
+    min-height: 24px;
+}
+
+.incident-current-assignees-more{
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    border: 1px solid var(--calendarBorder);
+    border-radius: 999px;
+    background: var(--bg3);
+    color: gray;
+    font-size: 10px;
 }
 
 .incident-table .row-toggle{

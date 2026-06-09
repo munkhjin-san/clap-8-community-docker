@@ -25,12 +25,6 @@ return [
         'token' => env('POSTMARK_TOKEN'),
     ],
 
-    'aws' => [
-        'key' => env('AWS_ACCESS_KEY_ID'),
-        'secret' => env('AWS_SECRET_ACCESS_KEY'),
-        'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
-        'sns_emergency_topic_arn' => env('AWS_SNS_EMERGENCY_TOPIC_ARN'),
-    ],
     'facebook' => [
         'client_id'     => env('FACEBOOK_CLIENT_ID'),
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),

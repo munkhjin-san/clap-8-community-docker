@@ -11,6 +11,10 @@ class IncidentReport extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'completed_at' => 'datetime',
+    ];
+
     public function incident()
     {
         return $this->belongsTo(Incident::class, 'incident_id', 'id');
@@ -20,5 +24,18 @@ class IncidentReport extends Model
     {
         return $this->belongsTo(User::class, 'user_id', 'id')
             ->select('id', 'name', 'icon_path', 'icon_bg');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by', 'id')
+            ->select('id', 'name', 'icon_path', 'icon_bg');
+    }
+
+    public function assignees()
+    {
+        return $this->hasMany(IncidentAssignee::class, 'incident_report_id', 'id')
+            ->with('user')
+            ->orderBy('id');
     }
 }

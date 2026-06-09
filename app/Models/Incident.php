@@ -42,7 +42,10 @@ class Incident extends Model
 
     public function reports()
     {
-        return $this->hasMany(IncidentReport::class, 'incident_id', 'id')->with('user');
+        return $this->hasMany(IncidentReport::class, 'incident_id', 'id')
+            ->with(['user', 'creator', 'assignees'])
+            ->orderBy('step')
+            ->orderBy('id');
     }
 
     public function logs()

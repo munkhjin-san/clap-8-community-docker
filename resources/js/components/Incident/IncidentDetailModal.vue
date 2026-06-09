@@ -12,22 +12,22 @@
                 >
                     {{ unreadBadge.type === 'new' ? '新規インシデント' : `更新 ${unreadBadge.count}件` }}
                 </button>
-                <ItemMenu v-if="!isCreateMode && canEditIncident && menuItems.length" :items="menuItems" />
+                <ItemMenu v-if="!isCreateMode && menuItems.length" :items="menuItems" />
             </div>
         </template>
         <template #content>
             <div v-if="viewMode === 'detail'" class="incident-detail-shell">
                 <aside class="incident-detail-side">
-                    <div v-if="!isReporterCreateMode" class="incident-detail-score" :style="{ borderColor: riskLevelColor(localIncident) }">
+                    <div v-if="canViewIncidentPoint" class="incident-detail-score" :style="{ borderColor: riskLevelColor(localIncident) }">
                         <div class="flex items-center gap-2 py-4">
                             <span>{{ incidentPoint(localIncident) || '-' }}</span>
                             <small>ポイント</small>
                         </div>                       
                     </div>
                     <div class="incident-detail-facts">
-                        <div v-if="!isReporterCreateMode">
+                        <div v-if="canViewIncidentStatus">
                             <span>ステータス</span>
-                            <div v-if="editMode && canEditIncident" class="mt-3 w-full">
+                            <div v-if="canEditField('status')" class="mt-3 w-full">
                                 <select v-model="mutableParams.status" class="custom-a-input">
                                     <option value="" disabled>ステータスを選択</option>
                                     <option
@@ -41,9 +41,9 @@
                             </div>
                             <strong v-else>{{ localIncident.status || '未設定' }}</strong>
                         </div>
-                        <div v-if="!isReporterCreateMode">
+                        <div v-if="canUseField('occurred_date')">
                             <span>発生日</span>
-                            <div v-if="editMode && canEditIncident" class="mt-3 w-full">
+                            <div v-if="canEditField('occurred_date')" class="mt-3 w-full">
                                 <input
                                     v-model="mutableParams.occurred_date"
                                     type="date"
@@ -53,21 +53,21 @@
                             </div>
                             <strong v-else>{{ formatDate(localIncident.occurred_date) }}</strong>
                         </div>
-                        <div v-if="!isReporterCreateMode">
-                            <span>指導日</span>
-                            <div v-if="editMode && canEditIncident" class="mt-3 w-full">
+                        <div v-if="canUseField('reported_date')">
+                            <span>報告日</span>
+                            <div v-if="canEditField('reported_date')" class="mt-3 w-full">
                                 <input
-                                    v-model="mutableParams.instruction_date"
+                                    v-model="mutableParams.reported_date"
                                     type="date"
                                     class="custom-a-input"
                                     :class="{'date-color' : theme.dark }"
                                 />
                             </div>
-                            <strong v-else>{{ formatDate(localIncident.instruction_date) }}</strong>
+                            <strong v-else>{{ formatDate(localIncident.reported_date) }}</strong>
                         </div>
-                        <div>
+                        <div v-if="canUseField('incident_category_id')">
                             <span>区分</span>
-                            <div v-if="editMode && canEditIncident" class="mt-3 w-full">
+                            <div v-if="canEditField('incident_category_id')" class="mt-3 w-full">
                                 <select
                                     v-model="mutableParams.incident_category_id"
                                     class="custom-a-input"
@@ -84,9 +84,9 @@
                             </div>
                             <strong v-else>{{ localIncident.category?.name || '未設定' }}</strong>
                         </div>
-                        <div v-if="!isReporterCreateMode">
+                        <div v-if="canUseField('incident_punishment_id')">
                             <span>懲罰区分</span>
-                            <div v-if="editMode && canEditIncident" class="mt-3 w-full">
+                            <div v-if="canEditField('incident_punishment_id')" class="mt-3 w-full">
                                 <select
                                     v-model="mutableParams.incident_punishment_id"
                                     class="custom-a-input"
@@ -106,35 +106,37 @@
                     </div>
                 </aside>
 
+                <div class="incident-detail-content">
                 <main class="incident-detail-main">
-                    <section class="incident-detail-section">
+                    <section class="incident-detail-section incident-permission-area incident-permission-area--staff">
                         <!-- <h3>関係者</h3> -->
                         <div class="post-separetor"><div>関係者</div></div>
                         <div class="incident-people-grid">
-                            <div class="flex flex-col gap-3">
+                            <div v-if="canUseField('caused_by')" class="flex flex-col gap-3">
                                 <span v-if="!editMode">当事者</span>
                                 <MemberSelector
-                                    v-if="editMode && canEditIncident"
+                                    v-if="canEditField('caused_by')"
                                     v-model="selectedCausedByUser"
                                     :multiple="false"
                                     :close-on-select="true"
                                     :options="userOptions"
                                     place-holder="当事者を選択"
+                                    class="bg-[var(--background-color)]"
                                 />
                                 <template v-else>
                                     <UserPanel v-if="localIncident.caused_by_user" :user="localIncident.caused_by_user" with-name size="25" disable-instant/>
                                     <strong v-else>-</strong>
                                 </template>
                             </div>
-                            <div class="flex flex-col gap-3">
+                            <div v-if="canEditManagerFields" class="flex flex-col gap-3">
                                 <span>報告者</span>
                                 <UserPanel v-if="localIncident.reported_by_user" :user="localIncident.reported_by_user" with-name size="25" disable-instant/>
                                 <strong v-else>-</strong>
                             </div>
-                            <div>
+                            <div v-if="canUseField('project_record_id')">
                                 <span v-if="!editMode">プロジェクト</span>
                                 <ItemSelector
-                                    v-if="editMode && canEditIncident"
+                                    v-if="canEditField('project_record_id')"
                                     v-model="mutableParams.project_record_id"
                                     :multiple="false"
                                     :clearable="true"
@@ -143,13 +145,14 @@
                                     :reduce="option => option?.id ?? option"
                                     label="name"
                                     place-holder="プロジェクトを選択"
+                                    class="bg-[var(--background-color)]"
                                 />
                                 <strong v-else>{{ localIncident.project_record?.name || '-' }}</strong>
                             </div>
-                            <div class="flex flex-col">
+                            <div v-if="canUseField('related_parties')" class="flex flex-col">
                                 <span v-if="!editMode">関係者</span>
                                 <ShortInput
-                                    v-if="editMode && canEditIncident"
+                                    v-if="canEditField('related_parties')"
                                     v-model="mutableParams.related_parties"
                                     place-holder="関係者"
                                 />
@@ -158,51 +161,85 @@
                         </div>
                     </section>
 
-                    <section class="incident-detail-section">
+                    <section v-if="canUseField('description') || canUseField('occured_location') || canUseField('reason')" class="incident-detail-section incident-permission-area incident-permission-area--staff">
                         <div class="post-separetor"><div>発生内容</div></div>
                         <div v-if="!editMode" class="incident-field-stack">
-                            <DetailItem label="概要" :value="localIncident.description" />
-                            <DetailItem label="発生場所" :value="localIncident.occured_location" />
-                            <DetailItem label="原因" :value="localIncident.reason" />
+                            <DetailItem v-if="canUseField('description')" label="概要" :value="localIncident.description" />
+                            <DetailItem v-if="canUseField('occured_location')" label="発生場所" :value="localIncident.occured_location" />
+                            <DetailItem v-if="canUseField('reason')" label="原因" :value="localIncident.reason" />
                         </div>
                         <div v-else class="flex flex-col gap-6">
-                            <div>
-                                <LongInput v-model="mutableParams.description" place-holder="インシデントの概要を入力" />
+                            <div v-if="canEditField('description')" class="bg-[var(--background-color)]">
+                                <LongInput v-model="mutableParams.description" place-holder="インシデントの概要" />
                             </div>
-                            <div>
-                                <ShortInput v-model="mutableParams.occured_location" place-holder="発生場所を入力" />
+                            <div v-if="canEditField('occured_location')" class="bg-[var(--background-color)]">
+                                <ShortInput v-model="mutableParams.occured_location" place-holder="発生場所" />
                             </div>
-                            <div>
-                                <LongInput v-model="mutableParams.reason" place-holder="インシデントの原因を入力" />
+                            <div v-if="canEditField('reason')" class="bg-[var(--background-color)]">
+                                <LongInput v-model="mutableParams.reason" place-holder="インシデントの原因" />
                             </div>
+                        </div>
+                        <div v-if="canUseField('files')" class="incident-file-block">
+                            <h3>添付ファイル</h3>
+                            <FileUploader
+                                v-if="canEditField('files')"
+                                v-model="uploadedFiles"
+                                path="/incident_files"
+                                custom-place-holder="ファイルを添付"
+                                class="bg-[var(--background-color)]"
+                            />
+                            <PostFiles
+                                v-else-if="localIncident.files?.length"
+                                :items="localIncident.files"
+                                path="incident_files"
+                            />
+                            <div v-else class="text-[12px] text-[gray]">添付ファイルはありません。</div>
                         </div>
                     </section>
 
-                    <section class="incident-detail-section">
+                    <section v-if="canUseField('prevention') || canUseField('prevention_apply_status') || canUseField('resolution') || canUseField('memo') || canUseField('amount_of_damage') || canUseField('payee') || canUseField('expense_details')" class="incident-detail-section incident-permission-area incident-permission-area--manager">
                         <div class="post-separetor"><div>対応・再発防止</div></div>
                         <div v-if="!editMode" class="incident-field-stack">                            
-                            <DetailItem label="再発防止策" :value="localIncident.prevention" />
-                            <DetailItem label="再発防止策の実施状況" :value="localIncident.prevention_apply_status" />
-                            <DetailItem label="是正対応" :value="localIncident.resolution" />
-                            <DetailItem label="指導内容" :value="localIncident.instruction" />
+                            <DetailItem v-if="canUseField('prevention')" label="再発防止策" :value="localIncident.prevention" />
+                            <DetailItem v-if="canUseField('prevention_apply_status')" label="再発防止策の実施状況" :value="localIncident.prevention_apply_status" />
+                            <DetailItem v-if="canUseField('resolution')" label="是正対応" :value="localIncident.resolution" />
+                            <DetailItem v-if="canUseField('memo')" label="メモ" :value="localIncident.memo" />
+                            <DetailItem v-if="canUseField('amount_of_damage')" label="損害額" :value="formatAmount(localIncident.amount_of_damage)" />
+                            <DetailItem v-if="canUseField('payee')" label="支払先" :value="localIncident.payee" />
+                            <DetailItem v-if="canUseField('expense_details')" label="費用詳細" :value="localIncident.expense_details" />
                         </div>
                         <div v-else class="flex flex-col gap-6">                            
-                            <div>
-                                <LongInput v-model="mutableParams.prevention" place-holder="再発防止策を入力" />
+                            <div v-if="canEditField('prevention')" class="bg-[var(--background-color)]">
+                                <LongInput v-model="mutableParams.prevention" place-holder="再発防止策" />
                             </div>
-                            <div>
-                                <ShortInput v-model="mutableParams.prevention_apply_status" place-holder="再発防止策の実施状況を入力" />
+                            <div v-if="canEditField('prevention_apply_status')" class="bg-[var(--background-color)]">
+                                <ShortInput v-model="mutableParams.prevention_apply_status" place-holder="再発防止策の実施状況" />
                             </div>
-                            <div>
-                                <LongInput v-model="mutableParams.resolution" place-holder="是正対応を入力" />
+                            <div v-if="canEditField('resolution')" class="bg-[var(--background-color)]">
+                                <LongInput v-model="mutableParams.resolution" place-holder="是正対応" />
                             </div>
-                            <div>
-                                <LongInput v-model="mutableParams.instruction" place-holder="指導内容を入力" />
+                            <div v-if="canEditField('memo')" class="bg-[var(--background-color)]">
+                                <LongInput v-model="mutableParams.memo" place-holder="メモ" />
+                            </div>
+                            <div class="incident-admin-grid">
+                                <div v-if="canEditField('amount_of_damage')" class="under960:col-span-1">
+                                    <ShortInput
+                                        v-model="mutableParams.amount_of_damage"
+                                        type="number"
+                                        place-holder="損害額"
+                                    />
+                                </div>
+                                <div v-if="canEditField('payee')" class="under960:col-span-1">
+                                    <ShortInput v-model="mutableParams.payee" place-holder="支払先" />
+                                </div>
+                                <div v-if="canEditField('expense_details')" class="col-span-2 under960:col-span-1">
+                                    <ShortInput v-model="mutableParams.expense_details" place-holder="費用詳細" />
+                                </div>
                             </div>
                         </div>
                     </section>
 
-                    <section v-if="canEditAdminFields" class="incident-detail-section">
+                    <section v-if="canEditAdminFields" class="incident-detail-section incident-permission-area incident-permission-area--full">
                         <div class="post-separetor"><div>管理情報</div></div>
                         <div v-if="!editMode" class="flex gap-6 mb-4 w-fit">
                             <div class="flex flex-col gap-2 bg-[--bg3] p-4 rounded-lg">
@@ -211,66 +248,112 @@
                             <div class="flex flex-col gap-2 bg-[--bg3] p-4 rounded-lg">
                                 <DetailItem label="損害レベル" :value="localIncident.severity_level" />
                             </div>
-                        </div>
-                        <div v-if="editMode" class="flex mb-4 w-fit gap-6">
                             <div class="flex flex-col gap-2 bg-[--bg3] p-4 rounded-lg">
+                                <DetailItem label="合計ポイント" :value="incidentPoint(localIncident) || '-'" />
+                            </div>
+                        </div>
+                        <div v-if="editMode" class="flex mb-4 w-fit gap-2 flex-wrap">
+                            <div class="flex flex-col gap-2 bg-[var(--background-color)] p-3">
                                 <span class="text-[12px]">リスクレベル</span>
                                 <select
                                     v-model="mutableParams.risk_level"
                                     class="custom-a-input"
-                                    :rules="canEditAdminFields ? 'min:1|max:3' : ''"
-                                    :disabled="!canEditAdminFields"
+                                    rules="min:1|max:3"
                                 >
-                                    <option value="">リスクレベルを選択</option>
+                                    <option value="">未定</option>
+                                    <option value="0">0</option>
                                     <option value="1">1</option>
                                     <option value="2">2</option>
                                     <option value="3">3</option>
                                 </select>
                             </div>
-                            <div class="flex flex-col gap-2 bg-[--bg3] p-4 rounded-lg">
+                            <div class="my-auto">×</div>
+                            <div class="flex flex-col gap-2 bg-[var(--background-color)] p-3">
                                 <span class="text-[12px]">損害レベル</span>
                                 <select
                                     v-model="mutableParams.severity_level"
                                     class="custom-a-input"
-                                    :rules="canEditAdminFields ? 'min:1|max:3' : ''"
-                                    :disabled="!canEditAdminFields"
+                                    rules="min:1|max:3"
                                 >
-                                    <option value="">損害レベルを選択</option>
+                                    <option value="">未定</option>
+                                    <option value="0">0</option>
                                     <option value="1">1</option>
                                     <option value="2">2</option>
                                     <option value="3">3</option>
                                 </select>
                             </div>
+                            <div class="my-auto">=</div>
+                            <div class="flex flex-col gap-2 bg-[var(--background-color)] p-3">
+                                <span class="text-[12px] text-center">合計ポイント</span>
+                                <strong class="text-[20px] text-center mt-2">{{ (mutableParams.severity_level || 0) * (mutableParams.risk_level || 0) || '-' }}</strong>
+                            </div>
+                            <div v-if="canUseField('incident_punishment_id')" class="flex flex-col gap-2 bg-[var(--background-color)] p-3">
+                                <span class="text-[12px]">懲罰区分</span>
+                                <div v-if="canEditField('incident_punishment_id')" class="w-full">
+                                    <select
+                                        v-model="mutableParams.incident_punishment_id"
+                                        class="custom-a-input"
+                                    >
+                                        <option :value="null">未設定</option>
+                                        <option
+                                            v-for="punishment in incidentOptions.punishments"
+                                            :key="punishment.id"
+                                            :value="punishment.id"
+                                        >
+                                            {{ punishment.name || `懲罰区分 ${punishment.id}` }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <strong v-else>{{ localIncident.punishment?.name || '未設定' }}</strong>
+                            </div>
                         </div>
-                        <div class="incident-admin-grid">                            
-                            <template v-if="!editMode">                               
-
-                                <DetailItem label="損害額" :value="formatAmount(localIncident.amount_of_damage)" />
-                                <DetailItem label="支払先" :value="localIncident.payee" />
-                                <DetailItem label="費用詳細" :value="localIncident.expense_details" />                                
-                            </template>
-                            <template v-else>
-                                <div>
-                                    <ShortInput
-                                        v-model="mutableParams.amount_of_damage"
-                                        type="number"
-                                        place-holder="損害額を入力"
-                                    />
-                                </div>
-                                <div>
-                                    <ShortInput v-model="mutableParams.payee" place-holder="支払先を入力" />
-                                </div>
-                                <div class="col-span-2">
-                                    <ShortInput v-model="mutableParams.expense_details" place-holder="費用詳細を入力" />
-                                </div>
-                            </template>
+                        <div class="incident-punishment-table-wrap">
+                            <table class="incident-punishment-table">
+                                <thead>
+                                    <tr>
+                                        <th>懲戒レベル</th>
+                                        <th>処分</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>1点以上</td>
+                                        <td>注意処分</td>
+                                    </tr>
+                                    <tr>
+                                        <td>2点以上</td>
+                                        <td>厳重注意</td>
+                                    </tr>
+                                    <tr>
+                                        <td>4点以上</td>
+                                        <td>訓戒</td>
+                                    </tr>
+                                    <tr>
+                                        <td>6点以上</td>
+                                        <td>減給</td>
+                                    </tr>
+                                    <tr>
+                                        <td>9点以上</td>
+                                        <td>出勤停止</td>
+                                    </tr>
+                                    <tr>
+                                        <td>9点以上</td>
+                                        <td>降給・降格</td>
+                                    </tr>
+                                    <tr>
+                                        <td>9点以上</td>
+                                        <td>諭旨退職</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                         <div class="mt-6">
                             <div v-if="!editMode" class="incident-field-stack">
                                 <DetailItem label="委員会メンバー" :value="localIncident.committee_members" />
                                 <DetailItem label="委員会決定" :value="localIncident.committee_decision" />
                                 <DetailItem label="委員会決定日" :value="formatDate(localIncident.committee_decision_date)" />
-                                <DetailItem label="メモ" :value="localIncident.memo" />
+                                <DetailItem label="指導日" :value="formatDate(localIncident.instruction_date)" />
+                                <DetailItem label="指導内容" :value="localIncident.instruction" />
                                 <DetailItem label="顛末コメント" :value="localIncident.aftermath_comment" />
                             </div>
                             <div v-else class="flex flex-col gap-6">
@@ -278,36 +361,28 @@
                                      <ShortInput
                                         v-model="mutableParams.committee_decision_date"
                                         type="date"
-                                        place-holder="委員会決定日を入力"
+                                        place-holder="委員会決定日"
                                     />
-                                    <ShortInput v-model="mutableParams.committee_members" place-holder="委員会メンバーを入力" />
+                                    <ShortInput v-model="mutableParams.committee_members" place-holder="委員会メンバー" />
                                 </div>
-                                <div>
-                                    <LongInput v-model="mutableParams.committee_decision" place-holder="委員会決定を入力" />
+                                <div class="incident-admin-grid">
+                                    <ShortInput
+                                        v-model="mutableParams.instruction_date"
+                                        type="date"
+                                        place-holder="指導日"
+                                    />
                                 </div>
-                                <div>
-                                    <LongInput v-model="mutableParams.memo" place-holder="メモを入力" />
+                                <div class="bg-[var(--background-color)]">
+                                    <LongInput v-model="mutableParams.instruction" place-holder="指導内容" />
                                 </div>
-                                <div>
-                                    <LongInput v-model="mutableParams.aftermath_comment" place-holder="顛末コメントを入力" />
+                                <div class="bg-[var(--background-color)]">
+                                    <LongInput v-model="mutableParams.committee_decision" place-holder="委員会決定" />
+                                </div>
+                                <div class="bg-[var(--background-color)]">
+                                    <LongInput v-model="mutableParams.aftermath_comment" place-holder="顛末コメント" />
                                 </div>
                             </div>
                         </div>
-                    </section>
-                    <section class="incident-detail-section">
-                        <h3>添付ファイル</h3>
-                        <FileUploader
-                            v-if="editMode && canEditIncident"
-                            v-model="uploadedFiles"
-                            path="/incident_files"
-                            custom-place-holder="ファイルを添付"
-                        />
-                        <PostFiles
-                            v-else-if="localIncident.files?.length"
-                            :items="localIncident.files"
-                            path="incident_files"
-                        />
-                        <div v-else class="text-[12px] text-[gray]">添付ファイルはありません。</div>
                     </section>
                     <AppCommentSection
                         v-if="!editMode && !isCreateMode"
@@ -317,6 +392,81 @@
                         @count-changed="handleCommentCountChanged"
                     />
                 </main>
+                <aside v-if="!isCreateMode" class="incident-detail-assignment">
+                    <section class="incident-detail-section incident-assignment-section">
+                        <div class="post-separetor"><div>対応ログ</div></div>
+                        <div v-if="incidentReports.length" class="incident-assignment-steps">
+                            <div
+                                v-for="reportStep in incidentReports"
+                                :key="reportStep.id"
+                                class="incident-assignment-step"
+                                :class="{ 'incident-assignment-step--current': reportStep.id === latestIncidentReport?.id }"
+                            >
+                                <div class="incident-assignment-step-head">
+                                    <div
+                                        class="incident-assignment-status-chip"
+                                        :class="reportStep.completed_at ? 'incident-assignment-status-chip--complete' : 'incident-assignment-status-chip--active'"
+                                    >
+                                        {{ reportStep.completed_at ? '完了' : '対応中' }}
+                                    </div>
+                                    <small>{{ formatDateTime(reportStep.created_at) }}</small>
+                                </div>
+                                <p v-if="reportStep.request" class="incident-assignment-request">{{ reportStep.request }}</p>
+                                <div class="incident-assignee-list">
+                                    <div
+                                        v-for="assignee in reportStep.assignees ?? []"
+                                        :key="assignee.id"
+                                        class="incident-assignee-row"
+                                    >
+                                        <div class="incident-assignee-user">
+                                            <UserPanel v-if="assignee.user" :user="assignee.user" with-name size="25" disable-instant/>
+                                            <strong v-else>担当者 {{ assignee.user_id }}</strong>
+                                            <span>{{ assignee.completed_at ? '完了' : '未完了' }}</span>
+                                        </div>
+                                        <div v-if="canRespondToAssignee(assignee)" class="incident-assignee-response-editor">
+                                            <LongInput
+                                                v-model="assigneeResponses[assignee.id]"
+                                                place-holder="対応内容"
+                                            />
+                                            <div class="incident-assignee-actions">
+                                                <LoaderButton
+                                                    content="保存"
+                                                    :loading="savingAssigneeId === assignee.id"
+                                                    @click="saveAssigneeReport(assignee)"
+                                                />
+                                                <LoaderButton
+                                                    content="完了"
+                                                    :loading="completingAssigneeId === assignee.id"
+                                                    @click="completeAssigneeReport(assignee)"
+                                                />
+                                            </div>
+                                        </div>
+                                        <p v-else class="incident-assignee-report">{{ assignee.report || '対応内容は未入力です。' }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else class="incident-assignment-empty">対応担当はまだ設定されていません。</div>
+                        <div v-if="canCreateNextAssignment" class="incident-next-assignment">
+                            <LongInput
+                                v-model="nextAssignmentRequest"
+                                place-holder="次の担当者への依頼内容"
+                            />
+                            <MemberSelector
+                                v-model="nextAssigneeUsers"
+                                :multiple="true"
+                                :options="userOptions"
+                                place-holder="次の担当者を選択"
+                            />
+                            <LoaderButton
+                                content="次の担当者を設定"
+                                :loading="creatingNextAssignment"
+                                @click="createNextAssignment"
+                            />
+                        </div>
+                    </section>
+                </aside>
+                </div>
             </div>
             <div v-else class="incident-history">
                 <div class="incident-history-header">
@@ -380,7 +530,7 @@ import { DateTime } from 'luxon';
 import { computed, h, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import Modal from '@/components/Global/Modal.vue';
 import UserPanel from '@/components/Global/UserPanel.vue';
-import { Incident, IncidentCategory, IncidentPunishment } from '@/interface/incident';
+import { Incident, IncidentAssignee, IncidentCategory, IncidentPunishment, IncidentReport } from '@/interface/incident';
 import { UpdateLog, UpdateLogAction } from '@/interface/updateLog';
 import { useApi } from '@/composables/api';
 import { useAuthUserStore } from '@/store/auth';
@@ -415,9 +565,8 @@ const api = useApi()
 const auth = useAuthUserStore()
 const dialog = useDialog()
 const canEditAdminFields = computed(() => auth.isAdmin || auth.isBoss)
-const canEditIncident = computed(() => canEditAdminFields.value || auth.isPM)
+const canEditManagerFields = computed(() => canEditAdminFields.value || auth.isPM)
 const isCreateMode = computed(() => props.createMode ?? false)
-const isReporterCreateMode = computed(() => isCreateMode.value && (props.reporterMode ?? false))
 const createBlankIncident = (): Incident => ({
     id: 0,
     title: null,
@@ -425,6 +574,7 @@ const createBlankIncident = (): Incident => ({
     caused_by: null,
     incident_category_id: null,
     occurred_date: null,
+    reported_date: null,
     project_record_id: null,
     status: null,
     reported_by: auth.activeUser?.id ?? null,
@@ -444,6 +594,12 @@ const selectedCausedByUser = ref<User | null>(props.incident?.caused_by_user ?? 
 const uploadedFiles = ref<CommonFile[]>([...(props.incident?.files ?? [])])
 const incidentLogs = ref<UpdateLog[]>([])
 const markedReadIncidentIds = ref<Set<number>>(new Set())
+const assigneeResponses = ref<Record<number, string>>({})
+const nextAssigneeUsers = ref<User[]>([])
+const nextAssignmentRequest = ref<string | null>(null)
+const savingAssigneeId = ref<number | null>(null)
+const completingAssigneeId = ref<number | null>(null)
+const creatingNextAssignment = ref(false)
 type IncidentUnreadBadge = {
     type: 'new' | 'updated'
     count: number
@@ -466,17 +622,44 @@ const incidentOptions = ref<{
     projects: [],
     statuses: [],
 })
-const editableKeys = [
-    'status',
+const staffEditableKeys = [
     'occurred_date',
-    'instruction_date',
+    'reported_date',
     'incident_category_id',
-    'incident_punishment_id',
+    'caused_by',
     'project_record_id',
     'related_parties',
     'description',
     'occured_location',
     'reason',
+    'files',
+] as const
+
+const managerEditableKeys = [
+    ...staffEditableKeys,
+    'prevention',
+    'prevention_apply_status',
+    'resolution',
+    'memo',
+    'amount_of_damage',
+    'payee',
+    'expense_details',
+] as const
+
+const fullEditableKeys = [
+    'status',
+    'occurred_date',
+    'reported_date',
+    'instruction_date',
+    'incident_category_id',
+    'incident_punishment_id',
+    'caused_by',
+    'project_record_id',
+    'related_parties',
+    'description',
+    'occured_location',
+    'reason',
+    'files',
     'instruction',
     'prevention',
     'prevention_apply_status',
@@ -491,45 +674,70 @@ const editableKeys = [
     'committee_decision',
     'memo',
     'aftermath_comment',
-] as const satisfies readonly (keyof Incident)[]
+] as const
 
-const adminOnlyKeys = [
-    'risk_level',
-    'severity_level',
-    'amount_of_damage',
-    'payee',
-    'expense_details',
-    'committee_decision_date',
-    'committee_members',
-    'committee_decision',
-    'memo',
-    'aftermath_comment',
-] as const satisfies readonly (keyof Incident)[]
-const theme = useTheme()
-const isProjectManager = computed(() => {
-    return localIncident.value.project_record?.members?.some(member => member.id === auth.user?.id) || false
+type IncidentEditableKey = typeof fullEditableKeys[number] | 'files'
+const editableKeys = fullEditableKeys.filter(key => key !== 'files' && key !== 'caused_by') as readonly Exclude<IncidentEditableKey, 'files' | 'caused_by'>[]
+const isPendingIncident = computed(() => !localIncident.value.status || localIncident.value.status === '処分未決定')
+const canSelfManagePendingIncident = computed(() => {
+    return !isCreateMode.value
+        && localIncident.value.reported_by === auth.activeUser?.id
+        && isPendingIncident.value
 })
+const canEditIncident = computed(() => isCreateMode.value || canEditManagerFields.value || canSelfManagePendingIncident.value)
+const canDeleteIncident = computed(() => !isCreateMode.value && (canEditAdminFields.value || canSelfManagePendingIncident.value))
+const canViewIncidentHistory = computed(() => canEditManagerFields.value)
+const canViewIncidentPoint = computed(() => !isCreateMode.value)
+const canViewIncidentStatus = computed(() => !isCreateMode.value || canUseField('status'))
+const allowedEditableKeys = computed<readonly IncidentEditableKey[]>(() => {
+    if (!canEditIncident.value) return []
+    if (canEditAdminFields.value) return fullEditableKeys
+    if (auth.isPM) return managerEditableKeys
+    return staffEditableKeys
+})
+const canUseField = (key: IncidentEditableKey) => allowedEditableKeys.value.includes(key)
+const canEditField = (key: IncidentEditableKey) => editMode.value && canEditIncident.value && canUseField(key)
+const incidentReports = computed<IncidentReport[]>(() => {
+    return [...(localIncident.value.reports ?? [])]
+        .sort((a, b) => ((a.step ?? 0) - (b.step ?? 0)) || (a.id - b.id))
+})
+const latestIncidentReport = computed<IncidentReport | null>(() => incidentReports.value.at(-1) ?? null)
+const isIncidentCompleted = computed(() => localIncident.value.status === '完了')
+const latestIncidentReportComplete = computed(() => {
+    const assignees = latestIncidentReport.value?.assignees ?? []
+    return assignees.length > 0 && assignees.every(assignee => Boolean(assignee.completed_at))
+})
+const activeUserLatestAssignee = computed(() => {
+    const activeUserId = auth.activeUser?.id
+    if (!activeUserId || isIncidentCompleted.value) return null
+
+    return latestIncidentReport.value?.assignees?.find(assignee => assignee.user_id === activeUserId) ?? null
+})
+const canCreateNextAssignment = computed(() => {
+    if (isCreateMode.value || isIncidentCompleted.value) return false
+    if (!latestIncidentReport.value) return canEditManagerFields.value
+    return latestIncidentReportComplete.value
+        && (canEditManagerFields.value || Boolean(activeUserLatestAssignee.value))
+})
+const theme = useTheme()
 
 const menuItems = computed<MenuList[]>(() => {
     const items: MenuList[] = [
-        {
+        ...(canViewIncidentHistory.value ? [{
             title: viewMode.value === 'history' ? '詳細を見る' : '更新履歴',
             action: () => viewMode.value === 'history' ? viewMode.value = 'detail' : showHistory(),
-        },
+        }] : []),
     ]
 
-    if (!canEditIncident.value) return items
-
     return [
-        
-        {
+        ...(canEditIncident.value ? [{
             title: editMode.value ? '編集をキャンセル' : '編集',
             action: () => editMode.value ? cancelEdit() : startEdit(),
-        },
-        {
+        }] : []),
+        ...(canDeleteIncident.value ? [{
             title: deleting.value ? '削除中...' : '削除',
             action: deleteIncident,
-        },
+        }] : []),
         ...items,
     ]
 })
@@ -539,28 +747,32 @@ const buildPayload = () => {
 
     if (isCreateMode.value) {
         for (const key of editableKeys) {
-            if (!canEditAdminFields.value && (adminOnlyKeys as readonly (keyof Incident)[]).includes(key)) continue
+            if (!canUseField(key)) continue
             const nextValue = normalizeUpdateValue(key, mutableParams.value[key])
             if (nextValue !== null && nextValue !== '') {
                 ;(payload as any)[key] = nextValue
             }
         }
 
-        const nextCausedBy = selectedCausedByUser.value?.id ?? null
-        if (nextCausedBy) {
-            payload.caused_by = nextCausedBy
+        if (canUseField('caused_by')) {
+            const nextCausedBy = selectedCausedByUser.value?.id ?? null
+            if (nextCausedBy) {
+                payload.caused_by = nextCausedBy
+            }
         }
 
-        const nextFileIds = uploadedFiles.value.map(file => file.id).sort((a, b) => a - b)
-        if (nextFileIds.length) {
-            ;(payload as Partial<Incident> & { file_ids: number[] }).file_ids = nextFileIds
+        if (canUseField('files')) {
+            const nextFileIds = uploadedFiles.value.map(file => file.id).sort((a, b) => a - b)
+            if (nextFileIds.length) {
+                ;(payload as Partial<Incident> & { file_ids: number[] }).file_ids = nextFileIds
+            }
         }
 
         return payload
     }
 
     for (const key of editableKeys) {
-        if (!canEditAdminFields.value && (adminOnlyKeys as readonly (keyof Incident)[]).includes(key)) continue
+        if (!canUseField(key)) continue
         const nextValue = normalizeUpdateValue(key, mutableParams.value[key])
         const currentValue = normalizeUpdateValue(key, localIncident.value[key])
 
@@ -569,16 +781,20 @@ const buildPayload = () => {
         }
     }
 
-    const nextCausedBy = selectedCausedByUser.value?.id ?? null
-    const currentCausedBy = localIncident.value.caused_by ?? null
-    if (nextCausedBy !== currentCausedBy) {
-        payload.caused_by = nextCausedBy
+    if (canUseField('caused_by')) {
+        const nextCausedBy = selectedCausedByUser.value?.id ?? null
+        const currentCausedBy = localIncident.value.caused_by ?? null
+        if (nextCausedBy !== currentCausedBy) {
+            payload.caused_by = nextCausedBy
+        }
     }
 
-    const nextFileIds = uploadedFiles.value.map(file => file.id).sort((a, b) => a - b)
-    const currentFileIds = (localIncident.value.files ?? []).map(file => file.id).sort((a, b) => a - b)
-    if (JSON.stringify(nextFileIds) !== JSON.stringify(currentFileIds)) {
-        ;(payload as Partial<Incident> & { file_ids: number[] }).file_ids = nextFileIds
+    if (canUseField('files')) {
+        const nextFileIds = uploadedFiles.value.map(file => file.id).sort((a, b) => a - b)
+        const currentFileIds = (localIncident.value.files ?? []).map(file => file.id).sort((a, b) => a - b)
+        if (JSON.stringify(nextFileIds) !== JSON.stringify(currentFileIds)) {
+            ;(payload as Partial<Incident> & { file_ids: number[] }).file_ids = nextFileIds
+        }
     }
 
     return payload
@@ -610,6 +826,7 @@ const projectOptions = computed(() => {
 
 onMounted(() => {
     loadIncidentOptions()
+    initializeAssigneeResponses(localIncident.value)
     initializeUnreadBadge(localIncident.value)
     markIncidentRead()
 })
@@ -629,6 +846,9 @@ watch(
         mutableParams.value = { ...nextIncident }
         selectedCausedByUser.value = nextIncident.caused_by_user ?? null
         uploadedFiles.value = [...(nextIncident.files ?? [])]
+        nextAssigneeUsers.value = []
+        nextAssignmentRequest.value = null
+        initializeAssigneeResponses(nextIncident)
         editMode.value = isCreateMode.value
         viewMode.value = 'detail'
         incidentLogs.value = []
@@ -640,6 +860,18 @@ watch(
         markIncidentRead()
     },
 )
+
+const initializeAssigneeResponses = (incident: Incident) => {
+    const responses: Record<number, string> = {}
+
+    for (const report of incident.reports ?? []) {
+        for (const assignee of report.assignees ?? []) {
+            responses[assignee.id] = assignee.report ?? ''
+        }
+    }
+
+    assigneeResponses.value = responses
+}
 
 const getIncidentLastReadAt = (incident: Incident) => {
     return incident.last_read_at ?? incident.read_histories?.[0]?.last_read_at ?? null
@@ -680,7 +912,7 @@ const scheduleUnreadBadgeHide = () => {
 
 const handleUnreadBadgeClick = async () => {
     if (!unreadBadge.value) return
-    if (unreadBadge.value.type === 'updated') {
+    if (unreadBadge.value.type === 'updated' && canViewIncidentHistory.value) {
         await showHistory(true)
     }
     scheduleUnreadBadgeHide()
@@ -728,6 +960,7 @@ const loadIncidentOptions = async () => {
 
 const DetailItem = (props: { label: string; value?: string | number | null }) => {
     const value = props.value === null || props.value === undefined || props.value === '' ? '-' : String(props.value)
+
     return h('div', { class: 'incident-detail-item' }, [
         h('span', props.label),
         h('p', value),
@@ -752,7 +985,7 @@ const normalizeDate = (date?: string | null) => {
 }
 
 const normalizeUpdateValue = (key: keyof Incident, value: unknown) => {
-    if (key === 'occurred_date' || key === 'instruction_date' || key === 'committee_decision_date') {
+    if (key === 'occurred_date' || key === 'reported_date' || key === 'instruction_date' || key === 'committee_decision_date') {
         return normalizeDate(value as string | null | undefined)
     }
 
@@ -787,6 +1020,8 @@ const riskLevelColor = (incident: Incident) => {
     return RISK_LEVEL_COLORS.find(l => riskLevel >= l.min)?.color ?? 'var(--bg2)'
 }
 const startEdit = () => {
+    if (!canEditIncident.value) return
+
     mutableParams.value = { ...localIncident.value }
     selectedCausedByUser.value = localIncident.value.caused_by_user ?? null
     editMode.value = true
@@ -805,7 +1040,7 @@ const cancelEdit = () => {
 }
 
 const showHistory = async (forceReload = false) => {
-    if (isCreateMode.value) return
+    if (isCreateMode.value || !canViewIncidentHistory.value) return
     editMode.value = false
     viewMode.value = 'history'
 
@@ -824,7 +1059,7 @@ const showHistory = async (forceReload = false) => {
 }
 
 const saveChanges = async () => {
-    if (saving.value || !hasChanges.value) return
+    if (saving.value || !canEditIncident.value || !hasChanges.value) return
 
     saving.value = true
     try {
@@ -858,8 +1093,82 @@ const handleCommentCountChanged = (count: number) => {
     emit('updated', { ...localIncident.value })
 }
 
+const refreshIncidentFromWorkflowResponse = (incident: Incident) => {
+    localIncident.value = incident
+    mutableParams.value = { ...incident }
+    uploadedFiles.value = [...(incident.files ?? [])]
+    initializeAssigneeResponses(incident)
+    emit('updated', { ...incident })
+}
+
+const canRespondToAssignee = (assignee: IncidentAssignee) => {
+    return activeUserLatestAssignee.value?.id === assignee.id
+        && !assignee.completed_at
+        && !isIncidentCompleted.value
+}
+
+const saveAssigneeReport = async (assignee: IncidentAssignee) => {
+    if (!canRespondToAssignee(assignee) || savingAssigneeId.value) return
+
+    savingAssigneeId.value = assignee.id
+    try {
+        const res = await api.post('/incident_assignee_report', {
+            id: assignee.id,
+            report: assigneeResponses.value[assignee.id] ?? '',
+        }, { toast: '対応内容を保存しました。' })
+
+        if (res?.incident) {
+            refreshIncidentFromWorkflowResponse(res.incident)
+        }
+    } finally {
+        savingAssigneeId.value = null
+    }
+}
+
+const completeAssigneeReport = async (assignee: IncidentAssignee) => {
+    if (!canRespondToAssignee(assignee) || completingAssigneeId.value) return
+
+    completingAssigneeId.value = assignee.id
+    try {
+        const res = await api.post('/incident_assignee_complete', {
+            id: assignee.id,
+            report: assigneeResponses.value[assignee.id] ?? '',
+        }, { toast: '対応を完了しました。' })
+
+        if (res?.incident) {
+            refreshIncidentFromWorkflowResponse(res.incident)
+        }
+    } finally {
+        completingAssigneeId.value = null
+    }
+}
+
+const createNextAssignment = async () => {
+    if (!canCreateNextAssignment.value || creatingNextAssignment.value) return
+
+    const assigneeIds = nextAssigneeUsers.value.map(user => user.id)
+    if (!assigneeIds.length) return
+
+    creatingNextAssignment.value = true
+    try {
+        const res = await api.post('/incident_report_assignment', {
+            incident_id: localIncident.value.id,
+            request: nextAssignmentRequest.value,
+            assignee_ids: assigneeIds,
+        }, { toast: '次の担当者を設定しました。' })
+
+        if (res?.incident) {
+            nextAssigneeUsers.value = []
+            nextAssignmentRequest.value = null
+            refreshIncidentFromWorkflowResponse(res.incident)
+        }
+    } finally {
+        creatingNextAssignment.value = false
+    }
+}
+
 const deleteIncident = async () => {
-    if (deleting.value) return
+    if (deleting.value || !canDeleteIncident.value) return
 
     const answer = await dialog.ask('このインシデントを削除しますか？', {
         answers: [
@@ -901,6 +1210,7 @@ const fieldLabel = (field: string) => {
     const labels: Record<string, string> = {
         status: 'ステータス',
         occurred_date: '発生日',
+        reported_date: '報告日',
         instruction_date: '指導日',
         incident_category_id: '区分',
         incident_punishment_id: '懲罰区分',
@@ -944,9 +1254,6 @@ const formatLogValue = (value: unknown) => {
 </script>
 
 <style lang="scss">
-.incident-detail-modal{
-    max-width: 1120px;
-}
 
 .incident-detail-title{
     display: flex;
@@ -1002,15 +1309,12 @@ const formatLogValue = (value: unknown) => {
 
 .incident-detail-shell{
     display: grid;
-    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-columns: 160px minmax(0, 1fr);
     gap: 24px;
     color: var(--primary-color);
 }
 
-.incident-detail-side{
-    border-right: 1px solid var(--calendarBorder);
-    padding-right: 18px;
-}
+
 
 .incident-detail-score{
     border-left: 6px solid var(--calendarBorder);
@@ -1041,11 +1345,6 @@ const formatLogValue = (value: unknown) => {
     gap: 30px;
 }
 
-.incident-detail-facts > div{
-    border-bottom: 1px solid var(--calendarBorder);
-    padding-bottom: 10px;
-}
-
 .incident-detail-facts strong{
     display: block;
     margin-top: 4px;
@@ -1053,17 +1352,54 @@ const formatLogValue = (value: unknown) => {
     font-weight: 700;
 }
 
+.incident-permission-legend{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 20px;
+    font-size: 11px;
+    color: gray;
+}
+
 .incident-detail-main{
     min-width: 0;
     display: flex;
     flex-direction: column;
     gap: 20px;
+    border-left: solid thin var(--calendarBorder);
+    border-right: solid thin var(--calendarBorder);
+    padding: 0 24px;
+}
+
+.incident-detail-content{
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(290px, 290px);
+    align-items: start;
+    gap: 20px;
+}
+
+.incident-detail-assignment{
+    min-width: 0;
+}
+
+.incident-detail-assignment .incident-assignment-section{
+    position: sticky;
+    top: 12px;
 }
 
 
 .incident-detail-section h3{
     margin: 0 0 12px;
     font-size: 14px;
+}
+
+
+
+
+.incident-file-block{
+    margin-top: 24px;
+    padding-top: 18px;
 }
 
 .incident-people-grid,
@@ -1089,6 +1425,30 @@ const formatLogValue = (value: unknown) => {
     min-width: 0;
 }
 
+.incident-field--staff,
+.incident-field--manager,
+.incident-field--full{
+    width: fit-content;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    font-size: 11px;
+}
+
+.incident-field--staff{
+    background: rgba(79, 140, 255, 0.1);
+    border-color: rgba(79, 140, 255, 0.25);
+}
+
+.incident-field--manager{
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.28);
+}
+
+.incident-field--full{
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.25);
+}
+
 .incident-detail-item p{
     margin-top: 4px;
     white-space: pre-wrap;
@@ -1104,6 +1464,135 @@ const formatLogValue = (value: unknown) => {
     margin-top: 24px;
     padding-top: 18px;
     border-top: 1px solid var(--calendarBorder);
+}
+
+.incident-punishment-table-wrap{
+    margin-bottom: 20px;
+    overflow-x: auto;
+}
+
+.incident-punishment-table{
+    width: min(360px, 100%);
+    border-collapse: collapse;
+    background: var(--background-color);
+    font-size: 12px;
+}
+
+.incident-punishment-table th,
+.incident-punishment-table td{
+    border: 1px solid var(--calendarBorder);
+    padding: 8px 10px;
+    text-align: left;
+    line-height: 1.4;
+}
+
+.incident-punishment-table th{
+    background: var(--bg3);
+    font-weight: 700;
+}
+
+
+.incident-assignment-steps{
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.incident-assignment-step{
+    border: 1px solid var(--calendarBorder);
+    padding: 14px;
+}
+
+.incident-assignment-step-head{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.incident-assignment-step-head div{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.incident-assignment-status-chip{
+    min-width: 52px;
+    justify-content: center;
+    padding: 4px 10px;
+    border: 1px solid transparent;
+    font-size: 11px;
+    line-height: 1;
+    border-radius: 999px;
+}
+
+.incident-assignment-status-chip--active{
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.28);
+    color: #b45309;
+}
+
+.incident-assignment-status-chip--complete{
+    background: rgba(22, 163, 74, 0.11);
+    border-color: rgba(22, 163, 74, 0.25);
+    color: #15803d;
+}
+
+.incident-assignment-step-head span,
+.incident-assignment-step-head small,
+.incident-assignee-user span,
+.incident-assignee-report,
+.incident-assignment-empty{
+    font-size: 12px;
+    color: gray;
+}
+
+.incident-assignment-request{
+    margin-bottom: 12px;
+    padding: 10px;
+    border-left: 3px solid var(--calendarBorder);
+    white-space: pre-wrap;
+    font-size: 13px;
+}
+
+.incident-assignee-list{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.incident-assignee-row{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.incident-assignee-user,
+.incident-assignee-actions{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.incident-assignee-response-editor{
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.incident-assignee-report{
+    white-space: pre-wrap;
+}
+
+.incident-next-assignment{
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--calendarBorder);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .incident-history-header{
@@ -1227,6 +1716,14 @@ const formatLogValue = (value: unknown) => {
         border-bottom: 1px solid var(--calendarBorder);
         padding-right: 0;
         padding-bottom: 16px;
+    }
+
+    .incident-detail-content{
+        grid-template-columns: 1fr;
+    }
+
+    .incident-detail-assignment .incident-assignment-section{
+        position: static;
     }
 
     .incident-people-grid,

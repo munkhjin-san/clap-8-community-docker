@@ -61,7 +61,8 @@ import { useDialog } from '@/composables/dialog';
         { value: 5, content: ' 広報（ホームページ、社会活動、ブログ、SNS）'},
         { value: 6, content: ' 事業（企画開発、事業計画、事業実績）'},
         { value: 7, content: ' システム開発（GLOWD）'},
-        { value: 8, content: ' その他'}
+        { value: 8, content: ' 情報システム（PC、ソフトウェア、ネットワーク）'},
+        { value: 9, content: ' その他'}
     ])
     const selectedAnswer = ref(null)
     const to = ref(null)

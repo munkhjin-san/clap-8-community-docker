@@ -27,12 +27,13 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Mail;
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Http;
 use App\Models\EmergencyContact;
 use App\Models\EmergencyContactAction;
-use App\Services\EmergencySmsService;
 use App\Models\Incident;
+use App\Models\User;
 use OpenAI;
 
 class SupportController extends Controller
@@ -1050,24 +1051,39 @@ class SupportController extends Controller
                 'content' => $request->content,
                 'status' => EmergencyContact::STATUS_PENDING,
             ]);
-            $user = Auth::user();
-            $sendContent = "緊急連絡がありました\nユーザー: {$user->name}\n内容: {$request->content}";
-            $emergencySmsService = new EmergencySmsService();
-            $emergencySmsService->send($sendContent);
+
+            $sender = $this->active_user();
+            $messageContent = "緊急連絡がありました\nユーザー: {$sender->name}\n内容: {$request->content}";
+            $bosses = User::where('position_id', '<', 5)->whereNotNull('email')->get();
+            foreach ($bosses as $boss) {
+                if (!filter_var($boss->email, FILTER_VALIDATE_EMAIL)) {
+                    continue;
+                }
+
+                try {
+                    Mail::raw($messageContent, function ($message) use ($boss) {
+                        $message
+                            ->to($boss->email)
+                            ->subject('緊急連絡がありました');
+                    });
+                } catch (\Throwable $exception) {
+                    report($exception);
+                }
+            }
 
             return response()->json($create);
         }else if ($type == 'incident'){
             $create = Incident::create([
                 'reported_by' => $user_id,
                 'description' => $request->content,
-                'status' => '報告済み',
+                'status' => '処分未決定',
             ]);
             $create->logs()->create([
                 'user_id' => $user_id,
                 'action' => 'created',
                 'changes' => [
                     'description' => ['old' => null, 'new' => $request->content],
-                    'status' => ['old' => null, 'new' => '報告済み'],
+                    'status' => ['old' => null, 'new' => '処分未決定'],
                 ],
             ]);
             return response()->json($create);
@@ -1093,11 +1109,7 @@ class SupportController extends Controller
             'id' => 'required|integer',
             'status' => 'required|string|in:pending,complete',
         ]);
-
-        $contact = EmergencyContact::query()
-            ->where('id', $validated['id'])
-            ->where('user_id', $this->active_user()->id)
-            ->firstOrFail();
+        $contact = EmergencyContact::findOrFail($validated['id']);
 
         $contact->update([
             'status' => $validated['status'],

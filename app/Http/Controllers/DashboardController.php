@@ -23,9 +23,12 @@ use App\Models\timecardRecord;
 use App\Models\shiftRecord;
 use App\Models\attendanceRecord;
 use App\Models\NoticeRecord;
+use App\Models\EmergencyContact;
 use App\Models\Incident;
+use App\Models\IncidentAssignee;
 use App\Models\IncidentCategory;
 use App\Models\IncidentPunishment;
+use App\Models\IncidentReport;
 use App\Models\IncidentStatus;
 use App\Models\FileRecord;
 use App\Models\UserReadHistory;
@@ -33,6 +36,7 @@ use App\Models\SystemUpdateCheck;
 use App\Models\SystemUpdateRecord;
 use App\Models\UserLeaveRecord;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 
 class DashboardController extends Controller
@@ -948,6 +952,7 @@ class DashboardController extends Controller
         if ($withDetail) {
             $columns = array_merge($columns, [
                 'reported_by',
+                'reported_date',
                 'incident_punishment_id',
                 'reason',
                 'prevention',
@@ -1013,6 +1018,7 @@ class DashboardController extends Controller
                 'punishment',
                 'projectRecord:id,name,date_start,date_end,category',
                 'projectRecord.manager',
+                'reports',
                 'files',
             ]);
     }
@@ -1374,7 +1380,10 @@ class DashboardController extends Controller
         $incident = Incident::findOrFail($validated['id']);
         $activeUser = $this->active_user();
 
-        if (!$this->canAccessIncident($incident, $activeUser)) {
+        if (
+            !$this->canAccessIncident($incident, $activeUser)
+            || !$this->canViewIncidentHistory($activeUser)
+        ) {
             abort(403);
         }
 
@@ -1433,6 +1442,7 @@ class DashboardController extends Controller
             'memo' => ['sometimes', 'nullable', 'string'],
             'aftermath_comment' => ['sometimes', 'nullable', 'string'],
             'occurred_date' => ['sometimes', 'nullable', 'date'],
+            'reported_date' => ['sometimes', 'nullable', 'date'],
             'instruction_date' => ['sometimes', 'nullable', 'date'],
             'related_parties' => ['sometimes', 'nullable', 'string'],
             'project_record_id' => ['sometimes', 'nullable', 'integer', 'exists:project_records,id'],
@@ -1453,14 +1463,7 @@ class DashboardController extends Controller
         $fileIds = $validated['file_ids'] ?? [];
         unset($validated['file_ids']);
 
-        if (!$this->canViewIncidentList($activeUser)) {
-            abort(403);
-        }
-
-        if (
-            !$this->canManageIncidentAdministration($activeUser)
-            && array_intersect(array_keys($validated), $this->incidentManagementFields())
-        ) {
+        if (!$this->canCreateIncidentRecord($activeUser) || $this->hasDisallowedIncidentFields($activeUser, array_keys($validated))) {
             abort(403);
         }
 
@@ -1468,7 +1471,7 @@ class DashboardController extends Controller
             $incident = Incident::create([
                 ...$validated,
                 'reported_by' => $activeUser->id,
-                'status' => $validated['status'] ?? '報告済み',
+                'status' => $validated['status'] ?? '処分未決定',
             ]);
 
             if (!empty($fileIds)) {
@@ -1477,6 +1480,8 @@ class DashboardController extends Controller
                     'collection' => 'attachments',
                 ]);
             }
+
+            $this->createInitialIncidentReportForProjectManagers($incident, $activeUser);
 
             $changes = collect($validated)
                 ->filter(fn ($value) => $value !== null && $value !== '')
@@ -1524,6 +1529,7 @@ class DashboardController extends Controller
             'memo' => ['sometimes', 'nullable', 'string'],
             'aftermath_comment' => ['sometimes', 'nullable', 'string'],
             'occurred_date' => ['sometimes', 'nullable', 'date'],
+            'reported_date' => ['sometimes', 'nullable', 'date'],
             'instruction_date' => ['sometimes', 'nullable', 'date'],
             'related_parties' => ['sometimes', 'nullable', 'string'],
             'project_record_id' => ['sometimes', 'nullable', 'integer', 'exists:project_records,id'],
@@ -1555,17 +1561,17 @@ class DashboardController extends Controller
 
         $activeUser = $this->active_user();
 
-        if (
-            !$this->canManageIncidentAdministration($activeUser)
-            && array_intersect(array_keys($validated), $this->incidentManagementFields())
-        ) {
-            abort(403);
-        }
-
         $updatedIncident = DB::transaction(function () use ($incidentId, $validated, $fileIds, $activeUser) {
             $incident = Incident::lockForUpdate()->findOrFail($incidentId);
 
             if (!$this->canAccessIncident($incident, $activeUser)) {
+                abort(403);
+            }
+
+            if (
+                !$this->canEditIncidentRecord($activeUser, $incident)
+                || $this->hasDisallowedIncidentFields($activeUser, array_keys($validated), $incident)
+            ) {
                 abort(403);
             }
 
@@ -1639,14 +1645,13 @@ class DashboardController extends Controller
 
         $activeUser = $this->active_user();
 
-        if (!$this->canManageIncidentAdministration($activeUser)) {
-            abort(403);
-        }
-
         DB::transaction(function () use ($validated, $activeUser) {
             $incident = Incident::lockForUpdate()->findOrFail($validated['id']);
 
-            if (!$this->canAccessIncident($incident, $activeUser)) {
+            if (
+                !$this->canAccessIncident($incident, $activeUser)
+                || !$this->canDeleteIncidentRecord($activeUser, $incident)
+            ) {
                 abort(403);
             }
 
@@ -1667,6 +1672,158 @@ class DashboardController extends Controller
         return response()->json([
             'deleted' => true,
             'id' => $validated['id'],
+        ]);
+    }
+
+    public function saveIncidentAssigneeReport(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:incident_assignees,id'],
+            'report' => ['sometimes', 'nullable', 'string'],
+        ]);
+
+        $activeUser = $this->active_user();
+
+        $incident = DB::transaction(function () use ($validated, $activeUser) {
+            $assignee = IncidentAssignee::query()
+                ->with('incidentReport.incident')
+                ->lockForUpdate()
+                ->findOrFail($validated['id']);
+            $incident = $assignee->incidentReport->incident;
+
+            if (!$this->canUpdateIncidentAssigneeReport($activeUser, $assignee, $incident)) {
+                abort(403);
+            }
+
+            $assignee->update([
+                'report' => $validated['report'] ?? null,
+            ]);
+
+            return $this->incidentQuery()->whereKey($incident->id)->firstOrFail();
+        });
+
+        return response()->json([
+            'incident' => $incident,
+            'saved' => true,
+        ]);
+    }
+
+    public function completeIncidentAssigneeReport(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:incident_assignees,id'],
+            'report' => ['sometimes', 'nullable', 'string'],
+        ]);
+
+        $activeUser = $this->active_user();
+
+        $incident = DB::transaction(function () use ($validated, $activeUser) {
+            $assignee = IncidentAssignee::query()
+                ->with('incidentReport.incident')
+                ->lockForUpdate()
+                ->findOrFail($validated['id']);
+            $incident = $assignee->incidentReport->incident;
+
+            if (!$this->canUpdateIncidentAssigneeReport($activeUser, $assignee, $incident)) {
+                abort(403);
+            }
+
+            $reportText = trim((string) ($validated['report'] ?? $assignee->report ?? ''));
+
+            if ($reportText === '') {
+                throw ValidationException::withMessages([
+                    'report' => '対応内容を入力してください。',
+                ]);
+            }
+
+            $assignee->update([
+                'report' => $reportText,
+                'completed_at' => $assignee->completed_at ?? now(),
+            ]);
+
+            $this->markIncidentReportCompleteIfReady($assignee->incidentReport);
+
+            $incident->logs()->create([
+                'user_id' => $activeUser->id,
+                'action' => 'updated',
+                'field' => 'incident_assignee_report',
+                'changes' => [
+                    'incident_assignee_report' => [
+                        'old' => null,
+                        'new' => 'completed',
+                    ],
+                ],
+            ]);
+
+            return $this->incidentQuery()->whereKey($incident->id)->firstOrFail();
+        });
+
+        return response()->json([
+            'incident' => $incident,
+            'completed' => true,
+        ]);
+    }
+
+    public function createIncidentReportAssignment(Request $request)
+    {
+        $validated = $request->validate([
+            'incident_id' => ['required', 'integer', 'exists:incidents,id'],
+            'request' => ['sometimes', 'nullable', 'string'],
+            'assignee_ids' => ['required', 'array', 'min:1'],
+            'assignee_ids.*' => ['integer', 'distinct', 'exists:users,id'],
+        ]);
+
+        $activeUser = $this->active_user();
+
+        $incident = DB::transaction(function () use ($validated, $activeUser) {
+            $incident = Incident::query()
+                ->with('reports.assignees')
+                ->lockForUpdate()
+                ->findOrFail($validated['incident_id']);
+
+            if (!$this->canAccessIncident($incident, $activeUser) || $this->isCompletedIncident($incident)) {
+                abort(403);
+            }
+
+            $latestReport = $this->latestIncidentReport($incident);
+
+            if ($latestReport) {
+                if (
+                    !$this->isIncidentReportComplete($latestReport)
+                    || !$this->canAdvanceIncidentReport($activeUser, $latestReport)
+                ) {
+                    abort(403);
+                }
+            } elseif (!$this->canManageIncidentWorkflow($activeUser)) {
+                abort(403);
+            }
+
+            $report = $incident->reports()->create([
+                'step' => ($latestReport?->step ?? 0) + 1,
+                'request' => $validated['request'] ?? null,
+                'created_by' => $activeUser->id,
+            ]);
+
+            $this->createIncidentAssignees($report, $validated['assignee_ids']);
+
+            $incident->logs()->create([
+                'user_id' => $activeUser->id,
+                'action' => 'updated',
+                'field' => 'incident_assignees',
+                'changes' => [
+                    'incident_assignees' => [
+                        'old' => [],
+                        'new' => array_values($validated['assignee_ids']),
+                    ],
+                ],
+            ]);
+
+            return $this->incidentQuery()->whereKey($incident->id)->firstOrFail();
+        });
+
+        return response()->json([
+            'incident' => $incident,
+            'created' => true,
         ]);
     }
 
@@ -1706,17 +1863,37 @@ class DashboardController extends Controller
         $isPM = $activeUser->position_id == 6;
         $isBoss = $activeUser->position_id && $activeUser->position_id < 6;
         $isAdmin = in_array($activeUser->id, [610, 608], true);
+        $emergencyContacts = collect();
 
         if (!$isBoss && !$isAdmin) {
-            if (!$isPM) {
-                return ['attention' => collect()];
-            }
+            $query->where(function ($scopeQuery) use ($activeUser, $isPM) {
+                $scopeQuery
+                    ->where('caused_by', $activeUser->id)
+                    ->orWhere('reported_by', $activeUser->id);
 
-            $query->whereHas('projectRecord.manager', function ($managerQuery) use ($activeUser) {
-                $managerQuery->where('users.id', $activeUser->id);
+                $this->orWhereActiveIncidentAssignee($scopeQuery, $activeUser);
+
+                if ($isPM) {
+                    $scopeQuery->orWhereHas('projectRecord.manager', function ($managerQuery) use ($activeUser) {
+                        $managerQuery->where('users.id', $activeUser->id);
+                    });
+                }
             });
+        } else {
+            $emergencyContacts = EmergencyContact::query()
+                ->with([
+                    'user' => fn ($userQuery) => $userQuery->select('id', 'name', 'icon_path', 'icon_bg'),
+                ])
+                ->withCount('actions')
+                ->where(function ($contactQuery) {
+                    $contactQuery->whereNull('status')
+                        ->orWhere('status', '!=', EmergencyContact::STATUS_COMPLETE);
+                })
+                ->orderByDesc('created_at')
+                ->get();
         }
         return [
+            'emergency_contacts' => $emergencyContacts,
             'attention' => $query->orderByDesc('created_at')->get(),
         ];
     }
@@ -1728,6 +1905,17 @@ class DashboardController extends Controller
         $isAdmin = in_array($user->id, [610, 608], true);
 
         if ($isBoss || $isAdmin) {
+            return true;
+        }
+
+        if (
+            $incident->caused_by === $user->id
+            || $incident->reported_by === $user->id
+        ) {
+            return true;
+        }
+
+        if ($this->hasActiveIncidentAssignment($incident, $user)) {
             return true;
         }
 
@@ -1747,21 +1935,302 @@ class DashboardController extends Controller
         return ($user->position_id && $user->position_id < 6) || in_array($user->id, [608, 610], true);
     }
 
-    private function incidentManagementFields(): array
+    private function canViewIncidentHistory(User $user): bool
+    {
+        return $this->canManageIncidentAdministration($user) || $user->position_id == 6;
+    }
+
+    private function canManageIncidentWorkflow(User $user): bool
+    {
+        return $this->canManageIncidentAdministration($user) || $user->position_id == 6;
+    }
+
+    private function isCompletedIncident(Incident $incident): bool
+    {
+        return $incident->status === '完了';
+    }
+
+    private function canCreateIncidentRecord(User $user): bool
+    {
+        return (bool) $user->id;
+    }
+
+    private function canEditIncidentRecord(User $user, Incident $incident): bool
+    {
+        if ($this->canManageIncidentAdministration($user)) {
+            return true;
+        }
+
+        if ($user->position_id == 6) {
+            return true;
+        }
+
+        return $this->canSelfManagePendingIncident($user, $incident);
+    }
+
+    private function canDeleteIncidentRecord(User $user, Incident $incident): bool
+    {
+        return $this->canManageIncidentAdministration($user)
+            || $this->canSelfManagePendingIncident($user, $incident);
+    }
+
+    private function canSelfManagePendingIncident(User $user, Incident $incident): bool
+    {
+        return $incident->reported_by === $user->id
+            && $this->isPendingIncident($incident);
+    }
+
+    private function isPendingIncident(Incident $incident): bool
+    {
+        return $incident->status === null || $incident->status === '処分未決定';
+    }
+
+    private function createInitialIncidentReportForProjectManagers(Incident $incident, User $activeUser): void
+    {
+        if (!$incident->project_record_id) {
+            return;
+        }
+
+        $project = ProjectRecord::query()
+            ->whereKey($incident->project_record_id)
+            ->first();
+
+        $managerIds = $project
+            ? $project->manager()
+                ->pluck('users.id')
+                ->unique()
+                ->values()
+                ->all()
+            : [];
+
+        if (empty($managerIds)) {
+            return;
+        }
+
+        $report = $incident->reports()->create([
+            'step' => 1,
+            'request' => null,
+            'created_by' => $activeUser->id,
+        ]);
+
+        $this->createIncidentAssignees($report, $managerIds);
+    }
+
+    private function createIncidentAssignees(IncidentReport $report, array $userIds): void
+    {
+        $now = now();
+        $rows = collect($userIds)
+            ->unique()
+            ->values()
+            ->map(fn ($userId) => [
+                'incident_report_id' => $report->id,
+                'user_id' => $userId,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ])
+            ->all();
+
+        if (!empty($rows)) {
+            IncidentAssignee::insert($rows);
+        }
+    }
+
+    private function latestIncidentReport(Incident $incident): ?IncidentReport
+    {
+        $reports = $incident->relationLoaded('reports')
+            ? $incident->reports
+            : $incident->reports()->with('assignees')->get();
+
+        return $reports
+            ->sort(fn ($a, $b) => [$b->step, $b->id] <=> [$a->step, $a->id])
+            ->first();
+    }
+
+    private function isIncidentReportComplete(IncidentReport $report): bool
+    {
+        $assignees = $report->relationLoaded('assignees')
+            ? $report->assignees
+            : $report->assignees()->get();
+
+        return $assignees->isNotEmpty()
+            && $assignees->every(fn (IncidentAssignee $assignee) => $assignee->completed_at !== null);
+    }
+
+    private function markIncidentReportCompleteIfReady(IncidentReport $report): void
+    {
+        $report->loadMissing('assignees');
+
+        if (!$this->isIncidentReportComplete($report)) {
+            return;
+        }
+
+        if (!$report->completed_at) {
+            $report->update(['completed_at' => now()]);
+        }
+    }
+
+    private function canAdvanceIncidentReport(User $user, IncidentReport $report): bool
+    {
+        if ($this->canManageIncidentWorkflow($user)) {
+            return true;
+        }
+
+        $assignees = $report->relationLoaded('assignees')
+            ? $report->assignees
+            : $report->assignees()->get();
+
+        return $assignees->contains(fn (IncidentAssignee $assignee) => $assignee->user_id === $user->id);
+    }
+
+    private function canUpdateIncidentAssigneeReport(User $user, IncidentAssignee $assignee, Incident $incident): bool
+    {
+        return !$this->isCompletedIncident($incident)
+            && $assignee->user_id === $user->id
+            && $this->isLatestIncidentReportAssignee($incident, $assignee);
+    }
+
+    private function isLatestIncidentReportAssignee(Incident $incident, IncidentAssignee $assignee): bool
+    {
+        $latestReport = $this->latestIncidentReport($incident->loadMissing('reports.assignees'));
+
+        return $latestReport && $latestReport->id === $assignee->incident_report_id;
+    }
+
+    private function hasActiveIncidentAssignment(Incident $incident, User $user): bool
+    {
+        if ($this->isCompletedIncident($incident)) {
+            return false;
+        }
+
+        $latestReport = $this->latestIncidentReport($incident->loadMissing('reports.assignees'));
+
+        if (!$latestReport) {
+            return false;
+        }
+
+        return $latestReport->assignees->contains(fn (IncidentAssignee $assignee) => $assignee->user_id === $user->id);
+    }
+
+    private function activeIncidentAssignmentQuery(User $user)
+    {
+        return Incident::query()
+            ->where(function ($statusQuery) {
+                $statusQuery->whereNull('status')
+                    ->orWhere('status', '!=', '完了');
+            })
+            ->whereExists(function ($assignmentQuery) use ($user) {
+                $assignmentQuery->select(DB::raw(1))
+                    ->from('incident_reports')
+                    ->join('incident_assignees', 'incident_assignees.incident_report_id', '=', 'incident_reports.id')
+                    ->whereColumn('incident_reports.incident_id', 'incidents.id')
+                    ->where('incident_assignees.user_id', $user->id)
+                    ->whereRaw('incident_reports.step = (
+                        select max(latest_incident_reports.step)
+                        from incident_reports as latest_incident_reports
+                        where latest_incident_reports.incident_id = incidents.id
+                    )');
+            });
+    }
+
+    private function orWhereActiveIncidentAssignee($query, User $user): void
+    {
+        $query->orWhereExists(function ($assignmentQuery) use ($user) {
+            $assignmentQuery->select(DB::raw(1))
+                ->from('incident_reports')
+                ->join('incident_assignees', 'incident_assignees.incident_report_id', '=', 'incident_reports.id')
+                ->whereColumn('incident_reports.incident_id', 'incidents.id')
+                ->where('incident_assignees.user_id', $user->id)
+                ->where(function ($statusQuery) {
+                    $statusQuery->whereNull('incidents.status')
+                        ->orWhere('incidents.status', '!=', '完了');
+                })
+                ->whereRaw('incident_reports.step = (
+                    select max(latest_incident_reports.step)
+                    from incident_reports as latest_incident_reports
+                    where latest_incident_reports.incident_id = incidents.id
+                )');
+        });
+    }
+
+    private function incidentStaffFields(): array
     {
         return [
-            'risk_level',
-            'severity_level',
+            'occurred_date',
+            'reported_date',
+            'incident_category_id',
+            'caused_by',
+            'project_record_id',
+            'related_parties',
+            'description',
+            'occured_location',
+            'reason',
+        ];
+    }
+
+    private function incidentManagerFields(): array
+    {
+        return array_merge($this->incidentStaffFields(), [
+            'prevention',
+            'prevention_apply_status',
+            'resolution',
+            'memo',
             'amount_of_damage',
             'payee',
             'expense_details',
-            'committee_decision_date',
-            'committee_members',
-            'committee_decision',
+        ]);
+    }
+
+    private function incidentFullFields(): array
+    {
+        return [
+            'title',
+            'description',
+            'reported_by',
+            'caused_by',
+            'incident_category_id',
+            'incident_punishment_id',
+            'reason',
+            'prevention',
+            'prevention_apply_status',
+            'instruction',
+            'resolution',
+            'occured_location',
             'memo',
             'aftermath_comment',
+            'occurred_date',
+            'reported_date',
+            'instruction_date',
+            'related_parties',
+            'project_record_id',
+            'status',
+            'amount_of_damage',
+            'payee',
+            'expense_details',
+            'risk_level',
+            'severity_level',
             'private_notes',
+            'committee_members',
+            'committee_decision',
+            'committee_decision_date',
         ];
+    }
+
+    private function allowedIncidentFields(User $user, ?Incident $incident = null): array
+    {
+        if ($this->canManageIncidentAdministration($user)) {
+            return $this->incidentFullFields();
+        }
+
+        if ($user->position_id == 6) {
+            return $this->incidentManagerFields();
+        }
+
+        return $this->incidentStaffFields();
+    }
+
+    private function hasDisallowedIncidentFields(User $user, array $fields, ?Incident $incident = null): bool
+    {
+        return !empty(array_diff($fields, $this->allowedIncidentFields($user, $incident)));
     }
 
     private function canViewIncidentList(User $user): bool
@@ -1770,6 +2239,26 @@ class DashboardController extends Controller
             return true;
         }
 
+        if (
+            Incident::query()
+                ->where(function ($query) use ($user) {
+                    $query->where('caused_by', $user->id)
+                        ->orWhere('reported_by', $user->id);
+                })
+                ->exists()
+        ) {
+            return true;
+        }
+
+        if ($this->activeIncidentAssignmentQuery($user)->exists()) {
+            return true;
+        }
+
+        return $this->managesIncidentProject($user);
+    }
+
+    private function managesIncidentProject(User $user): bool
+    {
         if ($user->position_id != 6) {
             return false;
         }
@@ -1930,12 +2419,18 @@ class DashboardController extends Controller
         $query = $this->incidentQuery(true, $user->id);
 
         if (!$isBoss && !$isAdmin) {
-            if (!$isPM) {
-                return $query->whereRaw('1 = 0');
-            }
+            $query->where(function ($scopeQuery) use ($user, $isPM) {
+                $scopeQuery
+                    ->where('caused_by', $user->id)
+                    ->orWhere('reported_by', $user->id);
 
-            $query->whereHas('projectRecord.manager', function ($managerQuery) use ($user) {
-                $managerQuery->where('users.id', $user->id);
+                $this->orWhereActiveIncidentAssignee($scopeQuery, $user);
+
+                if ($isPM) {
+                    $scopeQuery->orWhereHas('projectRecord.manager', function ($managerQuery) use ($user) {
+                        $managerQuery->where('users.id', $user->id);
+                    });
+                }
             });
         }
 

@@ -5,6 +5,7 @@ import { Incident } from "./incident"
 import { Post } from "./postInterface"
 import { Project, ProjectAssignRecord } from "./projectInterface"
 import { Shift } from "./workInterface"
+import type { EmergencyContactRecord } from "./supportInterface"
 
 export type UserWithShift = User & {
     shift_records: Shift[]
@@ -71,6 +72,7 @@ export type DashboardIncidentCard = CardBase & {
     layout: 'incidents'
     data: {
         attention: Incident[]
+        emergency_contacts?: EmergencyContactRecord[]
     }
 }
 

@@ -477,9 +477,9 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
         updateTarget.value = null
         if(id){
             let query:Record<string, any> = getQuery.value
-            if(!query.hasOwnProperty('id') || !query.id){
+
                 query['id'] = id
-            }
+
             fetchPosts(query, id)
         }
     }
@@ -491,9 +491,9 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
         chargeTarget.value = null
         if(id){                
             let query:Record<string, any> = getQuery.value
-            if(!query.hasOwnProperty('id') || !query.id){
+
                 query['id'] = id
-            }
+ 
             fetchPosts(query, id)
         }
         
@@ -502,9 +502,9 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
         entryData.value = { record: null, editData: null }
         if(id){                
             let query = getQuery.value
-            if(!query.hasOwnProperty('id') || !query.id){
+
                 query['id'] = id.toString()
-            }
+ 
             fetchPosts(query, id)
         }
     }

@@ -88,6 +88,7 @@ export interface EmergencyContactRecord {
     content: string;
     status: EmergencyContactStatus;
     actions_count: number;
+    user?: User;
     created_at: string;
     updated_at: string;
 }

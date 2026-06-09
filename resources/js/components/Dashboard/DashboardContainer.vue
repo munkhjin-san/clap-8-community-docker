@@ -234,7 +234,13 @@ if (auth.isAdmin) {
 prefsStore.applyLayoutToCards(defaultDashboardCards)
 
 const dashboardCards = ref<DashboardCard[]>(prefsStore.applyOrderToCards(defaultDashboardCards))
-const canSeeIncidentCard = computed(() => auth.isPM || auth.isBoss || auth.isAdmin)
+const canSeeIncidentCard = computed(() => {
+    return auth.isPM
+        || auth.isBoss
+        || auth.isAdmin
+        || collection.incidents.attention.length > 0
+        || collection.incidents.emergency_contacts.length > 0
+})
 const permissionAllowedDashboardCards = computed(() => dashboardCards.value.filter((card) => {
     if (card.type === 'incidents' && !canSeeIncidentCard.value) {
         return route.params.type === card.type

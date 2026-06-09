@@ -28,7 +28,24 @@ export interface IncidentReport {
     id: number;
     incident_id: number;
     user_id: number | null;
+    step?: number;
     report: string | null;
+    request?: string | null;
+    created_by?: number | null;
+    completed_at?: string | null;
+    user?: User;
+    creator?: User;
+    assignees?: IncidentAssignee[];
+    created_at?: string;
+    updated_at?: string;
+}
+
+export interface IncidentAssignee {
+    id: number;
+    incident_report_id: number;
+    user_id: number;
+    report: string | null;
+    completed_at?: string | null;
     user?: User;
     created_at?: string;
     updated_at?: string;
@@ -51,6 +68,7 @@ export interface Incident {
     memo?: string | null;
     aftermath_comment?: string | null;
     occurred_date: string | null;
+    reported_date?: string | null;
     instruction_date?: string | null;
     related_parties?: string | null;
     project_record_id: number | null;

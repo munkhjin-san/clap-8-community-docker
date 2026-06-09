@@ -2,17 +2,17 @@
     <BaseLayout
         v-if="fullscreen || canSeeIncidentCard"
         :title="data.title"
-        :count="data.data.attention.length"
+        :count="dashboardItemCount"
         :fullscreen="fullscreen"
         :type="data.type"
         :can-resize="data.canResize"
         :can-fullscreen="data.canFullscreen"
         @toggle="(el) => emit('toggle', el, data.type)"
         @resize="emit('resize', data.type)"
-        :class="{ 'incident-card--warning': data.data.attention.length > 0, 'pulse-border': unreadIncidentsCount > 0 && !fullscreen }"
+        :class="{ 'incident-card--warning': dashboardItemCount > 0, 'pulse-border': unreadIncidentsCount > 0 && !fullscreen }"
     >
         <template #icon>
-            <svg :style="{fill: data.data.attention.length ? 'tomato' : 'var(--primary-color)'}" xmlns="http://www.w3.org/2000/svg" class="mr-1" width="18" height="18" viewBox="0 0 555.42749 492.03711">
+            <svg :style="{fill: dashboardItemCount ? 'tomato' : 'var(--primary-color)'}" xmlns="http://www.w3.org/2000/svg" class="mr-1" width="18" height="18" viewBox="0 0 555.42749 492.03711">
                 <path d="M513.79504,492.03711H41.63245c-15.02686,0-28.48389-7.76953-35.99756-20.7832-7.51318-13.01367-7.51318-28.55176,0-41.56543L241.71643,20.7832c7.51318-13.01367,20.97021-20.7832,35.99756-20.7832,15.02637,0,28.4834,7.76953,35.99707,20.7832l236.08105,408.90527c7.51367,13.0127,7.51367,28.55176.00098,41.56543-7.51367,13.01367-20.9707,20.7832-35.99805,20.7832ZM42.38635,450.03418l470.65381.00293L277.71545,42.43701,42.38635,450.03418Z" />
                 <path d="M300.16721,303.86606c3.96201-28.71872,2.50677-57.67465,2.38568-86.55373-.25369-9.62187-.72961-19.24579-1.8385-28.87555-3.58115-26.0806-40.50627-26.66922-44.68898-.41252-2.52609,19.17458-2.78175,38.41208-3.12161,57.68835-.51553,19.2803-.91856,38.51483,1.53835,57.73135,3.97847,26.27393,41.13144,26.88968,45.72507.42209Z" />
                 <path d="M303.98193,361.42068c-1.41043-3.83047-3.42941-7.15408-5.76379-10.25543-5.90765-4.73798-13.3096-8.11694-21.15579-8.09573-15.71594-.41785-29.55051,13.46042-28.98163,29.10031.12589,8.08966,3.74249,15.36737,9.00317,21.25189,23.82764,19.85123,57.14377-2.47241,46.89804-32.00101v-.00003Z" />
@@ -20,6 +20,29 @@
         </template>
 
         <div v-if="!fullscreen" class="mx-5 mt-5 mb-3">
+            <div v-if="data.data.emergency_contacts?.length" class="mb-3 flex flex-col gap-2">
+                <div
+                    v-for="contact in data.data.emergency_contacts"
+                    :key="`emergency-${contact.id}`"
+                    class="emergency-contact-card"
+                >
+                    <div class="flex min-w-0 flex-1 flex-col gap-1">
+                        <div class="flex items-center gap-2 justify-between">
+                            <span class="emergency-contact-label">緊急連絡</span>
+                            <span class="text-[11px] text-[gray]">{{ formatDateTime(contact.created_at) }}</span>
+                        </div>
+                        <div class="truncate text-[13px] font-medium text-[var(--font1)]">{{ contact.user?.name || '送信者未設定' }}</div>
+                        <div class="emergency-contact-content">{{ contact.content }}</div>
+                    </div>
+                    <button
+                        type="button"
+                        class="jump-link shrink-0 bg-inherit text-sm"
+                        @click.stop="openEmergencyContactHistory"
+                    >
+                        詳細
+                    </button>
+                </div>
+            </div>
             <div v-if="data.data.attention.length" class="mb-3">
                 <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
                     <ExpansionPanelItem
@@ -72,16 +95,14 @@
                                         type="button"
                                         class="jump-link text-sm text-center w-fit ml-auto bg-inherit"
                                         @click.stop="openIncidentDetail(incident)"
-                                    >
-                                        詳細を開く
-                                    </button>
+                                    >詳細</button>
                                 </div>
                             </PanelData>
                         </template>
                     </ExpansionPanelItem>
                 </ExpansionGrid>
             </div>
-            <div v-else class="text-sm text-[gray] mb-3 text-center">
+            <div v-else-if="!data.data.emergency_contacts?.length" class="text-sm text-[gray] mb-3 text-center">
                 対応が必要なインシデントはありません。
             </div>
             <div class="text-center">
@@ -90,7 +111,6 @@
                 </router-link>
             </div>
         </div>
-
         <IncidentContainer v-if="fullscreen" />
     </BaseLayout>
 </template>
@@ -107,12 +127,14 @@ import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
 import { useAuthUserStore } from '@/store/auth';
+import type { EmergencyContactRecord } from '@/interface/supportInterface';
 
 const props = defineProps<{
     data: {
         title: string
         data: {
             attention: Incident[]
+            emergency_contacts?: EmergencyContactRecord[]
         }
         order?: number
         type: string
@@ -130,7 +152,8 @@ const emit = defineEmits<{
 }>()
 const router = useRouter()
 const auth = useAuthUserStore()
-const canSeeIncidentCard = computed(() => auth.isPM || auth.isBoss || auth.isAdmin)
+const dashboardItemCount = computed(() => props.data.data.attention.length + (props.data.data.emergency_contacts?.length ?? 0))
+const canSeeIncidentCard = computed(() => auth.isPM || auth.isBoss || auth.isAdmin || dashboardItemCount.value > 0)
 const isNewIncident = (incident: Incident) => !incident.last_read_at && !(incident.read_histories?.length)
 const shouldShowUnreadDot = (incident: Incident) => (isNewIncident(incident) || (incident.unread_update_logs_count ?? 0) > 0) && incident.status !== '完了'
 const unreadIncidentsCount = computed(() => props.data.data.attention.filter(incident => shouldShowUnreadDot(incident)).length)
@@ -138,6 +161,16 @@ const formatDate = (date?: string | null) => {
     if (!date) return '発生日未設定'
     const parsed = DateTime.fromISO(date)
     return parsed.isValid ? parsed.toFormat('yyyy/MM/dd') : date
+}
+
+const formatDateTime = (date?: string | null) => {
+    if (!date) return '日時未設定'
+    const parsed = DateTime.fromISO(date)
+    return parsed.isValid ? parsed.toFormat('yyyy/MM/dd HH:mm') : date
+}
+
+const openEmergencyContactHistory = () => {
+    router.push({ name: 'emergency_contact_history' })
 }
 
 const openIncidentDetail = (incident: Incident) => {
@@ -176,5 +209,34 @@ defineExpose({
     color: white;
     font-size: 10px;
     line-height: 1;
+}
+
+.emergency-contact-card{
+    background: rgba(249, 115, 22, 0.08);
+    padding: 12px 14px;
+}
+
+.emergency-contact-label{
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    background: rgba(249, 115, 22, 0.14);
+    color: #c2410c;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 5px 8px;
+}
+
+.emergency-contact-content{
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: pre-wrap;
+    color: var(--font2);
+    font-size: 12px;
+    line-height: 1.65;
 }
 </style>
