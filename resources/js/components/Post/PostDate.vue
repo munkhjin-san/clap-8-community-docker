@@ -18,7 +18,7 @@
             let endDate = DateTime.fromISO(props.record.date_end);
             if (props.which == 'charge_period') {
                 startDate = DateTime.fromISO(props.record.created_at);
-                endDate = props.record?.mini ? DateTime.fromISO(props.record.created_at).plus({ days: 7 }) :  DateTime.fromISO(props.record.created_at).plus({ days: 14 });
+                endDate = props.record?.mini ? DateTime.fromISO(props.record.created_at).plus({ days: 6 }) :  DateTime.fromISO(props.record.created_at).plus({ days: 13 });
             }
             
             

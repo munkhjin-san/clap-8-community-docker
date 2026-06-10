@@ -68,11 +68,10 @@ import FileUploader from '../Form/FileUploader.vue';
 import LongInput from '../Form/LongInput.vue';
 import MemberSelector from '../Form/MemberSelector.vue';
 import { computed, onMounted, ref } from 'vue';
-import { customParser } from '@/utils/tools';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
 import { Post, PostRelay } from '@/interface/postInterface';
-import { User } from '@/interface/globalInterface';
+import { CommonFile, User } from '@/interface/globalInterface';
 import { useBadgeStore } from '@/store/badge';
 import { useRoute } from 'vue-router';
 import { useDashboardStore } from '@/store/dashboard';
@@ -83,8 +82,8 @@ import { useAuthUserStore } from '@/store/auth';
     }>()
     const emit = defineEmits(['close'])
     const selected = ref(props.record ? props.record.status_flag : 0)
-    const uploadedFiles = ref(props.record.result_files && props.record.result_files.length ? props.record.result_files : [])
-    const resultMessage = ref(props.record.result ? props.record.result : '')
+    const uploadedFiles = ref<CommonFile[]>([])
+    const resultMessage = ref('')
     const processing = ref(false)
     const api = useApi()
     const route = useRoute()
@@ -94,14 +93,9 @@ import { useAuthUserStore } from '@/store/auth';
     const challengeRelayEnabled = ref(false)
     const challengeRelayUser = ref<User | null>(null)
     const progressReportMode = computed(() => String(route.query.status ?? '') === '5')
-    const canSelectProgressReport = computed(() => {
-        const start = DateTime.fromISO(props.record.date_start)
-        const end = DateTime.fromISO(props.record.date_end)
-        const now = DateTime.now()
 
-        return start.isValid && end.isValid && now >= start && now <= end && [0, 5].includes(props.record.status_flag)
-    })
-    const isProgressReportInput = computed(() => progressReportMode.value || (selected.value === 5 && canSelectProgressReport.value))
+    const isProgressReportSubmit = computed(() => progressReportMode.value || selected.value === 5)
+    const isProgressReportInput = computed(() => isProgressReportSubmit.value || (selected.value !== 0))
     const canPassChallengeRelay = computed(() => !progressReportMode.value && props.record.app_type == 2 && selected.value === 1)
     const challengeRelayHistory = computed(() => (props.record.post_relays ?? []).filter(relay => relay.relay_type === 'challenge'))
     const progressCheckpoint = computed(() => {
@@ -142,11 +136,8 @@ import { useAuthUserStore } from '@/store/auth';
             { id: 0, state : DateTime.now() <= endDate ? 'チャージ受付中' : '結果待ち' },
         ]
 
-        if (canSelectProgressReport.value) {
-            items.push({ id: 5, state : '進捗報告' })
-        }
-
         items.push(
+            { id: 5, state : '進捗報告' },
             { id: 1, state : '達成' },
             { id: 2, state : '未達成' },
             { id: 3, state : '中止' },
@@ -158,9 +149,17 @@ import { useAuthUserStore } from '@/store/auth';
     const update = async() => {
         if (isProgressReportInput.value) {
             if (!resultMessage.value.trim()) {
-                ping('進捗報告を入力してください。')
+                ping(isProgressReportSubmit.value ? '進捗報告を入力してください。' : '結果を入力してください。')
                 return
             }
+        }
+
+        if (canPassChallengeRelay.value && challengeRelayEnabled.value && !challengeRelayUser.value?.id) {
+            ping('バトンを渡すメンバーを選択してください。')
+            return
+        }
+
+        if (isProgressReportSubmit.value) {
             await api.post('post_comment_add', {
                 app_name: 'post',
                 record_id: props.record.id,
@@ -172,20 +171,18 @@ import { useAuthUserStore } from '@/store/auth';
                 toast: '進捗報告を保存しました。',
                 loadingRef: processing,
             })
+
+            badge.updatePostBadge('post')
             emit('close', props.record.id)
             getBatchDashboardData(['challenges'])
-            badge.updatePostBadge('post')
             return
         }
-        if (canPassChallengeRelay.value && challengeRelayEnabled.value && !challengeRelayUser.value?.id) {
-            ping('バトンを渡すメンバーを選択してください。')
-            return
-        }
+
         const params = {
             id: props.record.id,
             status: selected.value,
-            result: resultMessage.value,
-            resultFiles: uploadedFiles.value.map(ob => ob.id),
+            message: resultMessage.value,
+            progress_files: uploadedFiles.value.map(ob => ob.id),
             challenge_relay_to_user_id: canPassChallengeRelay.value && challengeRelayEnabled.value ? challengeRelayUser.value?.id : null,
         }
         await api.post('post_status_update', params, {
@@ -198,7 +195,7 @@ import { useAuthUserStore } from '@/store/auth';
     }
     const selectStatus = (id: number) => {
         selected.value = id
-        resultMessage.value = id === 5 ? '' : props.record.result ?? ''
+        resultMessage.value = ''
         if (id !== 1) {
             challengeRelayEnabled.value = false
             challengeRelayUser.value = null

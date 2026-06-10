@@ -1,10 +1,26 @@
 <template>
-    <div id="cMonthPicker" class="monthPicker">
-        <div>            
-            <div></div>
+    <div id="cMonthPicker" class="monthPicker gantt-month-picker" :class="{'has-navigation': showNavigation}">
+        <button
+            v-if="showNavigation"
+            type="button"
+            class="gantt-picker-nav"
+            title="前の期間"
+            @click.stop="shiftPeriod(-1)"
+        >
+            <Back size="12"/>
+        </button>
+        <div class="gantt-picker-display">
             <div @click.stop="openMonthPicker" id="activateButton" class="g-y-pick">{{ formatDate }}</div>
-            <div></div>            
         </div>
+        <button
+            v-if="showNavigation"
+            type="button"
+            class="gantt-picker-nav"
+            title="次の期間"
+            @click.stop="shiftPeriod(1)"
+        >
+            <Back size="12" class="rotate-180"/>
+        </button>
         <div id="taskYearPicker" class="month-grid" v-if="menu.id == uniqueId && menu.name == 'taskYearPicker'" :style="{right : right ? right : 'auto'}">
             <div class="grid-container">
                 <div @click.stop="decreaseYear" class="grid-item grid-picker">
@@ -33,10 +49,16 @@
 <script setup lang="ts">
 import { computed, ref, } from 'vue'   
 import { useMenuStore } from "@/store/menu";
-import { DateTime, DayNumbers, MinuteNumbers, MonthNumbers } from 'luxon';
-    const props = defineProps<{
+import { DateTime, MonthNumbers } from 'luxon';
+import Back from '@/components/Icons/Back.vue';
+    const props = withDefaults(defineProps<{
         right: string;
-    }>()
+        displayMode?: 'month' | 'year';
+        showNavigation?: boolean;
+    }>(), {
+        displayMode: 'month',
+        showNavigation: false,
+    })
     
     const emit = defineEmits<{
         (e: 'setDate'): void
@@ -50,26 +72,35 @@ import { DateTime, DayNumbers, MinuteNumbers, MonthNumbers } from 'luxon';
     const menu = useMenuStore()
 
     const yearList = computed(() => {
-        const year = DateTime.now().year
-        return Array.from({ length: 12 }, (_, i) => year - 5 + i);
+        const centerYear = year.value ?? DateTime.now().year
+        return Array.from({ length: 12 }, (_, i) => centerYear - 5 + i);
     })
     const formatDate = computed(() => {
+        if (props.displayMode == 'year') {
+            return `${year.value}年`
+        }
         let formattedMonth = `${month.value}`.padStart(2, '0');
         const date = `${year.value}-${formattedMonth}`
         return DateTime.fromISO(date).toFormat('yyyy年M月')
     })
     const decreaseYear = () => {
-        if(year.value && year.value > yearList.value[0]){
+        if(year.value){
             year.value --
+            if (props.displayMode == 'year') {
+                emit('setDate')
+            }
         }
     }
     const increaseYear = () => {
-        if(year.value &&  year.value < yearList.value[yearList.value.length - 1]){
+        if(year.value){
             year.value ++
+            if (props.displayMode == 'year') {
+                emit('setDate')
+            }
         }
     }
     const openMonthPicker = () => {
-        pickerIs.value = 'month';
+        pickerIs.value = props.displayMode == 'year' ? 'year' : 'month';
         if(menu.name == 'taskYearPicker'){
             menu.close()
             return
@@ -78,7 +109,11 @@ import { DateTime, DayNumbers, MinuteNumbers, MonthNumbers } from 'luxon';
     }
     const setYear = (y: number) => {
         year.value = y
-        pickerIs.value = 'month'
+        pickerIs.value = props.displayMode == 'year' ? '' : 'month'
+        if (props.displayMode == 'year') {
+            menu.close()
+            emit('setDate')
+        }
     }
     const setMonth = (m: MonthNumbers) => {
         month.value = m
@@ -87,4 +122,128 @@ import { DateTime, DayNumbers, MinuteNumbers, MonthNumbers } from 'luxon';
         emit('setDate')
 
     }
+    const shiftPeriod = (direction: number) => {
+        if (!year.value) {
+            year.value = DateTime.now().year
+        }
+        if (props.displayMode == 'month') {
+            const currentMonth = month.value ?? DateTime.now().month as MonthNumbers
+            const shifted = DateTime.fromObject({ year: year.value, month: currentMonth }).plus({ months: direction })
+            year.value = shifted.year
+            month.value = shifted.month as MonthNumbers
+        } else {
+            year.value += direction
+        }
+        emit('setDate')
+    }
 </script>
+
+<style scoped>
+.gantt-month-picker {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    color: var(--primary-color);
+}
+
+.gantt-picker-display {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.g-y-pick {
+    min-width: 96px;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 28px;
+    text-align: center;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.g-y-pick:hover {
+    border-color: var(--hoverBorder);
+    background: var(--bg3);
+}
+
+.gantt-picker-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    background: transparent;
+    color: var(--primary-color);
+    cursor: pointer;
+}
+
+.gantt-picker-nav:hover {
+    background: var(--bg3);
+}
+
+.gantt-picker-nav :deep(svg) {
+    fill: currentColor;
+}
+
+.month-grid {
+    position: absolute;
+    top: 34px;
+    z-index: 220;
+    width: max-content;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 8px;
+    border: 1px solid var(--normalBorder);
+    background: var(--background-color);
+    box-shadow: 0 8px 18px rgb(0 0 0 / 14%);
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(48px, 1fr));
+    gap: 4px;
+}
+
+.grid-container + .grid-container {
+    margin-top: 6px;
+}
+
+.grid-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    min-height: 32px;
+    padding: 0 8px;
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.grid-item:hover,
+.thisYear {
+    background: var(--bg3);
+    font-weight: 700;
+}
+
+.grid-picker {
+    min-height: 28px;
+}
+
+.grid-picker svg {
+    fill: currentColor;
+}
+
+.year-picker {
+    grid-template-columns: repeat(3, minmax(60px, 1fr));
+}
+</style>

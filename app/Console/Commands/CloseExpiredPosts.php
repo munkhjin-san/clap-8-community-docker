@@ -41,10 +41,10 @@ class CloseExpiredPosts extends Command
             ->where(function ($q) {
                 $q->where(fn ($q) =>
                     $q->where('mini', 1)
-                    ->whereDate('created_at', '<=', now()->subDays(8))
+                    ->whereDate('created_at', '<=', now()->subDays(7))
                 )->orWhere(fn ($q) =>
                     $q->where('mini', 0)
-                    ->whereDate('created_at', '<=', now()->subDays(15))
+                    ->whereDate('created_at', '<=', now()->subDays(14))
                 );
             });
             

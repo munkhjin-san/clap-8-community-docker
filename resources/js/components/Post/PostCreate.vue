@@ -577,8 +577,10 @@ import { useDashboardStore } from '@/store/dashboard'
         }
     }
     const dateComparsionError = computed(() =>{
-        const duration = (DateTime.fromISO(date_end.value).diff(DateTime.fromISO(date_start.value), 'days').toObject().days ?? 0)
-        
+        const duration =
+            (DateTime.fromISO(date_end.value)
+                .diff(DateTime.fromISO(date_start.value), 'days')
+                .days ?? 0) + 1;        
         
         if (!DateTime.fromISO(date_start.value).isValid || !DateTime.fromISO(date_end.value).isValid) {
             return {

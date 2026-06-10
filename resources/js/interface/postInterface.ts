@@ -148,6 +148,7 @@ export interface PostComment {
     id: number;
     messages: string;
     progress_checkpoint?: number | null;
+    status_to?: number | null;
     record_id: number;
     user: User;
     user_id: number;

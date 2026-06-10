@@ -10,6 +10,7 @@ use App\Models\ChallengeRecord;
 use App\Models\PostRecord;
 use App\Models\TagRecord;
 use App\Models\FileRecord;
+use App\Models\FileAttachment;
 use App\Models\ClapRecord;
 use App\Models\SearchHistoryRecord;
 use App\Models\CommentRecord;
@@ -23,6 +24,7 @@ use App\Events\MessageSent;
 use App\Jobs\PostStatusChangeNotification;
 use App\Services\BadgeService;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use App\Jobs\SocketEmitter;
 use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
@@ -741,50 +743,107 @@ class PostController extends Controller
         }
 
         $comment->refresh();
-        $comment->load(['user', 'claps', 'emotedUsers']);
+        $comment->load(['user', 'progress_files', 'claps', 'emotedUsers']);
         return response()->json($comment);
     }
     public function post_comment_add(Request $request){
-        $validatedData = $request->validate([
-            'app_name' => 'required',
-            'record_id' => 'required',
-            'message' => 'required',
+        $request->validate([
+            'app_name' => 'required|string',
+            'record_id' => 'required|integer',
+            'message' => 'required|string|max:2000',
             'comment_type' => 'nullable|string',
             'progress_checkpoint' => 'nullable|integer',
             'progress_files' => 'nullable|array',
+            'progress_files.*' => 'integer|exists:file_records,id',
+            'status_to' => 'nullable|integer',
         ]);
-        $comment = new CommentRecord;
-        $comment->app_name = $request->app_name;
-        $comment->record_id = $request->record_id;
-        $comment->messages = $request->message;
-        $comment->comment_type = $request->comment_type ?? 'normal';
-        $comment->progress_checkpoint = $request->progress_checkpoint;
-        $comment->user_id = Auth::id();
-        $fileIds = $request->progress_files ?? [];
-        $comment->emoji_flag = $this->containsOnlyEmojis($request->message);
-        $comment->save();
-        $pivotValues = [];
-        foreach ($fileIds as $fileId) {
-            $pivotValues[$fileId] = ['progress' => 1];
-        }
-        $comment->progress_files()->sync($pivotValues);
+
+        $comment = DB::transaction(function () use ($request) {
+            return $this->createCommentRecord(
+                $request->app_name,
+                (int) $request->record_id,
+                $request->message,
+                $request->comment_type ?? 'normal',
+                $request->progress_checkpoint,
+                $request->progress_files ?? [],
+                $request->status_to
+            );
+        });
+
         if ($request->app_name === 'post' && $comment->comment_type === 'progress_report') {
             $this->badgeService->invalidateBadgeSummaryCache();
         }
 
+        $this->sendCommentNotification($comment);
+
+        return response()->json($comment->load(['user', 'progress_files', 'emotedUsers', 'claps']));
+    }
+
+    private function createCommentRecord(
+        string $appName,
+        int $recordId,
+        string $message,
+        string $commentType = 'normal',
+        ?int $progressCheckpoint = null,
+        array $fileIds = [],
+        ?int $statusTo = null
+    ): CommentRecord {
+        $comment = new CommentRecord;
+        $comment->app_name = $appName;
+        $comment->record_id = $recordId;
+        $comment->messages = $message;
+        $comment->comment_type = $commentType;
+        $comment->progress_checkpoint = $progressCheckpoint;
+        $comment->status_to = $statusTo;
+        $comment->user_id = Auth::id();
+        $comment->emoji_flag = $this->containsOnlyEmojis($message);
+        $comment->save();
+
+        $this->syncCommentFiles($comment, $fileIds);
+
+        return $comment;
+    }
+
+    private function syncCommentFiles(CommentRecord $comment, array $fileIds): void
+    {
+        $fileIds = collect($fileIds)
+            ->filter()
+            ->map(fn ($fileId) => (int) $fileId)
+            ->unique()
+            ->values()
+            ->all();
+
+        FileAttachment::where('attachable_type', CommentRecord::class)
+            ->where('attachable_id', $comment->id)
+            ->where('collection', 'progress_files')
+            ->when(count($fileIds), fn ($query) => $query->whereNotIn('file_id', $fileIds))
+            ->delete();
+
+        foreach ($fileIds as $fileId) {
+            FileAttachment::firstOrCreate([
+                'file_id' => $fileId,
+                'attachable_type' => CommentRecord::class,
+                'attachable_id' => $comment->id,
+                'collection' => 'progress_files',
+            ]);
+        }
+    }
+
+    private function sendCommentNotification(CommentRecord $comment): void
+    {
         $nameSpace = '\\App\\Models\\'; 
-        $model_name = $request->app_name  == 'post_entry' ? 'PostEntry' : ucfirst($request->app_name). 'Record';
+        $model_name = $comment->app_name  == 'post_entry' ? 'PostEntry' : ucfirst($comment->app_name). 'Record';
         $model = "{$nameSpace}{$model_name}"; 
-        $owner = $model::where('id', '=', $request->record_id)->first();
+        $owner = $model::where('id', '=', $comment->record_id)->first();
         $owner_id = $owner->user_id;
-        $current_commenters_id = commentRecord::where('deleted_flag', '=', 0)->where('app_name', '=', $request->app_name)->where('record_id', '=', $request->record_id)->where('id', '!=', $comment->id)->where('user_id', '!=', Auth::id())->where('user_id', '!=', $owner_id)->pluck('user_id');
+        $current_commenters_id = CommentRecord::where('deleted_flag', '=', 0)->where('app_name', '=', $comment->app_name)->where('record_id', '=', $comment->record_id)->where('id', '!=', $comment->id)->where('user_id', '!=', Auth::id())->where('user_id', '!=', $owner_id)->pluck('user_id');
         $current_commenters_id_unique = [];
         foreach($current_commenters_id as $id){
             if(!(in_array($id, $current_commenters_id_unique))){
                 $current_commenters_id_unique[] = $id;
             }
         }
-        if($request->app_name == 'post'){           
+        if($comment->app_name == 'post'){
             
             $to_users = $owner->to_users()->get();
             foreach($to_users as $to_user){
@@ -800,7 +859,7 @@ class PostController extends Controller
             "post" => 'ポスト',
             "post_entry" => 'グラリンピクエントリー',
         ];
-        $app_name_title = $app_name_list[$request->app_name];
+        $app_name_title = $app_name_list[$comment->app_name];
         $from_name = Auth::user()->name . 'さんから、' . $app_name_title .'へコメントが届きました。'; 
         $comment_body = $comment->messages;
         $content = $from_name . '<br>コメント内容：<br>' . $comment_body;
@@ -810,11 +869,9 @@ class PostController extends Controller
 
         $mail_list = User::where('retire', 0)->whereNotNull('email')->whereIn('id', $current_commenters_id_unique)->where('id', '!=', Auth::id())->pluck('email')->toArray();
         foreach($mail_list as $mail){
-            Mail::to($mail)->send(new Comment($subject, $content, $comment->id, $request->app_name, $owner->id));                                  
+            Mail::to($mail)->send(new Comment($subject, $content, $comment->id, $comment->app_name, $owner->id));
         
         }         
-                
-        return response()->json();  
     }
     public function post_add_clap(Request $request){
         $request->validate([
@@ -901,37 +958,58 @@ class PostController extends Controller
     public function post_status_update(Request $request){
         
         $request->validate([
-            'id' => 'required',
-            'status' => 'required',
+            'id' => 'required|integer',
+            'status' => 'required|integer|in:0,1,2,3',
+            'message' => 'nullable|string|max:2000',
+            'progress_files' => 'nullable|array',
+            'progress_files.*' => 'integer|exists:file_records,id',
             'challenge_relay_to_user_id' => 'nullable|integer|exists:users,id',
         ]);
 
-        
-        $record = PostRecord::findOrFail($request->id);
-        
-        $fileIds = $request->resultFiles;
-        $pivotValues = [];
-        foreach ($fileIds as $fileId) {
-            $pivotValues[$fileId] = ['result_flag' => 1];
+        $status = (int) $request->status;
+        $message = trim((string) $request->message);
+        if ($status !== 0 && $message === '') {
+            throw ValidationException::withMessages([
+                'message' => '結果を入力してください。',
+            ]);
         }
-        $record->result_files()->sync($pivotValues);
-        // $record->update([
-        //     "status_flag" => $request->status,
-        //     "result" => $request->result
-        // ]);
-        
-        $record->status_flag = $request->status;
-        $record->result = $request->result;
-        $record->save();
-        if ((int) $record->app_type === 2 && (int) $request->status === 1 && $request->filled('challenge_relay_to_user_id')) {
-            if (!$record->mini) {
-                throw ValidationException::withMessages([
-                    'challenge_relay_to_user_id' => 'ミニチャレンジのみバトンを渡せます。',
-                ]);
+
+        $comment = null;
+        $record = DB::transaction(function () use ($request, $status, $message, &$comment) {
+            $record = PostRecord::lockForUpdate()->findOrFail($request->id);
+
+            $record->status_flag = $status;
+            $record->save();
+
+            if ($status !== 0) {
+                $comment = $this->createCommentRecord(
+                    'post',
+                    $record->id,
+                    $message,
+                    'result',
+                    null,
+                    $request->progress_files ?? [],
+                    $status
+                );
             }
 
-            $this->upsertChallengeRelay($record, (int) $request->challenge_relay_to_user_id);
+            if ((int) $record->app_type === 2 && $status === 1 && $request->filled('challenge_relay_to_user_id')) {
+                if (!$record->mini) {
+                    throw ValidationException::withMessages([
+                        'challenge_relay_to_user_id' => 'ミニチャレンジのみバトンを渡せます。',
+                    ]);
+                }
+
+                $this->upsertChallengeRelay($record, (int) $request->challenge_relay_to_user_id);
+            }
+
+            return $record;
+        });
+
+        if ($comment) {
+            $this->sendCommentNotification($comment);
         }
+
         $user = Auth::user();
         $user->user_last_record()->firstOrCreate()->touch();
         $this->badgeService->invalidateBadgeSummaryCache();

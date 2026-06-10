@@ -184,7 +184,22 @@ class TaskController extends Controller
     }
     public function executeSubTask($sub_task, $task, $project_id){
         $id = $sub_task['id'] ?? null;
-        
+        $requestedExecutorIds = collect($sub_task['pre_executors'] ?? [])
+            ->filter(fn ($id) => $id !== null && $id !== '')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+        $parentExecutorIds = $task->executors()
+            ->pluck('users.id')
+            ->map(fn ($id) => (int) $id);
+
+        if ($requestedExecutorIds->isEmpty()) {
+            throw ValidationException::withMessages(['message' => 'サブタスク担当者を選択してください。']);
+        }
+        if ($requestedExecutorIds->diff($parentExecutorIds)->isNotEmpty()) {
+            throw ValidationException::withMessages(['message' => 'サブタスク担当者はメインタスクの担当者から選択してください。']);
+        }
+
         $subTask = taskRecord::updateOrCreate(['id' => $id ], [
             "remarks" => $sub_task['remarks'],
             "parent_task_id" => $task->id,
@@ -193,7 +208,7 @@ class TaskController extends Controller
             "end_at" => $sub_task['end_at']                    
         ]);
 
-        $subTask->executors()->sync($sub_task['pre_executors']);          
+        $subTask->executors()->sync($requestedExecutorIds->all());
         return $subTask;
     }
     public function completeTask(Request $request){ 
@@ -383,25 +398,37 @@ class TaskController extends Controller
         $request->validate([
             "id" => "required"
         ]);
-        $user_id = $request->user_id;
+        $user_ids = collect($request->user_ids ?? [])
+            ->filter(fn ($id) => $id !== null && $id !== '')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
         $progress_flag = $request->progress_flag;
+        $hasUserFilter = count($user_ids) > 0;
+        $hasProgressFilter = $progress_flag !== null && $progress_flag > -1;
+        $executorFilter = function($q) use($user_ids, $progress_flag, $hasUserFilter, $hasProgressFilter) {
+            $q->when($hasUserFilter, function($q) use($user_ids) {
+                $q->whereIn('users.id', $user_ids);
+            })->when($hasProgressFilter, function($q) use($progress_flag) {
+                $q->where('progress_flag', $progress_flag);
+            });
+        };
         $weekStartDate = Carbon::now()->startOfWeek(CarbonInterface::MONDAY)->toDateString(); 
         $projects = ProjectRecord::where('id', $request->id)
-        ->with(['members', 'manager', 'director', 'tasks' => function($q) use($user_id, $progress_flag, $weekStartDate) {
-            $q->whereNull('parent_task_id')->when($user_id, function($q)use($user_id, $progress_flag){
-                $q->whereHas('executors', function($q) use($user_id, $progress_flag){
-                    $q->where('users.id', $user_id)->when($progress_flag !== null && $progress_flag > -1, function($q) use($progress_flag){
-                        $q->where('progress_flag', $progress_flag);
-                    });
+        ->with(['members', 'manager', 'director', 'tasks' => function($q) use($hasUserFilter, $hasProgressFilter, $executorFilter) {
+            $q->whereNull('parent_task_id')
+            ->when($hasUserFilter || $hasProgressFilter, function($q) use($executorFilter) {
+                $q->where(function($q) use($executorFilter) {
+                    $q->whereHas('executors', $executorFilter)
+                    ->orWhereHas('sub_tasks.executors', $executorFilter);
                 });
-            })->with(['executors','files','supervisors', 'project', 'sub_tasks' => function($q) use($user_id, $progress_flag){
-                $q->when($user_id, function($q)use($user_id, $progress_flag){
-                    $q->whereHas('executors', function($q) use($user_id, $progress_flag){
-                        $q->where('users.id', $user_id)->when($progress_flag !== null && $progress_flag > -1, function($q) use($progress_flag){
-                            $q->where('progress_flag', $progress_flag);
-                        });
-                    });
-                })->withCount('comments');
+            })->with(['executors','files','supervisors', 'project', 'sub_tasks' => function($q) use($hasUserFilter, $hasProgressFilter, $executorFilter){
+                $q->when($hasUserFilter || $hasProgressFilter, function($q) use($executorFilter) {
+                    $q->whereHas('executors', $executorFilter);
+                })
+                ->with(['executors', 'supervisors'])
+                ->withCount('comments');
             }])
             ->withCount('comments')
             ->orderBy('created_at', 'desc');
@@ -410,12 +437,15 @@ class TaskController extends Controller
             $q->where('week_start_date', $weekStartDate);
         }
         ])->first();
+        if (!$projects) {
+            return response()->json(['project' => null]);
+        }
         if ($projects['date_start'] == null || $projects['date_end'] == null) {
             $projects['date_start'] = Carbon::now()->startOfYear()->format('Y-m-d');  
             $projects['date_end'] = Carbon::now()->endOfYear()->format('Y-m-d');
 
         }
-        return response()->json(['project' => empty($projects) ? null : $projects]);
+        return response()->json(['project' => $projects]);
     }
     public function get_gantt_projects(Request $request){
 

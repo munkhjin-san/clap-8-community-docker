@@ -330,6 +330,7 @@ class FinanceChatController extends Controller
 
 回答のルール:
 - 必ず日本語で回答する
+- 「少々お待ちください」「確認します」「調べます」などの待機文だけで回答を終えてはいけない。必要な場合はこの場でツールを呼び出してから最終回答する
 - 数値は具体的に引用し、視点を添えて説明する（例: 「利益が計画比-15%、2,300万円下回り。年間目標の23%分のラグ」）
 - 財務以外（目標、勤怠、承認、雑談）の質問には、このチャットは財務専用だと短く伝える
 - 財務の「今期」「年度」「着地」「経営状況」は、月次ではなく財務年度（3月-翌2月）の年間計画・Google Sheets実績・着地見込みで回答する
@@ -341,6 +342,8 @@ class FinanceChatController extends Controller
 - 月次の「乖離」は単月のGoogle Sheets実績 vs Kintone損益として扱う。年度合計として説明しない
 - get_variance_summary の結果は単月データ。年度合計として説明しない
 - 特定プロジェクトの「なぜ実績が計画と違う」「差異理由」「コメントに理由があるか」という質問では get_project_variance_explanation を使う
+- 3月と4月など複数月の差異理由を聞かれた場合、対象月ごとに get_project_variance_explanation を呼び出す
+- 月だけ指定され年がない場合は、現在の財務年度 FY{$financeFiscalYear} の月として解釈する（例: FY{$financeFiscalYear}の3月={$financeFiscalYear}-03、4月={$financeFiscalYear}-04）
 - get_project_variance_explanation の comments は project_finance_comments の記録。コメントがある場合は「コメントでは」「記録では」と明示して理由を説明する
 - コメントがない差異理由は推測しない。数値上の差異箇所を説明し、「理由コメントはありません」「要確認」と伝える
 - get_project_variance_explanation の *_display / *_amount_display は表示用の金額。独自に億円換算し直さず、その文字列を使う
@@ -414,7 +417,22 @@ TXT;
             $choice = $response->choices[0];
 
             if ($choice->finishReason === 'stop') {
-                return response()->json(['reply' => $choice->message->content ?? '']);
+                $content = trim((string) ($choice->message->content ?? ''));
+                if (! empty($tools) && $this->isWaitingOnlyResponse($content)) {
+                    if ($i >= 4) {
+                        return response()->json([
+                            'reply' => '財務データ取得のためのツール呼び出しが発生しませんでした。プロジェクト名と対象月を指定してもう一度質問してください。',
+                        ]);
+                    }
+
+                    $messages[] = [
+                        'role' => 'user',
+                        'content' => '内部指示: 待機文だけで終了せず、必要な財務ツールを今すぐ呼び出して回答してください。複数月の差異理由は対象月ごとに get_project_variance_explanation を呼び出してください。',
+                    ];
+                    continue;
+                }
+
+                return response()->json(['reply' => $content]);
             }
 
             if ($choice->finishReason === 'tool_calls') {
@@ -464,6 +482,22 @@ TXT;
         }
 
         return response()->json(['reply' => 'データの取得に失敗しました。もう一度お試しください。']);
+    }
+
+    private function isWaitingOnlyResponse(string $content): bool
+    {
+        if ($content === '') {
+            return false;
+        }
+
+        $plain = trim(strip_tags($content));
+        $isShort = mb_strlen($plain) <= 160;
+        $looksLikeWaiting = preg_match(
+            '/少々お待ち|お待ちください|確認します|確認いたします|調べます|確認して.*回答|確認して.*お伝え/u',
+            $plain
+        ) === 1;
+
+        return $isShort && $looksLikeWaiting;
     }
 
     // =========================================================================

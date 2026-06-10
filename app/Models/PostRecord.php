@@ -14,10 +14,10 @@ class PostRecord extends Model
         return $this->belongsTo(User::class)->select('id', 'name', 'icon_path', 'icon_bg');
     }
     public function files(){
-        return $this->belongsToMany(FileRecord::class, 'post_use_files', 'record_id', 'file_id')->wherePivot('result_flag', 0)->where('file_records.deleted_flag', 0);
+        return $this->belongsToMany(FileRecord::class, 'post_use_files', 'record_id', 'file_id')->wherePivot('result_flag', 0)->wherePivot('progress', 0)->where('file_records.deleted_flag', 0);
     }
     public function result_files(){
-        return $this->belongsToMany(FileRecord::class, 'post_use_files', 'record_id', 'file_id')->wherePivot('result_flag', 1)->where('file_records.deleted_flag', 0);
+        return $this->belongsToMany(FileRecord::class, 'post_use_files', 'record_id', 'file_id')->wherePivot('result_flag', 1)->wherePivot('progress', 0)->where('file_records.deleted_flag', 0);
     }
     public function receipts(){
         return $this->belongsToMany(FileRecord::class, 'post_refresh_use_files', 'record_id', 'file_id');

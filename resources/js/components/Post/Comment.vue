@@ -7,8 +7,8 @@
                         <UserPanel size="30" :user="comment.user" imgClass="userNormalIcon"/>                   
                         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                             <div @click.stop="pushInstantUser($event, comment.user_id)" class="cursor-pointer" style="font-size: 14px;">{{ comment?.user?.name }}</div>
-                            <span v-if="comment.comment_type === 'progress_report'" class="progress-report-label">
-                                進捗報告
+                            <span v-if="commentTypeLabel" class="progress-report-label">
+                                {{ commentTypeLabel }}
                             </span>
                         </div>
                     </div>     
@@ -98,6 +98,20 @@ import PostFiles from './PostFiles.vue';
     const emotes = computed(() => {
         if (!props.comment.emoted_users?.length) return []
         return props.comment.emoted_users.map(item => item.pivot.emote_name)
+    })
+    const commentTypeLabel = computed(() => {
+        if (props.comment.comment_type === 'progress_report') return '進捗報告'
+        if (props.comment.comment_type === 'result') {
+            const statusLabels: Record<number, string> = {
+                1: '達成',
+                2: '未達成',
+                3: '中止',
+            }
+            const statusLabel = props.comment.status_to ? statusLabels[props.comment.status_to] : ''
+            return statusLabel ? `結果報告：${statusLabel}` : '結果報告'
+        }
+
+        return ''
     })
 
     const emoteAction = () => {

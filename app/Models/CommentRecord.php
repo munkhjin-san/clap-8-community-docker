@@ -26,9 +26,16 @@ class CommentRecord extends Model
     {
         return $this->morphMany(Stamp::class, 'stampable');
     }
+    public function fileAttachments()
+    {
+        return $this->morphMany(FileAttachment::class, 'attachable');
+    }
     public function progress_files()
     {
-        return $this->belongsToMany(FileRecord::class, 'post_use_files', 'record_id', 'file_id')->wherePivot('progress', 1);
+        return $this->belongsToMany(FileRecord::class, 'file_attachments', 'attachable_id', 'file_id')
+            ->wherePivot('attachable_type', self::class)
+            ->wherePivot('collection', 'progress_files')
+            ->where('file_records.deleted_flag', 0);
     }
     protected $guarded = [];
     protected $casts = [
@@ -36,5 +43,6 @@ class CommentRecord extends Model
         'record_id' => 'int',
         'comment_id' => 'int',
         'progress_checkpoint' => 'int',
+        'status_to' => 'int',
     ];
 }

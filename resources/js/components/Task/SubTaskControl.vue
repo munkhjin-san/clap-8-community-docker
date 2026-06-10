@@ -15,7 +15,7 @@
             <div class="si-box">
                 <SubTaskSection 
                     ref="subTaskSection"
-                    :user-options="[ ...project?.manager ?? [], ...project?.members ?? []]" 
+                    :user-options="subTaskUserOptions"
                     v-model:remarks="params.remarks"
                     v-model:executors="params.pre_executors"
                     v-model:end_at="params.end_at"
@@ -33,7 +33,7 @@
 <script setup lang="ts">
 import { Task } from '@/interface/globalInterface';
 import { Project, SubTaskPreData } from '@/interface/projectInterface';
-import { inject, onMounted, reactive, ref, useTemplateRef } from 'vue';
+import { computed, inject, onMounted, reactive, ref, useTemplateRef } from 'vue';
 import SubTaskSection from './SubTaskSection.vue';
 import LoaderButton from '../Global/LoaderButton.vue';
 import { GanttProjectMethods, GanttProjectMethodsKey } from '@/interface/keys';
@@ -42,7 +42,6 @@ import { useApi } from '@/composables/api';
 const props = defineProps<{
     project:Project,
     preData: SubTaskPreData,
-    
 }>()
 
 const emit = defineEmits<{
@@ -54,11 +53,21 @@ const loading = ref(false)
 const subTaskSection = useTemplateRef('subTaskSection')
 const api = useApi()
 const { refreshProject } = inject(GanttProjectMethodsKey) as GanttProjectMethods
+const mainTask = computed(() => {
+    return props.project.tasks.find(task => task.id == props.preData.mainTaskId) ?? null
+})
+const subTaskUserOptions = computed(() => mainTask.value?.executors ?? [])
+const filterExecutorsToMainTask = () => {
+    const allowedUserIds = new Set(subTaskUserOptions.value.map(user => user.id))
+    params.pre_executors = params.pre_executors?.filter(user => allowedUserIds.has(user.id)) ?? []
+}
+
 onMounted(() => {
     if(props.preData.subTaskData?.id){
         Object.assign(params, props.preData.subTaskData)
         params.pre_executors = props.preData.subTaskData.executors
     }
+    filterExecutorsToMainTask()
 })
 const taskCreate = async() => {       
     if(loading.value) return
