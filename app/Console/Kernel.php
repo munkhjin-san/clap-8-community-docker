@@ -41,7 +41,7 @@ class Kernel extends ConsoleKernel
         // $schedule->job(new ProcessMessage())->hourly();
 
         // $schedule->job(new GenerateWelcomeMessage())->cron('0 * * * *');
-        $schedule->job(new RemoveTempSchedule())->cron('15 9 * * *');
+        // $schedule->job(new RemoveTempSchedule())->cron('15 9 * * *');
         $schedule->job(new CheckUserEvaluation())->dailyAt('01:00');
 
         $schedule->command('posts:close-expired')->dailyAt('02:00');

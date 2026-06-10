@@ -48,6 +48,13 @@ class Incident extends Model
             ->orderBy('id');
     }
 
+    public function advices()
+    {
+        return $this->hasMany(IncidentAdvice::class, 'incident_id', 'id')
+            ->with('creator')
+            ->orderByDesc('created_at');
+    }
+
     public function logs()
     {
         return $this->morphMany(UpdateLog::class, 'loggable')

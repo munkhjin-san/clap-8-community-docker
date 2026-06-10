@@ -51,6 +51,17 @@ export interface IncidentAssignee {
     updated_at?: string;
 }
 
+export interface IncidentAdvice {
+    id: number;
+    incident_id: number;
+    type: 'resolution' | 'conclusion' | string;
+    content: string;
+    created_by?: number | null;
+    creator?: User;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export interface Incident {
     id: number;
     title: string | null;
@@ -101,6 +112,7 @@ export interface Incident {
     category?: IncidentCategory;
     punishment?: IncidentPunishment;
     reports?: IncidentReport[];
+    advices?: IncidentAdvice[];
     logs?: UpdateLog[];
     comments?: AppComment[];
     files?: CommonFile[];

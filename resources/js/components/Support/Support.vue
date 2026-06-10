@@ -14,7 +14,7 @@
                     <component :is="SupportHomeIcon" />
                 </span>
                 <h1 v-if="selectedRoute == 'dashboard-support' || !isMobile" class="sp-header-title">サポートデスク</h1>
-                <span class="mobile text-[14px]" v-if="selectedRoute">{{ selectedNavItem?.label }}</span>
+                <span class="mobile text-[14px]" v-if="isMobile && !isParentRoute && selectedRoute">{{ selectedNavItem?.label }}</span>
             </div>
             <button v-if="selectedRoute == 'dashboard-support' || !isMobile" @click.stop="router.push({ name: 'dashboard' })">
                 <CloseIcon fill="var(--primary-color)" size="12" />
@@ -225,7 +225,10 @@ import SupportSystemUpdateIcon from '../Icons/SupportSystemUpdateIcon.vue';
     }
 
     const selectedNavItem = computed(() => navItems.find(item => item.name === selectedRoute.value))
-    const visibleNavItems = computed(() => navItems.filter(i => !i.adminOnly || auth.isAdmin))
+    const visibleNavItems = computed(() => navItems.filter(item => {
+        if (isMobile.value && item.name === 'dashboard-support') return false
+        return !item.adminOnly || auth.isAdmin
+    }))
     const welcomeItems = computed(() => visibleNavItems.value
         .filter(item => item.name !== 'dashboard-support')
         .map(item => ({
@@ -625,8 +628,6 @@ import SupportSystemUpdateIcon from '../Icons/SupportSystemUpdateIcon.vue';
 .sp-nav--mobile .sp-nav-item--active {
     border-left: none;
     background: var(--background-color);
-    font-weight: 600;
-    border-color: var(--primary-color);
 }
 .sp-nav--mobile .sp-nav-item-icon { opacity: 0.7; }
 .sp-nav--mobile .sp-nav-item--active .sp-nav-item-icon { opacity: 1; }

@@ -166,6 +166,13 @@ export const adminRoutes: RouteRecordRaw[] = [
                 meta: { head: '営業所管理' },
                 component: () => import('@/components/AccountControl/Office/AdminOffice.vue'),
             },
+            {
+                path: 'ai-control',
+                name: 'admin-ai',
+                meta: { head: 'AI管理' },
+                component: () => import('@/components/AccountControl/AIControl/AIControl.vue'),           
+            
+            }
         ],
     },
 ]

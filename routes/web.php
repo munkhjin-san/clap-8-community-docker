@@ -889,12 +889,17 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/incident_punishments/reorder', [DashboardController::class, 'reorderIncidentPunishments']);
         Route::get('/incident_logs', [DashboardController::class, 'getIncidentLogs']);
         Route::post('/incident_read_history', [DashboardController::class, 'markIncidentRead']);
+        Route::get('/incident_advice', [DashboardController::class, 'getIncidentAdvices']);
+        Route::get('/incident_advice_stream', [DashboardController::class, 'streamIncidentAdvice']);
+        Route::post('/incident_advice', [DashboardController::class, 'createIncidentAdvice']);
+        Route::delete('/incident_advice', [DashboardController::class, 'deleteIncidentAdvice']);
         Route::post('/incident_record_create', [DashboardController::class, 'createIncidentRecord']);
         Route::post('/incident_record_update', [DashboardController::class, 'updateIncidentRecord']);
         Route::post('/incident_record_delete', [DashboardController::class, 'deleteIncidentRecord']);
         Route::post('/incident_assignee_report', [DashboardController::class, 'saveIncidentAssigneeReport']);
         Route::post('/incident_assignee_complete', [DashboardController::class, 'completeIncidentAssigneeReport']);
         Route::post('/incident_report_assignment', [DashboardController::class, 'createIncidentReportAssignment']);
+        Route::get('incident_related_mentionable_users', [DashboardController::class, 'incidentRelatedMentionableUsers']);
         Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
 
         // Goal & KPI MCP Server (Model Context Protocol / JSON-RPC 2.0)

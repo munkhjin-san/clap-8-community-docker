@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Ai\Agents\IncidentAdvisor;
+use App\Ai\Agents\IncidentConclusionAdvisor;
 use Illuminate\Http\Request;
 use App\Services\BadgeService;
 use App\Services\ReminderMessageService;
@@ -25,6 +27,7 @@ use App\Models\attendanceRecord;
 use App\Models\NoticeRecord;
 use App\Models\EmergencyContact;
 use App\Models\Incident;
+use App\Models\IncidentAdvice;
 use App\Models\IncidentAssignee;
 use App\Models\IncidentCategory;
 use App\Models\IncidentPunishment;
@@ -37,6 +40,7 @@ use App\Models\SystemUpdateRecord;
 use App\Models\UserLeaveRecord;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Laravel\Ai\Responses\StreamedAgentResponse;
 
 
 class DashboardController extends Controller
@@ -1019,6 +1023,7 @@ class DashboardController extends Controller
                 'projectRecord:id,name,date_start,date_end,category',
                 'projectRecord.manager',
                 'reports',
+                'advices',
                 'files',
             ]);
     }
@@ -1421,6 +1426,222 @@ class DashboardController extends Controller
         return response()->json([
             'last_read_at' => $readHistory->last_read_at?->toDateTimeString(),
         ]);
+    }
+
+    public function createIncidentAdvice(Request $request)
+    {
+        $validated = $request->validate([
+            'incident_id' => ['required', 'integer', 'exists:incidents,id'],
+            'type' => ['required', 'string', 'in:resolution,conclusion'],
+            'content' => ['required', 'string'],
+        ]);
+
+        $activeUser = $this->active_user();
+        $incident = Incident::findOrFail($validated['incident_id']);
+
+        if (!$this->canAccessIncident($incident, $activeUser) || !$this->canViewIncidentHistory($activeUser)) {
+            abort(403);
+        }
+        if ($validated['type'] === 'conclusion' && (!$this->canManageIncidentAdministration($activeUser) || !$this->isCompletedIncident($incident))) {
+            abort(403);
+        }
+
+        $advice = IncidentAdvice::create([
+            'incident_id' => $incident->id,
+            'type' => $validated['type'],
+            'content' => $validated['content'],
+            'created_by' => $activeUser->id,
+        ])->load('creator');
+
+        return response()->json([
+            'advice' => $advice,
+            'created' => true,
+        ]);
+    }
+
+    public function deleteIncidentAdvice(Request $request)
+    {
+        $validated = $request->validate([
+            'id' => ['required', 'integer', 'exists:incident_advice,id'],
+        ]);
+
+        $activeUser = $this->active_user();
+        $advice = IncidentAdvice::with('incident')->findOrFail($validated['id']);
+        $incident = $advice->incident;
+
+        if (
+            !$incident
+            || !$this->canAccessIncident($incident, $activeUser)
+            || !$this->canViewIncidentHistory($activeUser)
+            || ($advice->type === 'conclusion' && !$this->canManageIncidentAdministration($activeUser))
+        ) {
+            abort(403);
+        }
+
+        $advice->delete();
+
+        return response()->json([
+            'deleted' => true,
+        ]);
+    }
+
+    public function getIncidentAdvices(Request $request)
+    {
+        $validated = $request->validate([
+            'incident_id' => ['required', 'integer', 'exists:incidents,id'],
+            'type' => ['sometimes', 'nullable', 'string', 'in:resolution,conclusion'],
+        ]);
+
+        $activeUser = $this->active_user();
+        $incident = Incident::findOrFail($validated['incident_id']);
+
+        if (!$this->canAccessIncident($incident, $activeUser) || !$this->canViewIncidentHistory($activeUser)) {
+            abort(403);
+        }
+        if (($validated['type'] ?? null) === 'conclusion' && !$this->canManageIncidentAdministration($activeUser)) {
+            abort(403);
+        }
+
+        return response()->json([
+            'advices' => $incident->advices()
+                ->when($validated['type'] ?? null, fn ($query, $type) => $query->where('type', $type))
+                ->get(),
+        ]);
+    }
+    public function incidentRelatedMentionableUsers(Request $request)
+    {
+        $validated = $request->validate([
+            'incident_id' => ['required', 'integer', 'exists:incidents,id'],
+        ]);
+
+        $activeUser = $this->active_user();
+        $incident = Incident::findOrFail($validated['incident_id']);
+        $userBank = collect();
+        if ($incident->reportedByUser) {
+            $userBank->push($incident->reportedByUser);
+        }
+        if ($incident->causedByUser) {
+            $userBank->push($incident->causedByUser);  
+        }
+
+        if ($incident->reports) {
+            foreach ($incident->reports as $report) {
+                if ($report->assignees) {
+                    foreach ($report->assignees as $assignee) {
+                        $userBank->push($assignee->user);
+                    }
+                }
+            }
+        }
+        $permanentMembers = User::where('position_id', '<', 6)->orWhere('name', '経営管理本部')->select('id', 'name', 'icon_bg','icon_path', 'position_id')->get();
+        $userBank = $userBank->merge($permanentMembers);
+        if($incident->projectRecord && $incident->projectRecord->manager){
+            foreach($incident->projectRecord->manager as $manager){
+                $userBank->push($manager);
+            }
+        }
+
+        return response()->json($userBank->unique('id')->values());
+    }
+    public function streamIncidentAdvice(Request $request)
+    {
+        $validated = $request->validate([
+            'incident_id' => ['required', 'integer', 'exists:incidents,id'],
+            'type' => ['sometimes', 'nullable', 'string', 'in:resolution,conclusion'],
+        ]);
+
+        $activeUser = $this->active_user();
+        $incident = Incident::with([
+            'reportedByUser',
+            'causedByUser',
+            'category',
+            'punishment',
+            'projectRecord.manager',
+            'reports.assignees.user',
+            'comments.user',
+        ])->findOrFail($validated['incident_id']);
+
+        if (!$this->canAccessIncident($incident, $activeUser) || !$this->canViewIncidentHistory($activeUser)) {
+            abort(403);
+        }
+
+        $type = $validated['type'] ?? 'resolution';
+        if ($type === 'conclusion' && (!$this->canManageIncidentAdministration($activeUser) || !$this->isCompletedIncident($incident))) {
+            abort(403);
+        }
+
+        $prompt = $this->buildIncidentAdvicePrompt($incident, $type);
+        $agent = $type === 'conclusion'
+            ? IncidentConclusionAdvisor::make()
+            : IncidentAdvisor::make();
+
+        return $agent->stream($prompt, timeout: 120)
+            ->then(function (StreamedAgentResponse $response) use ($incident, $activeUser, $type) {
+                $content = trim($response->text ?? '');
+
+                if ($content === '') {
+                    return;
+                }
+
+                IncidentAdvice::create([
+                    'incident_id' => $incident->id,
+                    'type' => $type,
+                    'content' => $content,
+                    'created_by' => $activeUser->id,
+                ]);
+            });
+    }
+
+    private function buildIncidentAdvicePrompt(Incident $incident, string $type): string
+    {
+        $purpose = $type === 'conclusion'
+            ? '完了済みインシデントの振り返りと要約'
+            : '解決方針と再発防止策の提案';
+
+        return collect([
+            "目的: {$purpose}",
+            '以下のインシデント情報をもとに、入力されていない項目は推測で補わず、確認すべき点として扱ってください。',
+            '',
+            '## インシデント情報',
+            'ステータス: '.($incident->status ?: '未設定'),
+            '発生日: '.($incident->occurred_date ?: '未設定'),
+            '報告日: '.($incident->reported_date ?: '未設定'),
+            '区分: '.($incident->category?->name ?: '未設定'),
+            '懲罰区分: '.($incident->punishment?->name ?: '未設定'),
+            '当事者: '.($incident->causedByUser?->name ?: '未設定'),
+            '報告者: '.($incident->reportedByUser?->name ?: '未設定'),
+            'プロジェクト: '.($incident->projectRecord?->name ?: '未設定'),
+            '関係者: '.($incident->related_parties ?: '未設定'),
+            '概要: '.($incident->description ?: '未入力'),
+            '発生場所: '.($incident->occured_location ?: '未入力'),
+            '原因: '.($incident->reason ?: '未入力'),
+            '再発防止策: '.($incident->prevention ?: '未入力'),
+            '再発防止策の実施状況: '.($incident->prevention_apply_status ?: '未入力'),
+            '是正対応: '.($incident->resolution ?: '未入力'),
+            'メモ: '.($incident->memo ?: '未入力'),
+            '事後コメント: '.($incident->aftermath_comment ?: '未入力'),
+            '対応履歴: '.$incident->reports->map(function ($report) {
+                $assignees = $report->assignees
+                    ->map(fn ($assignee) => $assignee->user?->name)
+                    ->filter()
+                    ->join('、');
+
+                return collect([
+                    'step '.($report->step ?: '-'),
+                    '依頼: '.($report->request ?: '未入力'),
+                    '報告: '.($report->report ?: '未入力'),
+                    '担当: '.($assignees ?: '未設定'),
+                    '完了: '.($report->completed_at ?: '未完了'),
+                ])->join(' / ');
+            })->join("\n"),
+            'コメント: '.$incident->comments->map(function ($comment) {
+                return ($comment->created_at?->format('Y-m-d H:i') ?: '-')
+                    .' '
+                    .($comment->user?->name ?: '不明')
+                    .': '
+                    .str($comment->content ?? '')->limit(300);
+            })->join("\n"),
+        ])->join("\n");
     }
 
     public function createIncidentRecord(Request $request)

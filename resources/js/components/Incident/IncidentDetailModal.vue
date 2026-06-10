@@ -161,6 +161,8 @@
                         </div>
                     </section>
 
+                    
+
                     <section v-if="canUseField('description') || canUseField('occured_location') || canUseField('reason')" class="incident-detail-section incident-permission-area incident-permission-area--staff">
                         <div class="post-separetor"><div>発生内容</div></div>
                         <div v-if="!editMode" class="incident-field-stack">
@@ -196,7 +198,64 @@
                             <div v-else class="text-[12px] text-[gray]">添付ファイルはありません。</div>
                         </div>
                     </section>
-
+                    <section v-if="canUseIncidentAdvice" class="incident-detail-section incident-ai-advice-section">
+                        <div class="post-separetor"><div>AIアドバイス</div></div>
+                        <div class="incident-ai-advice-head mb-4">
+                            <div class="mb-4">
+                                <strong>解決方針のアドバイス</strong>
+                                <p>インシデント内容をもとに、対応方針の案を生成して保存します。</p>
+                            </div>
+                            <LoaderButton
+                                content="AIアドバイス生成"
+                                :loading="adviceLoading"
+                                @triggered="generateResolutionAdvice"
+                                style="margin: 0"
+                            >
+                                <template #icon>
+                                    <AiIcon size="20" fill="#fff" class="mr-3"/>
+                                </template>
+                            </LoaderButton>
+                        </div>
+                        <div v-if="adviceLoading || adviceDraft" class="incident-ai-advice-preview">
+                            <span>{{ adviceLoading ? '生成中...' : '生成結果' }}</span>
+                            <div v-html="sanitizedAdviceDraft"></div>
+                        </div>
+                        <div v-if="resolutionAdvices.length" class="incident-ai-advice-history">
+                            <div
+                                v-for="(advice, index) in resolutionAdvices"
+                                :key="advice.id"
+                                class="incident-ai-advice-version"
+                                :class="{ 'incident-ai-advice-version--open': selectedAdviceId === advice.id }"
+                                @click="toggleAdviceExpansion(advice.id)"
+                            >
+                                <div class="incident-ai-advice-version-head">
+                                    <span
+                                        class="incident-ai-advice-arrow"
+                                        :style="{ transform: selectedAdviceId === advice.id ? 'rotate(270deg)' : 'rotate(180deg)' }"
+                                    >
+                                        <Back size="12" />
+                                    </span>
+                                    <div class="incident-ai-advice-version-title">
+                                        <strong>{{ `AIアドバイス（${resolutionAdvices.length - index}）` }}</strong>
+                                        <span>{{ formatDateTime(advice.created_at) }}</span>
+                                    </div>
+                                    <UserPanel v-if="advice.creator" :user="advice.creator" with-name size="22" disable-instant/>
+                                    <div class="incident-ai-advice-menu" @click.stop>
+                                        <ItemMenu :items="adviceMenuItems(advice)" />
+                                    </div>
+                                </div>
+                                <div v-if="selectedAdviceId === advice.id" class="incident-ai-advice-preview incident-ai-advice-version-body">
+                                    <div class="incident-ai-advice-meta">
+                                        <span>{{ formatDateTime(advice.created_at) }}</span>
+                                    </div>
+                                    <div v-html="adviceHtml(advice)"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-else-if="!adviceLoading && !adviceDraft" class="incident-assignment-empty">
+                            保存済みのAIアドバイスはありません。
+                        </div>
+                    </section>
                     <section v-if="canUseField('prevention') || canUseField('prevention_apply_status') || canUseField('resolution') || canUseField('memo') || canUseField('amount_of_damage') || canUseField('payee') || canUseField('expense_details')" class="incident-detail-section incident-permission-area incident-permission-area--manager">
                         <div class="post-separetor"><div>対応・再発防止</div></div>
                         <div v-if="!editMode" class="incident-field-stack">                            
@@ -383,11 +442,70 @@
                                 </div>
                             </div>
                         </div>
+                        <section v-if="canUseIncidentConclusion" class="incident-detail-section incident-ai-advice-section mt-6">
+                            <div class="post-separetor"><div>AI総括</div></div>
+                            <div class="incident-ai-advice-head mb-4">
+                                <div class="mb-4">
+                                    <strong>完了インシデントの共有用まとめ</strong>
+                                    <p>完了済みの内容をもとに、社員へ共有できる再発防止の学びを生成して保存します。</p>
+                                </div>
+                                <LoaderButton
+                                    content="AI総括生成"
+                                    :loading="conclusionAdviceLoading"
+                                    @triggered="generateConclusionAdvice"
+                                    style="margin: 0"
+                                >
+                                    <template #icon>
+                                        <AiIcon size="20" fill="#fff" class="mr-3"/>
+                                    </template>
+                                </LoaderButton>
+                            </div>
+                            <div v-if="conclusionAdviceLoading || conclusionAdviceDraft" class="incident-ai-advice-preview">
+                                <span>{{ conclusionAdviceLoading ? '生成中...' : '生成結果' }}</span>
+                                <div v-html="sanitizedConclusionAdviceDraft"></div>
+                            </div>
+                            <div v-if="conclusionAdvices.length" class="incident-ai-advice-history">
+                                <div
+                                    v-for="(advice, index) in conclusionAdvices"
+                                    :key="advice.id"
+                                    class="incident-ai-advice-version"
+                                    :class="{ 'incident-ai-advice-version--open': selectedConclusionAdviceId === advice.id }"
+                                    @click="toggleConclusionAdviceExpansion(advice.id)"
+                                >
+                                    <div class="incident-ai-advice-version-head">
+                                        <span
+                                            class="incident-ai-advice-arrow"
+                                            :style="{ transform: selectedConclusionAdviceId === advice.id ? 'rotate(270deg)' : 'rotate(180deg)' }"
+                                        >
+                                            <Back size="12" />
+                                        </span>
+                                        <div class="incident-ai-advice-version-title">
+                                            <strong>{{ `AI総括（${conclusionAdvices.length - index}）` }}</strong>
+                                            <span>{{ formatDateTime(advice.created_at) }}</span>
+                                        </div>
+                                        <UserPanel v-if="advice.creator" :user="advice.creator" with-name size="22" disable-instant/>
+                                        <div class="incident-ai-advice-menu" @click.stop>
+                                            <ItemMenu :items="adviceMenuItems(advice, 'conclusion')" />
+                                        </div>
+                                    </div>
+                                    <div v-if="selectedConclusionAdviceId === advice.id" class="incident-ai-advice-preview incident-ai-advice-version-body">
+                                        <div class="incident-ai-advice-meta">
+                                            <span>{{ formatDateTime(advice.created_at) }}</span>
+                                        </div>
+                                        <div v-html="adviceHtml(advice)"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div v-else-if="!conclusionAdviceLoading && !conclusionAdviceDraft" class="incident-assignment-empty">
+                                保存済みのAI総括はありません。
+                            </div>
+                        </section>
                     </section>
                     <AppCommentSection
                         v-if="!editMode && !isCreateMode"
                         commentable-type="incident"
                         :commentable-id="localIncident.id"
+                        :users="mentionableUsers"
                         title="コメント"
                         @count-changed="handleCommentCountChanged"
                     />
@@ -528,11 +646,14 @@
 </template>
 
 <script setup lang="ts">
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { DateTime } from 'luxon';
 import { computed, h, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import Modal from '@/components/Global/Modal.vue';
 import UserPanel from '@/components/Global/UserPanel.vue';
-import { Incident, IncidentAssignee, IncidentCategory, IncidentPunishment, IncidentReport } from '@/interface/incident';
+import Back from '@/components/Icons/Back.vue';
+import { Incident, IncidentAdvice, IncidentAssignee, IncidentCategory, IncidentPunishment, IncidentReport } from '@/interface/incident';
 import { UpdateLog, UpdateLogAction } from '@/interface/updateLog';
 import { useApi } from '@/composables/api';
 import { useAuthUserStore } from '@/store/auth';
@@ -549,6 +670,8 @@ import AppCommentSection from '@/components/Global/AppCommentSection.vue';
 import FileUploader from '@/components/Form/FileUploader.vue';
 import PostFiles from '@/components/Post/PostFiles.vue';
 import { useTheme } from '@/store/theme.js';
+import { useSSE } from '@/composables/sse';
+import AiIcon from '../Icons/AiIcon.vue';
 
 const props = defineProps<{
     incident?: Incident
@@ -583,6 +706,7 @@ const createBlankIncident = (): Incident => ({
     reported_by_user: auth.activeUser,
     comments_count: 0,
     files: [],
+    advices: [],
     ...props.initialIncident,
 })
 const editMode = ref(isCreateMode.value)
@@ -602,6 +726,13 @@ const nextAssignmentRequest = ref<string | null>(null)
 const savingAssigneeId = ref<number | null>(null)
 const completingAssigneeId = ref<number | null>(null)
 const creatingNextAssignment = ref(false)
+const adviceLoading = ref(false)
+const adviceDraft = ref('')
+const selectedAdviceId = ref<number | null>(null)
+const conclusionAdviceLoading = ref(false)
+const conclusionAdviceDraft = ref('')
+const selectedConclusionAdviceId = ref<number | null>(null)
+const deletingAdviceId = ref<number | null>(null)
 type IncidentUnreadBadge = {
     type: 'new' | 'updated'
     count: number
@@ -611,6 +742,7 @@ const unreadBadge = ref<IncidentUnreadBadge | null>(null)
 const unreadBadgeVisible = ref(false)
 let unreadBadgeHideTimer: ReturnType<typeof setTimeout> | undefined
 type IncidentProjectOption = Pick<Project, 'id' | 'name' | 'date_start' | 'date_end' | 'category'>
+const mentionableUsers = ref<User[]>([])
 const incidentOptions = ref<{
     categories: IncidentCategory[]
     punishments: IncidentPunishment[]
@@ -722,7 +854,127 @@ const canCreateNextAssignment = computed(() => {
     return latestIncidentReportComplete.value
         && (canEditManagerFields.value || Boolean(activeUserLatestAssignee.value))
 })
+const canUseIncidentAdvice = computed(() => !isCreateMode.value && canEditManagerFields.value)
+const canUseIncidentConclusion = computed(() => !isCreateMode.value && canEditAdminFields.value && isIncidentCompleted.value)
+const resolutionAdvices = computed<IncidentAdvice[]>(() => {
+    return [...(localIncident.value.advices ?? [])]
+        .filter(advice => advice.type === 'resolution')
+        .sort((a, b) => (Date.parse(b.created_at ?? '') || 0) - (Date.parse(a.created_at ?? '') || 0))
+})
+const conclusionAdvices = computed<IncidentAdvice[]>(() => {
+    return [...(localIncident.value.advices ?? [])]
+        .filter(advice => advice.type === 'conclusion')
+        .sort((a, b) => (Date.parse(b.created_at ?? '') || 0) - (Date.parse(a.created_at ?? '') || 0))
+})
+const sanitizedAdviceDraft = computed(() => DOMPurify.sanitize(marked(adviceDraft.value) as string))
+const sanitizedConclusionAdviceDraft = computed(() => DOMPurify.sanitize(marked(conclusionAdviceDraft.value) as string))
+const adviceHtml = (advice: IncidentAdvice) => {
+    return DOMPurify.sanitize(marked(advice.content ?? '') as string)
+}
 const theme = useTheme()
+const {
+    on: onAdviceStream,
+    start: startAdviceStream,
+    stop: stopAdviceStream,
+} = useSSE({ autoReconnect: false })
+const {
+    on: onConclusionAdviceStream,
+    start: startConclusionAdviceStream,
+    stop: stopConclusionAdviceStream,
+} = useSSE({ autoReconnect: false })
+
+const appendAdviceStreamChunk = (payload: string) => {
+    try {
+        const parsed = JSON.parse(payload)
+        if (parsed?.type === 'text_delta') {
+            adviceDraft.value += parsed.delta ?? ''
+        } else if (parsed?.event === 'response.output_text.delta') {
+            adviceDraft.value += parsed.response?.delta ?? ''
+        }
+    } catch {}
+}
+
+const appendConclusionAdviceStreamChunk = (payload: string) => {
+    try {
+        const parsed = JSON.parse(payload)
+        if (parsed?.type === 'text_delta') {
+            conclusionAdviceDraft.value += parsed.delta ?? ''
+        } else if (parsed?.event === 'response.output_text.delta') {
+            conclusionAdviceDraft.value += parsed.response?.delta ?? ''
+        }
+    } catch {}
+}
+
+onAdviceStream('message', appendAdviceStreamChunk)
+onAdviceStream('update', appendAdviceStreamChunk)
+onConclusionAdviceStream('message', appendConclusionAdviceStreamChunk)
+onConclusionAdviceStream('update', appendConclusionAdviceStreamChunk)
+
+onAdviceStream('error', () => {
+    adviceLoading.value = false
+    dialog.ping('AIアドバイスの生成に失敗しました。しばらくしてから再度お試しください。')
+})
+
+onConclusionAdviceStream('error', () => {
+    conclusionAdviceLoading.value = false
+    dialog.ping('AI総括の生成に失敗しました。しばらくしてから再度お試しください。')
+})
+
+onAdviceStream('complete', async () => {
+    adviceLoading.value = false
+    await refreshResolutionAdvices()
+})
+
+onConclusionAdviceStream('complete', async () => {
+    conclusionAdviceLoading.value = false
+    await refreshConclusionAdvices()
+})
+
+const toggleAdviceExpansion = (adviceId: number) => {
+    selectedAdviceId.value = selectedAdviceId.value === adviceId ? null : adviceId
+}
+
+const toggleConclusionAdviceExpansion = (adviceId: number) => {
+    selectedConclusionAdviceId.value = selectedConclusionAdviceId.value === adviceId ? null : adviceId
+}
+
+const adviceMenuItems = (advice: IncidentAdvice, type: 'resolution' | 'conclusion' = 'resolution'): MenuList[] => [{
+    title: deletingAdviceId.value === advice.id ? '削除中...' : '削除',
+    action: () => deleteIncidentAdvice(advice.id, type),
+}]
+
+const deleteIncidentAdvice = async (adviceId: number, type: 'resolution' | 'conclusion') => {
+    if (deletingAdviceId.value) return
+
+    const decision = await dialog.ask(type === 'conclusion' ? 'このAI総括を削除しますか？' : 'このAIアドバイスを削除しますか？')
+    if (!decision.value) return
+
+    deletingAdviceId.value = adviceId
+    try {
+        const res = await api.del('/incident_advice', {
+            id: adviceId,
+        }, { silent: true })
+
+        if (res?.deleted) {
+            if (selectedAdviceId.value === adviceId) {
+                selectedAdviceId.value = null
+            }
+            if (selectedConclusionAdviceId.value === adviceId) {
+                selectedConclusionAdviceId.value = null
+            }
+
+            if (type === 'conclusion') {
+                await refreshConclusionAdvices()
+                dialog.toast('AI総括を削除しました。')
+            } else {
+                await refreshResolutionAdvices()
+                dialog.toast('AIアドバイスを削除しました。')
+            }
+        }
+    } finally {
+        deletingAdviceId.value = null
+    }
+}
 
 const menuItems = computed<MenuList[]>(() => {
     const items: MenuList[] = [
@@ -840,10 +1092,13 @@ onMounted(() => {
     initializeAssigneeResponses(localIncident.value)
     initializeUnreadBadge(localIncident.value)
     markIncidentRead()
+    loadMentionableUsers()
 })
 
 onBeforeUnmount(() => {
     if (unreadBadgeHideTimer) clearTimeout(unreadBadgeHideTimer)
+    stopAdviceStream()
+    stopConclusionAdviceStream()
 })
 
 watch(
@@ -859,6 +1114,14 @@ watch(
         uploadedFiles.value = [...(nextIncident.files ?? [])]
         nextAssigneeUsers.value = []
         nextAssignmentRequest.value = null
+        selectedAdviceId.value = nextIncident.advices?.find(advice => advice.type === 'resolution')?.id ?? null
+        selectedConclusionAdviceId.value = nextIncident.advices?.find(advice => advice.type === 'conclusion')?.id ?? null
+        adviceDraft.value = ''
+        adviceLoading.value = false
+        conclusionAdviceDraft.value = ''
+        conclusionAdviceLoading.value = false
+        stopAdviceStream()
+        stopConclusionAdviceStream()
         initializeAssigneeResponses(nextIncident)
         editMode.value = isCreateMode.value
         viewMode.value = 'detail'
@@ -872,6 +1135,43 @@ watch(
     },
 )
 
+watch(
+    resolutionAdvices,
+    (advices) => {
+        if (!advices.length) {
+            selectedAdviceId.value = null
+            return
+        }
+
+        if (!advices.some(advice => advice.id === selectedAdviceId.value)) {
+            selectedAdviceId.value = advices[0].id
+        }
+    },
+    { immediate: true },
+)
+
+watch(
+    conclusionAdvices,
+    (advices) => {
+        if (!advices.length) {
+            selectedConclusionAdviceId.value = null
+            return
+        }
+
+        if (!advices.some(advice => advice.id === selectedConclusionAdviceId.value)) {
+            selectedConclusionAdviceId.value = advices[0].id
+        }
+    },
+    { immediate: true },
+)
+const loadMentionableUsers = async () => {
+    const data = await api.get('/incident_related_mentionable_users', {
+        incident_id: localIncident.value.id,
+    }, { silent: true })
+    if (!data) return
+
+    mentionableUsers.value = data ?? []
+}
 const initializeAssigneeResponses = (incident: Incident) => {
     const responses: Record<number, string> = {}
 
@@ -1102,6 +1402,92 @@ const saveChanges = async () => {
 const handleCommentCountChanged = (count: number) => {
     localIncident.value.comments_count = count
     emit('updated', { ...localIncident.value })
+}
+
+const generateResolutionAdvice = async () => {
+    if (!canUseIncidentAdvice.value || adviceLoading.value || !localIncident.value.id) return
+
+    stopAdviceStream()
+    adviceDraft.value = ''
+    adviceLoading.value = true
+
+    try {
+        startAdviceStream('/incident_advice_stream', {
+            incident_id: localIncident.value.id,
+            type: 'resolution',
+        }, { endSignal: '[DONE]' })
+    } catch (error) {
+        adviceLoading.value = false
+        dialog.ping('AIアドバイスの準備に失敗しました。')
+    }
+}
+
+const generateConclusionAdvice = async () => {
+    if (!canUseIncidentConclusion.value || conclusionAdviceLoading.value || !localIncident.value.id) return
+
+    stopConclusionAdviceStream()
+    conclusionAdviceDraft.value = ''
+    conclusionAdviceLoading.value = true
+
+    try {
+        startConclusionAdviceStream('/incident_advice_stream', {
+            incident_id: localIncident.value.id,
+            type: 'conclusion',
+        }, { endSignal: '[DONE]' })
+    } catch (error) {
+        conclusionAdviceLoading.value = false
+        dialog.ping('AI総括の準備に失敗しました。')
+    }
+}
+
+const refreshResolutionAdvices = async () => {
+    if (!localIncident.value.id) return
+
+    try {
+        const res = await api.get('/incident_advice', {
+            incident_id: localIncident.value.id,
+            type: 'resolution',
+        }, { silent: true })
+
+        const advices = res?.advices
+        if (!Array.isArray(advices)) return
+
+        localIncident.value.advices = [
+            ...advices,
+            ...(localIncident.value.advices ?? []).filter(advice => advice.type !== 'resolution'),
+        ]
+        mutableParams.value.advices = localIncident.value.advices
+        selectedAdviceId.value = advices[0]?.id ?? selectedAdviceId.value
+        adviceDraft.value = ''
+        emit('updated', { ...localIncident.value })
+    } catch (error) {
+        dialog.ping('保存済みAIアドバイスの取得に失敗しました。')
+    }
+}
+
+const refreshConclusionAdvices = async () => {
+    if (!localIncident.value.id) return
+
+    try {
+        const res = await api.get('/incident_advice', {
+            incident_id: localIncident.value.id,
+            type: 'conclusion',
+        }, { silent: true })
+
+        const advices = res?.advices
+        if (!Array.isArray(advices)) return
+
+        localIncident.value.advices = [
+            ...advices,
+            ...(localIncident.value.advices ?? []).filter(advice => advice.type !== 'conclusion'),
+        ]
+        mutableParams.value.advices = localIncident.value.advices
+        selectedConclusionAdviceId.value = advices[0]?.id ?? selectedConclusionAdviceId.value
+        conclusionAdviceDraft.value = ''
+        emit('updated', { ...localIncident.value })
+    } catch (error) {
+        dialog.ping('保存済みAI総括の取得に失敗しました。')
+    }
 }
 
 const refreshIncidentFromWorkflowResponse = (incident: Incident) => {
@@ -1467,6 +1853,113 @@ const formatLogValue = (value: unknown) => {
     font-size: 13px;
 }
 
+.incident-ai-advice-section{
+    border: 1px solid var(--calendarBorder);
+    padding: 18px;
+}
+
+
+.incident-ai-advice-head strong{
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+}
+
+.incident-ai-advice-head p{
+    margin: 0;
+    color: gray;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.incident-ai-advice-preview{
+    background: var(--background-color);
+    padding: 14px;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.incident-ai-advice-preview > span,
+.incident-ai-advice-meta span{
+    display: block;
+    margin-bottom: 8px;
+    color: gray;
+    font-size: 11px;
+}
+
+.incident-ai-advice-preview :deep(p){
+    margin: 0 0 10px;
+}
+
+.incident-ai-advice-preview :deep(ul),
+.incident-ai-advice-preview :deep(ol){
+    margin: 8px 0 10px;
+    padding-left: 20px;
+}
+
+.incident-ai-advice-history{
+    margin-top: 16px;
+}
+
+.incident-ai-advice-version{
+    border: 1px solid var(--calendarBorder);
+    background: var(--background-color);
+    cursor: pointer;
+    display: block;
+}
+
+.incident-ai-advice-version + .incident-ai-advice-version{
+    margin-top: -1px;
+}
+
+.incident-ai-advice-version--open{
+    position: relative;
+    z-index: 1;
+}
+
+.incident-ai-advice-version-head{
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+}
+
+.incident-ai-advice-arrow{
+    color: gray;
+    line-height: 0;
+    transition: transform .2s ease;
+}
+
+.incident-ai-advice-version-title{
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.incident-ai-advice-version-title strong{
+    font-size: 13px;
+}
+
+.incident-ai-advice-version-title span{
+    color: gray;
+    font-size: 11px;
+}
+
+.incident-ai-advice-menu{
+    display: flex;
+    justify-content: flex-end;
+}
+
+.incident-ai-advice-meta{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
 .incident-detail-actions{
     display: flex;
     align-items: center;
@@ -1735,6 +2228,12 @@ const formatLogValue = (value: unknown) => {
 
     .incident-detail-assignment .incident-assignment-section{
         position: static;
+    }
+
+    .incident-ai-advice-head,
+    .incident-ai-advice-meta{
+        align-items: stretch;
+        flex-direction: column;
     }
 
     .incident-people-grid,

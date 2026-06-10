@@ -92,8 +92,9 @@
     --past-calendar: #cccccc;
     --third-color: #878787;
     --inactive-background: #efefef;
-    --complete: #9effb4
+    --complete: #9effb4;
     --panel-separate: #e9e9e9;
+    --accent1: #b1cae7;
 }
 
 .dark-mode {
@@ -128,6 +129,7 @@
     --inactive-background: #292929;
     --complete: #004510;
     --panel-separate: #3b3b3b;
+    --accent1: #1a3764;
 }
 .header {
     background-color: var(--background-color);

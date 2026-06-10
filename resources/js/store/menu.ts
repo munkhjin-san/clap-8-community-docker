@@ -1,34 +1,55 @@
 import { defineStore } from 'pinia'
-interface State {
-  name: string
-  id: number | null
-  user_id: number | null
-  parent: string | null
+import { ref } from 'vue'
+
+interface MenuPayload {
+  name?: string
+  id?: number | null
+  user_id?: number | null
+  parent?: string | null
 }
 
-export const useMenuStore = defineStore('menu', {
-  state: (): State => ({
-    name: '',
-    id: null,
-    user_id: null,
-    parent: null
-  }),
-  actions: {
-    setMenu(payload: any){
-        this.id = payload.id
-        this.name = payload.name
-        this.user_id = payload?.user_id
-        
-        if(payload.parent){
-            console.log(payload.parent)
-            this.parent = payload.parent
-        }
-    },
-    close(){
-        this.id = null
-        this.name = ''
-        this.user_id = null
-        this.parent = ''
+export const useMenuStore = defineStore('menu', () => {
+  const name = ref('')
+  const id = ref<number | null>(null)
+  const user_id = ref<number | null>(null)
+  const parent = ref<string | null>(null)
+
+  const setMenu = (payload: MenuPayload) => {
+    id.value = payload.id ?? null
+    name.value = payload.name ?? ''
+    user_id.value = payload.user_id ?? null
+
+    if (payload.parent) {
+      console.log(payload.parent)
+      parent.value = payload.parent
     }
+  }
+
+  const close = () => {
+    id.value = null
+    name.value = ''
+    user_id.value = null
+    parent.value = ''
+  }
+
+  const toggle = (payload: string) => {
+    console.log(`current parent: ${parent.value}, payload: ${payload}`)
+    if (parent.value == payload) {
+      console.log('close')
+      close()
+    } else {
+        console.log('open')
+      setMenu({ parent: payload })
+    }
+  }
+
+  return {
+    name,
+    id,
+    user_id,
+    parent,
+    setMenu,
+    close,
+    toggle
   }
 })

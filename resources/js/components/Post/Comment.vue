@@ -3,24 +3,17 @@
         <div class="commentInner relative" :style="{ float: comment.user_id == auth.id ? 'right' : 'left'}">
             <div class="bg-[var(--message-background)] p-4" :style="{ border: editing ? 'solid 2px var(--hoverBorder)' : 'solid 2px transparent', boxSizing: 'border-box', }">
                 <div class="message-top-block" style="margin-bottom: 0;">      
-                    <div style="display: flex;align-items: center;gap:10px">
-                        <UserPanel size="30" :user="comment.user" imgClass="userNormalIcon"/>                   
-                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                            <div @click.stop="pushInstantUser($event, comment.user_id)" class="cursor-pointer" style="font-size: 14px;">{{ comment?.user?.name }}</div>
-                            <span v-if="commentTypeLabel" class="progress-report-label">
-                                {{ commentTypeLabel }}
-                            </span>
+                    <div class="flex items-center flex-wrap-reverse justify-between w-full">
+                        <UserPanel size="25" :user="comment.user" imgClass="userNormalIcon" with-name/>
+                        <div class="ml-auto">
+                            <ItemMenu v-if="comment.user_id == auth.id && !editing" :items="[
+                                {title: '編集する', action: () => editing = true},
+                                {title: '削除する', action: () => emit('deleteComment', comment.id)}
+                            ]"/>
                         </div>
                     </div>     
-                    <div class="m-date">{{DateParser(comment.created_at)}}</div> 
-                    <div class="messageIconContainer">
-                        <ItemMenu v-if="comment.user_id == auth.id && !editing" :items="[
-                            {title: '編集する', action: () => editing = true},
-                            {title: '削除する', action: () => emit('deleteComment', comment.id)}
-                        ]"/>
-                    </div>
                 </div>
-                <div class="commentBox" style="margin-bottom: 10px;">
+                <div class="commentBox" style="margin-bottom: 10px;margin-top: 10px">
                     <Editor v-if="editing" :comment="comment" :urlCheck="urlCheck" @cancel="editing = false"/>
                     <p  
                         v-else
@@ -30,6 +23,9 @@
                     </p>
                 </div>
                 <PostFiles v-if="comment.progress_files && comment.progress_files.length" :slidesCount="5" :items="comment.progress_files"/>
+                <div v-if="commentTypeLabel" class="progress-report-label">
+                    {{ commentTypeLabel }}
+                </div>  
             </div>
             <div class="flex w-fit relative items-center gap-2">
                 <div class="cursor-pointer mt-1" @click.stop="emoteAction">
@@ -38,7 +34,7 @@
                     </svg>
                 </div>
                 <Transition name="downShiftPop">
-                    <div class="w-max absolute p-4 bg-[var(--background-color)] z-10 top-[35px] shadow-xl" :id="`iokawaReactionPop_comment_${comment.id}`" v-if="menu.parent == `iokawaReactionPop_comment_${comment.id}`">
+                    <div ref="characterBox" :style="{inset: insetValue}" class="w-max absolute p-4 bg-[var(--background-color)] z-10 shadow-xl" :id="`iokawaReactionPop_comment_${comment.id}`" v-if="menu.parent == `iokawaReactionPop_comment_${comment.id}`">
                         <div class="grid grid-cols-5 gap-2">
                             <div class="flex items-end justify-center transition-transform duration-200 ease-out hover:scale-105" v-for="oikawa in oikawaMap" :key="oikawa.name" @click="sendEmote(oikawa.name)">
                                 <Character  :size="40" :emoteName="oikawa.name" :multiple="multiple"/>
@@ -64,7 +60,7 @@
 import UserPanel from '@/components/Global/UserPanel.vue'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import Character from '@/components/Global/Character.vue'
-import { defineAsyncComponent, ref, inject, computed } from 'vue';
+import { defineAsyncComponent, ref, inject, computed, nextTick, useTemplateRef } from 'vue';
 import { useAuthUserStore } from '@/store/auth'
 import { useMenuStore } from '@/store/menu'
 import { DateParser, urlCheck, oikawaMap } from '@/utils/tools';
@@ -84,6 +80,7 @@ import PostFiles from './PostFiles.vue';
     })
     const props = defineProps<{
         comment: PostComment
+        container: HTMLDivElement
     }>()
     const emit = defineEmits<{
         deleteComment: [number],
@@ -92,8 +89,12 @@ import PostFiles from './PostFiles.vue';
         editSend: [],
         updateComment: [PostComment],
     }>()
+
+    const insetValue = ref('')
     const editing = ref(false)
-    const pushInstantUser = inject('pushInstantUser') as Function
+    const characterBox = useTemplateRef('characterBox')
+    const popoverGap = 8
+    const containerPadding = 8
 
     const emotes = computed(() => {
         if (!props.comment.emoted_users?.length) return []
@@ -114,8 +115,58 @@ import PostFiles from './PostFiles.vue';
         return ''
     })
 
-    const emoteAction = () => {
+    const clamp = (value: number, min: number, max: number) => {
+        return Math.min(Math.max(value, min), max)
+    }
+
+    const waitForPopoverLayout = async (popover: HTMLElement) => {
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+        const images = Array.from(popover.querySelectorAll('img'))
+        await Promise.all(images.map(image => {
+            if (image.complete) return Promise.resolve()
+
+            return new Promise<void>(resolve => {
+                image.addEventListener('load', () => resolve(), { once: true })
+                image.addEventListener('error', () => resolve(), { once: true })
+            })
+        }))
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    }
+
+    const emoteAction = async (event: MouseEvent | TouchEvent) => {
+        const trigger = event.currentTarget as HTMLElement | null
+        insetValue.value = ''
         menu.setMenu({ parent: `iokawaReactionPop_comment_${props.comment.id}` })
+        await nextTick()
+        const popover = characterBox.value
+        const offsetParent = popover?.offsetParent as HTMLElement | null
+        if(!trigger || !popover || !offsetParent || !props.container) return
+        await waitForPopoverLayout(popover)
+
+        const triggerRect = trigger.getBoundingClientRect()
+        const popoverRect = popover.getBoundingClientRect()
+        const parentRect = offsetParent.getBoundingClientRect()
+        const containerRect = props.container.getBoundingClientRect()
+
+        const spaceAbove = triggerRect.top - containerRect.top - containerPadding
+        const spaceBelow = containerRect.bottom - triggerRect.bottom - containerPadding
+        const openAbove = spaceAbove >= popoverRect.height || spaceAbove >= spaceBelow
+
+        const minTop = containerRect.top - parentRect.top + containerPadding
+        const maxTop = containerRect.bottom - parentRect.top - popoverRect.height - containerPadding
+        const minLeft = containerRect.left - parentRect.left + containerPadding
+        const maxLeft = containerRect.right - parentRect.left - popoverRect.width - containerPadding
+
+        const preferredTop = openAbove
+            ? triggerRect.top - parentRect.top - popoverRect.height - popoverGap
+            : triggerRect.bottom - parentRect.top + popoverGap
+        const preferredLeft = triggerRect.left - parentRect.left
+
+        const top = clamp(preferredTop, minTop, Math.max(minTop, maxTop))
+        const left = clamp(preferredLeft, minLeft, Math.max(minLeft, maxLeft))
+        insetValue.value = `${top}px auto auto ${left}px`
+
+
     }
 
     const sendEmote = async (name: string) => {

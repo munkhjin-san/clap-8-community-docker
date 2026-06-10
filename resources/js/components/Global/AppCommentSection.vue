@@ -146,6 +146,7 @@ const props = withDefaults(defineProps<{
     commentableType: string;
     commentableId: number;
     title?: string;
+    users?: User[];
 }>(), {
     title: 'コメント',
 })
@@ -187,6 +188,10 @@ watch(
     () => [props.commentableType, props.commentableId],
     () => fetchComments(),
 )
+watch(
+    () => props.users,
+    () => fetchMentionableUsers(),
+)
 
 const fetchComments = async () => {
     loading.value = true
@@ -204,7 +209,11 @@ const fetchComments = async () => {
 }
 
 const fetchMentionableUsers = async () => {
-    mentionableUsers.value = await api.get('/app_comment_mentionable_users', null, { silent: true }) ?? []
+    if(props.users === undefined) {
+        mentionableUsers.value = await api.get('/app_comment_mentionable_users', null, { silent: true }) ?? []
+    } else {
+        mentionableUsers.value = props.users
+    }
 }
 
 const sendComment = async () => {

@@ -1,6 +1,6 @@
 <template>
     <div class="relative flex min-h-[35px] w-full items-stretch">
-        <button @click.stop="toggle" class="temp-reserve-user-button">        
+        <button @click.stop.prevent="toggle" @touchstart.stop.prevent="toggle" class="temp-reserve-user-button">        
             <div v-if="selectedUsers.length" class="flex flex-wrap">
                 <UserPanel size="20" v-for="user in selectedUsers.slice(0, 3)" :key="user.id" :user="user" :with-name="!(selectedUsers.length > 1 || responsive.mobile)" disable-instant/>
                 <div v-if="selectedUsers.length > 3" class=" text-[gray] ml-1">+{{ selectedUsers.length - 3 }}</div>
@@ -155,11 +155,8 @@ const toggleGroupMembers = (group: CalendarGroup, event: Event) => {
     selectedUsers.value = sortUsersWithSelf(group.users)
 }
 const toggle = () => {
-    if (menu.parent === 'p-user-pick') {
-        menu.close();
-    } else {
-        menu.setMenu({ parent: 'p-user-pick' });
-    }
+    console.log('now',menu.parent)
+    menu.toggle('p-user-pick')
     
 }
 </script>

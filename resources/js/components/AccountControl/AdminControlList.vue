@@ -3,9 +3,9 @@
 
         <div class="admin-header">            
             <Hamburger v-if="responsive.mobile"/>
-            <div v-if="[608, 610].includes(auth.activeUser.id) || auth.activeUser.position_id <= 6" class="admin-tab-container">
+            <div v-if="auth.isAdmin || auth.isBoss || auth.isPM" class="admin-tab-container">
                 <div class="pc" style="font-size: 16px;margin: 20px 0px 0px 15px;padding-bottom: 10px;"></div>
-                <div v-if="[608, 610].includes(auth.activeUser.id)" class="admin-tab-container">
+                <div v-if="auth.isAdmin" class="admin-tab-container">
                     <div class="admin-tab-item" @click="router.push({name: 'account'})" :class="{'selected-tab' : route.name == 'account' }">アカウント</div>
                     <div class="admin-tab-item" @click="router.push({name: 'attendance'})" :class="{'selected-tab' : route.path.includes('workcontrol')}">タイムシート</div>
                     <div class="admin-tab-item" @click="router.push({name: 'clapcount'})" :class="{'selected-tab' : route.name == 'clapcount'}">クラップ数集計</div>
@@ -15,14 +15,14 @@
                     <div class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
                     <div class="admin-tab-item" @click="router.push({name: 'refresh-control'})" :class="{'selected-tab' : route.path.includes('refresh-control')}">リフレッシュ</div>
                     <div class="admin-tab-item" @click="router.push({name: 'admin-offices'})" :class="{'selected-tab' : route.name == 'admin-offices'}">営業所</div>
+                    <div class="admin-tab-item" @click="router.push({name: 'admin-positions'})" :class="{'selected-tab' : route.name == 'admin-positions'}">役職</div>
+                    <div class="admin-tab-item" @click="router.push({name: 'admin-ai'})" :class="{'selected-tab' : route.name == 'admin-ai'}">AI</div>
                 </div>
-                <div v-else class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
+                <div v-if="auth.isBoss || auth.isPM" class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
             </div>
         </div>
-        <div style="width: 100%;flex:1;overflow: hidden;background: var(--background-color);" v-if="[608, 610].includes(auth.activeUser.id) || (auth.activeUser.position_id <= 6 && route.path.includes('custom-form-control'))">
-            
-            <router-view
-            ></router-view>
+        <div style="width: 100%;flex:1;overflow: hidden;background: var(--background-color);" v-if="auth.isAdmin || auth.isBoss || (auth.isPM && route.path.includes('custom-form-control'))">
+            <router-view></router-view>
         </div>
         <div v-else style="height: 100%;width: 100%;text-align: center;justify-content: center;display: flex;align-items: center;flex-direction: column;">
             <p>アクセス権限ありません。</p>

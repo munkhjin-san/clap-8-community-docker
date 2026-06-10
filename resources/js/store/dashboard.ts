@@ -7,6 +7,7 @@ import { Incident } from "@/interface/incident";
 import { Post } from "@/interface/postInterface";
 import { Evaluation, Project, ProjectAssignRecord } from "@/interface/projectInterface";
 import { Shift, WorkItem } from "@/interface/workInterface";
+import type { EmergencyContactRecord } from "@/interface/supportInterface";
 import axios from "axios";
 import { DateTime } from "luxon";
 import { defineStore } from "pinia";
@@ -22,6 +23,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         },
         incidents: {
             attention: [] as Incident[],
+            emergency_contacts: [] as EmergencyContactRecord[],
         },
         overdueGoals: [] as any[], //data ignored just for layout purposes
         challenges: [] as Post[],
@@ -90,6 +92,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
     const newIncidentCount = computed(() => collection.value.incidents.attention.filter(isNewIncident).length)
     const updatedIncidentCount = computed(() => collection.value.incidents.attention.filter(hasUnreadIncidentUpdates).length)
     const incidentBadgeCount = computed(() => updatedIncidentCount.value + unreadIncidentCommentCount.value)
+    const activeEmergencyContactCount = computed(() => collection.value.incidents.emergency_contacts.filter((contact) => contact.status !== 'complete').length)
 
     const getBatchDashboardData = async (requestedData?: string[]) => {
         try {
@@ -157,7 +160,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         const pendingTimesheetsCount = collection.value.timesheet.pendingTimesheets.length
         const needed = (goalsStore.requiredGoalData?.this_span?.needed_count || 0) + (goalsStore.requiredGoalData?.previous_span?.needed_count || 0) + (goalsStore.unfinishedPreviousSpanGoals.length ?? 0)
         const pendingAttendanceCount = collection.value.timesheet.pendingAttendance ? 1 : 0
-        return overdueGoals.length + overdueApprovalGoalsCount + needed + pendingAttendanceCount + overdueCheckMessages + pendingTimesheetsCount + newIncidentCount.value
+        return overdueGoals.length + overdueApprovalGoalsCount + needed + pendingAttendanceCount + overdueCheckMessages + pendingTimesheetsCount + newIncidentCount.value + activeEmergencyContactCount.value
     })
     const getAnnualLeaveData = async () => {
         try {
@@ -189,5 +192,6 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         updatedIncidentCount,
         unreadIncidentCommentCount,
         incidentBadgeCount,
+        activeEmergencyContactCount,
     }
 });

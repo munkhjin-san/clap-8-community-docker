@@ -6794,6 +6794,9 @@ button.shift-button {
     font-weight: bold;
 }
 @media screen and (max-width: 959px) {
+    .commentRoot {
+        padding: 15px;
+    }
     .projectModalMainHeader {
       font-size: 14px;
     }
@@ -7217,7 +7220,7 @@ button.shift-button {
 
   .commentInner {
     min-width: 40%;
-    max-width: 80%;
+    max-width: 90%;
   }
 
   .comment-icon {

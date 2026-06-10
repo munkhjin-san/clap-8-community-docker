@@ -3,14 +3,17 @@
         <div class="commentAreaBoxInner" ref="container">
             <div v-if="comments.length == 0" style="height:100%;width:100%;position:relative;">
                 <div class="post-no-comment-text">現在コメントはありません</div>
-            </div>            
-            <Comment 
-                v-for="(comment, index) in comments"
-                :key="index"
-                :comment="comment"
-                @deleteComment="commentDeleteConfirm"
-                @updateComment="updateComment"
-            />
+            </div>     
+            <template v-if="container">      
+                <Comment 
+                    v-for="(comment, index) in comments"
+                    :key="index"
+                    :comment="comment"
+                    :container="container"
+                    @deleteComment="commentDeleteConfirm"
+                    @updateComment="updateComment"
+                />
+            </template> 
             <div v-if="fetch == 0" id="loaderMini" style="position: absolute;background: var(--bg3);z-index: 5;">
                 <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
             </div>         

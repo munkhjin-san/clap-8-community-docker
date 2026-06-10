@@ -269,6 +269,7 @@
                                         >
                                             <span>{{ selectedTimeLabel(hourItem) }}</span>
                                             <span v-if="slotIncludesUnavailable(date, hourItem)">予約不可</span>
+                                            <span v-else>仮予約</span>
                                         </div>
                                     </td>
                                 </template>
@@ -303,32 +304,16 @@
                         <span class="reserve-legend-swatch unavailable"></span>
                         <span>予約不可</span>
                     </div>
-                    <div class="reserve-legend-item">
-                        <span class="reserve-legend-swatch selected-available"></span>
-                        <span class="reserve-legend-full">選択（予約可）</span>
-                        <span class="reserve-legend-short">選択可</span>
-                    </div>
-                    <div class="reserve-legend-item">
-                        <span class="reserve-legend-swatch selected-unavailable"></span>
-                        <span class="reserve-legend-full">選択（予約不可含む）</span>
-                        <span class="reserve-legend-short">選択不可含</span>
-                    </div>
                 </div>
                 <div class="mt-[25px]">
                     <LoaderButton @triggered="toConfirm" :loading="saving" content="内容確認へ"/>
                 </div>
             </div>  
-            <div v-show="step == 3" class="temp-confirm-step">
-                <div ref="confirmDetail" class="temp-confirm-panel">
-                    <div class="temp-confirm-edit">
-                        <label class="temp-confirm-field">
-                            <span>タイトル</span>
-                            <input v-model="title" type="text" placeholder="予定">
-                        </label>
-                        <label class="temp-confirm-field">
-                            <span>説明</span>
-                            <textarea v-model="content" rows="3" placeholder="予定"></textarea>
-                        </label>
+            <div v-show="step == 3" class="temp-confirm-step h-full overflow-auto">
+                <div ref="confirmDetail" class="temp-confirm-panel p-[30px]">
+                    <div>
+                        <ShortInput v-model="title" label="タイトル" place-holder="タイトル"/>
+                        <LongInput v-model="content" label="説明" place-holder="説明" class="mt-[30px]"/>
                     </div>
 
                     <div class="temp-confirm-summary">
@@ -369,13 +354,14 @@
                             </div>
                         </section>
                     </div>
+                    <div>
+                        <CommandButton :buttons="[{
+                            title: '内容をコピー', action: () => copy()
+                        }]"/>
+                    </div>
                 </div>
-                <div class="mt-[25px]">
-                    <CommandButton :buttons="[{
-                        title: '内容をコピー', action: () => copy()
-                    }]"/>
-                </div>
-                 <div class="mt-[25px]">
+                <p class="text-sm text-[gray] whitespace-break-spaces px-[30px]">{{ copyingValue }}</p>
+                <div class="mt-[25px] mb-[30px]">
                     <LoaderButton @triggered="save" :loading="saving" content="保存する"/>
                 </div>
             </div>     
@@ -403,6 +389,8 @@ import UserPanel from '../Global/UserPanel.vue';
 import CommandButton from '../Global/CommandButton.vue';
 import { usePublicHolidayStore } from '@/store/publicHoliday';
 import TempReserveUserPicker from './TempReserve/TempReserveUserPicker.vue';
+import ShortInput from '../Form/ShortInput.vue';
+import LongInput from '../Form/LongInput.vue';
 
 const emit = defineEmits<{
     close: [flag: boolean];
@@ -435,6 +423,7 @@ const title = ref('予定')
 const content = ref('予定')
 const storageKey = 'tempReserveOptions'
 const restoringOptions = ref(false)
+const copyingValue = ref('')
 let searchTimer: ReturnType<typeof window.setTimeout> | null = null
 let latestSearchId = 0
 const bufferOptions = [
@@ -827,7 +816,7 @@ const memberSelectionBlockStyle = (date: string, hour: string) => {
 
     return {
         height: `${Math.ceil(visibleMinutes / 15) * 20}px`,
-        width: `calc(${Math.max(reserveResources.value.length, 1)} * 100%)`,
+        width: `calc(${Math.max(reserveResources.value.length, 1)} * 100% + (${reserveResources.value.length - 1} * 1px))`,
     }
 }
 
@@ -853,6 +842,39 @@ const slotIncludesUnavailable = (date: string, hour: string) => {
     }
 
     return false
+}
+
+const highlightedSlotIncludesUnavailable = (highlightedSlot: string) => {
+    const slotInstance = DateTime.fromFormat(highlightedSlot, 'yyyy-MM-dd HH:mm')
+    if (!slotInstance.isValid) {
+        return true
+    }
+
+    const date = slotInstance.toISODate()
+    if (!date) {
+        return true
+    }
+
+    const endPoint = slotInstance.plus({ hours: duration.value.hour, minutes: duration.value.minute }).minus({ minutes: 15 })
+    if (!endPoint.isValid) {
+        return true
+    }
+
+    let cursor = slotInstance
+    while (cursor <= endPoint) {
+        const hourKey = cursor.toFormat('HH:mm')
+        const hourData = blockData.value[date]?.[hourKey]
+        if (!hourData || Object.values(hourData).some((value) => value === false)) {
+            return true
+        }
+        cursor = cursor.plus({ minutes: 15 })
+    }
+
+    return false
+}
+
+const removeUnavailableHighlightedSlots = () => {
+    tempHighlighted.value = tempHighlighted.value.filter(highlightedSlot => !highlightedSlotIncludesUnavailable(highlightedSlot))
 }
 
 const holidayName = (date: string) => {
@@ -914,12 +936,19 @@ const search = async () => {
 const selectSlot = (day: DailySchedule, hourItem: string, dateIndex:number | string) => {
     const maxSelectedSlots = 5
     const slot = `${dateIndex.toString()} ${hourItem}`
+    const wasSelected = tempHighlighted.value.includes(slot)
     const slotInstance = DateTime.fromFormat(slot, 'yyyy-MM-dd HH:mm');
     const slotInterval = Interval.fromDateTimes(
         slotInstance,
         slotInstance.plus({ hours: duration.value.hour, minutes: duration.value.minute })
     );
     if (!slotInstance.isValid || !slotInterval.isValid) return
+
+    removeUnavailableHighlightedSlots()
+
+    if (wasSelected && !tempHighlighted.value.includes(slot)) {
+        return
+    }
 
     if (tempHighlighted.value.includes(slot)) {
         tempHighlighted.value = tempHighlighted.value.filter(s => s !== slot);
@@ -940,31 +969,11 @@ const selectSlot = (day: DailySchedule, hourItem: string, dateIndex:number | str
     }
 }
 const toConfirm = () => {
+    removeUnavailableHighlightedSlots()
+
     if(!tempHighlighted.value || tempHighlighted.value.length === 0){
         ping('予約する時間を選択してください')
         return
-    }
-    const selectedDates = tempHighlighted.value
-    for(const selectedDate of selectedDates){
-        const dateInstance = DateTime.fromFormat(selectedDate, 'yyyy-MM-dd HH:mm');
-        if (!dateInstance.isValid) {
-            ping('選択された時間が正しくありません。');
-            return;
-        }
-        const once_date = dateInstance.toISODate();
-
-        const checkData = blockData.value[once_date]
-        let cursor = dateInstance;
-        const endPoint = dateInstance.plus({ hours: duration.value.hour, minutes: duration.value.minute }).minus({ minutes: 15 })
-
-        while (cursor <= endPoint) {
-            const hourKey = cursor.toFormat('HH:mm');
-            if (!checkData || !checkData[hourKey] || Object.values(checkData[hourKey]).some((value) => value === false)) {
-                ping('選択された時間帯は予約できません。');
-                return;
-            }
-            cursor = cursor.plus({ minutes: 15 });
-        }
     }
     step.value = 3
 }
@@ -1045,6 +1054,7 @@ const copy = () => {
     ].filter(line => line.trim() !== '').join('\n')
     try {
         navigator.clipboard.writeText(cleanedText)
+        copyingValue.value = cleanedText
         toast('内容をコピーしました')
     } catch (error) {
         console.error('Failed to copy text: ', error);
@@ -1147,7 +1157,7 @@ watch(duration, () => {
         background-color: var(--past-calendar) !important;
     }
     .highlighted {
-        background-color: var(--selected-background);
+        background-color: var(--accent1);
         color: white !important;
     }
 }
@@ -1251,6 +1261,7 @@ watch(duration, () => {
         background-color: var(--background-color);
         /* box-shadow: inset 0 0 0 1px var(--primary-color); */
         outline: none !important;
+        z-index: 1;
     }
 }
 
@@ -1314,7 +1325,7 @@ watch(duration, () => {
     }
 
     &.selected-available {
-        background-color: var(--selected-background);
+        background-color: var(--accent1);
     }
 
     &.selected-unavailable {
@@ -1403,7 +1414,7 @@ watch(duration, () => {
     --member-resource-day-border: color-mix(in srgb, var(--calendarBorder) 58%, var(--primary-color));
     --member-resource-header-bg: color-mix(in srgb, var(--bg3) 94%, var(--background-color));
     --member-resource-base-bg: color-mix(in srgb, var(--background-color) 86%, var(--bg3));
-    --member-resource-slot-hover: color-mix(in srgb, var(--selected-background) 14%, transparent);
+    --member-resource-slot-hover: color-mix(in srgb, var(--accent1) 14%, transparent);
 
     .member-resource-time-corner,
     .member-resource-time-cell {
@@ -1524,7 +1535,7 @@ watch(duration, () => {
     }
 
     .member-resource-slot.highlighted {
-        background-color: var(--selected-background);
+        background-color: var(--accent1);
     }
 
     .member-resource-slot.highlighted-unavailable {
@@ -1543,7 +1554,7 @@ watch(duration, () => {
         gap: 2px;
         overflow: hidden;
         pointer-events: none;
-        background: var(--selected-background);
+        background: var(--accent1);
         color: var(--primary-color);
         font-size: 11px;
         line-height: 1.25;
@@ -1566,14 +1577,6 @@ watch(duration, () => {
     gap: 18px;
     font-size: 13px;
     line-height: 1.6;
-}
-
-.temp-confirm-edit {
-    display: grid;
-    gap: 12px;
-    padding: 16px;
-    border: solid 1px var(--calendarBorder);
-    background: var(--bg3);
 }
 
 .temp-confirm-field {
@@ -1754,7 +1757,7 @@ watch(duration, () => {
         transition: background-color 0.2s ease;
 
         &.highlighted {
-            background-color: var(--selected-background);
+            background-color: var(--accent1);
         }
 
         &.highlighted-unavailable {
