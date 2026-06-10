@@ -504,6 +504,30 @@ TXT;
             if ($choice->finishReason === 'stop') {
                 $content = trim((string) ($choice->message->content ?? ''));
                 if (! empty($tools) && $this->isUnacceptableFinanceStopResponse($content)) {
+                    if ($role !== 'member' && $this->isFiscalSummaryQuestion($latestUserContent)) {
+                        $result = $this->dispatchTool(
+                            'get_fiscal_year_finance_summary',
+                            $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod),
+                            $financeMcp
+                        );
+
+                        return response()->json([
+                            'reply' => $this->formatFiscalSummaryReply($result),
+                        ]);
+                    }
+
+                    if ($role !== 'member' && $this->isMonthlyTrendQuestion($latestUserContent)) {
+                        $result = $this->dispatchTool(
+                            'get_monthly_trend',
+                            $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod),
+                            $financeMcp
+                        );
+
+                        return response()->json([
+                            'reply' => $this->formatMonthlyTrendReply($result),
+                        ]);
+                    }
+
                     if ($i >= 4) {
                         return response()->json([
                             'reply' => '財務データを使った回答を生成できませんでした。質問内容を少し具体化してもう一度お試しください。',
@@ -512,7 +536,7 @@ TXT;
 
                     $messages[] = [
                         'role' => 'user',
-                        'content' => '内部指示: 待機文や「必要なら取得します」で終了しないでください。必要な財務ツールを今すぐ呼び出すか、直前のツール結果から案件名・金額・差分を具体的に引用して最終回答してください。',
+                        'content' => '内部指示: 待機文、XXX、○億○千万円、±X%などの仮置きテンプレートで終了しないでください。必要な財務ツールを今すぐ呼び出すか、直前のツール結果から案件名・金額・差分を具体的に引用して最終回答してください。',
                     ];
                     continue;
                 }
@@ -586,7 +610,7 @@ TXT;
         $plain = trim(strip_tags($content));
         $isShort = mb_strlen($plain) <= 300;
         $looksLikeWaiting = preg_match(
-            '/少々お待ち|お待ちください|確認します|確認いたします|調べます|確認して.*回答|確認して.*お伝え/u',
+            '/少々お待ち|お待ちください|確認します|確認いたします|調べます|確認して.*回答|確認して.*お伝え|今から.*取得|最新データを取得|正確な数値を取得/u',
             $plain
         ) === 1;
 
@@ -604,12 +628,25 @@ TXT;
         }
 
         $plain = trim(strip_tags($content));
+        $hasPlaceholder = preg_match(
+            '/XXX|ＸＸＸ|○|〇|◯|±X|±Ｘ|X%|Ｘ%|X億|Ｘ億|X千万円|Ｘ千万円|x{2,}/iu',
+            $plain
+        ) === 1;
+        $hasFinanceTemplate = preg_match('/年間計画|実績累計|着地見込み|計画.*乖離|計画との差分/u', $plain) === 1;
+        if ($hasPlaceholder && $hasFinanceTemplate) {
+            return true;
+        }
+
+        if (preg_match('/少々お待ち|お待ちください|今から.*取得|最新データを取得|正確な数値を取得/u', $plain) === 1) {
+            return true;
+        }
+
         $looksLikeDeferral = preg_match(
             '/必要であれば|必要でしたら|詳細をお求め|その旨をお知らせ|取得しますので|具体的な.*情報を取得|データアクセス範囲に.*ない|具体的な金額.*示すことができません/u',
             $plain
         ) === 1;
 
-        return mb_strlen($plain) <= 700 && $looksLikeDeferral;
+        return $looksLikeDeferral;
     }
 
     private function latestUserContent(array $history): string
