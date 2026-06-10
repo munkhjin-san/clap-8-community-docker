@@ -28,7 +28,7 @@
                         <div v-if="canViewIncidentStatus">
                             <span>ステータス</span>
                             <div v-if="canEditField('status')" class="mt-3 w-full">
-                                <select v-model="mutableParams.status" class="custom-a-input">
+                                <select v-model="mutableParams.status" class="custom-a-input max-w-[140px]">
                                     <option value="" disabled>ステータスを選択</option>
                                     <option
                                         v-for="status in incidentOptions.statuses"
