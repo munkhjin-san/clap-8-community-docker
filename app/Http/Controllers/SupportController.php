@@ -229,6 +229,7 @@ class SupportController extends Controller
         $category = $validated['category'] ?? 'all';
         $keyword = trim($validated['keyword'] ?? '');
         $perPage = $validated['per_page'] ?? 10;
+        $activeUserId = $this->active_user()->id;
 
         $records = SystemUpdateRecord::with(['details.files', 'user'])
             ->when(!$this->isSupportAdmin(), function ($query) {
@@ -248,9 +249,9 @@ class SupportController extends Controller
                         });
                 });
             })
-            ->withExists('systemUpdateChecks as checked_by_user', function ($query) {
-                $query->where('user_id', $this->active_user()->id);
-            })
+            ->withExists([
+                'systemUpdateChecks as checked_by_user' => fn ($checkQuery) => $checkQuery->where('user_id', $activeUserId)
+            ])
             ->orderByRaw('COALESCE(published_at, scheduled_start_at, created_at) DESC')
             ->orderBy('id', 'desc')
             ->paginate($perPage)
