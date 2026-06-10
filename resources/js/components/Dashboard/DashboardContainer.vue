@@ -239,7 +239,7 @@ const canSeeIncidentCard = computed(() => {
         || auth.isBoss
         || auth.isAdmin
         || collection.incidents.attention.length > 0
-        || collection.incidents.emergency_contacts.length > 0
+        || (collection.incidents.emergency_contacts && collection.incidents.emergency_contacts.length > 0)
 })
 const permissionAllowedDashboardCards = computed(() => dashboardCards.value.filter((card) => {
     if (card.type === 'incidents' && !canSeeIncidentCard.value) {
