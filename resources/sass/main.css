@@ -291,7 +291,24 @@ select {
   text-transform: none;
   /* Firefox 40+, Internet Explorer 11- */
 }
+select{
+    -webkit-appearance: menulist;
+    appearance: menulist;
+    border-radius: 0;
+    background: inherit;
+    color: var(--primary-color);
+    /* Remove the default styling in Chrome and Safari */
+}
 
+select:hover,
+select:focus,
+select:focus-visible,
+select:active {
+  color: var(--primary-color);
+  -webkit-text-fill-color: var(--primary-color);
+  outline: none;
+  box-shadow: none;
+}
 /* Apply cursor pointer to button elements */
 button,
 [type="button"],
@@ -6794,6 +6811,9 @@ button.shift-button {
     font-weight: bold;
 }
 @media screen and (max-width: 959px) {
+    select{
+        font-size: 12px;
+    }
     .commentRoot {
         padding: 15px;
     }
