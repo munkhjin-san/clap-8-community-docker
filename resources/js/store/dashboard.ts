@@ -145,9 +145,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         collection.value.personnelEvaluation.pendingEvaluations.length + 
         collection.value.notices.length + collection.value.projects.assign_approval_waiting.length + 
         collection.value.projects.officer_approval_waiting.length +
-        incidentBadgeCount.value + collection.value.systemUpdates.length +
-        collection.value.systemUpdates.length
-
+        incidentBadgeCount.value + collection.value.systemUpdates.length 
         return total
     })
     const goalsStore = useDashboardGoalsStore()
