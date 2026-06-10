@@ -309,7 +309,7 @@ class FinanceToolController extends Controller
                     'totals.yearly_plan'                       => '指定プロジェクトの年間計画。',
                     'months.{latest_actual_period}.settlement' => '指定プロジェクトの最新実績反映月の単月Google Sheets実績。',
                     'totals.settlement'                        => '指定プロジェクトの実績累計。',
-                    'totals.forecast'                          => '指定プロジェクトの着地見込み。実績反映済み月にGoogle Sheets実績がない場合と完了後月は、Kintone損益や年間計画で補完しない。',
+                    'totals.forecast'                          => '指定プロジェクトの着地見込み。get_total_financeと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使う。完了後月は補完しない。',
                     'variance_vs_plan'                         => '指定プロジェクトの着地見込みと年間計画の差分。',
                 ],
                 'project'         => $this->financeSnapshots->compactProject($projectRow, true),
@@ -506,6 +506,8 @@ class FinanceToolController extends Controller
                     'period'              => $period,
                     'is_actual'           => ! empty($actualUnit['has_data']),
                     'is_forecast_month'   => ! empty($forecastUnit['is_forecast']),
+                    'forecast_source'     => $forecastUnit['source'] ?? null,
+                    'forecast_sources'    => $forecastUnit['source_counts'] ?? [],
                     'monthly' => [
                         'plan_profit'     => (int) ($planUnit['profit'] ?? 0),
                         'actual_profit'   => ! empty($actualUnit['has_data']) ? (int) ($actualUnit['profit'] ?? 0) : null,

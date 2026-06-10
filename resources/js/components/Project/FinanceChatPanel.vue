@@ -45,7 +45,7 @@
                                 <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
                             </svg>
                         </div>
-                        <p class="mcp-empty-h">何でも聞いてください</p>
+                        <p class="mcp-empty-h">財務データについて聞いてください</p>
                         <p class="mcp-empty-p">今期の着地、プロジェクト別リスク、<br>PM別、前年比、売上集中度など</p>
                         <div class="mcp-starters">
                             <div class="mcp-starter" @click="sendMessage('今期の財務状況と着地見込みを教えて')">今期の着地見込み</div>
