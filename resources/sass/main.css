@@ -292,22 +292,14 @@ select {
   /* Firefox 40+, Internet Explorer 11- */
 }
 select{
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-
-    padding-right: 2rem;
-
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Cpath fill='%23007bff' d='M5 7l5 5 5-5'/%3E%3C/svg%3E");
-
-    background-repeat: no-repeat;
-    background-position: right 0.7rem center;
-    background-size: 14px;
+    -webkit-appearance: menulist;
+    appearance: menulist;
     border-radius: 0;
     background: inherit;
     color: var(--primary-color);
     /* Remove the default styling in Chrome and Safari */
 }
+
 
 select:hover,
 select:focus,
