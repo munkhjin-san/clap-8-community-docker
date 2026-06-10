@@ -227,7 +227,7 @@ class FinanceSnapshotService
                     'project_names' => ['間接費部門', '積立部門', '経営管理本部'],
                     'special_period' => ['start' => '2025-03', 'end' => '2026-02'],
                 ],
-                'forecast_rule' => '着地見込みは、実績反映済み月はGoogle Sheets実績のみを使います。実績がない反映済み月と完了済みプロジェクトの完了後月は、Kintone損益や年間計画で補完しません。未反映の将来月だけKintone損益を予測値として使います。',
+                'forecast_rule' => '着地見込みはget_total_financeと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使います。完了済みプロジェクトの完了後月は補完しません。',
             ],
         ];
     }
@@ -248,7 +248,7 @@ class FinanceSnapshotService
                 'yearly_plan_totals' => '年間計画。財務年度全体の計画合計。',
                 'latest_actual_month_totals' => '最新実績反映月の単月Google Sheets実績。最新実績（YYYY-MM）と書く場合はこの値だけを使う。',
                 'actual_to_date_totals' => '財務年度開始から最新実績反映月までのGoogle Sheets実績累計。',
-                'forecast_totals' => '着地見込み。実績反映済み月はGoogle Sheets実績のみ、未反映の将来月はKintone損益を使用。実績がない反映済み月と完了後月はKintone損益や年間計画で補完しない。',
+                'forecast_totals' => '着地見込み。get_total_financeと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使う。完了後月は補完しない。',
                 'forecast_vs_yearly_plan' => '着地見込みと年間計画の差分。',
             ],
             'yearly_plan_totals' => $snapshot['totals']['yearly_plan'],
@@ -362,7 +362,7 @@ class FinanceSnapshotService
                 'yearly_plan' => '年間計画',
                 'profit' => 'Kintone損益',
                 'actual' => 'Google Sheets実績',
-                'forecast' => '実績反映済み月はGoogle Sheets実績のみ。未反映の将来月だけKintone損益を予測値として使用し、実績欠損済み月や完了後月は補完しない。',
+                'forecast' => 'get_total_financeと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使用する。完了後月は補完しない。',
             ],
             'summary' => [
                 'project_count' => $snapshot['project_count'],
@@ -867,12 +867,12 @@ class FinanceSnapshotService
             return array_merge($this->emptyUnit(false), ['source' => 'project_completed', 'is_forecast' => false]);
         }
 
-        if ($period->lessThanOrEqualTo($latestClosed)) {
-            return array_merge($this->emptyUnit(false), ['source' => 'missing_released_actual', 'is_forecast' => false]);
-        }
-
         if (! empty($profit['has_data'])) {
             return array_merge($profit, ['source' => 'profit_forecast', 'is_forecast' => true]);
+        }
+
+        if ($period->lessThanOrEqualTo($latestClosed)) {
+            return array_merge($this->emptyUnit(false), ['source' => 'missing_released_actual', 'is_forecast' => false]);
         }
 
         return array_merge($this->emptyUnit(false), ['source' => 'missing_actual_and_profit', 'is_forecast' => true]);
@@ -913,6 +913,7 @@ class FinanceSnapshotService
 
     private function addUnit(array $left, array $right): array
     {
+        $sourceCounts = $this->mergeSourceCounts($left, $right);
         $unit = [
             'sales'      => ($left['sales']   ?? 0) + ($right['sales']   ?? 0),
             'expense'    => ($left['expense'] ?? 0) + ($right['expense'] ?? 0),
@@ -920,10 +921,31 @@ class FinanceSnapshotService
             'has_data'   => ! empty($left['has_data'])   || ! empty($right['has_data']),
             'is_forecast'=> ! empty($left['is_forecast'])|| ! empty($right['is_forecast']),
         ];
+        if ($sourceCounts !== []) {
+            $unit['source_counts'] = $sourceCounts;
+            $unit['source'] = count($sourceCounts) === 1 ? array_key_first($sourceCounts) : 'mixed';
+        }
 
         // Keep raw sums during aggregation. ProjectTotalFinance totals round at the end,
         // so rounding each project/month here creates small yen-level drift.
         return $this->finalizeUnit($unit, keepProfit: true, roundValues: false);
+    }
+
+    private function mergeSourceCounts(array ...$units): array
+    {
+        $counts = [];
+        foreach ($units as $unit) {
+            foreach (($unit['source_counts'] ?? []) as $source => $count) {
+                $counts[$source] = ($counts[$source] ?? 0) + (int) $count;
+            }
+
+            $source = $unit['source'] ?? null;
+            if (is_string($source) && $source !== '' && $source !== 'mixed' && empty($unit['source_counts'])) {
+                $counts[$source] = ($counts[$source] ?? 0) + 1;
+            }
+        }
+
+        return array_filter($counts, fn (int $count) => $count > 0);
     }
 
     private function finalizeUnit(array $unit, bool $keepProfit = false, bool $roundValues = true): array
