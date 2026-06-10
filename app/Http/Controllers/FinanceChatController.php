@@ -446,33 +446,18 @@ TXT;
             }
         }
 
-        if (
-            $role !== 'member'
-            && ! empty($tools)
-            && $forcedFirstTool === 'get_fiscal_year_finance_summary'
-            && $this->isFiscalSummaryQuestion($latestUserContent)
-        ) {
-            $result = $this->dispatchTool(
-                'get_fiscal_year_finance_summary',
-                $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod),
+        $forcedReply = $role !== 'member'
+            ? $this->directForcedFinanceToolReply(
+                $forcedFirstTool,
+                $tools,
+                $latestUserContent,
+                $financeFiscalYear,
+                $latestActualPeriod,
                 $financeMcp
-            );
-
-            return response()->json([
-                'reply' => $this->formatFiscalSummaryReply($result),
-            ]);
-        }
-
-        if ($role !== 'member' && ! empty($tools) && $forcedFirstTool === 'get_monthly_trend') {
-            $result = $this->dispatchTool(
-                'get_monthly_trend',
-                $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod),
-                $financeMcp
-            );
-
-            return response()->json([
-                'reply' => $this->formatMonthlyTrendReply($result),
-            ]);
+            )
+            : null;
+        if ($role !== 'member' && $forcedReply !== null) {
+            return response()->json(['reply' => $forcedReply]);
         }
 
         // Agentic loop — cap at 5 iterations
@@ -503,29 +488,23 @@ TXT;
 
             if ($choice->finishReason === 'stop') {
                 $content = trim((string) ($choice->message->content ?? ''));
-                if (! empty($tools) && $this->isUnacceptableFinanceStopResponse($content)) {
-                    if ($role !== 'member' && $this->isFiscalSummaryQuestion($latestUserContent)) {
-                        $result = $this->dispatchTool(
-                            'get_fiscal_year_finance_summary',
-                            $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod),
-                            $financeMcp
-                        );
-
+                if ($this->isUnacceptableFinanceStopResponse($content)) {
+                    if ($role === 'member') {
                         return response()->json([
-                            'reply' => $this->formatFiscalSummaryReply($result),
+                            'reply' => 'このチャットでは財務データへのアクセス権がありません。',
                         ]);
                     }
 
-                    if ($role !== 'member' && $this->isMonthlyTrendQuestion($latestUserContent)) {
-                        $result = $this->dispatchTool(
-                            'get_monthly_trend',
-                            $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod),
-                            $financeMcp
-                        );
-
-                        return response()->json([
-                            'reply' => $this->formatMonthlyTrendReply($result),
-                        ]);
+                    $fallbackReply = $this->directForcedFinanceToolReply(
+                        $forcedFirstTool,
+                        $tools,
+                        $latestUserContent,
+                        $financeFiscalYear,
+                        $latestActualPeriod,
+                        $financeMcp
+                    );
+                    if ($role !== 'member' && $fallbackReply !== null) {
+                        return response()->json(['reply' => $fallbackReply]);
                     }
 
                     if ($i >= 4) {
@@ -629,7 +608,7 @@ TXT;
 
         $plain = trim(strip_tags($content));
         $hasPlaceholder = preg_match(
-            '/XXX|ＸＸＸ|○|〇|◯|±X|±Ｘ|X%|Ｘ%|X億|Ｘ億|X千万円|Ｘ千万円|x{2,}/iu',
+            '/XXX|ＸＸＸ|○|〇|◯|△|▲|×|✕|✖|±X|±Ｘ|X%|Ｘ%|X億|Ｘ億|X千万円|Ｘ千万円|x{2,}/iu',
             $plain
         ) === 1;
         $hasFinanceTemplate = preg_match('/年間計画|実績累計|着地見込み|計画.*乖離|計画との差分/u', $plain) === 1;
@@ -642,11 +621,51 @@ TXT;
         }
 
         $looksLikeDeferral = preg_match(
-            '/必要であれば|必要でしたら|詳細をお求め|その旨をお知らせ|取得しますので|具体的な.*情報を取得|データアクセス範囲に.*ない|具体的な金額.*示すことができません/u',
+            '/必要であれば|必要でしたら|詳細をお求め|その旨をお知らせ|取得しますので|具体的な.*情報を取得|アクセス制限|財務データが未取得|データが未取得|詳細表示できません|管理部門にご確認|リアルタイムの財務システム|データアクセス範囲に.*ない|具体的な金額.*示すことができません/u',
             $plain
         ) === 1;
 
         return $looksLikeDeferral;
+    }
+
+    private function directForcedFinanceToolReply(
+        ?string $tool,
+        array $tools,
+        string $latestUserContent,
+        int $financeFiscalYear,
+        string $latestActualPeriod,
+        FinanceToolController $financeMcp
+    ): ?string {
+        if ($tool === null || ! in_array($tool, $this->toolNamesFromDefinitions($tools), true)) {
+            return null;
+        }
+
+        return match ($tool) {
+            'get_fiscal_year_finance_summary' => $this->formatFiscalSummaryReply(
+                $this->dispatchTool($tool, $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
+            ),
+            'get_monthly_trend' => $this->formatMonthlyTrendReply(
+                $this->dispatchTool($tool, $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
+            ),
+            'get_finance_forecast_ranking' => $this->formatForecastRankingReply(
+                $this->dispatchTool($tool, $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
+            ),
+            'get_project_health_matrix' => $this->formatHealthMatrixReply(
+                $this->dispatchTool($tool, $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
+            ),
+            'get_pm_finance_ranking' => $this->formatPmRankingReply(
+                $this->dispatchTool($tool, $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
+            ),
+            default => null,
+        };
+    }
+
+    private function toolNamesFromDefinitions(array $tools): array
+    {
+        return array_values(array_filter(array_map(
+            fn (array $tool) => (string) ($tool['function']['name'] ?? ''),
+            $tools
+        )));
     }
 
     private function latestUserContent(array $history): string
@@ -685,6 +704,10 @@ TXT;
             return $this->forcedFirstFinanceTool($this->previousUserContent($history), []);
         }
 
+        if ($this->isHealthMatrixQuestion($latestUserContent)) {
+            return 'get_project_health_matrix';
+        }
+
         if ($this->isPmFinanceQuestion($latestUserContent)) {
             return $this->isPmRankingQuestion($latestUserContent)
                 ? 'get_pm_finance_ranking'
@@ -705,10 +728,6 @@ TXT;
 
         if ($this->isMonthlyTrendQuestion($latestUserContent)) {
             return 'get_monthly_trend';
-        }
-
-        if ($this->isHealthMatrixQuestion($latestUserContent)) {
-            return 'get_project_health_matrix';
         }
 
         if ($this->isRevenueConcentrationQuestion($latestUserContent)) {
@@ -739,7 +758,7 @@ TXT;
     private function isFiscalSummaryQuestion(string $content): bool
     {
         $hasFiscalScope = preg_match('/今期|今年度|FY\d{4}|財務年度|着地/u', $content) === 1;
-        $asksFinance = preg_match('/財務状況|着地|見込み|売上|利益|販管費|経営状況|どう/u', $content) === 1;
+        $asksFinance = preg_match('/財務|財務状況|サマリー|概況|状況|着地|見込み|売上|利益|販管費|経営状況|どう/u', $content) === 1;
 
         return $hasFiscalScope && $asksFinance;
     }
@@ -772,7 +791,7 @@ TXT;
 
     private function isPmFinanceQuestion(string $content): bool
     {
-        return preg_match('/PM別|PMごと|PMの|PMが|PM名|担当PM/u', $content) === 1;
+        return preg_match('/PM別|PMごと|担当PM|(^|[^一-龠ぁ-んァ-ンA-Za-z0-9])PMの/u', $content) === 1;
     }
 
     private function isPmRankingQuestion(string $content): bool
@@ -1047,6 +1066,139 @@ TXT;
         return implode("\n", $lines);
     }
 
+    private function formatForecastRankingReply(array $result): string
+    {
+        if (isset($result['error'])) {
+            return '取得できませんでした: ' . $result['error'];
+        }
+
+        $fiscalYear = (int) ($result['fiscal_year'] ?? 0);
+        $latestActualPeriod = (string) ($result['latest_actual_period'] ?? '');
+        $projects = array_values(array_filter(
+            $result['projects'] ?? [],
+            fn ($project) => is_array($project) && (int) ($project['variance_vs_plan']['profit_amount'] ?? 0) < 0
+        ));
+
+        if ($projects === []) {
+            return "FY{$fiscalYear}では、利益着地見込みが年間計画を下回るプロジェクトはありません。（最新実績反映月: {$latestActualPeriod}）";
+        }
+
+        $lines = [
+            "FY{$fiscalYear} 利益着地見込みが年間計画を下回るプロジェクト（最新実績反映月: {$latestActualPeriod}）",
+            '',
+        ];
+
+        foreach (array_slice($projects, 0, 10) as $index => $project) {
+            $forecast = $project['totals']['forecast'] ?? [];
+            $plan = $project['totals']['yearly_plan'] ?? [];
+            $variance = $project['variance_vs_plan'] ?? [];
+            $gap = (int) ($variance['profit_amount'] ?? 0);
+            $gapPct = $variance['profit_pct'] ?? null;
+            $pctLabel = is_numeric($gapPct) ? '、計画比 ' . $this->formatSignedPercent((float) $gapPct) : '';
+
+            $lines[] = sprintf(
+                '%d. %s: 着地利益 %s、年間計画利益 %s、差分 %s%s',
+                $index + 1,
+                (string) ($project['project_name'] ?? '名称未設定'),
+                $this->formatYen((int) ($forecast['profit'] ?? 0)),
+                $this->formatYen((int) ($plan['profit'] ?? 0)),
+                $this->formatSignedYen($gap),
+                $pctLabel
+            );
+        }
+
+        $totalGap = $result['forecast_vs_yearly_plan']['profit_amount'] ?? null;
+        if (is_numeric($totalGap)) {
+            $lines[] = '';
+            $lines[] = '全体の利益差分は ' . $this->formatSignedYen((int) $totalGap) . ' です。';
+        }
+
+        return implode("\n", $lines);
+    }
+
+    private function formatHealthMatrixReply(array $result): string
+    {
+        if (isset($result['error'])) {
+            return '取得できませんでした: ' . $result['error'];
+        }
+
+        $fiscalYear = (int) ($result['fiscal_year'] ?? 0);
+        $latestActualPeriod = (string) ($result['latest_actual_period'] ?? '');
+        $summary = $result['summary'] ?? [];
+        $projects = array_values(array_filter($result['projects'] ?? [], fn ($project) => is_array($project)));
+
+        $lines = [
+            "FY{$fiscalYear} プロジェクト健全度（最新実績反映月: {$latestActualPeriod}）",
+            sprintf(
+                '🔴 %d件、🟡 %d件、🟢 %d件、合計 %d件',
+                (int) ($summary['red_count'] ?? 0),
+                (int) ($summary['yellow_count'] ?? 0),
+                (int) ($summary['green_count'] ?? 0),
+                (int) ($summary['total'] ?? count($projects))
+            ),
+            '',
+        ];
+
+        foreach (array_slice($projects, 0, 10) as $project) {
+            $gapPct = $project['gap_pct'] ?? null;
+            $pctLabel = is_numeric($gapPct) ? '、計画比 ' . $this->formatSignedPercent((float) $gapPct) : '';
+            $pmName = $this->formatPmName($project['pm'] ?? null);
+
+            $lines[] = sprintf(
+                '%s %s（PM: %s）: 利益差分 %s%s、着地利益 %s、年間計画利益 %s、信頼度 %s',
+                (string) ($project['label'] ?? ''),
+                (string) ($project['project_name'] ?? '名称未設定'),
+                $pmName,
+                $this->formatSignedYen((int) ($project['gap_amount'] ?? 0)),
+                $pctLabel,
+                $this->formatYen((int) ($project['forecast_profit'] ?? 0)),
+                $this->formatYen((int) ($project['plan_profit'] ?? 0)),
+                (string) ($project['forecast_confidence'] ?? 'unknown')
+            );
+        }
+
+        return implode("\n", $lines);
+    }
+
+    private function formatPmRankingReply(array $result): string
+    {
+        if (isset($result['error'])) {
+            return '取得できませんでした: ' . $result['error'];
+        }
+
+        $fiscalYear = (int) ($result['fiscal_year'] ?? 0);
+        $latestActualPeriod = (string) ($result['latest_actual_period'] ?? '');
+        $pms = array_values(array_filter($result['pms'] ?? [], fn ($pm) => is_array($pm)));
+
+        if ($pms === []) {
+            return "FY{$fiscalYear}のPM別財務ランキング対象はありません。（最新実績反映月: {$latestActualPeriod}）";
+        }
+
+        $lines = [
+            "FY{$fiscalYear} PM別 着地見込みと計画差分ランキング（最新実績反映月: {$latestActualPeriod}）",
+            '',
+        ];
+
+        foreach (array_slice($pms, 0, 10) as $index => $row) {
+            $variance = $row['variance_vs_plan'] ?? [];
+            $totals = $row['totals'] ?? [];
+            $forecast = $totals['forecast'] ?? [];
+            $plan = $totals['yearly_plan'] ?? [];
+
+            $lines[] = sprintf(
+                '%d. %s: 担当%d件、着地利益 %s、年間計画利益 %s、利益差分 %s',
+                $index + 1,
+                $this->formatPmName($row['pm'] ?? null),
+                (int) ($row['project_count'] ?? 0),
+                $this->formatYen((int) ($forecast['profit'] ?? 0)),
+                $this->formatYen((int) ($plan['profit'] ?? 0)),
+                $this->formatSignedYen((int) ($variance['profit_amount'] ?? 0))
+            );
+        }
+
+        return implode("\n", $lines);
+    }
+
     private function formatMonthlyTrendReply(array $result): string
     {
         if (isset($result['error'])) {
@@ -1162,6 +1314,16 @@ TXT;
         return ($rounded > 0 ? '+' : '-') . $this->formatYen(abs($rounded));
     }
 
+    private function formatSignedPercent(int|float $value): string
+    {
+        $rounded = round((float) $value, 1);
+        if ($rounded == 0.0) {
+            return '±0%';
+        }
+
+        return ($rounded > 0 ? '+' : '') . number_format($rounded, 1) . '%';
+    }
+
     private function formatYen(int|float $amount): string
     {
         $rounded = (int) round($amount);
@@ -1177,6 +1339,19 @@ TXT;
         }
 
         return $sign . number_format($abs) . '円';
+    }
+
+    private function formatPmName(mixed $pm): string
+    {
+        if (is_array($pm)) {
+            return (string) ($pm['name'] ?? $pm['user_code'] ?? 'PM未設定');
+        }
+
+        if (is_string($pm) && $pm !== '') {
+            return $pm;
+        }
+
+        return 'PM未設定';
     }
 
     // =========================================================================
