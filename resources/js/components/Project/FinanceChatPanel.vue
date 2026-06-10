@@ -190,9 +190,10 @@ async function sendMessage(text: string) {
 
     try {
         const res = await axios.post('/mcp/chat', {
-            messages: history.value,
+            messages: compactHistory(history.value),
         })
-        const reply: string = res.data.reply ?? 'エラーが発生しました。'
+        const reply = normalizeReply(res.data.reply)
+        history.value = compactHistory(history.value)
         history.value.push({ role: 'assistant', content: reply })
         pushDisplay('assistant', mdToHtml(reply))
     } catch (e: any) {
@@ -213,6 +214,20 @@ async function handleSubmit() {
 function clearChat() {
     messages.value = []
     history.value  = []
+}
+
+function compactHistory(items: HistoryMsg[]): HistoryMsg[] {
+    return items
+        .map(item => ({
+            role: item.role,
+            content: String(item.content ?? '').trim(),
+        }))
+        .filter(item => item.content.length > 0)
+}
+
+function normalizeReply(value: unknown): string {
+    const reply = String(value ?? '').trim()
+    return reply || '回答を生成できませんでした。もう一度お試しください。'
 }
 
 function pushDisplay(role: DisplayMsg['role'], html: string) {

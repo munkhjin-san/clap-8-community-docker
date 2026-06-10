@@ -11,12 +11,11 @@ use App\Services\FinanceSnapshotService;
 use App\Services\VarianceService;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Finance MCP — tools for 実績 vs 計画 variance and finance comment posting.
+ * Finance MCP — tools for 実績 vs 計画 variance and finance analysis.
  *
  * Tools:
  *  - get_variance_summary     : Rank all projects by plan vs actual gap for a given month
@@ -24,7 +23,6 @@ use Illuminate\Support\Str;
  *  - get_fiscal_year_finance_summary : Full fiscal-year result/forecast vs plan
  *  - get_project_fiscal_year_pl      : Fiscal-year monthly P&L for one project
  *  - get_finance_forecast_ranking    : Projects with worst forecast profit gap
- *  - send_finance_comment     : Post a comment to the finance CommentWindow for a project/period
  */
 class FinanceToolController extends Controller
 {
@@ -48,7 +46,6 @@ class FinanceToolController extends Controller
             'get_project_variance_explanation' => $this->toolGetProjectVarianceExplanation($args),
             'get_finance_forecast_ranking'    => $this->toolGetFinanceForecastRanking($args),
             'get_finance_data_quality'        => $this->toolGetFinanceDataQuality($args),
-            'send_finance_comment'            => $this->toolSendFinanceComment($args),
             // New tools
             'get_monthly_trend'               => $this->toolGetMonthlyTrend($args),
             'get_project_health_matrix'       => $this->toolGetProjectHealthMatrix($args),
@@ -467,58 +464,6 @@ class FinanceToolController extends Controller
         } catch (\Throwable $e) {
             return ['error' => '財務データ品質チェックに失敗しました: ' . $e->getMessage()];
         }
-    }
-
-    // =========================================================================
-    // TOOL: send_finance_comment
-    // =========================================================================
-
-    public function toolSendFinanceComment(array $args): array
-    {
-        $projectName = $args['project_name'] ?? null;
-        $projectId   = isset($args['project_id']) ? (int) $args['project_id'] : null;
-        $period      = $args['period'] ?? null; // e.g. "2026-03"
-        $message     = $args['message'] ?? null;
-
-        if (!$message) {
-            return ['error' => 'message は必須です。'];
-        }
-        if (!$period || !preg_match('/^\d{4}-\d{2}$/', $period)) {
-            return ['error' => 'period は YYYY-MM 形式で指定してください。'];
-        }
-
-        // Resolve project
-        if ($projectId) {
-            $project = ProjectRecord::find($projectId);
-        } elseif ($projectName) {
-            $project = $this->findProjectByName((string) $projectName);
-        } else {
-            return ['error' => 'project_id または project_name を指定してください。'];
-        }
-
-        if (!$project) {
-            return ['error' => 'プロジェクトが見つかりません。'];
-        }
-
-        $user = Auth::user();
-
-        DB::transaction(function () use (&$comment, $project, $user, $message, $period) {
-            $comment = ProjectFinanceComment::create([
-                'project_record_id' => $project->id,
-                'user_id'           => $user->id,
-                'comment'           => $message,
-                'type'              => '実績',
-                'period'            => $period,
-            ]);
-        });
-
-        return [
-            'success'      => true,
-            'comment_id'   => $comment->id,
-            'project_name' => $project->name,
-            'period'       => $period,
-            'message'      => $message,
-        ];
     }
 
     // =========================================================================

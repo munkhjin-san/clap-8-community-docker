@@ -151,23 +151,6 @@ class FinanceChatController extends Controller
                     ],
                 ],
             ],
-            [
-                'type'     => 'function',
-                'function' => [
-                    'name'        => 'send_finance_comment',
-                    'description' => '指定プロジェクト・指定月の損益コメント欄にメッセージを投稿します。「田中PMに実績の乖離について説明を求めるコメントを送って」などに使用します。ユーザーが明示的に送信を依頼した場合のみ呼び出してください。',
-                    'parameters'  => [
-                        'type'       => 'object',
-                        'properties' => [
-                            'project_name' => ['type' => 'string'],
-                            'project_id'   => ['type' => 'integer'],
-                            'period'       => ['type' => 'string', 'description' => '対象月 YYYY-MM 形式（例: 2026-03）'],
-                            'message'      => ['type' => 'string', 'description' => '投稿するコメント本文'],
-                        ],
-                        'required' => ['period', 'message'],
-                    ],
-                ],
-            ],
             // ---- New tools ----
             [
                 'type'     => 'function',
@@ -274,6 +257,14 @@ class FinanceChatController extends Controller
         ];
     }
 
+    private static function toolNames(): array
+    {
+        return array_map(
+            fn (array $tool) => (string) $tool['function']['name'],
+            self::tools()
+        );
+    }
+
     // =========================================================================
     // Role-based tool filtering
     // =========================================================================
@@ -283,7 +274,24 @@ class FinanceChatController extends Controller
      */
     private static function toolsForRole(string $role): array
     {
-        return $role === 'member' ? [] : self::tools();
+        if ($role === 'member') {
+            return [];
+        }
+
+        $tools = self::tools();
+        if ($role !== 'manager') {
+            return $tools;
+        }
+
+        $managerHiddenTools = [
+            'compare_fiscal_years',
+            'get_revenue_concentration',
+        ];
+
+        return array_values(array_filter(
+            $tools,
+            fn (array $tool) => ! in_array((string) $tool['function']['name'], $managerHiddenTools, true)
+        ));
     }
 
     // =========================================================================
@@ -312,7 +320,7 @@ class FinanceChatController extends Controller
         };
 
         $toolGuide = match ($role) {
-            'director', 'admin' => "利用可能なデータ: 年間計画、Kintone損益、Google Sheets実績、着地見込み、財務データ品質、差異理由コメント、損益コメント送信、月次トレンド、健全度マトリクス、売上集中リスク、年度比較、PM別財務",
+            'director', 'admin' => "利用可能なデータ: 年間計画、Kintone損益、Google Sheets実績、着地見込み、財務データ品質、差異理由コメント、月次トレンド、健全度マトリクス、売上集中リスク、年度比較、PM別財務",
             'manager'           => "利用可能なデータ: 年間計画、Kintone損益、Google Sheets実績、着地見込み、財務データ品質、差異理由コメント、月次トレンド、健全度マトリクス、PM別財務",
             default             => "利用可能なデータ: なし",
         };
@@ -331,6 +339,7 @@ class FinanceChatController extends Controller
 回答のルール:
 - 必ず日本語で回答する
 - 「少々お待ちください」「確認します」「調べます」などの待機文だけで回答を終えてはいけない。必要な場合はこの場でツールを呼び出してから最終回答する
+- 「必要であれば取得します」「詳細をお求めなら」「その旨をお知らせください」のように、財務データ取得をユーザーに再依頼してはいけない。必要な財務データはこの場でツールから取得する
 - 数値は具体的に引用し、視点を添えて説明する（例: 「利益が計画比-15%、2,300万円下回り。年間目標の23%分のラグ」）
 - 財務以外（目標、勤怠、承認、雑談）の質問には、このチャットは財務専用だと短く伝える
 - 財務の「今期」「年度」「着地」「経営状況」は、月次ではなく財務年度（3月-翌2月）の年間計画・Google Sheets実績・着地見込みで回答する
@@ -338,6 +347,7 @@ class FinanceChatController extends Controller
 - 着地見込みは、実績反映済み月はGoogle Sheets実績のみ、未反映の将来月はKintone損益を足して計算する。年間計画は比較対象であり、実績欠損月の予測値としては使わない
 - ただし、実績反映済み月にGoogle Sheets実績がない場合は、Kintone損益や年間計画を実績として扱わない。完了済みプロジェクトの完了後月も予測補完しない
 - 年度財務サマリーでは、年間計画=yearly_plan_totals、最新実績（単月）=latest_actual_month_totals、実績累計=actual_to_date_totals、着地見込み=forecast_totals、計画乖離=forecast_vs_yearly_plan を使う
+- 年度財務サマリーを回答する場合、売上・販管費・利益の年間計画、実績累計、着地見込み、計画差分を具体的な数値で示す
 - 「最新実績（YYYY-MM）」と書く場合は、財務年度合計・実績累計・着地見込みではなく latest_actual_month_totals だけを使う
 - 月次の「乖離」は単月のGoogle Sheets実績 vs Kintone損益として扱う。年度合計として説明しない
 - get_variance_summary の結果は単月データ。年度合計として説明しない
@@ -350,9 +360,10 @@ class FinanceChatController extends Controller
 - 「今期Q{$qNum}」の成績質問には、Q{$qNum}に属する3ヶ月の月次データまたは月次トレンドツールを使う
 - PM別の質問（「井上PMの案件」「PM別ランキング」など）は get_pm_finance_summary または get_pm_finance_ranking を使う。PM担当は project_members.authority=1 の関係を正とする
 - ツール結果に alert_count > 0 または🔴の案件がある場合、回答内に「❗ 要注意：[N]件のアラート案件」として先頭で明示する
+- get_finance_forecast_ranking を使った場合、projects の上位案件について project_name、forecast_totals/analysis_result または totals.forecast、variance_vs_plan の利益差分を必ず含める。案件名や数値を省略して「詳細を確認してください」と言わない
 - データの信頼性や欠損が気になる場合は get_finance_data_quality を使う
 - ツールで取得できないことは「データがありません」と正直に伝える
-- send_finance_comment はユーザーが明示的に「送って」「投稿して」と言った場合のみ呼び出す
+- このチャットからコメント投稿やデータ更新は行わない。ユーザーに通常のコメント画面を使うよう案内する
 - 回答は簡潔に（500字以内を目安）
 
 集計ルール（合計値への含め方）:
@@ -374,8 +385,22 @@ TXT;
         $validated = $request->validate([
             'messages'           => 'required|array|min:1|max:20',
             'messages.*.role'    => 'required|string|in:user,assistant',
-            'messages.*.content' => 'required|string|max:2000',
+            'messages.*.content' => 'nullable|string|max:2000',
         ]);
+        $filteredMessages = collect($validated['messages'])
+            ->map(fn (array $message) => [
+                'role' => $message['role'],
+                'content' => trim((string) ($message['content'] ?? '')),
+            ])
+            ->filter(fn (array $message) => $message['content'] !== '')
+            ->values()
+            ->all();
+        if ($filteredMessages === []) {
+            return response()->json(['message' => 'メッセージを入力してください。'], 422);
+        }
+        if (($filteredMessages[array_key_last($filteredMessages)]['role'] ?? null) !== 'user') {
+            return response()->json(['message' => 'ユーザーの最新メッセージを入力してください。'], 422);
+        }
 
         $user  = Auth::user();
         $role  = self::resolveRole($user);
@@ -388,13 +413,14 @@ TXT;
 
         $systemPrompt = self::systemPrompt($user, $role, $financeFiscalYear, $latestActualPeriod);
 
-        $history  = array_slice($validated['messages'], -10);
+        $history  = array_slice($filteredMessages, -10);
         $messages = array_merge(
             [['role' => 'system', 'content' => $systemPrompt]],
             $history
         );
         $latestUserContent = $this->latestUserContent($history);
         $forceVarianceExplanationTool = $this->isProjectVarianceReasonQuestion($latestUserContent);
+        $forcedFirstTool = $this->forcedFirstFinanceTool($latestUserContent, $history);
 
         $client = OpenAI::client($apiKey);
         $model  = config('services.openai.chat_model', 'gpt-4.1-mini');
@@ -429,27 +455,35 @@ TXT;
             ];
             if (! empty($tools)) {
                 $payload['tools'] = $tools;
-                $payload['tool_choice'] = ($i === 0 && $forceVarianceExplanationTool)
-                    ? ['type' => 'function', 'function' => ['name' => 'get_project_variance_explanation']]
+                $payload['tool_choice'] = ($i === 0 && $forcedFirstTool)
+                    ? ['type' => 'function', 'function' => ['name' => $forcedFirstTool]]
                     : 'auto';
             }
 
-            $response = $client->chat()->create($payload);
+            try {
+                $response = $client->chat()->create($payload);
+            } catch (\Throwable $e) {
+                report($e);
+
+                return response()->json([
+                    'message' => 'OpenAI応答の取得に失敗しました。もう一度お試しください。',
+                ], 502);
+            }
 
             $choice = $response->choices[0];
 
             if ($choice->finishReason === 'stop') {
                 $content = trim((string) ($choice->message->content ?? ''));
-                if (! empty($tools) && $this->isWaitingOnlyResponse($content)) {
+                if (! empty($tools) && $this->isUnacceptableFinanceStopResponse($content)) {
                     if ($i >= 4) {
                         return response()->json([
-                            'reply' => '財務データ取得のためのツール呼び出しが発生しませんでした。プロジェクト名と対象月を指定してもう一度質問してください。',
+                            'reply' => '財務データを使った回答を生成できませんでした。質問内容を少し具体化してもう一度お試しください。',
                         ]);
                     }
 
                     $messages[] = [
                         'role' => 'user',
-                        'content' => '内部指示: 待機文だけで終了せず、必要な財務ツールを今すぐ呼び出して回答してください。複数月の差異理由は対象月ごとに get_project_variance_explanation を呼び出してください。',
+                        'content' => '内部指示: 待機文や「必要なら取得します」で終了しないでください。必要な財務ツールを今すぐ呼び出すか、直前のツール結果から案件名・金額・差分を具体的に引用して最終回答してください。',
                     ];
                     continue;
                 }
@@ -475,7 +509,15 @@ TXT;
 
                 foreach ($choice->message->toolCalls ?? [] as $toolCall) {
                     $name = $toolCall->function->name;
-                    $args = json_decode($toolCall->function->arguments, true) ?? [];
+                    $args = json_decode($toolCall->function->arguments, true);
+                    if (! is_array($args) || json_last_error() !== JSON_ERROR_NONE) {
+                        $messages[] = [
+                            'role'         => 'tool',
+                            'tool_call_id' => $toolCall->id,
+                            'content'      => json_encode(['error' => 'Invalid tool arguments JSON.']),
+                        ];
+                        continue;
+                    }
 
                     if ($role === 'member') {
                         $resultJson = json_encode(['error' => 'このチャットでは財務データへのアクセス権がありません。']);
@@ -522,6 +564,25 @@ TXT;
         return $isShort && $looksLikeWaiting;
     }
 
+    private function isUnacceptableFinanceStopResponse(string $content): bool
+    {
+        if ($content === '') {
+            return true;
+        }
+
+        if ($this->isWaitingOnlyResponse($content)) {
+            return true;
+        }
+
+        $plain = trim(strip_tags($content));
+        $looksLikeDeferral = preg_match(
+            '/必要であれば|必要でしたら|詳細をお求め|その旨をお知らせ|取得しますので|具体的な.*情報を取得|データアクセス範囲に.*ない|具体的な金額.*示すことができません/u',
+            $plain
+        ) === 1;
+
+        return mb_strlen($plain) <= 700 && $looksLikeDeferral;
+    }
+
     private function latestUserContent(array $history): string
     {
         for ($i = count($history) - 1; $i >= 0; $i--) {
@@ -531,6 +592,69 @@ TXT;
         }
 
         return '';
+    }
+
+    private function previousUserContent(array $history): string
+    {
+        $seenLatest = false;
+        for ($i = count($history) - 1; $i >= 0; $i--) {
+            if (($history[$i]['role'] ?? null) !== 'user') {
+                continue;
+            }
+
+            if (! $seenLatest) {
+                $seenLatest = true;
+                continue;
+            }
+
+            return trim((string) ($history[$i]['content'] ?? ''));
+        }
+
+        return '';
+    }
+
+    private function forcedFirstFinanceTool(string $latestUserContent, array $history): ?string
+    {
+        if ($this->isProjectVarianceReasonQuestion($latestUserContent)) {
+            return 'get_project_variance_explanation';
+        }
+
+        if ($this->isMoreInfoRequest($latestUserContent)) {
+            return $this->forcedFirstFinanceTool($this->previousUserContent($history), []);
+        }
+
+        if ($this->isForecastRiskQuestion($latestUserContent)) {
+            return 'get_finance_forecast_ranking';
+        }
+
+        if ($this->isFiscalSummaryQuestion($latestUserContent)) {
+            return 'get_fiscal_year_finance_summary';
+        }
+
+        return null;
+    }
+
+    private function isMoreInfoRequest(string $content): bool
+    {
+        return preg_match('/もっと|詳細|詳しく|具体|案件名|数値|情報が必要|続きを/u', $content) === 1
+            && mb_strlen(trim($content)) <= 80;
+    }
+
+    private function isFiscalSummaryQuestion(string $content): bool
+    {
+        $hasFiscalScope = preg_match('/今期|今年度|FY\d{4}|財務年度|着地/u', $content) === 1;
+        $asksFinance = preg_match('/財務状況|着地|見込み|売上|利益|販管費|経営状況|どう/u', $content) === 1;
+
+        return $hasFiscalScope && $asksFinance;
+    }
+
+    private function isForecastRiskQuestion(string $content): bool
+    {
+        $hasRisk = preg_match('/悪く|悪化|下回|未達|危な|リスク|赤信号|アラート/u', $content) === 1;
+        $hasProfitOrPlan = preg_match('/利益|計画|年間計画|予算|着地/u', $content) === 1;
+        $asksProjects = preg_match('/プロジェクト|案件|どれ|どこ|一覧|ランキング/u', $content) === 1;
+
+        return $hasRisk && $hasProfitOrPlan && $asksProjects;
     }
 
     private function isProjectVarianceReasonQuestion(string $content): bool
@@ -716,23 +840,7 @@ TXT;
         array $args,
         FinanceToolController $finance
     ): array {
-        $financeTools   = [
-            'get_variance_summary',
-            'get_fiscal_year_finance_summary',
-            'get_project_fiscal_year_pl',
-            'get_project_variance_explanation',
-            'get_finance_forecast_ranking',
-            'get_finance_data_quality',
-            'send_finance_comment',
-            'get_monthly_trend',
-            'get_project_health_matrix',
-            'get_revenue_concentration',
-            'compare_fiscal_years',
-            'get_pm_finance_summary',
-            'get_pm_finance_ranking',
-        ];
-
-        if (in_array($name, $financeTools)) {
+        if (in_array($name, self::toolNames(), true)) {
             return $finance->executeTool($name, $args);
         }
 
