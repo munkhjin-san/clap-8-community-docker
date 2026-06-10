@@ -68,7 +68,7 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'get_fiscal_year_finance_summary',
-                    'description' => '財務年度（3月開始、翌2月終了）の年間計画・Google Sheets実績・損益・着地見込み・計画差分を返します。着地見込みはget_total_financeと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使用します。「今期の財務状況」「FY2026の着地見込み」「年度の計画対比」など取締役向けの質問で使用します。',
+                    'description' => '財務年度（3月開始、翌2月終了）の予算（yearly_plan）・計画（Kintone損益）・Google Sheets実績・実績/着地見込み（予測込み）・差分を返します。実績/着地見込みはget_total_financeの予測ONと同じく、Google Sheets実績がある月は実績を使い、該当月シートがない月はKintone損益を見込み値として使用します。「今期の財務状況」「FY2026の着地見込み」「年度の計画対比」など取締役向けの質問で使用します。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
@@ -89,7 +89,7 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'get_project_fiscal_year_pl',
-                    'description' => '指定プロジェクトの財務年度（3月-翌2月）の月別P&L、年間計画、Google Sheets実績、着地見込み、計画差分を返します。着地見込みはget_total_financeと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使用します。「この案件の年度PL」「プロジェクトの通期見込み」に使用します。',
+                    'description' => '指定プロジェクトの財務年度（3月-翌2月）の月別P&L、予算（yearly_plan）、計画（Kintone損益）、Google Sheets実績、実績/着地見込み（予測込み）、差分を返します。「この案件の年度PL」「プロジェクトの通期見込み」に使用します。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
@@ -127,7 +127,7 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'get_finance_forecast_ranking',
-                    'description' => '財務年度の着地見込みで、年間計画に対して利益が悪いプロジェクトをランキングします。着地見込みはget_total_financeと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使用します。「利益が危ない案件」「計画未達になりそうな案件」に使用します。',
+                    'description' => '財務年度の着地見込みで、予算（yearly_plan）に対して利益が悪いプロジェクトをランキングします。着地見込みはget_total_financeの予測ONと同じく、Google Sheets実績がある月は実績を使い、該当月シートがない月はKintone損益を見込み値として使用します。「利益が危ない案件」「予算未達になりそうな案件」に使用します。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
@@ -168,13 +168,18 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'get_monthly_trend',
-                    'description' => '財務年度の月次着地見込み対計画差分の推移を返します。「今期は改善しているの？」「着地見込みのトレンドを見せて」「月次で差分が大きくなったのはいつ？」に使用します。累積計画対比・月次差分変化も返します。',
+                    'description' => '財務年度の月次着地見込み対予算差分の推移を返します。「今期は改善しているの？」「着地見込みのトレンドを見せて」「月次で差分が大きくなったのはいつ？」に使用します。累積予算対比・月次差分変化も返します。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
                             'fiscal_year'  => ['type' => 'integer', 'description' => '財務年度の開始年'],
                             'project_ids'  => ['type' => 'array', 'items' => ['type' => 'integer'], 'description' => '絞り込み対象プロジェクトID。省略時は全プロジェクト合計。'],
                             'as_of_period' => ['type' => 'string', 'description' => '実績反映済基準月 YYYY-MM。省略時は自動判定。'],
+                            'comparison_base' => [
+                                'type' => 'string',
+                                'enum' => ['yearly_plan', 'profit'],
+                                'description' => '差分の比較対象。yearly_plan=予算、profit=計画（Kintone損益）。',
+                            ],
                         ],
                         'required' => [],
                     ],
@@ -215,7 +220,7 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'compare_fiscal_years',
-                    'description' => '2つの財務年度を年度比較（前期FY vs 今期FY）します。「去年と比べてどう？」「YoY成長は？」に使用します。着地見込み・年間計画・YoY差分を返します。',
+                    'description' => '2つの財務年度を年度比較（前期FY vs 今期FY）します。「去年と比べてどう？」「YoY成長は？」に使用します。着地見込み・予算・計画・YoY差分を返します。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
@@ -249,7 +254,7 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'get_pm_finance_ranking',
-                    'description' => 'PM別に担当プロジェクトの年間計画・実績累計・着地見込み・計画差分を集計してランキングします。「PM別の売上/利益ランキング」「PMごとの財務リスク」に使用します。',
+                    'description' => 'PM別に担当プロジェクトの予算・計画・実績累計・着地見込み・予算差分を集計してランキングします。「PM別の売上/利益ランキング」「PMごとの財務リスク」に使用します。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
@@ -325,15 +330,15 @@ class FinanceChatController extends Controller
         };
 
         $roleDesc = match ($role) {
-            'director' => "あなたは取締役・上位役員向けの財務AIアシスタントです。全プロジェクトの損益、実績、年間計画、着地見込み、データ品質を確認できます。",
-            'admin'    => "あなたは管理部門向けの財務AIアシスタントです。全プロジェクトの損益、実績、年間計画、着地見込み、データ品質を確認できます。",
+            'director' => "あなたは取締役・上位役員向けの財務AIアシスタントです。全プロジェクトの予算、計画、実績、着地見込み、データ品質を確認できます。",
+            'admin'    => "あなたは管理部門向けの財務AIアシスタントです。全プロジェクトの予算、計画、実績、着地見込み、データ品質を確認できます。",
             'manager'  => "あなたはマネージャー向けの財務AIアシスタントです。プロジェクト財務状況とデータ品質を確認できます。",
             default    => "あなたは社員向けのAIアシスタントです。このチャットでは財務データへのアクセス権がありません。",
         };
 
         $toolGuide = match ($role) {
-            'director', 'admin' => "利用可能なデータ: 年間計画、Kintone損益、Google Sheets実績、着地見込み、財務データ品質、差異理由コメント、月次トレンド、健全度マトリクス、売上集中リスク、年度比較、PM別財務",
-            'manager'           => "利用可能なデータ: 年間計画、Kintone損益、Google Sheets実績、着地見込み、財務データ品質、差異理由コメント、月次トレンド、健全度マトリクス、PM別財務",
+            'director', 'admin' => "利用可能なデータ: 予算（yearly_plan）、計画（Kintone損益）、Google Sheets実績、着地見込み、財務データ品質、差異理由コメント、月次トレンド、健全度マトリクス、売上集中リスク、年度比較、PM別財務",
+            'manager'           => "利用可能なデータ: 予算（yearly_plan）、計画（Kintone損益）、Google Sheets実績、着地見込み、財務データ品質、差異理由コメント、月次トレンド、健全度マトリクス、PM別財務",
             default             => "利用可能なデータ: なし",
         };
 
@@ -354,12 +359,13 @@ class FinanceChatController extends Controller
 - 「必要であれば取得します」「詳細をお求めなら」「その旨をお知らせください」のように、財務データ取得をユーザーに再依頼してはいけない。必要な財務データはこの場でツールから取得する
 - 数値は具体的に引用し、視点を添えて説明する（例: 「利益が計画比-15%、2,300万円下回り。年間目標の23%分のラグ」）
 - 財務以外（目標、勤怠、承認、雑談）の質問には、このチャットは財務専用だと短く伝える
-- 財務の「今期」「年度」「着地」「経営状況」は、月次ではなく財務年度（3月-翌2月）の年間計画・Google Sheets実績・着地見込みで回答する
+- 財務の「今期」「年度」「着地」「経営状況」は、月次ではなく財務年度（3月-翌2月）の予算・計画・Google Sheets実績・着地見込みで回答する
+- 用語定義: 予算=yearly_plan、計画=Kintone損益（profit）、実績=Google Sheets settlement、着地見込み=実績がある月は実績・該当月シートがない月はKintone損益で補完したforecast
 - Google Sheets実績は毎月20日ごろ前月分が反映される。ユーザーが明示しない限り、この反映済み月を基準に回答する
-- 着地見込みは get_total_finance と同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使う。年間計画は比較対象であり、見込み値としては使わない
+- 着地見込みは get_total_finance の予測ONと同じく、Google Sheets実績がある月は実績を使い、該当月シートがない月はKintone損益を見込み値として使う。予算は比較対象であり、見込み値としては使わない
 - Google Sheets実績がない月をKintone損益で補完した場合は、実績ではなく見込みとして扱う。完了済みプロジェクトの完了後月は予測補完しない
-- 年度財務サマリーでは、年間計画=yearly_plan_totals、最新実績（単月）=latest_actual_month_totals、実績累計=actual_to_date_totals、着地見込み=forecast_totals、計画乖離=forecast_vs_yearly_plan を使う
-- 年度財務サマリーを回答する場合、売上・販管費・利益の年間計画、実績累計、着地見込み、計画差分を具体的な数値で示す
+- 年度財務サマリーでは、予算=yearly_plan_totals、計画=profit_plan_totals、最新実績（単月）=latest_actual_month_totals、実績累計=actual_to_date_totals、着地見込み=forecast_totals、予算差分=forecast_vs_yearly_plan、計画差分=forecast_vs_profit_plan を使う
+- 年度財務サマリーを回答する場合、売上・販管費・利益の予算、計画、実績累計、着地見込み、予算差分、計画差分を具体的な数値で示す
 - 「最新実績（YYYY-MM）」と書く場合は、財務年度合計・実績累計・着地見込みではなく latest_actual_month_totals だけを使う
 - 月次の「乖離」は単月のGoogle Sheets実績 vs Kintone損益として扱う。年度合計として説明しない
 - get_variance_summary の結果は単月データ。年度合計として説明しない
@@ -394,11 +400,16 @@ TXT;
         $apiKey = config('services.openai.api_key');
         abort_if(!$apiKey, 500, 'OpenAI APIキーが設定されていません。');
 
-        $validated = $request->validate([
-            'messages'           => 'required|array|min:1|max:20',
+        $rawMessages = $request->input('messages');
+        if (! is_array($rawMessages) || $rawMessages === []) {
+            return response()->json(['message' => 'メッセージを入力してください。'], 422);
+        }
+
+        $validated = validator(['messages' => array_slice($rawMessages, -20)], [
+            'messages'           => 'required|array|min:1',
             'messages.*.role'    => 'required|string|in:user,assistant',
             'messages.*.content' => 'nullable|string|max:2000',
-        ]);
+        ])->validate();
         $filteredMessages = collect($validated['messages'])
             ->map(fn (array $message) => [
                 'role' => $message['role'],
@@ -657,7 +668,7 @@ TXT;
                 $this->dispatchTool($tool, $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
             ),
             'get_monthly_trend' => $this->formatMonthlyTrendReply(
-                $this->dispatchTool($tool, $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
+                $this->dispatchTool($tool, $this->monthlyTrendArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
             ),
             'get_finance_forecast_ranking' => $this->formatForecastRankingReply(
                 $this->dispatchTool($tool, $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
@@ -667,6 +678,9 @@ TXT;
             ),
             'get_pm_finance_ranking' => $this->formatPmRankingReply(
                 $this->dispatchTool($tool, $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
+            ),
+            'compare_fiscal_years' => $this->formatFiscalComparisonReply(
+                $this->dispatchTool($tool, $this->fiscalComparisonArgsFromQuestion($latestUserContent, $financeFiscalYear), $financeMcp)
             ),
             default => null,
         };
@@ -842,6 +856,45 @@ TXT;
             'as_of_period' => $latestActualPeriod,
             'limit' => 10,
         ];
+    }
+
+    private function fiscalComparisonArgsFromQuestion(string $content, int $financeFiscalYear): array
+    {
+        preg_match_all('/FY(\d{4})/iu', $content, $matches);
+        $years = array_values(array_unique(array_map('intval', $matches[1] ?? [])));
+
+        if (count($years) >= 2) {
+            sort($years);
+
+            return [
+                'base_fiscal_year' => $years[0],
+                'compare_fiscal_year' => $years[count($years) - 1],
+            ];
+        }
+
+        if (count($years) === 1) {
+            $year = $years[0];
+
+            return [
+                'base_fiscal_year' => preg_match('/前期|前年|去年|昨年/u', $content) === 1 ? $year : $year - 1,
+                'compare_fiscal_year' => preg_match('/前期|前年|去年|昨年/u', $content) === 1 ? $financeFiscalYear : $year,
+            ];
+        }
+
+        return [
+            'base_fiscal_year' => $financeFiscalYear - 1,
+            'compare_fiscal_year' => $financeFiscalYear,
+        ];
+    }
+
+    private function monthlyTrendArgsFromQuestion(string $content, int $financeFiscalYear, string $latestActualPeriod): array
+    {
+        $args = $this->fiscalSummaryArgsFromQuestion($content, $financeFiscalYear, $latestActualPeriod);
+        $asksPlan = preg_match('/計画/u', $content) === 1;
+        $asksBudget = preg_match('/予算|年間計画/u', $content) === 1;
+        $args['comparison_base'] = ($asksPlan && ! $asksBudget) ? 'profit' : 'yearly_plan';
+
+        return $args;
     }
 
     private function isProjectVarianceReasonQuestion(string $content): bool
@@ -1038,37 +1091,51 @@ TXT;
 
         $fiscalYear = (int) ($result['fiscal_year'] ?? 0);
         $latestActualPeriod = (string) ($result['latest_actual_period'] ?? '');
-        $plan = $result['yearly_plan_totals'] ?? [];
+        $budget = $result['yearly_plan_totals'] ?? [];
+        $plan = $result['profit_plan_totals'] ?? ($result['totals']['profit'] ?? []);
         $actual = $result['actual_to_date_totals'] ?? [];
         $forecast = $result['forecast_totals'] ?? [];
-        $gap = $result['forecast_vs_yearly_plan'] ?? [];
+        $budgetGap = $result['forecast_vs_yearly_plan'] ?? [];
+        $planGap = $result['forecast_vs_profit_plan'] ?? [];
 
         $lines = [
             "FY{$fiscalYear}の財務状況（最新実績反映月: {$latestActualPeriod}）",
             '',
-            '【年間計画】',
+            '【予算（年間計画）】',
+            $this->formatFinanceUnitLine($budget),
+            '',
+            '【計画（月次修正 / Kintone損益）】',
             $this->formatFinanceUnitLine($plan),
             '',
-            '【実績累計】',
+            "【実績累計（{$latestActualPeriod}まで / Google Sheets）】",
             $this->formatFinanceUnitLine($actual),
             '',
-            '【着地見込み】',
+            '【実績/着地見込み（予測込み）】',
             $this->formatFinanceUnitLine($forecast),
             '',
-            '【計画差分（着地見込み - 年間計画）】',
+            '【差分（実績/着地見込み - 予算）】',
             sprintf(
                 '売上 %s、販管費 %s、利益 %s',
-                $this->formatSignedYen((int) ($gap['sales_amount'] ?? 0)),
-                $this->formatSignedYen((int) ($gap['expense_amount'] ?? 0)),
-                $this->formatSignedYen((int) ($gap['profit_amount'] ?? 0))
+                $this->formatSignedYen((int) ($budgetGap['sales_amount'] ?? 0)),
+                $this->formatSignedYen((int) ($budgetGap['expense_amount'] ?? 0)),
+                $this->formatSignedYen((int) ($budgetGap['profit_amount'] ?? 0))
+            ),
+            '',
+            '【差分（実績/着地見込み - 計画）】',
+            sprintf(
+                '売上 %s、販管費 %s、利益 %s',
+                $this->formatSignedYen((int) ($planGap['sales_amount'] ?? 0)),
+                $this->formatSignedYen((int) ($planGap['expense_amount'] ?? 0)),
+                $this->formatSignedYen((int) ($planGap['profit_amount'] ?? 0))
             ),
         ];
 
-        $profitGap = (int) ($gap['profit_amount'] ?? 0);
+        $profitGap = (int) ($budgetGap['profit_amount'] ?? 0);
+        $planProfitGap = (int) ($planGap['profit_amount'] ?? 0);
         $lines[] = '';
-        $lines[] = $profitGap === 0
-            ? '利益は年間計画と同額の着地見込みです。'
-            : '利益は年間計画に対して' . $this->formatSignedYen($profitGap) . 'の見込みです。';
+        $lines[] = '利益は予算に対して' . $this->formatSignedYen($profitGap)
+            . '、計画に対して' . $this->formatSignedYen($planProfitGap)
+            . 'の見込みです。';
 
         $alertCount = (int) ($result['alert_count'] ?? 0);
         if ($alertCount > 0) {
@@ -1094,7 +1161,7 @@ TXT;
         $internalProjects = array_values(array_filter($projects, fn (array $project) => $this->isInternalCostCenterProject($project)));
 
         if ($projects === []) {
-            return "FY{$fiscalYear}では、利益着地見込みが年間計画を下回るプロジェクトはありません。（最新実績反映月: {$latestActualPeriod}）";
+            return "FY{$fiscalYear}では、利益着地見込みが予算を下回るプロジェクトはありません。（最新実績反映月: {$latestActualPeriod}）";
         }
 
         $formatProjectLine = function (string $prefix, array $project): string {
@@ -1106,7 +1173,7 @@ TXT;
             $pctLabel = is_numeric($gapPct) ? '、計画比 ' . $this->formatSignedPercent((float) $gapPct) : '';
 
             return sprintf(
-                '%s %s: 着地利益 %s、年間計画利益 %s、差分 %s%s',
+                '%s %s: 着地利益 %s、予算利益 %s、差分 %s%s',
                 $prefix,
                 (string) ($project['project_name'] ?? '名称未設定'),
                 $this->formatYen((int) ($forecast['profit'] ?? 0)),
@@ -1117,7 +1184,7 @@ TXT;
         };
 
         $lines = [
-            "FY{$fiscalYear} 利益着地見込みが年間計画を下回るプロジェクト（最新実績反映月: {$latestActualPeriod}）",
+            "FY{$fiscalYear} 利益着地見込みが予算を下回るプロジェクト（最新実績反映月: {$latestActualPeriod}）",
             $priorityProjects !== [] ? '優先確認（通常案件）' : '参考（社内部門のみ）',
             '',
         ];
@@ -1181,7 +1248,7 @@ TXT;
             $pmName = $this->formatPmName($project['pm'] ?? null);
 
             $lines[] = sprintf(
-                '%s %s（PM: %s）: 利益差分 %s%s、着地利益 %s、年間計画利益 %s、信頼度 %s',
+                '%s %s（PM: %s）: 利益差分 %s%s、着地利益 %s、予算利益 %s、信頼度 %s',
                 (string) ($project['label'] ?? ''),
                 (string) ($project['project_name'] ?? '名称未設定'),
                 $pmName,
@@ -1202,7 +1269,7 @@ TXT;
                 $pmName = $this->formatPmName($project['pm'] ?? null);
 
                 $lines[] = sprintf(
-                    '%s %s（PM: %s）: 利益差分 %s%s、着地利益 %s、年間計画利益 %s、信頼度 %s',
+                    '%s %s（PM: %s）: 利益差分 %s%s、着地利益 %s、予算利益 %s、信頼度 %s',
                     (string) ($project['label'] ?? ''),
                     (string) ($project['project_name'] ?? '名称未設定'),
                     $pmName,
@@ -1242,7 +1309,7 @@ TXT;
         }
 
         $lines = [
-            "FY{$fiscalYear} PM別 着地見込みと計画差分ランキング（最新実績反映月: {$latestActualPeriod}）",
+            "FY{$fiscalYear} PM別 着地見込みと予算差分ランキング（最新実績反映月: {$latestActualPeriod}）",
             '',
         ];
 
@@ -1253,7 +1320,7 @@ TXT;
             $plan = $totals['yearly_plan'] ?? [];
 
             $lines[] = sprintf(
-                '%d. %s: 担当%d件、着地利益 %s、年間計画利益 %s、利益差分 %s',
+                '%d. %s: 担当%d件、着地利益 %s、予算利益 %s、利益差分 %s',
                 $index + 1,
                 $this->formatPmName($row['pm'] ?? null),
                 (int) ($row['project_count'] ?? 0),
@@ -1274,8 +1341,9 @@ TXT;
 
         $fiscalYear = (int) ($result['fiscal_year'] ?? 0);
         $latestActualPeriod = (string) ($result['latest_actual_period'] ?? '');
+        $comparisonBaseLabel = (string) ($result['comparison_base_label'] ?? '予算');
         $lines = [
-            "FY{$fiscalYear}の月別利益差分（着地見込み - 年間計画）",
+            "FY{$fiscalYear}の月別利益差分（実績/着地見込み - {$comparisonBaseLabel}）",
             "最新実績反映月: {$latestActualPeriod}",
             '',
         ];
@@ -1295,10 +1363,11 @@ TXT;
                 : '';
 
             $lines[] = sprintf(
-                '%s: 月次差分 %s（着地利益 %s - 計画利益 %s、%s%s）、累計差分 %s',
+                '%s: 月次差分 %s（着地利益 %s - %s利益 %s、%s%s）、累計差分 %s',
                 $period,
                 $this->formatSignedYen((int) ($monthly['monthly_gap'] ?? 0)),
                 $this->formatYen((int) ($monthly['forecast_profit'] ?? 0)),
+                $comparisonBaseLabel,
                 $this->formatYen((int) ($monthly['plan_profit'] ?? 0)),
                 $sourceLabel,
                 $changeLabel,
@@ -1359,6 +1428,49 @@ TXT;
                 ? '見込み'
                 : (! empty($row['is_actual']) ? 'Google Sheets実績' : 'データなし'),
         };
+    }
+
+    private function formatFiscalComparisonReply(array $result): string
+    {
+        if (isset($result['error'])) {
+            return '取得できませんでした: ' . $result['error'];
+        }
+
+        $base = $result['comparison']['base'] ?? [];
+        $current = $result['comparison']['current'] ?? [];
+        $baseYear = (int) ($base['fiscal_year'] ?? 0);
+        $currentYear = (int) ($current['fiscal_year'] ?? 0);
+        $baseForecast = $base['forecast_totals'] ?? [];
+        $currentForecast = $current['forecast_totals'] ?? [];
+        $yoy = $result['yoy_change'] ?? [];
+
+        $salesPct = is_numeric($yoy['sales_pct'] ?? null)
+            ? $this->formatSignedPercent((float) $yoy['sales_pct'])
+            : '算出不可';
+        $profitPct = is_numeric($yoy['profit_pct'] ?? null)
+            ? $this->formatSignedPercent((float) $yoy['profit_pct'])
+            : '算出不可';
+
+        $lines = [
+            "FY{$baseYear}とFY{$currentYear}の着地見込み比較",
+            '',
+            "FY{$baseYear}: 売上 " . $this->formatYen((int) ($baseForecast['sales'] ?? 0))
+                . '、利益 ' . $this->formatYen((int) ($baseForecast['profit'] ?? 0)),
+            "FY{$currentYear}: 売上 " . $this->formatYen((int) ($currentForecast['sales'] ?? 0))
+                . '、利益 ' . $this->formatYen((int) ($currentForecast['profit'] ?? 0)),
+            '',
+            '前年比: 売上 '
+                . $this->formatSignedYen((int) ($yoy['sales_amount'] ?? 0))
+                . "（{$salesPct}）、利益 "
+                . $this->formatSignedYen((int) ($yoy['profit_amount'] ?? 0))
+                . "（{$profitPct}）",
+        ];
+
+        $salesDirection = ((int) ($yoy['sales_amount'] ?? 0)) >= 0 ? '増収' : '減収';
+        $profitDirection = ((int) ($yoy['profit_amount'] ?? 0)) >= 0 ? '増益' : '減益';
+        $lines[] = "結論: {$salesDirection}・{$profitDirection}の着地見込みです。";
+
+        return implode("\n", $lines);
     }
 
     private function formatFinanceUnitLine(array $unit): string

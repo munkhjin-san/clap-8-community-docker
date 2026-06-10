@@ -480,6 +480,10 @@ class FinanceToolController extends Controller
         $fiscalYear = isset($args['fiscal_year']) ? (int) $args['fiscal_year'] : null;
         $projectIds = $this->normalizeProjectIds($args['project_ids'] ?? []);
         $asOfPeriod = $this->normalizePeriod($args['as_of_period'] ?? null);
+        $comparisonBase = in_array(($args['comparison_base'] ?? 'yearly_plan'), ['yearly_plan', 'profit'], true)
+            ? (string) ($args['comparison_base'] ?? 'yearly_plan')
+            : 'yearly_plan';
+        $comparisonBaseLabel = $comparisonBase === 'profit' ? '計画' : '予算';
 
         try {
             $snapshot = $this->financeSnapshots->buildFiscalYearSnapshot($fiscalYear, $projectIds, $asOfPeriod, 999);
@@ -493,7 +497,7 @@ class FinanceToolController extends Controller
 
             foreach ($months as $period) {
                 $monthData = $mt[$period] ?? [];
-                $planUnit     = $monthData['yearly_plan'] ?? ['profit' => 0];
+                $planUnit     = $monthData[$comparisonBase] ?? ['profit' => 0];
                 $actualUnit   = $monthData['settlement']  ?? ['profit' => 0, 'has_data' => false];
                 $forecastUnit = $monthData['forecast']    ?? ['profit' => 0];
 
@@ -535,6 +539,8 @@ class FinanceToolController extends Controller
                 'fiscal_year'          => $snapshot['fiscal_year'],
                 'period'               => $snapshot['period'],
                 'latest_actual_period' => $snapshot['latest_actual_period'],
+                'comparison_base'      => $comparisonBase,
+                'comparison_base_label' => $comparisonBaseLabel,
                 'overall_direction'    => $overallDirection,
                 'trend'                => $trend,
                 'data_status'          => $snapshot['data_status'],

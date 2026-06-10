@@ -99,7 +99,9 @@ class FinanceSnapshotService
         
         $plans = $this->fetchYearlyPlans($projects, $fiscalYear);
         $profits = $this->fetchProfitData($start, $end, $projectNames);
-        $settlements = $this->fetchSettlementData($start, $end, $projectNames);
+        $settlementData = $this->fetchSettlementData($start, $end, $projectNames);
+        $settlements = $settlementData['rows'] ?? [];
+        $settlementSheetPeriods = array_fill_keys($settlementData['existing_periods'] ?? [], true);
 
         $months = $this->monthKeys($start, $end);
         $summary = [
@@ -144,13 +146,14 @@ class FinanceSnapshotService
                 $plan = $plans[$projectId][$periodKey] ?? $this->emptyUnit();
                 $profit = $profits[$projectKey][$periodKey] ?? $this->emptyUnit(false);
                 $rawSettlement = $settlements[$projectKey][$periodKey] ?? $this->emptyUnit(false);
+                $settlementSheetExists = isset($settlementSheetPeriods[$periodKey]);
                 $settlement = $period->lessThanOrEqualTo($latestClosed)
                     ? $rawSettlement
                     : array_merge($this->emptyUnit(false), ['source' => 'actual_not_released']);
                 if ($this->isAfterProjectCompletion($period, $completedAt) && empty($settlement['has_data'])) {
                     $settlement = array_merge($settlement, ['source' => 'project_completed']);
                 }
-                $forecast = $this->forecastUnit($profit, $settlement, $period, $latestClosed, $completedAt);
+                $forecast = $this->forecastUnit($profit, $rawSettlement, $period, $latestClosed, $completedAt, $settlementSheetExists);
 
                 $monthly[$periodKey] = [
                     'yearly_plan' => $plan,
@@ -245,7 +248,8 @@ class FinanceSnapshotService
                     'special_period' => ['start' => '2025-03', 'end' => '2026-03'],
                 ],
                 'ranking_note' => 'リスク一覧では、間接費部門・積立部門を通常案件の後ろに表示します。全体集計には含めます。',
-                'forecast_rule' => '着地見込みはget_total_financeと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使います。完了済みプロジェクトの完了後月は補完しません。',
+                'settlement_sheet_periods' => array_values(array_keys($settlementSheetPeriods)),
+                'forecast_rule' => '着地見込みはget_total_financeの予測ONと同じく、Google Sheets実績がある月は実績を使い、該当月シートがない月はKintone損益を見込み値として使います。シートがありプロジェクト行だけない場合と、完了済みプロジェクトの完了後月は補完しません。',
             ],
         ];
     }
@@ -263,17 +267,27 @@ class FinanceSnapshotService
             'latest_actual_period' => $latestActualPeriod,
             'project_count' => $snapshot['project_count'],
             'answer_contract' => [
-                'yearly_plan_totals' => '年間計画。財務年度全体の計画合計。',
+                'yearly_plan_totals' => '予算。財務年度全体の年間計画合計。',
+                'profit_plan_totals' => '計画。Kintone損益の月次修正計画合計。',
                 'latest_actual_month_totals' => '最新実績反映月の単月Google Sheets実績。最新実績（YYYY-MM）と書く場合はこの値だけを使う。',
                 'actual_to_date_totals' => '財務年度開始から最新実績反映月までのGoogle Sheets実績累計。',
-                'forecast_totals' => '着地見込み。get_total_financeと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使う。完了後月は補完しない。',
-                'forecast_vs_yearly_plan' => '着地見込みと年間計画の差分。',
+                'forecast_totals' => '実績/着地見込み。get_total_financeの予測ONと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使う。完了後月は補完しない。',
+                'forecast_vs_yearly_plan' => '実績/着地見込みと予算の差分。',
+                'forecast_vs_profit_plan' => '実績/着地見込みと計画の差分。',
+            ],
+            'scenario_labels' => [
+                'yearly_plan' => '予算',
+                'profit' => '計画',
+                'settlement' => '実績',
+                'forecast' => '実績/着地見込み（予測込み）',
             ],
             'yearly_plan_totals' => $snapshot['totals']['yearly_plan'],
+            'profit_plan_totals' => $snapshot['totals']['profit'],
             'latest_actual_month_totals' => $latestActualMonthTotals,
             'actual_to_date_totals' => $snapshot['totals']['settlement'],
             'forecast_totals' => $snapshot['totals']['forecast'],
             'forecast_vs_yearly_plan' => $snapshot['variance_vs_plan'],
+            'forecast_vs_profit_plan' => $this->variance($snapshot['totals']['forecast'], $snapshot['totals']['profit']),
             'totals' => $snapshot['totals'],
             'variance_vs_plan' => $snapshot['variance_vs_plan'],
             'monthly_totals' => $snapshot['monthly_totals'],
@@ -378,10 +392,10 @@ class FinanceSnapshotService
             'latest_actual_period' => $snapshot['latest_actual_period'],
             'scope' => 'finance_data_quality',
             'source_contract' => [
-                'yearly_plan' => '年間計画',
-                'profit' => 'Kintone損益',
+                'yearly_plan' => '予算',
+                'profit' => '計画（Kintone損益）',
                 'actual' => 'Google Sheets実績',
-                'forecast' => 'get_total_financeと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使用する。完了後月は補完しない。',
+                'forecast' => 'get_total_financeの予測ONと同じく、Google Sheets実績がある月は実績を使い、該当月シートがない月はKintone損益を見込み値として使用する。シートがありプロジェクト行だけない場合と完了後月は補完しない。',
             ],
             'summary' => [
                 'project_count' => $snapshot['project_count'],
@@ -796,7 +810,7 @@ class FinanceSnapshotService
     {
         $sheetId = config('services.google.spreadsheet_id');
         if (! $sheetId) {
-            return [];
+            return ['rows' => [], 'existing_periods' => []];
         }
         $projectKeys = $this->projectKeySet($projectNames);
 
@@ -815,7 +829,7 @@ class FinanceSnapshotService
         }
 
         if ($existingRanges === []) {
-            return [];
+            return ['rows' => [], 'existing_periods' => []];
         }
 
         $response = $this->sheets->svc->spreadsheets_values->batchGet($sheetId, [
@@ -824,14 +838,23 @@ class FinanceSnapshotService
         ]);
 
         $out = [];
+        $existingPeriods = [];
         foreach ($response->getValueRanges() as $index => $range) {
             $title = $existingRanges[$index] ?? null;
             $rows = $range->getValues() ?? [];
-            if (! $title || count($rows) < 3) {
+            if (! $title) {
+                continue;
+            }
+            if ($rows === []) {
                 continue;
             }
 
             $periodKey = substr($title, 0, 4) . '-' . substr($title, 4, 2);
+            $existingPeriods[$periodKey] = true;
+            if (count($rows) < 3) {
+                continue;
+            }
+
             $headers = $rows[1] ?? [];
             $dataRows = array_slice($rows, 2);
             $projectIndex = 1;
@@ -869,7 +892,10 @@ class FinanceSnapshotService
             }
         }
 
-        return $out;
+        return [
+            'rows' => $out,
+            'existing_periods' => array_values(array_keys($existingPeriods)),
+        ];
     }
 
     private function forecastUnit(
@@ -877,7 +903,8 @@ class FinanceSnapshotService
         array $settlement,
         Carbon $period,
         Carbon $latestClosed,
-        ?Carbon $completedAt
+        ?Carbon $completedAt,
+        bool $settlementSheetExists = false
     ): array
     {
         if (! empty($settlement['has_data'])) {
@@ -886,6 +913,10 @@ class FinanceSnapshotService
 
         if ($this->isAfterProjectCompletion($period, $completedAt)) {
             return array_merge($this->emptyUnit(false), ['source' => 'project_completed', 'is_forecast' => false]);
+        }
+
+        if ($settlementSheetExists) {
+            return array_merge($this->emptyUnit(false), ['source' => 'missing_settlement_row', 'is_forecast' => false]);
         }
 
         if (! empty($profit['has_data'])) {
