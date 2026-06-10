@@ -170,6 +170,11 @@ import SupportSystemUpdateIcon from '../Icons/SupportSystemUpdateIcon.vue';
             icon: SupportHomeIcon,
         },
         {
+            name: 'ai_chat',
+            label: 'AIチャット',
+            icon: SupportAiIcon,
+        },
+        {
             name: 'emergency_contact',
             label: '緊急連絡・インシデント報告',
             attention: true,
@@ -200,11 +205,6 @@ import SupportSystemUpdateIcon from '../Icons/SupportSystemUpdateIcon.vue';
             name: 'phone_consult',
             label: '電話相談',
             icon: SupportPhoneIcon,
-        },
-        {
-            name: 'ai_chat',
-            label: 'AIチャット',
-            icon: SupportAiIcon,
         },
         {
             name: 'system_updates',
