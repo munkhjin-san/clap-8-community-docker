@@ -92,9 +92,10 @@
                             <button
                                 v-for="item in welcomeItems"
                                 :key="item.name"
-                                class="support-welcome-card"
+                                class="support-welcome-card relative"
                                 @click="router.push({ name: item.name })"
                             >
+                                <Badge style="top: 10px;right:10px;left:auto" v-if="item.name === 'system_updates' && collection.systemUpdates.length > 0" :count="collection.systemUpdates.length" />
                                 <span class="support-welcome-card-icon">
                                     <component :is="item.icon" />
                                 </span>
@@ -153,7 +154,6 @@ import SupportSystemUpdateIcon from '../Icons/SupportSystemUpdateIcon.vue';
     const key_word_list = ref([])
     const keyListView = ref(false)
     const searchWord = ref('')
-    const viewTrayUsers = [610, 516, 517, 519, 518, 526, 494, 604, 765]
     const api = useApi()
     const chatBoxWindow = ref(false)
     const { collection } = useDashboardStore()

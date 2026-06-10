@@ -1,5 +1,5 @@
 <template>
-    <article class="border border-solid rounded border-[var(--bg3)] p-[18px]">
+    <article class="border border-solid rounded border-[var(--calendarBorder)] p-[18px]">
         <div class="flex justify-between gap-5 under960:flex-col">
             <div class="flex flex-col w-full">
                 <div class="flex flex-wrap gap-2 text-[12px] text-[gray] items-center">
