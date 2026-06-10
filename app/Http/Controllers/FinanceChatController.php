@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\FinanceSnapshotService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,17 @@ class FinanceChatController extends Controller
     // =========================================================================
     // Role helpers
     // =========================================================================
+
+    private function active_user(): \App\Models\User
+    {
+        $user = Auth::user();
+        $sub = $user->linked()
+            ->where('main_id', $user->id)
+            ->wherePivot('active', 1)
+            ->first();
+
+        return $sub ?: $user;
+    }
 
     private static function resolveRole(\App\Models\User $user): string
     {
@@ -402,7 +414,7 @@ TXT;
             return response()->json(['message' => 'ユーザーの最新メッセージを入力してください。'], 422);
         }
 
-        $user  = Auth::user();
+        $user  = $this->active_user();
         $role  = self::resolveRole($user);
         $now   = Carbon::now();
         $financeFiscalYear = $now->month >= 3 ? (int) $now->year : (int) $now->year - 1;
@@ -1078,17 +1090,14 @@ TXT;
             $result['projects'] ?? [],
             fn ($project) => is_array($project) && (int) ($project['variance_vs_plan']['profit_amount'] ?? 0) < 0
         ));
+        $priorityProjects = array_values(array_filter($projects, fn (array $project) => ! $this->isInternalCostCenterProject($project)));
+        $internalProjects = array_values(array_filter($projects, fn (array $project) => $this->isInternalCostCenterProject($project)));
 
         if ($projects === []) {
             return "FY{$fiscalYear}では、利益着地見込みが年間計画を下回るプロジェクトはありません。（最新実績反映月: {$latestActualPeriod}）";
         }
 
-        $lines = [
-            "FY{$fiscalYear} 利益着地見込みが年間計画を下回るプロジェクト（最新実績反映月: {$latestActualPeriod}）",
-            '',
-        ];
-
-        foreach (array_slice($projects, 0, 10) as $index => $project) {
+        $formatProjectLine = function (string $prefix, array $project): string {
             $forecast = $project['totals']['forecast'] ?? [];
             $plan = $project['totals']['yearly_plan'] ?? [];
             $variance = $project['variance_vs_plan'] ?? [];
@@ -1096,21 +1105,39 @@ TXT;
             $gapPct = $variance['profit_pct'] ?? null;
             $pctLabel = is_numeric($gapPct) ? '、計画比 ' . $this->formatSignedPercent((float) $gapPct) : '';
 
-            $lines[] = sprintf(
-                '%d. %s: 着地利益 %s、年間計画利益 %s、差分 %s%s',
-                $index + 1,
+            return sprintf(
+                '%s %s: 着地利益 %s、年間計画利益 %s、差分 %s%s',
+                $prefix,
                 (string) ($project['project_name'] ?? '名称未設定'),
                 $this->formatYen((int) ($forecast['profit'] ?? 0)),
                 $this->formatYen((int) ($plan['profit'] ?? 0)),
                 $this->formatSignedYen($gap),
                 $pctLabel
             );
+        };
+
+        $lines = [
+            "FY{$fiscalYear} 利益着地見込みが年間計画を下回るプロジェクト（最新実績反映月: {$latestActualPeriod}）",
+            $priorityProjects !== [] ? '優先確認（通常案件）' : '参考（社内部門のみ）',
+            '',
+        ];
+
+        foreach (array_slice($priorityProjects !== [] ? $priorityProjects : $projects, 0, 10) as $index => $project) {
+            $lines[] = $formatProjectLine(($index + 1) . '.', $project);
+        }
+
+        if ($priorityProjects !== [] && $internalProjects !== []) {
+            $lines[] = '';
+            $lines[] = '参考（社内部門: 優先順位外）';
+            foreach (array_slice($internalProjects, 0, 3) as $project) {
+                $lines[] = $formatProjectLine('-', $project);
+            }
         }
 
         $totalGap = $result['forecast_vs_yearly_plan']['profit_amount'] ?? null;
         if (is_numeric($totalGap)) {
             $lines[] = '';
-            $lines[] = '全体の利益差分は ' . $this->formatSignedYen((int) $totalGap) . ' です。';
+            $lines[] = '全体（社内部門を含む）の利益差分は ' . $this->formatSignedYen((int) $totalGap) . ' です。';
         }
 
         return implode("\n", $lines);
@@ -1126,6 +1153,14 @@ TXT;
         $latestActualPeriod = (string) ($result['latest_actual_period'] ?? '');
         $summary = $result['summary'] ?? [];
         $projects = array_values(array_filter($result['projects'] ?? [], fn ($project) => is_array($project)));
+        $priorityProjects = array_values(array_filter($projects, fn (array $project) => ! $this->isInternalCostCenterProject($project)));
+        $internalProjects = array_values(array_filter($projects, fn (array $project) => $this->isInternalCostCenterProject($project)));
+
+        $priorityLabel = match (true) {
+            $priorityProjects !== [] && $internalProjects !== [] => '優先確認（通常案件）。間接費部門・積立部門は参考として後段に表示します。',
+            $priorityProjects !== [] => '優先確認（通常案件）',
+            default => '参考（社内部門のみ）',
+        };
 
         $lines = [
             "FY{$fiscalYear} プロジェクト健全度（最新実績反映月: {$latestActualPeriod}）",
@@ -1136,10 +1171,11 @@ TXT;
                 (int) ($summary['green_count'] ?? 0),
                 (int) ($summary['total'] ?? count($projects))
             ),
+            $priorityLabel,
             '',
         ];
 
-        foreach (array_slice($projects, 0, 10) as $project) {
+        foreach (array_slice($priorityProjects !== [] ? $priorityProjects : $projects, 0, 10) as $project) {
             $gapPct = $project['gap_pct'] ?? null;
             $pctLabel = is_numeric($gapPct) ? '、計画比 ' . $this->formatSignedPercent((float) $gapPct) : '';
             $pmName = $this->formatPmName($project['pm'] ?? null);
@@ -1157,7 +1193,38 @@ TXT;
             );
         }
 
+        if ($priorityProjects !== [] && $internalProjects !== []) {
+            $lines[] = '';
+            $lines[] = '参考（社内部門）';
+            foreach (array_slice($internalProjects, 0, 3) as $project) {
+                $gapPct = $project['gap_pct'] ?? null;
+                $pctLabel = is_numeric($gapPct) ? '、計画比 ' . $this->formatSignedPercent((float) $gapPct) : '';
+                $pmName = $this->formatPmName($project['pm'] ?? null);
+
+                $lines[] = sprintf(
+                    '%s %s（PM: %s）: 利益差分 %s%s、着地利益 %s、年間計画利益 %s、信頼度 %s',
+                    (string) ($project['label'] ?? ''),
+                    (string) ($project['project_name'] ?? '名称未設定'),
+                    $pmName,
+                    $this->formatSignedYen((int) ($project['gap_amount'] ?? 0)),
+                    $pctLabel,
+                    $this->formatYen((int) ($project['forecast_profit'] ?? 0)),
+                    $this->formatYen((int) ($project['plan_profit'] ?? 0)),
+                    (string) ($project['forecast_confidence'] ?? 'unknown')
+                );
+            }
+        }
+
         return implode("\n", $lines);
+    }
+
+    private function isInternalCostCenterProject(array $project): bool
+    {
+        if (array_key_exists('is_internal_cost_center', $project)) {
+            return (bool) $project['is_internal_cost_center'];
+        }
+
+        return FinanceSnapshotService::isInternalCostCenter($project['project_name'] ?? null);
     }
 
     private function formatPmRankingReply(array $result): string

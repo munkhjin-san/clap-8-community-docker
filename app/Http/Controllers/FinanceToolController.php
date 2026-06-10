@@ -635,6 +635,7 @@ class FinanceToolController extends Controller
                 $rows[] = [
                     'project_id'               => $pid,
                     'project_name'             => $project['project_name'],
+                    'is_internal_cost_center'  => FinanceSnapshotService::isInternalCostCenter($project['project_name'] ?? null),
                     'pm'                       => $managerMap->get($pid),
                     'completed_at'             => $project['completed_at'],
                     'completing_this_quarter'  => $completingThisQuarter,
@@ -655,12 +656,16 @@ class FinanceToolController extends Controller
                 ];
             }
 
-            // Sort: red → yellow → green, within each by worst gap first
+            // Sort: red → yellow → green, with internal cost centers after normal projects.
             $colorOrder = ['red' => 0, 'yellow' => 1, 'green' => 2];
             usort($rows, function ($a, $b) use ($colorOrder) {
                 $oa = $colorOrder[$a['color']] ?? 3;
                 $ob = $colorOrder[$b['color']] ?? 3;
                 if ($oa !== $ob) return $oa <=> $ob;
+
+                $aInternal = ! empty($a['is_internal_cost_center']);
+                $bInternal = ! empty($b['is_internal_cost_center']);
+                if ($aInternal !== $bInternal) return $aInternal <=> $bInternal;
 
                 return ($a['gap_amount'] ?? 0) <=> ($b['gap_amount'] ?? 0);
             });

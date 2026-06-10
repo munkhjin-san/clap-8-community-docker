@@ -15,6 +15,7 @@ class FinanceSnapshotService
 {
     private const FINANCE_FISCAL_START_MONTH = 3;
     private const ACTUAL_RELEASE_DAY = 20;
+    private const INTERNAL_COST_CENTER_NAMES = ['間接費部門', '積立部門'];
 
     private const ACCOUNT_MAP = [
         'sales' => '4020',
@@ -67,6 +68,15 @@ class FinanceSnapshotService
         $value = preg_replace('/\s+/u', '', $value) ?? '';
 
         return mb_strtolower($value);
+    }
+
+    public static function isInternalCostCenter(?string $projectName): bool
+    {
+        static $keys = null;
+
+        $keys ??= array_map([self::class, 'projectNameKey'], self::INTERNAL_COST_CENTER_NAMES);
+
+        return in_array(self::projectNameKey($projectName), $keys, true);
     }
 
     public function buildFiscalYearSnapshot(
@@ -177,6 +187,7 @@ class FinanceSnapshotService
             $projectRows[] = [
                 'project_id' => $projectId,
                 'project_name' => $projectName,
+                'is_internal_cost_center' => self::isInternalCostCenter($projectName),
                 'completed_at' => $completedAt?->toDateString(),
                 'totals' => $projectTotals,
                 'variance_vs_plan' => $this->variance($projectTotals['forecast'], $projectTotals['yearly_plan']),
@@ -197,6 +208,12 @@ class FinanceSnapshotService
         }
 
         usort($projectRows, function (array $a, array $b) {
+            $aInternal = ! empty($a['is_internal_cost_center']);
+            $bInternal = ! empty($b['is_internal_cost_center']);
+            if ($aInternal !== $bInternal) {
+                return $aInternal <=> $bInternal;
+            }
+
             $aGap = $a['variance_vs_plan']['profit_amount'] ?? 0;
             $bGap = $b['variance_vs_plan']['profit_amount'] ?? 0;
 
@@ -223,10 +240,11 @@ class FinanceSnapshotService
                 'missing_settlement_periods' => array_values(array_keys($missingSettlementPeriods)),
                 'forecast_periods' => array_values(array_keys($forecastPeriods)),
                 'summary_adjustment' => [
-                    'rule' => '集計では、間接費部門・積立部門、および2025-03から2026-02の経営管理本部を売上加算せず、販管費に「販管費 - 売上」として反映します。',
+                    'rule' => '集計では、間接費部門・積立部門、およびget_total_financeと同じ期間判定の経営管理本部を売上加算せず、販管費に「販管費 - 売上」として反映します。',
                     'project_names' => ['間接費部門', '積立部門', '経営管理本部'],
-                    'special_period' => ['start' => '2025-03', 'end' => '2026-02'],
+                    'special_period' => ['start' => '2025-03', 'end' => '2026-03'],
                 ],
+                'ranking_note' => 'リスク一覧では、間接費部門・積立部門を通常案件の後ろに表示します。全体集計には含めます。',
                 'forecast_rule' => '着地見込みはget_total_financeと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使います。完了済みプロジェクトの完了後月は補完しません。',
             ],
         ];
@@ -272,6 +290,7 @@ class FinanceSnapshotService
         $out = [
             'project_id' => $project['project_id'],
             'project_name' => $project['project_name'],
+            'is_internal_cost_center' => ! empty($project['is_internal_cost_center']),
             'completed_at' => $project['completed_at'] ?? null,
             'totals' => $project['totals'],
             'variance_vs_plan' => $project['variance_vs_plan'],
@@ -681,12 +700,14 @@ class FinanceSnapshotService
     {
         $projectKey = self::projectNameKey($projectName);
 
-        if (in_array($projectKey, array_map([self::class, 'projectNameKey'], ['間接費部門', '積立部門']), true)) {
+        if (self::isInternalCostCenter($projectName)) {
             return true;
         }
 
         $rangeStart = Carbon::create(2025, 3, 1)->startOfMonth();
-        $rangeEnd = Carbon::create(2026, 2, 1)->startOfMonth();
+        // Match ProjectController::get_total_finance: Carbon::create(2026, 2, 29)
+        // normalizes to 2026-03-01, so March 2026 is included in this legacy rule.
+        $rangeEnd = Carbon::create(2026, 2, 29)->startOfMonth();
 
         return $projectKey === self::projectNameKey('経営管理本部')
             && $period->copy()->startOfMonth()->betweenIncluded($rangeStart, $rangeEnd);
@@ -694,7 +715,7 @@ class FinanceSnapshotService
 
     private function shouldNetActualSettlementForSummary(string $projectName): bool
     {
-        return in_array(self::projectNameKey($projectName), array_map([self::class, 'projectNameKey'], ['間接費部門', '積立部門']), true);
+        return self::isInternalCostCenter($projectName);
     }
 
     private function netSalesAgainstExpense(array $unit): array
