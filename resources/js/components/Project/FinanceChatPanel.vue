@@ -621,7 +621,7 @@ function mdToHtml(md: string): string {
     height: 36px;
     border: none;
     border-radius: 50%;
-    background: var(--primary-color);
+    background: var(--primary-button);
     color: #fff;
     display: flex;
     align-items: center;

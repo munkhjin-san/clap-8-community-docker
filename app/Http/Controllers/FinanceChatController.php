@@ -401,6 +401,24 @@ TXT;
         $tools  = self::toolsForRole($role);
 
         $financeMcp = app(FinanceToolController::class);
+        if ($role !== 'member' && ! empty($tools) && $forceVarianceExplanationTool) {
+            $directRequests = $this->varianceExplanationArgsFromQuestion(
+                $latestUserContent,
+                $financeFiscalYear,
+                $latestActualPeriod
+            );
+
+            if ($directRequests !== []) {
+                $results = array_map(
+                    fn (array $args) => $this->dispatchTool('get_project_variance_explanation', $args, $financeMcp),
+                    $directRequests
+                );
+
+                return response()->json([
+                    'reply' => $this->formatVarianceExplanationReply($results),
+                ]);
+            }
+        }
 
         // Agentic loop — cap at 5 iterations
         for ($i = 0; $i < 5; $i++) {
@@ -534,6 +552,159 @@ TXT;
         }
 
         return preg_match('/(?:「[^」]+」|『[^』]+』|[A-Za-z0-9Ａ-Ｚａ-ｚ０-９ァ-ヶｦ-ﾟ一-龯ー]{2,})(?:プロジェクト|案件)?(?:は|の|で)/u', $plain) === 1;
+    }
+
+    private function varianceExplanationArgsFromQuestion(string $content, int $financeFiscalYear, string $latestActualPeriod): array
+    {
+        $projectName = $this->extractProjectNameFromVarianceQuestion($content);
+        if ($projectName === '') {
+            return [];
+        }
+
+        $comparisonBase = preg_match('/予算/u', $content) === 1
+            && preg_match('/計画|損益/u', $content) !== 1
+                ? 'yearly_plan'
+                : 'profit';
+
+        return array_map(
+            fn (string $period) => [
+                'project_name' => $projectName,
+                'period' => $period,
+                'comparison_base' => $comparisonBase,
+            ],
+            $this->periodsFromVarianceQuestion($content, $financeFiscalYear, $latestActualPeriod)
+        );
+    }
+
+    private function extractProjectNameFromVarianceQuestion(string $content): string
+    {
+        $plain = trim($content);
+        if (preg_match('/[「『]([^」』]+)[」』]/u', $plain, $match) === 1) {
+            return trim($match[1]);
+        }
+
+        foreach (['プロジェクト', '案件'] as $suffix) {
+            $position = mb_strpos($plain, $suffix);
+            if ($position !== false) {
+                $candidate = $this->cleanProjectNameCandidate(mb_substr($plain, 0, $position));
+                if ($candidate !== '') {
+                    return $candidate;
+                }
+            }
+        }
+
+        foreach (['について', 'は', 'で'] as $marker) {
+            $position = mb_strpos($plain, $marker);
+            if ($position !== false) {
+                $candidate = $this->cleanProjectNameCandidate(mb_substr($plain, 0, $position));
+                if ($candidate !== '') {
+                    return $candidate;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    private function cleanProjectNameCandidate(string $value): string
+    {
+        $value = preg_replace('/FY\d{4}年?/iu', ' ', $value) ?? $value;
+        $value = preg_replace('/20\d{2}[-\/年]\d{1,2}月?/u', ' ', $value) ?? $value;
+        $value = preg_replace('/\d{1,2}月/u', ' ', $value) ?? $value;
+        $value = preg_replace('/[、。:：\s]+/u', ' ', $value) ?? $value;
+        $value = trim($value);
+        $value = preg_replace('/^(?:の|は|で|と|\s)+|(?:の|は|で|と|\s)+$/u', '', $value) ?? $value;
+
+        return trim($value);
+    }
+
+    private function periodsFromVarianceQuestion(string $content, int $financeFiscalYear, string $latestActualPeriod): array
+    {
+        $periods = [];
+
+        if (preg_match_all('/(?<!FY)(20\d{2})[-\/年](\d{1,2})月?/u', $content, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $month = max(1, min(12, (int) $match[2]));
+                $periods[] = sprintf('%04d-%02d', (int) $match[1], $month);
+            }
+        }
+
+        if ($periods !== []) {
+            return array_values(array_unique($periods));
+        }
+
+        $fiscalYear = preg_match('/FY(\d{4})/iu', $content, $fyMatch) === 1
+            ? (int) $fyMatch[1]
+            : $financeFiscalYear;
+
+        if (preg_match_all('/(\d{1,2})月/u', $content, $matches)) {
+            foreach ($matches[1] as $monthValue) {
+                $month = max(1, min(12, (int) $monthValue));
+                $year = $month >= 3 ? $fiscalYear : $fiscalYear + 1;
+                $periods[] = sprintf('%04d-%02d', $year, $month);
+            }
+        }
+
+        return $periods !== []
+            ? array_values(array_unique($periods))
+            : [$latestActualPeriod];
+    }
+
+    private function formatVarianceExplanationReply(array $results): string
+    {
+        $blocks = array_map(fn (array $result) => $this->formatVarianceExplanationBlock($result), $results);
+
+        return implode("\n\n", array_filter($blocks));
+    }
+
+    private function formatVarianceExplanationBlock(array $result): string
+    {
+        if (isset($result['error'])) {
+            return '取得できませんでした: ' . $result['error'];
+        }
+
+        $projectName = (string) ($result['project']['name'] ?? '対象プロジェクト');
+        $period = (string) ($result['period'] ?? '');
+        $baseLabel = (string) ($result['comparison_base_label'] ?? '計画');
+        $lines = ["【{$period} {$projectName}】"];
+
+        if (empty($result['actual_data_available'])) {
+            $lines[] = "Google Sheets実績がないため、{$baseLabel}との差異理由は判定できません。";
+        }
+
+        if (empty($result['plan_data_available'])) {
+            $lines[] = "{$baseLabel}がないため、実績との差異理由は判定できません。";
+        }
+
+        $variance = $result['variance_actual_vs_plan'] ?? null;
+        if (is_array($variance)) {
+            $lines[] = sprintf(
+                '実績 - %s の差異は、売上 %s、販管費 %s、利益 %s です。',
+                $baseLabel,
+                $variance['sales_amount_display'] ?? '不明',
+                $variance['expense_amount_display'] ?? '不明',
+                $variance['profit_amount_display'] ?? '不明'
+            );
+        }
+
+        $comments = array_values(array_filter($result['comments'] ?? [], fn ($comment) => is_array($comment)));
+        if ($comments !== []) {
+            $firstComment = (string) ($comments[0]['comment'] ?? '');
+            if ($firstComment !== '') {
+                $lines[] = "コメントでは「{$firstComment}」と記録されています。";
+            }
+
+            if (count($comments) > 1) {
+                $secondComment = (string) ($comments[1]['comment'] ?? '');
+                if ($secondComment !== '') {
+                    $lines[] = "追加コメントとして「{$secondComment}」もあります。";
+                }
+            }
+        } else {
+            $lines[] = 'この月の理由コメントはありません。数値上の差異は確認できますが、原因は要確認です。';
+        }
+
+        return implode("\n", $lines);
     }
 
     // =========================================================================
