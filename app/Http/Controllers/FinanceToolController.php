@@ -45,6 +45,7 @@ class FinanceToolController extends Controller
             'get_project_pl'                  => $this->toolGetProjectPl($args),
             'get_fiscal_year_finance_summary' => $this->toolGetFiscalYearFinanceSummary($args),
             'get_project_fiscal_year_pl'      => $this->toolGetProjectFiscalYearPl($args),
+            'get_project_variance_explanation' => $this->toolGetProjectVarianceExplanation($args),
             'get_finance_forecast_ranking'    => $this->toolGetFinanceForecastRanking($args),
             'get_finance_data_quality'        => $this->toolGetFinanceDataQuality($args),
             'send_finance_comment'            => $this->toolSendFinanceComment($args),
@@ -320,6 +321,96 @@ class FinanceToolController extends Controller
             ];
         } catch (\Throwable $e) {
             return ['error' => 'プロジェクト年度P&Lの取得に失敗しました: ' . $e->getMessage()];
+        }
+    }
+
+    // =========================================================================
+    // TOOL: get_project_variance_explanation
+    // =========================================================================
+
+    public function toolGetProjectVarianceExplanation(array $args): array
+    {
+        $project = $this->resolveProject($args);
+        if (is_array($project)) {
+            return $project;
+        }
+
+        $period = $this->normalizePeriod($args['period'] ?? null)
+            ?? $this->financeSnapshots->latestClosedPeriod()->format('Y-m');
+        $comparisonBase = in_array(($args['comparison_base'] ?? 'profit'), ['profit', 'yearly_plan'], true)
+            ? (string) ($args['comparison_base'] ?? 'profit')
+            : 'profit';
+        $comparisonBaseLabel = $comparisonBase === 'yearly_plan'
+            ? '年間予算'
+            : 'Kintone損益計画';
+
+        try {
+            $periodDate = Carbon::createFromFormat('Y-m-d', $period . '-01')->startOfMonth();
+            $fiscalYear = $periodDate->month >= 3 ? (int) $periodDate->year : (int) $periodDate->year - 1;
+            $snapshot = $this->financeSnapshots->buildFiscalYearSnapshot(
+                $fiscalYear,
+                [(int) $project->id],
+                $period,
+                1
+            );
+            $projectRow = collect($snapshot['projects'] ?? [])
+                ->first(fn (array $row) => (int) ($row['project_id'] ?? 0) === (int) $project->id);
+
+            if (! $projectRow) {
+                return ['error' => '対象プロジェクトの財務データがありません。'];
+            }
+
+            $monthData = $projectRow['months'][$period] ?? null;
+            if (! $monthData) {
+                return ['error' => '対象月の財務データがありません。'];
+            }
+
+            $actual = $monthData['settlement'] ?? $this->emptyFinanceUnit();
+            $profitPlan = $monthData['profit'] ?? $this->emptyFinanceUnit();
+            $yearlyPlan = $monthData['yearly_plan'] ?? $this->emptyFinanceUnit();
+            $plan = $comparisonBase === 'yearly_plan' ? $yearlyPlan : $profitPlan;
+            $actualHasData = ! empty($actual['has_data']);
+            $planHasData = ! empty($plan['has_data']);
+            $variance = ($actualHasData && $planHasData)
+                ? $this->financeVarianceForChat($actual, $plan)
+                : null;
+            $comments = $this->financeCommentsForProjectPeriod((int) $project->id, $period);
+
+            return [
+                'scope' => 'project_month_variance_explanation',
+                'project' => [
+                    'id' => (int) $project->id,
+                    'name' => (string) $project->name,
+                ],
+                'period' => $period,
+                'fiscal_year' => $snapshot['fiscal_year'],
+                'latest_actual_period' => $snapshot['latest_actual_period'] ?? $snapshot['latest_closed_period'],
+                'comparison_base' => $comparisonBase,
+                'comparison_base_label' => $comparisonBaseLabel,
+                'actual_source' => 'Google Sheets 実績',
+                'answer_contract' => [
+                    'actual' => '指定プロジェクト・指定月のGoogle Sheets実績。',
+                    'plan' => "指定プロジェクト・指定月の{$comparisonBaseLabel}。",
+                    'variance_actual_vs_plan' => "Google Sheets実績 - {$comparisonBaseLabel}。",
+                    'comments' => '指定プロジェクト・指定月のproject_finance_comments。コメントがある場合だけ差異理由の根拠にする。',
+                ],
+                'actual_data_available' => $actualHasData,
+                'plan_data_available' => $planHasData,
+                'actual' => $this->compactFinanceUnitForChat($actual),
+                'plan' => $this->compactFinanceUnitForChat($plan),
+                'profit_plan' => $this->compactFinanceUnitForChat($profitPlan),
+                'yearly_plan' => $this->compactFinanceUnitForChat($yearlyPlan),
+                'variance_actual_vs_plan' => $variance,
+                'largest_gap_metric' => $variance ? $this->largestVarianceMetric($variance) : null,
+                'comments_exist' => count($comments) > 0,
+                'comments' => $comments,
+                'guidance' => [
+                    'with_comments' => 'コメントがある場合は「コメントでは」「記録では」と明示して差異理由を説明する。',
+                    'without_comments' => 'コメントがない場合は理由を推測せず、数値上どこに差異があるかだけ説明し、要確認と伝える。',
+                ],
+            ];
+        } catch (\Throwable $e) {
+            return ['error' => 'プロジェクト月次差異理由の取得に失敗しました: ' . $e->getMessage()];
         }
     }
 
@@ -1155,6 +1246,137 @@ class FinanceToolController extends Controller
         }
 
         return round((($actual / $plan) * 100) - 100, 2);
+    }
+
+    private function compactFinanceUnitForChat(array $unit): array
+    {
+        $sales = (float) ($unit['sales'] ?? 0);
+        $expense = (float) ($unit['expense'] ?? 0);
+        $profit = array_key_exists('profit', $unit)
+            ? (float) $unit['profit']
+            : $sales - $expense;
+
+        return [
+            'sales' => (int) round($sales),
+            'expense' => (int) round($expense),
+            'profit' => (int) round($profit),
+            'sales_display' => $this->formatYen($sales),
+            'expense_display' => $this->formatYen($expense),
+            'profit_display' => $this->formatYen($profit),
+            'profit_rate' => $sales !== 0.0 ? round(($profit / $sales) * 100, 2) : null,
+            'has_data' => ! empty($unit['has_data']) || $sales !== 0.0 || $expense !== 0.0 || $profit !== 0.0,
+            'is_forecast' => ! empty($unit['is_forecast']),
+            'source' => $unit['source'] ?? null,
+        ];
+    }
+
+    private function financeVarianceForChat(array $actual, array $plan): array
+    {
+        $variance = $this->financeVariance($actual, $plan);
+
+        return array_merge($variance, [
+            'sales_amount_display' => $this->formatYen($variance['sales_amount']),
+            'expense_amount_display' => $this->formatYen($variance['expense_amount']),
+            'profit_amount_display' => $this->formatYen($variance['profit_amount']),
+        ]);
+    }
+
+    private function largestVarianceMetric(array $variance): ?array
+    {
+        $metrics = [
+            'sales' => [
+                'label' => '売上',
+                'amount' => $variance['sales_amount'] ?? null,
+                'amount_display' => $variance['sales_amount_display'] ?? null,
+                'pct' => $variance['sales_pct'] ?? null,
+            ],
+            'expense' => [
+                'label' => '販管費',
+                'amount' => $variance['expense_amount'] ?? null,
+                'amount_display' => $variance['expense_amount_display'] ?? null,
+                'pct' => $variance['expense_pct'] ?? null,
+            ],
+            'profit' => [
+                'label' => '利益',
+                'amount' => $variance['profit_amount'] ?? null,
+                'amount_display' => $variance['profit_amount_display'] ?? null,
+                'pct' => $variance['profit_pct'] ?? null,
+            ],
+        ];
+
+        uasort($metrics, fn (array $left, array $right) => abs((float) ($right['amount'] ?? 0)) <=> abs((float) ($left['amount'] ?? 0)));
+        $key = array_key_first($metrics);
+
+        return $key ? array_merge(['metric' => $key], $metrics[$key]) : null;
+    }
+
+    private function financeCommentsForProjectPeriod(int $projectId, string $period): array
+    {
+        return ProjectFinanceComment::query()
+            ->where('project_record_id', $projectId)
+            ->where('period', $period)
+            ->with('author:id,name')
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get()
+            ->map(function (ProjectFinanceComment $comment) {
+                $text = $this->sanitizeFinanceComment($comment->comment);
+                if ($text === '') {
+                    return null;
+                }
+
+                return [
+                    'id' => (int) $comment->id,
+                    'type' => $comment->type ?: null,
+                    'author' => $comment->author?->name,
+                    'commented_at' => $comment->created_at?->format('Y-m-d'),
+                    'comment' => $text,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function sanitizeFinanceComment(?string $comment): string
+    {
+        $text = trim((string) $comment);
+        if ($text === '') {
+            return '';
+        }
+
+        $text = preg_replace('/\s*\[To:[^:\]\|]+(?:\|\d+)?:\]\s*/u', ' ', $text) ?? $text;
+        $text = trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
+
+        if ($text === '' || $this->looksLikeSensitiveComment($text)) {
+            return '';
+        }
+
+        return Str::limit($text, 300, '...');
+    }
+
+    private function looksLikeSensitiveComment(string $comment): bool
+    {
+        return preg_match('/\b(pass|pw|password)\b/i', $comment) === 1
+            || str_contains($comment, 'パスワード')
+            || str_contains($comment, 'ﾊﾟｽﾜｰﾄﾞ');
+    }
+
+    private function formatYen(int|float $amount): string
+    {
+        $rounded = (int) round($amount);
+        $abs = abs($rounded);
+        $sign = $rounded < 0 ? '-' : '';
+
+        if ($abs >= 100_000_000) {
+            return $sign . number_format($abs / 100_000_000, 1) . '億円';
+        }
+
+        if ($abs >= 10_000) {
+            return $sign . number_format((int) round($abs / 10_000)) . '万円';
+        }
+
+        return $sign . number_format($abs) . '円';
     }
 
     private function sortPmRankingRows(array &$rows, string $sortBy): void

@@ -75,6 +75,7 @@ const props = defineProps<{
     user: DailyMessageUser
     leftEdge: number
     rightEdge: number
+    isLast: boolean
 }>()
 const emit = defineEmits<{
     refresh: [data: DailyMessageUser]
@@ -116,8 +117,18 @@ const toggleComment = () => {
                 commentBox.value.style.right = 'auto';
             }
             commentBox.value.scrollIntoView({behavior: 'smooth', block: 'center'})
+            if(props.isLast){
+                setTimeout(() => {
+                    scrollToBottom();
+                }, 300)
+            }
         }
     })
+}
+const scrollToBottom = () => {
+    if(commentBox.value){
+        commentBox.value.scrollIntoView({behavior: 'smooth', block: 'end'})
+    }
 }
 const handleMouseOver = () => {
     if (isEditing.value) {

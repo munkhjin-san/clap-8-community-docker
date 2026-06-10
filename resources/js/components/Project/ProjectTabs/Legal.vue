@@ -2101,7 +2101,7 @@ onBeforeUnmount(() => {
 .legal-files__item-version {
     padding: 2px 6px;
     border-radius: 0;
-    background: var(--legal-border);
+    background: var(--legal-border, var(--normalBorder, var(--calendarBorder)));
     color: var(--legal-text);
     font-size: 9px;
     font-weight: 700;
@@ -2338,13 +2338,13 @@ onBeforeUnmount(() => {
 .legal-btn--secondary {
     background: var(--legal-surface-muted);
     color: var(--legal-text);
-    border-color: var(--legal-border);
+    border-color: var(--legal-border, var(--normalBorder, var(--calendarBorder)));
 }
 
 .legal-btn--ghost {
     background: transparent;
     color: var(--legal-text);
-    border-color: var(--legal-border);
+    border-color: var(--legal-border, var(--normalBorder, var(--calendarBorder)));
 }
 
 .legal-btn--danger {
@@ -2356,7 +2356,7 @@ onBeforeUnmount(() => {
 .legal-loading-mark {
     width: 12px;
     height: 12px;
-    border: 2px solid var(--legal-border);
+    border: 2px solid var(--legal-border, var(--normalBorder, var(--calendarBorder)));
     border-top-color: var(--primary-color);
     border-radius: 50%;
     display: inline-flex;
@@ -2386,7 +2386,7 @@ onBeforeUnmount(() => {
     gap: 8px;
     padding: 8px 10px;
     border: 0;
-    border-left: 2px solid var(--legal-border);
+    border-left: 2px solid var(--legal-border, var(--normalBorder, var(--calendarBorder)));
     background: var(--legal-surface-muted);
 }
 

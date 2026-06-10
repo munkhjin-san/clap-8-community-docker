@@ -266,7 +266,7 @@
                                     </div>
                                 </div>
                                 <button
-                                    v-if="hasPrivilage"
+                                    v-if="auth.hasPrivilage"
                                     type="button"
                                     class="finance-ai-analyze-button"
                                     :disabled="!hasSelectedProjects || financeAnalysisLoading"
@@ -2526,9 +2526,6 @@ const projectBarComparison = ref<ChartComparisonKey>(
         ? savedTotalFinanceView.projectBarComparison
         : 'yearly_plan:settlement'
 )
-const hasPrivilage = computed(() => {
-    return auth.user?.position_id && auth.user?.position_id <= 6 || auth.activeUser.id === 610
-})
 const defaultProjectSelection = (projectIds: number[]) => {
     if (!projectIds.length) return []
 
@@ -2545,7 +2542,7 @@ const defaultProjectSelection = (projectIds: number[]) => {
         }
     }
 
-    if (hasPrivilage.value) {
+    if (auth.hasPrivilage) {
         return [...projectIds]
     }
 
@@ -2558,7 +2555,7 @@ const sortMode = ref<'name' | 'manager'>(
 )
 
 const showTotals = computed(() => monthCount.value > 1)
-const showComment = computed(() => hasPrivilage.value && monthCount.value === 1 && totalGrouping.value !== 'fiscal')
+const showComment = computed(() => auth.hasPrivilage && monthCount.value === 1 && totalGrouping.value !== 'fiscal')
 const activeFiscalYear = computed(() => 
     fiscalYearFrom(normalizedRange.value.end.year, normalizedRange.value.end.month)
 )
@@ -3299,6 +3296,7 @@ type FinanceAnalysisResult = {
     summary: string
     highlights: string[]
     risks: string[]
+    comment_insights?: string[]
     recommended_actions: string[]
     data_notes: string[]
     scope: FinanceAnalysisScope
@@ -3407,12 +3405,12 @@ watch(allProjectIds, (projectIds, previousProjectIds = []) => {
         return
     }
 
-    if (hasPrivilage.value && hadAllSelected) {
+    if (auth.hasPrivilage && hadAllSelected) {
         selectedProjects.value = [...projectIds]
         return
     }
 
-    if (!hasPrivilage.value && hadOwnSelected) {
+    if (!auth.hasPrivilage && hadOwnSelected) {
         selectedProjects.value = props.ownProjectIds.filter(id => projectIds.includes(id))
         return
     }

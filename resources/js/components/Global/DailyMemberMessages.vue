@@ -39,6 +39,7 @@
                 :left-edge="horizontalLimit.left" 
                 :right-edge="horizontalLimit.right" 
                 :user="item" 
+                :isLast="index === masonryItems.length - 1"
                 :key="item.id"
                 @refresh="(data) => emit('refresh', data)"
             />        

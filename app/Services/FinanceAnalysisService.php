@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\ProjectFinanceComment;
 use App\Models\ProjectRecord;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use OpenAI;
 use RuntimeException;
@@ -118,6 +120,7 @@ class FinanceAnalysisService
         $projectRows = $this->rangeProjectRows($snapshots, $periods, $resultBucket);
         $worstProjects = $this->worstProjects($projectRows, $resultBucket);
         $dataStatus = $this->mergeDataStatus($snapshots);
+        $commentContext = $this->financeCommentContext($projectIds, $periods, $snapshots);
 
         return [
             'scope' => array_merge($baseScope, [
@@ -128,6 +131,7 @@ class FinanceAnalysisService
                 'analysis_basis' => $resultBucket === 'forecast'
                     ? '着地見込み（実績反映済み月は実績、未反映月はKintone損益）'
                     : 'Google Sheets実績のみ',
+                'finance_comment_count' => $commentContext['comment_count'],
             ]),
             'metrics' => [
                 'selected_totals' => [
@@ -149,6 +153,7 @@ class FinanceAnalysisService
                 'worst_projects' => $worstProjects,
                 'data_status' => $dataStatus,
             ],
+            'comment_context' => $commentContext,
         ];
     }
 
@@ -189,6 +194,8 @@ class FinanceAnalysisService
         $targetFiscalYear = end($fiscalYears);
         $targetSnapshot = $snapshots[$targetFiscalYear] ?? null;
         $resultBucket = $baseScope['include_forecast_settlement'] ? 'forecast' : 'settlement';
+        $commentPeriods = $this->snapshotPeriods($snapshots);
+        $commentContext = $this->financeCommentContext($projectIds, $commentPeriods, $snapshots);
 
         $comparison = null;
         if (count($fiscalYears) >= 2) {
@@ -210,6 +217,7 @@ class FinanceAnalysisService
                 'analysis_basis' => $resultBucket === 'forecast'
                     ? '年度着地見込み'
                     : '年度実績累計のみ',
+                'finance_comment_count' => $commentContext['comment_count'],
             ]),
             'metrics' => [
                 'fiscal_years' => array_values($yearFacts),
@@ -223,6 +231,7 @@ class FinanceAnalysisService
                     : [],
                 'data_status' => $this->mergeDataStatus($snapshots),
             ],
+            'comment_context' => $commentContext,
         ];
     }
 
@@ -266,6 +275,11 @@ class FinanceAnalysisService
 - facts 内の sales / expense / profit / *_amount は既に表示用に換算済み。必ずその文字列をそのまま使い、独自に億円換算しない
 - 「万円」として渡された金額を「億円」に言い換えない
 - factsにない数値やプロジェクト名は推測しない
+- comment_context.context_rows がある場合、コメントは対象プロジェクト・対象月の人間による記録として扱い、差異理由を説明する補助根拠にする
+- コメントを使う場合は「コメントでは」「記録では」など、コメント由来であることが分かる表現にする
+- actual_data_available=false の月について、実績差異の原因をコメントから断定しない
+- コメントがない差異については原因を推測せず、必要なら「理由コメントなし」「要確認」とする
+- comment_insights には、コメントで裏付けられる差異理由だけを最大4件入れる。コメントがない場合は空配列にする
 - include_forecast_settlement=false または analysis_basis が実績のみの場合、未反映月を含む年度計画との比較は進捗途中であることを明示する
 - data_status に missing_settlement_periods または forecast_periods がある場合は data_notes に含める
 - 出力は必ずJSONオブジェクトのみ。Markdownやコードフェンスは禁止
@@ -276,6 +290,7 @@ JSON schema:
   "summary": "3文以内の要約",
   "highlights": ["重要な良い/中立ポイントを最大4件"],
   "risks": ["注意点や未達リスクを最大4件"],
+  "comment_insights": ["コメントに基づく差異理由を最大4件"],
   "recommended_actions": ["次の確認/対応を最大4件"],
   "data_notes": ["データ前提や欠損注記を最大3件"]
 }
@@ -298,6 +313,7 @@ TXT;
             'summary' => $this->stringValue($decoded['summary'] ?? ''),
             'highlights' => $this->stringList($decoded['highlights'] ?? []),
             'risks' => $this->stringList($decoded['risks'] ?? []),
+            'comment_insights' => $this->stringList($decoded['comment_insights'] ?? []),
             'recommended_actions' => $this->stringList($decoded['recommended_actions'] ?? []),
             'data_notes' => $this->stringList($decoded['data_notes'] ?? []),
         ];
@@ -463,6 +479,167 @@ TXT;
             'summary_adjustment' => $summaryAdjustment,
             'forecast_rule' => $forecastRule,
         ];
+    }
+
+    private function financeCommentContext(array $projectIds, array $periods, array $snapshots): array
+    {
+        $periods = array_values(array_unique(array_filter(
+            $periods,
+            fn (string $period) => preg_match('/^\d{4}-\d{2}$/', $period) === 1
+        )));
+
+        if ($projectIds === [] || $periods === []) {
+            return [
+                'comment_count' => 0,
+                'context_rows' => [],
+                'truncated' => false,
+            ];
+        }
+
+        $maxCommentsPerProjectPeriod = 3;
+        $maxRows = 60;
+        $maxLoadedComments = 1000;
+
+        $comments = ProjectFinanceComment::query()
+            ->select('id', 'project_record_id', 'comment', 'type', 'period', 'created_at')
+            ->with('project:id,name')
+            ->whereIn('project_record_id', $projectIds)
+            ->whereIn('period', $periods)
+            ->orderByDesc('period')
+            ->orderByDesc('created_at')
+            ->limit($maxLoadedComments)
+            ->get();
+
+        $groups = [];
+        $commentCount = 0;
+
+        foreach ($comments as $comment) {
+            $text = $this->sanitizeFinanceComment($comment->comment);
+            if ($text === '') {
+                continue;
+            }
+
+            $key = ((int) $comment->project_record_id) . '|' . (string) $comment->period;
+            $groups[$key] ??= [
+                'project_id' => (int) $comment->project_record_id,
+                'project_name' => (string) ($comment->project?->name ?? ''),
+                'period' => (string) $comment->period,
+                'comments' => [],
+            ];
+
+            if (count($groups[$key]['comments']) < $maxCommentsPerProjectPeriod) {
+                $groups[$key]['comments'][] = [
+                    'type' => $comment->type ?: null,
+                    'commented_at' => $comment->created_at?->format('Y-m-d'),
+                    'comment' => $text,
+                ];
+            }
+
+            $commentCount++;
+        }
+
+        $monthLookup = $this->snapshotMonthLookup($snapshots, $periods);
+        $rows = [];
+
+        foreach ($groups as $key => $group) {
+            if (count($rows) >= $maxRows) {
+                break;
+            }
+
+            $month = $monthLookup[$key] ?? null;
+            $row = [
+                'project_id' => $group['project_id'],
+                'project_name' => $month['project_name'] ?? $group['project_name'],
+                'period' => $group['period'],
+                'comments' => $group['comments'],
+            ];
+
+            if ($month) {
+                $monthData = $month['month'];
+                $actual = $monthData['settlement'] ?? [];
+                $profitPlan = $monthData['profit'] ?? [];
+                $yearlyPlan = $monthData['yearly_plan'] ?? [];
+                $actualHasData = ! empty($actual['has_data']);
+
+                $row['actual_data_available'] = $actualHasData;
+                $row['profit_plan'] = $this->compactUnit($profitPlan);
+                $row['yearly_plan'] = $this->compactUnit($yearlyPlan);
+
+                if ($actualHasData) {
+                    $row['actual'] = $this->compactUnit($actual);
+                    $row['variance_actual_vs_profit_plan'] = $this->variance($actual, $profitPlan);
+                    $row['variance_actual_vs_yearly_plan'] = $this->variance($actual, $yearlyPlan);
+                }
+            }
+
+            $rows[] = $row;
+        }
+
+        return [
+            'comment_count' => $commentCount,
+            'context_rows' => $rows,
+            'truncated' => $comments->count() >= $maxLoadedComments || count($groups) > $maxRows,
+            'max_comments_per_project_period' => $maxCommentsPerProjectPeriod,
+        ];
+    }
+
+    private function snapshotMonthLookup(array $snapshots, array $periods): array
+    {
+        $periodSet = array_flip($periods);
+        $lookup = [];
+
+        foreach ($snapshots as $snapshot) {
+            foreach ($snapshot['projects'] ?? [] as $project) {
+                $projectId = (int) ($project['project_id'] ?? 0);
+                foreach (($project['months'] ?? []) as $period => $month) {
+                    if (! isset($periodSet[$period])) {
+                        continue;
+                    }
+
+                    $lookup[$projectId . '|' . $period] = [
+                        'project_name' => (string) ($project['project_name'] ?? ''),
+                        'month' => $month,
+                    ];
+                }
+            }
+        }
+
+        return $lookup;
+    }
+
+    private function snapshotPeriods(array $snapshots): array
+    {
+        $periods = [];
+
+        foreach ($snapshots as $snapshot) {
+            $periods = array_merge($periods, $snapshot['period']['months'] ?? []);
+        }
+
+        return array_values(array_unique($periods));
+    }
+
+    private function sanitizeFinanceComment(?string $comment): string
+    {
+        $text = trim((string) $comment);
+        if ($text === '') {
+            return '';
+        }
+
+        $text = preg_replace('/\s*\[To:[^:\]\|]+(?:\|\d+)?:\]\s*/u', ' ', $text) ?? $text;
+        $text = trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
+
+        if ($text === '' || $this->looksLikeSensitiveComment($text)) {
+            return '';
+        }
+
+        return Str::limit($text, 300, '...');
+    }
+
+    private function looksLikeSensitiveComment(string $comment): bool
+    {
+        return preg_match('/\b(pass|pw|password)\b/i', $comment) === 1
+            || str_contains($comment, 'パスワード')
+            || str_contains($comment, 'ﾊﾟｽﾜｰﾄﾞ');
     }
 
     private function normalizeFiscalYears(array $values): array

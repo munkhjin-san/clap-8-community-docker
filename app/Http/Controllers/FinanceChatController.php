@@ -93,6 +93,27 @@ class FinanceChatController extends Controller
             [
                 'type'     => 'function',
                 'function' => [
+                    'name'        => 'get_project_variance_explanation',
+                    'description' => '指定プロジェクト・指定月のGoogle Sheets実績と計画（既定はKintone損益）の差異、差異額、差異率、該当月のproject_finance_commentsを返します。「なぜ実績が計画と違う？」「差異理由は？」「コメントに理由はある？」など、単月の実績差異理由を説明する質問で必ず使用します。',
+                    'parameters'  => [
+                        'type'       => 'object',
+                        'properties' => [
+                            'project_name' => ['type' => 'string', 'description' => 'プロジェクト名（部分一致）'],
+                            'project_id'   => ['type' => 'integer', 'description' => 'プロジェクトID（project_nameより優先）'],
+                            'period'       => ['type' => 'string', 'description' => '対象月 YYYY-MM。省略時は最新の実績反映月。'],
+                            'comparison_base' => [
+                                'type' => 'string',
+                                'description' => '比較対象。profit=Kintone損益計画（既定）、yearly_plan=年間予算。',
+                                'enum' => ['profit', 'yearly_plan'],
+                            ],
+                        ],
+                        'required' => [],
+                    ],
+                ],
+            ],
+            [
+                'type'     => 'function',
+                'function' => [
                     'name'        => 'get_finance_forecast_ranking',
                     'description' => '財務年度の着地見込みで、年間計画に対して利益が悪いプロジェクトをランキングします。着地見込みは、実績反映済み月はGoogle Sheets実績のみ、未反映の将来月はKintone損益を使用します。「利益が危ない案件」「計画未達になりそうな案件」に使用します。',
                     'parameters'  => [
@@ -291,8 +312,8 @@ class FinanceChatController extends Controller
         };
 
         $toolGuide = match ($role) {
-            'director', 'admin' => "利用可能なデータ: 年間計画、Kintone損益、Google Sheets実績、着地見込み、財務データ品質、損益コメント送信、月次トレンド、健全度マトリクス、売上集中リスク、年度比較、PM別財務",
-            'manager'           => "利用可能なデータ: 年間計画、Kintone損益、Google Sheets実績、着地見込み、財務データ品質、月次トレンド、健全度マトリクス、PM別財務",
+            'director', 'admin' => "利用可能なデータ: 年間計画、Kintone損益、Google Sheets実績、着地見込み、財務データ品質、差異理由コメント、損益コメント送信、月次トレンド、健全度マトリクス、売上集中リスク、年度比較、PM別財務",
+            'manager'           => "利用可能なデータ: 年間計画、Kintone損益、Google Sheets実績、着地見込み、財務データ品質、差異理由コメント、月次トレンド、健全度マトリクス、PM別財務",
             default             => "利用可能なデータ: なし",
         };
 
@@ -319,6 +340,10 @@ class FinanceChatController extends Controller
 - 「最新実績（YYYY-MM）」と書く場合は、財務年度合計・実績累計・着地見込みではなく latest_actual_month_totals だけを使う
 - 月次の「乖離」は単月のGoogle Sheets実績 vs Kintone損益として扱う。年度合計として説明しない
 - get_variance_summary の結果は単月データ。年度合計として説明しない
+- 特定プロジェクトの「なぜ実績が計画と違う」「差異理由」「コメントに理由があるか」という質問では get_project_variance_explanation を使う
+- get_project_variance_explanation の comments は project_finance_comments の記録。コメントがある場合は「コメントでは」「記録では」と明示して理由を説明する
+- コメントがない差異理由は推測しない。数値上の差異箇所を説明し、「理由コメントはありません」「要確認」と伝える
+- get_project_variance_explanation の *_display / *_amount_display は表示用の金額。独自に億円換算し直さず、その文字列を使う
 - 「今期Q{$qNum}」の成績質問には、Q{$qNum}に属する3ヶ月の月次データまたは月次トレンドツールを使う
 - PM別の質問（「井上PMの案件」「PM別ランキング」など）は get_pm_finance_summary または get_pm_finance_ranking を使う。PM担当は project_members.authority=1 の関係を正とする
 - ツール結果に alert_count > 0 または🔴の案件がある場合、回答内に「❗ 要注意：[N]件のアラート案件」として先頭で明示する
@@ -454,6 +479,7 @@ TXT;
             'get_variance_summary',
             'get_fiscal_year_finance_summary',
             'get_project_fiscal_year_pl',
+            'get_project_variance_explanation',
             'get_finance_forecast_ranking',
             'get_finance_data_quality',
             'send_finance_comment',

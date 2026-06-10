@@ -43,7 +43,7 @@
             <div class="si-box" v-if="canPassChallengeRelay">
                 <label class="challenge-relay-option">
                     <input type="checkbox" v-model="challengeRelayEnabled">
-                    <span>ミニチャレンジのバトンを渡しますか？</span>
+                    <span>チャレンジのバトンを渡しますか？</span>
                 </label>
                 <MemberSelector
                     v-if="challengeRelayEnabled"
@@ -102,7 +102,7 @@ import { useAuthUserStore } from '@/store/auth';
         return start.isValid && end.isValid && now >= start && now <= end && [0, 5].includes(props.record.status_flag)
     })
     const isProgressReportInput = computed(() => progressReportMode.value || (selected.value === 5 && canSelectProgressReport.value))
-    const canPassChallengeRelay = computed(() => !progressReportMode.value && props.record.app_type == 2 && props.record.mini && selected.value === 1)
+    const canPassChallengeRelay = computed(() => !progressReportMode.value && props.record.app_type == 2 && selected.value === 1)
     const challengeRelayHistory = computed(() => (props.record.post_relays ?? []).filter(relay => relay.relay_type === 'challenge'))
     const progressCheckpoint = computed(() => {
         const queryCheckpoint = parseInt(String(route.query.progress_checkpoint ?? ''))

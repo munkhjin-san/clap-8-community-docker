@@ -36,26 +36,6 @@
                     </div>
                 </div>
 
-                <!-- Quick chips (scrollable) -->
-                <div class="mcp-chips-wrap">
-                    <div
-                        class="mcp-chips"
-                        ref="chipsEl"
-                        @mousedown="chipsMousedown"
-                        @mousemove="chipsMousemove"
-                        @mouseup="chipsMouseup"
-                        @mouseleave="chipsMouseup"
-                    >
-                        <button
-                            v-for="q in quickQueries"
-                            :key="q.label"
-                            class="mcp-chip"
-                            :disabled="loading"
-                            @click.prevent="chipClick($event, q.text)"
-                        >{{ q.label }}</button>
-                    </div>
-                </div>
-
                 <!-- Messages -->
                 <div class="mcp-messages" ref="messagesEl">
                     <!-- Empty state -->
@@ -95,7 +75,25 @@
                         </div>
                     </template>
                 </div>
-
+                <!-- Quick chips (scrollable) -->
+                <div class="mcp-chips-wrap">
+                    <div
+                        class="mcp-chips"
+                        ref="chipsEl"
+                        @mousedown="chipsMousedown"
+                        @mousemove="chipsMousemove"
+                        @mouseup="chipsMouseup"
+                        @mouseleave="chipsMouseup"
+                    >
+                        <button
+                            v-for="q in quickQueries"
+                            :key="q.label"
+                            class="mcp-chip"
+                            :disabled="loading"
+                            @click.prevent="chipClick($event, q.text)"
+                        >{{ q.label }}</button>
+                    </div>
+                </div>
                 <!-- Input bar -->
                 <div class="mcp-footer">
                     <input
@@ -279,17 +277,17 @@ function mdToHtml(md: string): string {
 .mcp-fab {
     position: fixed;
     bottom: 20px;
-    right: 20px;
+    right: 30px;
     z-index: 1050;
     display: flex;
     align-items: center;
     gap: 7px;
-    padding: 10px 18px;
+    padding: 12px 20px;
     background: var(--primary-button);
     color: #fff;
     border: none;
     border-radius: 4px;
-    font-size: 12px;
+    font-size: 14px;
     cursor: pointer;
     box-shadow: 0 4px 16px rgba(0,0,0,.28);
     transition: transform .15s, box-shadow .15s;
@@ -389,8 +387,8 @@ function mdToHtml(md: string): string {
 
 /* ── Chips ──────────────────────────────────────────────────────────── */
 .mcp-chips-wrap {
-    border-bottom: 1px solid var(--bg3);
-    padding: 8px 0;
+    border-top: 1px solid var(--bg3);
+    padding: 5px 0;
     flex-shrink: 0;
     /* Fade hints there are more chips beyond the edges */
     -webkit-mask-image: linear-gradient(to right, transparent 0px, black 12px, black calc(100% - 28px), transparent 100%);
@@ -409,11 +407,11 @@ function mdToHtml(md: string): string {
 .mcp-chip {
     white-space: nowrap;
     flex-shrink: 0;
-    padding: 5px 12px;
+    padding: 4px 10px;
     border: 1px solid var(--bg3);
     border-radius: 100px;
     background: transparent;
-    font-size: 11.5px;
+    font-size: 10.5px;
     color: var(--primary-color);
     cursor: pointer;
     transition: background .12s, border-color .12s, color .12s;

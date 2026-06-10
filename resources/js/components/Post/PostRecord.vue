@@ -256,7 +256,7 @@
 
             </div>
             <div v-if="relayChainUserCount > 1" class="post-meta-note relay-chain-footer">
-                <p class="mb-[10px] text-xs">{{ record.app_type === 2 ? 'ミニチャレンジリレー' : 'ナイスリレー' }}</p>
+                <p class="mb-[10px] text-xs">{{ record.app_type === 2 ? 'チャレンジリレー' : 'ナイスリレー' }}</p>
                 
                 <div class="relay-chain-row">
                     <template v-for="(group, index) in relayChainGroups" :key="`relay-group-${index}`">

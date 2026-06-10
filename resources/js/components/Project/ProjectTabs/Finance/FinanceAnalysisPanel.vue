@@ -55,6 +55,12 @@
                         <li v-for="item in result.risks" :key="item">{{ item }}</li>
                     </ul>
                 </div>
+                <div v-if="result.comment_insights?.length" class="finance-analysis-panel__section finance-analysis-panel__section--comments">
+                    <h4>コメント根拠</h4>
+                    <ul>
+                        <li v-for="item in result.comment_insights" :key="item">{{ item }}</li>
+                    </ul>
+                </div>
                 <div v-if="result.recommended_actions.length" class="finance-analysis-panel__section">
                     <h4>次の確認</h4>
                     <ul>
@@ -94,6 +100,7 @@ type FinanceAnalysisResult = {
     summary: string
     highlights: string[]
     risks: string[]
+    comment_insights?: string[]
     recommended_actions: string[]
     data_notes: string[]
     scope: FinanceAnalysisScope
@@ -270,7 +277,7 @@ const basisLabel = computed(() => props.result?.scope.analysis_basis ?? '')
     margin-top: 12px;
     min-height: 0;
     overflow: hidden auto;
-    padding: 0 8px 4px 0;
+    padding: 0 8px 50px 0;
     scrollbar-gutter: stable;
 }
 
