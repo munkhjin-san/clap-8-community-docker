@@ -219,7 +219,7 @@ function onAfterLeave(el: Element) {
     background-color: var(--panel-separate);
     width: calc(100% - 20px);
     margin: -1px auto;
-    z-index: 4;
+    z-index: 2;
     position: relative;
 }
 </style>
