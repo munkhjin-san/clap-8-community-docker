@@ -393,6 +393,8 @@ TXT;
             [['role' => 'system', 'content' => $systemPrompt]],
             $history
         );
+        $latestUserContent = $this->latestUserContent($history);
+        $forceVarianceExplanationTool = $this->isProjectVarianceReasonQuestion($latestUserContent);
 
         $client = OpenAI::client($apiKey);
         $model  = config('services.openai.chat_model', 'gpt-4.1-mini');
@@ -409,7 +411,9 @@ TXT;
             ];
             if (! empty($tools)) {
                 $payload['tools'] = $tools;
-                $payload['tool_choice'] = 'auto';
+                $payload['tool_choice'] = ($i === 0 && $forceVarianceExplanationTool)
+                    ? ['type' => 'function', 'function' => ['name' => 'get_project_variance_explanation']]
+                    : 'auto';
             }
 
             $response = $client->chat()->create($payload);
@@ -491,13 +495,45 @@ TXT;
         }
 
         $plain = trim(strip_tags($content));
-        $isShort = mb_strlen($plain) <= 160;
+        $isShort = mb_strlen($plain) <= 300;
         $looksLikeWaiting = preg_match(
             '/少々お待ち|お待ちください|確認します|確認いたします|調べます|確認して.*回答|確認して.*お伝え/u',
             $plain
         ) === 1;
 
         return $isShort && $looksLikeWaiting;
+    }
+
+    private function latestUserContent(array $history): string
+    {
+        for ($i = count($history) - 1; $i >= 0; $i--) {
+            if (($history[$i]['role'] ?? null) === 'user') {
+                return trim((string) ($history[$i]['content'] ?? ''));
+            }
+        }
+
+        return '';
+    }
+
+    private function isProjectVarianceReasonQuestion(string $content): bool
+    {
+        $plain = trim($content);
+        if ($plain === '') {
+            return false;
+        }
+
+        $hasActual = preg_match('/実績/u', $plain) === 1;
+        $hasPlan = preg_match('/計画|予算|損益/u', $plain) === 1;
+        $asksReasonOrGap = preg_match('/理由|なぜ|何故|差異|乖離|異な|違う|違い|ずれ|ズレ/u', $plain) === 1;
+        if (! $hasActual || ! $hasPlan || ! $asksReasonOrGap) {
+            return false;
+        }
+
+        if (preg_match('/^(今期|今年度|今月|全体|全社|全プロジェクト|プロジェクト全体|会社全体|FY\d{4})(?:は|の|で)/u', $plain) === 1) {
+            return false;
+        }
+
+        return preg_match('/(?:「[^」]+」|『[^』]+』|[A-Za-z0-9Ａ-Ｚａ-ｚ０-９ァ-ヶｦ-ﾟ一-龯ー]{2,})(?:プロジェクト|案件)?(?:は|の|で)/u', $plain) === 1;
     }
 
     // =========================================================================
