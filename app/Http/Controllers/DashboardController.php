@@ -681,12 +681,13 @@ class DashboardController extends Controller
     }
     private function progressCheckpointDate(Carbon $start, Carbon $end, int $checkpoint): Carbon
     {
-        $startDay = $start->copy()->startOfDay();
-        $endDay = $end->copy()->startOfDay();
-        $totalDays = max(1, $startDay->diffInDays($endDay));
-        $checkpointDays = (int) floor($totalDays * ($checkpoint / 100));
+        $start = $start->copy()->startOfDay();
+        $end = $end->copy()->endOfDay();
 
-        return $startDay->copy()->addDays($checkpointDays);
+        $totalSeconds = max(1, $start->diffInSeconds($end));
+        $checkpointSeconds = (int) round($totalSeconds * ($checkpoint / 100));
+
+        return $start->copy()->addSeconds($checkpointSeconds);
     }
     private function niceFollowUpReminders(int $userId, Carbon $now)
     {
