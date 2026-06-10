@@ -833,7 +833,10 @@ class WorkController extends Controller
         $ids = [608, 610];
         if($auth_user_id == 608 || $auth_user_id == 610){
             $work_group_users = ProjectRecord::where('status', 'running')
-                ->whereHas('members')
+                ->where(function ($q) {
+                    $q->whereHas('members')
+                        ->orWhereHas('manager');
+                })
                 ->with(['members' => function($q) use($ids) {
                 $q->whereNotIn('users.id', $ids)
                     ->where('users.partner_flag', 0)

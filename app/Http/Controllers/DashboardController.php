@@ -542,43 +542,70 @@ class DashboardController extends Controller
 
         $progressNeed = (clone $challengesQuery)
             ->whereIn('status_flag', [0, 5])
-            ->where('date_start', '<=', $now)
-            ->where('date_end', '>=', $now)
+            ->where('date_start', '<=', $now->copy()->endOfDay())
+            ->where('date_end', '>=', $now->copy()->startOfDay())
             ->get();
         
-        $updateNeed = (clone $challengesQuery)->where('date_end', '<=', $now)->whereIn('status_flag', [0, 5])->get();
+        $updateNeed = (clone $challengesQuery)
+            ->whereIn('status_flag', [0, 5])
+            ->where('date_end', '<', $now->copy()->startOfDay())
+            ->get();
         $data = $progressNeed->map(function ($challenge) use ($now) {
-            $start = Carbon::parse($challenge->date_start);
-            $end = Carbon::parse($challenge->date_end);
+            $start = Carbon::parse($challenge->date_start)->startOfDay();
+            $end = Carbon::parse($challenge->date_end)->endOfDay();
+
+            if (!$start->isValid() || !$end->isValid() || $end->lte($start)) {
+                return null;
+            }
+
+            if ($now->lt($start) || $now->gt($end)) {
+                return null;
+            }
+
             $checkpoint = $this->latestReachedProgressCheckpoint($start, $end, $now);
-            
+
             if (!$checkpoint) {
                 return null;
             }
 
             $elapsed = $start->diffInSeconds($now);
             $total = max(1, $start->diffInSeconds($end));
+
             $pct = (int) round(($elapsed / $total) * 100);
             $pct = max(0, min(100, $pct));
-            $checkpointDate = $this->progressCheckpointDate($start, $end, $checkpoint);
-            $latestProgressReport = optional($challenge->progressReports)->sortByDesc('created_at')->first();
 
-            if ($latestProgressReport && Carbon::parse($latestProgressReport->created_at)->greaterThanOrEqualTo($checkpointDate)) {
+            $checkpointDate = $this->progressCheckpointDate($start, $end, $checkpoint);
+
+            $latestProgressReport = optional($challenge->progressReports)
+                ->sortByDesc('created_at')
+                ->first();
+
+            if (
+                $latestProgressReport &&
+                Carbon::parse($latestProgressReport->created_at)->gte($checkpointDate)
+            ) {
                 return null;
             }
 
             $challenge['attention_type'] = 'progress_need';
             $challenge['attention_checkpoint'] = $checkpoint;
             $challenge['attention_progress_percent'] = $pct;
-            $challenge['attention_deadline'] = Carbon::parse($challenge->date_end)->toIso8601String();
+            $challenge['attention_deadline'] = $end->toIso8601String();
+
             return $challenge;
         })->filter()->values();
-       
+
         $updateNeed->each(function ($challenge) {
+            $end = Carbon::parse($challenge->date_end)->endOfDay();
+
             $challenge['attention_type'] = 'update_need';
-            $challenge['attention_deadline'] = Carbon::parse($challenge->date_end)->toIso8601String();
+            $challenge['attention_deadline'] = $end->toIso8601String();
         });
-        $final = $data->concat($updateNeed)->sortBy('date_start')->values();
+
+        $final = $data
+            ->concat($updateNeed)
+            ->sortBy('date_start')
+            ->values();
 
         return $challengeRelays->concat($niceReminders)->concat($final)->values();
 
