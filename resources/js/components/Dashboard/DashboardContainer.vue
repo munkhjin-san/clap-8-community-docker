@@ -268,7 +268,6 @@ const DEFAULT_CARD_HEIGHT_BY_TYPE: Record<string, number> = {
     challenges: 220,
     assets: 180,
     incidents: 220,
-    // 'partner-crm': 220,
     schedules: 180,
     timesheet: 220,
     notice: 160,
@@ -611,6 +610,52 @@ const sortParent = useTemplateRef('sortParent')
 
 const offset = ref(0)
 
+const uniqueDashboardTypes = (types: string[]) => {
+    const cardTypes = new Set(dashboardCards.value.map((card) => card.type))
+    const seen = new Set<string>()
+
+    return types.filter((type) => {
+        if (!cardTypes.has(type) || seen.has(type)) return false
+        seen.add(type)
+        return true
+    })
+}
+
+const getStoredDashboardOrder = () => {
+    const cardTypes = dashboardCards.value.map((card) => card.type)
+    const storedTypes = uniqueDashboardTypes(prefsStore.order)
+    const storedSet = new Set(storedTypes)
+
+    return [
+        ...storedTypes,
+        ...cardTypes.filter((type) => !storedSet.has(type)),
+    ]
+}
+
+const mergeVisibleDashboardOrder = (visibleTypes: string[]) => {
+    const visibleOrder = uniqueDashboardTypes(visibleTypes)
+    const visibleSet = new Set(visibleOrder)
+    const mergedOrder: string[] = []
+    let visibleIndex = 0
+
+    for (const type of getStoredDashboardOrder()) {
+        if (!visibleSet.has(type)) {
+            mergedOrder.push(type)
+            continue
+        }
+
+        const nextVisibleType = visibleOrder[visibleIndex]
+        if (nextVisibleType) mergedOrder.push(nextVisibleType)
+        visibleIndex += 1
+    }
+
+    for (; visibleIndex < visibleOrder.length; visibleIndex++) {
+        mergedOrder.push(visibleOrder[visibleIndex])
+    }
+
+    return uniqueDashboardTypes(mergedOrder)
+}
+
 const saveGridState = (force = false) => {
     if (!grid.value) return
     if (isRestoringGrid && !force) return
@@ -638,11 +683,7 @@ const saveGridState = (force = false) => {
         }
     }
 
-    const hiddenTypes = dashboardCards.value
-        .map((card) => card.type)
-        .filter((type) => !orderedTypes.includes(type))
-
-    prefsStore.setOrder([...orderedTypes, ...hiddenTypes])
+    prefsStore.setOrder(mergeVisibleDashboardOrder(orderedTypes))
     prefsStore.setGridLayoutsNow(layouts)
     buildSkeletonCards()
 }
