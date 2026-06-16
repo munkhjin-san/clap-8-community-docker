@@ -41,7 +41,9 @@ use App\Http\Controllers\PublicSurveyController;
 use App\Http\Controllers\PushController;
 use App\Http\Controllers\PublicHolidayController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\AppCommentController;
+use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\GoalToolController;
 use App\Http\Controllers\GoalChatController;
 use App\Http\Controllers\FinanceToolController;
@@ -133,9 +135,16 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     // pusher authorize
 
 
-    Route::get('/user', function () {
+    Route::get('/user', function (Request $request) {
         $id = Auth::id();
-        return redirect("/user/{$id}");
+        $url = "/user/{$id}";
+        $query = $request->getQueryString();
+
+        if ($query) {
+            $url .= '?' . $query;
+        }
+
+        return redirect($url);
     });
 
     Route::get('/start_private_board', [BoardController::class, 'start_private_board']);
@@ -302,6 +311,11 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/user_pass_change_api', [UserController::class, 'passChange']); // パスワード変更API
         Route::post('/profile_get_update_user', [UserController::class, 'profile_get_update_user']);
         Route::post('/profile_set_color', [UserController::class, 'setColor']);
+        Route::get('/employee_change_applications', [EmployeeController::class, 'indexChangeApplications']);
+        Route::get('/my_employee_change_applications', [EmployeeController::class, 'myChangeApplications']);
+        Route::post('/employee_change_applications', [EmployeeController::class, 'storeChangeApplication']);
+        Route::get('/employee_change_applications/{application}', [EmployeeController::class, 'showChangeApplication']);
+        Route::patch('/employee_change_applications/{application}/review', [EmployeeController::class, 'reviewChangeApplication']);
         Route::post('/get_user_claps', [UserController::class, 'getClaps']);
         Route::post('/user_file_upload', [UserController::class, 'userFileUpload']);
         Route::post('/user_file_delete', [UserController::class, 'user_file_delete']);
@@ -871,35 +885,36 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/app_comments', [AppCommentController::class, 'index']);
         Route::post('/app_comments', [AppCommentController::class, 'store']);
         Route::get('/app_comment_mentionable_users', [AppCommentController::class, 'mentionableUsers']);
-        Route::get('/get_incidents', [DashboardController::class, 'getIncidents']);
-        Route::get('/incident_page', [DashboardController::class, 'getIncidentPage']);
-        Route::get('/incident_options', [DashboardController::class, 'getIncidentOptions']);
-        Route::get('/incident_settings', [DashboardController::class, 'getIncidentSettings']);
-        Route::post('/incident_category', [DashboardController::class, 'createIncidentCategory']);
-        Route::put('/incident_category', [DashboardController::class, 'updateIncidentCategory']);
-        Route::delete('/incident_category', [DashboardController::class, 'deleteIncidentCategory']);
-        Route::post('/incident_categories/reorder', [DashboardController::class, 'reorderIncidentCategories']);
-        Route::post('/incident_status', [DashboardController::class, 'createIncidentStatus']);
-        Route::put('/incident_status', [DashboardController::class, 'updateIncidentStatus']);
-        Route::delete('/incident_status', [DashboardController::class, 'deleteIncidentStatus']);
-        Route::post('/incident_statuses/reorder', [DashboardController::class, 'reorderIncidentStatuses']);
-        Route::post('/incident_punishment', [DashboardController::class, 'createIncidentPunishment']);
-        Route::put('/incident_punishment', [DashboardController::class, 'updateIncidentPunishment']);
-        Route::delete('/incident_punishment', [DashboardController::class, 'deleteIncidentPunishment']);
-        Route::post('/incident_punishments/reorder', [DashboardController::class, 'reorderIncidentPunishments']);
-        Route::get('/incident_logs', [DashboardController::class, 'getIncidentLogs']);
-        Route::post('/incident_read_history', [DashboardController::class, 'markIncidentRead']);
-        Route::get('/incident_advice', [DashboardController::class, 'getIncidentAdvices']);
-        Route::get('/incident_advice_stream', [DashboardController::class, 'streamIncidentAdvice']);
-        Route::post('/incident_advice', [DashboardController::class, 'createIncidentAdvice']);
-        Route::delete('/incident_advice', [DashboardController::class, 'deleteIncidentAdvice']);
-        Route::post('/incident_record_create', [DashboardController::class, 'createIncidentRecord']);
-        Route::post('/incident_record_update', [DashboardController::class, 'updateIncidentRecord']);
-        Route::post('/incident_record_delete', [DashboardController::class, 'deleteIncidentRecord']);
-        Route::post('/incident_assignee_report', [DashboardController::class, 'saveIncidentAssigneeReport']);
-        Route::post('/incident_assignee_complete', [DashboardController::class, 'completeIncidentAssigneeReport']);
-        Route::post('/incident_report_assignment', [DashboardController::class, 'createIncidentReportAssignment']);
-        Route::get('incident_related_mentionable_users', [DashboardController::class, 'incidentRelatedMentionableUsers']);
+        Route::get('/get_incidents', [IncidentController::class, 'getIncidents']);
+        Route::get('/incident_page', [IncidentController::class, 'getIncidentPage']);
+        Route::get('/export_incident_csv', [IncidentController::class, 'exportIncidentCsv']);
+        Route::get('/incident_options', [IncidentController::class, 'getIncidentOptions']);
+        Route::get('/incident_settings', [IncidentController::class, 'getIncidentSettings']);
+        Route::post('/incident_category', [IncidentController::class, 'createIncidentCategory']);
+        Route::put('/incident_category', [IncidentController::class, 'updateIncidentCategory']);
+        Route::delete('/incident_category', [IncidentController::class, 'deleteIncidentCategory']);
+        Route::post('/incident_categories/reorder', [IncidentController::class, 'reorderIncidentCategories']);
+        Route::post('/incident_status', [IncidentController::class, 'createIncidentStatus']);
+        Route::put('/incident_status', [IncidentController::class, 'updateIncidentStatus']);
+        Route::delete('/incident_status', [IncidentController::class, 'deleteIncidentStatus']);
+        Route::post('/incident_statuses/reorder', [IncidentController::class, 'reorderIncidentStatuses']);
+        Route::post('/incident_punishment', [IncidentController::class, 'createIncidentPunishment']);
+        Route::put('/incident_punishment', [IncidentController::class, 'updateIncidentPunishment']);
+        Route::delete('/incident_punishment', [IncidentController::class, 'deleteIncidentPunishment']);
+        Route::post('/incident_punishments/reorder', [IncidentController::class, 'reorderIncidentPunishments']);
+        Route::get('/incident_logs', [IncidentController::class, 'getIncidentLogs']);
+        Route::post('/incident_read_history', [IncidentController::class, 'markIncidentRead']);
+        Route::get('/incident_advice', [IncidentController::class, 'getIncidentAdvices']);
+        Route::get('/incident_advice_stream', [IncidentController::class, 'streamIncidentAdvice']);
+        Route::post('/incident_advice', [IncidentController::class, 'createIncidentAdvice']);
+        Route::delete('/incident_advice', [IncidentController::class, 'deleteIncidentAdvice']);
+        Route::post('/incident_record_create', [IncidentController::class, 'createIncidentRecord']);
+        Route::post('/incident_record_update', [IncidentController::class, 'updateIncidentRecord']);
+        Route::post('/incident_record_delete', [IncidentController::class, 'deleteIncidentRecord']);
+        Route::post('/incident_assignee_report', [IncidentController::class, 'saveIncidentAssigneeReport']);
+        Route::post('/incident_assignee_complete', [IncidentController::class, 'completeIncidentAssigneeReport']);
+        Route::post('/incident_report_assignment', [IncidentController::class, 'createIncidentReportAssignment']);
+        Route::get('incident_related_mentionable_users', [IncidentController::class, 'incidentRelatedMentionableUsers']);
         Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
 
         // Goal & KPI MCP Server (Model Context Protocol / JSON-RPC 2.0)

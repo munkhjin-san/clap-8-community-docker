@@ -81,6 +81,13 @@
                 >
                     フィルター解除
                 </button>
+                <LoaderButton
+                    v-if="canManageIncidentSettings"
+                    content="CSV出力"
+                    style="margin: 0"
+                    :loading="exporting"
+                    @triggered="exportIncidentCsv"
+                />
                 <button
                     v-if="canManageIncidentSettings"
                     type="button"
@@ -243,6 +250,7 @@ import IncidentDetailModal from './IncidentDetailModal.vue';
 import IncidentSettingsManager from './IncidentSettingsManager.vue';
 import { useDashboardStore } from '@/store/dashboard';
 import Badge from '../Global/Badge.vue';
+import LoaderButton from '../Global/LoaderButton.vue';
 
 const api = useApi()
 const route = useRoute()
@@ -254,6 +262,7 @@ const activeIncident = ref<Incident | null>(null)
 const openingIncidentId = ref<number | null>(null)
 const settingsOpen = ref(false)
 const createModalOpen = ref(false)
+const exporting = ref(false)
 const optionsLoaded = ref(false)
 const menu = useMenuStore()
 const responsive = useResponsive()
@@ -564,6 +573,35 @@ const clearFilters = () => {
     filters.point_operator = 'gte'
     filters.point_value = ''
     menu.close()
+}
+
+const exportIncidentCsv = async () => {
+    if (exporting.value || !canManageIncidentSettings.value) return
+
+    exporting.value = true
+    try {
+        const data = await api.get('/export_incident_csv', {
+            ...incidentFilterParams(),
+            mode: 'export',
+        }, {}, {
+            responseType: 'blob',
+        })
+
+        if (data) {
+            const url = window.URL.createObjectURL(new Blob([data]))
+            const link = document.createElement('a')
+            link.href = url
+            link.setAttribute('download', `インシデント${DateTime.now().toLocaleString(DateTime.DATETIME_SHORT)}.xlsx`)
+            document.body.appendChild(link)
+            link.click()
+            link.remove()
+            window.URL.revokeObjectURL(url)
+        }
+    } finally {
+        setTimeout(() => {
+            exporting.value = false
+        }, 100)
+    }
 }
 
 const handleIncidentUpdated = (incident: Incident) => {
