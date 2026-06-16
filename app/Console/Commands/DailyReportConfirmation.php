@@ -8,6 +8,7 @@ use Illuminate\Console\Command;
 use App\Models\timecardRecord;
 use App\Models\shiftRecord;
 use App\Models\User;
+use App\Models\TimecardMissingOccurrence;
 use App\Mail\DailyReportReminder;
 use App\Services\ReportService;
 use Carbon\Carbon;
@@ -37,13 +38,13 @@ class DailyReportConfirmation extends Command
                 $query->whereNull('timecard_records.id')
                       ->orWhereNotIn('timecard_records.status_flag', [1, 2]);
             })
-            ->select('shift_records.user_id', 'shift_records.shift_day')
+            ->select('shift_records.user_id', 'shift_records.shift_day', 'shift_records.id')
             ->get();
 
         $byDay = $shifts->groupBy('shift_day');
 
         $warningUsers  = collect($byDay->get($yesterday,        collect()))->pluck('user_id');
-        $incidentUsers = collect($byDay->get($dayBeforeYesterday, collect()))->pluck('user_id');
+        $incidentUsers = collect($byDay->get($dayBeforeYesterday, collect()));
 
         $this->info("Yesterday ({$yesterday}): {$warningUsers->count()} warning user(s).");
         $this->info("Day before yesterday ({$dayBeforeYesterday}): {$incidentUsers->count()} incident user(s).");
@@ -67,19 +68,20 @@ class DailyReportConfirmation extends Command
 
         // Incident: day before yesterday missing — send email + collect for board
         $incidentLines = [];
-        foreach ($incidentUsers as $userId) {
+        foreach ($incidentUsers as $shift) {
+            $userId = $shift['user_id'];
             $user = User::where('id', $userId)
                 ->where('retire', 0)
                 ->select('id', 'name', 'email')
                 ->first();
             if (!$user) continue;
-
-            // $validEmail = filter_var($user->email, FILTER_VALIDATE_EMAIL);
-            // if ($validEmail) {
-            //     Mail::to($user->email)->send(
-            //         new DailyReportReminder($user, 2, [$dayBeforeYesterday], true)
-            //     );
-            // }
+            TimecardMissingOccurrence::firstOrCreate([
+                'user_id' => $userId,
+                'report_date' => $shift['shift_day'],
+            ], [
+                'shift_record_id' => $shift['id'] ?? null,
+                'counted_date' => Carbon::now()->toDateString(),
+            ]);
 
             $incidentLines[] = "{$user->name} さんが {$dayBeforeYesterday} の日報を未申請です。";
             $this->line("  [INCIDENT] user_id={$userId}  name={$user->name}  shift_day={$dayBeforeYesterday}");
