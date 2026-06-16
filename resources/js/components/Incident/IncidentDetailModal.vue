@@ -226,9 +226,8 @@
                                 :key="advice.id"
                                 class="incident-ai-advice-version"
                                 :class="{ 'incident-ai-advice-version--open': selectedAdviceId === advice.id }"
-                                @click="toggleAdviceExpansion(advice.id)"
                             >
-                                <div class="incident-ai-advice-version-head">
+                                <div class="incident-ai-advice-version-head" @click="toggleAdviceExpansion(advice.id)">
                                     <span
                                         class="incident-ai-advice-arrow"
                                         :style="{ transform: selectedAdviceId === advice.id ? 'rotate(270deg)' : 'rotate(180deg)' }"
@@ -247,6 +246,9 @@
                                 <div v-if="selectedAdviceId === advice.id" class="incident-ai-advice-preview incident-ai-advice-version-body">
                                     <div class="incident-ai-advice-meta">
                                         <span>{{ formatDateTime(advice.created_at) }}</span>
+                                        <button type="button" class="incident-ai-advice-copy" @click.stop="copyAdviceContent(advice)">
+                                            コピー
+                                        </button>
                                     </div>
                                     <div v-html="adviceHtml(advice)"></div>
                                 </div>
@@ -470,9 +472,8 @@
                                     :key="advice.id"
                                     class="incident-ai-advice-version"
                                     :class="{ 'incident-ai-advice-version--open': selectedConclusionAdviceId === advice.id }"
-                                    @click="toggleConclusionAdviceExpansion(advice.id)"
                                 >
-                                    <div class="incident-ai-advice-version-head">
+                                    <div class="incident-ai-advice-version-head" @click="toggleConclusionAdviceExpansion(advice.id)">
                                         <span
                                             class="incident-ai-advice-arrow"
                                             :style="{ transform: selectedConclusionAdviceId === advice.id ? 'rotate(270deg)' : 'rotate(180deg)' }"
@@ -491,6 +492,9 @@
                                     <div v-if="selectedConclusionAdviceId === advice.id" class="incident-ai-advice-preview incident-ai-advice-version-body">
                                         <div class="incident-ai-advice-meta">
                                             <span>{{ formatDateTime(advice.created_at) }}</span>
+                                            <button type="button" class="incident-ai-advice-copy" @click.stop="copyAdviceContent(advice)">
+                                                コピー
+                                            </button>
                                         </div>
                                         <div v-html="adviceHtml(advice)"></div>
                                     </div>
@@ -870,6 +874,25 @@ const sanitizedAdviceDraft = computed(() => DOMPurify.sanitize(marked(adviceDraf
 const sanitizedConclusionAdviceDraft = computed(() => DOMPurify.sanitize(marked(conclusionAdviceDraft.value) as string))
 const adviceHtml = (advice: IncidentAdvice) => {
     return DOMPurify.sanitize(marked(advice.content ?? '') as string)
+}
+const copyAdviceContent = async (advice: IncidentAdvice) => {
+    const content = advice.content ?? ''
+    if (!content) return
+
+    try {
+        await navigator.clipboard.writeText(content)
+    } catch {
+        const textarea = document.createElement('textarea')
+        textarea.value = content
+        textarea.style.position = 'fixed'
+        textarea.style.left = '-9999px'
+        document.body.appendChild(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        textarea.remove()
+    }
+
+    dialog.toast('コピーしました。')
 }
 const theme = useTheme()
 const {
@@ -1904,7 +1927,7 @@ const formatLogValue = (value: unknown) => {
 .incident-ai-advice-version{
     border: 1px solid var(--calendarBorder);
     background: var(--background-color);
-    cursor: pointer;
+    cursor: default;
     display: block;
 }
 
@@ -1923,6 +1946,12 @@ const formatLogValue = (value: unknown) => {
     align-items: center;
     gap: 12px;
     padding: 12px 14px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.incident-ai-advice-version-body{
+    user-select: text;
 }
 
 .incident-ai-advice-arrow{
@@ -1950,6 +1979,19 @@ const formatLogValue = (value: unknown) => {
 .incident-ai-advice-menu{
     display: flex;
     justify-content: flex-end;
+}
+
+.incident-ai-advice-copy{
+    border: 1px solid var(--calendarBorder);
+    background: var(--bg3);
+    color: var(--primary-color);
+    padding: 4px 10px;
+    font-size: 11px;
+    line-height: 1;
+}
+
+.incident-ai-advice-copy:hover{
+    background: var(--secondary-background);
 }
 
 .incident-ai-advice-meta{
@@ -2234,6 +2276,27 @@ const formatLogValue = (value: unknown) => {
     .incident-ai-advice-meta{
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .incident-ai-advice-version-head{
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+    }
+
+    .incident-ai-advice-version-title{
+        white-space: normal;
+    }
+
+    .incident-ai-advice-version-head > .incident-ai-advice-menu{
+        grid-column: 3;
+        grid-row: 1;
+    }
+
+    .incident-ai-advice-version-head > :deep(.user-panel),
+    .incident-ai-advice-version-head > :deep(.user-panel-wrapper){
+        grid-column: 2 / 4;
+        grid-row: 2;
+        justify-self: start;
     }
 
     .incident-people-grid,
