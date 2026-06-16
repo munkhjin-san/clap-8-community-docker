@@ -23,6 +23,45 @@
                 </div>
                 
             </div>
+            <div v-if="guestMode">
+                <div class="disclaimer max-h-[150px] overflow-y-auto rounded-[4px] border border-solid border-[var(--bg3)] bg-[var(--bg3)] p-[12px] text-[12px] leading-[1.7] text-[var(--primary-color)]">
+                    <div class="flex flex-col gap-[10px]">
+                        <div class="font-bold">アンケート回答における個人情報の取扱いについて</div>
+                        <div>
+                            当社は、本アンケートを通じてご入力いただく回答内容、氏名、会社名、メールアドレスその他の情報を、以下の方針に基づき適切に取り扱います。
+                        </div>
+                        <ol class="m-0 flex flex-col gap-[10px] pl-[18px]">
+                            <li>
+                                <div class="font-bold">利用目的</div>
+                                <div>ご入力いただいた情報は、当社サービスに関する満足度の把握、品質改善、お問い合わせ対応、ならびに今後のサービス向上のための分析に利用します。</div>
+                            </li>
+                            <li>
+                                <div class="font-bold">保管および管理</div>
+                                <div>ご入力いただいた情報は、当社が管理するサーバー上に保管し、不正アクセス、紛失、改ざん、漏えい等が生じないよう、必要かつ適切な安全管理措置を講じます。</div>
+                            </li>
+                            <li>
+                                <div class="font-bold">目的外利用の禁止</div>
+                                <div>ご入力いただいた情報を、上記の利用目的を超えて利用することはありません。</div>
+                            </li>
+                            <li>
+                                <div class="font-bold">第三者提供について</div>
+                                <div>ご本人の同意がある場合または法令に基づく場合を除き、ご入力いただいた情報を第三者に提供することはありません。</div>
+                            </li>
+                            <li>
+                                <div class="font-bold">回答内容の取扱い</div>
+                                <div>アンケート結果は、個人を特定できない形で集計・分析し、社内でのサービス改善検討に利用する場合があります。</div>
+                            </li>
+                            <li>
+                                <div class="font-bold">お問い合わせ</div>
+                                <div>
+                                    <p>本アンケートにおける個人情報の取扱いについてご不明点がある場合は、当社担当窓口までお問い合わせください。</p>
+                                    <a class="text-[var(--accent-color)] underline" href="https://glowd.co.jp/contact" target="_blank" rel="noopener noreferrer">https://glowd.co.jp/contact</a>
+                                </div>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
             <div class="si-box flex justify-center gap-[20px]">
                 <LoaderButton
                     v-if="!guestMode"
