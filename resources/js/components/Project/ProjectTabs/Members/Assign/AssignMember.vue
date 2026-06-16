@@ -239,7 +239,7 @@
                                             </div>
                                             
                                             <div v-if="message.action_type === 'message'" class="mt-2">
-                                                <p class="whitespace-pre" v-html="urlCheck(message.content)"></p>
+                                                <p class="whitespace-break-spaces" v-html="urlCheck(message.content)"></p>
                                             </div>
                                         </div>
                                         
@@ -258,7 +258,7 @@
                                                 <span>【{{message.user?.name}}】</span>
                                             </p>
                                             <div class="mt-2 ">
-                                                <p class="whitespace-pre" v-html="urlCheck(message.content)"></p>
+                                                <p class="whitespace-break-spaces" v-html="urlCheck(message.content)"></p>
                                             </div>
                                         </div>
                                         <div v-else-if="message.action_type === 'member_decision'">
