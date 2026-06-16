@@ -901,15 +901,15 @@ class DashboardController extends Controller
             ->with(['user.positions', 'projectRecord' => fn($query) => $query->select(['id', 'name']), 'createdUser'])
             ->select('id', 'user_id', 'project_record_id', 'status', 'created_at', 'updated_at', 'confirmed_at', 'score', 'support_level')
             ->get();
-        $changeRequests = EmployeeChangeApplication::where('status', ApplicationStatus::Submitted->value)
-            ->with([
-                'user:id,name,icon_path,icon_bg,position_id',
-            ])
-            ->get();
+        // $changeRequests = EmployeeChangeApplication::where('status', ApplicationStatus::Submitted->value)
+        //     ->with([
+        //         'user:id,name,icon_path,icon_bg,position_id',
+        //     ])
+        //     ->get();
         return [
             'pendingEvaluations' => $evaluations,
             'pendingAssignments' => $assigns,
-            'pendingChangeRequests' => $changeRequests,
+            // 'pendingChangeRequests' => $changeRequests,
         ];
     }
     private function getAdminMembers() {
