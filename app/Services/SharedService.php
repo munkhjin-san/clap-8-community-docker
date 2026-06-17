@@ -376,6 +376,8 @@ class SharedService
             'paidLeaveDays'    => $paidLeaveDays,
             'paidLeaveMinutes' => $paidLeaveMinutes,
             'accountedMinutes' => $workMinutes + $paidLeaveMinutes,
+            'startTime'        => $first->start_time,
+            'endTime'          => $first->end_time,
         ];
     }
     private function calcNetWorkMinutesPerDay(string $startTime, string $endTime): int
