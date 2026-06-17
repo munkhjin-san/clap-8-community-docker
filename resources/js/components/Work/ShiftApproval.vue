@@ -14,15 +14,30 @@
                     </svg>
                 </div>
             </div>
-            <div style="margin: 10px 0 30px; display: flex; gap: 30px; position: relative; justify-content: space-between;">
+            <div class="approval-toolbar">
                 <button style="margin: unset;" class="work-button" @click.stop="menu.setMenu( { id: 199, name: 'workMemberSelector'})">メンバー</button>
-                <MonthPickerNew
-                    v-model:month="approveMonth"
-                    v-model:year="approveYear"
-                    :right="'auto'" 
-                    @setDate="setDate"
-                />
-                <button style="margin: unset;background-color: tomato;" class="work-button" @click="approveAll">一括承認</button>
+                <div class="approval-month-control">
+                    <span>月度</span>
+                    <MonthPickerNew
+                        v-model:month="approveMonth"
+                        v-model:year="approveYear"
+                        :right="'auto'"
+                        @setDate="setDate"
+                    />
+                </div>
+                <div class="approval-summary">
+                    <span>選択 {{ filterGroups.length }}名</span>
+                    <span>承認対象 {{ approvablePendingCount }}件</span>
+                    <span v-if="outOfScopePendingCount">担当外 {{ outOfScopePendingCount }}件</span>
+                    <span v-if="approvableProjectSummary">{{ approvableProjectSummary }}</span>
+                </div>
+                <button
+                    style="margin: unset;"
+                    :class="['work-button', 'approve-all-button', { 'is-disabled': approvablePendingCount === 0 }]"
+                    @click="approveAll"
+                >
+                    {{ bulkApproveLabel }}
+                </button>
                 <Transition name="modalFade">
                     <WorkMembers 
                         v-if="menu.id == 199 && menu.name == 'workMemberSelector'"
@@ -34,42 +49,65 @@
                     />
                 </Transition>
             </div>
-            <div v-if="loading !== 0 && filterGroups.length" style="height: calc(100% - 128px); overflow: auto;">
+            <div v-if="loading !== 0 && filterGroups.length" class="approval-table-wrapper">
                 <table style="width: 100%;">
                     <thead>
                         <tr>
                             <th>
                                 日付
                             </th>
-                            <th v-for="user in filterGroups" class="p-[10px]">
-                                <div>
-                                    {{ user.name }}
+                            <th v-for="user in filterGroups" :key="user.id" class="p-[10px]">
+                                <div class="approval-user-card">
+                                    <div class="approval-user-name">{{ user.name }}</div>
+                                    <div class="approval-user-stats">
+                                        <span>休日 {{ calculatedHoliday(user) }}</span>
+                                        <span>所定 {{ user.should_work_hours / 60 }}時間 / {{ user.work_day_num }}日</span>
+                                        <span>勤務 {{ user.planned_shift_data.workMinutes / 60 }}時間 / {{ user.planned_shift_data.workDays }}日</span>
+                                        <span>有給 {{ user.planned_shift_data.paidLeaveMinutes / 60 }}時間</span>
+                                        <span>出退勤 {{ DateTime.fromISO(user.planned_shift_data.startTime).toFormat('HH:mm') }} ~ {{ DateTime.fromISO(user.planned_shift_data.endTime).toFormat('HH:mm') }}</span>
+                                    </div>
                                 </div>
-                                <div class="text-[12px] mt-[10px]">休日設定日数：{{ calculatedHoliday(user) }}</div>
-                                <div class="text-[12px] mt-[10px]">所定労働時間：{{ user.should_work_hours / 60 }}時間 ({{ user.work_day_num }}日)</div>
-                                <div class="text-[12px] mt-[10px]">勤務時間:{{ user.planned_shift_data.workMinutes / 60 }}時間 ({{ user.planned_shift_data.workDays }}日)</div>
-                                <div class="text-[12px] mt-[10px]">有給時間:{{ user.planned_shift_data.paidLeaveMinutes / 60 }}時間</div>
                             </th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="shift, index in shiftRecords">
+                        <tr v-for="shift, index in shiftRecords" :key="index">
                             <td :class="[getDayClass(index)]">
                                 {{ dayFormatter(index) }}
                             </td>
-                            <td v-for="user in filterGroups">
-                                <div style="display: flex; flex-direction: column; gap: 10px;">
-                                    <div>
+                            <td v-for="user in filterGroups" :key="user.id" :class="approvalCellClass(user, shift[user.id])">
+                                <div v-if="shift[user.id]" class="approval-cell">
+                                    <div class="approval-shift-line">
                                         <span 
-                                            :class="getShiftClass(shift[user.id]?.old_shift?.shift_type)"
-                                            v-if="shift[user.id]?.old_shift"
+                                            :class="['approval-shift-type', getShiftClass(shift[user.id]?.shift_type)]"
                                         >
-                                            {{ shift[user.id]?.old_shift?.shift_type.abbreviation }} ➞
-                                        </span>
-                                        <span :class="getShiftClass(shift[user.id]?.shift_type)">
                                             {{ shift[user.id]?.shift_type?.abbreviation }}
                                         </span>
-                                        <span>{{statuses[shift[user.id]?.status_flag]}}</span>
+                                        <span :class="['approval-status', statusClass(shift[user.id]?.status_flag)]">
+                                            {{ statusLabel(shift[user.id]?.status_flag) }}
+                                        </span>
+                                    </div>
+                                    <div v-if="shiftRequiresProject(shift[user.id])" :class="['approval-project-chip', { 'is-missing': !shift[user.id]?.department }]">
+                                        <span>プロジェクト</span>
+                                        <strong>{{ projectName(shift[user.id]) }}</strong>
+                                    </div>
+                                    <div v-else class="approval-non-project">
+                                        プロジェクト対象外
+                                    </div>
+                                    <div class="approval-before" v-if="shift[user.id]?.old_shift">
+                                        変更前:
+                                        <span :class="getShiftClass(shift[user.id]?.old_shift?.shift_type)">
+                                            {{ shift[user.id]?.old_shift?.shift_type.abbreviation }}
+                                        </span>
+                                        <span v-if="shift[user.id]?.old_shift?.department">
+                                            / {{ shift[user.id].old_shift.department.name }}
+                                        </span>
+                                    </div>
+                                    <div class="approval-note" v-if="isSelfShift(shift[user.id])">
+                                        本人のため承認不可
+                                    </div>
+                                    <div class="approval-note" v-else-if="isOutOfScopeShift(user, shift[user.id])">
+                                        担当外プロジェクト
                                     </div>
                                     <div v-if="authorityCheck(user, shift[user.id]) && shift[user.id]?.status_flag !== 1" class="authority-buttons">
                                         <CommandButton 
@@ -87,6 +125,7 @@
                                         />
                                     </div>
                                 </div>
+                                <span v-else class="approval-empty">-</span>
                             </td>
                         </tr>
                     </tbody>
@@ -142,14 +181,17 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
     const badge = useBadgeStore()
     const checkedUsers = ref([])
     
-    const statuses = ['', '', ' : 申請中', ' : 承認済']
+    const statusLabels = {
+        1: '確定済',
+        2: '申請中',
+        3: '承認済',
+    }
     const api = useApi()
     const { ask, ping } = useDialog()
     const { getBatchDashboardData } = useDashboardStore()
     const publicHolidayStore = usePublicHolidayStore()
     onMounted(async() => {
         publicHolidayStore.ensureLoaded()
-        console.log('usersCheckArray', props.usersCheckArray)
         await fetchWorkGroups()
         const exist = workUsers.value.filter(ob => props.usersCheckArray.includes(ob.id))
         checkedUsers.value = exist.map(ob => ob.id)
@@ -162,14 +204,62 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
     const filterGroups = computed(() => {
         return workUsers.value.filter(user => checkedUsers.value.find(id => id == user.id))
     })
+    const managedProjectIds = computed(() => {
+        if (auth.isAdmin) return null
+
+        return new Set(
+            workGroups.value
+                .filter(group => (group.manager ?? []).some(manager => Number(manager.id) === Number(auth.activeUser.id)))
+                .map(group => Number(group.id))
+        )
+    })
+    const selectedShiftEntries = computed(() => {
+        const entries = []
+
+        Object.values(shiftRecords.value ?? {}).forEach((dayShifts) => {
+            filterGroups.value.forEach((user) => {
+                const shift = dayShifts?.[user.id]
+                if (shift) entries.push({ user, shift })
+            })
+        })
+
+        return entries
+    })
+    const approvablePendingCount = computed(() => {
+        return selectedShiftEntries.value.filter(({ user, shift }) => {
+            return Number(shift.status_flag) === 2 && authorityCheck(user, shift)
+        }).length
+    })
+    const outOfScopePendingCount = computed(() => {
+        return selectedShiftEntries.value.filter(({ user, shift }) => {
+            return isOutOfScopeShift(user, shift)
+        }).length
+    })
+    const approvableProjectSummary = computed(() => {
+        const names = [...new Set(
+            selectedShiftEntries.value
+                .filter(({ user, shift }) => authorityCheck(user, shift))
+                .filter(({ shift }) => shiftRequiresProject(shift))
+                .map(({ shift }) => projectName(shift))
+                .filter(Boolean)
+        )]
+
+        if (!names.length) return ''
+        if (names.length <= 2) return names.join(' / ')
+
+        return `${names.slice(0, 2).join(' / ')} 他${names.length - 2}件`
+    })
+    const bulkApproveLabel = computed(() => {
+        return approvablePendingCount.value ? `一括承認（${approvablePendingCount.value}件）` : '一括承認'
+    })
     
     const getDayClass = (date) => {
-        const day = DateTime.fromSQL(date).day
+        const day = DateTime.fromSQL(date)
         return {
-            'shift-saturday': day === 6,
-            'shift-sunday': day === 0,
+            'shift-saturday': day.weekday === 6,
+            'shift-sunday': day.weekday === 7,
             'shift-everyholiday' : holiday(date),
-            'today' : date === props.currentDay
+            // 'today' : day.toISODate() === DateTime.now().toISODate()
         }
     }
     const getShiftClass = (shift) => {
@@ -186,8 +276,40 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
             return date
         }
     }
+    const statusLabel = (status) => statusLabels[Number(status)] ?? '-'
+    const statusClass = (status) => {
+        return {
+            'is-pending': Number(status) === 2,
+            'is-approved': Number(status) === 3,
+            'is-confirmed': Number(status) === 1,
+        }
+    }
+    const projectName = (shift) => shift?.department?.name ?? 'プロジェクト未設定'
+    const shiftRequiresProject = (shift) => {
+        const shiftType = shift?.shift_type
+        if (!shiftType) return false
+
+        return ![0, 18].includes(Number(shiftType.id)) && Number(shiftType.full_day) !== 2
+    }
+    const isSelfShift = (shift) => {
+        return shift && Number(shift.user_id) === Number(auth.activeUser.id)
+    }
     const authorityCheck = (user, shift) => {
-        return (auth.activeUser.work_authority > user?.work_authority || [608, 610].includes(auth.activeUser.id)) && shift
+        if (!shift || isSelfShift(shift)) return false
+        if (auth.isAdmin) return true
+
+        return shift.department_id && managedProjectIds.value?.has(Number(shift.department_id))
+    }
+    const isOutOfScopeShift = (user, shift) => {
+        return shiftRequiresProject(shift) && Number(shift.status_flag) === 2 && !authorityCheck(user, shift) && !isSelfShift(shift)
+    }
+    const approvalCellClass = (user, shift) => {
+        return {
+            'approval-cell-td': true,
+            'is-actionable': authorityCheck(user, shift),
+            'is-out-of-scope': isOutOfScopeShift(user, shift),
+            'is-self': isSelfShift(shift),
+        }
     }
     const fetchWorkGroups = async() => {
         const yearMonth = DateTime.fromObject({year: approveYear.value, month: approveMonth.value}).toFormat('yyyy-MM')
@@ -208,7 +330,12 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
             ping('メンバーを選択してください。')
             return
         }
-        const answer = await ask('選択中メンバー全員の勤怠予定を纏めて承認します。<br>よろしいですか。')
+        if(approvablePendingCount.value === 0){
+            ping('承認できる申請中の勤怠予定がありません。')
+            return
+        }
+        const projectText = approvableProjectSummary.value ? `<br>対象プロジェクト: ${approvableProjectSummary.value}` : ''
+        const answer = await ask(`承認対象 ${approvablePendingCount.value}件を一括承認します。${projectText}<br>よろしいですか。`)
         if(!answer.value) return
         const userIds = checkedUsers.value
         
@@ -224,7 +351,7 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
     }
     const shiftApprove = async(shift, status) => {
         if(!status){
-            const answer = await ask(`${shift?.shift_day}の勤怠予定を差戻します。よろしいでしょうか。`)
+            const answer = await ask(`${shift?.shift_day} ${projectName(shift)} の勤怠予定を差戻します。よろしいでしょうか。`)
             if(!answer.value) return
         }
         const shiftId = shift?.id
@@ -263,9 +390,215 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
 <style scoped lang="scss">
     
     .overstyle{
-        width: fit-content;
+        display: flex;
+        flex-direction: column;
+        width: min(1180px, 95vw);
+        height: 85%;
         overflow: hidden;
-        max-width: 90%;
+        max-width: 95%;
+    }
+    .overstyle > .work-loader {
+        inset: 0;
+        height: 100%;
+        bottom: auto;
+        z-index: 20;
+    }
+    .recordFormTitle,
+    .approval-toolbar {
+        flex: 0 0 auto;
+    }
+    .approval-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        margin: 10px 0 18px;
+        position: relative;
+        flex-wrap: wrap;
+    }
+    .approval-summary {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        min-width: 260px;
+        overflow: hidden;
+        white-space: nowrap;
+        color: var(--primary-color);
+        font-size: 12px;
+    }
+    .approval-summary span {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 2px 8px;
+        border: 1px solid var(--calendarBorder);
+        border-radius: 3px;
+        background: var(--bg3);
+    }
+    .approval-month-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--primary-color);
+        font-size: 12px;
+        white-space: nowrap;
+    }
+    .approval-month-control :deep(.monthPicker) {
+        width: 128px;
+        height: 34px;
+        border: 1px solid var(--formBorder);
+        border-radius: 4px;
+        background: var(--background-color);
+        transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .approval-month-control :deep(.monthPicker:hover) {
+        border-color: var(--primary-color);
+        background: var(--bg3);
+    }
+    .approval-month-control :deep(.monthPicker > div:first-child) {
+        align-items: center;
+        display: flex;
+        height: 100%;
+        justify-content: center;
+        width: 100%;
+    }
+    .approval-month-control :deep(.monthPicker > div:first-child)::after {
+        content: "";
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 5px solid currentColor;
+        margin-left: 8px;
+        opacity: 0.65;
+    }
+    .approval-month-control :deep(#activateButton) {
+        align-items: center;
+        display: flex;
+        font-size: 13px;
+        height: 100%;
+    }
+    .approval-month-control :deep(.month-grid) {
+        right: 0 !important;
+    }
+    .approve-all-button {
+        background-color: tomato;
+    }
+    .approve-all-button.is-disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+    .approval-table-wrapper {
+        flex: 1 1 auto;
+        height: auto;
+        min-height: 0;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .approval-user-card {
+        min-width: 180px;
+    }
+    .approval-user-name {
+        font-size: 13px;
+        line-height: 1.4;
+    }
+    .approval-user-stats {
+        display: grid;
+        gap: 4px;
+        margin-top: 8px;
+        color: rgba(255, 255, 255, 0.86);
+        font-size: 11px;
+        line-height: 1.25;
+        text-align: left;
+    }
+    .approval-cell-td {
+        min-width: 190px;
+    }
+    .approval-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        min-width: 170px;
+        text-align: left;
+    }
+    .approval-shift-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+    .approval-shift-type {
+        font-size: 13px;
+        line-height: 1.3;
+    }
+    .approval-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 56px;
+        padding: 2px 8px;
+        border: 1px solid var(--formBorder);
+        border-radius: 3px;
+        background: var(--background-color);
+        font-size: 11px;
+        line-height: 1.4;
+        white-space: nowrap;
+    }
+    .approval-status.is-pending {
+        border-color: tomato;
+        color: tomato;
+    }
+    .approval-project-chip {
+        display: grid;
+        gap: 2px;
+        padding: 7px 8px;
+        border: 1px solid var(--calendarBorder);
+        border-radius: 4px;
+        background: var(--bg3);
+        line-height: 1.25;
+    }
+    .approval-project-chip span {
+        font-size: 10px;
+        opacity: 0.65;
+    }
+    .approval-project-chip strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    .approval-non-project {
+        padding: 6px 8px;
+        border: 1px dashed var(--calendarBorder);
+        border-radius: 4px;
+        background: var(--bg3);
+        color: var(--primary-color);
+        font-size: 11px;
+        line-height: 1.3;
+        opacity: 0.62;
+        text-align: center;
+    }
+    .approval-before {
+        color: var(--primary-color);
+        font-size: 11px;
+        line-height: 1.3;
+        opacity: 0.72;
+    }
+    .approval-note {
+        color: var(--primary-color);
+        font-size: 11px;
+        line-height: 1.3;
+        opacity: 0.62;
+        text-align: center;
+    }
+    .approval-empty {
+        color: var(--primary-color);
+        opacity: 0.32;
+    }
+    .is-out-of-scope .approval-project-chip,
+    .is-self .approval-project-chip {
+        opacity: 0.72;
     }
     table{
         font-size: 12px;
@@ -358,6 +691,35 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
     @media (max-width: 959px) {
         .overstyle{
             width: 100%;
+            max-width: 100%;
+            height: 100%;
+        }
+        .approval-toolbar {
+            gap: 10px;
+            margin: 8px 0 12px;
+        }
+        .approval-summary {
+            min-width: 100%;
+            flex-wrap: wrap;
+            white-space: normal;
+        }
+        .approval-table-wrapper {
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow: auto;
+            width: 100%;
+        }
+        table {
+            min-width: max-content;
+        }
+        table tbody tr td {
+            padding: 8px;
+        }
+        .approval-user-card {
+            min-width: 160px;
+        }
+        .approval-cell {
+            min-width: 150px;
         }
     }
 </style>
