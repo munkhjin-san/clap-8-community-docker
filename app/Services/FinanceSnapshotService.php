@@ -102,6 +102,13 @@ class FinanceSnapshotService
         $settlementData = $this->fetchSettlementData($start, $end, $projectNames);
         $settlements = $settlementData['rows'] ?? [];
         $settlementSheetPeriods = array_fill_keys($settlementData['existing_periods'] ?? [], true);
+        $latestActualPeriod = $latestClosed->format('Y-m');
+        $currentPeriod = now(config('app.timezone', 'Asia/Tokyo'))->format('Y-m');
+        foreach (($settlementData['existing_periods'] ?? []) as $existingPeriod) {
+            if ($existingPeriod > $latestActualPeriod && $existingPeriod <= $currentPeriod) {
+                $latestActualPeriod = $existingPeriod;
+            }
+        }
 
         $months = $this->monthKeys($start, $end);
         $summary = [
@@ -147,9 +154,15 @@ class FinanceSnapshotService
                 $profit = $profits[$projectKey][$periodKey] ?? $this->emptyUnit(false);
                 $rawSettlement = $settlements[$projectKey][$periodKey] ?? $this->emptyUnit(false);
                 $settlementSheetExists = isset($settlementSheetPeriods[$periodKey]);
-                $settlement = $period->lessThanOrEqualTo($latestClosed)
-                    ? $rawSettlement
-                    : array_merge($this->emptyUnit(false), ['source' => 'actual_not_released']);
+                if (! empty($rawSettlement['has_data'])) {
+                    $settlement = $rawSettlement;
+                } elseif ($settlementSheetExists) {
+                    $settlement = array_merge($this->emptyUnit(false), ['source' => 'missing_settlement_row']);
+                } elseif ($period->lessThanOrEqualTo($latestClosed)) {
+                    $settlement = array_merge($this->emptyUnit(false), ['source' => 'missing_released_actual']);
+                } else {
+                    $settlement = array_merge($this->emptyUnit(false), ['source' => 'actual_not_released']);
+                }
                 if ($this->isAfterProjectCompletion($period, $completedAt) && empty($settlement['has_data'])) {
                     $settlement = array_merge($settlement, ['source' => 'project_completed']);
                 }
@@ -174,7 +187,10 @@ class FinanceSnapshotService
                     $projectForecastPeriods[] = $periodKey;
                     $forecastPeriods[$periodKey] = true;
                 }
-                if ($this->shouldExpectActual($period, $latestClosed, $completedAt) && empty($settlement['has_data'])) {
+                if (
+                    ($this->shouldExpectActual($period, $latestClosed, $completedAt) || $settlementSheetExists)
+                    && empty($settlement['has_data'])
+                ) {
                     $projectMissingSettlements[] = $periodKey;
                     $missingSettlementPeriods[$periodKey] = true;
                 }
@@ -232,7 +248,7 @@ class FinanceSnapshotService
                 'months' => $months,
             ],
             'latest_closed_period' => $latestClosed->format('Y-m'),
-            'latest_actual_period' => $latestClosed->format('Y-m'),
+            'latest_actual_period' => $latestActualPeriod,
             'project_count' => $projects->count(),
             'totals' => $summary,
             'variance_vs_plan' => $this->variance($summary['forecast'], $summary['yearly_plan']),
@@ -250,6 +266,7 @@ class FinanceSnapshotService
                 'ranking_note' => 'リスク一覧では、間接費部門・積立部門を通常案件の後ろに表示します。全体集計には含めます。',
                 'settlement_sheet_periods' => array_values(array_keys($settlementSheetPeriods)),
                 'forecast_rule' => '着地見込みはget_total_financeの予測ONと同じく、Google Sheets実績がある月は実績を使い、該当月シートがない月はKintone損益を見込み値として使います。シートがありプロジェクト行だけない場合と、完了済みプロジェクトの完了後月は補完しません。',
+                'actual_sheet_periods' => array_values(array_keys($settlementSheetPeriods)),
             ],
         ];
     }
@@ -267,8 +284,8 @@ class FinanceSnapshotService
             'latest_actual_period' => $latestActualPeriod,
             'project_count' => $snapshot['project_count'],
             'answer_contract' => [
-                'yearly_plan_totals' => '予算。財務年度全体の年間計画合計。',
-                'profit_plan_totals' => '計画。Kintone損益の月次修正計画合計。',
+                'yearly_plan_totals' => '予算。PMが作成し取締役が承認した、年度開始時点の年間計画合計。',
+                'profit_plan_totals' => '計画。予算を基準にしたKintone損益の月次修正計画合計。人員退職・体制変更・見積更新などで月次更新される。',
                 'latest_actual_month_totals' => '最新実績反映月の単月Google Sheets実績。最新実績（YYYY-MM）と書く場合はこの値だけを使う。',
                 'actual_to_date_totals' => '財務年度開始から最新実績反映月までのGoogle Sheets実績累計。',
                 'forecast_totals' => '実績/着地見込み。get_total_financeの予測ONと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使う。完了後月は補完しない。',
@@ -322,6 +339,18 @@ class FinanceSnapshotService
     public function summaryAdjustedUnit(string $bucket, array $unit, string $projectName, Carbon $period): array
     {
         return $this->summaryUnit($bucket, $unit, $projectName, $period);
+    }
+
+    public function shouldAdjustSummaryForProject(string $bucket, string $projectName, Carbon $period, array $unit = []): bool
+    {
+        return match ($bucket) {
+            'yearly_plan', 'profit' => $this->shouldNetForSummary($projectName, $period),
+            'settlement' => $this->shouldNetActualSettlementForSummary($projectName),
+            'forecast' => ($unit['source'] ?? null) === 'settlement'
+                ? $this->shouldNetActualSettlementForSummary($projectName)
+                : $this->shouldNetForSummary($projectName, $period),
+            default => false,
+        };
     }
 
     public function buildDataQualityReport(
@@ -694,14 +723,7 @@ class FinanceSnapshotService
 
     private function summaryUnit(string $bucket, array $unit, string $projectName, Carbon $period): array
     {
-        $shouldNet = match ($bucket) {
-            'yearly_plan', 'profit' => $this->shouldNetForSummary($projectName, $period),
-            'settlement' => $this->shouldNetActualSettlementForSummary($projectName),
-            'forecast' => ($unit['source'] ?? null) === 'settlement'
-                ? $this->shouldNetActualSettlementForSummary($projectName)
-                : $this->shouldNetForSummary($projectName, $period),
-            default => false,
-        };
+        $shouldNet = $this->shouldAdjustSummaryForProject($bucket, $projectName, $period, $unit);
 
         if (! $shouldNet) {
             return $unit;
@@ -739,8 +761,8 @@ class FinanceSnapshotService
 
         return array_merge($unit, [
             'sales' => 0,
-            'expense' => $expense - $sales,
-            'profit' => $sales - $expense,
+            'expense' => (int) round($expense - $sales, 0, PHP_ROUND_HALF_UP),
+            'profit' => (int) round($sales - $expense, 0, PHP_ROUND_HALF_UP),
             'profit_rate' => null,
             'summary_adjusted' => true,
         ]);

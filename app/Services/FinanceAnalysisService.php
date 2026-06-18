@@ -61,6 +61,7 @@ class FinanceAnalysisService
             'project_count' => $projects->count(),
             'project_names' => $projects->pluck('name')->take(20)->values()->all(),
             'manager_names' => $managers->pluck('name')->values()->all(),
+            'scenario_labels' => $this->scenarioLabels(),
             'requested_by' => [
                 'id' => (int) $user->id,
                 'name' => (string) $user->name,
@@ -119,6 +120,7 @@ class FinanceAnalysisService
         $resultBucket = $baseScope['include_forecast_settlement'] ? 'forecast' : 'settlement';
         $projectRows = $this->rangeProjectRows($snapshots, $periods, $resultBucket);
         $worstProjects = $this->worstProjects($projectRows, $resultBucket);
+        $internalReferenceProjects = $this->internalReferenceProjects($projectRows, $resultBucket);
         $dataStatus = $this->mergeDataStatus($snapshots);
         $commentContext = $this->financeCommentContext($projectIds, $periods, $snapshots);
 
@@ -132,6 +134,8 @@ class FinanceAnalysisService
                     ? '着地見込み（実績反映済み月は実績、未反映月はKintone損益）'
                     : 'Google Sheets実績のみ',
                 'finance_comment_count' => $commentContext['comment_count'],
+                'actionable_project_count' => $this->actionableProjectCount($projectRows),
+                'internal_cost_center_policy' => $this->internalCostCenterPolicy(),
             ]),
             'metrics' => [
                 'selected_totals' => [
@@ -149,8 +153,13 @@ class FinanceAnalysisService
                     $selectedTotals[$resultBucket],
                     $selectedTotals['profit']
                 ),
+                'analysis_vs_monthly_plan' => $this->variance(
+                    $selectedTotals[$resultBucket],
+                    $selectedTotals['profit']
+                ),
                 'monthly_totals' => $monthlyTotals,
                 'worst_projects' => $worstProjects,
+                'internal_reference_projects' => $internalReferenceProjects,
                 'data_status' => $dataStatus,
             ],
             'comment_context' => $commentContext,
@@ -170,12 +179,14 @@ class FinanceAnalysisService
                 null,
                 999
             );
+            $projectRows = $this->snapshotProjectRows($snapshot, 'forecast');
             $snapshots[$fiscalYear] = $snapshot;
             $yearFacts[$fiscalYear] = [
                 'fiscal_year' => $fiscalYear,
                 'period' => $snapshot['period'],
                 'latest_actual_period' => $snapshot['latest_actual_period'] ?? $snapshot['latest_closed_period'],
                 'project_count' => $snapshot['project_count'],
+                'actionable_project_count' => $this->actionableProjectCount($projectRows),
                 'yearly_plan_totals' => $this->compactUnit($snapshot['totals']['yearly_plan'] ?? []),
                 'actual_to_date_totals' => $this->compactUnit($snapshot['totals']['settlement'] ?? []),
                 'forecast_totals' => $this->compactUnit($snapshot['totals']['forecast'] ?? []),
@@ -183,10 +194,8 @@ class FinanceAnalysisService
                     $snapshot['totals']['forecast'] ?? [],
                     $snapshot['totals']['yearly_plan'] ?? []
                 ),
-                'risk_projects' => array_map(
-                    fn (array $project) => $this->compactProjectRisk($project, 'forecast'),
-                    array_slice($snapshot['risk_projects'] ?? [], 0, 8)
-                ),
+                'risk_projects' => $this->worstProjects($projectRows, 'forecast'),
+                'internal_reference_projects' => $this->internalReferenceProjects($projectRows, 'forecast'),
                 'data_status' => $snapshot['data_status'] ?? [],
             ];
         }
@@ -194,6 +203,7 @@ class FinanceAnalysisService
         $targetFiscalYear = end($fiscalYears);
         $targetSnapshot = $snapshots[$targetFiscalYear] ?? null;
         $resultBucket = $baseScope['include_forecast_settlement'] ? 'forecast' : 'settlement';
+        $targetProjectRows = $targetSnapshot ? $this->snapshotProjectRows($targetSnapshot, $resultBucket) : [];
         $commentPeriods = $this->snapshotPeriods($snapshots);
         $commentContext = $this->financeCommentContext($projectIds, $commentPeriods, $snapshots);
 
@@ -218,17 +228,15 @@ class FinanceAnalysisService
                     ? '年度着地見込み'
                     : '年度実績累計のみ',
                 'finance_comment_count' => $commentContext['comment_count'],
+                'actionable_project_count' => $this->actionableProjectCount($targetProjectRows),
+                'internal_cost_center_policy' => $this->internalCostCenterPolicy(),
             ]),
             'metrics' => [
                 'fiscal_years' => array_values($yearFacts),
                 'comparison' => $comparison,
                 'target_year' => $targetFiscalYear,
-                'target_worst_projects' => $targetSnapshot
-                    ? array_map(
-                        fn (array $project) => $this->compactProjectRisk($project, $resultBucket),
-                        array_slice($targetSnapshot['risk_projects'] ?? [], 0, 8)
-                    )
-                    : [],
+                'target_worst_projects' => $this->worstProjects($targetProjectRows, $resultBucket),
+                'target_internal_reference_projects' => $this->internalReferenceProjects($targetProjectRows, $resultBucket),
                 'data_status' => $this->mergeDataStatus($snapshots),
             ],
             'comment_context' => $commentContext,
@@ -274,6 +282,11 @@ class FinanceAnalysisService
 - 例: 13,086,730円 は 1,309万円 または 約0.1億円。1.3億円ではない
 - facts 内の sales / expense / profit / *_amount は既に表示用に換算済み。必ずその文字列をそのまま使い、独自に億円換算しない
 - 「万円」として渡された金額を「億円」に言い換えない
+- 用語定義: 予算 = yearly_plan。PMが作成し取締役が承認した、年度開始時点の年間計画
+- 用語定義: 計画 = facts内の scenario/bucket 名 profit。予算を基準にしたKintone損益の月次修正計画で、人員退職・体制変更・見積更新などにより月次で変わる
+- 用語定義: 実績 = settlement。Google Sheets実績
+- 用語定義: 着地見込み = forecast。実績反映済み月は実績、未反映月は計画を見込みとして使う
+- 「予算差分」は着地見込み/実績と yearly_plan の差分、「計画差分」は着地見込み/実績と profit（計画）の差分として扱う
 - factsにない数値やプロジェクト名は推測しない
 - comment_context.context_rows がある場合、コメントは対象プロジェクト・対象月の人間による記録として扱い、差異理由を説明する補助根拠にする
 - コメントを使う場合は「コメントでは」「記録では」など、コメント由来であることが分かる表現にする
@@ -378,9 +391,14 @@ TXT;
         foreach ($snapshots as $snapshot) {
             foreach ($snapshot['projects'] ?? [] as $project) {
                 $projectId = (int) $project['project_id'];
+                $projectName = (string) $project['project_name'];
                 $rows[$projectId] ??= [
                     'project_id' => $projectId,
-                    'project_name' => (string) $project['project_name'],
+                    'project_name' => $projectName,
+                    'is_internal_cost_center' => ! empty($project['is_internal_cost_center'])
+                        || FinanceSnapshotService::isInternalCostCenter($projectName),
+                    'is_summary_adjusted_project' => false,
+                    'is_analysis_excluded_project' => false,
                     'totals' => $this->emptyScenarioTotals(),
                     'missing_settlement_periods' => [],
                     'forecast_periods' => [],
@@ -390,6 +408,9 @@ TXT;
                     $month = $project['months'][$period] ?? null;
                     if (! $month) {
                         continue;
+                    }
+                    if ($this->monthUsesSummaryAdjustment($projectName, $period, $month, $resultBucket)) {
+                        $rows[$projectId]['is_summary_adjusted_project'] = true;
                     }
                     foreach (['yearly_plan', 'profit', 'settlement', 'forecast'] as $bucket) {
                         $rows[$projectId]['totals'][$bucket] = $this->addUnit(
@@ -414,6 +435,9 @@ TXT;
             foreach ($row['totals'] as $bucket => $unit) {
                 $row['totals'][$bucket] = $this->compactUnit($unit);
             }
+            $row['is_summary_adjusted_project'] = ! empty($row['is_summary_adjusted_project'])
+                || ! empty($row['is_internal_cost_center']);
+            $row['is_analysis_excluded_project'] = ! empty($row['is_summary_adjusted_project']);
             $row['variance_vs_yearly_plan'] = $this->variance(
                 $row['totals'][$resultBucket],
                 $row['totals']['yearly_plan']
@@ -426,21 +450,29 @@ TXT;
 
     private function worstProjects(array $projectRows, string $resultBucket): array
     {
-        usort($projectRows, fn (array $left, array $right) => ($left['variance_vs_yearly_plan']['profit_amount'] ?? 0) <=> ($right['variance_vs_yearly_plan']['profit_amount'] ?? 0));
+        $projectRows = array_values(array_filter(
+            $projectRows,
+            fn (array $project) => empty($project['is_analysis_excluded_project'])
+        ));
+        $projectRows = $this->sortProjectRowsByProfitGap($projectRows, $resultBucket);
 
         return array_map(
-            fn (array $project) => [
-                'project_id' => $project['project_id'],
-                'project_name' => $project['project_name'],
-                'totals' => [
-                    'yearly_plan' => $project['totals']['yearly_plan'],
-                    'analysis_result' => $project['totals'][$resultBucket],
-                ],
-                'variance_vs_yearly_plan' => $project['variance_vs_yearly_plan'],
-                'missing_settlement_periods' => $project['missing_settlement_periods'],
-                'forecast_periods' => $project['forecast_periods'],
-            ],
+            fn (array $project) => $this->compactProjectRisk($project, $resultBucket),
             array_slice($projectRows, 0, 8)
+        );
+    }
+
+    private function internalReferenceProjects(array $projectRows, string $resultBucket, int $limit = 5): array
+    {
+        $projectRows = array_values(array_filter(
+            $projectRows,
+            fn (array $project) => ! empty($project['is_analysis_excluded_project'])
+        ));
+        $projectRows = $this->sortProjectRowsByProfitGap($projectRows, $resultBucket);
+
+        return array_map(
+            fn (array $project) => $this->compactProjectRisk($project, $resultBucket),
+            array_slice($projectRows, 0, max(0, $limit))
         );
     }
 
@@ -451,8 +483,15 @@ TXT;
         return [
             'project_id' => (int) ($project['project_id'] ?? 0),
             'project_name' => (string) ($project['project_name'] ?? ''),
+            'is_internal_cost_center' => ! empty($project['is_internal_cost_center']),
+            'is_summary_adjusted_project' => ! empty($project['is_summary_adjusted_project']),
+            'is_analysis_excluded_project' => ! empty($project['is_analysis_excluded_project']),
             'yearly_plan' => $this->compactUnit($totals['yearly_plan'] ?? []),
             'analysis_result' => $this->compactUnit($totals[$bucket] ?? []),
+            'totals' => [
+                'yearly_plan' => $this->compactUnit($totals['yearly_plan'] ?? []),
+                'analysis_result' => $this->compactUnit($totals[$bucket] ?? []),
+            ],
             'variance_vs_yearly_plan' => $this->variance($totals[$bucket] ?? [], $totals['yearly_plan'] ?? []),
             'missing_settlement_periods' => $project['missing_settlement_periods'] ?? [],
             'forecast_periods' => $project['forecast_periods'] ?? [],
@@ -478,6 +517,121 @@ TXT;
             'forecast_periods' => array_values(array_unique($forecast)),
             'summary_adjustment' => $summaryAdjustment,
             'forecast_rule' => $forecastRule,
+        ];
+    }
+
+    private function snapshotProjectRows(array $snapshot, string $resultBucket): array
+    {
+        $periods = $snapshot['period']['months'] ?? [];
+
+        return array_map(
+            fn (array $project) => $this->markProjectAnalysisFlags($project, $resultBucket, $periods),
+            $snapshot['projects'] ?? []
+        );
+    }
+
+    private function markProjectAnalysisFlags(array $project, string $resultBucket, array $periods = []): array
+    {
+        $projectName = (string) ($project['project_name'] ?? '');
+        $isInternalCostCenter = ! empty($project['is_internal_cost_center'])
+            || FinanceSnapshotService::isInternalCostCenter($projectName);
+        $isSummaryAdjusted = $isInternalCostCenter;
+        $months = $project['months'] ?? [];
+        $periods = $periods !== [] ? $periods : array_keys($months);
+
+        foreach ($periods as $period) {
+            $month = $months[$period] ?? null;
+            if (! is_array($month)) {
+                continue;
+            }
+
+            if ($this->monthUsesSummaryAdjustment($projectName, (string) $period, $month, $resultBucket)) {
+                $isSummaryAdjusted = true;
+                break;
+            }
+        }
+
+        $project['is_internal_cost_center'] = $isInternalCostCenter;
+        $project['is_summary_adjusted_project'] = $isSummaryAdjusted;
+        $project['is_analysis_excluded_project'] = $isSummaryAdjusted;
+
+        return $project;
+    }
+
+    private function monthUsesSummaryAdjustment(string $projectName, string $periodKey, array $month, string $resultBucket): bool
+    {
+        $period = $this->periodFromKey($periodKey);
+        if (! $period) {
+            return FinanceSnapshotService::isInternalCostCenter($projectName);
+        }
+
+        foreach (array_values(array_unique(['yearly_plan', 'profit', $resultBucket])) as $bucket) {
+            if ($this->financeSnapshots->shouldAdjustSummaryForProject($bucket, $projectName, $period, $month[$bucket] ?? [])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function periodFromKey(string $periodKey): ?Carbon
+    {
+        if (preg_match('/^\d{4}-\d{2}$/', $periodKey) !== 1) {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('Y-m-d', $periodKey . '-01')->startOfMonth();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function actionableProjectCount(array $projectRows): int
+    {
+        return count(array_filter(
+            $projectRows,
+            fn (array $project) => empty($project['is_analysis_excluded_project'])
+        ));
+    }
+
+    private function sortProjectRowsByProfitGap(array $projectRows, string $resultBucket): array
+    {
+        usort($projectRows, fn (array $left, array $right) => $this->projectProfitGap($left, $resultBucket) <=> $this->projectProfitGap($right, $resultBucket));
+
+        return $projectRows;
+    }
+
+    private function projectProfitGap(array $project, string $resultBucket): int|float
+    {
+        if (isset($project['variance_vs_yearly_plan']['profit_amount'])) {
+            return $project['variance_vs_yearly_plan']['profit_amount'];
+        }
+
+        if ($resultBucket === 'forecast' && isset($project['variance_vs_plan']['profit_amount'])) {
+            return $project['variance_vs_plan']['profit_amount'];
+        }
+
+        $totals = $project['totals'] ?? [];
+
+        return $this->variance($totals[$resultBucket] ?? [], $totals['yearly_plan'] ?? [])['profit_amount'] ?? 0;
+    }
+
+    private function internalCostCenterPolicy(): array
+    {
+        return [
+            'totals' => 'Summary totals use the same netting rule as get_total_finance for internal cost-center projects.',
+            'risk_lists' => 'Summary-adjusted internal projects are excluded from prioritized risk/worst-project lists and returned only as reference projects.',
+        ];
+    }
+
+    private function scenarioLabels(): array
+    {
+        return [
+            'yearly_plan' => '予算: PMが作成し取締役が承認した年度開始時点の年間計画',
+            'profit' => '計画: 予算を基準にしたKintone損益の月次修正計画。人員退職・体制変更・見積更新などで月次更新される',
+            'settlement' => '実績: Google Sheets実績',
+            'forecast' => '着地見込み: 実績反映済み月は実績、未反映月は計画を見込みとして使用',
         ];
     }
 
