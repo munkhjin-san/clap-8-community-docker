@@ -127,7 +127,7 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'get_finance_forecast_ranking',
-                    'description' => '財務年度の着地見込みで、予算（yearly_plan）に対して利益が悪いプロジェクトをランキングします。着地見込みはget_total_financeの予測ONと同じく、Google Sheets実績がある月は実績を使い、該当月シートがない月はKintone損益を見込み値として使用します。「利益が危ない案件」「予算未達になりそうな案件」に使用します。',
+                    'description' => '財務年度の着地見込みで、計画（Kintone損益）に対して利益が悪いプロジェクトをランキングします。予算差分も参考値として返します。着地見込みはget_total_financeの予測ONと同じく、Google Sheets実績がある月は実績を使い、該当月シートがない月はKintone損益を見込み値として使用します。「利益が危ない案件」「計画未達になりそうな案件」に使用します。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
@@ -168,7 +168,7 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'get_monthly_trend',
-                    'description' => '財務年度の月次着地見込み対予算差分の推移を返します。「今期は改善しているの？」「着地見込みのトレンドを見せて」「月次で差分が大きくなったのはいつ？」に使用します。累積予算対比・月次差分変化も返します。',
+                    'description' => '財務年度の月次着地見込み対計画差分の推移を返します。「今期は改善しているの？」「着地見込みのトレンドを見せて」「月次で差分が大きくなったのはいつ？」に使用します。明示的に予算と聞かれた場合のみ予算対比にします。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
@@ -227,6 +227,8 @@ class FinanceChatController extends Controller
                             'base_fiscal_year'    => ['type' => 'integer', 'description' => '比較元の財務年度（省略時は前期）'],
                             'compare_fiscal_year' => ['type' => 'integer', 'description' => '比較先の財務年度（省略時は今期）'],
                             'project_ids'         => ['type' => 'array', 'items' => ['type' => 'integer']],
+                            'pm_name'             => ['type' => 'string', 'description' => 'PM名またはユーザーコード。指定時はそのPM担当プロジェクトだけを比較。'],
+                            'pm_user_id'          => ['type' => 'integer', 'description' => 'PMのユーザーID。pm_nameより優先。'],
                         ],
                         'required' => [],
                     ],
@@ -254,7 +256,7 @@ class FinanceChatController extends Controller
                 'type'     => 'function',
                 'function' => [
                     'name'        => 'get_pm_finance_ranking',
-                    'description' => 'PM別に担当プロジェクトの予算・計画・実績累計・着地見込み・予算差分を集計してランキングします。「PM別の売上/利益ランキング」「PMごとの財務リスク」に使用します。',
+                    'description' => 'PM別に担当プロジェクトの予算・計画・実績累計・着地見込み・計画差分を集計してランキングします。「PM別の売上/利益ランキング」「PMごとの財務リスク」に使用します。予算差分も参考値として返します。',
                     'parameters'  => [
                         'type'       => 'object',
                         'properties' => [
@@ -263,7 +265,7 @@ class FinanceChatController extends Controller
                             'limit'        => ['type' => 'integer', 'description' => '返すPM件数。'],
                             'sort_by'      => [
                                 'type' => 'string',
-                                'description' => 'profit_gap_worst（既定）, forecast_sales_desc, forecast_profit_desc, expense_desc, project_count_desc, risk_count_desc',
+                                'description' => 'profit_gap_worst（既定）, profit_gap_best, forecast_sales_desc, forecast_profit_desc, expense_desc, project_count_desc, risk_count_desc',
                             ],
                         ],
                         'required' => [],
@@ -376,9 +378,10 @@ class FinanceChatController extends Controller
 - コメントがない差異理由は推測しない。数値上の差異箇所を説明し、「理由コメントはありません」「要確認」と伝える
 - get_project_variance_explanation の *_display / *_amount_display は表示用の金額。独自に億円換算し直さず、その文字列を使う
 - 「今期Q{$qNum}」の成績質問には、Q{$qNum}に属する3ヶ月の月次データまたは月次トレンドツールを使う
-- PM別の質問（「井上PMの案件」「PM別ランキング」など）は get_pm_finance_summary または get_pm_finance_ranking を使う。PM担当は project_members.authority=1 の関係を正とする
+- PM別・PM個人の質問（「井上PMの案件」「井上さんのFY2025とFY2026」「PM別ランキング」など）は get_pm_finance_summary / compare_fiscal_years / get_pm_finance_ranking を使う。PM担当は project_members.authority=1 の関係を正とする
+- 「良いPM」「優秀なPM」「ベストPM」「利益差分が良い順」は get_pm_finance_ranking の sort_by=profit_gap_best を使う。「悪いPM」「リスクが大きいPM」は sort_by=profit_gap_worst を使う
 - ツール結果に alert_count > 0 または🔴の案件がある場合、回答内に「❗ 要注意：[N]件のアラート案件」として先頭で明示する
-- get_finance_forecast_ranking を使った場合、projects の上位案件について project_name、forecast_totals/analysis_result または totals.forecast、variance_vs_plan の利益差分を必ず含める。案件名や数値を省略して「詳細を確認してください」と言わない
+- get_finance_forecast_ranking を使った場合、projects の上位案件について project_name、forecast_totals/analysis_result または totals.forecast、variance_vs_plan（計画差分）の利益差分を必ず含める。予算差分は variance_vs_yearly_plan を参考として扱う。案件名や数値を省略して「詳細を確認してください」と言わない
 - データの信頼性や欠損が気になる場合は get_finance_data_quality を使う
 - ツールで取得できないことは「データがありません」と正直に伝える
 - このチャットからコメント投稿やデータ更新は行わない。ユーザーに通常のコメント画面を使うよう案内する
@@ -676,8 +679,11 @@ TXT;
             'get_project_health_matrix' => $this->formatHealthMatrixReply(
                 $this->dispatchTool($tool, $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
             ),
+            'get_pm_finance_summary' => $this->formatPmSummaryReply(
+                $this->dispatchTool($tool, $this->pmSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
+            ),
             'get_pm_finance_ranking' => $this->formatPmRankingReply(
-                $this->dispatchTool($tool, $this->fiscalSummaryArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
+                $this->dispatchTool($tool, $this->pmRankingArgsFromQuestion($latestUserContent, $financeFiscalYear, $latestActualPeriod), $financeMcp)
             ),
             'compare_fiscal_years' => $this->formatFiscalComparisonReply(
                 $this->dispatchTool($tool, $this->fiscalComparisonArgsFromQuestion($latestUserContent, $financeFiscalYear), $financeMcp)
@@ -732,6 +738,10 @@ TXT;
 
         if ($this->isHealthMatrixQuestion($latestUserContent)) {
             return 'get_project_health_matrix';
+        }
+
+        if ($this->isPmFiscalComparisonQuestion($latestUserContent)) {
+            return 'compare_fiscal_years';
         }
 
         if ($this->isPmFinanceQuestion($latestUserContent)) {
@@ -817,12 +827,23 @@ TXT;
 
     private function isPmFinanceQuestion(string $content): bool
     {
-        return preg_match('/PM別|PMごと|担当PM|(^|[^一-龠ぁ-んァ-ンA-Za-z0-9])PMの/u', $content) === 1;
+        if (preg_match('/PM別|PMごと|担当PM|(^|[^一-龠ぁ-んァ-ンA-Za-z0-9])PMの/u', $content) === 1) {
+            return true;
+        }
+
+        return $this->extractPmNameFromQuestion($content) !== null
+            && preg_match('/案件|プロジェクト|担当|FY\d{4}|今期|前期|実績|着地|売上|利益|財務|計画|予算|projects?|actual|jisseki|forecast|sales|profit|finance/iu', $content) === 1;
     }
 
     private function isPmRankingQuestion(string $content): bool
     {
         return preg_match('/ランキング|順|一覧|PM別|PMごと/u', $content) === 1;
+    }
+
+    private function isPmFiscalComparisonQuestion(string $content): bool
+    {
+        return $this->isFiscalComparisonQuestion($content)
+            && $this->extractPmNameFromQuestion($content) !== null;
     }
 
     private function isRevenueConcentrationQuestion(string $content): bool
@@ -832,6 +853,10 @@ TXT;
 
     private function isFiscalComparisonQuestion(string $content): bool
     {
+        if (preg_match_all('/FY\d{4}/iu', $content, $yearMentions) >= 2) {
+            return true;
+        }
+
         return preg_match('/YoY|前年比|前期|去年|昨年|年度比較|比較/u', $content) === 1
             && preg_match('/FY\d{4}|今期|前期|売上|利益|着地/u', $content) === 1;
     }
@@ -862,37 +887,103 @@ TXT;
     {
         preg_match_all('/FY(\d{4})/iu', $content, $matches);
         $years = array_values(array_unique(array_map('intval', $matches[1] ?? [])));
+        $pmName = $this->extractPmNameFromQuestion($content);
 
         if (count($years) >= 2) {
             sort($years);
 
-            return [
+            return array_filter([
                 'base_fiscal_year' => $years[0],
                 'compare_fiscal_year' => $years[count($years) - 1],
-            ];
+                'pm_name' => $pmName,
+            ], fn ($value) => $value !== null && $value !== '');
         }
 
         if (count($years) === 1) {
             $year = $years[0];
 
-            return [
+            return array_filter([
                 'base_fiscal_year' => preg_match('/前期|前年|去年|昨年/u', $content) === 1 ? $year : $year - 1,
                 'compare_fiscal_year' => preg_match('/前期|前年|去年|昨年/u', $content) === 1 ? $financeFiscalYear : $year,
-            ];
+                'pm_name' => $pmName,
+            ], fn ($value) => $value !== null && $value !== '');
         }
 
-        return [
+        return array_filter([
             'base_fiscal_year' => $financeFiscalYear - 1,
             'compare_fiscal_year' => $financeFiscalYear,
+            'pm_name' => $pmName,
+        ], fn ($value) => $value !== null && $value !== '');
+    }
+
+    private function pmSummaryArgsFromQuestion(string $content, int $financeFiscalYear, string $latestActualPeriod): array
+    {
+        $args = $this->fiscalSummaryArgsFromQuestion($content, $financeFiscalYear, $latestActualPeriod);
+        $pmName = $this->extractPmNameFromQuestion($content);
+        if ($pmName !== null) {
+            $args['pm_name'] = $pmName;
+        }
+
+        return $args;
+    }
+
+    private function pmRankingArgsFromQuestion(string $content, int $financeFiscalYear, string $latestActualPeriod): array
+    {
+        $args = $this->fiscalSummaryArgsFromQuestion($content, $financeFiscalYear, $latestActualPeriod);
+        $args['sort_by'] = $this->pmRankingSortFromQuestion($content);
+
+        return $args;
+    }
+
+    private function pmRankingSortFromQuestion(string $content): string
+    {
+        if (preg_match('/良い|よい|優秀|ベスト|上位|トップ|好調|黒字|改善|利益差分.*(大きい|高い|良い)|プラス/u', $content) === 1) {
+            return 'profit_gap_best';
+        }
+
+        if (preg_match('/売上/u', $content) === 1 && preg_match('/順|ランキング|トップ|上位/u', $content) === 1) {
+            return 'forecast_sales_desc';
+        }
+
+        if (preg_match('/着地利益|利益額/u', $content) === 1 && preg_match('/順|ランキング|トップ|上位/u', $content) === 1) {
+            return 'forecast_profit_desc';
+        }
+
+        if (preg_match('/件数|担当数|案件数/u', $content) === 1) {
+            return 'project_count_desc';
+        }
+
+        return 'profit_gap_worst';
+    }
+
+    private function extractPmNameFromQuestion(string $content): ?string
+    {
+        $patterns = [
+            '/([^\s、。,.，．]{1,40})(?:さん|様|氏|PM|ＰＭ)/u',
+            '/([A-Za-z][A-Za-z0-9._-]{0,39})-san\b/iu',
         ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $content, $match) !== 1) {
+                continue;
+            }
+
+            $name = trim((string) ($match[1] ?? ''));
+            if ($name === '' || preg_match('/^(PM|ＰＭ|FY\d{4})$/iu', $name) === 1) {
+                continue;
+            }
+
+            return $name;
+        }
+
+        return null;
     }
 
     private function monthlyTrendArgsFromQuestion(string $content, int $financeFiscalYear, string $latestActualPeriod): array
     {
         $args = $this->fiscalSummaryArgsFromQuestion($content, $financeFiscalYear, $latestActualPeriod);
-        $asksPlan = preg_match('/計画/u', $content) === 1;
         $asksBudget = preg_match('/予算|年間計画/u', $content) === 1;
-        $args['comparison_base'] = ($asksPlan && ! $asksBudget) ? 'profit' : 'yearly_plan';
+        $args['comparison_base'] = $asksBudget ? 'yearly_plan' : 'profit';
 
         return $args;
     }
@@ -1113,14 +1204,6 @@ TXT;
             '【実績/着地見込み（予測込み）】',
             $this->formatFinanceUnitLine($forecast),
             '',
-            '【差分（実績/着地見込み - 予算）】',
-            sprintf(
-                '売上 %s、販管費 %s、利益 %s',
-                $this->formatSignedYen((int) ($budgetGap['sales_amount'] ?? 0)),
-                $this->formatSignedYen((int) ($budgetGap['expense_amount'] ?? 0)),
-                $this->formatSignedYen((int) ($budgetGap['profit_amount'] ?? 0))
-            ),
-            '',
             '【差分（実績/着地見込み - 計画）】',
             sprintf(
                 '売上 %s、販管費 %s、利益 %s',
@@ -1128,13 +1211,21 @@ TXT;
                 $this->formatSignedYen((int) ($planGap['expense_amount'] ?? 0)),
                 $this->formatSignedYen((int) ($planGap['profit_amount'] ?? 0))
             ),
+            '',
+            '【参考: 差分（実績/着地見込み - 予算）】',
+            sprintf(
+                '売上 %s、販管費 %s、利益 %s',
+                $this->formatSignedYen((int) ($budgetGap['sales_amount'] ?? 0)),
+                $this->formatSignedYen((int) ($budgetGap['expense_amount'] ?? 0)),
+                $this->formatSignedYen((int) ($budgetGap['profit_amount'] ?? 0))
+            ),
         ];
 
         $profitGap = (int) ($budgetGap['profit_amount'] ?? 0);
         $planProfitGap = (int) ($planGap['profit_amount'] ?? 0);
         $lines[] = '';
-        $lines[] = '利益は予算に対して' . $this->formatSignedYen($profitGap)
-            . '、計画に対して' . $this->formatSignedYen($planProfitGap)
+        $lines[] = '利益は計画に対して' . $this->formatSignedYen($planProfitGap)
+            . '、予算に対して' . $this->formatSignedYen($profitGap)
             . 'の見込みです。';
 
         $alertCount = (int) ($result['alert_count'] ?? 0);
@@ -1161,19 +1252,19 @@ TXT;
         $internalProjects = array_values(array_filter($projects, fn (array $project) => $this->isInternalCostCenterProject($project)));
 
         if ($projects === []) {
-            return "FY{$fiscalYear}では、利益着地見込みが予算を下回るプロジェクトはありません。（最新実績反映月: {$latestActualPeriod}）";
+            return "FY{$fiscalYear}では、利益着地見込みが計画を下回るプロジェクトはありません。（最新実績反映月: {$latestActualPeriod}）";
         }
 
         $formatProjectLine = function (string $prefix, array $project): string {
             $forecast = $project['totals']['forecast'] ?? [];
-            $plan = $project['totals']['yearly_plan'] ?? [];
+            $plan = $project['totals']['profit'] ?? [];
             $variance = $project['variance_vs_plan'] ?? [];
             $gap = (int) ($variance['profit_amount'] ?? 0);
             $gapPct = $variance['profit_pct'] ?? null;
             $pctLabel = is_numeric($gapPct) ? '、計画比 ' . $this->formatSignedPercent((float) $gapPct) : '';
 
             return sprintf(
-                '%s %s: 着地利益 %s、予算利益 %s、差分 %s%s',
+                '%s %s: 着地利益 %s、計画利益 %s、差分 %s%s',
                 $prefix,
                 (string) ($project['project_name'] ?? '名称未設定'),
                 $this->formatYen((int) ($forecast['profit'] ?? 0)),
@@ -1184,7 +1275,7 @@ TXT;
         };
 
         $lines = [
-            "FY{$fiscalYear} 利益着地見込みが予算を下回るプロジェクト（最新実績反映月: {$latestActualPeriod}）",
+            "FY{$fiscalYear} 利益着地見込みが計画を下回るプロジェクト（最新実績反映月: {$latestActualPeriod}）",
             $priorityProjects !== [] ? '優先確認（通常案件）' : '参考（社内部門のみ）',
             '',
         ];
@@ -1201,10 +1292,15 @@ TXT;
             }
         }
 
-        $totalGap = $result['forecast_vs_yearly_plan']['profit_amount'] ?? null;
+        $totalGap = $result['forecast_vs_profit_plan']['profit_amount'] ?? ($result['variance_vs_plan']['profit_amount'] ?? null);
         if (is_numeric($totalGap)) {
             $lines[] = '';
-            $lines[] = '全体（社内部門を含む）の利益差分は ' . $this->formatSignedYen((int) $totalGap) . ' です。';
+            $lines[] = '全体（社内部門を含む）の計画差分は ' . $this->formatSignedYen((int) $totalGap) . ' です。';
+        }
+
+        $budgetGap = $result['forecast_vs_yearly_plan']['profit_amount'] ?? null;
+        if (is_numeric($budgetGap)) {
+            $lines[] = '参考: 予算差分は ' . $this->formatSignedYen((int) $budgetGap) . ' です。';
         }
 
         return implode("\n", $lines);
@@ -1248,7 +1344,7 @@ TXT;
             $pmName = $this->formatPmName($project['pm'] ?? null);
 
             $lines[] = sprintf(
-                '%s %s（PM: %s）: 利益差分 %s%s、着地利益 %s、予算利益 %s、信頼度 %s',
+                '%s %s（PM: %s）: 利益差分 %s%s、着地利益 %s、計画利益 %s、信頼度 %s',
                 (string) ($project['label'] ?? ''),
                 (string) ($project['project_name'] ?? '名称未設定'),
                 $pmName,
@@ -1269,7 +1365,7 @@ TXT;
                 $pmName = $this->formatPmName($project['pm'] ?? null);
 
                 $lines[] = sprintf(
-                    '%s %s（PM: %s）: 利益差分 %s%s、着地利益 %s、予算利益 %s、信頼度 %s',
+                    '%s %s（PM: %s）: 利益差分 %s%s、着地利益 %s、計画利益 %s、信頼度 %s',
                     (string) ($project['label'] ?? ''),
                     (string) ($project['project_name'] ?? '名称未設定'),
                     $pmName,
@@ -1294,6 +1390,55 @@ TXT;
         return FinanceSnapshotService::isInternalCostCenter($project['project_name'] ?? null);
     }
 
+    private function formatPmSummaryReply(array $result): string
+    {
+        if (isset($result['error'])) {
+            return '取得できませんでした: ' . $result['error'];
+        }
+
+        $pmName = $this->formatPmName($result['pm'] ?? null);
+        $fiscalYear = (int) ($result['fiscal_year'] ?? 0);
+        $latestActualPeriod = (string) ($result['latest_actual_period'] ?? '');
+        $projectCount = (int) ($result['project_count'] ?? count($result['project_ids'] ?? []));
+
+        if ($projectCount === 0) {
+            return "{$pmName}の担当プロジェクトは見つかりませんでした。";
+        }
+
+        $budget = $result['yearly_plan_totals'] ?? [];
+        $plan = $result['profit_plan_totals'] ?? ($result['totals']['profit'] ?? []);
+        $actual = $result['actual_to_date_totals'] ?? [];
+        $forecast = $result['forecast_totals'] ?? [];
+        $budgetGap = $result['forecast_vs_yearly_plan'] ?? [];
+        $planGap = $result['forecast_vs_profit_plan'] ?? [];
+
+        $lines = [
+            "{$pmName} 担当プロジェクト FY{$fiscalYear} 財務サマリー（最新実績反映月: {$latestActualPeriod}）",
+            "対象プロジェクト: {$projectCount}件",
+            '',
+            '【予算】' . $this->formatFinanceUnitLine($budget),
+            '【計画】' . $this->formatFinanceUnitLine($plan),
+            "【実績累計】" . $this->formatFinanceUnitLine($actual),
+            '【実績/着地見込み】' . $this->formatFinanceUnitLine($forecast),
+            '',
+            '計画差分: 売上 ' . $this->formatSignedYen((int) ($planGap['sales_amount'] ?? 0))
+                . '、利益 ' . $this->formatSignedYen((int) ($planGap['profit_amount'] ?? 0)),
+            '参考（予算差分）: 売上 ' . $this->formatSignedYen((int) ($budgetGap['sales_amount'] ?? 0))
+                . '、利益 ' . $this->formatSignedYen((int) ($budgetGap['profit_amount'] ?? 0)),
+        ];
+
+        $projects = array_values(array_filter($result['projects'] ?? [], fn ($project) => is_array($project)));
+        if ($projects !== []) {
+            $lines[] = '';
+            $lines[] = '主な担当案件: ' . implode('、', array_slice(array_map(
+                fn (array $project) => (string) ($project['project_name'] ?? '名称未設定'),
+                $projects
+            ), 0, 8));
+        }
+
+        return implode("\n", $lines);
+    }
+
     private function formatPmRankingReply(array $result): string
     {
         if (isset($result['error'])) {
@@ -1308,25 +1453,40 @@ TXT;
             return "FY{$fiscalYear}のPM別財務ランキング対象はありません。（最新実績反映月: {$latestActualPeriod}）";
         }
 
+        $sortBy = (string) ($result['sort_by'] ?? 'profit_gap_worst');
+        $titleSuffix = match ($sortBy) {
+            'profit_gap_best' => '計画差分が良い順',
+            'forecast_sales_desc' => '着地売上が大きい順',
+            'forecast_profit_desc' => '着地利益が大きい順',
+            'project_count_desc' => '担当件数が多い順',
+            'risk_count_desc' => 'リスク案件数が多い順',
+            default => '計画未達リスクが大きい順',
+        };
+
         $lines = [
-            "FY{$fiscalYear} PM別 着地見込みと予算差分ランキング（最新実績反映月: {$latestActualPeriod}）",
+            "FY{$fiscalYear} PM別 着地見込みと計画差分ランキング（{$titleSuffix} / 最新実績反映月: {$latestActualPeriod}）",
             '',
         ];
 
         foreach (array_slice($pms, 0, 10) as $index => $row) {
             $variance = $row['variance_vs_plan'] ?? [];
+            $budgetVariance = $row['variance_vs_yearly_plan'] ?? [];
             $totals = $row['totals'] ?? [];
             $forecast = $totals['forecast'] ?? [];
-            $plan = $totals['yearly_plan'] ?? [];
+            $plan = $totals['profit'] ?? [];
+            $budgetReference = isset($budgetVariance['profit_amount'])
+                ? '、予算差分 ' . $this->formatSignedYen((int) ($budgetVariance['profit_amount'] ?? 0))
+                : '';
 
             $lines[] = sprintf(
-                '%d. %s: 担当%d件、着地利益 %s、予算利益 %s、利益差分 %s',
+                '%d. %s: 担当%d件、着地利益 %s、計画利益 %s、計画差分 %s%s',
                 $index + 1,
                 $this->formatPmName($row['pm'] ?? null),
                 (int) ($row['project_count'] ?? 0),
                 $this->formatYen((int) ($forecast['profit'] ?? 0)),
                 $this->formatYen((int) ($plan['profit'] ?? 0)),
-                $this->formatSignedYen((int) ($variance['profit_amount'] ?? 0))
+                $this->formatSignedYen((int) ($variance['profit_amount'] ?? 0)),
+                $budgetReference
             );
         }
 
@@ -1342,50 +1502,71 @@ TXT;
         $fiscalYear = (int) ($result['fiscal_year'] ?? 0);
         $latestActualPeriod = (string) ($result['latest_actual_period'] ?? '');
         $comparisonBaseLabel = (string) ($result['comparison_base_label'] ?? '予算');
+        $trend = array_values(array_filter($result['trend'] ?? [], fn ($row) => is_array($row)));
+        $actualRows = array_values(array_filter($trend, fn (array $row) => ! empty($row['is_actual'])));
+        $forecastRows = array_values(array_filter($trend, fn (array $row) => empty($row['is_actual'])));
+        $lastActual = $actualRows !== [] ? $actualRows[count($actualRows) - 1] : null;
+        $finalRow = $trend !== [] ? $trend[count($trend) - 1] : null;
+        $direction = (string) ($result['overall_direction'] ?? '');
+        $directionLabel = match ($direction) {
+            'improving' => '改善傾向',
+            'deteriorating' => '悪化傾向',
+            'flat' => '横ばい',
+            default => '判定不可',
+        };
+        $lastActualGap = is_array($lastActual)
+            ? (int) ($lastActual['cumulative']['gap'] ?? 0)
+            : 0;
+        $finalGap = is_array($finalRow)
+            ? (int) ($finalRow['cumulative']['gap'] ?? 0)
+            : $lastActualGap;
+
         $lines = [
-            "FY{$fiscalYear}の月別利益差分（実績/着地見込み - {$comparisonBaseLabel}）",
-            "最新実績反映月: {$latestActualPeriod}",
+            "FY{$fiscalYear}の着地見込みと{$comparisonBaseLabel}のギャップは、現時点では{$directionLabel}です。",
+            "最新実績反映月は{$latestActualPeriod}で、実績反映済み累計の利益差分は" . $this->formatSignedYen($lastActualGap) . 'です。',
+            '通期の見込みでは累計差分は' . $this->formatSignedYen($finalGap) . 'です。',
             '',
+            '実績反映済み月の動き:',
         ];
 
-        foreach (($result['trend'] ?? []) as $row) {
-            if (! is_array($row)) {
-                continue;
-            }
-
+        foreach ($actualRows as $row) {
             $period = (string) ($row['period'] ?? '');
             $monthly = is_array($row['monthly'] ?? null) ? $row['monthly'] : [];
             $cumulative = is_array($row['cumulative'] ?? null) ? $row['cumulative'] : [];
-            $sourceLabel = $this->formatMonthlyTrendSourceLabel($row);
             $change = $cumulative['gap_change'] ?? null;
             $changeLabel = is_numeric($change)
-                ? '、前月比 ' . $this->formatSignedYen((int) $change)
+                ? '（前月から' . $this->formatSignedYen((int) $change) . '）'
                 : '';
 
             $lines[] = sprintf(
-                '%s: 月次差分 %s（着地利益 %s - %s利益 %s、%s%s）、累計差分 %s',
+                '- %s: 単月 %s、累計 %s%s',
                 $period,
                 $this->formatSignedYen((int) ($monthly['monthly_gap'] ?? 0)),
-                $this->formatYen((int) ($monthly['forecast_profit'] ?? 0)),
-                $comparisonBaseLabel,
-                $this->formatYen((int) ($monthly['plan_profit'] ?? 0)),
-                $sourceLabel,
-                $changeLabel,
-                $this->formatSignedYen((int) ($cumulative['gap'] ?? 0))
+                $this->formatSignedYen((int) ($cumulative['gap'] ?? 0)),
+                $changeLabel
             );
         }
 
-        $direction = (string) ($result['overall_direction'] ?? '');
-        $directionLabel = match ($direction) {
-            'improving' => '累計差分は改善傾向です。',
-            'deteriorating' => '累計差分は悪化傾向です。',
-            'flat' => '累計差分は横ばいです。',
-            default => '',
-        };
-
-        if ($directionLabel !== '') {
+        if ($forecastRows !== []) {
+            $nonZeroForecastRows = array_values(array_filter(
+                $forecastRows,
+                fn (array $row) => (int) ($row['monthly']['monthly_gap'] ?? 0) !== 0
+            ));
             $lines[] = '';
-            $lines[] = $directionLabel;
+
+            if ($nonZeroForecastRows === []) {
+                $lines[] = "未実績月はKintone損益見込みを{$comparisonBaseLabel}として使っているため、単月差分は基本的に±0円です。";
+            } else {
+                $lines[] = '未実績月で差分がある月:';
+                foreach (array_slice($nonZeroForecastRows, 0, 4) as $row) {
+                    $lines[] = sprintf(
+                        '- %s: 単月 %s、累計 %s',
+                        (string) ($row['period'] ?? ''),
+                        $this->formatSignedYen((int) ($row['monthly']['monthly_gap'] ?? 0)),
+                        $this->formatSignedYen((int) ($row['cumulative']['gap'] ?? 0))
+                    );
+                }
+            }
         }
 
         return implode("\n", $lines);
@@ -1443,6 +1624,10 @@ TXT;
         $baseForecast = $base['forecast_totals'] ?? [];
         $currentForecast = $current['forecast_totals'] ?? [];
         $yoy = $result['yoy_change'] ?? [];
+        $filterPm = $result['filter']['pm'] ?? null;
+        $scopeLabel = is_array($filterPm)
+            ? $this->formatPmName($filterPm) . ' 担当プロジェクト '
+            : '';
 
         $salesPct = is_numeric($yoy['sales_pct'] ?? null)
             ? $this->formatSignedPercent((float) $yoy['sales_pct'])
@@ -1452,7 +1637,7 @@ TXT;
             : '算出不可';
 
         $lines = [
-            "FY{$baseYear}とFY{$currentYear}の着地見込み比較",
+            "{$scopeLabel}FY{$baseYear}とFY{$currentYear}の着地見込み比較",
             '',
             "FY{$baseYear}: 売上 " . $this->formatYen((int) ($baseForecast['sales'] ?? 0))
                 . '、利益 ' . $this->formatYen((int) ($baseForecast['profit'] ?? 0)),

@@ -300,19 +300,32 @@ class FinanceToolController extends Controller
                 ])
                 ->all();
 
+            $projectForChat = $this->financeSnapshots->compactProject($projectRow, true);
+            $projectForChat['variance_vs_yearly_plan'] = $projectForChat['variance_vs_plan'] ?? $this->financeVariance(
+                $projectRow['totals']['forecast'] ?? [],
+                $projectRow['totals']['yearly_plan'] ?? []
+            );
+            $projectForChat['variance_vs_profit_plan'] = $this->financeVariance(
+                $projectRow['totals']['forecast'] ?? [],
+                $projectRow['totals']['profit'] ?? []
+            );
+            $projectForChat['variance_vs_plan'] = $projectForChat['variance_vs_profit_plan'];
+
             return [
                 'fiscal_year'          => $snapshot['fiscal_year'],
                 'period'               => $snapshot['period'],
                 'latest_closed_period' => $snapshot['latest_closed_period'],
                 'latest_actual_period' => $snapshot['latest_actual_period'] ?? $snapshot['latest_closed_period'],
                 'answer_contract' => [
-                    'totals.yearly_plan'                       => '指定プロジェクトの年間計画。',
+                    'totals.yearly_plan'                       => '指定プロジェクトの予算。',
+                    'totals.profit'                            => '指定プロジェクトの計画（Kintone損益）。',
                     'months.{latest_actual_period}.settlement' => '指定プロジェクトの最新実績反映月の単月Google Sheets実績。',
                     'totals.settlement'                        => '指定プロジェクトの実績累計。',
                     'totals.forecast'                          => '指定プロジェクトの着地見込み。get_total_financeと同じく、Google Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使う。完了後月は補完しない。',
-                    'variance_vs_plan'                         => '指定プロジェクトの着地見込みと年間計画の差分。',
+                    'variance_vs_plan'                         => '指定プロジェクトの着地見込みと計画の差分。',
+                    'variance_vs_yearly_plan'                  => '指定プロジェクトの着地見込みと予算の差分。',
                 ],
-                'project'         => $this->financeSnapshots->compactProject($projectRow, true),
+                'project'         => $projectForChat,
                 'recent_comments' => $recentComments,
                 'data_status'     => $snapshot['data_status'],
             ];
@@ -425,22 +438,44 @@ class FinanceToolController extends Controller
         try {
             $snapshot = $this->financeSnapshots->buildFiscalYearSnapshot($fiscalYear, $projectIds, $asOfPeriod, $limit);
 
+            $projects = array_map(
+                fn (array $project) => $this->projectWithPrimaryPlanVariance($project),
+                $snapshot['projects'] ?? []
+            );
+            usort($projects, function (array $left, array $right) {
+                $leftInternal = ! empty($left['is_internal_cost_center']);
+                $rightInternal = ! empty($right['is_internal_cost_center']);
+                if ($leftInternal !== $rightInternal) {
+                    return $leftInternal <=> $rightInternal;
+                }
+
+                return ($left['variance_vs_plan']['profit_amount'] ?? 0)
+                    <=> ($right['variance_vs_plan']['profit_amount'] ?? 0);
+            });
+
+            $forecastVsProfitPlan = $this->financeVariance(
+                $snapshot['totals']['forecast'] ?? [],
+                $snapshot['totals']['profit'] ?? []
+            );
+
             return [
                 'fiscal_year' => $snapshot['fiscal_year'],
                 'period' => $snapshot['period'],
                 'latest_closed_period' => $snapshot['latest_closed_period'],
                 'latest_actual_period' => $snapshot['latest_actual_period'] ?? $snapshot['latest_closed_period'],
-                'ranking_basis' => 'forecast profit gap vs yearly plan, worst first',
+                'ranking_basis' => 'forecast profit gap vs monthly plan, worst first',
+                'comparison_base' => 'profit',
+                'comparison_base_label' => '計画',
                 'yearly_plan_totals' => $snapshot['totals']['yearly_plan'],
+                'profit_plan_totals' => $snapshot['totals']['profit'],
                 'actual_to_date_totals' => $snapshot['totals']['settlement'],
                 'forecast_totals' => $snapshot['totals']['forecast'],
+                'forecast_vs_profit_plan' => $forecastVsProfitPlan,
                 'forecast_vs_yearly_plan' => $snapshot['variance_vs_plan'],
                 'totals' => $snapshot['totals'],
-                'variance_vs_plan' => $snapshot['variance_vs_plan'],
-                'projects' => array_map(
-                    fn(array $project) => $this->financeSnapshots->compactProject($project, false),
-                    array_slice($snapshot['risk_projects'], 0, $limit)
-                ),
+                'variance_vs_plan' => $forecastVsProfitPlan,
+                'variance_vs_yearly_plan' => $snapshot['variance_vs_plan'],
+                'projects' => array_slice($projects, 0, $limit),
                 'data_status' => $snapshot['data_status'],
             ];
         } catch (\Throwable $e) {
@@ -480,9 +515,9 @@ class FinanceToolController extends Controller
         $fiscalYear = isset($args['fiscal_year']) ? (int) $args['fiscal_year'] : null;
         $projectIds = $this->normalizeProjectIds($args['project_ids'] ?? []);
         $asOfPeriod = $this->normalizePeriod($args['as_of_period'] ?? null);
-        $comparisonBase = in_array(($args['comparison_base'] ?? 'yearly_plan'), ['yearly_plan', 'profit'], true)
-            ? (string) ($args['comparison_base'] ?? 'yearly_plan')
-            : 'yearly_plan';
+        $comparisonBase = in_array(($args['comparison_base'] ?? 'profit'), ['yearly_plan', 'profit'], true)
+            ? (string) ($args['comparison_base'] ?? 'profit')
+            : 'profit';
         $comparisonBaseLabel = $comparisonBase === 'profit' ? '計画' : '予算';
 
         try {
@@ -603,7 +638,8 @@ class FinanceToolController extends Controller
                 $pid          = $project['project_id'];
                 $totals       = $project['totals'];
                 $forecastProfit = (int) ($totals['forecast']['profit'] ?? 0);
-                $planProfit     = (int) ($totals['yearly_plan']['profit'] ?? 0);
+                $planProfit     = (int) ($totals['profit']['profit'] ?? 0);
+                $budgetProfit   = (int) ($totals['yearly_plan']['profit'] ?? 0);
                 $actualProfit   = (int) ($totals['settlement']['profit'] ?? 0);
                 $gapAmount      = $forecastProfit - $planProfit;
                 $gapPct         = $planProfit !== 0
@@ -649,6 +685,7 @@ class FinanceToolController extends Controller
                     'label'                    => $label,
                     'forecast_profit'          => $forecastProfit,
                     'plan_profit'              => $planProfit,
+                    'budget_profit'            => $budgetProfit,
                     'gap_amount'               => $gapAmount,
                     'gap_pct'                  => $gapPct,
                     'budget_utilization_pct'   => $utilPct,
@@ -774,6 +811,23 @@ class FinanceToolController extends Controller
         $baseFiscalYear    = isset($args['base_fiscal_year'])    ? (int) $args['base_fiscal_year']    : null;
         $compareFiscalYear = isset($args['compare_fiscal_year']) ? (int) $args['compare_fiscal_year'] : null;
         $projectIds        = $this->normalizeProjectIds($args['project_ids'] ?? []);
+        $pm = null;
+
+        if ($projectIds === [] && (isset($args['pm_user_id']) || trim((string) ($args['pm_name'] ?? '')) !== '')) {
+            $pm = $this->resolvePm($args);
+            if (is_array($pm)) {
+                return $pm;
+            }
+
+            $projectIds = $this->projectIdsForPm((int) $pm->id);
+            if ($projectIds === []) {
+                return [
+                    'error' => 'このPMが担当しているプロジェクトが見つかりません。',
+                    'pm' => $this->compactPm($pm),
+                    'project_count' => 0,
+                ];
+            }
+        }
 
         // Default: compare current FY vs previous FY
         if (! $compareFiscalYear) {
@@ -801,6 +855,10 @@ class FinanceToolController extends Controller
 
             return [
                 'scope' => 'fiscal_year_comparison',
+                'filter' => [
+                    'pm' => $pm instanceof User ? $this->compactPm($pm) : null,
+                    'project_ids' => $projectIds,
+                ],
                 'comparison' => [
                     'base' => [
                         'fiscal_year'        => $baseFiscalYear,
@@ -910,7 +968,7 @@ class FinanceToolController extends Controller
                 $projectSummaryTotals = $this->summaryTotalsForProject($project);
                 $projectVariance = $this->financeVariance(
                     $projectSummaryTotals['forecast'],
-                    $projectSummaryTotals['yearly_plan']
+                    $projectSummaryTotals['profit']
                 );
                 $assignedPms = $pmMap[(int) $project['project_id']] ?? [[
                     'id' => 0,
@@ -932,6 +990,7 @@ class FinanceToolController extends Controller
                             'project_names' => [],
                             'totals' => [
                                 'yearly_plan' => $this->emptyFinanceUnit(),
+                                'profit' => $this->emptyFinanceUnit(),
                                 'settlement' => $this->emptyFinanceUnit(),
                                 'forecast' => $this->emptyFinanceUnit(),
                             ],
@@ -943,7 +1002,7 @@ class FinanceToolController extends Controller
                     $rows[$key]['project_count']++;
                     $rows[$key]['project_ids'][] = (int) $project['project_id'];
                     $rows[$key]['project_names'][] = (string) $project['project_name'];
-                    foreach (['yearly_plan', 'settlement', 'forecast'] as $bucket) {
+                    foreach (['yearly_plan', 'profit', 'settlement', 'forecast'] as $bucket) {
                         $rows[$key]['totals'][$bucket] = $this->addFinanceUnit(
                             $rows[$key]['totals'][$bucket],
                             $projectSummaryTotals[$bucket] ?? []
@@ -962,6 +1021,11 @@ class FinanceToolController extends Controller
             foreach ($rows as &$row) {
                 $row['variance_vs_plan'] = $this->financeVariance(
                     $row['totals']['forecast'],
+                    $row['totals']['profit']
+                );
+                $row['variance_vs_profit_plan'] = $row['variance_vs_plan'];
+                $row['variance_vs_yearly_plan'] = $this->financeVariance(
+                    $row['totals']['forecast'],
                     $row['totals']['yearly_plan']
                 );
             }
@@ -979,7 +1043,8 @@ class FinanceToolController extends Controller
                 'ranking_basis' => [
                     'pm_source' => 'project_members.authority = 1',
                     'totals' => 'PM担当プロジェクトの年度合計。複数PM案件は各PMに計上。',
-                    'variance_vs_plan' => '着地見込み - 年間計画',
+                    'variance_vs_plan' => '着地見込み - 計画（Kintone損益）',
+                    'variance_vs_yearly_plan' => '着地見込み - 予算',
                 ],
                 'pms' => array_slice($rows, 0, $limit),
                 'data_status' => $snapshot['data_status'],
@@ -993,6 +1058,7 @@ class FinanceToolController extends Controller
     {
         $totals = [
             'yearly_plan' => $this->emptyFinanceUnit(),
+            'profit' => $this->emptyFinanceUnit(),
             'settlement' => $this->emptyFinanceUnit(),
             'forecast' => $this->emptyFinanceUnit(),
         ];
@@ -1005,7 +1071,7 @@ class FinanceToolController extends Controller
                 continue;
             }
 
-            foreach (['yearly_plan', 'settlement', 'forecast'] as $bucket) {
+            foreach (['yearly_plan', 'profit', 'settlement', 'forecast'] as $bucket) {
                 $unit = $month[$bucket] ?? $this->emptyFinanceUnit();
                 $adjustedUnit = $this->financeSnapshots->summaryAdjustedUnit($bucket, $unit, $projectName, $period);
                 $totals[$bucket] = $this->addFinanceUnit($totals[$bucket], $adjustedUnit);
@@ -1206,6 +1272,21 @@ class FinanceToolController extends Controller
         return round((($actual / $plan) * 100) - 100, 2);
     }
 
+    private function projectWithPrimaryPlanVariance(array $project): array
+    {
+        $compact = $this->financeSnapshots->compactProject($project, false);
+        $totals = $project['totals'] ?? [];
+        $forecast = $totals['forecast'] ?? [];
+        $profitPlan = $totals['profit'] ?? [];
+        $yearlyPlan = $totals['yearly_plan'] ?? [];
+
+        $compact['variance_vs_profit_plan'] = $this->financeVariance($forecast, $profitPlan);
+        $compact['variance_vs_yearly_plan'] = $this->financeVariance($forecast, $yearlyPlan);
+        $compact['variance_vs_plan'] = $compact['variance_vs_profit_plan'];
+
+        return $compact;
+    }
+
     private function compactFinanceUnitForChat(array $unit): array
     {
         $sales = (float) ($unit['sales'] ?? 0);
@@ -1341,6 +1422,7 @@ class FinanceToolController extends Controller
     {
         usort($rows, function (array $a, array $b) use ($sortBy) {
             return match ($sortBy) {
+                'profit_gap_best' => ($b['variance_vs_plan']['profit_amount'] ?? 0) <=> ($a['variance_vs_plan']['profit_amount'] ?? 0),
                 'forecast_sales_desc' => ($b['totals']['forecast']['sales'] ?? 0) <=> ($a['totals']['forecast']['sales'] ?? 0),
                 'forecast_profit_desc' => ($b['totals']['forecast']['profit'] ?? 0) <=> ($a['totals']['forecast']['profit'] ?? 0),
                 'expense_desc' => ($b['totals']['forecast']['expense'] ?? 0) <=> ($a['totals']['forecast']['expense'] ?? 0),
