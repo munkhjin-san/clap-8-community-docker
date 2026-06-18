@@ -8,7 +8,7 @@
         :can-fullscreen="data.canFullscreen"
         @toggle="(el, title) => emit('toggle', el, data.type)" 
         @resize="emit('resize', data.type)"
-        :class="{'pulse-border' : approvaNeeded.length && !fullscreen}"
+        :class="{'pulse-border' : overWeekCount && !fullscreen}"
     >
         <template #icon>
             <svg class="side-app-icon mr-2" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 32" style="height: 16px;overflow: visible;">
@@ -326,6 +326,17 @@ const approvaNeeded = computed(() => {
 
     return items
 
+})
+const overWeekCount = computed(() => {
+    let count = 0
+    for(const item of approvaNeeded.value){
+        for(const user of item.users){
+            if(approvalUserHasOverWeekGoal(user)){
+                count++
+            }
+        }
+    }
+    return count
 })
 const goalActionCount = computed(() => pulseBadgeCount.value + normalBadgeCount.value)
 const goalIsOverWeek = (goal: ProjectGoal) => {
