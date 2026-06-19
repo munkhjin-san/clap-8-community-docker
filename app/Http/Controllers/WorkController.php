@@ -445,6 +445,11 @@ class WorkController extends Controller
                 $overtime_ability = $shift ? $this->has_overtime_access($shift, $user, $time_card, $date, $active_user) : false;
                 $approve_ability = $this->has_approve_access($shift, $time_card, $authority, $attendance, $active_user);
                 $department_creation = $this->has_department_create($shift, $time_card, $date, $active_user, $attendance, $user);
+                if ($hasProjectSegmentsForDetails) {
+                    $time_card->project_segments->each(function (TimecardProjectSegment $segment) use ($active_user, $user, $attendance, $daily_report_ability) {
+                        $segment->setAttribute('ability', $this->projectSegmentAbility($segment, $active_user, $user, $attendance, (bool) $daily_report_ability[1]));
+                    });
+                }
                 $recordList[] = [
                     'day_full' => $date->format('Y-m-d'),
                     'day_show' => $index == 0 ? $date->format('Y-m-d') : '',
@@ -473,13 +478,13 @@ class WorkController extends Controller
                     'ability' => [
                         'overtime_request' => $overtime_ability,
                         'daily_report_create' => $daily_report_ability[0],
-                        'daily_report_modify' => $daily_report_ability[1],
-                        'daily_report_delete' => $daily_report_ability[1] && !$this->hasLockedProjectSegments($time_card, $active_user),
+                        'daily_report_modify' => !$hasProjectSegmentsForDetails && $daily_report_ability[1],
+                        'daily_report_delete' => !$hasProjectSegmentsForDetails && $daily_report_ability[1] && !$this->hasLockedProjectSegments($time_card, $active_user),
                         'start_stamp' => $daily_report_ability[2],
                         'end_stamp' => $daily_report_ability[3],
                         'break_stamp' => $daily_report_ability[4],
-                        'daily_report_approve' => $approve_ability[0],
-                        'daily_report_cancel' => $approve_ability[1],
+                        'daily_report_approve' => !$hasProjectSegmentsForDetails && $approve_ability[0],
+                        'daily_report_cancel' => !$hasProjectSegmentsForDetails && $approve_ability[1],
                         'overtime_approve' => $approve_ability[2],
                         'overtime_cancel' => $approve_ability[3],
                         // 'department_creation' => $department_creation,
@@ -500,7 +505,7 @@ class WorkController extends Controller
                 : $time_card->project_segments()->exists())
             : false;
         $dailyReportApproveOrDeny = !$hasProjectSegments && $dailyReportStatus == timecardRecord::STATUS_SUBMITTED && ($authority || $force) && !$has_attendance;
-        $dailyReportCancel = $dailyReportStatus == timecardRecord::STATUS_APPROVED && ($authority || $force) && !$has_attendance;
+        $dailyReportCancel = !$hasProjectSegments && $dailyReportStatus == timecardRecord::STATUS_APPROVED && ($authority || $force) && !$has_attendance;
         $overtimeApproveOrDeny = $overtimeStatus == 1 && ($authority || $force) && !$has_attendance;
         $overtimeCancel = $overtimeStatus == 2 && ($authority || $force) && !$has_attendance;
         return [
@@ -508,6 +513,30 @@ class WorkController extends Controller
             $dailyReportCancel,
             $overtimeApproveOrDeny,
             $overtimeCancel
+        ];
+    }
+
+    private function canManageProjectSegment(User $activeUser, TimecardProjectSegment $segment, User $targetUser): bool
+    {
+        if (!$activeUser->isAdmin() && (int) $targetUser->id === (int) $activeUser->id) {
+            return false;
+        }
+
+        return $activeUser->isAdmin()
+            || (int) $activeUser->work_authority === 1
+            || $activeUser->isProjectManager($segment->project_id);
+    }
+
+    private function projectSegmentAbility(TimecardProjectSegment $segment, User $activeUser, User $targetUser, bool $hasAttendance, bool $dailyReportCanModify): array
+    {
+        $status = $segment->status ?? TimecardProjectSegment::STATUS_DRAFT;
+        $canManage = !$hasAttendance && $this->canManageProjectSegment($activeUser, $segment, $targetUser);
+
+        return [
+            'edit' => !$hasAttendance && $dailyReportCanModify && in_array($status, $this->editableProjectSegmentStatuses($activeUser), true),
+            'approve' => $canManage && $status === TimecardProjectSegment::STATUS_SUBMITTED,
+            'reject' => $canManage && $status === TimecardProjectSegment::STATUS_SUBMITTED,
+            'cancel' => $canManage && $status === TimecardProjectSegment::STATUS_APPROVED,
         ];
     }
     private function hasApprovedProjectSegments(?timecardRecord $timecard): bool

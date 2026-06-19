@@ -899,30 +899,10 @@ const dailyReportStatusLabel = (statusFlag) => {
 const projectSegmentStatusClass = (segment) => {
     return `project-segment-status-${segment?.legacy ? `daily-${timeCard.value?.status_flag ?? 'none'}` : (segment?.status ?? 'draft')}`
 }
-const canManageProjectSegment = (segment) => {
-    const activeUserId = Number(auth.activeUser?.id)
-    const isAdmin = Boolean(auth.isAdmin)
-    if (Number(props.item?.user_id) === activeUserId && !isAdmin) return false
-    if (isAdmin || Number(auth.activeUser?.work_authority) === 1) return true
-
-    const projectId = Number(segment?.project_id ?? segment?.project?.id)
-    if (!projectId) return false
-
-    return props.workGroups?.some((group) => {
-        if (Number(group?.id) !== projectId) return false
-
-        return group.manager?.some((manager) => {
-            const managerId = typeof manager === 'object' ? manager?.id : manager
-            return Number(managerId) === activeUserId
-        })
-    })
-}
-const canApproveProjectSegment = (segment) => {
-    return segment?.status === 'submitted' && canManageProjectSegment(segment)
-}
-const canCancelProjectSegment = (segment) => {
-    return segment?.status === 'approved' && canManageProjectSegment(segment)
-}
+const segmentAbility = (segment) => segment?.ability ?? {}
+const canApproveProjectSegment = (segment) => Boolean(segmentAbility(segment).approve)
+const canCancelProjectSegment = (segment) => Boolean(segmentAbility(segment).cancel)
+const canEditProjectSegment = (segment) => Boolean(segmentAbility(segment).edit)
 const firstSegmentForProject = (segment) => {
     const projectId = segmentProjectId(segment)
     return projectSegments.value.find(rowSegment => Number(segmentProjectId(rowSegment)) === projectId)
@@ -1760,31 +1740,10 @@ const hasSegmentedOvertimeRequest = computed(() => {
     const segments = props.item?.shift?.overtime_request?.project_segments
     return Array.isArray(segments) && segments.length > 0
 })
-const hasApprovedProjectSegment = computed(() => {
-    const segments = props.item?.time_card?.project_segments
-    return Array.isArray(segments) && segments.some(segment => segment?.status === 'approved')
-})
-const lockedProjectSegmentStatuses = ['submitted', 'approved']
-const editableProjectSegmentStatuses = ['draft', 'rejected']
-const hasLockedProjectSegment = computed(() => {
-    return projectSegments.value.some(segment => lockedProjectSegmentStatuses.includes(segment?.status))
-})
 const hasWeather = computed(() => props.item?.weather !== null && props.item?.weather !== undefined)
 const hasProjectSegments = computed(() => projectSegments.value.length > 0)
-const allProjectSegmentsApproved = computed(() => {
-    return hasProjectSegments.value && projectSegments.value.every(segment => segment?.status === 'approved')
-})
-const canShowDailyReportCancel = computed(() => {
-    if (!props.item?.ability?.daily_report_cancel) return false
-    if (!hasProjectSegments.value) return true
-
-    return auth.isAdmin && allProjectSegmentsApproved.value
-})
-const canDeleteDailyReport = computed(() => {
-    if (hasApprovedProjectSegment.value) return false
-    if (hasLockedProjectSegment.value && !auth.isAdmin) return false
-    return Boolean(props.item?.ability?.daily_report_delete ?? (props.item?.ability?.daily_report_modify && !hasApprovedProjectSegment.value))
-})
+const canShowDailyReportCancel = computed(() => Boolean(props.item?.ability?.daily_report_cancel))
+const canDeleteDailyReport = computed(() => Boolean(props.item?.ability?.daily_report_delete))
 const moreActionAbilityKeys = new Set([
     'daily_report_cancel',
     'daily_report_delete',
@@ -1819,16 +1778,11 @@ const hasDayLevelAction = computed(() => {
     return Object.entries(props.item?.ability ?? {}).some(([key, value]) => {
         if (!value) return false
         if (!dayLevelActionAbilityKeys.has(key)) return false
-        if (key === 'daily_report_modify' && hasProjectSegments.value && hasLockedProjectSegment.value && !auth.isAdmin) return false
         if (key === 'daily_report_cancel') return canShowDailyReportCancel.value
         if (hasSegmentedOvertimeRequest.value && ['overtime_approve', 'overtime_cancel'].includes(key)) return false
         return true
     })
 })
-const canEditProjectSegment = (segment) => {
-    return Boolean(props.item?.ability?.daily_report_modify)
-        && (editableProjectSegmentStatuses.includes(segment?.status ?? 'draft') || (auth.isAdmin && segment?.status === 'submitted'))
-}
 const hasActionForSegment = (segment, segmentIndex) => {
     if (segment && (canApproveProjectSegment(segment) || canCancelProjectSegment(segment))) return true
     if (segment && canEditProjectSegment(segment)) return true

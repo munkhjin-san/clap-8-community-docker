@@ -120,66 +120,22 @@ import { useDashboardStore } from '@/store/dashboard';
         const segments = props.item?.shift?.overtime_request?.project_segments
         return Array.isArray(segments) && segments.length > 0
     })
-    const hasApprovedProjectSegment = computed(() => {
-        return projectSegments.value.some(segment => segment?.status === 'approved')
-    })
-    const lockedProjectSegmentStatuses = ['submitted', 'approved']
-    const editableProjectSegmentStatuses = ['draft', 'rejected']
-    const hasLockedProjectSegment = computed(() => {
-        return projectSegments.value.some(segment => lockedProjectSegmentStatuses.includes(segment?.status))
-    })
     const hasProjectSegments = computed(() => projectSegments.value.length > 0)
-    const allProjectSegmentsApproved = computed(() => {
-        return hasProjectSegments.value && projectSegments.value.every(segment => segment?.status === 'approved')
-    })
+    const selectedSegmentAbility = computed(() => props.selectedSegment?.ability ?? {})
     const canShowDailyReportCancel = computed(() => {
-        if (!props.item?.ability?.daily_report_cancel || props.selectedSegment) return false
-
-        return !hasProjectSegments.value || (auth.isAdmin && allProjectSegmentsApproved.value)
+        return !props.selectedSegment && Boolean(props.item?.ability?.daily_report_cancel)
     })
-    const canDeleteDailyReport = computed(() => {
-        if (hasApprovedProjectSegment.value) return false
-        if (hasLockedProjectSegment.value && !auth.isAdmin) return false
-        return Boolean(props.item?.ability?.daily_report_delete ?? (props.item?.ability?.daily_report_modify && !hasApprovedProjectSegment.value))
-    })
-    const canEditProjectSegment = (segment) => {
-        return Boolean(props.item?.ability?.daily_report_modify)
-            && (editableProjectSegmentStatuses.includes(segment?.status ?? 'draft') || (auth.isAdmin && segment?.status === 'submitted'))
-    }
+    const canDeleteDailyReport = computed(() => Boolean(props.item?.ability?.daily_report_delete))
     const canEditDailyReport = computed(() => {
-        if (!props.item?.ability?.daily_report_modify) return false
-        if (props.selectedSegment) return canEditProjectSegment(props.selectedSegment)
-        if (hasProjectSegments.value && hasLockedProjectSegment.value && !auth.isAdmin) return false
-        return true
+        if (props.selectedSegment) return Boolean(selectedSegmentAbility.value.edit)
+        if (hasProjectSegments.value) return false
+        return Boolean(props.item?.ability?.daily_report_modify)
     })
-    const canManageProjectSegment = (segment) => {
-        const activeUserId = Number(auth.activeUser?.id)
-        if (Number(props.item?.user_id) === activeUserId && !auth.isAdmin) return false
-        if (auth.isAdmin || Number(auth.activeUser?.work_authority) === 1) return true
-
-        const projectId = Number(segment?.project_id ?? segment?.project?.id)
-        if (!projectId) return false
-
-        return props.workGroups?.some((group) => {
-            if (Number(group?.id) !== projectId) return false
-
-            return group.manager?.some((manager) => {
-                const managerId = typeof manager === 'object' ? manager?.id : manager
-                return Number(managerId) === activeUserId
-            })
-        })
-    }
-    const canApproveProjectSegment = (segment) => {
-        return segment?.status === 'submitted' && canManageProjectSegment(segment)
-    }
-    const canCancelProjectSegment = (segment) => {
-        return segment?.status === 'approved' && canManageProjectSegment(segment)
-    }
     const canApproveSelectedProjectSegment = computed(() => {
-        return props.selectedSegment && canApproveProjectSegment(props.selectedSegment)
+        return Boolean(props.selectedSegment && selectedSegmentAbility.value.approve)
     })
     const canCancelSelectedProjectSegment = computed(() => {
-        return props.selectedSegment && canCancelProjectSegment(props.selectedSegment)
+        return Boolean(props.selectedSegment && selectedSegmentAbility.value.cancel)
     })
     const projectSegmentName = (segment) => {
         return segment?.project?.name ?? segment?.project_name ?? 'プロジェクト'
