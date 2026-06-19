@@ -8,7 +8,7 @@
                             style="max-width:100%;margin:auto;max-height:100%;" 
                             v-if="file.mime_type == 'image'"
                             class="list-image-mobile" 
-                            v-lazy="{src: `/cdn/${path}/thumbnail/${file.id}_${file.user_id}_${file.path}_thumbnail.webp`}"
+                            v-lazy="{src: `/cdn/${normalizedPath}/thumbnail/${file.id}_${file.user_id}_${file.path}_thumbnail.webp`}"
                            
                         />
                     </div>
@@ -32,12 +32,13 @@ import FileIcon from '../Board/Mixed/FileIcon.vue';
 import {filesize} from 'filesize';
 import  Swiper  from 'swiper';
 import 'swiper/css'
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useFilePreview } from '@/store/filePreview';
 const props = defineProps([
     'items',
     'path',
 ])
+const normalizedPath = computed(() => String(props.path ?? '').replace(/^\/+/, '').replace(/\/+$/, ''))
 const filePreview = useFilePreview()
 onMounted(() => {
     new Swiper('.swiper', {
@@ -54,8 +55,8 @@ const previewFile = (file: any, index: number | string) => {
     let file_list = props.items
     const files = file_list.map((fileData: any) => ({
         ...fileData,
-        file_path: `/cdn/${props.path}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
-        doc_path: `/${props.path}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`
+        file_path: `/cdn/${normalizedPath.value}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`,
+        doc_path: `/${normalizedPath.value}/${fileData.id}_${fileData.user_id}_${fileData.path}.${fileData.extension}`
     }));
     let target_data = file
     

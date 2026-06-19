@@ -191,7 +191,7 @@ class EmployeeController extends Controller
                 'effective_date' => ['required', 'date'],
                 'route' => ['required', 'string', 'max:1000'],
                 'monthly_pass_amount' => ['nullable', 'string', 'max:100'],
-                'one_way_distance' => ['nullable', 'string', 'max:100'],
+                'one_way_distance' => ['nullable', 'max:100'],
                 'share_with_pm' => ['required', 'accepted'],
             ],
             ApplicationType::LeaveRequest->value => [
@@ -229,6 +229,7 @@ class EmployeeController extends Controller
                 'name' => ['required', 'string', 'max:100'],
                 'name_kana' => ['required', 'string', 'max:100'],
                 'birth_date' => ['required', 'date'],
+                'my_number' => ['nullable', 'string', 'max:50'],
                 'gender' => ['required', 'string', 'max:100'],
                 'address' => ['required', 'string', 'max:1000'],
                 'retired_on' => ['nullable', 'date'],
@@ -239,6 +240,7 @@ class EmployeeController extends Controller
                 'name' => ['required', 'string', 'max:100'],
                 'name_kana' => ['required', 'string', 'max:100'],
                 'birth_date' => ['required', 'date'],
+                'my_number' => ['nullable', 'string', 'max:50'],
                 'employment_on' => ['nullable', 'date'],
             ];
 
@@ -277,21 +279,24 @@ class EmployeeController extends Controller
                 'effective_date' => ['required', 'date'],
                 'route' => ['required', 'string', 'max:1000'],
                 'pass_amount' => ['required', 'string', 'max:100'],
+                'one_way_fare' => ['nullable', 'string', 'max:100'],
                 'other_amount' => ['nullable', 'string', 'max:100'],
                 'share_with_pm' => ['required', 'accepted'],
             ],
             'car' => [
                 'effective_date' => ['required', 'date'],
-                'car_type' => ['required', 'string', 'max:100'],
-                'one_way_distance' => ['required', 'string', 'max:100'],
+                'fuel_type' => ['required', 'string', Rule::in(['レギュラー', 'ハイオク'])],
+                'one_way_distance' => ['required', 'max:100'],
+                'vehicle_inspection_file_ids' => ['required', 'array', 'min:1', 'max:1'],
+                'vehicle_inspection_file_ids.*' => ['integer', 'exists:file_records,id'],
                 'share_with_pm' => ['required', 'accepted'],
             ],
             'bicycle' => [
                 'effective_date' => ['required', 'date'],
                 'route' => ['required', 'string', 'max:1000'],
-                'pass_amount' => ['required', 'string', 'max:100'],
-                'other_amount' => ['nullable', 'string', 'max:100'],
-                'parking_amount' => ['nullable', 'string', 'max:100'],
+                'rainy_commute_method' => ['required', 'string', 'max:100'],
+                'other_amount' => ['nullable', 'max:100'],
+                'parking_amount' => ['nullable', 'max:100'],
                 'share_with_pm' => ['required', 'accepted'],
             ],
             'walking' => [],
@@ -335,6 +340,7 @@ class EmployeeController extends Controller
                 'dependent_name' => Arr::get($payload, 'name'),
                 'dependent_name_kana' => Arr::get($payload, 'name_kana'),
                 'birth_date' => Arr::get($payload, 'birth_date'),
+                'dependent_my_number' => Arr::get($payload, 'my_number'),
                 'gender' => Arr::get($payload, 'gender'),
                 'dependent_address' => Arr::get($payload, 'address'),
                 'retired_on' => Arr::get($payload, 'retired_on'),
@@ -378,10 +384,12 @@ class EmployeeController extends Controller
             'effective_date' => Arr::get($payload, 'effective_date'),
             'route' => Arr::get($payload, 'route'),
             'pass_amount' => Arr::get($payload, 'pass_amount'),
+            'one_way_fare' => Arr::get($payload, 'one_way_fare'),
+            'rainy_commute_method' => Arr::get($payload, 'rainy_commute_method'),
             'other_amount' => Arr::get($payload, 'other_amount'),
             'parking_amount' => Arr::get($payload, 'parking_amount'),
             'one_way_distance' => Arr::get($payload, 'one_way_distance'),
-            'car_type' => Arr::get($payload, 'car_type'),
+            'fuel_type' => Arr::get($payload, 'fuel_type'),
         ];
     }
 
@@ -399,6 +407,10 @@ class EmployeeController extends Controller
 
     private function fileIds(string $type, array $detail): array
     {
+        if ($type === ApplicationType::CommuteChange->value && Arr::get($detail, 'mode') === 'car') {
+            return Arr::get($detail, 'detail.vehicle_inspection_file_ids', []);
+        }
+
         if (!in_array($type, [ApplicationType::NameChange->value, ApplicationType::AddressChange->value], true)) {
             return [];
         }
@@ -410,6 +422,7 @@ class EmployeeController extends Controller
     {
         return match ($type) {
             ApplicationType::NameChange->value, ApplicationType::AddressChange->value => 'resident_card',
+            ApplicationType::CommuteChange->value => 'vehicle_inspection',
             default => 'attachments',
         };
     }

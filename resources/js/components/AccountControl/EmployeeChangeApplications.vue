@@ -123,7 +123,7 @@
 
                     <div v-if="detailApplication.files?.length" class="employee-change-files">
                         <span>添付</span>
-                        <Files :items="detailApplication.files" :path="`/various_changes/${detailApplication.type}`" />
+                        <Files :items="detailApplication.files" :path="filePath(detailApplication)" />
                     </div>
 
                     <!-- <textarea
@@ -323,6 +323,7 @@ const detailItems = (application: EmployeeChangeApplication) => {
             { label: '扶養対象者', value: detail.dependent_name },
             { label: '扶養対象者カナ', value: detail.dependent_name_kana },
             { label: '生年月日', value: formatDate(detail.birth_date) },
+            { label: 'マイナンバー', value: detail.dependent_my_number },
             { label: '性別', value: detail.gender },
             { label: '扶養対象者住所', value: detail.dependent_address },
             { label: '退職日', value: formatDate(detail.retired_on) },
@@ -363,14 +364,24 @@ const detailItems = (application: EmployeeChangeApplication) => {
             { label: '適用日', value: formatDate(detail.effective_date) },
             { label: '経路', value: detail.route },
             { label: '定期金額', value: detail.pass_amount },
+            { label: '片道代', value: detail.one_way_fare },
+            { label: '雨天時の通勤方法', value: detail.rainy_commute_method },
             { label: 'その他交通費', value: detail.other_amount },
             { label: '駐輪場代', value: detail.parking_amount },
             { label: '片道距離', value: detail.one_way_distance },
-            { label: '車種', value: detail.car_type },
+            { label: '燃料', value: detail.fuel_type },
         ].filter(item => item.value && item.value !== '-')
     }
 
     return []
+}
+
+const filePath = (application: EmployeeChangeApplication) => {
+    if (application.type === 'commute_change') {
+        return '/various_changes/commute_change/vehicle_inspection'
+    }
+
+    return `/various_changes/${application.type}`
 }
 
 onMounted(() => {
