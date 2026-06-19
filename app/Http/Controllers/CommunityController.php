@@ -22,7 +22,7 @@ class CommunityController extends Controller
     }
     public function get_office_list(Request $request)
     {
-        $offices = officeRecord::with(['employees', 'files'])->orderBy('created_at', 'desc')->get();
+        $offices = officeRecord::with(['employees.related_projects:id,name', 'files'])->orderBy('created_at', 'desc')->get();
 
         return response()->json($offices);
     }

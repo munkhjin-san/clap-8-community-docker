@@ -11,7 +11,7 @@ class officeRecord extends Model
     use HasFactory, SoftDeletes;
 
     public function employees(){
-        return $this->hasMany(User::class, 'office_id', 'id')->where('retire', '=', 0)->select('id', 'name', 'icon_path', 'icon_bg', 'office_id');
+        return $this->hasMany(User::class, 'office_id', 'id')->where('retire', '=', 0)->select('id', 'name', 'icon_path', 'icon_bg', 'office_id', 'position_id');
     }
 
     protected $guarded = [];

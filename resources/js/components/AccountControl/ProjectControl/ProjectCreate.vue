@@ -66,7 +66,7 @@
                                     name="member"
                                     v-model="projectParams.members"
                                     placeHolder="メンバー"
-                                    :options="userList"
+                                    path="board_possible_users"
                                     :closeOnSelect="false"
                                     :multiple="true"
                                     

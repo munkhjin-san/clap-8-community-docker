@@ -115,6 +115,7 @@ export interface User {
     intro?: string;
     enjoy?: string;
     user_albums?: UserAlbum[];
+    related_projects?: Project[]
 }
 export interface ProjectSetting {
     color: string;

@@ -71,6 +71,11 @@
                 <div class="ml-1">{{ item?.salary_issue.reports?.length }}</div>
                 <div v-if="item?.salary_issue?.issue_notifications_count" class="side-notification side-notification--comment-only ml-1" style="position: unset;z-index: 1;">
                     {{ item.salary_issue.issue_notifications_count }}
+                </div>
+                <div class="ml-auto">
+                    <router-link v-if="route.path.startsWith('/project')" :to="{name: 'goal-span', params: { goalId: item?.id, projectId: item.project_id, memberId: item.user_id, span: `${item.year}-${item.which_half}`}}">詳細</router-link>
+                    <router-link v-if="route.path.startsWith('/dashboard')" :to="{name: 'dashboard', params: { type: 'overdueGoals', itemId: item?.id }, query: { q: 'salaryIssue' }}">詳細</router-link>
+                    
                 </div>   
             </div>  
         </div>                                 
