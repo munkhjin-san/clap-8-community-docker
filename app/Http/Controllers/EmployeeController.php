@@ -200,7 +200,7 @@ class EmployeeController extends Controller
             ],
             ApplicationType::CommuteChange->value => [
                 'mode' => ['required', Rule::in(['public_transportation', 'car', 'bicycle', 'walking'])],
-                'detail' => ['required', 'array'],
+                'detail' => ['present', 'array'],
             ],
         };
 
@@ -299,7 +299,9 @@ class EmployeeController extends Controller
                 'parking_amount' => ['nullable', 'max:100'],
                 'share_with_pm' => ['required', 'accepted'],
             ],
-            'walking' => [],
+            'walking' => [
+                'effective_date' => ['required', 'date'],
+            ],
             default => throw ValidationException::withMessages(['mode' => '通勤方法を選択してください。']),
         };
 

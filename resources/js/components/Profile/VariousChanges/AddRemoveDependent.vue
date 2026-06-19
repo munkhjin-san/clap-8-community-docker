@@ -37,7 +37,7 @@
                     custom-class="full"
                     name="relationship"
                     place-holder="続柄"
-                    rules="required|max:100"
+                    rules="required"
                 />
             </div>
             <div class="flex-1">
@@ -47,7 +47,7 @@
                     custom-class="full"
                     name="annual_income"
                     place-holder="追加する方の年収（概算）"
-                    rules="required|max:100"
+                    rules="required"
                 />
             </div>
         </div>
@@ -58,7 +58,7 @@
             custom-class="full"
             name="add_reason"
             place-holder="追加する事由"
-            rules="required|max:1000"
+            rules="required"
         />
 
         <div class="flex gap-8 under960:flex-col">
@@ -69,7 +69,7 @@
                     custom-class="full"
                     name="add_name"
                     place-holder="追加する方の氏名（漢字）"
-                    rules="required|max:100"
+                    rules="required"
                 />
             </div>
             <div class="flex-1">
@@ -79,7 +79,7 @@
                     custom-class="full"
                     name="add_name_kana"
                     place-holder="追加する方の氏名（カナ）"
-                    rules="required|max:100"
+                    rules="required"
                 />
             </div>
         </div>
@@ -96,6 +96,19 @@
                     type="date"
                 />
             </div>
+            <div class="flex-1">
+                <ShortInput
+                    ref="addMyNumberRef"
+                    v-model="params.add.my_number"
+                    custom-class="full"
+                    name="add_my_number"
+                    place-holder="マイナンバー"
+                    rules="max:50"
+                />
+            </div>
+        </div>
+
+        <div class="flex gap-8 under960:flex-col">
             <div class="flex-1 flex">
                 <div>                
                     <div class="dependent-field-label">追加する方の性別</div>
@@ -113,7 +126,7 @@
                     custom-class="full"
                     name="add_gender_other"
                     place-holder="その他"
-                    rules="required|max:100"
+                    rules="required"
                     class="ml-3"
                 />
                 <p v-if="genderError" class="dependent-change-error mt-1">{{ genderError }}</p>
@@ -126,7 +139,7 @@
             custom-class="full"
             name="add_address"
             place-holder="追加する方の住所"
-            rules="required|max:1000"
+            rules="required"
         />
 
         <ShortInput
@@ -156,7 +169,7 @@
             custom-class="full"
             name="remove_reason"
             place-holder="削除する事由"
-            rules="required|max:1000"
+            rules="required"
         />
 
         <div class="flex gap-8 under960:flex-col">
@@ -167,7 +180,7 @@
                     custom-class="full"
                     name="remove_name"
                     place-holder="削除する方の氏名（漢字）"
-                    rules="required|max:100"
+                    rules="required"
                 />
             </div>
             <div class="flex-1">
@@ -177,7 +190,7 @@
                     custom-class="full"
                     name="remove_name_kana"
                     place-holder="削除する方の氏名（カナ）"
-                    rules="required|max:100"
+                    rules="required"
                 />
             </div>
         </div>
@@ -194,6 +207,19 @@
                     type="date"
                 />
             </div>
+            <div class="flex-1">
+                <ShortInput
+                    ref="removeMyNumberRef"
+                    v-model="params.remove.my_number"
+                    custom-class="full"
+                    name="remove_my_number"
+                    place-holder="マイナンバー"
+                    rules="max:50"
+                />
+            </div>
+        </div>
+
+        <div class="flex gap-8 under960:flex-col">
             <div class="flex-1">
                 <ShortInput
                     ref="employmentOnRef"
@@ -224,6 +250,7 @@ type AddDependentPayload = {
     name: string
     name_kana: string
     birth_date: string
+    my_number: string
     gender: Gender
     gender_other: string
     annual_income: string
@@ -237,6 +264,7 @@ type RemoveDependentPayload = {
     name: string
     name_kana: string
     birth_date: string
+    my_number: string
     employment_on: string
 }
 
@@ -261,6 +289,7 @@ const params = reactive<DependentChangePayload>({
         name: '',
         name_kana: '',
         birth_date: '',
+        my_number: '',
         gender: '',
         gender_other: '',
         annual_income: '',
@@ -273,6 +302,7 @@ const params = reactive<DependentChangePayload>({
         name: '',
         name_kana: '',
         birth_date: '',
+        my_number: '',
         employment_on: '',
     },
 })
@@ -286,6 +316,7 @@ const addReasonRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const addNameRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const addNameKanaRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const addBirthdayRef = ref<InstanceType<typeof ShortInput> | null>(null)
+const addMyNumberRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const addGenderOtherRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const annualIncomeRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const addAddressRef = ref<InstanceType<typeof LongInput> | null>(null)
@@ -296,6 +327,7 @@ const removeReasonRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const removeNameRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const removeNameKanaRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const removeBirthdayRef = ref<InstanceType<typeof ShortInput> | null>(null)
+const removeMyNumberRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const employmentOnRef = ref<InstanceType<typeof ShortInput> | null>(null)
 
 watch(() => params.add.gender, (gender) => {
@@ -304,7 +336,7 @@ watch(() => params.add.gender, (gender) => {
     }
 })
 
-const validateTargets = async (targets: Array<{ validate?: () => Promise<{ valid: boolean }> } | null>) => {
+const validateTargets = async (targets: Array<{ validate?: () => Promise<{ valid: boolean } | undefined> } | null>)=> {
     let result = true
     for (const target of targets) {
         const validation = await target?.validate?.() || { valid: false }
@@ -322,6 +354,7 @@ const validateAdd = async () => {
         addNameRef.value,
         addNameKanaRef.value,
         addBirthdayRef.value,
+        addMyNumberRef.value,
         annualIncomeRef.value,
         addAddressRef.value,
         retiredOnRef.value,
@@ -343,6 +376,7 @@ const validateRemove = async () => {
         removeNameRef.value,
         removeNameKanaRef.value,
         removeBirthdayRef.value,
+        removeMyNumberRef.value,
         employmentOnRef.value,
     ])
 }

@@ -6,7 +6,7 @@
         custom-class="full"
         name="reason"
         place-holder="氏名変更の事由"
-        rules="required|max:1000"
+        rules="required"
     />
     <ShortInput
         ref="effectiveDateRef"
@@ -25,7 +25,7 @@
                 custom-class="full"
                 name="last_name"
                 place-holder="変更後の氏名（姓）"
-                rules="required|max:100"
+                rules="required"
             />
         </div>
         <div class="flex-1">
@@ -35,7 +35,7 @@
                 custom-class="full"
                 name="first_name"
                 place-holder="変更後の氏名（名）"
-                rules="required|max:100"
+                rules="required"
             />
         </div>
     </div>
@@ -47,7 +47,7 @@
                 custom-class="full"
                 name="last_name_kana"
                 place-holder="変更後の氏名（姓）（カナ）"
-                rules="required|max:100"
+                rules="required"
             />
         </div>
         <div class="flex-1">
@@ -57,7 +57,7 @@
                 custom-class="full"
                 name="first_name_kana"
                 place-holder="変更後の氏名（名）（カナ）"
-                rules="required|max:100"
+                rules="required"
             />
         </div>       
     </div> 
