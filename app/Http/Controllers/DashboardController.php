@@ -25,7 +25,9 @@ use App\Models\PostRelay;
 use App\Models\AssetRecord;
 use App\Models\workTemp;
 use App\Models\timecardRecord;
+use App\Models\TimecardProjectSegment;
 use App\Models\shiftRecord;
+use App\Models\ShiftOvertimeRequest;
 use App\Models\attendanceRecord;
 use App\Models\NoticeRecord;
 use App\Models\EmergencyContact;
@@ -50,6 +52,7 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class DashboardController extends Controller
 {
+    private const TIMESHEET_ADMIN_IDS = [608, 610];
 
     public function __construct(
         protected BadgeService $badgeService,
@@ -338,11 +341,13 @@ class DashboardController extends Controller
 
     public function timesheet() {
         $pendingTimesheets = $this->pendingDailyReports();
+        $autoApprovedTimesheets = $this->autoApprovedDailyReports();
         $departuresReportUsers = $this->departuresReportUsers();
         $pendingPlannedLeaves = $this->pendingPlannedLeaves();
         $pendingAttendance = $this->pendingAttendance();
         return [
             "pendingTimesheets" => $pendingTimesheets,
+            "autoApprovedTimesheets" => $autoApprovedTimesheets,
             "departuresReportUsers" => $departuresReportUsers,
             "pendingPlannedLeaves" => $pendingPlannedLeaves,
             "pendingAttendance" => $pendingAttendance,
@@ -379,92 +384,152 @@ class DashboardController extends Controller
         $prev_month = $month == 1 ? $month : $date->clone()->subMonth()->month;
         $shift_month = $day >= 25 ? $date->clone()->addMonthNoOverflow()->month : $month;
         $prev_month_start = $date->clone()->subMonthNoOverflow()->startOfMonth()->format('Y-m-d');
-        $ids = [608, 610];
-        $active_user = $this->active_user();
-        $target_users = [];
-        $workGroupIds = [];
+        [$active_user, $isTimesheetAdmin, $target_users, $workGroupIds] = $this->timesheetApprovalScope();
         $list = [];
         $today = $date->copy()->format('Y-m-d');
-        $headquartersIds = [];
-        $hqProject = ProjectRecord::where('id', 20)->first();
-        if($hqProject){
-            $headquartersIds = $hqProject->members()->pluck('users.id')->toArray();
+
+        if (empty($target_users) || (!$isTimesheetAdmin && empty($workGroupIds))) {
+            return [];
         }
-        if(in_array($active_user->id, $ids)){
-            $pms = User::where('retire', 0)
-                        ->where('partner_flag', 0)
-                        ->where('deleted_flag', 0)
-                        ->where('on_leave', 0)
-                        ->where(function ($query) use ($headquartersIds) {
-                            $query->where('position_id', 6)
-                            ->orWhereIn('id', $headquartersIds);
-                        })
-                        
-                        ->pluck('id')->toArray();
-            $target_users = $pms;
-            $workGroupIds = ProjectRecord::pluck('id')->unique()->values()->toArray();
-        }
-        if($active_user->position_id == 6){
-            $workGroups = ProjectRecord::whereHas('manager', function ($q) use($active_user, $ids) {
-                $q->where('users.id', $active_user->id)->whereNotIn('users.id', $ids);
-            })->with('members')->get();
-            
-            $workGroupIds = $workGroups->unique()->pluck('id')->toArray();
-        
-            $workGroups = $workGroups->flatMap(function ($workGroup) {
-                return $workGroup->members;
-            })->unique('id')->values()->pluck('id')->toArray();
-            $target_users = array_merge($target_users, $workGroups);
-        }
-        $user_list = User::whereIn('id', $target_users)
-                        ->with([
-                            'time_card_records' => function ($q) use($year, $month, $workGroupIds, $prev_month, $prev_month_start) {
-                                $q->where('day', '>=', $prev_month_start)
-                                    ->where('status_flag', 1)
-                                    ->whereIn('work_group_id', $workGroupIds)
-                                    ->selectRaw('MONTH(day) as month, COUNT(*) as count, user_id')
-                                    ->groupByRaw('MONTH(day), user_id');
-                            },
-                            'shift_overtime' => function ($q) use($year, $month) {
-                                $q->where('status', 1)
-                                    ->whereYear('overtime_day', $year)
-                                    ->whereMonth('overtime_day', $month);
-                            },
-                            'shift_records' => function ($q) use ($year, $month, $prev_month, $shift_month) {
-                                $q->whereYear('shift_day', $year)
-                                    ->where('status_flag', 2)
-                                    ->where(function ($innerQuery) use ($month, $prev_month, $shift_month) {
-                                      $innerQuery->whereMonth('shift_day', $month)
-                                                 ->orWhereMonth('shift_day', $prev_month)
-                                                 ->orWhereMonth('shift_day', $shift_month);
-                                    })->selectRaw('MONTH(shift_day) as month, COUNT(*) as count, user_id')
-                                    ->groupByRaw('MONTH(shift_day), user_id');
-                            }
-                        ])
+
+        $timecardRows = timecardRecord::query()
+            ->join('timecard_project_segments', 'timecard_project_segments.timecard_record_id', '=', 'timecard_records.id')
+            ->whereNull('timecard_records.deleted_at')
+            ->whereIn('timecard_records.user_id', $target_users)
+            ->where('timecard_records.day', '>=', $prev_month_start)
+            ->where('timecard_records.status_flag', timecardRecord::STATUS_SUBMITTED)
+            ->where('timecard_project_segments.status', TimecardProjectSegment::STATUS_SUBMITTED)
+            ->when(!$isTimesheetAdmin, fn ($query) => $query->whereIn('timecard_project_segments.project_id', $workGroupIds))
+            ->selectRaw('MONTH(timecard_records.day) as month, COUNT(DISTINCT timecard_records.id) as count, timecard_records.user_id')
+            ->groupByRaw('MONTH(timecard_records.day), timecard_records.user_id')
+            ->get();
+
+        $legacyTimecardRows = timecardRecord::query()
+            ->whereDoesntHave('project_segments')
+            ->whereIn('user_id', $target_users)
+            ->where('day', '>=', $prev_month_start)
+            ->where('status_flag', timecardRecord::STATUS_SUBMITTED)
+            ->when(!$isTimesheetAdmin, fn ($query) => $query->whereIn('work_group_id', $workGroupIds))
+            ->selectRaw('MONTH(day) as month, COUNT(*) as count, user_id')
+            ->groupByRaw('MONTH(day), user_id')
+            ->get();
+
+        $timecardRows = $timecardRows
+            ->concat($legacyTimecardRows)
+            ->groupBy(fn ($row) => $row->user_id . '-' . $row->month)
+            ->map(function ($rows) {
+                $first = $rows->first();
+                return (object) [
+                    'month' => (int) $first->month,
+                    'count' => (int) $rows->sum('count'),
+                    'user_id' => (int) $first->user_id,
+                ];
+            })
+            ->values()
+            ->groupBy('user_id');
+
+        $hasPendingTimecards = timecardRecord::query()
+            ->join('timecard_project_segments', 'timecard_project_segments.timecard_record_id', '=', 'timecard_records.id')
+            ->whereNull('timecard_records.deleted_at')
+            ->whereIn('timecard_records.user_id', $target_users)
+            ->where('timecard_records.day', '>=', $prev_month_start)
+            ->where('timecard_records.day', '<', $today)
+            ->where('timecard_records.status_flag', timecardRecord::STATUS_SUBMITTED)
+            ->where('timecard_project_segments.status', TimecardProjectSegment::STATUS_SUBMITTED)
+            ->when(!$isTimesheetAdmin, fn ($query) => $query->whereIn('timecard_project_segments.project_id', $workGroupIds))
+            ->select('timecard_records.user_id')
+            ->distinct()
+            ->pluck('timecard_records.user_id')
+            ->map(fn ($id) => (int) $id);
+
+        $legacyPendingTimecards = timecardRecord::query()
+            ->whereDoesntHave('project_segments')
+            ->whereIn('user_id', $target_users)
+            ->where('day', '>=', $prev_month_start)
+            ->where('day', '<', $today)
+            ->where('status_flag', timecardRecord::STATUS_SUBMITTED)
+            ->when(!$isTimesheetAdmin, fn ($query) => $query->whereIn('work_group_id', $workGroupIds))
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id);
+
+        $hasPendingTimecards = $hasPendingTimecards
+            ->concat($legacyPendingTimecards)
+            ->unique()
+            ->values();
+
+        $overtimeRequests = ShiftOvertimeRequest::query()
+            ->leftJoin('shift_records', 'shift_records.id', '=', 'shift_overtime_requests.record_id')
+            ->whereNull('shift_overtime_requests.deleted_at')
+            ->whereIn('shift_overtime_requests.user_id', $target_users)
+            ->whereYear('shift_overtime_requests.overtime_day', $year)
+            ->whereMonth('shift_overtime_requests.overtime_day', $month)
+            ->select([
+                'shift_overtime_requests.id',
+                'shift_overtime_requests.user_id',
+                'shift_overtime_requests.status',
+                'shift_overtime_requests.project_segments',
+                'shift_records.department_id as shift_department_id',
+            ])
+            ->get()
+            ->filter(function ($request) use ($workGroupIds, $isTimesheetAdmin) {
+                $segments = is_array($request->project_segments)
+                    ? $request->project_segments
+                    : (is_string($request->project_segments) ? json_decode($request->project_segments, true) : []);
+                if (!empty($segments)) {
+                    return collect($segments)->contains(function ($segment) use ($workGroupIds, $isTimesheetAdmin) {
+                        return (int) ($segment['status'] ?? 1) === 1
+                            && ($isTimesheetAdmin || in_array((int) ($segment['project_id'] ?? 0), $workGroupIds, true));
+                    });
+                }
+
+                return (int) $request->status === 1
+                    && ($isTimesheetAdmin || in_array((int) $request->shift_department_id, $workGroupIds, true));
+            })
+            ->groupBy('user_id')
+            ->map->count();
+
+        $shiftRows = shiftRecord::query()
+            ->whereIn('user_id', $target_users)
+            ->whereYear('shift_day', $year)
+            ->where('status_flag', 2)
+            ->when(!$isTimesheetAdmin, fn ($query) => $query->whereIn('department_id', $workGroupIds))
+            ->where(function ($innerQuery) use ($month, $prev_month, $shift_month) {
+                $innerQuery->whereMonth('shift_day', $month)
+                    ->orWhereMonth('shift_day', $prev_month)
+                    ->orWhereMonth('shift_day', $shift_month);
+            })
+            ->selectRaw('MONTH(shift_day) as month, COUNT(*) as count, user_id')
+            ->groupByRaw('MONTH(shift_day), user_id')
+            ->get()
+            ->groupBy('user_id');
+
+        $usersWithRequests = collect($target_users)
+            ->filter(function ($userId) use ($timecardRows, $overtimeRequests, $shiftRows, $hasPendingTimecards) {
+                return $hasPendingTimecards->contains((int) $userId)
+                    || $timecardRows->has($userId)
+                    || $overtimeRequests->has($userId)
+                    || $shiftRows->has($userId);
+            })
+            ->values()
+            ->all();
+
+        $user_list = User::whereIn('id', $usersWithRequests)
                         ->select('id', 'name', 'icon_path', 'icon_bg')
-                        ->withExists([
-                            'time_card_records as has_pending_timecards' => function ($q) use ($today, $workGroupIds, $prev_month_start) {
-                                $q->where('day', '>=', $prev_month_start)
-                                    ->where('day', '<', $today)
-                                    ->where('status_flag', 1)
-                                    ->whereIn('work_group_id', $workGroupIds);
-                            },
-                        ])
                         ->get();
         foreach($user_list as $user){
-            $timeCardsCount = $user->time_card_records;
-            $overtimeRequests = $user->shift_overtime->count();
-            $shiftCount = $user->shift_records;
-            $hasPendingTimecards = (bool) $user->has_pending_timecards;
+            $timeCardsCount = $timecardRows->get($user->id, collect())->values();
+            $overtimeRequestsCount = (int) ($overtimeRequests->get($user->id) ?? 0);
+            $shiftCount = $shiftRows->get($user->id, collect())->values();
+            $hasPendingTimecardsForUser = $hasPendingTimecards->contains((int) $user->id);
             
              $d = [
                 "user" => $user,
                 "timecard" => $timeCardsCount,
-                "has_pending_timecards" => $hasPendingTimecards,
-                "overtime" => $overtimeRequests,
+                "has_pending_timecards" => $hasPendingTimecardsForUser,
+                "overtime" => $overtimeRequestsCount,
                 "shift" => $shiftCount,
             ];
-            if($hasPendingTimecards || $timeCardsCount->count() || $overtimeRequests || $shiftCount->count()){                    
+            if($hasPendingTimecardsForUser || $timeCardsCount->count() || $overtimeRequestsCount || $shiftCount->count()){                    
                 $list[] = $d;
             }
 
@@ -474,6 +539,189 @@ class DashboardController extends Controller
         // ];
         // return response()->json($data);
         return $list;
+    }
+
+    public function markAutoApprovedDailyReportsRead(Request $request)
+    {
+        $validated = $request->validate([
+            'segment_ids' => ['required', 'array'],
+            'segment_ids.*' => ['integer'],
+        ]);
+
+        [$activeUser, $isTimesheetAdmin, $targetUsers, $workGroupIds] = $this->timesheetApprovalScope();
+        $segmentIds = collect($validated['segment_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($segmentIds->isEmpty() || empty($targetUsers) || (!$isTimesheetAdmin && empty($workGroupIds))) {
+            return response()->json(['read_segment_ids' => []]);
+        }
+
+        $visibleSegmentIds = TimecardProjectSegment::query()
+            ->join('timecard_records', 'timecard_records.id', '=', 'timecard_project_segments.timecard_record_id')
+            ->whereNull('timecard_records.deleted_at')
+            ->whereIn('timecard_project_segments.id', $segmentIds)
+            ->whereIn('timecard_records.user_id', $targetUsers)
+            ->where('timecard_records.status_flag', timecardRecord::STATUS_APPROVED)
+            ->where('timecard_project_segments.status', TimecardProjectSegment::STATUS_APPROVED)
+            ->where('timecard_project_segments.segment_type', TimecardProjectSegment::TYPE_WORK)
+            ->where('timecard_project_segments.approval_source', TimecardProjectSegment::APPROVAL_SOURCE_AUTO)
+            ->whereNull('timecard_project_segments.approved_by')
+            ->whereNotNull('timecard_project_segments.approved_at')
+            ->when(!$isTimesheetAdmin, fn ($query) => $query->whereIn('timecard_project_segments.project_id', $workGroupIds))
+            ->pluck('timecard_project_segments.id');
+
+        $visibleSegmentIds->each(function ($segmentId) use ($activeUser) {
+            UserReadHistory::updateOrCreate(
+                [
+                    'readable_type' => TimecardProjectSegment::class,
+                    'readable_id' => (int) $segmentId,
+                    'user_id' => $activeUser->id,
+                ],
+                [
+                    'last_read_at' => now(),
+                ],
+            );
+        });
+
+        return response()->json(['read_segment_ids' => $visibleSegmentIds->values()]);
+    }
+
+    private function autoApprovedDailyReports(): array
+    {
+        $date = Carbon::now();
+        $prevMonthStart = $date->clone()->subMonthNoOverflow()->startOfMonth()->format('Y-m-d');
+        [$activeUser, $isTimesheetAdmin, $targetUsers, $workGroupIds] = $this->timesheetApprovalScope();
+
+        if (empty($targetUsers) || (!$isTimesheetAdmin && empty($workGroupIds))) {
+            return [];
+        }
+
+        $rows = TimecardProjectSegment::query()
+            ->join('timecard_records', 'timecard_records.id', '=', 'timecard_project_segments.timecard_record_id')
+            ->join('users', 'users.id', '=', 'timecard_records.user_id')
+            ->join('project_records', 'project_records.id', '=', 'timecard_project_segments.project_id')
+            ->leftJoin('custom_field_data_records as weather', function ($join) {
+                $join->on('weather.user_id', '=', 'timecard_records.user_id')
+                    ->on('weather.date', '=', 'timecard_records.day')
+                    ->where('weather.type_id', 43)
+                    ->whereNull('weather.deleted_at');
+            })
+            ->leftJoin('user_read_histories', function ($join) use ($activeUser) {
+                $join->on('user_read_histories.readable_id', '=', 'timecard_project_segments.id')
+                    ->where('user_read_histories.readable_type', TimecardProjectSegment::class)
+                    ->where('user_read_histories.user_id', $activeUser->id);
+            })
+            ->whereNull('timecard_records.deleted_at')
+            ->whereNull('user_read_histories.id')
+            ->whereIn('timecard_records.user_id', $targetUsers)
+            ->where('timecard_records.day', '>=', $prevMonthStart)
+            ->where('timecard_records.status_flag', timecardRecord::STATUS_APPROVED)
+            ->where('timecard_project_segments.status', TimecardProjectSegment::STATUS_APPROVED)
+            ->where('timecard_project_segments.segment_type', TimecardProjectSegment::TYPE_WORK)
+            ->where('timecard_project_segments.approval_source', TimecardProjectSegment::APPROVAL_SOURCE_AUTO)
+            ->whereNull('timecard_project_segments.approved_by')
+            ->whereNotNull('timecard_project_segments.approved_at')
+            ->when(!$isTimesheetAdmin, fn ($query) => $query->whereIn('timecard_project_segments.project_id', $workGroupIds))
+            ->orderByDesc('timecard_project_segments.approved_at')
+            ->orderByDesc('timecard_records.day')
+            ->select([
+                'timecard_project_segments.id as segment_id',
+                'timecard_project_segments.timecard_record_id',
+                'timecard_project_segments.project_id',
+                'timecard_project_segments.start_time',
+                'timecard_project_segments.end_time',
+                'timecard_project_segments.comment',
+                'timecard_project_segments.approved_at',
+                'timecard_records.day',
+                'timecard_records.user_id',
+                'users.name as user_name',
+                'users.icon_path as user_icon_path',
+                'users.icon_bg as user_icon_bg',
+                'project_records.name as project_name',
+                'weather.value_int as weather',
+            ])
+            ->get();
+
+        return $rows
+            ->groupBy('user_id')
+            ->map(function ($userRows) {
+                $first = $userRows->first();
+
+                return [
+                    'user' => [
+                        'id' => (int) $first->user_id,
+                        'name' => $first->user_name,
+                        'icon_path' => $first->user_icon_path,
+                        'icon_bg' => $first->user_icon_bg,
+                    ],
+                    'read' => false,
+                    'records' => $userRows->map(fn ($row) => [
+                        'segment_id' => (int) $row->segment_id,
+                        'timecard_record_id' => (int) $row->timecard_record_id,
+                        'project_id' => (int) $row->project_id,
+                        'project_name' => $row->project_name,
+                        'day' => $row->day,
+                        'start_time' => $row->start_time,
+                        'end_time' => $row->end_time,
+                        'comment' => $row->comment,
+                        'weather' => $row->weather === null ? null : (int) $row->weather,
+                        'approved_at' => $row->approved_at,
+                    ])->values(),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function timesheetApprovalScope(): array
+    {
+        $activeUser = $this->active_user();
+        $targetUsers = [];
+        $workGroupIds = [];
+        $headquartersIds = [];
+        $hqProject = ProjectRecord::where('id', 20)->first();
+        $isTimesheetAdmin = in_array((int) $activeUser->id, self::TIMESHEET_ADMIN_IDS, true);
+
+        if($hqProject){
+            $headquartersIds = $hqProject->members()->pluck('users.id')->toArray();
+        }
+        if($isTimesheetAdmin){
+            $targetUsers = User::where('retire', 0)
+                ->where('partner_flag', 0)
+                ->where('deleted_flag', 0)
+                ->where('on_leave', 0)
+                ->where(function ($query) use ($headquartersIds) {
+                    $query->where('position_id', 6)
+                        ->orWhereIn('id', $headquartersIds);
+                })
+                ->pluck('id')
+                ->toArray();
+            $workGroupIds = ProjectRecord::pluck('id')->unique()->values()->toArray();
+        }
+        if($activeUser->position_id == 6){
+            $workGroups = ProjectRecord::whereHas('manager', function ($q) use($activeUser) {
+                $q->where('users.id', $activeUser->id)->whereNotIn('users.id', self::TIMESHEET_ADMIN_IDS);
+            })->with('members')->get();
+
+            $workGroupIds = $workGroups->unique()->pluck('id')->toArray();
+
+            $projectMembers = $workGroups->flatMap(function ($workGroup) {
+                return $workGroup->members;
+            })->unique('id')->values()->pluck('id')->toArray();
+            $targetUsers = array_merge($targetUsers, $projectMembers);
+        }
+
+        $targetUsers = collect($targetUsers)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0 && $id !== (int) $activeUser->id)
+            ->unique()
+            ->values()
+            ->all();
+
+        return [$activeUser, $isTimesheetAdmin, $targetUsers, $workGroupIds];
     }
 
     public function schedules(){
@@ -837,6 +1085,7 @@ class DashboardController extends Controller
         $year = $date->year;
         $active_user = $this->active_user();
         $user_code = $active_user->user_code;
+        if ($active_user->position_id < 6 || $active_user->position_id === 14) return null;
         $tempData = workTemp::where('user_code', $user_code)
                     ->where(function ($query) use ($year) {
                         $query->whereYear('date', $year - 1)

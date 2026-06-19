@@ -1,12 +1,16 @@
 <template>
-    <div class="work-modal" @mousedown="emit('closeModal')">
-        <div class="md:w-[60%] md:h-[70%] h-full w-full overflow-hidden relative text-[var(--primary-color)]"  @mousedown.stop>
+    <Modal size="medium" :loader="processing" @close="emit('closeModal')">
+        <template #title>
+            <p style="font-size: 18px;">{{ shiftYear }}年{{ shiftMonth }}月の勤怠予定</p>
+        </template>
+        <template #content>
+        <div class="work-shifts-content text-[var(--primary-color)]">
             <Transition name="modalFade">
                 <div class="work-loader" v-if="processing">
                     <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
                 </div> 
             </Transition>
-            <div class="h-[calc(100%-30px)] p-[30px] pt-0 scrollable bg-[var(--background-color)]">
+            <div class="work-shifts-scroll bg-[var(--background-color)]">
                 <div class="recordFormTitle" style="z-index: 26;">
                     <p style="font-size: 18px;">{{ shiftYear }}年{{ shiftMonth }}月の勤怠予定</p>
                     <div @click="emit('closeModal')" class="cursor-pointer flex items-center" style="margin: auto 0 auto auto;">
@@ -60,6 +64,14 @@
                                         <option :value="type.id" :disabled="type.id === 16 && odaCheck" v-for="type in groupedLeaves.other" :key="'m-'+type.id">{{ type.name }}</option>
                                     </optgroup>
                                 </select>
+                                <div v-if="projectSelectionVisible" class="shift-project-selector">
+                                    <select v-model="selectedDepartmentId" class="custom-a-input">
+                                        <option value="" disabled>プロジェクトを選択</option>
+                                        <option v-for="project in shiftProjectOptions" :key="project.id" :value="project.id">
+                                            {{ project.name }}
+                                        </option>
+                                    </select>
+                                </div>
                                 <select id="planned_year_selector" v-if="selectedShiftType === 3" v-model="plannedLeaveTargetYear" class="custom-a-input">
                                     <option :value="year" v-for="year in yearOptions">{{ year }}年度</option>
                                 </select>
@@ -68,7 +80,13 @@
                             
                             <div class="shift-holiday">
                                 <div v-if="selectedShiftType !== 3 && selectedShiftType !== 27">年間休日取得数（現時点）: <strong>{{ displayTotalHolidays }}</strong></div>
-                                <p v-if="zan_nissu && selectedShiftType !== 3 && selectedShiftType !== 27">有給残日数: <strong>{{ zan_nissu?.days ?? 0 }}</strong>日</p>
+                                <p v-if="zan_nissu && selectedShiftType !== 3 && selectedShiftType !== 27" class="paid-leave-balance">
+                                    有給残日数:
+                                    <strong :class="{ negative: projectedPaidLeaveMinutes < 0 }">{{ formatLeaveBalance(projectedPaidLeaveMinutes) }}</strong>
+                                    <span v-if="paidLeaveDeltaMinutes !== 0" class="paid-leave-balance-detail">
+                                        現在 {{ formatLeaveBalance(basePaidLeaveMinutes) }} / 選択 {{ signedLeaveMinutes(-paidLeaveDeltaMinutes) }}
+                                    </span>
+                                </p>
                                 <p v-if="selectedShiftType == 3">計画有給: <strong>{{ remainingDays }}</strong>日</p>
                                 <p v-if="selectedShiftType !== 3 && selectedShiftType !== 27">休日数: <strong>{{ holidayCount }}</strong>日／所定休日数: <strong>{{ shouldHoliday }}</strong>日</p>
                                 <p v-if="selectedShiftType == 27">特別休暇: <strong>{{ remainingSpecialHoliday }}</strong>日</p>
@@ -93,6 +111,9 @@
                                                 {{ day.day_short }}
                                                 </div>
                                                 <div class="shift-select">{{ selectedShift(day) && selectedShift(day).name }}</div>
+                                                <div class="shift-project-name" v-if="selectedShiftProjectName(day)" :title="selectedShiftProjectName(day)">
+                                                    {{ selectedShiftProjectName(day) }}
+                                                </div>
                                                 <div style="font-size:10px;color:tomato" v-if="!selectedShift(day) && required">
                                                     必須です
                                                 </div>
@@ -189,18 +210,19 @@
                     />
                 </div>
             </div>
-            
         </div>
-    </div>
+        </template>
+    </Modal>
         
 </template>
 <script setup>
 import LoaderButton from '../Global/LoaderButton.vue'
+import Modal from '../Global/Modal.vue'
 import { computed, onMounted, ref, watch } from 'vue';
 import { useTheme } from '@/store/theme';
 import { useResponsive } from '@/store/responsive';
 import ShortInput from '../Form/ShortInput.vue';
-import { getShiftData } from '../../utils/workApi';
+import { getShiftData, getWorkGroup } from '../../utils/workApi';
 import WorkPaidLeave from './WorkPaidLeave.vue';
 import { useBadgeStore } from '@/store/badge';
 import { DateTime } from 'luxon';
@@ -222,7 +244,8 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         'notSubmitted',
         'usersCheckArray',
         'chosenId',
-        'attendanceFlag'
+        'attendanceFlag',
+        'workGroups'
     ])
     const shiftTime = ref(null)
     const selectedShiftType = ref(0)
@@ -239,9 +262,11 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
     const endTimeRef = ref(null)
     const checkLeave = ref(0)
     const remainingDays = ref(0)
-    const workTemp = ref([])
+    const workTemp = ref(null)
     const shiftTypes = ref([])
     const shiftRecords = ref([])
+    const localWorkGroups = ref([])
+    const selectedDepartmentId = ref('')
     const odaCheck = ref([])
     const badge = useBadgeStore()
     const processing = ref(true)
@@ -269,6 +294,7 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         publicHolidayStore.ensureLoaded()
         propsCheck()
         getRemainingDays()
+        await fetchWorkGroups()
         await fetchShiftData()
         isShiftRecord()
     })
@@ -317,6 +343,38 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         for (const s of shiftTypes.value) g[categorize(s.name)].push(s)
         return g
     })
+    const allWorkGroups = computed(() => {
+        return Array.isArray(props.workGroups) && props.workGroups.length ? props.workGroups : localWorkGroups.value
+    })
+    const targetUserId = computed(() => Number(props.usersData?.[0]?.id ?? props.chosenId ?? props.usersCheckArray?.[0] ?? 0))
+    const shiftProjectOptions = computed(() => {
+        const userId = targetUserId.value
+        const groups = Array.isArray(allWorkGroups.value) ? allWorkGroups.value : []
+
+        if (!userId) return groups
+
+        return groups.filter(group => {
+            const members = Array.isArray(group.members) ? group.members : []
+            const managers = Array.isArray(group.manager) ? group.manager : []
+            const directors = Array.isArray(group.director) ? group.director : group.director ? [group.director] : []
+
+            return [...members, ...managers, ...directors].some(user => Number(user?.id) === userId)
+                || Number(group.director_id) === userId
+        })
+    })
+    const ensureDefaultDepartment = () => {
+        if (selectedDepartmentId.value) return
+
+        const existingProject = shiftRecords.value.find(shift => shift.department_id)?.department_id
+        selectedDepartmentId.value = existingProject ?? shiftProjectOptions.value[0]?.id ?? ''
+    }
+    const fetchWorkGroups = async() => {
+        if (Array.isArray(props.workGroups) && props.workGroups.length) {
+            return
+        }
+
+        localWorkGroups.value = await getWorkGroup()
+    }
     const getWorkTemp = async() => {
         const user_code = props.usersData[0].user_code
         const user_id = props.usersData[0].id
@@ -335,7 +393,7 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         const work_group = props.chosenId ? [props.chosenId] : props.usersCheckArray
         const tempdate = props.startDate ? DateTime.fromISO(props.startDate).toISODate() : ''
        
-        const shiftData = await getShiftData(shiftDateInstance.value.toISODate(), work_group, selectedShiftType.value)           
+        const shiftData = await getShiftData(shiftDateInstance.value.toISODate(), work_group)
         shiftTypes.value = shiftData.shift_type
         shiftRecords.value = shiftData.shift_record
         odaCheck.value = shiftData.odaCheck
@@ -343,6 +401,7 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         userWorkMinutesPerDay.value = shiftData.user_work_minutes_per_day
         workTimeData.value = shiftData.work_time_data
         remainingSpecialHoliday.value = shiftData.remaining_special_holiday
+        ensureDefaultDepartment()
         processing.value = false
     }
     const getRemainingDays = async() => {
@@ -443,8 +502,118 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         return map
     })
     const isHolidayType = (typeId) => typeId === 0 || typeId === 18
+    const isFullDayNonWorkType = (typeId) => {
+        const type = shiftTypeMap.value.get(Number(typeId))
+        if (!type) return false
+
+        return Number(type.id) === 0 || Number(type.id) === 18 || Number(type.full_day) === 2
+    }
+    const shiftTypeHasWorkTime = (typeId) => {
+        const type = shiftTypeMap.value.get(Number(typeId))
+        if (!type || isFullDayNonWorkType(typeId)) return false
+        if (type.value === null || type.value === undefined || type.value === '') return true
+
+        const leaveMinutes = Number(type.value) || 0
+        return Math.max(0, minutesPerDay.value - leaveMinutes) > 0
+    }
+    const projectSelectionVisible = computed(() => shiftTypeHasWorkTime(selectedShiftType.value))
+    const paidLeaveMinutesPerDay = computed(() => {
+        const ledgerMinutesPerDay = Number(zan_nissu.value?.minutes_per_day)
+        if (ledgerMinutesPerDay > 0) return ledgerMinutesPerDay
+
+        const workMinutesPerDay = Number(userWorkMinutesPerDay.value)
+        if (workMinutesPerDay > 0) return workMinutesPerDay
+
+        return 480
+    })
+    const basePaidLeaveMinutes = computed(() => {
+        const minutes = Number(zan_nissu.value?.minutes)
+        if (Number.isFinite(minutes) && minutes >= 0) return minutes
+
+        return Math.round((Number(zan_nissu.value?.days) || 0) * paidLeaveMinutesPerDay.value)
+    })
+    const shiftRecordTypeId = (record) => Number(record?.shift_type?.id ?? record?.shift_type ?? record?.type ?? 0)
+    const isPaidLeaveType = (typeId) => {
+        const type = shiftTypeMap.value.get(Number(typeId))
+        const name = String(type?.name || '')
+
+        return Number(typeId) === 3
+            || name.includes('有給')
+            || name.includes('年休')
+            || name.includes('時間休日')
+    }
+    const paidLeaveMinutesForType = (typeId) => {
+        if (Number(typeId) === 3) {
+            return paidLeaveMinutesPerDay.value
+        }
+
+        const type = shiftTypeMap.value.get(Number(typeId))
+        if (!type || !isPaidLeaveType(typeId)) return 0
+
+        if (Number(type.full_day) === 2) {
+            return paidLeaveMinutesPerDay.value
+        }
+
+        if (Number(type.full_day) === 1) {
+            return Math.round(paidLeaveMinutesPerDay.value / 2)
+        }
+
+        return Math.max(0, Number(type.value) || 0)
+    }
+    const originalPaidLeaveMinutes = computed(() => {
+        return (shiftRecords.value || []).reduce((sum, record) => {
+            return sum + paidLeaveMinutesForType(shiftRecordTypeId(record))
+        }, 0)
+    })
+    const selectedPaidLeaveMinutes = computed(() => {
+        return (selectedShifts.value || []).reduce((sum, shift) => {
+            return sum + paidLeaveMinutesForType(Number(shift.type))
+        }, 0)
+    })
+    const paidLeaveDeltaMinutes = computed(() => selectedPaidLeaveMinutes.value - originalPaidLeaveMinutes.value)
+    const projectedPaidLeaveMinutes = computed(() => basePaidLeaveMinutes.value - paidLeaveDeltaMinutes.value)
+    const formatDays = (value) => {
+        return new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 2 }).format(Number(value) || 0)
+    }
+    const formatLeaveBalance = (minutes) => {
+        const perDay = Math.max(1, Number(paidLeaveMinutesPerDay.value) || 480)
+        const rawTotal = Math.round(Number(minutes) || 0)
+        const total = Math.abs(rawTotal)
+        const days = Math.floor(total / perDay)
+        const rest = total % perDay
+        const hours = Math.floor(rest / 60)
+        const mins = rest % 60
+
+        let label = `${days}日`
+        if (hours > 0) label += `${hours}時間`
+        if (mins > 0) label += `${mins}分`
+
+        return rawTotal < 0 ? `-${label}` : label
+    }
+    const signedLeaveMinutes = (minutes) => {
+        const number = Math.round(Number(minutes) || 0)
+        if (number === 0) return formatLeaveBalance(0)
+
+        return `${number > 0 ? '+' : '-'}${formatLeaveBalance(Math.abs(number))}`
+    }
+    const normalizedShiftArray = () => {
+        return selectedShifts.value.map(shift => {
+            const type = Number(shift.type)
+            const hasWorkTime = shiftTypeHasWorkTime(type)
+
+            return {
+                ...shift,
+                date: shift.date,
+                type,
+                status_flag: shift.status_flag ?? 2,
+                planned_year: shift.planned_year ?? (type === 3 ? plannedLeaveTargetYear.value : shiftYear.value),
+                department_id: hasWorkTime ? (shift.department_id || selectedDepartmentId.value || null) : null,
+            }
+        })
+    }
+    const shiftsForSummary = computed(() => selectedShiftType.value === 3 ? selectedShifts.value : normalizedShiftArray())
     const summary = computed(() => {
-        const shifts = selectedShifts.value || []
+        const shifts = shiftsForSummary.value || []
 
         let holidayDays = 0
         let workDays = 0
@@ -505,10 +674,11 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
     const fmtHours = (mins) => (mins / 60).toFixed(1)
 
     const isShiftRecord = () => {
+        selectedShifts.value = []
         if(shiftRecords.value && shiftRecords.value.length){
-            // selectedShifts.value = []
             startTime.value = shiftRecords.value[0] ? shiftRecords.value[0].start_time : ''
             endTime.value = shiftRecords.value[0] ? shiftRecords.value[0].end_time : ''
+            ensureDefaultDepartment()
             for(let shift of shiftRecords.value){
                 let date = {
                     day_full : shift.shift_day,
@@ -516,7 +686,6 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
                 selectShift(date, shift, false)
             } 
         }else{
-            // selectedShifts.value = []
             holidayCount.value = 0
             startTime.value = '09:00'
             endTime.value = '18:00'
@@ -532,6 +701,15 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
                     ping('計画有給を変えることができません。')   
                     return
                 }
+                const nextDepartmentId = shiftTypeHasWorkTime(type_id) ? (selectedDepartmentId.value || null) : null
+                if (
+                    existingShift.type === type_id
+                    && nextDepartmentId
+                    && Number(existingShift.department_id) !== Number(nextDepartmentId)
+                ) {
+                    existingShift.department_id = nextDepartmentId
+                    return
+                }
                 selectedShifts.value = selectedShifts.value.filter(shift => shift.date !== date.day_full);
                 if(type_id == 3 && existingShift.type == 3){
                     remainingDays.value++
@@ -541,7 +719,13 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
                 }
             }
         } else {
-            selectedShifts.value.push({date: date.day_full, type: type_id, status_flag: status_flag, planned_year: type_id === 3 ? plannedLeaveTargetYear.value : shiftYear.value});
+            selectedShifts.value.push({
+                date: date.day_full,
+                type: type_id,
+                status_flag: status_flag,
+                planned_year: type_id === 3 ? plannedLeaveTargetYear.value : shiftYear.value,
+                department_id: shiftTypeHasWorkTime(type_id) ? (record?.department_id ?? selectedDepartmentId.value ?? null) : null,
+            });
             if(val && type_id == 3){
                 remainingDays.value--
             }
@@ -593,6 +777,12 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
             return shiftType
         }
     }
+    const selectedShiftProjectName = (date) => {
+        const record = selectedShifts.value.find(shift => shift.date == date.day_full)
+        if (!record?.department_id) return ''
+
+        return shiftProjectOptions.value.find(project => Number(project.id) === Number(record.department_id))?.name ?? ''
+    }
     const shouldHoliday = computed(() => {
         const month = shiftMonth.value
         const lastDay = shiftDateInstance.value.daysInMonth
@@ -607,14 +797,7 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         const month = shiftMonth.value
         const lastDay = shiftDateInstance.value.daysInMonth
         var holidayNum;
-        if (props.usersData[0].position_id !== 15) {
-            if(lastDay > selectedShifts.value.length && selectedShiftType.value !== 3){
-                required.value = true 
-                return
-            }
-            
-            
-        }
+        required.value = false
         if (month == 12 || month == 1) {
             holidayNum = (props.usersData[0].position_id <= 11) ? ((month == 12) ? 10 : 12) : 9;
         } else {
@@ -623,6 +806,16 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         if(endTime.value < startTime.value){
             ping('終業時間は始業時間より先にすることができません。')
             return
+        }
+        if (selectedShiftType.value !== 3 && selectedShiftType.value !== 27 && projectedPaidLeaveMinutes.value < 0) {
+            ping('有休残数が不足しています。選択後の残数を確認してください。')
+            return
+        }
+        if (props.usersData[0].position_id !== 15) {
+            if(lastDay > selectedShifts.value.length && selectedShiftType.value !== 3){
+                required.value = true
+                return
+            }
         }
         if(props.usersData[0].work_type == 1 && props.usersData[0].position_id < 13 && props.usersData[0].position_id > 4 && !between.value){
             const legalHolidays = selectedShifts.value.filter(shift => shift.type === 18);
@@ -641,11 +834,17 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
             if(!result) return
             if (loading.value) return
 
+            const shiftArray = normalizedShiftArray()
+            const projectMissing = shiftArray.some(shift => shiftTypeHasWorkTime(shift.type) && !shift.department_id)
+            if (projectMissing) {
+                ping('プロジェクトを選択してください。')
+                return
+            }
 
             const params = {
                 shiftTimeStart : startTime.value,
                 shiftEndStart : endTime.value,
-                shift_array : selectedShifts.value,
+                shift_array : shiftArray,
                 year: shiftYear.value,
                 month: shiftMonth.value,
                 planned_year: tempStartDate.value ? tempStartDate.value.substring(0, 4) : props.selectedYear,
@@ -707,9 +906,13 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
             if (type === 3 && year) {
                 getWorkTemp();
             }
+            ensureDefaultDepartment()
         },
         { flush: "post" }
     );
+    watch(shiftProjectOptions, () => {
+        ensureDefaultDepartment()
+    })
     watch(tempStartDate, async (newVal) => {
         if (newVal) {
             if (DateTime.now().year !== DateTime.fromISO(newVal).year) {
@@ -721,3 +924,159 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         }
     })
 </script>
+<style scoped>
+.work-shifts-content {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
+.work-shifts-scroll {
+    height: 100%;
+    padding-bottom: 30px;
+}
+.work-shifts-content > .work-loader,
+.work-shifts-scroll > .recordFormTitle {
+    display: none;
+}
+.shift-project-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: min(360px, 100%);
+}
+.shift-project-selector select {
+    min-width: 240px;
+    max-width: 360px;
+    box-sizing: border-box !important;
+}
+.paid-leave-balance {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.paid-leave-balance strong.negative {
+    color: #b42318;
+}
+.paid-leave-balance-detail {
+    color: var(--third-color);
+    font-size: 11px;
+}
+.work-shifts-scroll .shift-month {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    height: auto;
+    min-height: 90px;
+}
+.work-shifts-scroll .shift-header {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.work-shifts-scroll .shift-weekdays {
+    min-width: 0;
+}
+.work-shifts-scroll .shift-week {
+    display: flex;
+    align-items: stretch;
+    min-height: 90px;
+    min-width: 0;
+}
+.work-shifts-scroll .showed-date,
+.work-shifts-scroll .hidden-date {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+    padding: 6px 4px;
+}
+.work-shifts-scroll .showed-date > div,
+.work-shifts-scroll .hidden-date > div {
+    display: grid;
+    grid-template-rows: 18px 18px 14px;
+    align-items: center;
+    min-height: 50px;
+    min-width: 0;
+    width: 100%;
+}
+.work-shifts-scroll .shift-day {
+    height: 18px;
+    line-height: 18px;
+    margin-bottom: 4px;
+    padding-top: 0;
+}
+.work-shifts-scroll .shift-select {
+    height: 16px;
+    line-height: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+}
+.shift-project-name {
+    margin-top: 3px;
+    color: var(--primary-color);
+    font-size: 10px;
+    height: 12px;
+    line-height: 12px;
+    opacity: 0.72;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+@media (max-width: 640px) {
+    .work-shifts-scroll .shift-month,
+    .work-shifts-scroll .shift-week {
+        min-height: 66px;
+    }
+    .work-shifts-scroll .showed-date,
+    .work-shifts-scroll .hidden-date {
+        padding: 5px 1px;
+    }
+    .work-shifts-scroll .showed-date > div,
+    .work-shifts-scroll .hidden-date > div {
+        grid-template-rows: 16px 22px 11px;
+        min-height: 52px;
+    }
+    .work-shifts-scroll .shift-day {
+        font-size: 11px;
+        font-weight: 400;
+        height: 16px;
+        line-height: 16px;
+        margin-bottom: 0;
+        width: 100%;
+    }
+    .work-shifts-scroll .shift-select {
+        align-items: center;
+        display: flex;
+        font-size: 10px;
+        height: 22px;
+        justify-content: center;
+        line-height: 1.15;
+        white-space: normal;
+    }
+    .shift-project-name {
+        display: block;
+        width: 100%;
+        height: 11px;
+        margin-top: 0;
+        color: var(--primary-color);
+        font-size: 8px;
+        line-height: 11px;
+        opacity: 0.62;
+    }
+    .shift-project-selector {
+        width: 100%;
+        align-items: flex-start;
+        flex-direction: column;
+    }
+    .shift-project-selector select {
+        width: 100%;
+        max-width: none;
+    }
+}
+</style>

@@ -6,6 +6,7 @@ use App\Models\boardToUser;
 use App\Models\User;
 use App\Models\customFieldDataRecord;
 use App\Models\SupportMailFormRecord;
+use App\Models\timecardRecord;
 use Illuminate\Http\Request;
 use App\Http\Controllers\BoardController;
 use App\Http\Controllers\TaskController;
@@ -173,19 +174,20 @@ class ReportService
     private function incident_message()
     {
         $yesterday = date("Y-m-d",strtotime('-1 day'));
-        $incident_list = customFieldDataRecord::where('date', $yesterday)
-                                                ->where('type_id', 40)
-                                                ->where('value_int', 1)
-                                                ->with('user')
-                                                ->get();
+        $timecard = timecardRecord::where('day', $yesterday)
+                        ->whereHas('project_segments', function($q) {
+                            $q->where('details', 'like', '%incident%');
+                        })
+                        ->with('user')
+                        ->get();
         $support_result = SupportMailFormRecord::where('deleted_flag', 0)
                                                 ->where('created_at', '>=', $yesterday)
                                                 ->count();
         
         $incident_result = '';
         $is_first = true;
-        foreach($incident_list as $incident){
-            $date = htmlspecialchars($incident->date, ENT_QUOTES, 'UTF-8');
+        foreach($timecard as $incident){
+            $date = htmlspecialchars($incident->day, ENT_QUOTES, 'UTF-8');
             $name = htmlspecialchars($incident->user['name'], ENT_QUOTES, 'UTF-8');
             if ($is_first) {
                 $incident_result .= $date . '　氏名：' . $name . "\n";

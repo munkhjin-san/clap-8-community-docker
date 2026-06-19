@@ -5,6 +5,7 @@ import { computed, ref } from 'vue'
 
 type LinkedUser = User & { pivot: { active: number } }
 type AuthUser = User & { linked?: LinkedUser[] }
+const ADMIN_USER_IDS = [608, 610]
 
 export const useAuthUserStore = defineStore('authUser', () => {
     const name = ref<string>('')
@@ -47,16 +48,12 @@ export const useAuthUserStore = defineStore('authUser', () => {
         return user.value
     })
 
+    const isAdmin = computed((): boolean => !!(id.value && ADMIN_USER_IDS.includes(activeUser.value?.id ?? 0)))
+
     const hasPrivilage = computed((): boolean => {
         const positionId = activeUser.value?.position_id
-        return (
-            (typeof positionId === 'number' && positionId <= 6) ||
-            activeUser.value?.id === 610 ||
-            activeUser.value?.id === 608
-        )
+        return (typeof positionId === 'number' && positionId <= 6) || isAdmin.value
     })
-
-    const isAdmin = computed((): boolean => !!(id.value && [608, 610].includes(activeUser.value?.id ?? 0))  )
 
     const isBoss = computed(() => activeUser.value && activeUser.value.position_id && activeUser.value.position_id < 6)
 

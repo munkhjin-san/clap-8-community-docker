@@ -18,11 +18,13 @@ use App\Models\shiftRecord;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\ValidationException;
 use App\Services\SharedService;
 use Carbon\Carbon;
 use App\Infrastructure\Kintone\KintoneClient;
+use App\Services\PaidLeaveLedgerService;
 
 
 class AdminWorkController extends Controller{
@@ -35,7 +37,8 @@ class AdminWorkController extends Controller{
     protected $sharedService;
     public function __construct(
         SharedService $sharedService,
-        private KintoneClient $api
+        private KintoneClient $api,
+        private PaidLeaveLedgerService $paidLeaveLedger
     ) {
         $this->sharedService = $sharedService;
     }
@@ -73,7 +76,11 @@ class AdminWorkController extends Controller{
                     ->where('value_int', 1)
                     ->select('type_id', 'value_int', 'date', 'table_record_id');
                 },
+                'project_segments',
                 'vehicle_data' => function ($q) {
+                    $q->with('before_user', 'after_user');
+                },
+                'vehicle_records' => function ($q) {
                     $q->with('before_user', 'after_user');
                 }
               ])
@@ -604,24 +611,11 @@ class AdminWorkController extends Controller{
     
 
     public function get_planned_shifts(Request $request){
-        $year = $request->year;
-        $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
-        $pos_list = [1, 2, 3, 4, 5, 14, 15];    
-        $all_users = User::where('partner_flag', 0)->where('hide_flag', 0)
-            ->where('retire', 0)
-            ->whereNotIn('name', $ng_list)
-            ->whereNotIn('position_id', $pos_list)
-            ->with(['shift_records' => function($q) use($year){
-                $q->where('planned_year', $year)->where('shift_type', 3)->with(['old_shift' => function ($query) {
-                    $query->select('id', 'shift_day', 'shift_type')->with('shiftType')->withTrashed();
-                }])
-                ->select('shift_type', 'shift_day', 'user_id', 'planned_year', 'id', 'descendant_of')
-                ->orderBy('shift_day', 'asc');
-            }])->with(['workTemps' => function ($q) use($year){
-                $q->whereYear('date', $year);
-            }])->select('id', 'name', 'position_id', 'user_code')->get();
-        
-        return response()->json($all_users);
+        $data = $request->validate([
+            'year' => ['required', 'integer', 'min:2000', 'max:2100'],
+        ]);
+
+        return response()->json($this->paidLeaveLedger->plannedLeaveUsers((int) $data['year']));
     }
 
     public function change_planned_shifts(Request $request){
@@ -651,26 +645,41 @@ class AdminWorkController extends Controller{
                 throw ValidationException::withMessages(['message' => "{$startDate->format('Y-m-d')}から{$endDate->format('Y-m-d')}の間で選択してください。"]);
 
             }
-            shiftRecord::whereIn('shift_day', $shiftDays)
-                        ->where('user_id', $request->userId)
-                        ->whereNot('shift_type', 3)
-                        ->delete();
-            foreach($changedShifts as $shift){
-                $shiftRecord = shiftRecord::findOrFail($shift['id']);
+            $updatedShifts = DB::transaction(function () use ($request, $changedShifts, $shiftDays) {
+                shiftRecord::whereIn('shift_day', $shiftDays)
+                            ->where('user_id', $request->userId)
+                            ->whereNot('shift_type', 3)
+                            ->delete();
 
-                $newShift = shiftRecord::create([
-                    "user_id" => $shiftRecord->user_id,
-                    "start_time" => $shiftRecord->start_time,
-                    "end_time" => $shiftRecord->end_time,
-                    "status_flag" => 1,
-                    "shift_day" => $shift['shift_day'],
-                    "descendant_of" => $shiftRecord->id,
-                    "shift_type" => 3,
-                    "planned_year" => $shiftRecord->planned_year
-                ]);
-                $shiftRecord->delete();
-                $updatedShifts[] = $newShift;
-            }
+                $updatedShifts = [];
+                $reconcileMonths = [];
+                foreach($changedShifts as $shift){
+                    $shiftRecord = shiftRecord::findOrFail($shift['id']);
+                    $oldMonthKey = Carbon::parse($shiftRecord->shift_day)->format('Y-m');
+                    $newMonthKey = Carbon::parse($shift['shift_day'])->format('Y-m');
+
+                    $newShift = shiftRecord::create([
+                        "user_id" => $shiftRecord->user_id,
+                        "start_time" => $shiftRecord->start_time,
+                        "end_time" => $shiftRecord->end_time,
+                        "status_flag" => 1,
+                        "shift_day" => $shift['shift_day'],
+                        "descendant_of" => $shiftRecord->id,
+                        "shift_type" => 3,
+                        "planned_year" => $shiftRecord->planned_year
+                    ]);
+                    $shiftRecord->delete();
+                    $updatedShifts[] = $newShift;
+                    $reconcileMonths[$oldMonthKey] = true;
+                    $reconcileMonths[$newMonthKey] = true;
+                }
+                foreach (array_keys($reconcileMonths) as $monthKey) {
+                    [$reconcileYear, $reconcileMonth] = array_map('intval', explode('-', $monthKey));
+                    $this->paidLeaveLedger->reconcileShiftUsagesForUserMonth((int) $request->userId, $reconcileYear, $reconcileMonth, (int) auth()->id());
+                }
+
+                return $updatedShifts;
+            });
             return response()->json(['updated_shifts' => $updatedShifts]);
         }
         return 'changed shifts empty';

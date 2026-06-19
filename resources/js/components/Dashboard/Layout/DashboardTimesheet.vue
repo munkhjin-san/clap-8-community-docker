@@ -172,6 +172,59 @@
                     </ExpansionPanelItem>
                 </ExpansionGrid>
             </div>
+            <div v-if="autoApprovedTimesheets.length" class="mt-3">
+                <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis">
+                    <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 py-0.5">PM</span>
+                    自動承認
+                </p>
+                <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                    <ExpansionPanelItem
+                        hide-actions
+                        static
+                        :tile="true"
+                        class="rm-p"
+                        v-for="item in autoApprovedTimesheets"
+                        :key="`auto-approved-${item.user.id}`"
+                    >
+                        <template #title="{ expanded }">
+                            <PanelTitle :expanded="expanded" @click="markAutoApprovedAsRead(item)">
+                                <div v-if="!item.read" class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5"></div>
+                                <div class="flex items-center">
+                                    <UserPanel disable-instant with-name size="25" :user="item.user"/>
+                                    <span class="text-[gray] text-[12px]">（{{ item.records.length }}件）</span>
+                                </div>
+                            </PanelTitle>
+                        </template>
+                        <template #body>
+                            <PanelData>
+                                <div class="flex flex-col gap-2">
+                                    <div
+                                        v-for="record in item.records"
+                                        :key="record.segment_id"
+                                        class="auto-approved-row"
+                                    >
+                                        <div class="auto-approved-row__main">
+                                            <div class="auto-approved-row__date">
+                                                <span>{{ formatAutoApprovedDay(record.day) }}</span>
+                                                <WeatherIcon v-if="record.weather !== null" :which="record.weather" size="15"/>
+                                            </div>
+                                            <div class="auto-approved-row__project">
+                                                {{ record.project_name }}
+                                            </div>
+                                            <div class="auto-approved-row__time">
+                                                {{ formatTime(record.start_time) }} - {{ formatTime(record.end_time) }}
+                                            </div>
+                                        </div>
+                                        <div v-if="record.comment" class="auto-approved-row__comment">
+                                            {{ record.comment }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </PanelData>
+                        </template>
+                    </ExpansionPanelItem>
+                </ExpansionGrid>
+            </div>
             <div v-if="nothingTodo">
                 <div class="text-sm text-[gray] mb-3 text-center">
                     対応事項はありません。
@@ -190,17 +243,20 @@ import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
-import { pendingTimesheedData } from '@/interface/dashboard';
+import { AutoApprovedTimesheetData, pendingTimesheedData } from '@/interface/dashboard';
 import { storeToRefs } from 'pinia';
 import { useDashboardStore } from '@/store/dashboard';
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth';
+import WeatherIcon from '@/components/Global/WeatherIcon.vue';
+import { useApi } from '@/composables/api';
 
 const props = defineProps<{
     data: {
         title: string,
         data: {
             pendingTimesheets: pendingTimesheedData[],
+            autoApprovedTimesheets: AutoApprovedTimesheetData[],
             departuresReportUsers: [] | any[],
             pendingPlannedLeaves: [] | any[],
             pendingAttendance: {
@@ -225,6 +281,12 @@ const router = useRouter()
 const route = useRoute()
 const dashboardStore = useDashboardStore();
 const auth = useAuthUserStore();
+const api = useApi();
+const markingAutoApprovedUsers = ref<number[]>([])
+const autoApprovedTimesheets = computed(() => props.data.data.autoApprovedTimesheets ?? [])
+const autoApprovedCount = computed(() => {
+    return autoApprovedTimesheets.value.reduce((total, item) => total + (item.read ? 0 : item.records.length), 0)
+})
 const departureReportCount = computed(() => {
     return props.data.data.departuresReportUsers.filter((user) => {
         return user.shift_records?.some((shift: any) => !shift.departure_report)
@@ -234,11 +296,36 @@ const departureReportCount = computed(() => {
 const actionCount = computed(() => {
     return (
         (props.data.data.pendingAttendance ? 1 : 0) +
-        props.data.data.pendingPlannedLeaves.length +
+        props.data.data.pendingPlannedLeaves?.length +
         departureReportCount.value +
-        props.data.data.pendingTimesheets.length
+        props.data.data.pendingTimesheets.length +
+        autoApprovedCount.value
     )
 })
+const formatAutoApprovedDay = (day: string) => {
+    return DateTime.fromISO(day).setLocale('ja').toFormat('M / d (ccc)')
+}
+const formatTime = (time: string | null) => {
+    return time ? time.slice(0, 5) : ''
+}
+const markAutoApprovedAsRead = async (item: AutoApprovedTimesheetData) => {
+    if (item.read || markingAutoApprovedUsers.value.includes(item.user.id)) return;
+
+    const segmentIds = item.records.map(record => record.segment_id)
+    if (!segmentIds.length) return;
+
+    try {
+        markingAutoApprovedUsers.value.push(item.user.id)
+        const data = await api.post('/dashboard_timesheet_auto_approved_read', { segment_ids: segmentIds }, { silent: true })
+        if (data) {
+            item.read = true
+        }
+    } catch (error) {
+        console.error('Failed to mark auto-approved timesheets as read:', error)
+    } finally {
+        markingAutoApprovedUsers.value = markingAutoApprovedUsers.value.filter(userId => userId !== item.user.id)
+    }
+}
 onMounted(() => {
     if(auth?.user?.user_code){
         if(!dashboardStore.annualLeaveData.fetched && !dashboardStore.annualLeaveData.fetching){
@@ -247,7 +334,7 @@ onMounted(() => {
     }
 })
 const nothingTodo = computed(() => {
-    return !props.data.data.pendingAttendance && !props.data.data.pendingTimesheets.length && !props.data.data.departuresReportUsers.length && !props.data.data.pendingPlannedLeaves.length && !dashboardStore.annualLeaveData.planned_leaves_this_year.length && !dashboardStore.annualLeaveData.planned_leaves_last_year.length
+    return !props.data.data.pendingAttendance && !props.data.data.pendingTimesheets.length && !autoApprovedTimesheets.value.length && !props.data.data.departuresReportUsers.length && !props.data.data.pendingPlannedLeaves?.length && !dashboardStore.annualLeaveData.planned_leaves_this_year.length && !dashboardStore.annualLeaveData.planned_leaves_last_year.length
 })
 defineExpose({
     cardType: props.data.type,
@@ -258,6 +345,48 @@ defineExpose({
 
 .highlight-border {
   animation: highlight-border 1s ease-in-out 5;
+}
+
+.auto-approved-row {
+    border-bottom: 1px solid var(--border-color);
+    padding: 6px 0;
+    font-size: 12px;
+}
+
+.auto-approved-row:last-child {
+    border-bottom: 0;
+}
+
+.auto-approved-row__main {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.auto-approved-row__date {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.auto-approved-row__project {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.auto-approved-row__time {
+    color: gray;
+    white-space: nowrap;
+}
+
+.auto-approved-row__comment {
+    color: gray;
+    line-height: 1.5;
+    margin-top: 4px;
+    white-space: pre-wrap;
 }
 
 @keyframes highlight-border {

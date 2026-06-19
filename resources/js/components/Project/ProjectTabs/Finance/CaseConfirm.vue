@@ -71,14 +71,6 @@
       </div>
     </section>
 
-    <section class="case-card hero-card" v-if="stageLegend.length">
-      
-      <div class="stage-legend">
-        <span v-for="item in stageLegend" :key="item.label" class="legend-chip">
-          {{ item.label }} = {{ item.weight }}%
-        </span>
-      </div>
-    </section>
 
     <section class="case-card table-card">
       <div class="table-card__header">
@@ -129,16 +121,7 @@
                       :class="cellClass(bucket.key)"
                     >
                       <div class="cell-value">{{ formatCell(row.q[bucket.key]) }}</div>
-                      <div class="cell-flags">
-
-                        <span
-                          class="cell-chip"
-                          v-if="cellContributionLabel(group.status, row, bucket.key)"
-                          title="寄与 = 確度別加重の貢献値"
-                        >
-                          {{ cellContributionLabel(group.status, row, bucket.key) }}
-                        </span>
-                      </div>
+                      
                     </td>
                     <td>
                       {{ formatCell(totalOfRow(row)) }}
@@ -174,15 +157,6 @@
                     <div class="cell-value summary">
                       {{ formatCell(row.totals[bucket.key]) }}
                     </div>
-                    <div class="cell-flags">
-                      <span
-                        class="cell-chip"
-                        v-if="cellContributionLabel(row.status, row, bucket.key)"
-                        title="寄与 = 確度別加重の貢献値"
-                      >
-                        {{ cellContributionLabel(row.status, row, bucket.key) }}
-                      </span>
-                    </div>
                   </td>
                   <td>
                     {{ formatCell(row.totalAll) }}
@@ -191,21 +165,8 @@
                 </tr>
               </tbody>
               <tfoot>
-                <tr v-if="pipelineEnabled">
-                  <th class="h-cell"><p>着地予測</p> 
-                    <span class="status-mini">= 実績 + Σ(案件金額 × 確度)</span>
-                  </th>
-                  <th></th>
-                  <th v-for="bucket in buckets" :key="'p-' + bucket.key" :class="cellClass(bucket.key)">
-                    {{ formatCell(totalByPrediction[bucket.key]) }}
-                  </th>
-                  <th>
-                    {{ formatCell(totalByAllPrediction) }}
-                  </th>
-                  <!-- <th></th> -->
-                  <th v-if="hasPrivilage"></th>
-                </tr>
-                <tr v-else>
+               
+                <tr>
                   <th class="h-cell">実績合計</th>
                   <th></th>
                   <th v-for="bucket in buckets" :key="'a-' + bucket.key" :class="cellClass(bucket.key)">
@@ -307,15 +268,6 @@ import LineChart from './LineChart.vue';
 import CaseCreate from './CaseCreate.vue';
 import FloatButton from '@/components/Global/FloatButton.vue';
 import AddIcon from '@/components/Form/AddIcon.vue';
-import {
-  STAGE_PIPELINE_LIST,
-  STAGE_LABEL,
-  STAGE_WEIGHT,
-  DELIVERY_LABEL,
-  type RecordKind,
-  type Stage,
-  type DeliveryStatus,
-} from '@/utils/case';
 import { useRouter } from 'vue-router';
 import Back from '@/components/Icons/Back.vue';
 import { useTutorialStore } from '@/store/tutorial';
@@ -333,9 +285,6 @@ type CaseTimelineEntry = {
   reportDate: string;
   amount: number;
   caseCount: number;
-  kind: RecordKind;
-  stage: Stage | null;
-  delivery_status: DeliveryStatus | null;
 };
 type CaseTimeline = Record<string, CaseTimelineEntry[]>;
 type CaseDetailPayload = {
@@ -441,11 +390,6 @@ type CaseRecord = {
   project_id: number;
   report_date: string | null;
   status: string;
-  kind: RecordKind;
-  stage: Stage | null;
-  delivery_status: DeliveryStatus | null;
-  probability: number | null;
-  client_name: string | null;
   case_count: number;
   amount: number;
   notes: string | null;
@@ -484,22 +428,6 @@ const statusOrder = computed(() => {
   if (pipelineEnabled.value) order.push(...pipelineStatusLabels);
   return order;
 });
-
-const stageLegend = computed(() => pipelineEnabled.value
-  ? STAGE_PIPELINE_LIST.map(stage => ({
-      label: STAGE_LABEL[stage],
-      weight: Math.round(STAGE_WEIGHT[stage] * 100),
-    }))
-  : []);
-const stageLabelToCode = Object.fromEntries(
-  Object.entries(STAGE_LABEL).map(([code, label]) => [label, code as Stage]),
-);
-const stageWeightSum = computed(() =>
-  activePipelineLabels.value.reduce((sum, label) => {
-    const code = stageLabelToCode[label];
-    return sum + (code ? STAGE_WEIGHT[code] ?? 0 : 0);
-  }, 0)
-);
 
 const statusMetaMap = computed(() => {
   const meta: Record<string, { mini: string; hint: string; tone: 'actual' | 'target' | 'other' }> = {
@@ -678,10 +606,7 @@ const grouped = computed<Group[]>(() => {
     const bucket = findBucket(dt);
     if (!bucket) return;
 
-    const statusKey = groupMaps.has(entry.status)
-      ? entry.status
-      : (entry.kind === 'ACTUAL' && actualStatusLabels.value[0]) ? actualStatusLabels.value[0] : fallbackStatus;
-    const rowsMap = groupMaps.get(statusKey)!;
+    const rowsMap = groupMaps.get(entry.status)!;
     const reporterId = entry.reporter?.id ?? 0;
     const reporterName = entry.reporter?.name ?? '未設定メンバー';
     const caseMeta: CaseTimelineEntry = {
@@ -689,9 +614,6 @@ const grouped = computed<Group[]>(() => {
       reportDate: entry.report_date,
       amount: entry.amount ?? 0,
       caseCount: entry.case_count ?? 0,
-      kind: entry.kind,
-      stage: entry.stage,
-      delivery_status: entry.delivery_status,
     };
     let row = rowsMap.get(reporterId);
     if (!row) {
@@ -752,16 +674,7 @@ const memberGoalMap = computed(() => {
   });
   return map;
 });
-const predictionWeights = computed<Record<string, number>>(() => {
-  const base: Record<string, number> = {};
-  actualStatusLabels.value.forEach(label => { base[label] = 1; });
-  if (pipelineEnabled.value) {
-    STAGE_PIPELINE_LIST.forEach(stage => {
-      base[STAGE_LABEL[stage]] = STAGE_WEIGHT[stage];
-    });
-  }
-  return base;
-});
+
 const totalByAllGoal = computed<{ amount: number; count: number } | null>(() => {
   const buckets = totalByGoal.value;
   if (!buckets) return null;
@@ -800,50 +713,7 @@ const totalByGoal = computed<Record<string, Cell>>(() => {
   }
   return totals
 })
-const totalByPrediction = computed<Record<string, Cell>>(() => {
-  // initialize all periods to null
-  const totals: Record<string, Cell> = {};
-  for (const b of buckets.value) totals[b.key] = null;
 
-  for (const group of grouped.value) {
-    const weight = predictionWeights.value[group.status] ?? 0;
-    if (weight <= 0) continue; // skip non-pipeline rows
-
-    for (const row of group.rows) {
-      for (const [period, cell] of Object.entries(row.q)) {
-        if (!cell) continue;
-        const a = Number(cell.amount);
-        const c = Number(cell.count);
-        if (!Number.isFinite(a) || !Number.isFinite(c)) continue;
-
-        if (!totals[period]) totals[period] = { amount: 0, count: 0 };
-
-        // weighted amount, raw count
-        (totals[period] as { amount: number; count: number }).amount += a * weight;
-        (totals[period] as { amount: number; count: number }).count += c;
-      }
-    }
-  }
-
-  return totals;
-});
-const totalByAllPrediction = computed<{ amount: number; count: number } | null>(() => {
-  const buckets = totalByPrediction.value;
-  if (!buckets) return null;
-
-  let amount = 0;
-  let count = 0;
-
-  for (const cell of Object.values(buckets) as Cell[]) {
-    if (!cell) continue;
-    const a = Number(cell.amount);
-    const c = Number(cell.count);
-    if (Number.isFinite(a)) amount += a;
-    if (Number.isFinite(c)) count += c;
-  }
-
-  return amount === 0 && count === 0 ? null : { amount, count };
-});
 const totalByBucket = computed<Record<string, Cell>>(() => {
   const totals: Record<string, Cell> = {};
   buckets.value.forEach(bucket => {
@@ -897,11 +767,7 @@ const focusBucketKey = computed(() => {
   return buckets.value[idx]?.key ?? null;
 });
 const focusHighlightLength = computed(() => 1);
-const focusForecastValue = computed<Cell>(() => {
-  const key = focusBucketKey.value;
-  if (!key) return null;
-  return totalByPrediction.value[key] ?? null;
-});
+
 const focusGoalValue = computed<Cell>(() => {
   const key = focusBucketKey.value;
   if (!key) return null;
@@ -984,35 +850,7 @@ const cellClass = (bucketKey: string) => {
   const memberGoals = memberGoalMap.value.get(row.memberId);
   return memberGoals ? memberGoals[bucketKey] ?? null : null;
 };
-const targetForStatus = (row: Row | SummaryRow, status: string, bucketKey: string | null) => {
-  const baseGoal = goalCellForRow(row, bucketKey);
-  if (!baseGoal) return { amount: 0, count: 0 };
-  if (activePipelineLabels.value.includes(status)) {
-    const stageCode = stageLabelToCode[status];
-    if (!stageCode || !stageWeightSum.value) return baseGoal;
-    const ratio = (STAGE_WEIGHT[stageCode] ?? 0) / stageWeightSum.value;
-    return {
-      amount: baseGoal.amount * ratio,
-      count: baseGoal.count * ratio,
-    };
-  }
-  return baseGoal;
-};
 
-const cellContributionValue = (status: string, row: Row | SummaryRow, bucketKey: string): number | null => {
-  const cell = getCellFromRow(row, bucketKey);
-  if (!cell || !cell.amount) return null;
-  if (!activePipelineLabels.value.includes(status)) return null;
-  const stageCode = stageLabelToCode[status];
-  if (!stageCode) return null;
-  const weight = STAGE_WEIGHT[stageCode] ?? 1;
-  return cell.amount * weight;
-};
-const cellContributionLabel = (status: string, row: Row | SummaryRow, bucketKey: string) => {
-  const contribution = cellContributionValue(status, row, bucketKey);
-  if (contribution == null) return null;
-  return `寄与 ${formatShortCurrency(contribution)}`;
-};
 
 const stageChartStatuses = computed(() => {
   const base = [...actualStatusLabels.value];
@@ -1199,13 +1037,11 @@ const ratio = (forecast: { amount: number } | null | undefined, goal: { amount: 
   return forecast.amount / goal.amount;
 };
 
-const totalForecast = computed(() => totalByAllPrediction.value);
 const totalGoal = computed(() => totalByAllGoal.value);
 const totalActual = computed(() => totalByAllBuckets.value);
 
 
 
-const focusProgressRatio = computed(() => ratio(focusForecastValue.value, focusGoalValue.value));
 const focusActualRatio = computed(() => ratio(focusActualValue.value, focusGoalValue.value));
 
 

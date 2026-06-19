@@ -5,8 +5,8 @@
         </template>
         <template #menu>
             <div class="cursor-pointer" style="display:flex;align-items:center;margin: auto 0 auto auto;">
-                <button class="work-delete-button" @click.stop="attendanceCreate" v-if="attendanceData && !attendanceData.attendance_flag && (auth.activeUser.id == 610 || auth.activeUser.id  == 608)">休業確定</button>
-                <button class="work-delete-button" @click.stop="deleteAttendance" v-if="attendanceData && attendanceData.attendance_flag && (auth.activeUser.id  == 610 || auth.activeUser.id  == 608)">勤怠確定を取り下げる</button>
+                <button class="work-delete-button" @click.stop="attendanceCreate" v-if="attendanceData && !attendanceData.attendance_flag && auth.isAdmin">休業確定</button>
+                <button class="work-delete-button" @click.stop="deleteAttendance" v-if="attendanceData && attendanceData.attendance_flag && auth.isAdmin">勤怠確定を取り下げる</button>
             </div>
         </template>
         <template #content>

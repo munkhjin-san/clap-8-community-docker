@@ -28,7 +28,7 @@ class shiftRecord extends Model
         return $this->hasOne(ShiftOvertimeRequest::class, 'record_id', 'id');
     }
     public function department(){
-        return $this->hasOne(workGroup::class, 'id', 'department_id');
+        return $this->belongsTo(ProjectRecord::class, 'department_id');
     }
     protected $guarded = [];
 

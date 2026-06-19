@@ -5,6 +5,9 @@
             <WorkHeader
                 :workGroups="workGroups"
                 :selectedMonth="selectedMonth"
+                :canExportCsv="canExportCsv"
+                :csvDisabled="projectCsvDisabled"
+                :csvLoading="projectCsvLoading"
                 v-model:users="usersCheckArray"
                 v-model:vehicles="selectedVehicles"
                 @selectShift="selectShift"
@@ -12,6 +15,7 @@
                 @todayScroll="todayScroll"
                 @toBottomScroll="toBottomScroll"
                 @approveShift="approvalModal = true"
+                @projectCsv="exportProjectCsv"
             />
             <div class="work-monthpicker">
                 <div @click="shiftMonth(-1)" class="work-prevmonth">
@@ -51,6 +55,7 @@
                     :selectedYear="selectedYear"
                     :usersCheckArray="usersCheckArray"
                     :usersData="usersData"
+                    :workGroups="workGroups"
                     :startDate="startDate"
                     :attendanceFlag="attendanceFlag"
                     @closeModal="shiftModal = false"
@@ -67,14 +72,12 @@
                     @reload="reload"
                 />
             </Transition>
-            <Transition name="modalFade"> 
-                <WorkReport
-                    v-if="reportModal"
-                    @reload="reload"
-                    @closeModal="closeModal"
-                    :item="editData"
-                />
-            </Transition>
+            <WorkReport
+                v-if="reportModal"
+                @reload="reload"
+                @closeModal="closeModal"
+                :item="editData"
+            />
             <Transition name="modalFade">
                 <ShiftApproval 
                     v-if="approvalModal"
@@ -83,13 +86,6 @@
                     :workGroups="workGroups"
                     :usersCheckArray="usersCheckArray"
                     @closeModal="approvalModal = false, fetchShiftDataTable()"
-                />
-            </Transition>
-            <Transition name="modalFade">
-                <DepartmentField 
-                    v-if="shiftForDepartment"
-                    :shiftForDepartment="shiftForDepartment"
-                    @close="shiftForDepartment = null, fetchShiftDataTable()"
                 />
             </Transition>
     </div>
@@ -108,22 +104,22 @@ import { useAuthUserStore } from '@/store/auth'
 import { useElementSize } from '@vueuse/core'
 import { getWorkGroup, getWorkData, getShiftDataTable } from '../../utils/workApi'
 import { useBreakTime } from '@/store/breakTime'
-// import DepartmentField from './DepartmentField.vue'
 import { DateTime } from 'luxon'
 import MonthPickerNew from '../Global/MonthPickerNew.vue'
 import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 import { useTutorialStore } from '@/store/tutorial'
 import Error from '@/components/Global/Error.vue'
+import { mkConfig, generateCsv, download } from 'export-to-csv'
     const WorkShifts = defineAsyncComponent({ loader: () => import('./WorkShifts.vue'), errorComponent: Error });
     const WorkAttendance = defineAsyncComponent({ loader: () => import('./WorkAttendance.vue'), errorComponent: Error });
     const WorkReport = defineAsyncComponent({ loader: () => import('./WorkReport.vue'), errorComponent: Error });
     const ShiftApproval = defineAsyncComponent({ loader: () => import('./ShiftApproval.vue'), errorComponent: Error });
-    const DepartmentField = defineAsyncComponent({ loader: () => import('./DepartmentField.vue'), errorComponent: Error });
-    const firstUser = computed(() => {
-        return auth.id == 608 || auth.id == 610 ? [] : [Number(auth.id)]
-    })
     const auth = useAuthUserStore()
+    const activeUserId = computed(() => Number(auth.id ?? 0))
+    const firstUser = computed(() => {
+        return auth.isAdmin ? [auth.id] : (activeUserId.value ? [activeUserId.value] : [])
+    })
     const route = useRoute()
     const selectedYear = ref(DateTime.now().year)
     const selectedMonth = ref(DateTime.now().month)
@@ -146,8 +142,8 @@ import Error from '@/components/Global/Error.vue'
     const attendanceFlag = ref(false)
     const approvalModal = ref(false)
     const breakTimeStore = useBreakTime()
-    const shiftForDepartment = ref(null)
     const selectedVehicles = ref([])
+    const projectCsvLoading = ref(false)
     const api = useApi()
     const { ask, ping, toast } = useDialog() 
     const tutorialStore = useTutorialStore()
@@ -200,9 +196,7 @@ import Error from '@/components/Global/Error.vue'
         
         if (tutorialStore.state.active && tutorialStore.state.name.includes('timesheet.dailyreport')) {
             setTimeout(() => {
-                console.log(recordsArray.value)
-                const todayItem = recordsArray.value.find(item => item.user_id === auth.id && item.day_full === DateTime.now().toISODate());
-                console.log('todayItem', todayItem);
+                const todayItem = recordsArray.value.find(item => item.user_id === activeUserId.value && item.day_full === DateTime.now().toISODate());
                 if (todayItem) {
                     timeStampEdit(todayItem)
                 }
@@ -253,7 +247,7 @@ import Error from '@/components/Global/Error.vue'
     const { height } = useElementSize(headerEl)
     const headerHeight = computed(() => height.value)
     const relocateUsers = computed(() => {
-        const authUserId = auth.id;
+        const authUserId = activeUserId.value;
         const checkedUserArray = usersCheckArray.value;
         const slicedUsersData = usersData.value.slice(); 
         if (checkedUserArray.includes(authUserId)) {
@@ -263,13 +257,64 @@ import Error from '@/components/Global/Error.vue'
 
         return slicedUsersData;
     })
+    const exportUserIds = computed(() => {
+        return relocateUsers.value
+            .map(user => Number(user.id))
+            .filter(id => Number.isInteger(id) && id > 0)
+    })
+    const hasProjectCsvRows = computed(() => {
+        return recordsArray.value.some(record => {
+            const timecard = record?.time_card
+            if(!timecard) return false
+            if(Array.isArray(timecard.project_segments) && timecard.project_segments.length) return true
+
+            return Boolean(timecard.department || timecard.work_group_id)
+        })
+    })
+    const canExportCsv = computed(() => {
+        return monthAverage.value.some(data => data?.access_csv) && hasProjectCsvRows.value
+    })
+    const projectCsvDisabled = computed(() => {
+        return projectCsvLoading.value || loading.value == 0 || exportUserIds.value.length === 0
+    })
+    const exportProjectCsv = async() => {
+        if(projectCsvDisabled.value){
+            if(!exportUserIds.value.length){
+                ping('CSVを出力するメンバーを選択してください。')
+            }
+            return
+        }
+
+        projectCsvLoading.value = true
+        try {
+            const today = DateTime.now().toFormat('yyyyMMddHHmmss')
+            const response = await api.get('/work_generate_csv', {
+                year: selectedYear.value,
+                month: selectedMonth.value,
+                users: exportUserIds.value.join(','),
+                mode: 'project_detail',
+            })
+            const data = Array.isArray(response) ? response : []
+
+            if(!data.length){
+                ping('出力できるCSVデータがありません。')
+                return
+            }
+
+            const filename = `プロジェクト別日報_${selectedYear.value}年${selectedMonth.value}月_${today}`
+            const csvConfig = mkConfig({ useKeysAsHeaders: true, filename, useBom: true, replaceUndefinedWith: ''})
+            const csv = generateCsv(csvConfig)(data)
+            download(csvConfig)(csv)
+        } catch (error) {
+            // useApi already shows the error dialog.
+        } finally {
+            projectCsvLoading.value = false
+        }
+    }
     
     const closeModal = () =>{
         reportModal.value = false
         customFieldData.value = []
-    }
-    const addDepartmentOnly = async(data) => {
-        shiftForDepartment.value = data
     }
     const timeStampStart = async(data) => {
         const month = selectedMonth.value
@@ -353,7 +398,15 @@ import Error from '@/components/Global/Error.vue'
         }
         
     }
+    const hasApprovedProjectSegment = (data) => {
+        const segments = data?.time_card?.project_segments
+        return Array.isArray(segments) && segments.some(segment => segment?.status === 'approved')
+    }
     const timeStampDelete = async(data) => {
+        if (hasApprovedProjectSegment(data)) {
+            ping('承認済みのプロジェクト時間がある日報は削除できません。差戻されたプロジェクトのみ修正してください。')
+            return
+        }
         const params = {
             date : data.day_full,
             userId: data.user_id,
@@ -415,7 +468,7 @@ import Error from '@/components/Global/Error.vue'
         }       
     }
     const modalSelect = computed(() => {
-        return (usersCheckArray.value[0] == auth.activeUser.id || auth.activeUser.id == 608 || auth.activeUser.id == 610 || isAnyChecked15.value) && usersCheckArray.value.length == 1
+        return (usersCheckArray.value[0] == auth.activeUser.id || auth.isAdmin || isAnyChecked15.value) && usersCheckArray.value.length == 1
     })
     const selectShift = async() => {
         if(usersCheckArray.value.length > 1){
@@ -495,6 +548,5 @@ import Error from '@/components/Global/Error.vue'
         stampDelete: (item) => timeStampDelete(item),
         end: (item) => timeStampEnd(item),
         takeBreak: (item) => timeStampBreak(item),
-        addDepartmentOnly: (item) => addDepartmentOnly(item)
     })
 </script>

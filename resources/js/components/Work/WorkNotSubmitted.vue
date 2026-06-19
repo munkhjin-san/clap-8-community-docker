@@ -60,34 +60,49 @@ import { useDialog } from '@/composables/dialog';
                 value, 
                 shiftStartTime, 
                 shiftEndTime, 
+                shiftDepartmentId,
+                shiftType,
                 shiftOverTimeRequest, 
                 shiftStatus,
                 customData,
                 costs,
                 work_group_id,
-                user_id
+                user_id,
+                timecard_id,
+                timecard_status
             } = item;
             if(shiftStatus === 2) {
                 ping('勤怠予定は承認されていません。') 
                 return
             }
+            const hasExistingTimeCard = Boolean(timecard_id)
             editData.value = {
                 day_full : value,
-                user_id : auth.id,
+                user_id : user_id ?? auth.id,
                 work_time_day: auth.user.work_time_day,
                 user_code: auth.user.user_code,
+                work_type: auth.user.work_type,
                 shift : {
                     start_time: shiftStartTime,
                     end_time: shiftEndTime,
+                    department_id: shiftDepartmentId ?? work_group_id ?? null,
+                    shift_type: shiftType ? { id: shiftType } : null,
                     overtime_request: shiftOverTimeRequest
                 },
-                time_card: {
+                time_card: hasExistingTimeCard ? {
+                    id: timecard_id,
+                    status_flag: timecard_status,
                     custom_field_data_records: customData ?? [],
                     work_group_id: work_group_id,
                     timecard_costs: costs,
-                    user_id: user_id
-                },
-                total_break_time: 0
+                    user_id: user_id ?? auth.id,
+                    project_segments: item.project_segments ?? []
+                } : null,
+                total_break_time: 0,
+                ability: {
+                    daily_report_create: !hasExistingTimeCard,
+                    daily_report_modify: hasExistingTimeCard,
+                }
             }
             reportModal.value = true
 

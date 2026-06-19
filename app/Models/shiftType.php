@@ -13,5 +13,5 @@ class shiftType extends Model
     use HasFactory;
 
     public const LEGAL_HOLIDAY_ID = 18;
-    
+    public const UNUSED_IDS = [17];
 }

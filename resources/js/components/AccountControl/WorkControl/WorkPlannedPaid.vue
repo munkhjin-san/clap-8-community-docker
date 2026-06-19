@@ -1,241 +1,494 @@
 <template>
-    <div style="height: 100%; overflow: hidden;position: relative;">
+    <div class="planned-paid">
         <Transition name="modalFade">
-            <div v-if="fetch == 0" class="control-loader">
+            <div v-if="loading" class="control-loader">
                 <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
-            </div> 
+            </div>
         </Transition>
-        <div class="admin-sub-c-bar">
-            <PostSearchBar 
-                className="newChatMemberSearch" 
-                style="width:auto;min-width: 300px;"
-                @search-start="(word) => {keywords = word}"
-            />   
-            <div class="admin-work-header">
-            <div style="display: flex;align-items: center;">
-                <YearPicker 
-                    :selectedYear="year"
-                    @setDate="setDate"
-                />
-            </div>
-        </div>
-        </div>  
 
-        
-        <div class="overlay" v-if="open">
-            <div class="chatCreate scrollable">
-                <div class="recordFormTitle" style="z-index: 26;">
-                    <div @click="open = false" class="cursor-pointer" style="margin: auto 0 auto auto;">
-                        <svg class="modalWindowCloseButton" version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 32 32">
-                            <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
-                        </svg>
-                    </div>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 20px;">
-                    <div>
-                        名前: {{ editUser.name }}
-                    </div>
-                    <div>
-                        当年度有休付与日: {{ editUser.work_temps ? formatDate(editUser.work_temps.date) : null }}
-                    </div>
-                    <div>
-                        計画消化日数: {{ editUser.work_temps ? editUser.work_temps.planned_days : null }}
-                    </div>
-                    <div>
-                        消化日数合計: {{ editUser.shift_records ? editUser.shift_records.length : null }}
-                    </div>
-                    <div style="display: flex; flex-direction: column; gap: 20px;">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>計画付与日</th>
-                                    <th>変更前（旧日付）</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr v-for="shift in editUser.shift_records" :key="shift.id">
-                                    <td><input class="taskDateTimePicker" :class="[{'date-color' : theme.dark }]"  :value="shift.shift_day" type="date" @input="getShift($event.target.value, shift.id)"></td>
-                                    <td>{{ shift?.old_shift?.shift_day }}</td>
-                                </tr>
-                            </tbody>
-                            
-                        </table>
-                    </div>
-                </div>
-                <div class="si-box">
-                    <LoaderButton @triggered="saveShift" :loading="processing" :content="'保存する'"/>
-                </div>
+        <div class="admin-sub-c-bar">
+            <PostSearchBar
+                className="newChatMemberSearch"
+                style="width:auto;min-width: 300px;"
+                @search-start="word => keywords = word"
+            />
+            <div class="admin-work-header">
+                <YearPicker :selectedYear="year" @setDate="setDate" />
             </div>
         </div>
-        <div style="height: calc(100% - 70px);overflow: hidden auto">        
-            <table>
-                <thead style="position:sticky; top:-1px; z-index:1;">
+
+        <div class="summary-row">
+            <div class="summary-cell">
+                <span>対象期間</span>
+                <strong>{{ year }}年</strong>
+            </div>
+            <div class="summary-cell">
+                <span>対象者</span>
+                <strong>{{ periodUserCount }}</strong>
+            </div>
+            <div class="summary-cell warning">
+                <span>不足あり</span>
+                <strong>{{ shortageCount }}</strong>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="planned-table">
+                <thead>
                     <tr>
-                    <th>名前</th>
-                    <th>当年度有休付与日</th>
-                    <th>計画消化日数</th>
-                    <th>消化日数合計</th>
-                    <th>計画付与日</th>
-                    <th>変更前（旧日付）</th>
-                    <th></th>
+                        <th>名前</th>
+                        <th>社員コード</th>
+                        <th>付与日</th>
+                        <th>設定期間</th>
+                        <th>付与</th>
+                        <th>計画必要</th>
+                        <th>設定済み</th>
+                        <th>不足</th>
+                        <th>計画日</th>
+                        <th></th>
                     </tr>
                 </thead>
-                <!-- group by user so rowspan works cleanly -->
-                <tbody v-for="user in filteredData" :key="user.id">
-                    <!-- has shifts -->
-                    <template v-if="user.shift_records?.length">
-                    <!-- first shift row -->
-                    <tr>
-                        <td :rowspan="user.shift_records.length">{{ user.name }}</td>
-                        <td :rowspan="user.shift_records.length">
-                            {{ user.work_temps ? formatDate(user.work_temps.date) : '' }}
-                        </td>
-                        <td :rowspan="user.shift_records.length">
-                            {{ user.work_temps?.planned_days ?? '' }}
-                        </td>
-                        <td :rowspan="user.shift_records.length">
-                            {{ user.shift_records.length }}
-                        </td>
-
-                        <td>{{ user.shift_records[0].shift_day }}</td>
-                        <td>{{ user.shift_records[0].old_shift?.shift_day ?? '' }}</td>
-
-                        <td :rowspan="user.shift_records.length">
-                            <CommandButton :buttons="[{ title: '変更', action: () => changePlannedShifts(user) }]" />
-                        </td>
-                    </tr>
-
-                    <!-- remaining shift rows -->
-                    <tr v-for="shift in user.shift_records.slice(1)" :key="shift.id">
-                        <td>{{ shift.shift_day }}</td>
-                        <td>{{ shift.old_shift?.shift_day ?? '' }}</td>
-                    </tr>
-                    </template>
-
-                    <!-- no shifts -->
-                    <tr v-else>
-                        <td>{{ user.name }}</td>
-                        <td>{{ user.work_temps ? formatDate(user.work_temps.date) : '' }}</td>
-                        <td>{{ user.work_temps?.planned_days ?? '' }}</td>
-                        <td>0</td>
-                        <td></td>
-                        <td></td>
+                <tbody>
+                    <tr
+                        v-for="row in periodRows"
+                        :key="`${row.user.id}-${row.period.grant_id}`"
+                        :class="{ short: row.period.status === 'short' }"
+                    >
+                        <td>{{ row.user.name }}</td>
+                        <td>{{ row.user.user_code || '' }}</td>
+                        <td>{{ row.period.period_start }}</td>
+                        <td>{{ row.period.period_start }} - {{ row.period.period_end }}</td>
+                        <td>{{ formatDays(row.period.granted_days) }}日</td>
+                        <td>{{ formatDays(row.period.planned_required_days) }}日</td>
+                        <td>{{ formatDays(row.period.planned_days) }}日</td>
                         <td>
-                            <CommandButton :buttons="[{ title: '変更', action: () => changePlannedShifts(user) }]" />
+                            <span :class="['status-pill', row.period.status]">
+                                {{ row.period.status === 'short' ? `${formatDays(row.period.planned_remaining_days)}日` : 'OK' }}
+                            </span>
                         </td>
+                        <td class="planned-date-cell">
+                            <span v-for="shift in row.period.shift_records" :key="shift.id">{{ shift.shift_day }}</span>
+                            <span v-if="!row.period.shift_records?.length" class="muted">未設定</span>
+                        </td>
+                        <td>
+                            <button type="button" class="plain-button" @click="openEditor(row.user, row.period)">変更</button>
+                        </td>
+                    </tr>
+                    <tr v-if="periodRows.length === 0">
+                        <td colspan="10" class="empty-cell">この年に対象の有休付与がありません。</td>
                     </tr>
                 </tbody>
             </table>
+        </div>
+
+        <div class="overlay" v-if="editorOpen">
+            <div class="planned-editor">
+                <div class="recordFormTitle">
+                    <p class="ml-5">計画有給日を変更</p>
+                    <button type="button" class="editor-close" aria-label="閉じる" @click="closeEditor">
+                        <CloseIcon :size="12" />
+                    </button>
+                </div>
+
+                <div class="editor-body">
+                    <div class="editor-summary">
+                        <div>
+                            <span>名前</span>
+                            <strong>{{ editUser?.name }}</strong>
+                        </div>
+                        <div>
+                            <span>設定期間</span>
+                            <strong>{{ editPeriod?.period_start }} - {{ editPeriod?.period_end }}</strong>
+                        </div>
+                        <div>
+                            <span>必要</span>
+                            <strong>{{ formatDays(editPeriod?.planned_required_days || 0) }}日</strong>
+                        </div>
+                        <div>
+                            <span>設定済み</span>
+                            <strong>{{ formatDays(editPeriod?.planned_days || 0) }}日</strong>
+                        </div>
+                    </div>
+
+                    <div v-if="!editPeriod?.shift_records?.length" class="empty-editor">
+                        この期間に変更できる計画有給日がありません。新規設定は勤怠予定画面から行ってください。
+                    </div>
+
+                    <table v-else class="planned-table compact">
+                        <thead>
+                            <tr>
+                                <th>変更後</th>
+                                <th>現在</th>
+                                <th>変更前</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="shift in editPeriod.shift_records" :key="shift.id">
+                                <td>
+                                    <input
+                                        class="date-input"
+                                        :class="{'date-color' : theme.dark}"
+                                        :value="changedDateFor(shift)"
+                                        type="date"
+                                        :min="editPeriod.period_start"
+                                        :max="editPeriod.period_end"
+                                        @input="getShift($event.target.value, shift.id)"
+                                    />
+                                </td>
+                                <td>{{ shift.shift_day }}</td>
+                                <td>{{ shift.old_shift?.shift_day ?? '' }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="editor-actions">
+                    <button type="button" class="plain-button" @click="closeEditor">キャンセル</button>
+                    <button type="button" class="plain-button primary" :disabled="processing || !changedShifts.length" @click="saveShift">
+                        {{ processing ? '保存中...' : '保存する' }}
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </template>
 
 <script setup>
-import CommandButton from '../../Global/CommandButton.vue';
 import YearPicker from '../../Global/YearPicker.vue'
-import LoaderButton from '../../Global/LoaderButton.vue';
 import { computed, onMounted, ref } from 'vue';
-import { useTheme } from '@/store/theme';
 import PostSearchBar from '../../Post/PostSearchBar.vue';
-import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
-    const keywords = ref('')
-    const plannedShifts = ref([])
-    const year = ref(new Date().getFullYear())
-    const open = ref(false)
-    const editUser = ref([])
-    const processing = ref(false)
-    const changedShifts = ref([])
-    const theme = useTheme()
-    const fetch = ref(0)
-    const api = useApi()
-    onMounted(async () => {
-        await getPlannedShifts()
-        fetch.value++
-    })
-    const filteredData = computed(() => {
-        let result = plannedShifts.value.filter(user1 => {
-            return Object.values(user1).some(val => 
-                String(val).toLowerCase().includes(keywords.value)
-            )
+import CloseIcon from '../../Form/CloseIcon.vue';
+import { useTheme } from '@/store/theme';
+const keywords = ref('')
+const plannedShifts = ref([])
+const year = ref(new Date().getFullYear())
+const editorOpen = ref(false)
+const editUser = ref(null)
+const editPeriod = ref(null)
+const processing = ref(false)
+const changedShifts = ref([])
+const loading = ref(false)
+const api = useApi()
+const theme = useTheme()
+onMounted(async () => {
+    await getPlannedShifts()
+})
+
+const filteredData = computed(() => {
+    const word = keywords.value.toLowerCase()
+    if (!word) return plannedShifts.value
+
+    return plannedShifts.value.filter(user => {
+        const userHit = [user.name, user.user_code, user.joined_date].some(value => String(value || '').toLowerCase().includes(word))
+        const periodHit = user.grant_periods?.some(period => {
+            return Object.values(period).some(value => String(value || '').toLowerCase().includes(word))
         })
-        return result
+
+        return userHit || periodHit
     })
-    const getPlannedShifts = async() => {
-        plannedShifts.value = await api.post('/get_planned_shifts', {year: year.value})
-    }
-    const setDate = (val) => {
-        year.value = val.year
-        getPlannedShifts()
-    } 
-    const changePlannedShifts = (val) =>{
-        open.value = true
-        editUser.value = val
-    }
-    const formatDate = (givenDate) => {
-        const date = DateTime.fromISO(givenDate);
-        const newDate = date.set({ year: year.value });
-        return newDate.toISODate()
-    }
-    const getShift = (val, id) => {
-        const existingShiftIndex = changedShifts.value.findIndex(s => s.id === id);
+})
 
-        if (existingShiftIndex !== -1) {
-            changedShifts.value[existingShiftIndex].shift_day = val;
-        } else {
-            changedShifts.value.push({ id: id, shift_day: val });
+const periodRows = computed(() => {
+    return filteredData.value.flatMap(user => {
+        return (user.grant_periods || []).map(period => ({ user, period }))
+    })
+})
+
+const shortageCount = computed(() => {
+    return periodRows.value.filter(row => row.period.status === 'short').length
+})
+
+const periodUserCount = computed(() => {
+    return new Set(periodRows.value.map(row => row.user.id)).size
+})
+
+const getPlannedShifts = async() => {
+    plannedShifts.value = await api.post('/get_planned_shifts', {year: year.value}, {loadingRef: loading}) || []
+}
+
+const setDate = (val) => {
+    year.value = val.year
+    getPlannedShifts()
+}
+
+const openEditor = (user, period) => {
+    editorOpen.value = true
+    editUser.value = user
+    editPeriod.value = period
+    changedShifts.value = []
+}
+
+const closeEditor = () => {
+    editorOpen.value = false
+    editUser.value = null
+    editPeriod.value = null
+    changedShifts.value = []
+}
+
+const changedDateFor = (shift) => {
+    return changedShifts.value.find(item => item.id === shift.id)?.shift_day || shift.shift_day
+}
+
+const getShift = (val, id) => {
+    const existingShiftIndex = changedShifts.value.findIndex(s => s.id === id)
+
+    if (existingShiftIndex !== -1) {
+        changedShifts.value[existingShiftIndex].shift_day = val
+    } else {
+        changedShifts.value.push({ id, shift_day: val })
+    }
+
+    changedShifts.value = changedShifts.value.filter(shift => {
+        const original = editPeriod.value?.shift_records?.find(item => item.id === shift.id)
+        return original && original.shift_day !== shift.shift_day
+    })
+}
+
+const saveShift = async() => {
+    if (!editUser.value || !editPeriod.value || !changedShifts.value.length) return
+
+    await api.post('/change_planned_shifts',
+        {
+            shifts: changedShifts.value,
+            userId: editUser.value.id,
+            startDate: editPeriod.value.period_start,
+        },
+        {
+            toast: '保存しました。',
+            loadingRef: processing,
         }
-    }
-    const saveShift = async() => {
+    )
 
-        const startDate = formatDate(editUser.value?.work_temps?.date);
-        await api.post('/change_planned_shifts', 
-            {
-                shifts: changedShifts.value, 
-                userId: editUser.value.id,
-                startDate: startDate                
-            },{
-                toast: '保存しました。',
-                loadingRef: processing,
-            }
-        )
-        getPlannedShifts()
-        open.value = false
-        changedShifts.value = []        
-    }
+    await getPlannedShifts()
+    closeEditor()
+}
+
+const formatDays = (value) => {
+    return new Intl.NumberFormat('ja-JP', { maximumFractionDigits: 2 }).format(Number(value) || 0)
+}
 </script>
+
 <style scoped>
+.planned-paid {
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    color: var(--primary-color);
+}
 
-    .workRecords-button{
-        color: #fff;
-        background-color: var(--primary-button);
-        padding: 5px 10px 5px 10px;
-        font-size: 12px;
-        line-height: 1.5;
-    }
-    .admin-work-header{
-        display: flex;
-        gap:20px;
-    }
-    table {
-  
-        border-collapse: collapse;
-        width: 100%;
-        font-size: 14px;
+.admin-work-header {
+    display: flex;
+    gap: 20px;
+}
+
+.summary-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(120px, 1fr));
+    gap: 20px;
+    margin: 0 20px 20px;
+}
+
+.summary-cell {
+    background: var(--background-color);
+    padding: 10px 12px;
+}
+
+.summary-cell span {
+    display: block;
+    color: var(--third-color);
+    font-size: 11px;
+}
+
+.summary-cell strong {
+    display: block;
+    margin-top: 4px;
+    font-size: 18px;
+}
+
+.summary-cell.warning strong {
+    color: #b42318;
+}
+
+.table-wrap {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    margin: 0 20px 20px;
+    border: 1px solid var(--calendarBorder);
+    background: var(--background-color);
+}
+
+.planned-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13px;
+}
+
+.planned-table.compact {
+    font-size: 13px;
+}
+
+.planned-table td,
+.planned-table th {
+    /* border: 1px solid var(--formBorder); */
+    padding: 8px;
+    vertical-align: top;
+}
+
+.planned-table th {
+    position: sticky;
+    top: -1px;
+    z-index: 1;
+    text-align: left;
+    background-color: #363636;
+    color: white;
+}
+
+.planned-table tr:nth-child(even) {
+    background-color: var(--bg3);
+}
+
+.planned-table tr.short {
+    background: rgba(180, 35, 24, 0.08);
+}
+
+.planned-date-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-width: 280px;
+}
+
+.planned-date-cell span:not(.muted) {
+    border: 1px solid var(--formBorder);
+    padding: 2px 5px;
+    background: var(--background-color);
+}
+
+.muted,
+.empty-cell,
+.empty-editor {
+    color: var(--third-color);
+}
+
+.status-pill {
+    display: inline-flex;
+    min-width: 42px;
+    justify-content: center;
+    border: 1px solid var(--formBorder);
+    padding: 3px 7px;
+}
+
+.status-pill.short {
+    color: #b42318;
+    border-color: #b42318;
+}
+
+.plain-button {
+    border-radius: 0;
+    background: var(--primary-button);
+    color: #fff;
+    cursor: pointer;
+    min-height: 30px;
+    padding: 0 10px;
+    font-size: 12px;
+}
+
+
+.plain-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.planned-editor {
+    width: min(760px, calc(100vw - 40px));
+    max-height: calc(100vh - 80px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--background-color);
+    color: var(--primary-color);
+    border: 1px solid var(--formBorder);
+}
+
+.recordFormTitle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--formBorder);
+}
+
+.editor-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    background: transparent;
+    color: var(--primary-color);
+    cursor: pointer;
+    padding: 0;
+    margin-right: 20px;
+}
+
+.editor-body {
+    padding: 16px;
+    overflow: auto;
+}
+
+.editor-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.editor-summary div {
+    border: 1px solid var(--formBorder);
+    padding: 8px;
+}
+
+.editor-summary span {
+    display: block;
+    color: var(--third-color);
+    font-size: 11px;
+}
+
+.editor-summary strong {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+}
+
+.editor-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    border-top: 1px solid var(--formBorder);
+    padding: 12px 16px;
+}
+
+.date-input {
+    border: 1px solid var(--formBorder);
+    border-radius: 0;
+    background: var(--background-color);
+    color: var(--primary-color);
+    min-height: 30px;
+    padding: 4px 6px;
+}
+
+@media screen and (max-width: 720px) {
+    .summary-row,
+    .editor-summary {
+        grid-template-columns: 1fr;
     }
 
-    table td, table th {
-        border: 1px solid var(--formBorder);
-        padding: 8px;
+    .table-wrap {
+        margin: 0 12px 12px;
     }
-
-    table tr:nth-child(even){background-color:var(--bg3)}
-
-    table th {
-        padding-top: 12px;
-        padding-bottom: 12px;
-        text-align: left;
-        background-color: #363636;
-        color: white;
-    }
+}
 </style>

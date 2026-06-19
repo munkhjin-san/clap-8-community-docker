@@ -1,7 +1,7 @@
 import { Asset } from "@/interface/assetInterface";
 import { CalendarRecord } from "@/interface/calendarInterface";
 import { CustomForm } from "@/interface/customFormInterface";
-import { pendingTimesheedData, UserWithShift } from "@/interface/dashboard";
+import { AutoApprovedTimesheetData, pendingTimesheedData, UserWithShift } from "@/interface/dashboard";
 import { Message, Task, User } from "@/interface/globalInterface";
 import { Incident } from "@/interface/incident";
 import { Post } from "@/interface/postInterface";
@@ -47,6 +47,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         },  
         timesheet: {
             pendingTimesheets: [] as pendingTimesheedData[],
+            autoApprovedTimesheets: [] as AutoApprovedTimesheetData[],
             departuresReportUsers: [] as UserWithShift[],
             pendingPlannedLeaves: [] as any[],
             pendingAttendance: null as any,
@@ -93,6 +94,11 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
     const updatedIncidentCount = computed(() => collection.value.incidents.attention.filter(hasUnreadIncidentUpdates).length)
     const incidentBadgeCount = computed(() => updatedIncidentCount.value + unreadIncidentCommentCount.value)
     const activeEmergencyContactCount = computed(() => collection.value.incidents.emergency_contacts.filter((contact) => contact.status !== 'complete').length)
+    const autoApprovedTimesheetCount = computed(() => {
+        return collection.value.timesheet.autoApprovedTimesheets.reduce((total, item) => {
+            return total + (item.read ? 0 : item.records.length)
+        }, 0)
+    })
 
     const getBatchDashboardData = async (requestedData?: string[]) => {
         try {
@@ -145,6 +151,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         collection.value.personnelEvaluation.pendingEvaluations.length + 
         collection.value.notices.length + collection.value.projects.assign_approval_waiting.length + 
         collection.value.projects.officer_approval_waiting.length +
+        autoApprovedTimesheetCount.value +
         incidentBadgeCount.value + collection.value.systemUpdates.length 
         return total
     })
@@ -186,6 +193,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         getAnnualLeaveData,
         pulseBadgeCount,
         pendingTimeSheets,
+        autoApprovedTimesheetCount,
         newIncidentCount,
         updatedIncidentCount,
         unreadIncidentCommentCount,

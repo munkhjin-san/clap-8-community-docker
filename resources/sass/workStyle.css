@@ -3,7 +3,6 @@
     display: flex;
     align-items: center;
     flex-wrap: nowrap;
-    margin-left: -15px;
     div{
         width: 30px;
         height: 30px; 
@@ -37,6 +36,23 @@
     display: flex;
     align-items: center;
     justify-content: center;
+}
+.project-time-action-button{
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--calendarBorder);
+    border-radius: 3px;
+    background: var(--background-color);
+    color: var(--primary-color);
+    cursor: pointer;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box !important;
+}
+.project-time-action-button:hover{
+    border-color: var(--primary-color);
 }
 .work-root{
     width: 100%;
@@ -190,6 +206,16 @@
     cursor: pointer;
     padding: 0 15px;
     margin-right: 10px;
+}
+.work-button:disabled{
+    cursor: default;
+    opacity: .55;
+}
+.work-button--csv{
+    background: var(--background-color);
+    border: 1px solid var(--primary-button);
+    color: var(--primary-button);
+    font-weight: 600;
 }
 .records-table{
     display: table;
@@ -583,7 +609,7 @@
 }
 .report-input-wrapper{
     position: relative;
-    width: 25%;
+    width: 30%;
 }
 .customfieldTextAreaLayer-01 {
     position: relative;

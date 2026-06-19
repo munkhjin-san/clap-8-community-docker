@@ -87,10 +87,15 @@ class RemindController extends Controller
                                     ->whereYear('shift_day',$year)
                                     ->whereMonth('shift_day', $month)
                                     ->get();
-        $shift_overtime_requests = ShiftOvertimeRequest::where('created_by', $auth_user_id)
-                                                        ->whereYear('overtime_day', $year)
-                                                        ->whereMonth('overtime_day', $month)
-                                                        ->select('overtime_day', 'created_by', 'minutes')
+        $overtimeShiftDays = collect($shift_record)
+            ->pluck('shift_day')
+            ->merge(collect($prev_shift_record)->pluck('shift_day'))
+            ->filter()
+            ->unique()
+            ->values();
+        $shift_overtime_requests = ShiftOvertimeRequest::where('user_id', $auth_user_id)
+                                                        ->whereIn('overtime_day', $overtimeShiftDays)
+                                                        ->select('id', 'record_id', 'user_id', 'overtime_day', 'created_by', 'approved_by', 'status', 'minutes', 'project_segments', 'content')
                                                         ->get();
         $shiftNotSubmittedList = [];
         $shiftSubmittedList = [];
@@ -111,14 +116,20 @@ class RemindController extends Controller
                 foreach($shift_record as $value){
                     $shiftSubmittedList[$value->shift_day] = [
                         "type" => $value->shift_type,
-                        "status" => $value->status_flag
+                        "status" => $value->status_flag,
+                        "start_time" => $value->start_time,
+                        "end_time" => $value->end_time,
+                        "department_id" => $value->department_id
                     ];
                 }
                 if(!empty($prev_shift_record)){
                     foreach($prev_shift_record as $valuePrev){
                         $shiftSubmittedList[$valuePrev->shift_day] = [
                             "type" => $valuePrev->shift_type,
-                            "status" => $valuePrev->status_flag,  
+                            "status" => $valuePrev->status_flag,
+                            "start_time" => $valuePrev->start_time,
+                            "end_time" => $valuePrev->end_time,
+                            "department_id" => $valuePrev->department_id
                         ];
                     }
                 }
@@ -135,7 +146,7 @@ class RemindController extends Controller
                                                     ->where('day', $date)
                                                     ->with('timecard_costs')
                                                     ->with('custom_field_data_records')
-                                                    ->with('department')
+                                                    ->with('project_segments')
                                                     ->first();
                         if($timecard === null){
                             $dateExplode = explode("-",$date);
@@ -145,8 +156,10 @@ class RemindController extends Controller
                                 'day' =>  (int) $dateExplode[2],
                                 'value' => $date,
                                 'shiftStatus' => $value2['status'],
-                                'shiftEndTime' => $shift_record && count($shift_record) > 0 ? $shift_record[0]->end_time : '18:00:00',
-                                'shiftStartTime' => $shift_record && count($shift_record) > 0 ? $shift_record[0]->start_time : '09:00:00',
+                                'shiftType' => $value2['type'],
+                                'shiftEndTime' => $value2['end_time'] ?? '18:00:00',
+                                'shiftStartTime' => $value2['start_time'] ?? '09:00:00',
+                                'shiftDepartmentId' => $value2['department_id'] ?? null,
                                 'shiftOverTimeRequest' => $shift_overtime_requests->where('overtime_day', $date)->first()
                             ];
 
@@ -158,13 +171,17 @@ class RemindController extends Controller
                                 'day' =>  (int) $dateExplode[2],
                                 'value' => $date,
                                 'shiftStatus' => $value2['status'],
+                                'shiftType' => $value2['type'],
                                 'costs' => $timecard->timecard_costs,
                                 'customData' => $timecard->custom_field_data_records,
-                                'department' => $timecard->department,
+                                'timecard_id' => $timecard->id,
+                                'timecard_status' => $timecard->status_flag,
+                                'project_segments' => $timecard->project_segments,
                                 'user_id' => $timecard->user_id,
                                 'work_group_id' => $timecard->work_group_id,
                                 'shiftEndTime' => $timecard->edit_end_time,
                                 'shiftStartTime' => $timecard->edit_start_time,
+                                'shiftDepartmentId' => $value2['department_id'] ?? $timecard->work_group_id,
                                 'shiftOverTimeRequest' => $shift_overtime_requests->where('overtime_day', $date)->first()
                             ];
                         }

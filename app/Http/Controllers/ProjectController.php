@@ -841,7 +841,7 @@ class ProjectController extends Controller
         $project->members()->sync($members);
         $project->manager()->syncWithPivotValues($manager, ['authority' => 1]);
 
-        if (!$id) {
+        if (!$id && $filteredParams['status'] != 'draft') {
             $query = "order by レコード番号 desc limit 1";
             $fields = ["文字列__1行__3"];
             
@@ -4448,7 +4448,11 @@ class ProjectController extends Controller
 
         $query = ProjectCase::query()
             ->where('project_record_id', $project->id)
-            ->whereHas('timecardRecord')
+            ->where(function ($query) {
+                $query
+                    ->where('status', '目標値')
+                    ->orWhereHas('timecardRecord');
+            })
             ->with(['reporter:id,name,icon_path,icon_bg']);
 
         if (!empty($data['start'])) {
@@ -4466,17 +4470,11 @@ class ProjectController extends Controller
             ->orderBy('id')
             ->get()
             ->map(function (ProjectCase $case) {
-                $label = $this->resolveCaseLabel($case);
                 return [
                     'id'           => $case->id,
                     'project_id'   => $case->project_record_id,
                     'report_date'  => optional($case->report_date)->toDateString(),
-                    'status'       => $label,
-                    'kind'         => $case->kind,
-                    'stage'        => $case->stage,
-                    'delivery_status' => $case->delivery_status,
-                    'probability'  => $case->probability,
-                    'client_name'  => $case->client_name,
+                    'status'       => $case->status,
                     'case_count'   => $case->case_count,
                     'amount'       => $case->amount,
                     'notes'        => $case->notes,
@@ -4507,7 +4505,6 @@ class ProjectController extends Controller
 
         $data = $req->validate([
             'actual_status_label' => ['nullable', 'string', 'max:191'],
-            'client_name' => ['nullable', 'string', 'max:191'],
             'case_count'  => ['nullable', 'integer', 'min:0'],
             'amount'      => ['required', 'integer', 'min:0'],
             'notes'       => ['nullable', 'string'],
@@ -4516,18 +4513,13 @@ class ProjectController extends Controller
             'member_id'   => ['nullable', 'integer']
         ]);
 
-        $kind = 'ACTUAL';
         $statusLabel = $data['actual_status_label'] ?: '実績';
-        $stage = null;
-        $delivery = null;
-        $probability = null;
         $reportDate = Carbon::parse($data['report_date'])->startOfMonth();
         $user_id = $data['member_id'] ?? $user->id;
         $attributes = [
             'project_record_id' => $project->id,
             'user_id'           => $user_id,
             'status'           => $statusLabel,
-            'client_name'      => $data['client_name'] ?? null,
             'case_count'        => $data['case_count'] ?? 0,
             'amount'            => $data['amount'],
             'notes'             => $data['notes'] ?? null,
@@ -4583,7 +4575,6 @@ class ProjectController extends Controller
 
         $data = $req->validate([
             'actual_status_label' => ['nullable', 'string', 'max:191'],
-            'client_name' => ['nullable', 'string', 'max:191'],
             'case_count'  => ['nullable', 'integer', 'min:0'],
             'amount'      => ['required', 'integer', 'min:0'],
             'notes'       => ['nullable', 'string'],
@@ -4594,11 +4585,7 @@ class ProjectController extends Controller
             'amount.required' => '金額は必須です。',
         ]);
 
-        $kind = 'ACTUAL';
         $statusLabel = $data['actual_status_label'] ?: '実績';
-        $stage = null;
-        $delivery = null;
-        $probability = null;
 
         $reportDate = Carbon::parse($data['report_date'])->startOf('month');
 
@@ -4626,7 +4613,6 @@ class ProjectController extends Controller
         $case->update([
             'user_id'          => $data['member_id'] ?? $case->user_id,
             'status'           => $statusLabel,
-            'client_name'      => $data['client_name'] ?? null,
             'case_count'       => $data['case_count'] ?? 0,
             'amount'           => $data['amount'],
             'notes'            => $data['notes'] ?? null,
@@ -4722,22 +4708,6 @@ class ProjectController extends Controller
         }
 
         return $reordered;
-    }
-
-    private function resolveCaseLabel(ProjectCase $case): string
-    {
-        if ($case->kind === 'PLAN') {
-            return '目標値';
-        }
-
-        if ($case->kind === 'ACTUAL') {
-            if (!empty($case->status)) {
-                return $case->status;
-            }
-            return '実績';
-        }
-
-        return $case->status ?? '―';
     }
 
     public function project_actual_status_suggestions(): JsonResponse

@@ -7,6 +7,7 @@ use App\Models\timecardCostRecord;
 use App\Models\timecardIncentive;
 use App\Models\shiftRecord;
 use App\Models\attendanceRecord;
+use App\Models\TimecardProjectSegment;
 use Illuminate\Support\Facades\Auth;
 class AutoAttendanceConfirm
 {
@@ -150,7 +151,10 @@ class AutoAttendanceConfirm
             'time_card_records' => function ($query) use ($currentYear, $currentMonth) {
                 $query->whereYear('day', $currentYear)
                     ->whereMonth('day', $currentMonth)
-                    ->select('user_id', 'day', 'work_time', 'over_time', 'status_flag', 'late_time', 'night_over_time', 'stamp_flag', 'car_mileage', 'training_start_time', 'training_end_time');
+                    ->with(['project_segments' => function ($q) {
+                        $q->select('id', 'timecard_record_id', 'segment_type', 'minutes', 'detail_values');
+                    }])
+                    ->select('id', 'user_id', 'day', 'work_time', 'over_time', 'status_flag', 'late_time', 'night_over_time', 'stamp_flag', 'car_mileage', 'training_start_time', 'training_end_time');
             },
             'custom_field_data_records' => function ($query) use ($currentYear, $currentMonth) {
                 $query->where('type_id', 37)
@@ -265,15 +269,21 @@ class AutoAttendanceConfirm
             if ($user->work_type == 1) {
                 $month_over_time = $over_time;
             }
-            $month_stay_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 1)->count();
-            $month_move_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 0)->count();
-            $month_waiting_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 2)->count();
-            $month_remote_personal_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 5)->count();
-            $month_remote_company_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 4)->count();
-            $month_vehicle_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 6)->count();
-            $month_special_commute_allowance_count = $user->custom_field_data_records->whereNotNull('table_record_id')->where('value_int', 7)->count();
+            $month_stay_allowance_count = $this->monthlyAllowanceCount($user, 1);
+            $month_move_allowance_count = $this->monthlyAllowanceCount($user, 0);
+            $month_waiting_allowance_count = $this->monthlyAllowanceCount($user, 2);
+            $month_remote_personal_allowance_count = $this->monthlyAllowanceCount($user, 5);
+            $month_remote_company_allowance_count = $this->monthlyAllowanceCount($user, 4);
+            $month_vehicle_allowance_count = $this->monthlyAllowanceCount($user, 6);
+            $month_special_commute_allowance_count = $this->monthlyAllowanceCount($user, 7);
             $attendance_flag = !empty($attendance) ? true : false;
-            $totalTrainingMinutes = $user->time_card_records->sum('training_minutes');
+            $totalTrainingMinutes = $user->time_card_records->sum(function ($timecard) {
+                $segmentTrainingMinutes = $timecard->project_segments
+                    ->where('segment_type', TimecardProjectSegment::TYPE_TRAINING)
+                    ->sum('minutes');
+
+                return $segmentTrainingMinutes > 0 ? $segmentTrainingMinutes : $timecard->training_minutes;
+            });
             $responseArray[$user->id] = [
                 'user' => $userData,
                 'attendance_flag' => $attendance_flag,
@@ -313,5 +323,41 @@ class AutoAttendanceConfirm
             ];
         }
         return $responseArray;
+    }
+
+    private function monthlyAllowanceCount(User $user, int $allowanceValue): int
+    {
+        $legacyAllowancesByTimecard = $user->custom_field_data_records
+            ->whereNotNull('table_record_id')
+            ->groupBy('table_record_id');
+
+        return $user->time_card_records->sum(function ($timecard) use ($allowanceValue, $legacyAllowancesByTimecard) {
+            if ($timecard->project_segments->isNotEmpty()) {
+                return $timecard->project_segments->sum(function (TimecardProjectSegment $segment) use ($allowanceValue) {
+                    return collect($this->segmentAllowanceValues($segment))
+                        ->filter(fn (int $value) => $value === $allowanceValue)
+                        ->count();
+                });
+            }
+
+            return ($legacyAllowancesByTimecard->get($timecard->id) ?? collect())
+                ->where('value_int', $allowanceValue)
+                ->count();
+        });
+    }
+
+    private function segmentAllowanceValues(TimecardProjectSegment $segment): array
+    {
+        $detailValues = is_array($segment->detail_values) ? $segment->detail_values : [];
+        $allowances = $detailValues['allowance'] ?? [];
+        if (!is_array($allowances)) {
+            return [];
+        }
+
+        return collect($allowances)
+            ->filter(fn ($value) => filled($value))
+            ->map(fn ($value) => (int) $value)
+            ->values()
+            ->all();
     }
 }

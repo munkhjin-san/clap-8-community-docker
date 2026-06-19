@@ -3160,6 +3160,41 @@ div.recordFormTitle>p {
   line-height: normal;
 }
 
+.admin-control-toolbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 10px 20px;
+  background: var(--background-color);
+}
+
+.admin-control-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-control-actions .admin-button {
+  flex: 0 0 auto;
+  margin: 0;
+  height: 30px;
+  line-height: 1;
+}
+
+.admin-control-actions .admin-button input[type="file"] {
+  display: none;
+}
+
+.admin-control-actions .admin-button:disabled,
+.admin-control-actions .admin-button.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .iconChange {
   position: absolute;
   background-color: var(--primary-color);
@@ -6812,6 +6847,9 @@ button.shift-button {
     font-weight: bold;
 }
 @media screen and (max-width: 959px) {
+    .project-detail{
+      padding: 0;
+    }
     select{
         font-size: 12px;
     }

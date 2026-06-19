@@ -106,10 +106,28 @@ export type pendingTimesheedData = {
     user: User
     has_pending_timecards: boolean
 }
+export type AutoApprovedTimesheetRecord = {
+    segment_id: number
+    timecard_record_id: number
+    project_id: number
+    project_name: string
+    day: string
+    start_time: string
+    end_time: string
+    comment: string | null
+    weather: number | null
+    approved_at: string | null
+}
+export type AutoApprovedTimesheetData = {
+    user: User
+    read: boolean
+    records: AutoApprovedTimesheetRecord[]
+}
 export type DashboardTimesheetCard = CardBase & {
     layout: 'timesheet'
     data: {
         pendingTimesheets: pendingTimesheedData[]
+        autoApprovedTimesheets: AutoApprovedTimesheetData[]
         departuresReportUsers: UserWithShift[],
         pendingPlannedLeaves: any[],
         pendingAttendance?: {
