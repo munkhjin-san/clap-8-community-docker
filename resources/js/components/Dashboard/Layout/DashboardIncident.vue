@@ -119,7 +119,8 @@
 import { DateTime } from 'luxon';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { Incident } from '@/interface/incident';
+import type { DashboardIncidentCard } from '@/interface/dashboard';
+import type { Incident } from '@/interface/incident';
 import BaseLayout from './BaseLayout.vue';
 import IncidentContainer from '@/components/Incident/IncidentContainer.vue';
 import ExpansionGrid from '../ExpansionGrid.vue';
@@ -127,21 +128,9 @@ import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
 import { useAuthUserStore } from '@/store/auth';
-import type { EmergencyContactRecord } from '@/interface/supportInterface';
 
 const props = defineProps<{
-    data: {
-        title: string
-        data: {
-            attention: Incident[]
-            emergency_contacts?: EmergencyContactRecord[]
-        }
-        order?: number
-        type: string
-        canResize?: boolean
-        canFullscreen?: boolean
-        col?: string
-    }
+    data: DashboardIncidentCard
     fullscreen: boolean
 }>()
 

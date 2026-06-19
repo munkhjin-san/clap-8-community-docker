@@ -83,7 +83,8 @@
 </template>
 
 <script setup lang="ts">
-import { Message } from '@/interface/globalInterface';
+import type { DashboardMessageCard } from '@/interface/dashboard';
+import type { Message } from '@/interface/globalInterface';
 import UserPanel from '@/components/Global/UserPanel.vue';
 import { mentionFormatter } from '@/utils/tools';
 import { useApi } from '@/composables/api';
@@ -101,15 +102,7 @@ import ExpansionGrid from '../ExpansionGrid.vue';
 import { DateTime } from 'luxon';
 
 const props = defineProps<{
-    data: {
-        title: string,
-        data: Message[],
-        order?: number,
-        type: string
-        canResize?: boolean
-        canFullscreen?: boolean
-        col: string
-    },
+    data: DashboardMessageCard,
     fullscreen: boolean
 }>()
 

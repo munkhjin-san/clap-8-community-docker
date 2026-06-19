@@ -2759,7 +2759,6 @@ import { useTour } from '@/composables/useTour';
         border-radius: 3px;
         color: var(--primary-color);
         font-size: 11px;
-        font-weight: 600;
         vertical-align: middle;
     }
     .project-type-badge{
@@ -2958,9 +2957,6 @@ import { useTour } from '@/composables/useTour';
         color: #d97706;
     }
     #saveButton{
-        position: sticky;
-        bottom: 0;
-        z-index: 4;
         padding: 12px 0 4px;
         background: inherit;
     }

@@ -49,23 +49,14 @@
 </template>
  
 <script setup lang="ts">
-import { Task } from '@/interface/globalInterface'
-import { useTemplateRef } from 'vue'
+import type { DashboardTaskCard } from '@/interface/dashboard'
 import ListBox from '@/components/Task/List/ListBox.vue';
 import BaseLayout from './BaseLayout.vue';
 import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 
 const props = defineProps<{
-    data: {
-        title: string,
-        data: Task[],
-        order?: number,
-        type: string
-        canResize?: boolean
-        canFullscreen?: boolean
-        col?: string
-    },
+    data: DashboardTaskCard,
     fullscreen: boolean
 }>()
 
@@ -80,4 +71,3 @@ defineExpose({
     cardType: props.data.type,
 })
 </script>
-

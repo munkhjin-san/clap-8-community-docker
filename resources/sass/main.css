@@ -529,6 +529,7 @@ progress {
   width: fit-content;
   width: -moz-fit-content;
   font-size: small;
+  box-sizing: border-box !important;
 }
 .optionPicker {
   line-height: 36px;

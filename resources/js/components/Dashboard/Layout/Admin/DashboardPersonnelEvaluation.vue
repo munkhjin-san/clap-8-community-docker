@@ -39,7 +39,7 @@
                             <template #body>
                                 <PanelData class="px-4 py-4 pt-0">
                                     <div>
-                                        <p class="text-sm text-[gray] mb-2">評価期間：{{ record.year }}年 {{ record.which_half === 1 ? '上期' : '下期' }}</p>
+                                        <p class="text-sm text-[gray] mb-2">評価期間：{{ record.year }}年 {{ isFirstHalf(record.which_half) ? '上期' : '下期' }}</p>
                                         <div class="mt-3 ml-auto w-fit">
                                             <span @click="setDetail(record)" class="jump-link">対応</span>
                                         </div>
@@ -85,7 +85,7 @@
                             <template #title="{ expanded }">
                                 <PanelTitle :expanded="expanded">
                                     <div class="flex items-center gap-3">
-                                        <UserPanel v-if="record.user" :user="record.user" size="30" with-name disable-instant></UserPanel>
+                                        <UserPanel v-if="record.user" :user="record.user" size="25" with-name disable-instant></UserPanel>
                                     </div>
                                 </PanelTitle>
                             </template>
@@ -103,6 +103,44 @@
                                         </div>
                                         <div class="mt-3 ml-auto w-fit">
                                             <router-link :to="{name: 'assign-member', params: { projectId: record.project_record?.id, memberId: record.user?.id }}">詳細</router-link>
+                                        </div>
+
+                                    </div>
+                                </PanelData>
+                            </template>
+                        </ExpansionPanelItem>
+                    </ExpansionGrid>
+                </div>
+
+                <div v-if="data.data.pendingChangeRequests && data.data.pendingChangeRequests.length" class="mt-5">
+                    <div class="text-[14px] font-bold mb-3">対応待ち各種届出（{{ data.data.pendingChangeRequests.length }}）</div>
+                    <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                        <ExpansionPanelItem
+                            selected-class="selected-panel-item"
+                            hide-actions
+                            static
+                            :tile="true"
+                            class="rm-p"
+                            v-for="(record, index) in data.data.pendingChangeRequests"
+                            :key="record.id ?? index"
+                            :value="record.id ?? index"
+                            :col="Number(data.col?.split('-')[2] ?? 1)"
+                        >
+                            <template #title="{ expanded }">
+                                <PanelTitle :expanded="expanded">
+                                    <div class="flex items-center gap-3 truncate">
+                                        <UserPanel v-if="record.user" :user="record.user" size="25" with-name disable-instant></UserPanel>
+                                    </div>
+                                </PanelTitle>
+                            </template>
+                            <template #body>
+                                <PanelData class="px-4 py-4 pt-0">
+                                    <div>
+                                        <div>申請内容: {{ record.type_label }}</div>
+                                        <div>申請日: {{ DateTime.fromISO(record.created_at).toLocaleString(DateTime.DATETIME_SHORT) }}</div>
+                                        <div>ステータス: {{ record.status_label }}</div>
+                                        <div class="mt-3 ml-auto w-fit">
+                                            <router-link :to="{name: 'employee-change-application-detail', params: { applicationId: record.id }}">詳細</router-link>
                                         </div>
 
                                     </div>
@@ -130,6 +168,7 @@ import ExpansionPanelItem from '../../ExpansionPanelItem.vue';
 import { DashboardPersonnelEvaluationCard } from '@/interface/dashboard';
 import PanelTitle from '../PanelTitle.vue';
 import PanelData from '../PanelData.vue';
+import { DateTime } from 'luxon';
 
 const props = defineProps<{
     data: DashboardPersonnelEvaluationCard
@@ -154,6 +193,8 @@ const detailedData = ref<{
     date: typeof targetDates[0]
     memberData: User
 } | null>(null)
+
+const isFirstHalf = (whichHalf: string | number) => ['first', '1'].includes(String(whichHalf))
 
 const setDetail = (evaluation: EvaluationRecord) => {
     const memberData = evaluation.user

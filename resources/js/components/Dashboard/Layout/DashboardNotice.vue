@@ -68,31 +68,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { DateTime } from 'luxon';
+import { computed, ref } from 'vue';
 import BaseLayout from './BaseLayout.vue';
 import { useAuthUserStore } from '@/store/auth';
 import { useApi } from '@/composables/api';
-import { customParser, urlCheck } from '@/utils/tools';
+import { urlCheck } from '@/utils/tools';
 import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
 import Notice from '@/components/Notice/Notice.vue';
-import { NoticeRecord } from '@/interface/notice';
 import NoticeFiles from '@/components/Notice/NoticeFiles.vue';
+import type { DashboardNoticeCard } from '@/interface/dashboard';
 
 
 const props = defineProps<{
-    data: {
-        title: string
-        data: NoticeRecord[]
-        order?: number
-        type: string
-        canResize?: boolean
-        canFullscreen?: boolean
-        col?: string
-    }
+    data: DashboardNoticeCard
     fullscreen: boolean
 }>()
 

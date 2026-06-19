@@ -30,6 +30,9 @@ class shiftRecord extends Model
     public function department(){
         return $this->belongsTo(ProjectRecord::class, 'department_id');
     }
+    public function planned_leave_change_request(){
+        return $this->hasOne(PlannedLeaveChangeRequest::class, 'shift_record_id', 'id');
+    }
     protected $guarded = [];
 
 }

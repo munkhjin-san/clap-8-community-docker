@@ -54,6 +54,7 @@ function validateRule(rule: ValidationRule, value: any | any[], params?: number)
 }
 
 export async function validator(rules: string, data: any | any[]): Promise<ValidationResult> {
+  if(!rules) return { isValid: true };
   const ruleArray = rules.split('|');
   for (const ruleItem of ruleArray) {
     const [rule, params] = ruleItem.split(':');

@@ -19,6 +19,7 @@ use App\Models\SystemUpdateRecord;
 use App\Models\SystemUpdateCheck;
 use App\Jobs\RemoveOpenAiFaqRecordDocument;
 use App\Jobs\RemoveOpenAiRegulationFilePages;
+use App\Jobs\SendEmergencyNotification;
 use App\Jobs\SyncOpenAiFaqRecord;
 use App\Jobs\SyncOpenAiRegulationFile;
 use App\Services\Faq\OpenAiFaqSyncService;
@@ -1054,7 +1055,9 @@ class SupportController extends Controller
             ]);
 
             $sender = $this->active_user();
-            $messageContent = "緊急連絡がありました\nユーザー: {$sender->name}\n内容: {$request->content}";
+            $messageContent = "【GLOWD】緊急連絡\nユーザー: {$sender->name}\n内容: {$request->content}";
+
+
             $bosses = User::where('position_id', '<', 5)->whereNotNull('email')->get();
             foreach ($bosses as $boss) {
                 if (!filter_var($boss->email, FILTER_VALIDATE_EMAIL)) {
@@ -1070,6 +1073,11 @@ class SupportController extends Controller
                 } catch (\Throwable $exception) {
                     report($exception);
                 }
+            }
+            try {
+                SendEmergencyNotification::dispatch($messageContent);
+            } catch (\Throwable $exception) {
+                report($exception);
             }
 
             return response()->json($create);

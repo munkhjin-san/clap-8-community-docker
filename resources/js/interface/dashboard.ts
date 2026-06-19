@@ -1,10 +1,14 @@
-import { Asset } from "./assetInterface"
-import { CalendarRecord } from "./calendarInterface"
-import { Message, Task, User } from "./globalInterface"
-import { Incident } from "./incident"
-import { Post } from "./postInterface"
-import { Project, ProjectAssignRecord } from "./projectInterface"
-import { Shift } from "./workInterface"
+import type { Asset } from "./assetInterface"
+import type { CalendarRecord } from "./calendarInterface"
+import type { CustomForm } from "./customFormInterface"
+import type { EmployeeChangeApplication } from "./employeeInterface"
+import type { EvaluationRecord } from "./evaluationInterface"
+import type { Message, Task, User } from "./globalInterface"
+import type { Incident } from "./incident"
+import type { NoticeRecord } from "./notice"
+import type { Post } from "./postInterface"
+import type { Project, ProjectAssignRecord } from "./projectInterface"
+import type { PlannedLeaveChangeRequest, Shift, WorkItem } from "./workInterface"
 import type { EmergencyContactRecord } from "./supportInterface"
 
 export type UserWithShift = User & {
@@ -22,78 +26,123 @@ export type CardBase = {
 
 export type DashboardMessageCard = CardBase & {
     layout: 'message'
-    data: Message[]
+    data: DashboardMessageCardData
 }
 
 export type DashboardTaskCard = CardBase & {
     layout: 'task'
-    data: Task[]
+    data: DashboardTaskCardData
 }
 
 export type DashboardSurveyCard = CardBase & {
     layout: 'survey'
-    data: any[]
+    data: DashboardSurveyCardData
 }
 
 export type DashboardOverdueGoalCard = CardBase & {
     layout: 'monthly_goals'
-    data: any
+    data: DashboardOverdueGoalCardData
 }
 export type DashboardProjectCard = CardBase & {
     layout: 'project'
-    data: {
-        officer_approval_waiting: Project[],
-        assign_approval_waiting: ProjectAssignRecord[],
-        comments?: {
-            type: 'project_detail' | 'confirmation_item' | 'finance',
-            project_id: number,
-            project_name: string,
-            section?: string,
-            period?: string,
-            month_label?: string,
-            count: number,
-        }[],
-    }
+    data: DashboardProjectCardData
 }
 export type DashboardChallengeCard = CardBase & {
     layout: 'challenge'
-    data: Post[]
+    data: DashboardChallengeCardData
 }
 
 export type DashboardAssetCard = CardBase & {
     layout: 'assets'
-    data: {
-        in_use: Asset[]
-        waiting_approval?: Asset[]
-    }
+    data: DashboardAssetCardData
 }
 
 export type DashboardIncidentCard = CardBase & {
     layout: 'incidents'
-    data: {
-        attention: Incident[]
-        emergency_contacts?: EmergencyContactRecord[]
-    }
+    data: DashboardIncidentCardData
 }
 
 export type DashboardScheduleCard = CardBase & {
     layout: 'schedules'
-    data: {
-        temp_schedules: CalendarRecord[]
-    }
+    data: DashboardScheduleCardData
 }
 export type DashboardPersonnelEvaluationCard = CardBase & {
     layout: 'personnelEvaluation'
-    data: {
-        pendingEvaluations: any[],
-        pendingAssignments: ProjectAssignRecord[],
-    }
+    data: DashboardPersonnelEvaluationCardData
 }
 export type DashboardNoticeCard = CardBase & {
     layout: 'notice'
-    data: any[]
+    data: DashboardNoticeCardData
 }
-export type pendingTimesheedData = {
+
+export type DashboardMessageCardData = Message[]
+export type DashboardTaskCardData = Task[]
+export type DashboardSurveyCardData = CustomForm[]
+export type DashboardOverdueGoalCardData = unknown[]
+export type DashboardChallengeData = Omit<Post, 'id'> & {
+    id: number | string
+    relay_id?: number
+    attention_type?: 'nice_follow_up' | 'progress_need' | 'update_need' | 'challenge_relay_received' | 'challenge_relay_returned'
+    attention_checkpoint?: number
+    attention_deadline?: string | null
+    attention_is_overdue?: boolean
+    attention_progress_percent?: number
+    declined_by_user?: User | null
+    source_post_id?: number
+    source_post_title?: string | null
+}
+export type DashboardChallengeCardData = DashboardChallengeData[]
+export type DashboardNoticeCardData = NoticeRecord[]
+export type DashboardSystemUpdatesData = number[]
+export type DashboardPendingDailyReportsData = unknown[]
+export type DashboardPendingGoalsForHrData = User[]
+
+export type DashboardProjectCommentData = {
+    type: 'project_detail' | 'confirmation_item' | 'finance',
+    project_id: number,
+    project_name: string,
+    section?: string,
+    period?: string,
+    month_label?: string,
+    count: number,
+}
+
+export type DashboardProjectCardData = {
+    officer_approval_waiting: Project[],
+    assign_approval_waiting: ProjectAssignRecord[],
+    comments?: DashboardProjectCommentData[],
+}
+
+export type DashboardAssetCardData = {
+    in_use: Asset[]
+    waiting_approval: Asset[]
+}
+
+export type DashboardIncidentCardData = {
+    attention: Incident[]
+    emergency_contacts: EmergencyContactRecord[]
+}
+
+export type DashboardScheduleCardData = {
+    temp_schedules: CalendarRecord[]
+    this_week_schedules: CalendarRecord[]
+    next_week_schedules: CalendarRecord[]
+}
+
+export type DashboardPersonnelEvaluationCardData = {
+    pendingEvaluations: EvaluationRecord[],
+    pendingAssignments: ProjectAssignRecord[],
+    pendingChangeRequests: EmployeeChangeApplication[] | null,
+}
+
+export type DashboardPendingPlannedLeave = {
+    date: string,
+    endDate: string,
+    remaining_days: number,
+    tempData: WorkItem,
+}
+
+export type PendingTimesheetData = {
     overtime: number
     shift: {
         month: number
@@ -125,16 +174,18 @@ export type AutoApprovedTimesheetData = {
 }
 export type DashboardTimesheetCard = CardBase & {
     layout: 'timesheet'
-    data: {
-        pendingTimesheets: pendingTimesheedData[]
-        autoApprovedTimesheets: AutoApprovedTimesheetData[]
-        departuresReportUsers: UserWithShift[],
-        pendingPlannedLeaves: any[],
-        pendingAttendance?: {
-            user_id: number
-            date_year_month: string
-        } | null
-    }
+    data: DashboardTimesheetCardData
+}
+export type DashboardTimesheetCardData = {
+    pendingTimesheets: PendingTimesheetData[]
+    autoApprovedTimesheets: AutoApprovedTimesheetData[]
+    departuresReportUsers: UserWithShift[],
+    pendingPlannedLeaves: DashboardPendingPlannedLeave[],
+    pendingAttendance?: {
+        user_id: number
+        date_year_month: string
+    } | null,
+    pendingPlannedLeaveChangeRequests: PlannedLeaveChangeRequest[],
 }
 export type SpanRequiredGoalData = {
     year: number,
@@ -148,5 +199,120 @@ export type GoalRequiredData = {
     this_span: SpanRequiredGoalData,
     previous_span: SpanRequiredGoalData,
 }
+
+export type DashboardCollectionData = {
+    pendingEvaluations: EvaluationRecord[]
+    assets: DashboardAssetCardData
+    incidents: DashboardIncidentCardData
+    overdueGoals: DashboardOverdueGoalCardData
+    challenges: DashboardChallengeCardData
+    forms: DashboardSurveyCardData
+    pendingApprovalTasks: DashboardTaskCardData
+    pendingGoalsUserForHR: DashboardPendingGoalsForHrData
+    remindedMessages: DashboardMessageCardData
+    schedules: DashboardScheduleCardData
+    pendingDailyReports: DashboardPendingDailyReportsData
+    mustCheckMessages: DashboardMessageCardData
+    mustSignMessages: DashboardMessageCardData
+    unfinishedTasks: DashboardTaskCardData
+    untouchedTasks: DashboardTaskCardData
+    personnelEvaluation: DashboardPersonnelEvaluationCardData
+    timesheet: DashboardTimesheetCardData
+    projects: DashboardProjectCardData
+    notices: DashboardNoticeCardData
+    systemUpdates: DashboardSystemUpdatesData
+    overdueGraveCount?: number
+}
+
+export type DashboardResponseData = Partial<Omit<DashboardCollectionData, 'overdueGraveCount'>> & {
+    overdueGraveCount?: number | {
+        overdueGoals?: DashboardCollectionData['overdueGoals']
+        overdueGraveCount?: number
+    }
+}
+
+export const DASHBOARD_COLLECTION_KEYS = [
+    'pendingEvaluations',
+    'assets',
+    'incidents',
+    'overdueGoals',
+    'challenges',
+    'forms',
+    'pendingApprovalTasks',
+    'pendingGoalsUserForHR',
+    'remindedMessages',
+    'schedules',
+    'pendingDailyReports',
+    'mustCheckMessages',
+    'mustSignMessages',
+    'unfinishedTasks',
+    'untouchedTasks',
+    'personnelEvaluation',
+    'timesheet',
+    'projects',
+    'notices',
+    'systemUpdates',
+] as const
+
+export type DashboardCollectionKey = typeof DASHBOARD_COLLECTION_KEYS[number]
+
+export const createDashboardAssetCardData = (): DashboardAssetCardData => ({
+    in_use: [],
+    waiting_approval: [],
+})
+
+export const createDashboardIncidentCardData = (): DashboardIncidentCardData => ({
+    attention: [],
+    emergency_contacts: [],
+})
+
+export const createDashboardScheduleCardData = (): DashboardScheduleCardData => ({
+    temp_schedules: [],
+    this_week_schedules: [],
+    next_week_schedules: [],
+})
+
+export const createDashboardPersonnelEvaluationCardData = (): DashboardPersonnelEvaluationCardData => ({
+    pendingEvaluations: [],
+    pendingAssignments: [],
+    pendingChangeRequests: [],
+})
+
+export const createDashboardTimesheetCardData = (): DashboardTimesheetCardData => ({
+    pendingTimesheets: [],
+    departuresReportUsers: [],
+    pendingPlannedLeaves: [],
+    pendingAttendance: null,
+    pendingPlannedLeaveChangeRequests: [],
+    autoApprovedTimesheets: [],
+})
+
+export const createDashboardProjectCardData = (): DashboardProjectCardData => ({
+    officer_approval_waiting: [],
+    assign_approval_waiting: [],
+})
+
+export const createDashboardCollectionData = (): DashboardCollectionData => ({
+    pendingEvaluations: [],
+    assets: createDashboardAssetCardData(),
+    incidents: createDashboardIncidentCardData(),
+    overdueGoals: [],
+    challenges: [],
+    forms: [],
+    pendingApprovalTasks: [],
+    pendingGoalsUserForHR: [],
+    remindedMessages: [],
+    schedules: createDashboardScheduleCardData(),
+    pendingDailyReports: [],
+    mustCheckMessages: [],
+    mustSignMessages: [],
+    unfinishedTasks: [],
+    untouchedTasks: [],
+    personnelEvaluation: createDashboardPersonnelEvaluationCardData(),
+    timesheet: createDashboardTimesheetCardData(),
+    projects: createDashboardProjectCardData(),
+    notices: [],
+    systemUpdates: [],
+})
 
 export type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard | DashboardAssetCard | DashboardIncidentCard | DashboardScheduleCard | DashboardPersonnelEvaluationCard | DashboardTimesheetCard | DashboardNoticeCard | DashboardProjectCard 
