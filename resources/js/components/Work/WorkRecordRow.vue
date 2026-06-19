@@ -923,9 +923,33 @@ const canApproveProjectSegment = (segment) => {
 const canCancelProjectSegment = (segment) => {
     return segment?.status === 'approved' && canManageProjectSegment(segment)
 }
+const firstSegmentForProject = (segment) => {
+    const projectId = segmentProjectId(segment)
+    return projectSegments.value.find(rowSegment => Number(segmentProjectId(rowSegment)) === projectId)
+}
+const isFirstSegmentForProject = (segment) => firstSegmentForProject(segment) === segment
+const isSegmentLinkedRecord = (record) => Number(record?.timecard_project_segment_id ?? 0) > 0
 const projectCostsForSegment = (segment) => {
+    const costs = timeCard.value?.timecard_costs ?? []
+    const segmentId = Number(segment?.id ?? 0)
+
+    if (segmentId > 0) {
+        const exactCosts = costs.filter(cost => Number(cost?.timecard_project_segment_id ?? 0) === segmentId)
+        if (exactCosts.length || costs.some(isSegmentLinkedRecord)) {
+            return exactCosts
+        }
+    }
+
+    if (!isFirstSegmentForProject(segment)) return []
+
+    const projectId = segmentProjectId(segment)
     const projectName = segmentProjectName(segment)
-    return (timeCard.value?.timecard_costs ?? []).filter(cost => cost.department === projectName)
+    return costs.filter(cost => {
+        if (isSegmentLinkedRecord(cost)) return false
+        const costProjectId = Number(cost?.project_id ?? 0)
+        if (costProjectId > 0) return costProjectId === projectId
+        return cost.department === projectName
+    })
 }
 const costSummaryForSegment = (segment) => {
     const costs = projectCostsForSegment(segment)
@@ -945,6 +969,8 @@ const costDetailSummaryForSegment = (segment) => {
     }).join('\n')
 }
 const actualCasesForSegment = (segment) => {
+    if (!isFirstSegmentForProject(segment)) return []
+
     const projectId = segmentProjectId(segment)
     return (timeCard.value?.project_case ?? []).filter(actualCase => Number(actualCase.project_record_id) === projectId)
 }
@@ -1123,6 +1149,8 @@ const mileageForSegment = (segment) => {
         const gas = toNum(mileage.gas_full_price)
         return `マイカー : ${km ? `${km}km` : ''}${gas ? ` ${yenFmt.format(gas)}円` : ''}`.trim()
     }
+    if (!segment?.legacy && projectSegments.value.length) return ''
+
     const tc = timeCard.value
     const matchesProject = Number(tc?.car_used_project) === segmentProjectId(segment)
     return matchesProject && mileageFormatted.value ? mileageFormatted.value : ''
@@ -1134,6 +1162,8 @@ const mileageChipLabelForSegment = (segment) => {
         const gas = toNum(mileage.gas_full_price)
         return `マイカー ${km ? `${km}km` : ''}${gas ? ` ${yenFmt.format(gas)}円` : ''}`.trim()
     }
+    if (!segment?.legacy && projectSegments.value.length) return ''
+
     const tc = timeCard.value
     if (Number(tc?.car_used_project) !== segmentProjectId(segment)) return ''
 
@@ -1162,7 +1192,7 @@ const mileageDetailForSegment = (segment) => {
         return parts.join('\n')
     }
 
-    return mileageDetail.value
+    return segment?.legacy ? mileageDetail.value : ''
 }
 const shortDetailText = (value, limit = 12) => {
     const text = String(value ?? '').replace(/\s+/g, ' ').trim()
