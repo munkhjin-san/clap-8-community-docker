@@ -879,6 +879,36 @@ import { useTour } from '@/composables/useTour';
         const name = projectName(projectId)
         return Boolean(name && cost?.department === name)
     }
+    const projectSegmentKeyTime = (time) => {
+        if (!time) return null
+        const [hours, minutes] = String(time).split(':')
+        return `${hours}:${minutes}`
+    }
+    const projectSegmentMatchKey = (entry) => {
+        return [
+            Number(entry?.project_id ?? 0),
+            entryType(entry),
+            projectSegmentKeyTime(entry?.start_time),
+            projectSegmentKeyTime(entry?.end_time),
+        ].join('|')
+    }
+    const firstEntryForProject = (entry, entries = projectTimeEntries.value) => {
+        return entries.find(item => Number(item?.project_id ?? 0) === Number(entry?.project_id ?? 0))
+    }
+    const costBelongsToProjectEntry = (cost, entry, entries = projectTimeEntries.value) => {
+        if (!entry?.project_id) return false
+
+        if (cost?.project_entry_key) {
+            return cost.project_entry_key === entry.key
+        }
+
+        const segmentId = Number(cost?.timecard_project_segment_id ?? 0)
+        if (segmentId > 0) {
+            return Number(entry.id ?? 0) === segmentId
+        }
+
+        return firstEntryForProject(entry, entries)?.key === entry.key && costBelongsToProject(cost, entry.project_id)
+    }
     const projectForId = (projectId) => {
         return workGroupAsOptions.value.find(group => Number(group.id) === Number(projectId))
             ?? (Number(selectedProject.value?.id) === Number(projectId) ? selectedProject.value : null)
@@ -901,7 +931,7 @@ import { useTour } from '@/composables/useTour';
     const projectCostIndexes = (entry) => {
         if (!entry?.project_id) return []
         return costs
-            .map((cost, index) => costBelongsToProject(cost, entry.project_id) ? index : -1)
+            .map((cost, index) => costBelongsToProjectEntry(cost, entry) ? index : -1)
             .filter(index => index !== -1)
     }
     const isProjectDetailVisible = (entry, type) => {
@@ -1041,11 +1071,39 @@ import { useTour } from '@/composables/useTour';
             ensureActualRowsForProject(entry)
         }
     }
+    const costHasProjectEntryOwner = (cost) => {
+        return Boolean(cost?.project_entry_key) || Number(cost?.timecard_project_segment_id ?? 0) > 0
+    }
+    const costBelongsExactlyToProjectEntry = (cost, entry) => {
+        if (!entry) return false
+
+        if (cost?.project_entry_key) {
+            return cost.project_entry_key === entry.key
+        }
+
+        const segmentId = Number(cost?.timecard_project_segment_id ?? 0)
+        return segmentId > 0 && Number(entry.id ?? 0) === segmentId
+    }
     const removeCostsForProjectId = (projectId) => {
         if (!projectId) return
 
         for (let index = costs.length - 1; index >= 0; index--) {
             if (costBelongsToProject(costs[index], projectId)) {
+                costs.splice(index, 1)
+            }
+        }
+    }
+    const removeCostsForProjectEntry = (entry, fallbackProjectId = entry?.project_id) => {
+        if (!entry && !fallbackProjectId) return
+
+        const fallbackEntry = entry ? { ...entry, project_id: fallbackProjectId } : null
+        const shouldRemoveProjectFallback = fallbackProjectId && !hasOtherProjectDetail(fallbackProjectId, 'expenses', entry)
+        for (let index = costs.length - 1; index >= 0; index--) {
+            const cost = costs[index]
+            const exactMatch = costBelongsExactlyToProjectEntry(cost, entry)
+            const fallbackMatch = !costHasProjectEntryOwner(cost)
+                && (costBelongsToProjectEntry(cost, fallbackEntry) || (shouldRemoveProjectFallback && costBelongsToProject(cost, fallbackProjectId)))
+            if (exactMatch || fallbackMatch) {
                 costs.splice(index, 1)
             }
         }
@@ -1064,17 +1122,15 @@ import { useTour } from '@/composables/useTour';
         const projectId = entry?.project_id
         if (!projectId) return
 
-        if (isProjectDetailVisible(entry, 'expenses') && !hasOtherProjectDetail(projectId, 'expenses', entry)) {
-            removeCostsForProjectId(projectId)
+        if (isProjectDetailVisible(entry, 'expenses')) {
+            removeCostsForProjectEntry(entry)
         }
         if (isProjectDetailVisible(entry, 'actual') && !hasOtherProjectDetail(projectId, 'actual', entry)) {
             removeActualRowsForProjectId(projectId)
         }
     }
     const clearProjectOwnedDetailsAfterProjectChange = (entry, previousProjectId) => {
-        if (!hasOtherProjectDetail(previousProjectId, 'expenses', entry)) {
-            removeCostsForProjectId(previousProjectId)
-        }
+        removeCostsForProjectEntry(entry, previousProjectId)
         if (!hasOtherProjectDetail(previousProjectId, 'actual', entry)) {
             removeActualRowsForProjectId(previousProjectId)
         }
@@ -1105,9 +1161,7 @@ import { useTour } from '@/composables/useTour';
         const stillVisible = projectTimeEntries.value.some(projectEntry => isProjectDetailVisible(projectEntry, type))
 
         if (type === 'expenses') {
-            if (!hasOtherProjectDetail(entry?.project_id, 'expenses', entry)) {
-                removeCostsForProjectId(entry?.project_id)
-            }
+            removeCostsForProjectEntry(entry)
         }
         if (type === 'mileage') {
             ensureProjectDetailValues(entry).mileage = buildProjectDetailValues().mileage
@@ -1361,10 +1415,12 @@ import { useTour } from '@/composables/useTour';
         if (!value) return null
         return String(value).split('T')[0]
     }
-    const buildEmptyCost = (department = costDepartment.value ?? '', projectId = null, projectSegmentId = null) => ({
+    const buildEmptyCost = (department = costDepartment.value ?? '', projectId = null, projectSegmentId = null, projectEntryKey = null, projectSegmentKey = null) => ({
         department,
         project_id: projectId,
         timecard_project_segment_id: projectSegmentId,
+        project_entry_key: projectEntryKey,
+        project_segment_key: projectSegmentKey,
         content: '',
         type: props.item.position_id == 15 ? 1 : 4,
         transport_type: 1,
@@ -1641,12 +1697,12 @@ import { useTour } from '@/composables/useTour';
         { immediate: true }
     )
     const unitLabel = computed(() => unitLabelForProject(selectedProject.value));
-    const addCostField = (department = costDepartment.value ?? '', projectId = null, projectSegmentId = null) => {
+    const addCostField = (department = costDepartment.value ?? '', projectId = null, projectSegmentId = null, projectEntryKey = null, projectSegmentKey = null) => {
         if(costs.length >= 10){
             ping('上限は10個です。')
             return
         }
-        costs.push(buildEmptyCost(department, projectId, projectSegmentId))
+        costs.push(buildEmptyCost(department, projectId, projectSegmentId, projectEntryKey, projectSegmentKey))
     }
     const addCostFieldForProject = (entry) => {
         const department = projectName(entry?.project_id)
@@ -1654,7 +1710,7 @@ import { useTour } from '@/composables/useTour';
             ping('プロジェクトを選択してください。')
             return
         }
-        addCostField(department, entry.project_id, entry.id ?? null)
+        addCostField(department, entry.project_id, entry.id ?? null, entry.key, projectSegmentMatchKey(entry))
     }
     const removeCostField = async(index) => {
         costs.splice(index, 1)
@@ -2449,29 +2505,24 @@ import { useTour } from '@/composables/useTour';
         .map(entry => Number(entry.project_id))
     )
     const costsForPayload = () => {
-        const expenseProjectIds = projectIdsWithDetailForPayload('expenses')
-        const expenseDepartments = new Set([...expenseProjectIds]
-            .map(projectId => projectName(projectId))
-            .filter(Boolean)
-        )
+        const expenseEntries = projectTimeEntries.value.filter(entry => isProjectDetailVisible(entry, 'expenses') && entry.project_id)
 
         return costs
-            .filter(cost => {
-                const projectId = costProjectId(cost)
-                if (projectId !== null) {
-                    return expenseProjectIds.has(projectId)
-                }
-
-                return expenseDepartments.has(cost.department)
-            })
             .map(cost => {
-                const projectId = costProjectId(cost)
+                const entry = expenseEntries.find(expenseEntry => costBelongsToProjectEntry(cost, expenseEntry, expenseEntries))
+                if (!entry) return null
+
+                const projectId = Number(entry.project_id)
                 return {
                     ...cost,
                     project_id: projectId,
+                    timecard_project_segment_id: entry.id ?? cost.timecard_project_segment_id ?? null,
+                    project_entry_key: entry.key,
+                    project_segment_key: projectSegmentMatchKey(entry),
                     department: cost.department || projectName(projectId),
                 }
             })
+            .filter(Boolean)
     }
     const actualRowsForPayload = () => {
         const actualProjectIds = projectIdsWithDetailForPayload('actual')
@@ -2549,6 +2600,7 @@ import { useTour } from '@/composables/useTour';
                 })) : [],
                 project_time_entries: includesProjectTimeEntries.value ? projectTimeEntries.value.map((entry, index) => ({
                     id: entry.id,
+                    client_key: projectSegmentMatchKey(entry),
                     project_id: entry.project_id,
                     segment_type: entryType(entry),
                     start_time: formatTime(entry.start_time),
