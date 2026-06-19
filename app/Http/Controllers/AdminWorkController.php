@@ -681,7 +681,6 @@ class AdminWorkController extends Controller{
                             'shift_day' => $changeRequest->requested_date->toDateString(),
                         ],
                     ], $changeRequest->user_id, $this->plannedLeaveStartDate($changeRequest));
-                    $changeRequest->shift_record_id = $updatedShifts[0]->id ?? $changeRequest->shift_record_id;
                 }
 
                 $changeRequest->approver_id = $user->id;
