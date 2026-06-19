@@ -422,20 +422,28 @@ class AdminWorkController extends Controller{
     private function timecardDepartmentRows($record, string $userName): array
     {
         $month = Carbon::parse($record->day)->format('Y-m');
-        $segments = $record->project_segments ?? collect();
-        if ($segments->isNotEmpty()) {
-            return $segments
-                ->filter(fn ($segment) => $segment->project?->name)
-                ->unique(fn ($segment) => (int) ($segment->project_id ?? $segment->project?->id))
-                ->map(fn ($segment) => [
-                    'department' => $segment->project->name,
-                    'username' => $userName,
-                    'month' => $month,
-                    'work_time' => (int) $segment->where('segment_type', TimecardProjectSegment::TYPE_WORK)->sum('minutes'),
-                ])
-                ->values()
-                ->all();
-        }
+
+$segments = $record->project_segments ?? collect();
+
+if ($segments->isNotEmpty()) {
+    return $segments
+        ->filter(fn ($segment) => $segment->project?->name)
+        ->groupBy(fn ($segment) => (int) ($segment->project_id ?? $segment->project?->id))
+        ->map(function ($projectSegments) use ($userName, $month) {
+            $project = $projectSegments->first()->project;
+
+            return [
+                'department' => $project->name,
+                'username' => $userName,
+                'month' => $month,
+                'work_time' => (int) $projectSegments
+                    ->where('segment_type', TimecardProjectSegment::TYPE_WORK)
+                    ->sum('minutes'),
+            ];
+        })
+        ->values()
+        ->all();
+}
 
         $departmentName = $record['department']['name'] ?? null;
         if (!$departmentName) {
