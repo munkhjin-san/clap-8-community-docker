@@ -84,18 +84,7 @@
                         />
                     </div>
                     
-                    <div class="si-box">
-                        <p class="mb-2">区分</p>
-                        <div class="kind-toggle">
-                            <button
-                                type="button"
-                                class="kind-chip active"
-                            >
-                                目標値
-                            </button>
-                        </div>
-                    </div>
-                   
+                    
                     <div class="si-box" id="resultInput">
                         <ShortInput 
                             v-model="params.amount"
@@ -195,7 +184,6 @@ const actualStatusOptions = computed(() => {
 const hasGoals = computed(() => selectedProject.value?.has_goals ?? false);
 const auth = useAuthUserStore()
 type Params = {
-    client_name: string
     amount: string
     actual_status_label: string | null
     entry_type: 'actual' | 'goal'
@@ -208,7 +196,6 @@ const manager = computed(() => {
 })
 const defaultPeriod = props.selectedCase?.reportDate ?? DateTime.now().startOf('month').toISODate();
 const params = reactive<Params>({
-    client_name: '',
     amount: '',
     actual_status_label: null,
     entry_type: 'goal',
@@ -316,7 +303,6 @@ watch(
 const hasPrivilage = computed(() => props.hasPrivilage);
 
 const resetForm = () => {
-    params.client_name = '';
     params.amount = '';
     params.notes = '';
     params.actual_status_label = actualStatusOptions.value[0]?.value ?? null;
@@ -337,7 +323,6 @@ const editCase = () => {
     if (!viewData.value) return;
     editingCaseId.value = viewData.value.id;
     suspendAutoFetch.value = true;
-    params.client_name = viewData.value.client_name ?? '';
     params.amount = String(viewData.value.amount ?? '');
     params.actual_status_label = viewData.value.status || actualStatusOptions.value[0]?.value || null;
     params.notes = viewData.value.notes ?? '';
@@ -356,7 +341,6 @@ const submitCase = async (type: 1 | 2) => {
     const statusLabel = params.entry_type === 'goal' ? '目標値' : (params.actual_status_label || '実績');
     const payload = {
         actual_status_label: statusLabel,
-        client_name: params.client_name.trim() || null,
         case_count: 0,
         amount: Number.isNaN(amount) ? 0 : amount,
         notes: params.notes || null,
@@ -539,23 +523,5 @@ onMounted(() => {
 .ghost-button {
     background: var(--background-color);
     padding: 6px 10px;
-}
-.kind-toggle {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-.kind-chip {
-    border: 1px solid var(--normalBorder);
-    padding: 6px 12px;
-    font-size: 13px;
-    background: var(--background-color);
-    color: var(--primary-color);
-    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-}
-.kind-chip.active {
-    background: var(--hoverBorder);
-    border-color: var(--hoverBorder);
-    color: #fff;
 }
 </style>

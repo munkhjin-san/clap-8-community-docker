@@ -38,11 +38,23 @@ class timecardCostRecord extends Model
         return $this->belongsTo(TimecardReceiptFile::class, 'receipt_file_id');
     }
 
+    public function project()
+    {
+        return $this->belongsTo(ProjectRecord::class, 'project_id');
+    }
+
+    public function projectSegment()
+    {
+        return $this->belongsTo(TimecardProjectSegment::class, 'timecard_project_segment_id');
+    }
+
     protected $casts = [
         'receipt_date' => 'string',
         'file_uploaded_at' => 'datetime',
         'file_size_bytes' => 'int',
         'expenses' => 'float',
+        'project_id' => 'int',
+        'timecard_project_segment_id' => 'int',
         'transport_type' => 'int',
         'scan_dpi' => 'int',
         'scan_color_depth' => 'int',

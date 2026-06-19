@@ -65,9 +65,10 @@ class ShiftService
             ->when($requestedShiftType === 3, fn ($q) => $q->where('shift_type', 3))
             ->with([
                 'shiftType:id,name,abbreviation,value,full_day',
+                'department:id,name',
                 'old_shift' => fn ($q) =>
                     $q->withTrashed()
-                      ->select('id', 'shift_day', 'shift_type')
+                      ->select('id', 'shift_day', 'shift_type', 'department_id')
                       ->with(['shiftType:id,name,abbreviation,value'])
             ])
             ->orderByDesc('created_at')
@@ -125,6 +126,7 @@ class ShiftService
                 $user->position_id == 12,
                 fn ($q) => $q->whereNotIn('id', [19,20,21,22,23,24,25,26])
             )
+            ->whereNotIn('id', shiftType::UNUSED_IDS)
             ->get();
     }
 

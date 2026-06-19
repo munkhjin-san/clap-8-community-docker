@@ -6,7 +6,7 @@
                     <div @click="byWorkGroups = 0" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 0 }]">メンバー</div>
                     <div @click="byWorkGroups = 1" :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 1 }]">プロジェクト</div>
                     <div
-                        v-if="auth.activeUser.id === 610 || auth.activeUser.id === 608"
+                        v-if="auth.isAdmin"
                         @click="byWorkGroups = 2"
                         :class="['sub-tab-item', { 'selected-sub-tab': byWorkGroups == 2 }]"
                     >

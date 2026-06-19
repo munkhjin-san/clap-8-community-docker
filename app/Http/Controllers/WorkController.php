@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 use App\Models\ProjectRecord;
 use App\Models\timecardBreakRecord;
 use App\Models\timecardIncentive;
-use DateTime;
 use App\Models\User;
 
 use App\Models\shiftType;
@@ -20,6 +19,7 @@ use App\Models\workTemp;
 use App\Models\attendanceRecord;
 use App\Models\ShiftOvertimeRequest;
 use App\Models\ProjectCase;
+use App\Models\TimecardProjectSegment;
 use App\Models\TimecardCostOcrRun;
 use App\Models\PlannedLeaveChangeRequest;
 use App\Services\SharedService;
@@ -36,6 +36,8 @@ use Illuminate\Support\Str;
 use App\Infrastructure\Kintone\KintoneClient;
 use App\Services\TimeSheet\AutoAttendanceConfirm;
 use App\Services\TimeSheet\ShiftService;
+use App\Services\TimeSheet\WorkReportTimeService;
+use App\Services\PaidLeaveLedgerService;
 class WorkController extends Controller
 {
     protected $sharedService;
@@ -46,7 +48,9 @@ class WorkController extends Controller
         private readonly TimecardAuditLogService $timecardAuditLogService,
         private readonly TimecardReceiptStorageService $timecardReceiptStorageService,
         private readonly WorkReceiptOcrService $workReceiptOcrService,
-        private readonly ShiftService $shiftService
+        private readonly ShiftService $shiftService,
+        private readonly WorkReportTimeService $workReportTimeService,
+        private readonly PaidLeaveLedgerService $paidLeaveLedger
     ) {
         $this->sharedService = $sharedService;
     }
@@ -57,6 +61,10 @@ class WorkController extends Controller
         }else{
             return Auth::user();
         }
+    }
+    private function canExportWorkCsv(User $user): bool
+    {
+        return $user->isAdmin() || (int) $user->position_id === 6;
     }
     //
     public function index(Request $request){
@@ -88,6 +96,17 @@ class WorkController extends Controller
         $month_work_time = $time_card_record->pluck('total_work_time', 'user_id');
 
         $month_mileage = $time_card_record->pluck('total_car_mileage', 'user_id');
+
+        $month_training_minutes = TimecardProjectSegment::query()
+            ->join('timecard_records', 'timecard_project_segments.timecard_record_id', '=', 'timecard_records.id')
+            ->selectRaw('timecard_records.user_id as user_id, SUM(timecard_project_segments.minutes) as total_training_minutes')
+            ->whereYear('timecard_records.day', $currentYear)
+            ->whereMonth('timecard_records.day', $currentMonth)
+            ->whereIn('timecard_records.user_id', $users_list)
+            ->where('timecard_records.deleted_flag', 0)
+            ->where('timecard_project_segments.segment_type', TimecardProjectSegment::TYPE_TRAINING)
+            ->groupBy('timecard_records.user_id')
+            ->pluck('total_training_minutes', 'user_id');
 
     
         $user_record = User::whereIn('id', $users_list)
@@ -219,6 +238,7 @@ class WorkController extends Controller
             $month_average_data[] = [
                 'month_over_time' => (isset($month_over_time[$user->id]) && $month_over_time[$user->id] >= 0) ? $month_over_time[$user->id] : null,
                 'month_work_time' => $month_work_time[$user->id] ?? null,
+                'month_training_minutes' => (isset($month_training_minutes[$user->id]) && $month_training_minutes[$user->id] >= 0) ? (int) $month_training_minutes[$user->id] : null,
                 'month_weather_average' => $mostCommonWeatherPerUser[$user->id] ?? null,
                 'month_achievement_average' => $mostCommonAchievementPerUser[$user->id] ?? null,
                 'month_should_work_time' => $shift_work_hours,
@@ -239,7 +259,7 @@ class WorkController extends Controller
                 'user_name' => $user->name,
                 'user_id' => $user->id,
                 'work_type' => $user->work_type,
-                'access_csv' => $active_user->id == 610 || $active_user->id == 608 || $active_user->position_id == 6,
+                'access_csv' => $this->canExportWorkCsv($active_user),
                 'shift_work_hours' => $shift_work_hours,
                 'workdayNum' => $workdayNum,
                 'month_mileage' => (isset($month_mileage[$user->id]) && $month_mileage[$user->id] >= 0) ? (int) $month_mileage[$user->id] : null,
@@ -257,10 +277,10 @@ class WorkController extends Controller
         $requestDateString = $request->current_date;
         $active_user = $this->active_user();
         $users_list = $request->work_group ?? [];
-        if (($key = array_search(Auth::id(), $users_list)) !== false) {
+        if (($key = array_search($active_user->id, $users_list)) !== false) {
             unset($users_list[$key]);
         
-            array_unshift($users_list, Auth::id());
+            array_unshift($users_list, $active_user->id);
         }
         [$year, $month] = explode("-", $requestDateString);
         $vehicleType = $request->vehicles ?? [];
@@ -269,7 +289,7 @@ class WorkController extends Controller
                 ->orWhereHas('time_card_records', function ($q) use ($year, $month, $vehicleType) {
                     $q->whereYear('day', $year)
                     ->whereMonth('day', $month)
-                    ->whereHas('vehicle_data', function ($subQuery) use ($vehicleType) {
+                    ->whereHas('vehicle_records', function ($subQuery) use ($vehicleType) {
                         $subQuery->whereIn('vehicle', $vehicleType);
                     });
                 });
@@ -279,7 +299,7 @@ class WorkController extends Controller
                 $q->whereYear('day', $year)
                   ->whereMonth('day', $month);
                 if (!empty($vehicleType)) {
-                    $q->whereHas('vehicle_data', function ($subQuery) use ($vehicleType) {
+                    $q->whereHas('vehicle_records', function ($subQuery) use ($vehicleType) {
                         $subQuery->whereIn('vehicle', $vehicleType);
                     });
                 }
@@ -327,16 +347,25 @@ class WorkController extends Controller
                     },
                     'total_break_time',
                     'department' => function ($q) {
-                        $q->with('members')->with('manager');
+                        $q->select('id', 'name', 'unit_id', 'custom_unit_label');
                     },
                     'vehicle_data' => function ($q) {
+                        $q->with('before_user')->with('after_user');
+                    },
+                    'vehicle_records' => function ($q) {
                         $q->with('before_user')->with('after_user');
                     },
                     'car_project' => function ($q) {
                         $q->select('id', 'name');
                     },
                     'project_case' => function ($q) {
-                        $q->select('id', 'amount', 'status', 'timecard_record_id', 'meta');
+                        $q->with('project:id,name,unit_id,custom_unit_label,has_actual_func,actual_statuses')
+                            ->select('id', 'project_record_id', 'amount', 'status', 'timecard_record_id', 'meta');
+                    },
+                    'project_segments' => function ($q) {
+                        $q->with(['project' => function ($query) {
+                            $query->select('id', 'name', 'unit_id', 'custom_unit_label', 'has_actual_func', 'actual_statuses')->with('manager:id,name,icon_path,icon_bg');
+                        }]);
                     },
                 ]);
             },
@@ -367,8 +396,15 @@ class WorkController extends Controller
         $users = $users->get();
         $lastIndex = !empty($users) ? count($users) - 1 : null;
         $recordList = [];
+        $managedProjectIds = $this->managedShiftProjectIds($active_user);
         $timeCardRecords = $users->flatMap->time_card_records->groupBy('user_id');
         $shiftRecords = $users->flatMap->shift_records->groupBy('user_id')->map->keyBy('shift_day');
+        $overtimeRequests = ShiftOvertimeRequest::query()
+            ->whereYear('overtime_day', $year)
+            ->whereMonth('overtime_day', $month)
+            ->whereIn('user_id', $users_list)
+            ->get()
+            ->keyBy(fn (ShiftOvertimeRequest $request) => (int) $request->user_id . '|' . Carbon::parse($request->overtime_day)->format('Y-m-d'));
         $customFieldData = $users->flatMap->custom_field_data_records->groupBy('user_id')->map->keyBy('date');
         $attendanceRecords = $users->flatMap->attendance_records->groupBy('user_id')->map->keyBy('date_year_month');
         for ($day = 1; $day <= cal_days_in_month(CAL_GREGORIAN, $month, $year); $day++) {
@@ -382,29 +418,20 @@ class WorkController extends Controller
                             ? $timeCardRecords[$userId]->firstWhere('day', $targetShiftDay)
                             : null;
                 $shift = $shiftRecords[$userId][$targetShiftDay] ?? null;
-                $department = $time_card?->department;
-                $authority = false;  
-                if($department) {
-                    $manager = $department->manager;
-                    $currentUserAuthority = $manager->first(function ($member) {
-                        return $member->id == Auth::id();
-                    });
-                    $members = $department->members;
-                    if($currentUserAuthority){
-                        $otherMembers = $members->filter(function ($member) {
-                            return $member->id !== Auth::id();
-                        })->pluck('id')->all();
-                        $authority = in_array($user->id, $otherMembers);
-                    }
+                $overtimeRequestForDay = $overtimeRequests->get($userId . '|' . $targetShiftDay);
+                if ($shift && $overtimeRequestForDay && !$shift->overtime_request) {
+                    $shift->setRelation('overtime_request', $overtimeRequestForDay);
                 }
+                $authority = $this->hasTimesheetManagerAuthority($active_user, $user, $time_card, $shift, $managedProjectIds);
                 
                 
                 
-                $overtime_reason = $time_card ? $time_card->custom_field_data_records->firstWhere('type_id', 42) : '';
-                $comment = $time_card ? $time_card->custom_field_data_records->firstWhere('type_id', 39) : '';
-                $allowances = $time_card ? $time_card->custom_field_data_records->where('type_id', 37)->pluck('label')->toArray() : [];
+                $hasProjectSegmentsForDetails = $time_card?->project_segments?->isNotEmpty() ?? false;
+                $overtime_reason = $time_card && !$hasProjectSegmentsForDetails ? $time_card->custom_field_data_records->firstWhere('type_id', 42) : '';
+                $comment = $time_card && !$hasProjectSegmentsForDetails ? $time_card->custom_field_data_records->firstWhere('type_id', 39) : '';
+                $allowances = $time_card && !$hasProjectSegmentsForDetails ? $time_card->custom_field_data_records->where('type_id', 37)->pluck('label')->toArray() : [];
                 $allowances_value = implode(" ", $allowances);
-                $incident = $time_card ? $time_card->custom_field_data_records->firstWhere('type_id', 40) : '';
+                $incident = $time_card && !$hasProjectSegmentsForDetails ? $time_card->custom_field_data_records->firstWhere('type_id', 40) : '';
                 $satisfy = $time_card ? $time_card->custom_field_data_records->firstWhere('type_id', 41) : '';
 
                 $daily_report_ability = $this->has_daily_report($shift, $time_card, $date, $user, $active_user, $attendance, $authority);
@@ -425,7 +452,7 @@ class WorkController extends Controller
                     'position_id' => $user->position_id,
                     'overtime_reason' => $overtime_reason ? $overtime_reason->value_text : '',
                     'comment' => $comment ? $comment->value_text : '',
-                    'incident' => $incident ? $incident->label : '',
+                    'incident' => $incident ? ($incident->value_text ?? $incident->label) : '',
                     'satisfy' => $satisfy ? $satisfy->label : '',
                     'allowances' => $allowances_value,
                     'attendance' => $attendance,
@@ -433,12 +460,13 @@ class WorkController extends Controller
                     'time_card' => $time_card,
                     'weather' => $customFieldData[$userId][$targetShiftDay]->value_int ?? null,
                     'authority' => $authority,
-                    'force_authority' => $active_user->id == 610 || $active_user->id == 608,
+                    'force_authority' => $active_user->isAdmin(),
                     'total_break_time' => $time_card?->total_break_time->first()->total_break_minute ?? 0,
                     'ability' => [
                         'overtime_request' => $overtime_ability,
                         'daily_report_create' => $daily_report_ability[0],
                         'daily_report_modify' => $daily_report_ability[1],
+                        'daily_report_delete' => $daily_report_ability[1] && !$this->hasLockedProjectSegments($time_card, $active_user),
                         'start_stamp' => $daily_report_ability[2],
                         'end_stamp' => $daily_report_ability[3],
                         'break_stamp' => $daily_report_ability[4],
@@ -446,7 +474,7 @@ class WorkController extends Controller
                         'daily_report_cancel' => $approve_ability[1],
                         'overtime_approve' => $approve_ability[2],
                         'overtime_cancel' => $approve_ability[3],
-                        'department_creation' => $department_creation,
+                        // 'department_creation' => $department_creation,
                     ]
                 ];
             }
@@ -455,11 +483,16 @@ class WorkController extends Controller
         return response()->json($recordList);
     }
     private function has_approve_access($shift, $time_card, $authority, $has_attendance, $active_user){
-        $force = $active_user->id == 610 || $active_user->id == 608;
+        $force = $active_user->isAdmin();
         $dailyReportStatus = $time_card->status_flag ?? -1;
         $overtimeStatus = $shift && $shift->overtime_request ? $shift->overtime_request->status : -1;
-        $dailyReportApproveOrDeny = $dailyReportStatus == 1 && ($authority || $force) && !$has_attendance;
-        $dailyReportCancel = $dailyReportStatus == 2 && ($authority || $force) && !$has_attendance;
+        $hasProjectSegments = $time_card
+            ? ($time_card->relationLoaded('project_segments')
+                ? $time_card->project_segments->isNotEmpty()
+                : $time_card->project_segments()->exists())
+            : false;
+        $dailyReportApproveOrDeny = !$hasProjectSegments && $dailyReportStatus == timecardRecord::STATUS_SUBMITTED && ($authority || $force) && !$has_attendance;
+        $dailyReportCancel = $dailyReportStatus == timecardRecord::STATUS_APPROVED && ($authority || $force) && !$has_attendance;
         $overtimeApproveOrDeny = $overtimeStatus == 1 && ($authority || $force) && !$has_attendance;
         $overtimeCancel = $overtimeStatus == 2 && ($authority || $force) && !$has_attendance;
         return [
@@ -469,22 +502,166 @@ class WorkController extends Controller
             $overtimeCancel
         ];
     }
+    private function hasApprovedProjectSegments(?timecardRecord $timecard): bool
+    {
+        if (!$timecard) {
+            return false;
+        }
+
+        return $timecard->relationLoaded('project_segments')
+            ? $timecard->project_segments->contains(fn ($segment) => $segment->status === TimecardProjectSegment::STATUS_APPROVED)
+            : $timecard->project_segments()->where('status', TimecardProjectSegment::STATUS_APPROVED)->exists();
+    }
+    private function hasTimesheetManagerAuthority(User $activeUser, User $targetUser, ?timecardRecord $timecard, ?shiftRecord $shift, ?array $managedProjectIds, array $incomingProjectIds = []): bool
+    {
+        if ((int) $activeUser->id === (int) $targetUser->id) {
+            return false;
+        }
+        if ($activeUser->isAdmin()) {
+            return true;
+        }
+        if ((int) $activeUser->work_authority === 1) {
+            return true;
+        }
+        if (empty($managedProjectIds)) {
+            return false;
+        }
+
+        $managedProjectLookup = array_flip(array_map('intval', $managedProjectIds));
+        $projectIds = collect([
+            $shift?->department_id,
+            $timecard?->work_group_id,
+        ])->merge($incomingProjectIds);
+
+        if ($timecard) {
+            $segments = $timecard->relationLoaded('project_segments')
+                ? $timecard->project_segments
+                : $timecard->project_segments()->get(['project_id']);
+
+            $projectIds = $projectIds->merge($segments->pluck('project_id'));
+        }
+
+        return $projectIds
+            ->filter()
+            ->unique()
+            ->contains(fn ($projectId) => isset($managedProjectLookup[(int) $projectId]));
+    }
+    private function incomingProjectIdsFromRequest(Request $request): array
+    {
+        return collect($request->input('project_time_entries', []))
+            ->filter(fn ($entry) => is_array($entry))
+            ->map(fn ($entry) => (int) ($entry['project_id'] ?? 0))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+    private function ensureCanModifyTimecardForTarget(User $activeUser, User $targetUser, ?timecardRecord $timecard, ?shiftRecord $shift, array $incomingProjectIds = []): void
+    {
+        if ((int) $activeUser->id === (int) $targetUser->id) {
+            return;
+        }
+        if ($activeUser->isAdmin() || (int) $activeUser->work_authority === 1) {
+            return;
+        }
+        if ($this->hasTimesheetManagerAuthority($activeUser, $targetUser, $timecard, $shift, $this->managedShiftProjectIds($activeUser), $incomingProjectIds)) {
+            return;
+        }
+
+        abort(403, 'この日報を操作する権限がありません。');
+    }
+    private function ensureCanApproveWholeTimecard(User $activeUser, timecardRecord $timecard): void
+    {
+        if (!$activeUser->isAdmin() && (int) $timecard->user_id === (int) $activeUser->id) {
+            abort(403, '自分の日報は承認できません。');
+        }
+        if ($activeUser->isAdmin() || (int) $activeUser->work_authority === 1) {
+            return;
+        }
+
+        $targetUser = $timecard->relationLoaded('user')
+            ? $timecard->user
+            : User::findOrFail($timecard->user_id);
+        $shift = shiftRecord::where('shift_day', $timecard->day)
+            ->where('user_id', $timecard->user_id)
+            ->first();
+        $managedProjectIds = $this->managedShiftProjectIds($activeUser);
+        $segments = $timecard->relationLoaded('project_segments')
+            ? $timecard->project_segments
+            : $timecard->project_segments()->get(['project_id']);
+
+        if ($segments->isNotEmpty()) {
+            $managedProjectLookup = array_flip(array_map('intval', $managedProjectIds ?? []));
+            $canManageAllSegments = $segments
+                ->pluck('project_id')
+                ->filter()
+                ->unique()
+                ->every(fn ($projectId) => isset($managedProjectLookup[(int) $projectId]));
+
+            if ($canManageAllSegments) {
+                return;
+            }
+
+            abort(403, 'この日報を承認する権限がありません。');
+        }
+
+        if ($this->hasTimesheetManagerAuthority($activeUser, $targetUser, $timecard, $shift, $managedProjectIds)) {
+            return;
+        }
+
+        abort(403, 'この日報を承認する権限がありません。');
+    }
+    private function lockedProjectSegmentStatuses(?User $user = null): array
+    {
+        $user ??= $this->active_user();
+        if ($user->isAdmin()) {
+            return [TimecardProjectSegment::STATUS_APPROVED];
+        }
+
+        return [TimecardProjectSegment::STATUS_SUBMITTED, TimecardProjectSegment::STATUS_APPROVED];
+    }
+    private function editableProjectSegmentStatuses(?User $user = null): array
+    {
+        $user ??= $this->active_user();
+        if ($user->isAdmin()) {
+            return [TimecardProjectSegment::STATUS_DRAFT, TimecardProjectSegment::STATUS_REJECTED, TimecardProjectSegment::STATUS_SUBMITTED];
+        }
+
+        return [TimecardProjectSegment::STATUS_DRAFT, TimecardProjectSegment::STATUS_REJECTED];
+    }
+    private function hasLockedProjectSegments(?timecardRecord $timecard, ?User $user = null): bool
+    {
+        if (!$timecard) {
+            return false;
+        }
+
+        $lockedStatuses = $this->lockedProjectSegmentStatuses($user);
+        return $timecard->relationLoaded('project_segments')
+            ? $timecard->project_segments->contains(fn ($segment) => in_array($segment->status, $lockedStatuses, true))
+            : $timecard->project_segments()->whereIn('status', $lockedStatuses)->exists();
+    }
     private function has_overtime_access($shift, $user, $time_card, $date, $active_user){
         $today_or_future = empty($shift) ? false : $date->format('Y-m-d') >= date('Y-m-d');
         $possibleTypes = [1,6,7,8,9,10,11,12,13];
         $userMatch = $user->id == $active_user->id;       
-        $timeCardCheck = empty($time_card) || $time_card->status_flag == 10 || $time_card->status_flag == 0;
-        return $today_or_future && in_array($shift->shiftType->id, $possibleTypes) && $userMatch && $timeCardCheck && $active_user->position_id !== 15 && !$shift->overtime_request; 
+        $timeCardCheck = empty($time_card)
+            || (int) $time_card->status_flag === timecardRecord::STATUS_REJECTED
+            || (int) $time_card->status_flag === timecardRecord::STATUS_DRAFT;
+        $overtimeRequestEditable = !$shift?->overtime_request || (int) $shift->overtime_request->status === 0;
+        return $today_or_future && in_array($shift->shiftType->id, $possibleTypes) && $userMatch && $timeCardCheck && $active_user->position_id !== 15 && $overtimeRequestEditable;
     }
     private function has_daily_report($shift, $time_card, $day, $user, $active_user, $has_attendace, $authority){
         $timecardExist = $time_card !== null;
         $valid_shift = (!empty($shift) && $shift->shiftType->id !== 3) || $user->position_id == 15 || $user->position_id < 6;
         $isToday = date('Y-m-d') == $day->format('Y-m-d');
         $isTodayOrPast = date('Y-m-d') >= $day->format('Y-m-d');
-        $create = !$timecardExist && !$has_attendace && $valid_shift && $isTodayOrPast && ($user->id == $active_user->id || $active_user->id == 610 || $active_user->id == 608);
+        $overtimePendingApproval = $shift?->overtime_request && (int) $shift->overtime_request->status === 1;
+        $managerOrSelfAccess = $user->id == $active_user->id || $authority || $active_user->isAdmin();
+        $create = !$timecardExist && !$has_attendace && !$overtimePendingApproval && $valid_shift && $isTodayOrPast && $managerOrSelfAccess;
         $status = $time_card->status_flag ?? -1;
-        $ownEditable = in_array($status, [0, 10], true) && ($user->id == $active_user->id || $authority);
-        $modify = $timecardExist && !$has_attendace && ($ownEditable || (($active_user->id == 610 || $active_user->id == 608) && $status !== 2));
+        $ownEditable = in_array((int) $status, [timecardRecord::STATUS_DRAFT, timecardRecord::STATUS_REJECTED], true) && ($user->id == $active_user->id || $authority);
+        $adminEditable = $active_user->isAdmin() && (int) $status !== timecardRecord::STATUS_APPROVED && !$overtimePendingApproval;
+        $modify = $timecardExist && !$has_attendace && ($ownEditable || $adminEditable);
         $start_stamp = !$timecardExist && !$has_attendace && $valid_shift && $isToday && $user->id == $active_user->id; 
         $end_stamp = $timecardExist && !$has_attendace && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $valid_shift && $isToday && $user->id == $active_user->id;
         $break_stamp = $timecardExist && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $user->id == $active_user->id; 
@@ -494,7 +671,7 @@ class WorkController extends Controller
         $valid_shift = !empty($shift) && $shift->shiftType->id !== 0 && $shift->shiftType->id !== 1;
         $timecardExist = $time_card !== null;
         $isTodayOrPast = date('Y-m-d') >= $day->format('Y-m-d');
-        $access = $user->id == $active_user->id || ($active_user->id == 610 || $active_user->id == 608);
+        $access = $user->id == $active_user->id || $active_user->isAdmin();
         return $valid_shift && !$timecardExist && $isTodayOrPast && $access && !$has_attendace;
     }
     // Shift Functions
@@ -506,7 +683,8 @@ class WorkController extends Controller
             'work_group' => ['nullable', 'array'],
         ]);
 
-        $userIds = $request->work_group ?? [Auth::id()];
+        $activeUser = $this->active_user();
+        $userIds = $request->work_group ?? [$activeUser->id];
         $targetUserId = $userIds[0];
 
         [$year, $month] = array_map('intval', explode('-', $request->current_date));
@@ -529,6 +707,11 @@ class WorkController extends Controller
         $planned_year = $data['planned_year'];
         $user_code = $data['user_code'];
         $user_id = $data['user_id'];
+        $ledgerWindow = $this->paidLeaveLedger->plannedLeaveWindowForUser((int) $user_id, (int) $planned_year);
+        if ($ledgerWindow) {
+            return response()->json($ledgerWindow);
+        }
+
         $work_temp = workTemp::where('user_code', $user_code)
                             ->where(function ($query) use ($planned_year) {
                                 
@@ -556,8 +739,8 @@ class WorkController extends Controller
     public function get_shift_with_work_group(Request $request){
         [$year, $month] = explode('-', $request->current_date);
         $user = $this->active_user();
-        $authenticatedUserId = Auth::id();
-        if($user->id == 608 || $user->id == 610){
+        $authenticatedUserId = $user->id;
+        if ($user->isAdmin()) {
             $workGroups = ProjectRecord::whereHas('members', function ($q) use ($year, $month){
                                             $q->whereHas('shift_records', function ($q) use($year, $month) {
                                                 $q->whereYear('shift_day', $year)
@@ -582,15 +765,15 @@ class WorkController extends Controller
                                             });
                                     }])->get();
         } else {
-            $workGroups = ProjectRecord::whereHas('members', function ($q) use($year, $month){
-                $q->whereNot('users.id', Auth::id())->whereHas('shift_records', function ($q) use($year, $month) {
+            $workGroups = ProjectRecord::whereHas('members', function ($q) use($year, $month, $user){
+                $q->whereNot('users.id', $user->id)->whereHas('shift_records', function ($q) use($year, $month) {
                     $q->whereYear('shift_day', $year)
                         ->whereMonth('shift_day', $month);
                 });
-            })->whereHas('manager', function ($q) {
-                $q->where('users.id', Auth::id());
-            })->with(['members' => function ($q) use ($year, $month) {
-                $q->whereNot('users.id', Auth::id())->whereHas('shift_records', function ($q) use($year, $month) {
+            })->whereHas('manager', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            })->with(['members' => function ($q) use ($year, $month, $user) {
+                $q->whereNot('users.id', $user->id)->whereHas('shift_records', function ($q) use($year, $month) {
                         $q->whereYear('shift_day', $year)
                             ->whereMonth('shift_day', $month);
                     });
@@ -619,14 +802,16 @@ class WorkController extends Controller
                         ->whereMonth('shift_day', $month)
                         ->with([
                             'shiftType' => function ($query) {
-                                $query->select('id', 'name', 'abbreviation', 'value');
+                                $query->select('id', 'name', 'abbreviation', 'value', 'full_day');
                             },
+                            'department:id,name',
                             'old_shift' => function ($query) {
-                                $query->whereNot('status_flag', 1)->withTrashed()->select('id', 'shift_day', 'shift_type');
+                                $query->whereNot('status_flag', 1)->withTrashed()->select('id', 'shift_day', 'shift_type', 'department_id');
                                 $query->with([
                                     'shiftType' => function ($subQuery) {
-                                        $subQuery->select('id', 'name', 'abbreviation', 'value');
-                                    }
+                                        $subQuery->select('id', 'name', 'abbreviation', 'value', 'full_day');
+                                    },
+                                    'department:id,name',
                                 ]);
                             }
                         ])
@@ -674,15 +859,18 @@ class WorkController extends Controller
             'year_month' => 'required'
         ]);
         [$year, $month] = explode('-', $request->year_month);
-        $shifts = shiftRecord::whereIn('user_id', $request->user_ids)
-                                ->whereYear('shift_day', $year)
-                                ->whereMonth('shift_day', $month)
-                                ->whereNot('status_flag', 1)
-                                ->whereNot('user_id', $user->id)
-                                ->update([
-                                    "status_flag" => 3,
-                                    "approved_by" => $user->id
-                                ]);
+        $query = shiftRecord::whereIn('user_id', $request->user_ids)
+            ->whereYear('shift_day', $year)
+            ->whereMonth('shift_day', $month)
+            ->whereNot('status_flag', 1)
+            ->whereNot('user_id', $user->id);
+
+        $this->scopeShiftApprovalToUserProjects($query, $user);
+
+        $shifts = $query->update([
+            "status_flag" => 3,
+            "approved_by" => $user->id
+        ]);
         return response()->json([
             'data' => $shifts ?? null
         ]);
@@ -692,13 +880,16 @@ class WorkController extends Controller
         $request->validate([
             'shift_id' => 'required'
         ]);
+        $shiftRecord = shiftRecord::findOrFail($request->shift_id);
+        abort_unless($this->canApproveShiftRecord($shiftRecord, $user), 403);
+
         if($request->status){
-            $shift = shiftRecord::findOrFail($request->shift_id)->update([
+            $shift = $shiftRecord->update([
                 "status_flag" => $request->status,
                 "approved_by" => $user->id
             ]);
         } else {
-            $shift = shiftRecord::findOrFail($request->shift_id);
+            $shift = $shiftRecord;
             if ($shift->overtime_request) {
                 $shift->overtime_request->delete();
             }
@@ -708,6 +899,73 @@ class WorkController extends Controller
         return response()->json([
             'data' => $shift ?? null
         ]);
+    }
+    private function managedShiftProjectIds($user): ?array
+    {
+        if ($user->isAdmin()) {
+            return null;
+        }
+
+        return ProjectRecord::whereHas('manager', function ($q) use ($user) {
+            $q->where('users.id', $user->id);
+        })->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+    private function scopeShiftApprovalToUserProjects($query, $user): void
+    {
+        $projectIds = $this->managedShiftProjectIds($user);
+        if ($projectIds === null) {
+            return;
+        }
+
+        $query->whereIn('department_id', $projectIds);
+    }
+    private function canApproveShiftRecord(shiftRecord $shift, $user): bool
+    {
+        if ((int) $shift->user_id === (int) $user->id) {
+            return false;
+        }
+
+        $projectIds = $this->managedShiftProjectIds($user);
+        if ($projectIds === null) {
+            return true;
+        }
+
+        return $shift->department_id && in_array((int) $shift->department_id, $projectIds, true);
+    }
+    private function shiftNetWorkMinutes(?string $startTime, ?string $endTime): int
+    {
+        if (!$startTime || !$endTime) {
+            return 0;
+        }
+
+        [$startHour, $startMinute] = array_map('intval', explode(':', $startTime));
+        [$endHour, $endMinute] = array_map('intval', explode(':', $endTime));
+        $start = ($startHour * 60) + $startMinute;
+        $end = ($endHour * 60) + $endMinute;
+        if ($end < $start) {
+            $end += 24 * 60;
+        }
+
+        $gross = max(0, $end - $start);
+        $break = $gross > 360 ? 60 : ($gross >= 180 ? 30 : 0);
+
+        return max(0, $gross - $break);
+    }
+    private function shiftTypeHasWorkTime(?shiftType $type, int $workMinutesPerDay): bool
+    {
+        if (!$type) {
+            return false;
+        }
+
+        if (in_array((int) $type->id, [0, 18], true) || (int) $type->full_day === 2) {
+            return false;
+        }
+
+        if ($type->value === null || $type->value === '') {
+            return true;
+        }
+
+        return max(0, $workMinutesPerDay - (int) $type->value) > 0;
     }
     public function shiftAdd(Request $request)
     {
@@ -728,7 +986,8 @@ class WorkController extends Controller
 
         DB::transaction(function () use (
             $isSpecial, $user_id, $shift_days, $start, $end,
-            $shift_array, $start_time, $end_time, $position_id, $request
+            $shift_array, $start_time, $end_time, $position_id, $request,
+            $year, $month, $user
         ) {
             if ($isSpecial) {
                 // 1) Delete all OTHER shifts in the month not in shift_days
@@ -750,8 +1009,12 @@ class WorkController extends Controller
             $nonWorkDays = collect($shift_array)->reject(fn($s) => $s['type'] === 0)->pluck('date')->all();
             $waitingAllowanceCheck = timecardRecord::where('user_id', $user_id)
                 ->whereIn('day', $nonWorkDays)
-                ->whereHas('custom_field_data_records', fn($q) => $q->where('type_id', 37)->where('value_int', 2))
-                ->exists();
+                ->with([
+                    'project_segments:id,timecard_record_id,detail_values',
+                    'custom_field_data_records' => fn ($q) => $q->where('type_id', 37)->select('id', 'table_record_id', 'type_id', 'value_int'),
+                ])
+                ->get(['id', 'user_id', 'day'])
+                ->contains(fn (timecardRecord $timecard) => $this->timecardAllowanceCount($timecard, 2) > 0);
 
             if ($waitingAllowanceCheck) {
                 throw ValidationException::withMessages(['message' => '「待機手当」は休日のみ支給されます。']);
@@ -765,6 +1028,8 @@ class WorkController extends Controller
                 ->whereIn('shift_day', $shift_days)
                 ->get()
                 ->keyBy('shift_day');
+            $shiftTypesById = shiftType::whereIn('id', collect($shift_array)->pluck('type')->unique())->get()->keyBy('id');
+            $workMinutesPerDay = $this->shiftNetWorkMinutes($start_time, $end_time);
 
             $newRows = [];
 
@@ -772,6 +1037,11 @@ class WorkController extends Controller
                 $date = $shift['date'];
                 $type = $shift['type'];
                 $planned_year = $shift['planned_year'];
+                $needsProject = $this->shiftTypeHasWorkTime($shiftTypesById->get($type), $workMinutesPerDay);
+                $departmentId = $needsProject ? ($shift['department_id'] ?? null) : null;
+                if ($needsProject && empty($departmentId)) {
+                    throw ValidationException::withMessages(['message' => '勤務が含まれる日はプロジェクトを選択してください。']);
+                }
                 // status_flag rule preserved; if you want special behavior for 15, tweak here
                 $status_flag = ($type === 3) || ($isSpecial) ? 1 : 2;
                 // $planned_year = $type === 3 ? $request->planned_year : $request->year;
@@ -787,6 +1057,7 @@ class WorkController extends Controller
                             'shift_type'    => $type,
                             'start_time'    => $start_time,
                             'end_time'      => $end_time,
+                            'department_id' => $departmentId,
                             'status_flag'   => $status_flag,
                             'planned_year'  => $type === 3 ? $planned_year : $rec->planned_year,
                             'descendant_of' => $rec->id,
@@ -796,8 +1067,14 @@ class WorkController extends Controller
                         $rec->delete();
                     } else {
                         // same type, just time update if needed
-                        if ($rec->start_time !== $start_time || $rec->end_time !== $end_time) {
-                            $rec->update(['start_time' => $start_time, 'end_time' => $end_time]);
+                        if ($rec->start_time !== $start_time || $rec->end_time !== $end_time || (int) $rec->department_id !== (int) $departmentId) {
+                            $rec->update([
+                                'start_time' => $start_time,
+                                'end_time' => $end_time,
+                                'department_id' => $departmentId,
+                                'status_flag' => $status_flag,
+                                'approved_by' => null,
+                            ]);
                         }
                     }
                 } else {
@@ -808,6 +1085,7 @@ class WorkController extends Controller
                         'shift_type'    => $type,
                         'start_time'    => $start_time,
                         'end_time'      => $end_time,
+                        'department_id' => $departmentId,
                         'status_flag'   => $status_flag,
                         'planned_year'  => $planned_year,
                         'descendant_of' => null,
@@ -820,9 +1098,11 @@ class WorkController extends Controller
             if (!empty($newRows)) {
                 shiftRecord::insert($newRows);
             }
+
+            $this->paidLeaveLedger->reconcileShiftUsagesForUserMonth((int) $user_id, (int) $year, (int) $month, (int) $user->id);
         });
 
-        // 4) Calendar sync after transaction
+        // 4) Calendar sync after the database and paid-leave ledger transaction succeeds.
         $this->sharedService->syncShiftToCalendar($user_id, $year, $month);
 
         return response()->json(['ok' => true]);
@@ -831,8 +1111,8 @@ class WorkController extends Controller
     public function getWorkGroup(Request $request){
         $user = $this->active_user();
         $auth_user_id = $user->id;
-        $ids = [608, 610];
-        if($auth_user_id == 608 || $auth_user_id == 610){
+        $ids = User::ADMIN_USER_IDS;
+        if ($user->isAdmin()) {
             $work_group_users = ProjectRecord::where('status', 'running')
                 ->where(function ($q) {
                     $q->whereHas('members')
@@ -953,15 +1233,15 @@ class WorkController extends Controller
         $attendanceMode = $request->attendance_mode ?? 'work_only';
         $startTime = $request->start_time;
         $endTime = $request->end_time;
-        $breakTime = $request->breakTime;
+        $breakTime = (int) ($request->breakTime ?? 0);
         
         if ($attendanceMode === 'training_only' || empty($startTime) || empty($endTime)) {
             return;
         }
-        $startDateTime = new DateTime($startTime);
-        $endDateTime = new DateTime($endTime);
-
-        $workTimeMinutes = ($endDateTime->format('H') * 60 + $endDateTime->format('i')) - ($startDateTime->format('H') * 60 + $startDateTime->format('i')) - $breakTime;
+        $trainingOverlapMinutes = $attendanceMode === 'work_and_training'
+            ? $this->trainingOverlapMinutesFromRequest($request, $startTime, $endTime)
+            : 0;
+        $workTimeMinutes = max(0, $this->workReportTimeService->minutesBetweenTimes($startTime, $endTime) - $trainingOverlapMinutes - $breakTime);
 
         if ($workTimeMinutes >= 360 && $breakTime < 60) {
             throw ValidationException::withMessages(['message' => '6時間以上の勤務の場合、最低でも60分間の休憩を取る必要があります。']);
@@ -969,12 +1249,293 @@ class WorkController extends Controller
             throw ValidationException::withMessages(['message' => '3時間以上の勤務の場合、最低でも30分間の休憩を取る必要があります。']);
         }
     }
-    private function overTimeCheck($request, $calculatedMinute){
+    private function sanitizeOvertimeProjectSegments(Request $request, shiftRecord $shift): array
+    {
+        $defaultContent = trim((string) ($request->overtime_content ?? ''));
+        $segments = collect($request->input('project_segments', []))
+            ->filter(fn ($segment) => is_array($segment))
+            ->map(function ($segment) use ($defaultContent) {
+                $content = trim((string) ($segment['content'] ?? $defaultContent));
+
+                return [
+                    'project_id' => (int) ($segment['project_id'] ?? 0),
+                    'minutes' => max(0, (int) ($segment['minutes'] ?? 0)),
+                    'content' => substr($content, 0, 2000),
+                    'status' => 1,
+                ];
+            })
+            ->filter(fn ($segment) => $segment['project_id'] > 0 && $segment['minutes'] > 0)
+            ->values()
+            ->all();
+
+        if (empty($segments) && (int) ($request->minutes ?? 0) > 0 && $shift->department_id) {
+            return $this->combineOvertimeProjectSegments([[
+                'project_id' => (int) $shift->department_id,
+                'minutes' => (int) $request->minutes,
+                'content' => substr($defaultContent, 0, 2000),
+                'status' => 1,
+            ]]);
+        }
+
+        return $this->combineOvertimeProjectSegments($segments);
+    }
+
+    private function combineOvertimeProjectSegments(array $segments, int $fallbackStatus = 1): array
+    {
+        return collect($segments)
+            ->filter(fn ($segment) => is_array($segment))
+            ->map(function ($segment) use ($fallbackStatus) {
+                return [
+                    'project_id' => (int) ($segment['project_id'] ?? 0),
+                    'minutes' => max(0, (int) ($segment['minutes'] ?? 0)),
+                    'content' => trim((string) ($segment['content'] ?? '')),
+                    'status' => $this->overtimeSegmentStatus($segment['status'] ?? $fallbackStatus, $fallbackStatus),
+                ];
+            })
+            ->filter(fn ($segment) => $segment['project_id'] > 0 && $segment['minutes'] > 0)
+            ->groupBy('project_id')
+            ->map(function ($projectSegments) use ($fallbackStatus) {
+                $contents = $projectSegments
+                    ->pluck('content')
+                    ->map(fn ($content) => trim((string) $content))
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->implode("\n");
+
+                return [
+                    'project_id' => (int) $projectSegments->first()['project_id'],
+                    'minutes' => (int) $projectSegments->sum('minutes'),
+                    'content' => substr($contents, 0, 2000),
+                    'status' => $this->deriveOvertimeRequestStatus($projectSegments->all(), $fallbackStatus),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    private function overtimeRequestContentSummary(array $projectSegments, ?string $fallbackContent = null): string
+    {
+        $contents = collect($projectSegments)
+            ->map(fn ($segment) => trim((string) ($segment['content'] ?? '')))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($contents->isNotEmpty()) {
+            return $contents->implode("\n");
+        }
+
+        return trim((string) $fallbackContent);
+    }
+
+    private function overtimeProjectContentByProject(array $projectSegments, ?string $fallbackContent = null): array
+    {
+        $fallback = trim((string) $fallbackContent);
+
+        return collect($projectSegments)
+            ->filter(fn ($segment) => is_array($segment))
+            ->groupBy(fn ($segment) => (int) ($segment['project_id'] ?? 0))
+            ->map(function ($segments) use ($fallback) {
+                $content = $segments
+                    ->map(fn ($segment) => trim((string) ($segment['content'] ?? '')))
+                    ->first(fn ($value) => $value !== '');
+
+                return $content ?: $fallback;
+            })
+            ->filter()
+            ->all();
+    }
+
+    private function overtimeProjectSegmentsFromTimecardSegments(array $projectSegments, int $regularMinutes, array $contentByProject = [], ?string $fallbackContent = null): array
+    {
+        $elapsedWorkMinutes = 0;
+        $overtimeSegments = [];
+        $fallbackContent = trim((string) $fallbackContent);
+
+        foreach ($projectSegments as $segment) {
+            if (($segment['segment_type'] ?? TimecardProjectSegment::TYPE_WORK) !== TimecardProjectSegment::TYPE_WORK) {
+                continue;
+            }
+
+            $segmentMinutes = max(0, (int) ($segment['minutes'] ?? 0));
+            $projectId = (int) ($segment['project_id'] ?? 0);
+            if ($segmentMinutes <= 0 || $projectId <= 0) {
+                continue;
+            }
+
+            $previousWorkMinutes = $elapsedWorkMinutes;
+            $elapsedWorkMinutes += $segmentMinutes;
+            if ($elapsedWorkMinutes <= $regularMinutes) {
+                continue;
+            }
+
+            $overtimeMinutes = $elapsedWorkMinutes - max($regularMinutes, $previousWorkMinutes);
+            if ($overtimeMinutes > 0) {
+                $content = trim((string) ($segment['comment'] ?? ''))
+                    ?: ($contentByProject[$projectId] ?? '')
+                    ?: $fallbackContent;
+
+                $overtimeSegment = [
+                    'project_id' => $projectId,
+                    'minutes' => $overtimeMinutes,
+                ];
+                if ($content !== '') {
+                    $overtimeSegment['content'] = substr($content, 0, 2000);
+                }
+
+                $overtimeSegments[] = $overtimeSegment;
+            }
+        }
+
+        return $this->combineOvertimeProjectSegments($overtimeSegments);
+    }
+
+    private function overtimeProjectSegmentsExceedApproval(array $actualSegments, mixed $approvedSegments): bool
+    {
+        if (empty($actualSegments) || !is_array($approvedSegments) || empty($approvedSegments)) {
+            return false;
+        }
+
+        $approvedByProject = collect($approvedSegments)
+            ->filter(fn ($segment) => is_array($segment))
+            ->groupBy(fn ($segment) => (int) ($segment['project_id'] ?? 0))
+            ->map(fn ($segments) => $segments->sum(fn ($segment) => max(0, (int) ($segment['minutes'] ?? 0))))
+            ->all();
+
+        if (empty($approvedByProject)) {
+            return false;
+        }
+
+        $actualByProject = collect($actualSegments)
+            ->groupBy(fn ($segment) => (int) ($segment['project_id'] ?? 0))
+            ->map(fn ($segments) => $segments->sum(fn ($segment) => max(0, (int) ($segment['minutes'] ?? 0))))
+            ->all();
+
+        foreach ($actualByProject as $projectId => $minutes) {
+            if ($projectId <= 0 || $minutes <= 0) {
+                continue;
+            }
+
+            if (!array_key_exists($projectId, $approvedByProject) || $minutes > $approvedByProject[$projectId]) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function overtimeSegmentStatus(mixed $status, int $fallback = 1): int
+    {
+        $status = is_numeric($status) ? (int) $status : $fallback;
+
+        return in_array($status, [0, 1, 2], true) ? $status : $fallback;
+    }
+
+    private function overtimeSegmentWithStatus(array $segment, int $fallbackStatus = 1): array
+    {
+        $segment['status'] = $this->overtimeSegmentStatus($segment['status'] ?? $fallbackStatus, $fallbackStatus);
+
+        return $segment;
+    }
+
+    private function deriveOvertimeRequestStatus(array $segments, int $fallbackStatus = 1): int
+    {
+        $segments = collect($segments)
+            ->filter(fn ($segment) => is_array($segment) && max(0, (int) ($segment['minutes'] ?? 0)) > 0)
+            ->values();
+
+        if ($segments->isEmpty()) {
+            return $this->overtimeSegmentStatus($fallbackStatus, 1);
+        }
+
+        if ($segments->contains(fn ($segment) => $this->overtimeSegmentStatus($segment['status'] ?? $fallbackStatus, $fallbackStatus) === 0)) {
+            return 0;
+        }
+
+        if ($segments->every(fn ($segment) => $this->overtimeSegmentStatus($segment['status'] ?? $fallbackStatus, $fallbackStatus) === 2)) {
+            return 2;
+        }
+
+        return 1;
+    }
+
+    private function mergeOvertimeProjectSegmentApprovalMetadata(array $actualSegments, mixed $existingSegments, int $fallbackStatus = 1): array
+    {
+        $existingByProject = collect(is_array($existingSegments) ? $existingSegments : [])
+            ->filter(fn ($segment) => is_array($segment) && (int) ($segment['project_id'] ?? 0) > 0)
+            ->groupBy(fn ($segment) => (int) ($segment['project_id'] ?? 0))
+            ->map(fn ($segments) => $segments->values())
+            ->all();
+
+        return array_map(function (array $segment) use (&$existingByProject, $fallbackStatus) {
+            $projectId = (int) ($segment['project_id'] ?? 0);
+            $existingSegment = null;
+
+            if ($projectId > 0 && isset($existingByProject[$projectId]) && $existingByProject[$projectId]->isNotEmpty()) {
+                $existingSegment = $existingByProject[$projectId]->shift();
+            }
+
+            $segment['status'] = $this->overtimeSegmentStatus($existingSegment['status'] ?? $fallbackStatus, $fallbackStatus);
+
+            foreach (['approved_by', 'approved_at', 'rejected_by', 'rejected_at'] as $key) {
+                if (is_array($existingSegment) && array_key_exists($key, $existingSegment)) {
+                    $segment[$key] = $existingSegment[$key];
+                }
+            }
+
+            return $segment;
+        }, $actualSegments);
+    }
+
+    private function ensureOvertimeProjectSegmentApprover(User $user, ShiftOvertimeRequest $overtimeRequest, int $projectId): void
+    {
+        $isAdmin = $user->isAdmin();
+
+        if (!$isAdmin && (int) $overtimeRequest->user_id === (int) $user->id) {
+            abort(403, '自分の残業申請は承認できません。');
+        }
+
+        if ($isAdmin || (int) $user->work_authority === 1 || $user->isProjectManager($projectId)) {
+            return;
+        }
+
+        abort(403, 'このプロジェクトの残業申請を承認する権限がありません。');
+    }
+
+    private function overTimeCheck($request, $calculatedMinute, array $projectSegments = [], int $regularMinutes = 0){
         $overTimeRequest = ShiftOvertimeRequest::where('overtime_day', $request->day)->where('user_id', $request->userId)->first();
-        if($calculatedMinute > $overTimeRequest->minutes){
-            $overTimeRequest->status = 1;
-        } 
-        $overTimeRequest->minutes = $calculatedMinute;
+        if (!$overTimeRequest) {
+            return;
+        }
+        $existingProjectSegments = $overTimeRequest->project_segments ?? [];
+        $contentByProject = $this->overtimeProjectContentByProject($overTimeRequest->project_segments ?? [], $overTimeRequest->content);
+        $fallbackContent = $this->overtimeReasonFromRequest($request) ?: $overTimeRequest->content;
+        $overtimeProjectSegments = $calculatedMinute > 0
+            ? $this->overtimeProjectSegmentsFromTimecardSegments($projectSegments, $regularMinutes, $contentByProject, $fallbackContent)
+            : [];
+        $requiresProjectSegmentSync = $calculatedMinute > 0
+            && empty($existingProjectSegments)
+            && !empty($overtimeProjectSegments);
+        $requiresReapproval = $calculatedMinute > (int) $overTimeRequest->minutes
+            || $this->overtimeProjectSegmentsExceedApproval($overtimeProjectSegments, $overTimeRequest->project_segments);
+
+        if (!$requiresReapproval && !$requiresProjectSegmentSync) {
+            return;
+        }
+
+        $nextStatus = $requiresReapproval ? 1 : (int) $overTimeRequest->status;
+        $overTimeRequest->status = $nextStatus;
+        $overtimeProjectSegments = $this->mergeOvertimeProjectSegmentApprovalMetadata(
+            $overtimeProjectSegments,
+            $existingProjectSegments,
+            $nextStatus
+        );
+        if ($requiresReapproval) {
+            $overTimeRequest->minutes = $calculatedMinute;
+        }
+        $overTimeRequest->project_segments = $overtimeProjectSegments;
+        $overTimeRequest->status = $this->deriveOvertimeRequestStatus($overtimeProjectSegments, (int) $overTimeRequest->status);
         $overTimeRequest->save();
     }
     private function calcNightSeconds(string $startTime, string $endTime, int $breakMinutes = 0): int
@@ -1011,7 +1572,7 @@ class WorkController extends Controller
         $B0 = $bStart->copy();
         $B1 = $bEnd->copy();
         
-        if ($A1->lte($A0) || $B1->lte($B0) || $A0 == $B0) {
+        if ($A1->lte($A0) || $B1->lte($B0)) {
             return 0;
         }
 
@@ -1026,10 +1587,168 @@ class WorkController extends Controller
 
         return max(0, $endTs - $startTs);
     }
+    private function overlapMinutesForTimes(?string $firstStartTime, ?string $firstEndTime, ?string $secondStartTime, ?string $secondEndTime): int
+    {
+        $firstStart = $this->workReportTimeService->timeToMinutes($firstStartTime);
+        $firstEnd = $this->workReportTimeService->timeToMinutes($firstEndTime);
+        $secondStart = $this->workReportTimeService->timeToMinutes($secondStartTime);
+        $secondEnd = $this->workReportTimeService->timeToMinutes($secondEndTime);
+
+        if ($firstStart === null || $firstEnd === null || $secondStart === null || $secondEnd === null) {
+            return 0;
+        }
+
+        $firstEnd = $firstEnd >= $firstStart ? $firstEnd : $firstEnd + 1440;
+        $secondEnd = $secondEnd >= $secondStart ? $secondEnd : $secondEnd + 1440;
+
+        if ($secondEnd <= $firstStart) {
+            $secondStart += 1440;
+            $secondEnd += 1440;
+        } elseif ($secondStart >= $firstEnd) {
+            $secondStart -= 1440;
+            $secondEnd -= 1440;
+        }
+
+        return max(0, min($firstEnd, $secondEnd) - max($firstStart, $secondStart));
+    }
+    private function trainingOverlapMinutesFromRequest(Request $request, ?string $workStartTime, ?string $workEndTime): int
+    {
+        $trainingSegments = collect($request->input('project_time_entries', []))
+            ->filter(fn ($segment) => ($segment['segment_type'] ?? TimecardProjectSegment::TYPE_WORK) === TimecardProjectSegment::TYPE_TRAINING)
+            ->filter(fn ($segment) => filled($segment['start_time'] ?? null) && filled($segment['end_time'] ?? null));
+
+        if ($trainingSegments->isEmpty()) {
+            return $this->overlapMinutesForTimes($workStartTime, $workEndTime, $request->training_start_time, $request->training_end_time);
+        }
+
+        return (int) $trainingSegments->sum(function ($segment) use ($workStartTime, $workEndTime) {
+            return $this->overlapMinutesForTimes($workStartTime, $workEndTime, $segment['start_time'], $segment['end_time']);
+        });
+    }
+
+    private function ensureProjectSegmentsDoNotOverlap(array $projectSegments): void
+    {
+        foreach ([
+            TimecardProjectSegment::TYPE_WORK => '就業',
+            TimecardProjectSegment::TYPE_TRAINING => '研修',
+        ] as $segmentType => $typeLabel) {
+            $segments = collect($projectSegments)
+                ->filter(fn ($segment) => ($segment['segment_type'] ?? TimecardProjectSegment::TYPE_WORK) === $segmentType)
+                ->filter(fn ($segment) => filled($segment['start_time'] ?? null) && filled($segment['end_time'] ?? null))
+                ->values();
+
+            for ($firstIndex = 0; $firstIndex < $segments->count(); $firstIndex++) {
+                for ($secondIndex = $firstIndex + 1; $secondIndex < $segments->count(); $secondIndex++) {
+                    $first = $segments[$firstIndex];
+                    $second = $segments[$secondIndex];
+
+                    if ($this->overlapMinutesForTimes($first['start_time'], $first['end_time'], $second['start_time'], $second['end_time']) <= 0) {
+                        continue;
+                    }
+
+                    throw ValidationException::withMessages([
+                        'message' => $this->projectSegmentOverlapMessage(
+                            $typeLabel,
+                            (int) ($first['project_id'] ?? 0) === (int) ($second['project_id'] ?? 0)
+                        ),
+                    ]);
+                }
+            }
+        }
+    }
+
+    private function projectSegmentOverlapMessage(string $typeLabel, bool $sameProject): string
+    {
+        if ($sameProject) {
+            return "{$typeLabel}プロジェクト時間が重複しています。同じプロジェクトの同じ時間帯は1つにまとめてください。";
+        }
+
+        return "{$typeLabel}プロジェクト時間が重複しています。同じ時間帯は1つのプロジェクトだけに入力してください。";
+    }
+
+    private function overtimeReasonFromRequest(Request $request): string
+    {
+        $customValues = $request->input('customValues', []);
+        if (!is_array($customValues)) {
+            $customValues = [];
+        }
+        $reason = $customValues[42] ?? $customValues['42'] ?? '';
+
+        $reason = trim((string) $reason);
+        if ($reason !== '') {
+            return $reason;
+        }
+
+        return collect($request->input('project_time_entries', []))
+            ->map(fn ($segment) => trim((string) data_get($segment, 'detail_values.overtime', '')))
+            ->filter()
+            ->unique()
+            ->values()
+            ->implode("\n");
+    }
+
+    private function ensureOvertimeReasonForRegularWork(Request $request, User $user, bool $hasWorkHours, int $overtimeMinutes): void
+    {
+        if ((int) $user->work_type !== 1 || !$hasWorkHours || $overtimeMinutes <= 0) {
+            return;
+        }
+
+        if ($this->overtimeReasonFromRequest($request) !== '') {
+            return;
+        }
+
+        $day = $request->day ?? $request->date;
+        if ($day && ShiftOvertimeRequest::where('overtime_day', $day)->where('user_id', $request->userId)->exists()) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'message' => '時間外が発生しているため、時間外業務内容を入力してください。',
+        ]);
+    }
+
+    private function applyOvertimeDetailToProjectSegments(array $projectSegments, User $user, bool $hasWorkHours, int $regularMinutes, int $overtimeMinutes, bool $hasOvertimeRequest = false, string $overtimeReason = '', ?User $actor = null): array
+    {
+        if ((int) $user->work_type !== 1 || !$hasWorkHours || $overtimeMinutes <= 0 || $hasOvertimeRequest) {
+            return $projectSegments;
+        }
+
+        $elapsedWorkMinutes = 0;
+
+        return array_map(function (array $segment) use (&$elapsedWorkMinutes, $regularMinutes, $overtimeReason, $actor) {
+            if (($segment['segment_type'] ?? TimecardProjectSegment::TYPE_WORK) !== TimecardProjectSegment::TYPE_WORK) {
+                return $segment;
+            }
+
+            $segmentMinutes = (int) ($segment['minutes'] ?? 0);
+            $previousWorkMinutes = $elapsedWorkMinutes;
+            $elapsedWorkMinutes += $segmentMinutes;
+
+            if (
+                !(filled($segment['id'] ?? null) && in_array($segment['status'] ?? null, $this->lockedProjectSegmentStatuses($actor), true))
+                && $segmentMinutes > 0
+                && $elapsedWorkMinutes > $regularMinutes
+                && $previousWorkMinutes < $elapsedWorkMinutes
+            ) {
+                $details = $this->normalizedProjectDetails($segment['details'] ?? []);
+                $details[] = 'overtime';
+                $segment['details'] = array_values(array_unique($details));
+                $detailValues = $this->normalizedProjectDetailValues($segment['detail_values'] ?? []);
+                if (filled($overtimeReason) && blank($detailValues['overtime'] ?? null)) {
+                    $detailValues['overtime'] = trim($overtimeReason);
+                }
+                $segment['detail_values'] = $detailValues;
+            }
+
+            return $segment;
+        }, $projectSegments);
+    }
+
     public function saveTimeCard(Request $request){
         $today = Carbon::now()->isoFormat('YYYY-MM-DD');
         $this->breakTimeCheck($request);
-        
+        $activeUser = $this->active_user();
+
         $user = User::select('work_time_day', 'work_type', 'id', 'name', 'position_id')->findOrFail($request->userId);
         $attendanceMode = $request->attendance_mode ?? 'work_only';
         $startTime = $request->start_time;
@@ -1043,12 +1762,35 @@ class WorkController extends Controller
         if (!$hasWorkHours && !$hasTrainingHours) {
             throw ValidationException::withMessages(['message' => 'Enter work hours, training hours, or both before saving.']);
         }
+        if ($attendanceMode === 'work_and_training' && (!$hasWorkHours || !$hasTrainingHours)) {
+            throw ValidationException::withMessages(['message' => '就業 + 研修では就業時間と研修時間の両方を入力してください。']);
+        }
 
-        $shift_time_difference_seconds = 480 * 60;
+        $shiftForDay = shiftRecord::where('shift_day', $request->day)
+            ->where('user_id', $request->userId)
+            ->first();
+        $incomingProjectIds = $this->incomingProjectIdsFromRequest($request);
+        $authorizationTimecard = timecardRecord::with('project_segments')
+            ->where('day', $request->day)
+            ->where('user_id', $request->userId)
+            ->first();
+        $this->ensureCanModifyTimecardForTarget($activeUser, $user, $authorizationTimecard, $shiftForDay, $incomingProjectIds);
+
+        $overtimeRequestForDay = ShiftOvertimeRequest::where('overtime_day', $request->day)
+            ->where('user_id', $request->userId)
+            ->first();
+        if ($overtimeRequestForDay && (int) $overtimeRequestForDay->status !== 2 && (int) $request->status_flag === timecardRecord::STATUS_SUBMITTED) {
+            throw ValidationException::withMessages([
+                'message' => '残業申請の承認が完了してから日報を作成してください。',
+            ]);
+        }
+
+        $shift_time_difference_seconds = ((int) ($user->work_time_day ?: 480)) * 60;
         $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
         $time_difference_seconds = 0;
         $night_difference_seconds = 0;
         $overtimeMinutes = 0;
+        $workWindowMinutes = 0;
 
         if ($hasWorkHours) {
             $start = Carbon::createFromFormat('H:i', $startTime);
@@ -1058,20 +1800,58 @@ class WorkController extends Controller
             }
 
             $time_difference_seconds = (int) $start->diffInSeconds($end, true);
+            if ($hasTrainingHours) {
+                $time_difference_seconds -= $this->trainingOverlapMinutesFromRequest($request, $startTime, $endTime) * 60;
+            }
             $time_difference_seconds -= $request->breakTime * 60;
             $time_difference_seconds = max(0, $time_difference_seconds);
+            $workWindowMinutes = floor($time_difference_seconds / 60);
 
             $night_difference_seconds = $this->calcNightSeconds($startTime, $endTime, $request->breakTime);
         }
 
-        if (is_array($request->customValues[37] ?? null) && in_array(2, $request->customValues[37], true)) {
+        $customValues = $request->input('customValues', []);
+        if (!is_array($customValues)) {
+            $customValues = [];
+        }
+        if (array_key_exists(37, $customValues)) {
+            $remoteAllowance = $customValues[37] ?? [];
+            $remoteAllowance = is_array($remoteAllowance)
+                    ? array_values(array_unique(array_map('intval', $remoteAllowance)))
+                    : [(int)$remoteAllowance];
+
+            if(is_array($remoteAllowance)){
+                if(!in_array(3, $remoteAllowance, true)){
+                    $filteredRemoteWorkAllowance = array_filter($remoteAllowance, fn($value) => $value !== 4 && $value !== 5);
+                    $remoteAllowance = $filteredRemoteWorkAllowance;
+                }
+            }
+            $customValues[37] = $remoteAllowance;
+        }
+        $request->merge(['customValues' => $customValues]);
+
+        if (is_array($customValues[37] ?? null) && in_array(2, $customValues[37], true)) {
             $this->checkWaitingAllowance($request);
         }
+
+        $preflightProjectSegments = $this->workReportTimeService->buildProjectSegments($request, $hasWorkHours);
+        $preflightProjectSegments = $this->workReportTimeService->sortProjectSegmentsByTime($preflightProjectSegments, $startTime, $endTime);
+        $this->ensureProjectSegmentsDoNotOverlap($preflightProjectSegments);
+        $preflightProjectWorkMinutes = (int) collect($preflightProjectSegments)
+            ->where('segment_type', TimecardProjectSegment::TYPE_WORK)
+            ->sum('minutes');
+        $preflightWorkMinutesForOvertime = $preflightProjectWorkMinutes > 0 ? $preflightProjectWorkMinutes : (int) $workWindowMinutes;
+        if ($user->work_type === 1 && $hasWorkHours) {
+            $preflightOvertimeMinutes = max(0, $preflightWorkMinutesForOvertime - (int) floor($shift_time_difference_seconds / 60));
+            $this->ensureOvertimeReasonForRegularWork($request, $user, $hasWorkHours, $preflightOvertimeMinutes);
+        }
+
         DB::beginTransaction();
         try {
             $existingTimecard = timecardRecord::where('day', $request->day)
                 ->where('user_id', $request->userId)
                 ->first();
+            $this->ensureCanModifyTimecardForTarget($activeUser, $user, $existingTimecard, $shiftForDay, $incomingProjectIds);
             $this->ensureEditableTimecard($existingTimecard);
             $beforeTimecardState = $this->timecardAuditLogService->trackedTimecardState($existingTimecard);
             $previousStatus = $existingTimecard?->status_flag;
@@ -1116,39 +1896,148 @@ class WorkController extends Controller
             if($today != $request->day){
                 $is_exist->work_time_edit_flag = 1;
             }
-            $customValues = $request->customValues;            
-            if (array_key_exists(37, $customValues)) {
-                $remoteAllowance = $customValues[37] ?? [];
-                $remoteAllowance = is_array($remoteAllowance)
-                        ? array_values(array_unique(array_map('intval', $remoteAllowance)))
-                        : [(int)$remoteAllowance];
+            if (!$hasWorkHours && $is_exist->project_segments()
+                ->where('status', TimecardProjectSegment::STATUS_APPROVED)
+                ->where('segment_type', TimecardProjectSegment::TYPE_WORK)
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'message' => '承認済みのプロジェクト時間がある日報は研修のみに変更できません。',
+                ]);
+            }
+            $projectSegments = $this->workReportTimeService->buildProjectSegments($request, $hasWorkHours);
+            [$projectSegments, $projectSegmentsToCreate] = $this->splitProjectSegmentsForSave($is_exist, $projectSegments, $activeUser);
+            $projectSegments = $this->workReportTimeService->sortProjectSegmentsByTime($projectSegments, $startTime, $endTime);
+            $this->ensureProjectSegmentsDoNotOverlap($projectSegments);
+            $regularWorkMinutes = (int) floor($shift_time_difference_seconds / 60);
+            $projectWorkMinutesForOvertime = (int) collect($projectSegments)
+                ->where('segment_type', TimecardProjectSegment::TYPE_WORK)
+                ->sum('minutes');
+            $workMinutesForOvertime = $projectWorkMinutesForOvertime > 0 ? $projectWorkMinutesForOvertime : (int) $workWindowMinutes;
+            if ($user->work_type === 1 && $hasWorkHours) {
+                $overtimeMinutes = max(0, $workMinutesForOvertime - $regularWorkMinutes);
+            }
+            $this->ensureOvertimeReasonForRegularWork($request, $user, $hasWorkHours, $overtimeMinutes);
+            $projectSegments = $this->applyOvertimeDetailToProjectSegments(
+                $projectSegments,
+                $user,
+                $hasWorkHours,
+                $regularWorkMinutes,
+                $overtimeMinutes,
+                $overtimeRequestForDay !== null,
+                $this->overtimeReasonFromRequest($request),
+                $activeUser
+            );
+            $projectSegmentsToCreate = collect($projectSegments)
+                ->reject(fn ($segment) => filled($segment['id'] ?? null) && in_array($segment['status'] ?? null, $this->lockedProjectSegmentStatuses($activeUser), true))
+                ->map(fn ($segment) => Arr::except($segment, ['id']))
+                ->values()
+                ->all();
+            $projectSegmentCollection = collect($projectSegments);
+            $workProjectSegments = $projectSegmentCollection
+                ->where('segment_type', TimecardProjectSegment::TYPE_WORK)
+                ->values();
+            $trainingProjectSegments = $projectSegmentCollection
+                ->where('segment_type', TimecardProjectSegment::TYPE_TRAINING)
+                ->values();
+            $projectWorkMinutes = (int) $workProjectSegments->sum('minutes');
+            if ($hasWorkHours && $workProjectSegments->isNotEmpty()) {
+                $startTime = $workProjectSegments->first()['start_time'];
+                $endTime = $workProjectSegments->last()['end_time'];
+                $minutes = $projectWorkMinutes;
+                $time_difference_seconds = $minutes * 60;
+                $workWindowMinutes = $projectWorkMinutes;
+                $night_difference_seconds = $this->calcNightSeconds($startTime, $endTime, $request->breakTime);
+            }
 
-                if(is_array($remoteAllowance)){
-                    if(!in_array(3, $remoteAllowance, true)){
-                        $filteredRemoteWorkAllowance = array_filter($remoteAllowance, fn($value) => $value !== 4 && $value !== 5);
-                        $remoteAllowance = $filteredRemoteWorkAllowance;
-                    }
-                }
-                $customValues[37] = $remoteAllowance;
-            }
-            foreach ($customValues as $key => $field) {
-                
-               customFieldDataRecord::where('table_record_id', $is_exist->id)
-                    ->where('user_id', $request->userId)
-                    ->where('type_id', $key)
-                    ->delete();
-                if ($key == 37) {
-                    if(is_array($field)){
-                        foreach ($field as $val) {
-                            $this->saveCustomData($request->day, $is_exist->id, $request->userId, $val, $key, $request->vehicleData);
-                        }
-                    }
-                    
+            $is_exist->start_time = $hasWorkHours ? $startTime : null;
+            $is_exist->end_time = $hasWorkHours ? $endTime : null;
+            $is_exist->edit_start_time = $hasWorkHours ? $startTime : null;
+            $is_exist->edit_end_time = $hasWorkHours ? $endTime : null;
+            $is_exist->work_time = $hasWorkHours ? $minutes : 0;
+            $is_exist->break_time = $hasWorkHours ? $request->breakTime : 0;
+            $is_exist->over_time = 0;
+            $is_exist->late_time = 0;
+
+            if ($user->work_type === 1 && $hasWorkHours) {
+                if ($time_difference_seconds >= $shift_time_difference_seconds) {
+                    $overtimeSeconds = $time_difference_seconds - $shift_time_difference_seconds;
+                    $overtimeMinutes = floor($overtimeSeconds / 60);
+                    $is_exist->over_time = $overtimeMinutes;
                 } else {
-                    $this->saveCustomData($request->day, $is_exist->id, $request->userId, $field, $key, $request->vehicleData);
+                    $latetimeSeconds = $shift_time_difference_seconds - $time_difference_seconds;
+                    $latetimeMinutes = floor($latetimeSeconds / 60);
+                    $is_exist->late_time = $latetimeMinutes;
                 }
-                
             }
+
+            if ($hasWorkHours && isset($night_difference_seconds) && $night_difference_seconds > 0) {
+                $nighttimeMinutes = floor($night_difference_seconds / 60);
+                $is_exist->night_over_time = $nighttimeMinutes;
+            }else{
+                $is_exist->night_over_time = 0;
+            }
+
+            if ((int) $request->status_flag === timecardRecord::STATUS_SUBMITTED && $hasWorkHours) {
+                if ($workProjectSegments->isEmpty()) {
+                    throw ValidationException::withMessages([
+                        'message' => '就業プロジェクト時間を入力してください。',
+                    ]);
+                }
+                if ($projectWorkMinutes !== (int) $workWindowMinutes) {
+                    throw ValidationException::withMessages([
+                        'message' => 'プロジェクト別時間の合計が勤務時間と一致していません。',
+                    ]);
+                }
+            }
+            if ((int) $request->status_flag === timecardRecord::STATUS_SUBMITTED && $hasTrainingHours) {
+                $projectTrainingMinutes = (int) $trainingProjectSegments->sum('minutes');
+                if ($trainingProjectSegments->isEmpty() || $projectTrainingMinutes <= 0) {
+                    throw ValidationException::withMessages([
+                        'message' => '研修プロジェクト時間を入力してください。',
+                    ]);
+                }
+            }
+
+            $autoApprovedCleanSingleProject = $this->workReportTimeService->shouldAutoApproveCleanSingleProject(
+                $request,
+                $shiftForDay,
+                $projectSegments,
+                $customValues,
+                $hasTrainingHours,
+                $overtimeMinutes
+            );
+
+            if ($autoApprovedCleanSingleProject) {
+                $is_exist->status_flag = timecardRecord::STATUS_APPROVED;
+                $is_exist->approved_by = null;
+                $projectSegments = array_map(function ($segment) {
+                    $segment['status'] = TimecardProjectSegment::STATUS_APPROVED;
+                    $segment['approved_by'] = null;
+                    $segment['approved_at'] = now();
+                    $segment['approval_source'] = TimecardProjectSegment::APPROVAL_SOURCE_AUTO;
+                    return $segment;
+                }, $projectSegments);
+                $projectSegmentsToCreate = array_map(fn ($segment) => Arr::except($segment, ['id']), $projectSegments);
+            } elseif ((int) $request->status_flag === timecardRecord::STATUS_APPROVED) {
+                $is_exist->approved_by = $activeUser->id;
+                $projectSegments = array_map(function ($segment) use ($activeUser) {
+                    $segment['status'] = TimecardProjectSegment::STATUS_APPROVED;
+                    $segment['approved_by'] = $activeUser->id;
+                    $segment['approved_at'] = $segment['approved_at'] ?? now();
+                    $segment['approval_source'] = TimecardProjectSegment::APPROVAL_SOURCE_USER;
+                    return $segment;
+                }, $projectSegments);
+                $projectSegmentsToCreate = array_map(fn ($segment) => Arr::except($segment, ['id']), $projectSegments);
+            }
+
+            $is_exist->project_segments()
+                ->where(function ($query) use ($activeUser) {
+                    $query->whereIn('status', $this->editableProjectSegmentStatuses($activeUser))
+                        ->orWhereNull('status');
+                })
+                ->delete();
+            $is_exist->project_segments()->createMany($projectSegmentsToCreate);
+            $this->syncVehicleDataFromProjectSegments($request, $is_exist, $projectSegments);
             $is_exist->car_mileage = $request->car_mileage ?? 0;
 
             if ($is_exist->car_mileage > 0) {
@@ -1161,21 +2050,30 @@ class WorkController extends Controller
 
             $is_exist->save();
             $this->syncActualCases($request, $is_exist->id);
-            
+
             if($request->shiftType !== 0 && $request->shiftType !== 1){
                 $this->checkDepartment($request->day, $request->userId);
             }
             $this->saveWorkCost($request, $is_exist);
             $this->saveWorkIncentive($user, $request, $is_exist);
             if($request->overTimeMinute){
-                $this->overTimeCheck($request, $overtimeMinutes);
+                $this->overTimeCheck($request, $overtimeMinutes, $projectSegments, $regularWorkMinutes);
             }
             $afterTimecardState = $this->timecardAuditLogService->trackedTimecardState($is_exist->fresh());
             $timecardChanged = $this->statesDiffer($beforeTimecardState, $afterTimecardState);
-            $isSubmitted = (int) $request->status_flag === 1;
+            $isSubmitted = (int) $request->status_flag === timecardRecord::STATUS_SUBMITTED;
             $wasExistingTimecard = $existingTimecard !== null;
 
-            if ($isSubmitted && $previousStatus !== 1) {
+            if ($autoApprovedCleanSingleProject && $previousStatus !== timecardRecord::STATUS_APPROVED) {
+                $this->timecardAuditLogService->logTimecardEvent(
+                    'timecard_approved',
+                    $is_exist,
+                    (int) $request->userId,
+                    $beforeTimecardState,
+                    $afterTimecardState,
+                    ['source' => 'clean_single_project_auto_approval']
+                );
+            } elseif ($isSubmitted && $previousStatus !== timecardRecord::STATUS_SUBMITTED) {
                 $this->timecardAuditLogService->logTimecardEvent(
                     'timecard_submitted',
                     $is_exist,
@@ -1199,12 +2097,196 @@ class WorkController extends Controller
             throw $e;
         }
     }
+    private function splitProjectSegmentsForSave(timecardRecord $timecard, array $incomingSegments, ?User $actor = null): array
+    {
+        $lockedSegments = $timecard->project_segments()
+            ->whereIn('status', $this->lockedProjectSegmentStatuses($actor))
+            ->get()
+            ->keyBy('id');
+
+        if ($lockedSegments->isEmpty()) {
+            $segmentsToCreate = array_map(fn ($segment) => Arr::except($segment, ['id']), $incomingSegments);
+
+            return [$segmentsToCreate, $segmentsToCreate];
+        }
+
+        $editableSegments = [];
+
+        foreach ($incomingSegments as $segment) {
+            $segmentId = $segment['id'] ?? null;
+
+            if ($segmentId && $lockedSegments->has($segmentId)) {
+                $this->assertLockedProjectSegmentUnchanged($lockedSegments->get($segmentId), $segment);
+                continue;
+            }
+
+            $editableSegments[] = Arr::except($segment, ['id']);
+        }
+
+        $preservedSegments = $lockedSegments
+            ->map(fn (TimecardProjectSegment $segment) => [
+                'id' => $segment->id,
+                'project_id' => (int) $segment->project_id,
+                'segment_type' => $segment->segment_type ?? TimecardProjectSegment::TYPE_WORK,
+                'start_time' => $this->workReportTimeService->normalizeTime($segment->start_time),
+                'end_time' => $this->workReportTimeService->normalizeTime($segment->end_time),
+                'minutes' => (int) $segment->minutes,
+                'details' => $this->normalizedProjectDetails($segment->details),
+                'detail_values' => $this->normalizedProjectDetailValues($segment->detail_values),
+                'comment' => $this->normalizedProjectComment($segment->comment),
+                'status' => $segment->status,
+                'approved_by' => $segment->approved_by,
+                'approved_at' => $segment->approved_at,
+                'approval_source' => $segment->approval_source,
+            ])
+            ->values()
+            ->all();
+
+        return [array_merge($preservedSegments, $editableSegments), $editableSegments];
+    }
+
+    private function assertLockedProjectSegmentUnchanged(TimecardProjectSegment $lockedSegment, array $incomingSegment): void
+    {
+        $lockedData = [
+            'project_id' => (int) $lockedSegment->project_id,
+            'segment_type' => $lockedSegment->segment_type ?? TimecardProjectSegment::TYPE_WORK,
+            'start_time' => $this->workReportTimeService->normalizeTime($lockedSegment->start_time),
+            'end_time' => $this->workReportTimeService->normalizeTime($lockedSegment->end_time),
+            'minutes' => (int) $lockedSegment->minutes,
+            'details' => $this->normalizedProjectDetails($lockedSegment->details),
+            'detail_values' => $this->normalizedProjectDetailValues($lockedSegment->detail_values),
+            'comment' => $this->normalizedProjectComment($lockedSegment->comment),
+        ];
+
+        $incomingData = [
+            'project_id' => (int) ($incomingSegment['project_id'] ?? 0),
+            'segment_type' => $incomingSegment['segment_type'] ?? TimecardProjectSegment::TYPE_WORK,
+            'start_time' => $this->workReportTimeService->normalizeTime($incomingSegment['start_time'] ?? null),
+            'end_time' => $this->workReportTimeService->normalizeTime($incomingSegment['end_time'] ?? null),
+            'minutes' => (int) ($incomingSegment['minutes'] ?? 0),
+            'details' => $this->normalizedProjectDetails($incomingSegment['details'] ?? []),
+            'detail_values' => $this->normalizedProjectDetailValues($incomingSegment['detail_values'] ?? []),
+            'comment' => $this->normalizedProjectComment($incomingSegment['comment'] ?? null),
+        ];
+
+        if ($lockedData !== $incomingData) {
+            throw ValidationException::withMessages([
+                'message' => '申請中または承認済みのプロジェクト時間は変更できません。差戻されたプロジェクトのみ修正してください。',
+            ]);
+        }
+    }
+
+    private function normalizedProjectDetails(mixed $details): array
+    {
+        if (!is_array($details)) {
+            return [];
+        }
+
+        $details = array_values(array_unique($details));
+        sort($details);
+
+        return $details;
+    }
+
+    private function normalizedProjectComment(mixed $comment): ?string
+    {
+        if (blank($comment)) {
+            return null;
+        }
+
+        return trim((string) $comment);
+    }
+
+    private function normalizedProjectDetailValues(mixed $values): array
+    {
+        if (!is_array($values)) {
+            return [];
+        }
+
+        $normalized = [];
+
+        if (isset($values['allowance']) && is_array($values['allowance'])) {
+            $normalized['allowance'] = array_values(array_unique(array_map('intval', array_filter($values['allowance'], fn ($value) => filled($value)))));
+            sort($normalized['allowance']);
+        }
+
+        if (isset($values['allowance_labels']) && is_array($values['allowance_labels'])) {
+            $normalized['allowance_labels'] = array_values(array_unique(array_map(
+                fn ($value) => trim((string) $value),
+                array_filter($values['allowance_labels'], fn ($value) => filled($value))
+            )));
+            sort($normalized['allowance_labels']);
+        }
+
+        if (filled($values['incident'] ?? null)) {
+            $normalized['incident'] = trim((string) $values['incident']);
+        }
+
+        if (filled($values['overtime'] ?? null)) {
+            $normalized['overtime'] = trim((string) $values['overtime']);
+        }
+
+        if (isset($values['mileage']) && is_array($values['mileage'])) {
+            $mileage = [
+                'mileage' => (int) ($values['mileage']['mileage'] ?? 0),
+                'gas_full_price' => (int) ($values['mileage']['gas_full_price'] ?? 0),
+                'gas_consumption' => is_numeric($values['mileage']['gas_consumption'] ?? null) ? (float) $values['mileage']['gas_consumption'] : null,
+                'gas_unit_price' => is_numeric($values['mileage']['gas_unit_price'] ?? null) ? (float) $values['mileage']['gas_unit_price'] : null,
+            ];
+
+            if ($mileage['mileage'] > 0 || $mileage['gas_full_price'] > 0) {
+                $normalized['mileage'] = $mileage;
+            }
+        }
+
+        if (isset($values['vehicle']) && is_array($values['vehicle'])) {
+            $vehicle = $this->normalizedVehicleData($values['vehicle']);
+            if ($vehicle !== null) {
+                $normalized['vehicle'] = $vehicle;
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function normalizedVehicleData(mixed $values): ?array
+    {
+        if (!is_array($values) || !filled($values['vehicle'] ?? null)) {
+            return null;
+        }
+
+        return [
+            'id' => filled($values['id'] ?? null) ? (int) $values['id'] : null,
+            'vehicle' => (int) $values['vehicle'],
+            'alcohol_before_time' => $this->workReportTimeService->normalizeTime($values['alcohol_before_time'] ?? null),
+            'alcohol_after_time' => $this->workReportTimeService->normalizeTime($values['alcohol_after_time'] ?? null),
+            'alcohol_before_value' => is_numeric($values['alcohol_before_value'] ?? null) ? (float) $values['alcohol_before_value'] : null,
+            'alcohol_after_value' => is_numeric($values['alcohol_after_value'] ?? null) ? (float) $values['alcohol_after_value'] : null,
+            'confirm_before_user' => filled($values['confirm_before_user'] ?? null) ? (int) $values['confirm_before_user'] : null,
+            'confirm_after_user' => filled($values['confirm_after_user'] ?? null) ? (int) $values['confirm_after_user'] : null,
+        ];
+    }
+
     private function syncActualCases(Request $request, int $timecardId)
     {
-        $actualResults = $request->input('actual_results', []);
+        $actualResults = collect($request->input('actual_results', []))
+            ->filter(fn ($row) => is_array($row))
+            ->map(function ($row) use ($request) {
+                if (!filled($row['project_id'] ?? null) && filled($request->department)) {
+                    $row['project_id'] = $request->department;
+                }
+
+                return $row;
+            });
+        $allowedActualProjectIds = $this->actualProjectIdsForIncomingProjectSegments($request);
+        if ($allowedActualProjectIds !== null) {
+            $actualResults = $actualResults
+                ->filter(fn ($row) => in_array((int) ($row['project_id'] ?? 0), $allowedActualProjectIds, true))
+                ->values();
+        }
 
         // if nothing sent, wipe old and exit
-        $hasAnyValue = collect($actualResults)->contains(function ($row) {
+        $hasAnyValue = $actualResults->contains(function ($row) {
             return isset($row['value']) && $row['value'] !== '' && $row['value'] !== null;
         });
 
@@ -1225,9 +2307,10 @@ class WorkController extends Controller
 
             $statusLabel = $row['status'] ?? ($request->actual_status ?: '実績');
             $meta = isset($row['meta']) && is_array($row['meta']) ? $row['meta'] : null;
+            $projectId = filled($row['project_id'] ?? null) ? $row['project_id'] : $request->department;
 
             ProjectCase::create([
-                'project_record_id'  => $request->department,
+                'project_record_id'  => $projectId,
                 'timecard_record_id' => $timecardId,
                 'user_id'            => $request->userId,
                 'status'             => $statusLabel,
@@ -1238,6 +2321,23 @@ class WorkController extends Controller
                 'meta'               => $meta,
             ]);
         }
+    }
+    private function actualProjectIdsForIncomingProjectSegments(Request $request): ?array
+    {
+        $entries = collect($request->input('project_time_entries', []))
+            ->filter(fn ($entry) => is_array($entry));
+
+        if ($entries->isEmpty()) {
+            return null;
+        }
+
+        return $entries
+            ->filter(fn ($entry) => in_array('actual', (array) ($entry['details'] ?? []), true))
+            ->map(fn ($entry) => (int) ($entry['project_id'] ?? 0))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
 
@@ -1254,20 +2354,30 @@ class WorkController extends Controller
         if($user->position_id === 15){
             [$currentYear, $currentMonth] = explode('-', $request->day);
             $yearMonth = $currentYear . '-' . $currentMonth;
-            $filteredCosts = array_filter($request->incentiveValues, function ($incentive) {
-                return !(
-                    $incentive['count'] === null 
-                );
+            $filteredCosts = array_filter($request->incentiveValues ?? [], function ($incentive) {
+                return is_array($incentive)
+                    && array_key_exists('count', $incentive)
+                    && $incentive['count'] !== null;
             });
+            $existingIncentives = $is_exist->timecard_incentives()->get();
+            $existingById = $existingIncentives->keyBy('id');
+            $keptIds = [];
+
             foreach($filteredCosts as $incentive){
                 $id = $incentive['id'] ?? null;
-                $incentive_exist = $id ? timecardIncentive::findOrFail($id) : new timecardIncentive;
+                $incentive_exist = ($id && $existingById->has($id)) ? $existingById->get($id) : new timecardIncentive;
                 $incentive_exist->record_id = $is_exist->id;
                 $incentive_exist->user_id = $request->userId;
                 $incentive_exist->date_month = $yearMonth;
                 $incentive_exist->count = $incentive['count'];
                 $incentive_exist->save();
+                $keptIds[] = $incentive_exist->id;
             }
+
+            $existingIncentives
+                ->filter(fn ($incentive) => !in_array($incentive->id, $keptIds, true))
+                ->each
+                ->delete();
         }
     }
     private function saveWorkCost($request, $timecard)
@@ -1275,7 +2385,16 @@ class WorkController extends Controller
         [$y, $m] = explode('-', $request->day);
         $yearMonth = $y . '-' . $m;
 
-        $filteredCosts = array_values(array_filter($request->costsValues, function ($cost) {
+        $incomingCosts = $request->input('costsValues', []);
+        if (!is_array($incomingCosts)) {
+            $incomingCosts = [];
+        }
+
+        $filteredCosts = array_values(array_filter($incomingCosts, function ($cost) {
+            if (!is_array($cost)) {
+                return false;
+            }
+
             return !(
                 blank($cost['content'] ?? null) &&
                 blank($cost['expenses'] ?? null) &&
@@ -1286,6 +2405,23 @@ class WorkController extends Controller
                 blank($cost['receipt_date'] ?? null)
             );
         }));
+        $allowedExpenseProjects = $this->expenseProjectsForIncomingProjectSegments($request);
+        $projectNamesById = $allowedExpenseProjects['namesById'] ?? [];
+        $projectNamesById += $this->projectNamesForIncomingCosts($filteredCosts);
+        $filteredCosts = array_map(fn ($cost) => $this->normalizeIncomingCostProjectData($cost, $projectNamesById), $filteredCosts);
+
+        if ($allowedExpenseProjects !== null) {
+            $allowedExpenseProjectIds = $allowedExpenseProjects['ids'];
+            $allowedExpenseDepartmentNames = $allowedExpenseProjects['names'];
+            $filteredCosts = array_values(array_filter($filteredCosts, function ($cost) use ($allowedExpenseProjectIds, $allowedExpenseDepartmentNames) {
+                $projectId = filled(Arr::get($cost, 'project_id')) ? (int) Arr::get($cost, 'project_id') : null;
+                if ($projectId !== null) {
+                    return in_array($projectId, $allowedExpenseProjectIds, true);
+                }
+
+                return in_array((string) Arr::get($cost, 'department'), $allowedExpenseDepartmentNames, true);
+            }));
+        }
 
         $this->validateCost($filteredCosts, (int) $request->status_flag);
 
@@ -1367,11 +2503,95 @@ class WorkController extends Controller
             );
         }
     }
+    private function expenseProjectsForIncomingProjectSegments(Request $request): ?array
+    {
+        $entries = collect($request->input('project_time_entries', []))
+            ->filter(fn ($entry) => is_array($entry));
+
+        if ($entries->isEmpty()) {
+            return null;
+        }
+
+        $projectIds = $entries
+            ->filter(fn ($entry) => in_array('expenses', (array) ($entry['details'] ?? []), true))
+            ->map(fn ($entry) => (int) ($entry['project_id'] ?? 0))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($projectIds->isEmpty()) {
+            return [
+                'ids' => [],
+                'names' => [],
+                'namesById' => [],
+            ];
+        }
+
+        $namesById = ProjectRecord::query()
+            ->whereIn('id', $projectIds)
+            ->pluck('name', 'id')
+            ->mapWithKeys(fn ($name, $id) => [(int) $id => $name])
+            ->all();
+
+        return [
+            'ids' => $projectIds->all(),
+            'names' => collect($namesById)
+                ->filter()
+                ->values()
+                ->all(),
+            'namesById' => $namesById,
+        ];
+    }
+    private function projectNamesForIncomingCosts(array $costs): array
+    {
+        $projectIds = collect($costs)
+            ->map(fn ($cost) => (int) Arr::get($cost, 'project_id', 0))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($projectIds->isEmpty()) {
+            return [];
+        }
+
+        return ProjectRecord::query()
+            ->whereIn('id', $projectIds)
+            ->pluck('name', 'id')
+            ->mapWithKeys(fn ($name, $id) => [(int) $id => $name])
+            ->all();
+    }
+    private function normalizeIncomingCostProjectData(array $cost, array $projectNamesById): array
+    {
+        $projectId = filled(Arr::get($cost, 'project_id')) ? (int) Arr::get($cost, 'project_id') : null;
+        if ($projectId === null) {
+            $projectId = $this->projectIdFromDepartmentName(Arr::get($cost, 'department'), $projectNamesById);
+            if ($projectId !== null) {
+                $cost['project_id'] = $projectId;
+            }
+        }
+
+        if ($projectId !== null && blank(Arr::get($cost, 'department')) && filled($projectNamesById[$projectId] ?? null)) {
+            $cost['department'] = $projectNamesById[$projectId];
+        }
+
+        return $cost;
+    }
+    private function projectIdFromDepartmentName(?string $department, array $projectNamesById): ?int
+    {
+        if (blank($department)) {
+            return null;
+        }
+
+        $matchedProjectId = collect($projectNamesById)
+            ->search(fn ($name) => (string) $name === (string) $department);
+
+        return $matchedProjectId === false ? null : (int) $matchedProjectId;
+    }
 
     private function validateCost($costs, int $statusFlag){
         
         foreach($costs as $move){
-            if($move['department'] == null ){
+            if(Arr::get($move, 'department') == null ){
                 throw ValidationException::withMessages(['message' => '部門に割り当ててください。']);
             }
             if(filled($move['content'] ?? null) || filled($move['departure_place'] ?? null) || filled($move['arrival_place'] ?? null)){
@@ -1400,67 +2620,205 @@ class WorkController extends Controller
     }
     private function checkWaitingAllowance($request){
         [$currentYear, $currentMonth] = explode('-', $request->day);
-        $count = customFieldDataRecord::where('type_id', 37)
-                                    ->whereNotNull('table_record_id')
-                                    ->where('user_id', $request->userId)
-                                    ->where('value_int', 2)
-                                    ->whereHas('time_card_records', function ($query) {
-                                        $query->where('status_flag', '!=', 0);
-                                    })
-                                    ->whereYear('date', $currentYear)
-                                    ->whereMonth('date', $currentMonth)
-                                ->count();
+        $count = $this->monthlyAllowanceCount((int) $request->userId, 2, (int) $currentYear, (int) $currentMonth);
         if($count >= 5){
             throw ValidationException::withMessages(['message' => '待機手当は1か月に5回以上の利用はできません。']);
         }
     }
+    private function monthlyAllowanceCount(int $userId, int $allowanceValue, int $year, int $month): int
+    {
+        return timecardRecord::query()
+            ->where('user_id', $userId)
+            ->whereYear('day', $year)
+            ->whereMonth('day', $month)
+            ->where('status_flag', '!=', timecardRecord::STATUS_DRAFT)
+            ->with([
+                'project_segments:id,timecard_record_id,detail_values',
+                'custom_field_data_records' => fn ($q) => $q->where('type_id', 37)->select('id', 'table_record_id', 'type_id', 'value_int'),
+            ])
+            ->get(['id', 'user_id', 'day', 'status_flag'])
+            ->sum(fn (timecardRecord $timecard) => $this->timecardAllowanceCount($timecard, $allowanceValue));
+    }
+    private function timecardAllowanceCount(timecardRecord $timecard, int $allowanceValue): int
+    {
+        $segments = $timecard->relationLoaded('project_segments') ? $timecard->project_segments : collect();
+        if ($segments->isNotEmpty()) {
+            return $segments->sum(function (TimecardProjectSegment $segment) use ($allowanceValue) {
+                return collect($this->segmentAllowanceValues($segment))
+                    ->filter(fn (int $value) => $value === $allowanceValue)
+                    ->count();
+            });
+        }
+
+        return ($timecard->relationLoaded('custom_field_data_records') ? $timecard->custom_field_data_records : collect())
+            ->where('type_id', 37)
+            ->where('value_int', $allowanceValue)
+            ->count();
+    }
+    private function segmentAllowanceValues(TimecardProjectSegment $segment): array
+    {
+        $detailValues = is_array($segment->detail_values) ? $segment->detail_values : [];
+        $allowances = $detailValues['allowance'] ?? [];
+        if (!is_array($allowances)) {
+            return [];
+        }
+
+        return collect($allowances)
+            ->filter(fn ($value) => filled($value))
+            ->map(fn ($value) => (int) $value)
+            ->values()
+            ->all();
+    }
     private function saveCustomData($date, $table_record_id, $user_id, $value, $type_id, $vehicleData){
-        if ($type_id === 44 && $value == 1){
+        $typeId = (int) $type_id;
+
+        if ($value === null || $value === '') {
+            return;
+        }
+
+        if ($typeId === 44 && (int) $value !== 1) {
+            return;
+        }
+
+        if ($typeId === 44 && (int) $value === 1){
             $this->saveVehicleData($vehicleData, $table_record_id, $user_id);
         }
         $new_custom_data = new customFieldDataRecord;
         $new_custom_data->date = $date;
         $new_custom_data->table_record_id = $table_record_id;
         $new_custom_data->user_id = $user_id;
-        $new_custom_data->type_id = $type_id;
+        $new_custom_data->type_id = $typeId;
         
-        switch ($type_id) {
+        switch ($typeId) {
             case 39:
+            case 40:
             case 42: 
                 $new_custom_data->value_text = $value;
                 break;
             default: 
                 $new_custom_data->value_int = $value;
-                $partsRecord = customFieldPartsRecord::where('record_id', $type_id)
+                $partsRecord = customFieldPartsRecord::where('record_id', $typeId)
                                                     ->where('parts_value', $value)
                                                     ->select('parts_lavel')
                                                     ->first();
-                $new_custom_data->label	= $partsRecord->parts_lavel;
+                $new_custom_data->label = $partsRecord?->parts_lavel;
         }
         $new_custom_data->save();
     }
-    private function saveVehicleData($vehicleData, $table_record_id, $user_id){
-        $new_vehicle_id = $vehicleData['id'] ?? null;
-        timecardVehicle::updateOrCreate(
-            ['id' => $new_vehicle_id],
-            [
-                'record_id' => $table_record_id,
-                'user_id' => $user_id,
-                'vehicle' => $vehicleData['vehicle'],
-                'confirm_before_user' => $vehicleData['confirm_before_user'],
-                'confirm_after_user' => $vehicleData['confirm_after_user'],
-                'alcohol_before_time' => $vehicleData['alcohol_before_time'],
-                'alcohol_after_time' => $vehicleData['alcohol_after_time'],
-                'alcohol_before_value' => $vehicleData['alcohol_before_value'],
-                'alcohol_after_value' => $vehicleData['alcohol_after_value']
-            ]
-        );
+    private function saveVehicleData($vehicleData, $table_record_id, $user_id, ?int $projectId = null, ?int $projectSegmentId = null){
+        $vehicleData = $this->normalizedVehicleData($vehicleData);
+        if ($vehicleData === null) {
+            return;
+        }
+
+        $attributes = [
+            'record_id' => $table_record_id,
+            'user_id' => $user_id,
+            'project_id' => $projectId,
+            'timecard_project_segment_id' => $projectSegmentId,
+            'vehicle' => $vehicleData['vehicle'],
+            'confirm_before_user' => $vehicleData['confirm_before_user'],
+            'confirm_after_user' => $vehicleData['confirm_after_user'],
+            'alcohol_before_time' => $vehicleData['alcohol_before_time'],
+            'alcohol_after_time' => $vehicleData['alcohol_after_time'],
+            'alcohol_before_value' => $vehicleData['alcohol_before_value'],
+            'alcohol_after_value' => $vehicleData['alcohol_after_value']
+        ];
+
+        if (filled($vehicleData['id'] ?? null)) {
+            $vehicle = timecardVehicle::withTrashed()->updateOrCreate(
+                ['id' => (int) $vehicleData['id']],
+                $attributes
+            );
+            if ($vehicle->trashed()) {
+                $vehicle->restore();
+            }
+            return;
+        }
+
+        timecardVehicle::create($attributes);
+    }
+    private function syncVehicleDataFromProjectSegments(Request $request, timecardRecord $timecard, array $projectSegments): void
+    {
+        $savedSegments = $timecard->project_segments()->get();
+        $savedSegmentsByKey = $savedSegments->keyBy(fn (TimecardProjectSegment $segment) => $this->projectSegmentVehicleMatchKey($segment));
+        $rootVehicleData = $this->normalizedVehicleData($request->input('vehicleData'));
+
+        $vehicleRows = collect($projectSegments)
+            ->filter(fn ($segment) => in_array('vehicle', (array) ($segment['details'] ?? []), true))
+            ->map(function ($segment) use ($rootVehicleData, $savedSegments, $savedSegmentsByKey) {
+                $vehicleData = $this->normalizedVehicleData(data_get($segment, 'detail_values.vehicle'));
+                if ($vehicleData === null && $rootVehicleData !== null) {
+                    $vehicleData = $rootVehicleData;
+                }
+                if ($vehicleData === null) {
+                    return null;
+                }
+
+                $savedSegment = null;
+                if (filled($segment['id'] ?? null)) {
+                    $savedSegment = $savedSegments->firstWhere('id', (int) $segment['id']);
+                }
+                $savedSegment ??= $savedSegmentsByKey->get($this->projectSegmentVehicleMatchKey($segment));
+
+                return [
+                    'vehicle' => $vehicleData,
+                    'project_id' => (int) ($segment['project_id'] ?? 0),
+                    'segment_id' => $savedSegment?->id,
+                ];
+            })
+            ->filter()
+            ->values();
+
+        $timecard->vehicle_records()->delete();
+
+        $vehicleRows->each(function ($row) use ($timecard, $request) {
+            $this->saveVehicleData(
+                $row['vehicle'],
+                $timecard->id,
+                (int) $request->userId,
+                $row['project_id'] ?: null,
+                $row['segment_id'] ? (int) $row['segment_id'] : null
+            );
+        });
+    }
+
+    private function projectSegmentVehicleMatchKey(mixed $segment): string
+    {
+        $projectId = is_array($segment) ? ($segment['project_id'] ?? null) : $segment->project_id;
+        $segmentType = is_array($segment) ? ($segment['segment_type'] ?? null) : $segment->segment_type;
+        $startTime = is_array($segment) ? ($segment['start_time'] ?? null) : $segment->start_time;
+        $endTime = is_array($segment) ? ($segment['end_time'] ?? null) : $segment->end_time;
+
+        return implode('|', [
+            (int) $projectId,
+            $segmentType ?: TimecardProjectSegment::TYPE_WORK,
+            $this->workReportTimeService->normalizeTime($startTime),
+            $this->workReportTimeService->normalizeTime($endTime),
+        ]);
     }
     public function deleteTimeCard(Request $request){
-        $is_exist = timecardRecord::where('day', $request->date)->where('user_id', $request->userId)->first();
-        $over_time = ShiftOvertimeRequest::where('overtime_day', $request->date)->where('user_id', $request->userId)->first();
-        if($is_exist){
-            $this->ensureEditableTimecard($is_exist);
+        $activeUser = $this->active_user();
+        return DB::transaction(function () use ($request, $activeUser) {
+            $is_exist = timecardRecord::where('day', $request->date)
+                ->where('user_id', $request->userId)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$is_exist) {
+                return response()->json(['not found' => 'not found'], 404);
+            }
+
+            $targetUser = User::findOrFail($request->userId);
+            $shiftForDay = shiftRecord::where('shift_day', $request->date)
+                ->where('user_id', $request->userId)
+                ->first();
+            $this->ensureCanModifyTimecardForTarget($activeUser, $targetUser, $is_exist->loadMissing('project_segments'), $shiftForDay);
+            $this->ensureDeletableTimecard($is_exist);
+
+            $over_time = ShiftOvertimeRequest::where('overtime_day', $request->date)
+                ->where('user_id', $request->userId)
+                ->first();
             $costsToDelete = $is_exist->timecard_costs()->get();
             foreach ($costsToDelete as $costToDelete) {
                 $this->timecardAuditLogService->logCostEvent(
@@ -1476,15 +2834,14 @@ class WorkController extends Controller
             $is_exist->custom_field_data_records()->delete();
             $is_exist->timecard_costs()->delete();
             $is_exist->timecard_incentives()->delete();
-            $is_exist->vehicle_data()->delete();
+            $is_exist->vehicle_records()->delete();
+            $is_exist->timecard_break_records()->delete();
             $is_exist->delete();
             if($over_time){
                 $over_time->delete();
             }
-            response()->json(['success' => 'success'], 200);
-        }
-
-        response()->json(['not found' => 'not found'], 404);
+            return response()->json(['success' => 'success'], 200);
+        });
     }
     public function getAttendanceData(Request $request){
         $user_list = $request->work_group ?? [Auth::id()];
@@ -1494,19 +2851,31 @@ class WorkController extends Controller
     }
     public function remandTimeCard(Request $request){
         $user = $this->active_user();
-        $time_card_record = timecardRecord::where('user_id', $request->user_id )->where('day', '=' , $request->record_day )->first();
-        // if($request->overTimeRequest){
-        //     $data = [
-        //         'id' => $request->overTimeRequest['id'],
-        //         'status' => 0,
-        //         'approved_by' => $user->id
-        //     ];
-        //     $this->respond_overtime(new Request ($data));
-        // }
-        if(!empty($time_card_record)){
+        $time_card_record = DB::transaction(function () use ($request, $user) {
+            $time_card_record = timecardRecord::where('user_id', $request->user_id )
+                ->where('day', '=' , $request->record_day )
+                ->lockForUpdate()
+                ->first();
+
+            if(empty($time_card_record)){
+                return null;
+            }
+            $this->ensureCanApproveWholeTimecard($user, $time_card_record->loadMissing(['user', 'project_segments']));
+            if((int) $time_card_record->status_flag === timecardRecord::STATUS_REJECTED){
+                return $time_card_record;
+            }
+
             $beforeState = $this->timecardAuditLogService->trackedTimecardState($time_card_record);
-            $time_card_record->status_flag = 10;
+            $time_card_record->status_flag = timecardRecord::STATUS_REJECTED;
             $time_card_record->save();
+            $time_card_record->project_segments()
+                ->whereIn('status', [TimecardProjectSegment::STATUS_SUBMITTED, TimecardProjectSegment::STATUS_APPROVED])
+                ->update([
+                    'status' => TimecardProjectSegment::STATUS_REJECTED,
+                    'approved_by' => $user->id,
+                    'approved_at' => now(),
+                    'approval_source' => null,
+                ]);
             $this->timecardAuditLogService->logTimecardEvent(
                 'timecard_remanded',
                 $time_card_record,
@@ -1515,26 +2884,54 @@ class WorkController extends Controller
                 $this->timecardAuditLogService->trackedTimecardState($time_card_record),
                 ['actor_id' => $user->id]
             );
-        }
+            return $time_card_record->fresh();
+        });
 
         return response()->json($time_card_record);
 
     }
     public function approveTimeCard(Request $request){
         $user = $this->active_user();
-        $time_card_record = timecardRecord::where('user_id', $request->user_id )->where('day', $request->record_day )->first();
-        if($request->overTimeRequest){
-            $data = [
-                'id' => $request->overTimeRequest['id'],
-                'status' => 2,
-                'approved_by' => $user->id
-            ];
-            $this->respond_overtime(new Request ($data));
-        }
-        if(!empty($time_card_record)){
+        $time_card_record = DB::transaction(function () use ($request, $user) {
+            $time_card_record = timecardRecord::where('user_id', $request->user_id )
+                ->where('day', $request->record_day )
+                ->lockForUpdate()
+                ->first();
+
+            if(empty($time_card_record)){
+                return null;
+            }
+            $this->ensureCanApproveWholeTimecard($user, $time_card_record->loadMissing(['user', 'project_segments']));
+            if((int) $time_card_record->status_flag === timecardRecord::STATUS_APPROVED){
+                return $time_card_record;
+            }
+
+            if($request->overTimeRequest){
+                $overtimeSegments = $request->overTimeRequest['project_segments'] ?? [];
+                if (is_array($overtimeSegments) && count($overtimeSegments) > 0) {
+                    if ((int) ($request->overTimeRequest['status'] ?? 1) !== 2) {
+                        throw ValidationException::withMessages([
+                            'message' => '残業申請のプロジェクト別承認が完了していません。',
+                        ]);
+                    }
+                } else {
+                    $data = [
+                        'id' => $request->overTimeRequest['id'],
+                        'status' => 2,
+                        'approved_by' => $user->id
+                    ];
+                    $this->respond_overtime(new Request ($data));
+                }
+            }
+            if ($time_card_record->project_segments()->where('status', '!=', TimecardProjectSegment::STATUS_APPROVED)->exists()) {
+                throw ValidationException::withMessages([
+                    'message' => 'プロジェクト別時間の承認が完了していません。',
+                ]);
+            }
+
             $beforeState = $this->timecardAuditLogService->trackedTimecardState($time_card_record);
             $time_card_record->approved_by = $user->id;
-            $time_card_record->status_flag = 2;
+            $time_card_record->status_flag = timecardRecord::STATUS_APPROVED;
             $time_card_record->save();
             $this->timecardAuditLogService->logTimecardEvent(
                 'timecard_approved',
@@ -1544,22 +2941,214 @@ class WorkController extends Controller
                 $this->timecardAuditLogService->trackedTimecardState($time_card_record),
                 ['actor_id' => $user->id]
             );
-        }
+            return $time_card_record->fresh();
+        });
 
         return response()->json($time_card_record);
 
     }
 
+    public function approveTimecardProjectSegment(Request $request)
+    {
+        $user = $this->active_user();
+        $segment = DB::transaction(function () use ($request, $user) {
+            $segment = TimecardProjectSegment::with(['project:id,name', 'timecardRecord'])
+                ->lockForUpdate()
+                ->findOrFail($request->id);
+            $this->ensureProjectSegmentApprover($user, $segment);
+
+            if ($segment->status === TimecardProjectSegment::STATUS_APPROVED) {
+                return $segment->fresh(['project:id,name', 'timecardRecord']);
+            }
+
+            $segment->status = TimecardProjectSegment::STATUS_APPROVED;
+            $segment->approved_by = $user->id;
+            $segment->approved_at = now();
+            $segment->approval_source = TimecardProjectSegment::APPROVAL_SOURCE_USER;
+            $segment->save();
+
+            if ($segment->timecardRecord) {
+                $this->approveTimecardIfProjectSegmentsComplete($segment->timecardRecord, $user);
+            }
+
+            return $segment->fresh(['project:id,name', 'timecardRecord']);
+        });
+
+        return response()->json($segment);
+    }
+
+    public function rejectTimecardProjectSegment(Request $request)
+    {
+        $user = $this->active_user();
+        $segment = DB::transaction(function () use ($request, $user) {
+            $segment = TimecardProjectSegment::with(['project:id,name', 'timecardRecord'])
+                ->lockForUpdate()
+                ->findOrFail($request->id);
+            $this->ensureProjectSegmentApprover($user, $segment);
+
+            if ($segment->status === TimecardProjectSegment::STATUS_REJECTED) {
+                return $segment->fresh(['project:id,name', 'timecardRecord']);
+            }
+
+            $segment->status = TimecardProjectSegment::STATUS_REJECTED;
+            $segment->approved_by = $user->id;
+            $segment->approved_at = now();
+            $segment->approval_source = null;
+            $segment->save();
+
+            if ($segment->timecardRecord) {
+                $segment->timecardRecord->status_flag = timecardRecord::STATUS_REJECTED;
+                $segment->timecardRecord->save();
+            }
+
+            return $segment->fresh(['project:id,name', 'timecardRecord']);
+        });
+
+        return response()->json($segment);
+    }
+
+    public function cancelTimecardProjectSegment(Request $request)
+    {
+        $user = $this->active_user();
+        $segment = DB::transaction(function () use ($request, $user) {
+            $segment = TimecardProjectSegment::with(['project:id,name', 'timecardRecord'])
+                ->lockForUpdate()
+                ->findOrFail($request->id);
+            $this->ensureProjectSegmentApprover($user, $segment);
+
+            if ($segment->status !== TimecardProjectSegment::STATUS_APPROVED) {
+                return $segment->fresh(['project:id,name', 'timecardRecord']);
+            }
+
+            $timecard = $segment->timecardRecord
+                ? timecardRecord::whereKey($segment->timecardRecord->id)->lockForUpdate()->first()
+                : null;
+            $beforeState = $timecard
+                ? $this->timecardAuditLogService->trackedTimecardState($timecard)
+                : null;
+
+            $segment->status = TimecardProjectSegment::STATUS_SUBMITTED;
+            $segment->approved_by = null;
+            $segment->approved_at = null;
+            $segment->approval_source = null;
+            $segment->save();
+
+            if ($timecard && (int) $timecard->status_flag === timecardRecord::STATUS_APPROVED) {
+                $timecard->approved_by = null;
+                $timecard->status_flag = timecardRecord::STATUS_SUBMITTED;
+                $timecard->save();
+
+                $this->timecardAuditLogService->logTimecardEvent(
+                    'timecard_approval_cancelled',
+                    $timecard,
+                    (int) $timecard->user_id,
+                    $beforeState,
+                    $this->timecardAuditLogService->trackedTimecardState($timecard),
+                    [
+                        'actor_id' => $user->id,
+                        'source' => 'project_segment_approval_cancelled',
+                        'segment_id' => $segment->id,
+                        'project_id' => $segment->project_id,
+                    ]
+                );
+            }
+
+            return $segment->fresh(['project:id,name', 'timecardRecord']);
+        });
+
+        return response()->json($segment);
+    }
+
+    private function ensureProjectSegmentApprover(User $user, TimecardProjectSegment $segment): void
+    {
+        $isAdmin = $user->isAdmin();
+        $timecardUserId = $segment->timecardRecord?->user_id;
+
+        if (!$isAdmin && $timecardUserId && (int) $timecardUserId === (int) $user->id) {
+            abort(403, '自分のプロジェクト時間は承認できません。');
+        }
+
+        if ($isAdmin || (int) $user->work_authority === 1 || $user->isProjectManager($segment->project_id)) {
+            return;
+        }
+
+        abort(403, 'このプロジェクト時間を承認する権限がありません。');
+    }
+
+    private function approveTimecardIfProjectSegmentsComplete(timecardRecord $timecard, User $actor): void
+    {
+        $timecard = timecardRecord::whereKey($timecard->id)->lockForUpdate()->first();
+        if (!$timecard) {
+            return;
+        }
+        if ((int) $timecard->status_flag !== timecardRecord::STATUS_SUBMITTED) {
+            return;
+        }
+
+        $segments = $timecard->project_segments()->get();
+        if ($segments->isEmpty() || $segments->contains(fn ($segment) => $segment->status !== TimecardProjectSegment::STATUS_APPROVED)) {
+            return;
+        }
+
+        $beforeState = $this->timecardAuditLogService->trackedTimecardState($timecard);
+        $timecard->approved_by = $actor->id;
+        $timecard->status_flag = timecardRecord::STATUS_APPROVED;
+        $timecard->save();
+
+        $this->timecardAuditLogService->logTimecardEvent(
+            'timecard_approved',
+            $timecard,
+            (int) $timecard->user_id,
+            $beforeState,
+            $this->timecardAuditLogService->trackedTimecardState($timecard),
+            [
+                'actor_id' => $actor->id,
+                'source' => 'all_project_segments_approved',
+            ]
+        );
+    }
+
 
     public function cancelTimeCard(Request $request){
         $active_user = $this->active_user();
-        $time_card_record = timecardRecord::where('user_id', $request->user_id )->where('day', $request->record_day )->first();
+        $time_card_record = DB::transaction(function () use ($request, $active_user) {
+            $time_card_record = timecardRecord::where('user_id', $request->user_id )
+                ->where('day', $request->record_day )
+                ->lockForUpdate()
+                ->first();
 
-        if(!empty($time_card_record)){
+            if(empty($time_card_record)){
+                return null;
+            }
+            $this->ensureCanApproveWholeTimecard($active_user, $time_card_record->loadMissing(['user', 'project_segments']));
+            if((int) $time_card_record->status_flag !== timecardRecord::STATUS_APPROVED){
+                return $time_card_record;
+            }
+            $segments = $time_card_record->project_segments()->get();
+            $isAdmin = $active_user->isAdmin();
+            if ($segments->isNotEmpty() && !$isAdmin) {
+                throw ValidationException::withMessages([
+                    'message' => 'プロジェクト別の承認取消を行ってください。',
+                ]);
+            }
+            if ($segments->isNotEmpty() && $segments->contains(fn ($segment) => $segment->status !== TimecardProjectSegment::STATUS_APPROVED)) {
+                throw ValidationException::withMessages([
+                    'message' => 'プロジェクト別時間がすべて承認済みの場合のみ日報承認取消できます。',
+                ]);
+            }
+
             $beforeState = $this->timecardAuditLogService->trackedTimecardState($time_card_record);
-            $time_card_record->approved_by = $active_user->id;
-            $time_card_record->status_flag = 1;
+            $time_card_record->approved_by = null;
+            $time_card_record->status_flag = timecardRecord::STATUS_SUBMITTED;
             $time_card_record->save();
+            $time_card_record->project_segments()
+                ->where('status', TimecardProjectSegment::STATUS_APPROVED)
+                ->update([
+                    'status' => TimecardProjectSegment::STATUS_SUBMITTED,
+                    'approved_by' => null,
+                    'approved_at' => null,
+                    'approval_source' => null,
+                ]);
             $this->timecardAuditLogService->logTimecardEvent(
                 'timecard_approval_cancelled',
                 $time_card_record,
@@ -1568,7 +3157,8 @@ class WorkController extends Controller
                 $this->timecardAuditLogService->trackedTimecardState($time_card_record),
                 ['actor_id' => $active_user->id]
             );
-        }
+            return $time_card_record->fresh();
+        });
         
 
         return response()->json($time_card_record);
@@ -1576,7 +3166,8 @@ class WorkController extends Controller
     }
     public function attendanceConfirm(Request $request){
         
-        $user_list = $request->user_id ?? [Auth::id()];
+        $active_user = $this->active_user();
+        $user_list = $request->user_id ?? [$active_user->id];
         $date = $request->date_year_month;
             
         $result = $this->attendanceService->confirm($user_list, $date);
@@ -1623,22 +3214,38 @@ class WorkController extends Controller
     public function request_overtime(Request $request){
         $request->validate([
             'record_id' => 'required',
+            'minutes' => 'nullable|integer|min:0',
+            'overtime_content' => 'nullable|string',
+            'project_segments' => 'nullable|array',
+            'project_segments.*.project_id' => 'nullable|integer',
+            'project_segments.*.minutes' => 'nullable|integer|min:0',
+            'project_segments.*.content' => 'nullable|string|max:2000',
         ]);
         $shift = shiftRecord::findOrFail($request->record_id);
-        
-        $rec = ShiftOvertimeRequest::firstOrCreate([
-            "record_id" => $request->record_id
-        ])->update([
-            "minutes" => $request->minutes,
-            "content" => $request->overtime_content,
-            "status" => $request->status,
+
+        $projectSegments = $this->sanitizeOvertimeProjectSegments($request, $shift);
+        if (collect($projectSegments)->contains(fn ($segment) => blank($segment['content'] ?? null))) {
+            throw ValidationException::withMessages([
+                'message' => '残業プロジェクトごとに作業内容を入力してください。',
+            ]);
+        }
+        $minutes = count($projectSegments)
+            ? collect($projectSegments)->sum('minutes')
+            : max(0, (int) ($request->minutes ?? 0));
+        $content = $this->overtimeRequestContentSummary($projectSegments, $request->overtime_content);
+
+        $rec = ShiftOvertimeRequest::updateOrCreate([
+            'record_id' => $request->record_id,
+        ], [
+            "minutes" => $minutes,
+            "project_segments" => $projectSegments,
+            "content" => $content,
+            "status" => $request->status ?? 1,
             "user_id" => $shift->user_id,
-            "created_by" => $request->created_by ? $request->created_by : null,
+            "created_by" => $request->created_by ? $request->created_by : Auth::id(),
             "approved_by" => null,
-            "overtime_day" => $request->overtime_day,
+            "overtime_day" => $request->overtime_day ?? $shift->shift_day,
         ]);
-       
-        
 
         return response()->json($rec);
     }
@@ -1653,19 +3260,98 @@ class WorkController extends Controller
     public function respond_overtime(Request $request){
         $request->validate([
             'id' => 'required',
+            'status' => 'required|integer|in:0,1,2',
+            'segment_index' => 'nullable|integer|min:0',
+            'project_id' => 'nullable|integer',
         ]);
-        if($request->status == 0){
-            ShiftOvertimeRequest::findOrFail($request->id)->delete();
-        }else{
-            $exec = ShiftOvertimeRequest::findOrFail($request->id)->update([
-                "status" => $request->status,
-                "approved_by" => $request->approved_by
+        $user = $this->active_user();
+        $overtimeRequest = ShiftOvertimeRequest::findOrFail($request->id);
+        $status = (int) $request->status;
+        $segments = is_array($overtimeRequest->project_segments) ? array_values($overtimeRequest->project_segments) : [];
+
+        if ($request->has('segment_index') || $request->filled('project_id')) {
+            $index = $request->has('segment_index')
+                ? (int) $request->segment_index
+                : collect($segments)->search(fn ($segment) => (int) ($segment['project_id'] ?? 0) === (int) $request->project_id);
+
+            if ($index === false || !array_key_exists($index, $segments)) {
+                throw ValidationException::withMessages([
+                    'message' => '対象の残業プロジェクトが見つかりません。',
+                ]);
+            }
+
+            $projectId = (int) ($segments[$index]['project_id'] ?? 0);
+            if ($projectId <= 0 || ($request->filled('project_id') && $projectId !== (int) $request->project_id)) {
+                throw ValidationException::withMessages([
+                    'message' => '対象の残業プロジェクトが一致しません。',
+                ]);
+            }
+
+            $this->ensureOvertimeProjectSegmentApprover($user, $overtimeRequest, $projectId);
+
+            $segments[$index]['status'] = $status;
+            if ($status === 2) {
+                $segments[$index]['approved_by'] = $user->id;
+                $segments[$index]['approved_at'] = now()->toDateTimeString();
+                unset($segments[$index]['rejected_by'], $segments[$index]['rejected_at']);
+            } elseif ($status === 0) {
+                $segments[$index]['rejected_by'] = $user->id;
+                $segments[$index]['rejected_at'] = now()->toDateTimeString();
+                unset($segments[$index]['approved_by'], $segments[$index]['approved_at']);
+            } else {
+                unset(
+                    $segments[$index]['approved_by'],
+                    $segments[$index]['approved_at'],
+                    $segments[$index]['rejected_by'],
+                    $segments[$index]['rejected_at']
+                );
+            }
+
+            $segments = array_map(fn ($segment) => $this->overtimeSegmentWithStatus($segment), $segments);
+            $overtimeRequest->project_segments = $segments;
+            $overtimeRequest->status = $this->deriveOvertimeRequestStatus($segments, $status);
+            $overtimeRequest->approved_by = $overtimeRequest->status === 2 ? $user->id : null;
+            $overtimeRequest->save();
+
+            return response()->json([
+                'data' => $overtimeRequest->fresh(),
             ]);
-        }   
+        }
+
+        if (!empty($segments)) {
+            foreach ($segments as $segment) {
+                $projectId = (int) ($segment['project_id'] ?? 0);
+                if ($projectId > 0) {
+                    $this->ensureOvertimeProjectSegmentApprover($user, $overtimeRequest, $projectId);
+                }
+            }
+
+            $segments = array_map(function ($segment) use ($status, $user) {
+                $segment['status'] = $status;
+                if ($status === 2) {
+                    $segment['approved_by'] = $user->id;
+                    $segment['approved_at'] = now()->toDateTimeString();
+                    unset($segment['rejected_by'], $segment['rejected_at']);
+                } elseif ($status === 0) {
+                    $segment['rejected_by'] = $user->id;
+                    $segment['rejected_at'] = now()->toDateTimeString();
+                    unset($segment['approved_by'], $segment['approved_at']);
+                } else {
+                    unset($segment['approved_by'], $segment['approved_at'], $segment['rejected_by'], $segment['rejected_at']);
+                }
+
+                return $this->overtimeSegmentWithStatus($segment);
+            }, $segments);
+            $overtimeRequest->project_segments = $segments;
+        }
+
+        $overtimeRequest->status = $this->deriveOvertimeRequestStatus($segments, $status);
+        $overtimeRequest->approved_by = $overtimeRequest->status === 2 ? ($request->approved_by ?? $user->id) : null;
+        $exec = $overtimeRequest->save();
         
 
         return response()->json([
-            'data' => $exec ?? null
+            'data' => $exec ? $overtimeRequest->fresh() : null
         ]);
     }
     public function work_badge(Request $request){
@@ -1707,8 +3393,18 @@ class WorkController extends Controller
     }
     private function ensureEditableTimecard(?timecardRecord $timecard): void
     {
-        if ($timecard && (int) $timecard->status_flag === 2) {
+        if ($timecard && (int) $timecard->status_flag === timecardRecord::STATUS_APPROVED) {
             throw ValidationException::withMessages(['message' => '承認済みの日報は編集できません。']);
+        }
+    }
+    private function ensureDeletableTimecard(?timecardRecord $timecard): void
+    {
+        $this->ensureEditableTimecard($timecard);
+
+        if ($this->hasLockedProjectSegments($timecard)) {
+            throw ValidationException::withMessages([
+                'message' => '申請中または承認済みのプロジェクト時間がある日報は削除できません。差戻されたプロジェクトのみ修正してください。',
+            ]);
         }
     }
 
@@ -1771,6 +3467,8 @@ class WorkController extends Controller
             'content' => $content ?: null,
             'expenses' => Arr::get($cost, 'expenses'),
             'department' => Arr::get($cost, 'department'),
+            'project_id' => filled(Arr::get($cost, 'project_id')) ? (int) Arr::get($cost, 'project_id') : null,
+            'timecard_project_segment_id' => filled(Arr::get($cost, 'timecard_project_segment_id')) ? (int) Arr::get($cost, 'timecard_project_segment_id') : null,
             'merchant_name' => Arr::get($cost, 'merchant_name'),
             'receipt_date' => $receiptDate,
             'currency' => Arr::get($cost, 'currency', 'JPY') ?: 'JPY',
@@ -2106,16 +3804,15 @@ class WorkController extends Controller
             $nextMonthDate = $currentDate->addMonthNoOverflow();
             $nextMonthYear = $nextMonthDate->year;
             $nextMonth = $nextMonthDate->month;
-            $auth_user = Auth::user();
-            $ids = [610, 608];
+            $auth_user = $this->active_user();
             $shiftNotSubmittedList = [];
-            if(in_array(Auth::id(), $ids) || in_array($auth_user->position_id, [1, 2, 3, 4, 5, 14, null])){
+            if($auth_user->isAdmin() || in_array($auth_user->position_id, [1, 2, 3, 4, 5, 14, null])){
                 
                 return response()->json();
             }
             $nextMonthShift = shiftRecord::whereYear('shift_day', $nextMonthYear)
                                         ->whereMonth('shift_day', $nextMonth)
-                                        ->where('user_id', Auth::id())->get();
+                                        ->where('user_id', $auth_user->id)->get();
             $numberOfDays = cal_days_in_month(CAL_GREGORIAN, $nextMonth, $nextMonthYear);
 
             if(count($nextMonthShift) < $numberOfDays){
@@ -2247,19 +3944,318 @@ class WorkController extends Controller
             ->join("\n");
     }
 
+    private function costTypeLabel(?int $type): string
+    {
+        return [
+            1 => '交通費',
+            2 => '通信費',
+            3 => '宿泊費',
+            4 => '旅費交通費',
+            5 => '消耗品費',
+            6 => '交際費',
+            7 => '支払手数料',
+            8 => '福利厚生費',
+        ][$type] ?? '経費';
+    }
+
+    private function vehicleLabel(?int $vehicle): string
+    {
+        return [
+            0 => '福岡582く5617 ホンダライフ',
+            1 => '福岡582え8686 ダイハツミラ',
+            2 => '福岡580と5654 オッティ',
+            3 => '福岡480わ3206 クリッパー',
+            4 => '福岡480ね5019 バン',
+            5 => '福岡480ね5020 バン',
+            6 => '鹿児島582そ6650 ミライース',
+            7 => '福岡582ち7350',
+            8 => 'なにわ502の1116',
+            9 => '大阪581わ707（ﾚﾝﾀｶｰ）',
+            10 => '福岡582て7672',
+            11 => '長崎581つ9501',
+            12 => '福岡582た8963',
+            13 => '大分581な4912',
+            14 => '鹿児島582そ8143',
+            15 => 'レンタカー',
+            16 => 'マイカー',
+            17 => '弘前580い7009',
+            18 => '弘前580い7008',
+            19 => '仙台580よ8134',
+            20 => '郡山580け8503',
+            22 => '愛媛581な1880',
+            23 => '盛岡580さ6353',
+            24 => '福岡582そ1234',
+            25 => '仙台580ひ6191',
+            27 => 'なにわ581き9917',
+            28 => '久留米581と3345',
+        ][$vehicle] ?? '';
+    }
+
+    private function projectSegmentTypeLabel(?string $segmentType): string
+    {
+        return $segmentType === TimecardProjectSegment::TYPE_TRAINING ? '研修' : '就業';
+    }
+
+    private function workProjectDetailCsv(int $year, int $month, array $usersList)
+    {
+        $users = User::whereIn('id', $usersList)
+            ->with(['time_card_records' => function ($q) use ($year, $month) {
+                $q->whereYear('day', $year)
+                    ->whereMonth('day', $month)
+                    ->with([
+                        'custom_field_data_records' => function ($q) {
+                            $q->whereIn('type_id', [37, 40, 39, 42])
+                                ->orderBy('created_at', 'desc')
+                                ->select('id', 'table_record_id', 'type_id', 'value_text', 'value_int', 'date', 'label', 'user_id');
+                        },
+                        'timecard_costs',
+                        'department:id,name,unit_id,custom_unit_label',
+                        'project_segments.project:id,name,unit_id,custom_unit_label',
+                        'project_case.project:id,unit_id,custom_unit_label,actual_statuses',
+                        'vehicle_data',
+                        'vehicle_records',
+                    ])
+                    ->select(
+                        'id',
+                        'break_time',
+                        'end_time',
+                        'day',
+                        'over_time',
+                        'stamp_flag',
+                        'start_time',
+                        'status_flag',
+                        'work_time',
+                        'user_id',
+                        'car_mileage',
+                        'car_used_project',
+                        'gas_full_price',
+                        'work_group_id'
+                    );
+            }])
+            ->get();
+
+        $rows = [];
+
+        foreach ($users as $user) {
+            $userTotals = [
+                'minutes' => 0,
+                'cost_count' => 0,
+                'cost_sum' => 0,
+                'mileage' => 0,
+                'gas' => 0,
+                'actuals' => [],
+            ];
+            $userHasRows = false;
+
+            foreach ($user->time_card_records->sortBy('day') as $timecard) {
+                $segments = $timecard->project_segments;
+                $hasRealProjectSegments = $segments->isNotEmpty();
+                if ($segments->isEmpty() && ($timecard->department || $timecard->work_group_id)) {
+                    $segments = collect([(object) [
+                        'id' => null,
+                        'project_id' => $timecard->work_group_id,
+                        'segment_type' => TimecardProjectSegment::TYPE_WORK,
+                        'project' => $timecard->department,
+                        'start_time' => $timecard->start_time,
+                        'end_time' => $timecard->end_time,
+                        'minutes' => $timecard->work_time,
+                        'status' => null,
+                        'details' => [],
+                        'detail_values' => [],
+                        'comment' => null,
+                    ]]);
+                }
+
+                $hasStoredDetails = $segments->contains(fn ($segment) => !empty($segment->details));
+                $firstDetailIndexes = [];
+                foreach ($segments->values() as $detailIndex => $detailSegment) {
+                    foreach ((array) ($detailSegment->details ?? []) as $detail) {
+                        $firstDetailIndexes[$detail] ??= $detailIndex;
+                    }
+                }
+                $allowances = $timecard->custom_field_data_records->where('type_id', 37)->pluck('label')->filter()->implode(' ');
+                $incident = $timecard->custom_field_data_records->firstWhere('type_id', 40);
+                $comment = $timecard->custom_field_data_records->firstWhere('type_id', 39);
+                $overtimeReason = $timecard->custom_field_data_records->firstWhere('type_id', 42);
+
+                foreach ($segments as $index => $segment) {
+                    $projectName = $segment->project?->name ?? $timecard->department?->name ?? '';
+                    $projectId = (int) ($segment->project_id ?? $segment->project?->id ?? 0);
+                    if (!$projectId && $projectName === '') {
+                        continue;
+                    }
+                    $details = is_array($segment->details ?? null) ? $segment->details : [];
+                    $detailValues = is_array($segment->detail_values ?? null) ? $segment->detail_values : [];
+                    $projectComment = trim((string) ($segment->comment ?? ''));
+                    $legacyComment = trim($comment?->value_text ?? '');
+                    $legacyFirstSegment = !$hasRealProjectSegments && !$hasStoredDetails && $index === 0;
+                    $segmentCosts = $timecard->timecard_costs->filter(fn ($cost) => $cost->department === $projectName);
+                    $segmentCases = $timecard->project_case->filter(fn ($case) => (int) $case->project_record_id === $projectId);
+                    $segmentMileage = is_array($detailValues['mileage'] ?? null) ? $detailValues['mileage'] : null;
+                    $segmentVehicle = is_array($detailValues['vehicle'] ?? null) ? $this->vehicleLabel($detailValues['vehicle']['vehicle'] ?? null) : '';
+                    $mileageMatches = $segmentMileage !== null || (int) $timecard->car_used_project === $projectId;
+                    $segmentAllowance = isset($detailValues['allowance_labels']) && is_array($detailValues['allowance_labels'])
+                        ? implode(' ', array_filter($detailValues['allowance_labels'], fn ($value) => filled($value)))
+                        : '';
+                    $segmentIncident = trim((string) ($detailValues['incident'] ?? ''));
+                    $segmentOvertime = trim((string) ($detailValues['overtime'] ?? ''));
+                    $allowanceText = '';
+                    if (in_array('allowance', $details, true) || $legacyFirstSegment) {
+                        $allowanceText = $segmentAllowance !== '' ? $segmentAllowance : (((int) ($firstDetailIndexes['allowance'] ?? -1) === $index || $legacyFirstSegment) ? $allowances : '');
+                    }
+                    $incidentText = '';
+                    if (in_array('incident', $details, true) || $legacyFirstSegment) {
+                        $incidentText = $segmentIncident !== '' ? $segmentIncident : (((int) ($firstDetailIndexes['incident'] ?? -1) === $index || $legacyFirstSegment) ? ($incident?->value_text ?? $incident?->label ?? '') : '');
+                    }
+                    $vehicleText = '';
+                    if (in_array('vehicle', $details, true) || $legacyFirstSegment) {
+                        $vehicleText = $segmentVehicle !== ''
+                            ? $segmentVehicle
+                            : (((int) ($firstDetailIndexes['vehicle'] ?? -1) === $index || $legacyFirstSegment)
+                            ? $this->vehicleLabel($timecard->vehicle_data?->vehicle)
+                            : '');
+                    }
+
+                    $segmentMinutes = (int) ($segment->minutes ?? 0);
+                    $segmentCostCount = $segmentCosts->count();
+                    $segmentCostSum = $segmentCosts->sum(fn ($cost) => (int) $cost->expenses);
+                    $segmentMileageDistance = $mileageMatches ? (int) ($segmentMileage['mileage'] ?? $timecard->car_mileage) : '';
+                    $segmentGasCost = $mileageMatches ? (int) ($segmentMileage['gas_full_price'] ?? $timecard->gas_full_price) : '';
+                    $segmentActualText = $segmentCases->map(function ($case) {
+                        $label = $this->projectUnitLabel($case->project);
+                        return ($case->status ?? '実績') . ': ' . $case->amount . $label;
+                    })->implode("\n");
+
+                    $userHasRows = true;
+                    $userTotals['minutes'] += $segmentMinutes;
+                    $userTotals['cost_count'] += $segmentCostCount;
+                    $userTotals['cost_sum'] += $segmentCostSum;
+                    $userTotals['mileage'] += is_numeric($segmentMileageDistance) ? (int) $segmentMileageDistance : 0;
+                    $userTotals['gas'] += is_numeric($segmentGasCost) ? (int) $segmentGasCost : 0;
+                    foreach ($segmentCases as $case) {
+                        if (!filled($case->amount) || !is_numeric($case->amount)) {
+                            continue;
+                        }
+
+                        $label = $this->projectUnitLabel($case->project);
+                        $key = ($case->status ?? '実績') . '|' . $label;
+                        $userTotals['actuals'][$key]['status'] = $case->status ?? '実績';
+                        $userTotals['actuals'][$key]['unit_label'] = $label;
+                        $userTotals['actuals'][$key]['amount'] = ($userTotals['actuals'][$key]['amount'] ?? 0) + (int) $case->amount;
+                    }
+
+                    $rows[] = [
+                        '日付' => Carbon::parse($timecard->day)->format('Y-m-d'),
+                        'メンバー' => $user->name,
+                        '区分' => $this->projectSegmentTypeLabel($segment->segment_type ?? TimecardProjectSegment::TYPE_WORK),
+                        'プロジェクト' => $projectName,
+                        '開始' => $segment->start_time ? substr($segment->start_time, 0, 5) : '',
+                        '終了' => $segment->end_time ? substr($segment->end_time, 0, 5) : '',
+                        '作業時間' => $this->formatMinutesForCsv($segmentMinutes),
+                        '経費件数' => $segmentCostCount,
+                        '経費合計' => $segmentCostSum,
+                        '経費詳細' => $segmentCosts->map(function ($cost) {
+                            $parts = [$this->costTypeLabel((int) $cost->type)];
+                            if (filled($cost->content)) {
+                                $parts[] = $cost->content;
+                            }
+                            $parts[] = ((int) $cost->expenses) . '円';
+                            return implode(': ', $parts);
+                        })->implode("\n"),
+                        'マイカー距離' => $segmentMileageDistance,
+                        'ガソリン代' => $segmentGasCost,
+                        '諸手当' => $allowanceText,
+                        '車両使用' => $vehicleText,
+                        'インシデント内容' => $incidentText,
+                        '時間外業務内容' => in_array('overtime', $details, true) || $legacyFirstSegment
+                            ? ($segmentOvertime !== '' ? $segmentOvertime : ($overtimeReason?->value_text ?? ''))
+                            : '',
+                        '実績' => $segmentActualText,
+                        'コメント' => in_array('comment', $details, true) || $legacyFirstSegment
+                            ? ($projectComment !== '' ? $projectComment : $legacyComment)
+                            : '',
+                    ];
+                }
+            }
+
+            if ($userHasRows) {
+                $rows[] = [
+                    '日付' => '集計',
+                    'メンバー' => $user->name,
+                    '区分' => '',
+                    'プロジェクト' => '',
+                    '開始' => '',
+                    '終了' => '',
+                    '作業時間' => $this->formatMinutesForCsv($userTotals['minutes']),
+                    '経費件数' => $userTotals['cost_count'] ?: '',
+                    '経費合計' => $userTotals['cost_sum'] ?: '',
+                    '経費詳細' => '',
+                    'マイカー距離' => $userTotals['mileage'] ?: '',
+                    'ガソリン代' => $userTotals['gas'] ?: '',
+                    '諸手当' => '',
+                    '車両使用' => '',
+                    'インシデント内容' => '',
+                    '時間外業務内容' => '',
+                    '実績' => collect($userTotals['actuals'])
+                        ->map(fn ($row) => "{$row['status']}: {$row['amount']}{$row['unit_label']}")
+                        ->values()
+                        ->implode("\n"),
+                    'コメント' => '',
+                ];
+            }
+        }
+
+        return response()->json($rows);
+    }
+
     public function work_generate_csv(Request $request){
-        $year = (int) $request->year;
-        $month = (int) $request->month;
-        $users_list = explode(",", $request->users);
-        foreach ($users_list as &$value) {
-            $value = intval($value);
+        abort_unless(Auth::check(), 401);
+
+        $data = $request->validate([
+            'year' => ['required', 'integer', 'min:2000', 'max:2100'],
+            'month' => ['required', 'integer', 'between:1,12'],
+            'users' => ['required', 'string'],
+            'mode' => ['nullable', 'in:summary,project_detail'],
+        ]);
+
+        $activeUser = $this->active_user();
+        abort_unless($this->canExportWorkCsv($activeUser), 403, 'CSVを出力する権限がありません。');
+
+        $rawUserIds = collect(explode(',', $data['users']))
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn ($id) => $id !== '');
+
+        if ($rawUserIds->isEmpty() || $rawUserIds->contains(fn ($id) => !ctype_digit($id))) {
+            throw ValidationException::withMessages([
+                'users' => 'CSV出力対象のメンバーを選択してください。',
+            ]);
+        }
+
+        $year = (int) $data['year'];
+        $month = (int) $data['month'];
+        $mode = $data['mode'] ?? 'summary';
+        $users_list = $rawUserIds
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($users_list)) {
+            throw ValidationException::withMessages([
+                'users' => 'CSV出力対象のメンバーを選択してください。',
+            ]);
+        }
+
+        if ($mode === 'project_detail') {
+            return $this->workProjectDetailCsv($year, $month, $users_list);
         }
         $users = User::whereIn('id', $users_list)->with(['time_card_records' => function($q) use($year, $month) {
             $q->whereYear('day', $year)->whereMonth('day', $month)
                 ->with(['custom_field_data_records' => function ($q) {
                     $q->whereIn('type_id', [37, 40, 39, 41, 42])->orderBy('created_at', 'desc')->select('id', 'table_record_id', 'type_id', 'value_text', 'value_int', 'date', 'label', 'user_id');
                 }])
-                ->with(['timecard_costs', 'timecard_incentives', 'department', 'project_case.project:id,unit_id,custom_unit_label,actual_statuses'])
+                ->with(['timecard_costs', 'timecard_incentives', 'department', 'project_segments', 'project_case.project:id,unit_id,custom_unit_label,actual_statuses'])
                 ->select('id', 'break_time', 'end_time', 'day', 'over_time', 'stamp_flag', 'start_time', 'status_flag', 'work_time', 'user_id', 'car_mileage', 'work_group_id');
         }])->with(['shift_records' => function ($q) use($year, $month) {
             $q->whereYear('shift_day', $year)->whereMonth('shift_day', $month)
@@ -2295,10 +4291,28 @@ class WorkController extends Controller
                 $time_card_record = $user->time_card_records->where('day', $targetShiftDay)->first();                
                 $shift = $user->shift_records->where('shift_day', $targetShiftDay)->first();
                 $condition_index = $user->custom_field_data_records->where('date', $targetShiftDay)->first()?->value_int;
-                $comment = empty($time_card_record) ? '' : $time_card_record->custom_field_data_records->where('type_id', 39)->first();
-                $allowances = empty($time_card_record) ? [] : $time_card_record->custom_field_data_records->where('type_id', 37)->pluck('label')->toArray();    
+                $hasProjectSegmentsForDetails = !empty($time_card_record) && $time_card_record->project_segments->isNotEmpty();
+                $segmentDetailValues = $hasProjectSegmentsForDetails
+                    ? $time_card_record->project_segments->map(fn ($segment) => is_array($segment->detail_values) ? $segment->detail_values : [])
+                    : collect();
+                $comment = empty($time_card_record) || $hasProjectSegmentsForDetails ? '' : $time_card_record->custom_field_data_records->where('type_id', 39)->first();
+                $segmentComments = $hasProjectSegmentsForDetails
+                    ? $time_card_record->project_segments->pluck('comment')->map(fn ($value) => trim((string) $value))->filter()->unique()->values()->implode("\n")
+                    : '';
+                $allowances = empty($time_card_record) || $hasProjectSegmentsForDetails ? [] : $time_card_record->custom_field_data_records->where('type_id', 37)->pluck('label')->toArray();
                 $allowances_value = implode(" ", $allowances); 
-                $incident = empty($time_card_record) ? [] : $time_card_record->custom_field_data_records->where('type_id', 40)->first();      
+                if ($hasProjectSegmentsForDetails) {
+                    $allowances_value = $segmentDetailValues
+                        ->flatMap(fn ($values) => $values['allowance_labels'] ?? [])
+                        ->filter()
+                        ->unique()
+                        ->values()
+                        ->implode(' ');
+                }
+                $incident = empty($time_card_record) || $hasProjectSegmentsForDetails ? [] : $time_card_record->custom_field_data_records->where('type_id', 40)->first();
+                $segmentIncident = $hasProjectSegmentsForDetails
+                    ? $segmentDetailValues->map(fn ($values) => trim((string) ($values['incident'] ?? '')))->filter()->unique()->values()->implode("\n")
+                    : '';
                 $costs = !empty($time_card_record) ? $time_card_record->timecard_costs : [];
                 $cases = empty($time_card_record) ? collect() : collect($time_card_record->project_case);
                 
@@ -2356,10 +4370,10 @@ class WorkController extends Controller
                     '休憩時間' => empty($time_card_record) ? '' : ($time_card_record->break_time).'分',
                     '部門' => empty($time_card_record) || empty($time_card_record->department) ? '' : $time_card_record->department->name,
                     '諸手当' => $allowances_value, 
-                    'インシデント' => empty($incident) ? '' : $incident->label,
+                    'インシデント' => $hasProjectSegmentsForDetails ? $segmentIncident : (empty($incident) ? '' : ($incident->value_text ?? $incident->label)),
                     '目標達成率' => empty($satisfy) ? '' : $satisfy->label,
                     'コンディション' => $condition_index ? $conditions[$condition_index] : '',
-                    'コメント' => $comment ? $comment->value_text : '',
+                    'コメント' => $hasProjectSegmentsForDetails ? $segmentComments : ($comment ? $comment->value_text : ''),
                     '経費' => $costFormatted,
                     '実績' => '',
                     'マイカー走行距離' => empty($time_card_record) ? '' : $time_card_record->car_mileage
@@ -2596,7 +4610,7 @@ class WorkController extends Controller
             $remaining_days_data = $this->get_remaining_days(new Request(['user_code' => $user->user_code]))->getData(true);
 
             $remaining_days = $remaining_days_data['days'] ?? 0;
-            $remaining_days = (int) $remaining_days;
+            $remaining_days = (float) $remaining_days;
         }
         return response()->json([
             'planned_leaves_this_year' => $planned_leaves_this_year,
@@ -2654,6 +4668,21 @@ class WorkController extends Controller
             'user_code.required' => '関連するレコードが見つかりません。',
         ]);
         $user_code = $data['user_code'];
+        $ledgerBalance = $this->paidLeaveLedger->balanceForUserCode($user_code);
+        if ($ledgerBalance) {
+            $user = User::query()->where('user_code', $user_code)->first();
+
+            return response()->json([
+                'name' => $user?->name,
+                'user_code' => $user_code,
+                'days' => $ledgerBalance['days'],
+                'minutes' => $ledgerBalance['minutes'],
+                'minutes_per_day' => $ledgerBalance['minutes_per_day'],
+                'status' => 'success',
+                'source' => 'glowd',
+            ]);
+        }
+
         $query = "社員ｺｰﾄﾞ = \"{$user_code}\"";
         $fields = ["社員ｺｰﾄﾞ", "氏名", "残日数"];
         $responseData = $this->kintone->getRecords(794, $query, $fields);

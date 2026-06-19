@@ -16,7 +16,6 @@ class ProjectCase extends Model
     protected $casts = [
         'report_date'  => 'date:Y-m-d',
         'submitted_at' => 'datetime',
-        'probability'  => 'float',
         'meta'         => 'array',
     ];
 

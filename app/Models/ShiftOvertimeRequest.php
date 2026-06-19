@@ -11,6 +11,10 @@ class ShiftOvertimeRequest extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'content', 'approved_by', 'record_id', 'status', 'minutes', 'created_by', 'overtime_day', 'user_id', 'descendant_of'
+        'content', 'approved_by', 'record_id', 'status', 'minutes', 'project_segments', 'created_by', 'overtime_day', 'user_id', 'descendant_of'
+    ];
+
+    protected $casts = [
+        'project_segments' => 'array',
     ];
 }

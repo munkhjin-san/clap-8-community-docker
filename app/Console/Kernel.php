@@ -51,9 +51,9 @@ class Kernel extends ConsoleKernel
         $schedule->command('goals:check-alert-streak')->dailyAt('02:00');
         $schedule->command('goals:report-outcome-incidents')->weeklyOn(3, '08:00')->withoutOverlapping()->appendOutputTo(storage_path('logs/incidents/outcome-goal-incidents.log'));
         $schedule->command('refresh:expire')->monthlyOn(2, '08:00');
-        // $schedule->command('paid-leave:grant')->dailyAt('02:15');
-        // $schedule->command('paid-leave:expire')->dailyAt('02:30');
-        // $schedule->command('paid-leave:reconcile-usages')->dailyAt('02:45');
+        $schedule->command('paid-leave:grant')->dailyAt('02:15');
+        $schedule->command('paid-leave:expire')->dailyAt('02:30');
+        $schedule->command('paid-leave:reconcile-usages')->dailyAt('02:45');
         $schedule->command('app:auto-attendance-confirm')->monthlyOn(3, '08:00');
         $schedule->command('app:refresh-automation')->monthlyOn(1, '08:00');
         $schedule->command('contact-batches:poll')->everyFifteenMinutes();

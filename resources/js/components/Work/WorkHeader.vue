@@ -31,7 +31,7 @@
                 </div>
             </div>
         </div>
-        <div class="work-button" v-if="!auth.isRegistered" @click.stop="menu.setMenu( { id: 98, name: 'workMemberSelector'})">
+        <div class="work-button" v-if="!isActiveRegistered" @click.stop="menu.setMenu( { id: 98, name: 'workMemberSelector'})">
             メンバー
         </div>
         <Transition name="modalFade">
@@ -50,6 +50,14 @@
         </button>
         <button class="work-button" @click="emit('toBottomScroll')">
             集計
+        </button>
+        <button
+            v-if="canExportCsv && !responsive.mobile"
+            class="work-button"
+            :disabled="csvDisabled"
+            @click="emit('projectCsv')"
+        >
+            {{ csvLoading ? '作成中...' : 'CSV出力' }}
         </button>
         
        
@@ -70,6 +78,9 @@
     interface Props {
         workGroups: any;
         selectedMonth: number
+        canExportCsv?: boolean
+        csvDisabled?: boolean
+        csvLoading?: boolean
     }
     const props = defineProps<Props>()
     const emit = defineEmits([
@@ -78,10 +89,13 @@
         'todayScroll', 
         'toBottomScroll', 
         'approveShift',
+        'projectCsv',
     ])
     const modal = ref(false)
     const selectedUsersList = defineModel<any>('users')
     const selectedVehicles = defineModel('vehicles')
+    const activeUserId = computed(() => Number(auth.activeUser?.id ?? auth.id ?? 0))
+    const isActiveRegistered = computed(() => Number(auth.activeUser?.position_id) === 15)
     const flatworkGroups = computed(() => {
         let groups : any
        
@@ -99,14 +113,14 @@
 
         
         const uniqueMemberObjects: User[] = groups.sort((a: User, b: User) => {
-            if (a.id === auth.id) return -1;
-            if (b.id === auth.id) return 1;
+            if (a.id === activeUserId.value) return -1;
+            if (b.id === activeUserId.value) return 1;
             return a.id - b.id;
         });
         return uniqueMemberObjects
     })
     const hasPrivilage = computed(() => {
-        return auth.activeUser.position_id == 6 || auth.activeUser.id == 610 || auth.activeUser.id == 608
+        return auth.isPM || auth.isAdmin
     })
     const buttonCollection = computed(() => {
         const buttons: { action: () => void, order: number, title: string }[] = []
@@ -127,3 +141,11 @@
         return buttons
     })
 </script>
+<style scoped lang="scss">
+    .workButtons-wrapper{
+        z-index: 20;
+    }
+    .workMemberSelector{
+        z-index: 24;
+    }
+</style>

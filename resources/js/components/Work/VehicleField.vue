@@ -1,12 +1,19 @@
 <template>
-    <div>
+    <div :class="{ 'vehicle-field-compact': compact }">
         <div>
             <div class="report-field">
                 <p class="report-header">使用車両</p>
                 <div class="report-input">
-                    <div class="report-input-wrapper">
-                        <select class="dropDownSelector taskDateTimePicker" style="max-width: 100%;" @change="vehicleChange('vehicle', vehicleType)" v-model="vehicleType">
-                            <option v-for="vehicle in vehicleAsOptions" :value="vehicle.value">{{ vehicle.label }}</option>
+                    <div>
+                        <select
+                            class="optionPicker vehicle-select"
+                            :class="{ 'vehicle-select-placeholder': vehicleType === null }"
+                            style="max-width: 100%;"
+                            @change="vehicleChange('vehicle', vehicleType)"
+                            v-model="vehicleType"
+                        >
+                            <option :value="null" disabled class="vehicle-select-option-placeholder">車両を選択</option>
+                            <option v-for="vehicle in vehicleAsOptions" :value="vehicle.value" class="vehicle-select-option">{{ vehicle.label }}</option>
                         </select>
                     </div>
                 </div>
@@ -77,6 +84,9 @@ import { User } from '@/interface/globalInterface';
 import { vehicleAsOptions } from '@/utils/workApi';
 import { useAuthUserStore } from '@/store/auth'
 const auth = useAuthUserStore()
+defineProps({
+    compact: Boolean,
+})
 type VehicleFieldProps = {
     vehicle: number | null,
     alcohol_before_time: string | null,
@@ -129,5 +139,26 @@ watch([alcoholTestConfirmMember, alcoholTestConfirmMember2], () => {
     border:1px solid var(--primary-color);
     color:var(--primary-color);
     font-size: 14px;
+}
+.vehicle-select-placeholder {
+    color: #999;
+}
+.vehicle-select-option-placeholder {
+    color: #999;
+}
+.vehicle-select-option {
+    color: var(--primary-color);
+}
+.vehicle-field-compact :deep(.report-field) {
+    margin: 0 0 12px;
+    padding: 0;
+}
+.vehicle-field-compact :deep(.report-header) {
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+.vehicle-field-compact :deep(.report-input-time),
+.vehicle-field-compact :deep(.report-input) {
+    gap: 8px;
 }
 </style>

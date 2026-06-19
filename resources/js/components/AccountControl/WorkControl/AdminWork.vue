@@ -157,7 +157,7 @@ import { useApi } from '@/composables/api';
     const hasIncident = (user) => {
         let days = ''
         user.time_card_records.forEach(record => {
-            if(record.custom_field_data_records && record.custom_field_data_records.filter(ob => ob.type_id === 40).length){
+            if(record.project_segments && record.project_segments.filter(ob => ob.details?.includes('incident')).length){
                 if(days == ''){
                     days = ''
                 }
@@ -169,7 +169,7 @@ import { useApi } from '@/composables/api';
     const hasVehicle = (user) => {
         let days = ''
         user.time_card_records.forEach(record => {
-            if(record.custom_field_data_records && record.custom_field_data_records.filter(ob => ob.type_id === 44).length){
+            if(record.project_segments && record.project_segments.filter(ob => ob.details?.includes('vehicle')).length){
                 if(days == ''){
                     days = ''
                 }
