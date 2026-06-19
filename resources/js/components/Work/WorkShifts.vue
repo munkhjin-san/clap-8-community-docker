@@ -217,12 +217,8 @@
 </template>
 <script setup>
 import LoaderButton from '../Global/LoaderButton.vue'
-<<<<<<< HEAD
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
-=======
 import Modal from '../Global/Modal.vue'
-import { computed, onMounted, ref, watch } from 'vue';
->>>>>>> b2d340e3 (feat: Add WorkReportIcon component and enhance WorkShifts with project selection and auto-approved timesheets)
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useTheme } from '@/store/theme';
 import { useResponsive } from '@/store/responsive';
 import ShortInput from '../Form/ShortInput.vue';

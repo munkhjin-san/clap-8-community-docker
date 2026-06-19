@@ -45,6 +45,6 @@ class PlannedLeaveChangeRequest extends Model
         return $this->belongsTo(shiftRecord::class, 'shift_record_id');
     }
     public function project_record(){
-        return $this->belongsTo(projectRecord::class, 'project_id');
+        return $this->belongsTo(ProjectRecord::class, 'project_id');
     }
 }
