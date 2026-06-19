@@ -442,7 +442,7 @@ class WorkController extends Controller
                 $satisfy = $time_card ? $time_card->custom_field_data_records->firstWhere('type_id', 41) : '';
 
                 $daily_report_ability = $this->has_daily_report($shift, $time_card, $date, $user, $active_user, $attendance, $authority);
-                $overtime_ability = $shift ? $this->has_overtime_access($shift, $user, $time_card, $date, $active_user) : false;
+                $overtime_ability = $shift ? $this->has_overtime_access($shift, $user, $time_card, $date, $active_user, $attendance) : false;
                 $approve_ability = $this->has_approve_access($shift, $time_card, $authority, $attendance, $active_user);
                 $department_creation = $this->has_department_create($shift, $time_card, $date, $active_user, $attendance, $user);
                 if ($hasProjectSegmentsForDetails) {
@@ -498,16 +498,18 @@ class WorkController extends Controller
     private function has_approve_access($shift, $time_card, $authority, $has_attendance, $active_user){
         $force = $active_user->isAdmin();
         $dailyReportStatus = $time_card->status_flag ?? -1;
-        $overtimeStatus = $shift && $shift->overtime_request ? $shift->overtime_request->status : -1;
+        $overtimeRequest = $shift?->overtime_request;
+        $overtimeStatus = $overtimeRequest ? $overtimeRequest->status : -1;
         $hasProjectSegments = $time_card
             ? ($time_card->relationLoaded('project_segments')
                 ? $time_card->project_segments->isNotEmpty()
                 : $time_card->project_segments()->exists())
             : false;
+        $hasOvertimeProjectSegments = $overtimeRequest && is_array($overtimeRequest->project_segments) && count($overtimeRequest->project_segments) > 0;
         $dailyReportApproveOrDeny = !$hasProjectSegments && $dailyReportStatus == timecardRecord::STATUS_SUBMITTED && ($authority || $force) && !$has_attendance;
         $dailyReportCancel = !$hasProjectSegments && $dailyReportStatus == timecardRecord::STATUS_APPROVED && ($authority || $force) && !$has_attendance;
-        $overtimeApproveOrDeny = $overtimeStatus == 1 && ($authority || $force) && !$has_attendance;
-        $overtimeCancel = $overtimeStatus == 2 && ($authority || $force) && !$has_attendance;
+        $overtimeApproveOrDeny = !$hasOvertimeProjectSegments && $overtimeStatus == 1 && ($authority || $force) && !$has_attendance;
+        $overtimeCancel = !$hasOvertimeProjectSegments && $overtimeStatus == 2 && ($authority || $force) && !$has_attendance;
         return [
             $dailyReportApproveOrDeny,
             $dailyReportCancel,
@@ -677,7 +679,7 @@ class WorkController extends Controller
             ? $timecard->project_segments->contains(fn ($segment) => in_array($segment->status, $lockedStatuses, true))
             : $timecard->project_segments()->whereIn('status', $lockedStatuses)->exists();
     }
-    private function has_overtime_access($shift, $user, $time_card, $date, $active_user){
+    private function has_overtime_access($shift, $user, $time_card, $date, $active_user, $has_attendance = false){
         $today_or_future = empty($shift) ? false : $date->format('Y-m-d') >= date('Y-m-d');
         $possibleTypes = [1,6,7,8,9,10,11,12,13];
         $userMatch = $user->id == $active_user->id;       
@@ -685,7 +687,7 @@ class WorkController extends Controller
             || (int) $time_card->status_flag === timecardRecord::STATUS_REJECTED
             || (int) $time_card->status_flag === timecardRecord::STATUS_DRAFT;
         $overtimeRequestEditable = !$shift?->overtime_request || (int) $shift->overtime_request->status === 0;
-        return $today_or_future && in_array($shift->shiftType->id, $possibleTypes) && $userMatch && $timeCardCheck && $active_user->position_id !== 15 && $overtimeRequestEditable;
+        return !$has_attendance && $today_or_future && in_array($shift->shiftType->id, $possibleTypes) && $userMatch && $timeCardCheck && $active_user->position_id !== 15 && $overtimeRequestEditable;
     }
     private function has_daily_report($shift, $time_card, $day, $user, $active_user, $has_attendace, $authority){
         $timecardExist = $time_card !== null;
@@ -701,7 +703,7 @@ class WorkController extends Controller
         $modify = $timecardExist && !$has_attendace && ($ownEditable || $adminEditable);
         $start_stamp = !$timecardExist && !$has_attendace && $valid_shift && $isToday && $user->id == $active_user->id; 
         $end_stamp = $timecardExist && !$has_attendace && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $valid_shift && $isToday && $user->id == $active_user->id;
-        $break_stamp = $timecardExist && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $user->id == $active_user->id; 
+        $break_stamp = $timecardExist && !$has_attendace && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $user->id == $active_user->id; 
         return [$create ,$modify, $start_stamp, $end_stamp, $break_stamp];
     }
     private function has_department_create($shift, $time_card, $day, $active_user, $has_attendace, $user){

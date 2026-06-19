@@ -30,19 +30,19 @@
                 />
                 <LoaderButton
                     style="margin:0"
-                    v-if="item.ability.overtime_approve && !hasSegmentedOvertimeRequest"
+                    v-if="item.ability.overtime_approve"
                     content="残業承認"
                     @triggered="respondOvertime(item?.shift?.overtime_request, 2, '残業承認')"
                 />
                 <LoaderButton
                     style="margin:0"
-                    v-if="item.ability.overtime_approve && !hasSegmentedOvertimeRequest"
+                    v-if="item.ability.overtime_approve"
                     content="残業差戻"
                     @triggered="respondOvertime(item?.shift?.overtime_request, 0, '残業差戻')"
                 />
                 <LoaderButton
                     style="margin:0"
-                    v-if="item.ability.overtime_cancel && !hasSegmentedOvertimeRequest"
+                    v-if="item.ability.overtime_cancel"
                     content="残業承認取消"
                     @triggered="respondOvertime(item?.shift?.overtime_request, 1, '残業承認取消')"
                 />
@@ -112,15 +112,7 @@ import { useDashboardStore } from '@/store/dashboard';
     const api = useApi()
     const { ask } = useDialog()
     const { getBatchDashboardData } = useDashboardStore()
-    const projectSegments = computed(() => {
-        const segments = props.item?.time_card?.project_segments
-        return Array.isArray(segments) ? segments : []
-    })
-    const hasSegmentedOvertimeRequest = computed(() => {
-        const segments = props.item?.shift?.overtime_request?.project_segments
-        return Array.isArray(segments) && segments.length > 0
-    })
-    const hasProjectSegments = computed(() => projectSegments.value.length > 0)
+
     const selectedSegmentAbility = computed(() => props.selectedSegment?.ability ?? {})
     const canShowDailyReportCancel = computed(() => {
         return !props.selectedSegment && Boolean(props.item?.ability?.daily_report_cancel)
@@ -128,7 +120,6 @@ import { useDashboardStore } from '@/store/dashboard';
     const canDeleteDailyReport = computed(() => Boolean(props.item?.ability?.daily_report_delete))
     const canEditDailyReport = computed(() => {
         if (props.selectedSegment) return Boolean(selectedSegmentAbility.value.edit)
-        if (hasProjectSegments.value) return false
         return Boolean(props.item?.ability?.daily_report_modify)
     })
     const canApproveSelectedProjectSegment = computed(() => {

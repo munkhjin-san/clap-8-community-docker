@@ -197,8 +197,8 @@
                                 </div>
                                 <div class="mobile-project-segment-action">
                                     <CommandButton
-                                        v-if="hasActionForSegment(mobileSegment, mobileSegmentIndex)"
-                                        :buttons="[{title: '報告', action:() => emit('procedureStart', item, procedureSegmentForAction(mobileSegment, mobileSegmentIndex))}]"
+                                        v-if="hasReportAction(mobileSegment, mobileSegmentIndex)"
+                                        :buttons="[{title: '報告', action:() => emit('procedureStart', item, reportActionSegment(mobileSegment))}]"
                                     />
                                 </div>
                             </template>
@@ -263,8 +263,8 @@
                                         </div>
                                     </div>
                                     <CommandButton
-                                        v-if="hasActionForSegment(mobileSegment, mobileSegmentIndex)"
-                                        :buttons="[{title: '報告', action:() => emit('procedureStart', item, procedureSegmentForAction(mobileSegment, mobileSegmentIndex))}]"
+                                        v-if="hasReportAction(mobileSegment, mobileSegmentIndex)"
+                                        :buttons="[{title: '報告', action:() => emit('procedureStart', item, reportActionSegment(mobileSegment))}]"
                                     />
                                 </div>
                             </template>
@@ -575,8 +575,8 @@
         <td class="report-action-cell">
             <div class="report-action-wrapper center-mobile">
                 <CommandButton
-                    v-if="hasActionForSegment(segment, segmentIndex)"
-                    :buttons="[{title: '報告', action:() => emit('procedureStart', item, procedureSegmentForAction(segment, segmentIndex))}]"
+                    v-if="hasReportAction(segment, segmentIndex)"
+                    :buttons="[{title: '報告', action:() => emit('procedureStart', item, reportActionSegment(segment))}]"
                 />
             </div>
         </td>
@@ -1736,64 +1736,18 @@ const previewCostFile = (cost) => {
     workFilePreview(cost.file_path, costFileType(cost), '/cdn/timecard_files')
 }
 
-const hasSegmentedOvertimeRequest = computed(() => {
-    const segments = props.item?.shift?.overtime_request?.project_segments
-    return Array.isArray(segments) && segments.length > 0
-})
+
 const hasWeather = computed(() => props.item?.weather !== null && props.item?.weather !== undefined)
-const hasProjectSegments = computed(() => projectSegments.value.length > 0)
-const canShowDailyReportCancel = computed(() => Boolean(props.item?.ability?.daily_report_cancel))
-const canDeleteDailyReport = computed(() => Boolean(props.item?.ability?.daily_report_delete))
-const moreActionAbilityKeys = new Set([
-    'daily_report_cancel',
-    'daily_report_delete',
-    'overtime_approve',
-    'overtime_cancel',
-    'overtime_request',
-])
-const hasMoreAction = computed(() => {
-    if (canDeleteDailyReport.value) return true
-
-    return Object.entries(props.item?.ability ?? {}).some(([key, value]) => {
-        if (!value) return false
-        if (!moreActionAbilityKeys.has(key)) return false
-        if (key === 'daily_report_cancel') return canShowDailyReportCancel.value
-        if (hasSegmentedOvertimeRequest.value && ['overtime_approve', 'overtime_cancel'].includes(key)) return false
-        return true
-    })
-})
-const dayLevelActionAbilityKeys = new Set([
-    'daily_report_cancel',
-    'daily_report_create',
-    'daily_report_delete',
-    'daily_report_modify',
-    'department_creation',
-    'overtime_approve',
-    'overtime_cancel',
-    'overtime_request',
-])
-const hasDayLevelAction = computed(() => {
-    if (canDeleteDailyReport.value) return true
-
-    return Object.entries(props.item?.ability ?? {}).some(([key, value]) => {
-        if (!value) return false
-        if (!dayLevelActionAbilityKeys.has(key)) return false
-        if (key === 'daily_report_cancel') return canShowDailyReportCancel.value
-        if (hasSegmentedOvertimeRequest.value && ['overtime_approve', 'overtime_cancel'].includes(key)) return false
-        return true
-    })
-})
-const hasActionForSegment = (segment, segmentIndex) => {
-    if (segment && (canApproveProjectSegment(segment) || canCancelProjectSegment(segment))) return true
-    if (segment && canEditProjectSegment(segment)) return true
-    if (segmentIndex === 0) return hasDayLevelAction.value
+const hasTruthyAbility = (ability) => Object.values(ability ?? {}).some(value => value === true)
+const hasRowAction = computed(() => hasTruthyAbility(props.item?.ability))
+const hasProjectSegmentAction = (segment) => hasTruthyAbility(segment?.ability)
+const hasReportAction = (segment, segmentIndex) => {
+    if (segment) return hasProjectSegmentAction(segment)
+    if (segmentIndex === 0) return hasRowAction.value
     return false
 }
-const procedureSegmentForAction = (segment, segmentIndex) => {
-    if (segment && (canApproveProjectSegment(segment) || canCancelProjectSegment(segment))) return segment
-    if (segment && canEditProjectSegment(segment)) return segment
-    if (segmentIndex === 0 && hasDayLevelAction.value) return null
-    return segment
+const reportActionSegment = (segment) => {
+    return segment && hasProjectSegmentAction(segment) ? segment : null
 }
 const isCompactBlankRow = computed(() => {
     return !props.item?.time_card
@@ -1803,7 +1757,7 @@ const isCompactBlankRow = computed(() => {
         && !props.item?.ability?.break_stamp
 })
 const openReportMenu = () => {
-    if (!hasMoreAction.value) return
+    if (!hasRowAction.value) return
     emit('procedureStart', props.item)
 }
 
