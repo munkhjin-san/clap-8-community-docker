@@ -89,6 +89,16 @@ export const adminRoutes: RouteRecordRaw[] = [
                         name: 'paidholiday',
                         component: () => import('@/components/AccountControl/WorkControl/WorkPlannedPaid.vue'),
                     },
+                    {
+                        path: 'paid-leave-rules',
+                        name: 'paid-leave-rules',
+                        component: () => import('@/components/AccountControl/WorkControl/PaidLeavePolicy.vue'),
+                    },
+                    {
+                        path: 'paid-leave-ledger',
+                        name: 'paid-leave-ledger',
+                        component: () => import('@/components/AccountControl/WorkControl/PaidLeaveLedger.vue'),
+                    },
                 ],
             },
             {
@@ -184,7 +194,19 @@ export const adminRoutes: RouteRecordRaw[] = [
                 meta: { head: 'AI管理' },
                 component: () => import('@/components/AccountControl/AIControl/AIControl.vue'),           
             
-            }
+            },
+            // {
+            //     path: 'cost-master',
+            //     name: 'cost-master',
+            //     meta: { head: '原価マスタ管理' },
+            //     component: () => import('@/components/AccountControl/CostMaster/CostMasterWorkspace.vue'),
+            // },
+            // {
+            //     path: 'actual-results',
+            //     name: 'actual-results',
+            //     meta: { head: '実績計算' },
+            //     component: () => import('@/components/AccountControl/ActualResult/ActualResultCalculator.vue'),
+            // },
         ],
     },
 ]

@@ -323,6 +323,8 @@ class WorkController extends Controller
                             'receipt_file_id',
                             'id',
                             'department',
+                            'project_id',
+                            'timecard_project_segment_id',
                             'draft_uuid',
                             'receipt_date',
                             'merchant_name',
@@ -346,6 +348,7 @@ class WorkController extends Controller
                         ->select('count', 'id', 'record_id');
                     },
                     'total_break_time',
+                    'approver:id,name,icon_path,icon_bg',
                     'department' => function ($q) {
                         $q->select('id', 'name', 'unit_id', 'custom_unit_label');
                     },
@@ -363,9 +366,12 @@ class WorkController extends Controller
                             ->select('id', 'project_record_id', 'amount', 'status', 'timecard_record_id', 'meta');
                     },
                     'project_segments' => function ($q) {
-                        $q->with(['project' => function ($query) {
-                            $query->select('id', 'name', 'unit_id', 'custom_unit_label', 'has_actual_func', 'actual_statuses')->with('manager:id,name,icon_path,icon_bg');
-                        }]);
+                        $q->with([
+                            'approver:id,name,icon_path,icon_bg',
+                            'project' => function ($query) {
+                                $query->select('id', 'name', 'unit_id', 'custom_unit_label', 'has_actual_func', 'actual_statuses')->with('manager:id,name,icon_path,icon_bg');
+                            },
+                        ]);
                     },
                 ]);
             },
@@ -395,6 +401,7 @@ class WorkController extends Controller
         }
         $users = $users->get();
         $lastIndex = !empty($users) ? count($users) - 1 : null;
+        $adminApprovers = User::where('id', 610)->get(['id', 'name', 'icon_path', 'icon_bg'])->values();
         $recordList = [];
         $managedProjectIds = $this->managedShiftProjectIds($active_user);
         $timeCardRecords = $users->flatMap->time_card_records->groupBy('user_id');
@@ -461,6 +468,7 @@ class WorkController extends Controller
                     'weather' => $customFieldData[$userId][$targetShiftDay]->value_int ?? null,
                     'authority' => $authority,
                     'force_authority' => $active_user->isAdmin(),
+                    'admin_approvers' => $adminApprovers,
                     'total_break_time' => $time_card?->total_break_time->first()->total_break_minute ?? 0,
                     'ability' => [
                         'overtime_request' => $overtime_ability,
@@ -2409,6 +2417,7 @@ class WorkController extends Controller
         $projectNamesById = $allowedExpenseProjects['namesById'] ?? [];
         $projectNamesById += $this->projectNamesForIncomingCosts($filteredCosts);
         $filteredCosts = array_map(fn ($cost) => $this->normalizeIncomingCostProjectData($cost, $projectNamesById), $filteredCosts);
+        $filteredCosts = $this->attachProjectSegmentIdsToIncomingCosts($filteredCosts, $timecard);
 
         if ($allowedExpenseProjects !== null) {
             $allowedExpenseProjectIds = $allowedExpenseProjects['ids'];
@@ -2503,6 +2512,26 @@ class WorkController extends Controller
             );
         }
     }
+    private function attachProjectSegmentIdsToIncomingCosts(array $costs, timecardRecord $timecard): array
+    {
+        $savedSegmentsByKey = $timecard->project_segments()
+            ->get()
+            ->keyBy(fn (TimecardProjectSegment $segment) => $this->projectSegmentVehicleMatchKey($segment));
+
+        return array_map(function (array $cost) use ($savedSegmentsByKey) {
+            if (filled(Arr::get($cost, 'timecard_project_segment_id'))) {
+                return $cost;
+            }
+
+            $segmentKey = Arr::get($cost, 'project_segment_key');
+            if (filled($segmentKey) && $savedSegmentsByKey->has($segmentKey)) {
+                $cost['timecard_project_segment_id'] = $savedSegmentsByKey->get($segmentKey)->id;
+            }
+
+            return $cost;
+        }, $costs);
+    }
+
     private function expenseProjectsForIncomingProjectSegments(Request $request): ?array
     {
         $entries = collect($request->input('project_time_entries', []))
@@ -4089,11 +4118,31 @@ class WorkController extends Controller
                     $projectComment = trim((string) ($segment->comment ?? ''));
                     $legacyComment = trim($comment?->value_text ?? '');
                     $legacyFirstSegment = !$hasRealProjectSegments && !$hasStoredDetails && $index === 0;
-                    $segmentCosts = $timecard->timecard_costs->filter(fn ($cost) => $cost->department === $projectName);
-                    $segmentCases = $timecard->project_case->filter(fn ($case) => (int) $case->project_record_id === $projectId);
+                    $firstProjectSegmentIndex = $segments->search(fn ($candidate) => (int) ($candidate->project_id ?? $candidate->project?->id ?? 0) === $projectId);
+                    $isFirstProjectSegment = $firstProjectSegmentIndex === $index;
+                    $segmentCosts = $timecard->timecard_costs->filter(function ($cost) use ($segment, $projectId, $projectName, $isFirstProjectSegment) {
+                        $linkedSegmentId = (int) ($cost->timecard_project_segment_id ?? 0);
+                        if ($linkedSegmentId > 0) {
+                            return $linkedSegmentId === (int) ($segment->id ?? 0);
+                        }
+
+                        if (!$isFirstProjectSegment) {
+                            return false;
+                        }
+
+                        $costProjectId = (int) ($cost->project_id ?? 0);
+                        if ($costProjectId > 0) {
+                            return $costProjectId === $projectId;
+                        }
+
+                        return $cost->department === $projectName;
+                    });
+                    $segmentCases = $isFirstProjectSegment
+                        ? $timecard->project_case->filter(fn ($case) => (int) $case->project_record_id === $projectId)
+                        : collect();
                     $segmentMileage = is_array($detailValues['mileage'] ?? null) ? $detailValues['mileage'] : null;
                     $segmentVehicle = is_array($detailValues['vehicle'] ?? null) ? $this->vehicleLabel($detailValues['vehicle']['vehicle'] ?? null) : '';
-                    $mileageMatches = $segmentMileage !== null || (int) $timecard->car_used_project === $projectId;
+                    $mileageMatches = $segmentMileage !== null || (!$hasRealProjectSegments && (int) $timecard->car_used_project === $projectId);
                     $segmentAllowance = isset($detailValues['allowance_labels']) && is_array($detailValues['allowance_labels'])
                         ? implode(' ', array_filter($detailValues['allowance_labels'], fn ($value) => filled($value)))
                         : '';

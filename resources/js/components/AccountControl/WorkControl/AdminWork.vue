@@ -200,28 +200,43 @@ import { useApi } from '@/composables/api';
             return
         }
     }
+    const projectNameFromLinkedRecord = (record) => {
+        return record?.project?.name
+            ?? record?.project_segment?.project?.name
+            ?? record?.projectSegment?.project?.name
+            ?? record?.department
+            ?? ''
+    }
+
+    const vehicleRowsForTimeCard = (timeCard) => {
+        if (Array.isArray(timeCard?.vehicle_records) && timeCard.vehicle_records.length) {
+            return timeCard.vehicle_records
+        }
+        return timeCard?.vehicle_data ? [timeCard.vehicle_data] : []
+    }
+
     const vehicleCSV = () => {
         const date = DateTime.fromObject({year: selectedYear.value, month: selectedMonth.value}).toFormat('yyyy-MM')
         const csvConfig = mkConfig({ useKeysAsHeaders: true, filename: `車両_${date}月`})
         const data = []
         users.value.forEach(user => {
             user.time_card_records.forEach(time_card => {
-                const vehicleData = time_card.vehicle_data
-                if (vehicleData) {
+                vehicleRowsForTimeCard(time_card).forEach(vehicleData => {
                     const vehicle = vehicleAsOptions.find(ob => ob.value == vehicleData.vehicle)
                     const row = {
                         "氏名" : user.name,
                         "日付" : time_card.day,
-                        "使用車両" : vehicle.label,
+                        "部門" : projectNameFromLinkedRecord(vehicleData) || time_card.department?.name || '',
+                        "使用車両" : vehicle?.label ?? '',
                         "アルコールチェックした時間使用前" : vehicleData.alcohol_before_time,
                         "アルコールチェックした時間使用後" : vehicleData.alcohol_after_time,
                         "アルコールチェックした値使用前" : vehicleData.alcohol_before_value,
                         "アルコールチェックした値使用後" : vehicleData.alcohol_after_value,
-                        "アルコールチェックした確認者使用前" : vehicleData.before_user.name,
-                        "アルコールチェックした確認者使用後" : vehicleData.after_user.name,
+                        "アルコールチェックした確認者使用前" : vehicleData.before_user?.name ?? '',
+                        "アルコールチェックした確認者使用後" : vehicleData.after_user?.name ?? '',
                     }
                     data.push(row)
-                }
+                })
                 return []
             })
         })
@@ -243,7 +258,8 @@ import { useApi } from '@/composables/api';
                 "計上月" : department.month,
                 "部門" : department.department,
                 "氏名" : department.username,
-                "稼働日数" : department.count,
+                '月間労働時間(分)' : department.work_time,
+                '月間労働時間' : department.work_time / 60,
             }
             data.push(row)
         })
@@ -263,8 +279,8 @@ import { useApi } from '@/composables/api';
             const row = {
                 "氏名" : cost.user.name,
                 "日付" : cost.timecard?.day,
-                "部門" : cost.department ?? "",
-                "勘定科目" : costOptions.find(ob => ob.value == cost.type).label,
+                "部門" : projectNameFromLinkedRecord(cost),
+                "勘定科目" : costOptions.find(ob => ob.value == cost.type)?.label ?? '経費',
                 "金額" : cost.expenses ?? 0,
             }
             data.push(row)

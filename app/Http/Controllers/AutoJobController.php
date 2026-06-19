@@ -650,12 +650,7 @@ class AutoJobController extends Controller
     }
 
     public function remove_work_files(){
-        $line = Carbon::now()->subDays(7)->format('Y:m:d H:i:s');
-        $unused_files = timecardCostRecord::where('deleted_at', '<=', $line)->onlyTrashed()->get();
-        foreach($unused_files as $file){           
-            Storage::disk('local')->delete('timecard_files/' . $file->file_path);        
-        }
-        return response()->json($unused_files);
+        return response()->json([]);
     }
 
     public function timecard_update(){

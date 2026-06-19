@@ -10,6 +10,13 @@
                 <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
             </div> 
         </Transition>
+        <header class="admin-control-toolbar" aria-label="実績操作">
+            <div class="admin-control-actions">
+                <button type="button" class="admin-button" :disabled="fetch == 0" @click="exportCsv">
+                    CSV出力
+                </button>
+            </div>
+        </header>
         <div v-if="list.length" class="office-list">
             <div class="office-box mobile:bg-[var(--bg3)]" v-for="office in list">
                 <p>営業所名: {{ office?.name }}</p>
@@ -50,6 +57,9 @@ import AddIcon from '@/components/Form/AddIcon.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import { useProjectUsers } from '@/store/projectUsers';
+import { mkConfig, generateCsv, download } from 'export-to-csv';
+import { DateTime } from 'luxon';
+import { Project } from '@/interface/projectInterface.js';
 const fetch = ref(0)
 const list = ref<Office[]>([])
 const editTarget = ref<Office | null>(null)
@@ -92,6 +102,36 @@ const remove = async(office: Office) => {
     getOffices()
     
 }
+const exportCsv = () => {
+    if (!list.value.length) return;
+
+    const rows = list.value.flatMap((office) => {
+        if (!office.employees?.length) return [];
+
+        return office.employees.map((employee) => ({
+        '氏名': employee.name,
+        '区分（社内・社外）': employee.position_id === 14 ? '社外' : '社内',
+        'プロジェクト': employee.related_projects
+            ?.map((project: Project) => project.name)
+            .join(', ') ?? '',
+        '営業所': office.name,
+        '住所': office.address,
+        '日付': DateTime.now().toLocaleString(),
+        }));
+    });
+
+    if (!rows.length) return;
+
+    const csvConfig = mkConfig({
+        useKeysAsHeaders: true,
+        filename: '勤務地リスト',
+        useBom: true,
+        replaceUndefinedWith: '',
+    });
+
+    const csv = generateCsv(csvConfig)(rows);
+    download(csvConfig)(csv);
+};
 </script>
 <style>
 .office-list{

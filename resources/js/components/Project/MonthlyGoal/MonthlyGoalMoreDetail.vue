@@ -174,7 +174,7 @@ import LoaderButton from '@/components/Global/LoaderButton.vue';
 import ProjectGoalResult from './ProjectGoalResult.vue';
 import Files from '@/components/Global/Files.vue';
 import { ProjectGoal } from '@/interface/projectInterface';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import Modal from '@/components/Global/Modal.vue';
 import { DateTime } from 'luxon';
 import ProgressSlider from '../ProgressSlider.vue';
@@ -227,11 +227,19 @@ const scoreMap: Record<number, string> = {
     4: '好転傾向',
     5: '明確に好転'
 } 
-
+const route = useRoute()
 onMounted(async () => {
-    setTimeout(() => {
-        markAsRead({column: 'project_goal_id', value: props.goal?.id})
-    }, 3000);
+    if (route.query.q === 'salaryIssue') {
+        sub_tab.value = 1
+        setTimeout(() => {
+            markAsRead({column: 'salary_issue_id', value: props.goal?.salary_issue?.id})
+        }, 3000);
+    } else {
+        setTimeout(() => {
+            markAsRead({column: 'project_goal_id', value: props.goal?.id})
+        }, 3000);
+    }
+    
 })
 
 const canConfirmOrDeny = computed(() => {
