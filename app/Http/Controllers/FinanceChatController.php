@@ -265,7 +265,7 @@ class FinanceChatController extends Controller
                             'limit'        => ['type' => 'integer', 'description' => '返すPM件数。'],
                             'sort_by'      => [
                                 'type' => 'string',
-                                'description' => 'profit_gap_worst（既定）, profit_gap_best, forecast_sales_desc, forecast_profit_desc, expense_desc, project_count_desc, risk_count_desc',
+                                'description' => 'profit_gap_worst（既定 / 計画未達リスクが大きい順）, profit_gap_best（計画差分プラス・低リスク順）, forecast_sales_desc, forecast_profit_desc, expense_desc, project_count_desc, risk_count_desc',
                             ],
                         ],
                         'required' => [],
@@ -379,7 +379,7 @@ class FinanceChatController extends Controller
 - get_project_variance_explanation の *_display / *_amount_display は表示用の金額。独自に億円換算し直さず、その文字列を使う
 - 「今期Q{$qNum}」の成績質問には、Q{$qNum}に属する3ヶ月の月次データまたは月次トレンドツールを使う
 - PM別・PM個人の質問（「井上PMの案件」「井上さんのFY2025とFY2026」「PM別ランキング」など）は get_pm_finance_summary / compare_fiscal_years / get_pm_finance_ranking を使う。PM担当は project_members.authority=1 の関係を正とする
-- 「良いPM」「優秀なPM」「ベストPM」「利益差分が良い順」は get_pm_finance_ranking の sort_by=profit_gap_best を使う。「悪いPM」「リスクが大きいPM」は sort_by=profit_gap_worst を使う
+- 「良いPM」「優秀なPM」「ベストPM」「計画差分がプラス」「利益リスクが低い順・上昇順」は get_pm_finance_ranking の sort_by=profit_gap_best を使う。「悪いPM」「リスクが大きい順・高い順」は sort_by=profit_gap_worst を使う
 - ツール結果に alert_count > 0 または🔴の案件がある場合、回答内に「❗ 要注意：[N]件のアラート案件」として先頭で明示する
 - get_finance_forecast_ranking を使った場合、projects の上位案件について project_name、forecast_totals/analysis_result または totals.forecast、variance_vs_plan（計画差分）の利益差分を必ず含める。予算差分は variance_vs_yearly_plan を参考として扱う。案件名や数値を省略して「詳細を確認してください」と言わない
 - データの信頼性や欠損が気になる場合は get_finance_data_quality を使う
@@ -937,7 +937,16 @@ TXT;
 
     private function pmRankingSortFromQuestion(string $content): string
     {
-        if (preg_match('/良い|よい|優秀|ベスト|上位|トップ|好調|黒字|改善|利益差分.*(大きい|高い|良い)|プラス/u', $content) === 1) {
+        $hasRisk = preg_match('/リスク/u', $content) === 1;
+        if ($hasRisk && preg_match('/上昇順|昇順|低い順|小さい順|少ない順|軽い順|安全|最小/u', $content) === 1) {
+            return 'profit_gap_best';
+        }
+
+        if ($hasRisk && preg_match('/降順|高い順|大きい順|多い順|重い順|悪い順|最大/u', $content) === 1) {
+            return 'profit_gap_worst';
+        }
+
+        if (preg_match('/良い|よい|優秀|ベスト|上位|トップ|好調|黒字|改善|プラス|計画差分.*(大きい|高い|良い)|利益差分.*(大きい|高い|良い)/u', $content) === 1) {
             return 'profit_gap_best';
         }
 
