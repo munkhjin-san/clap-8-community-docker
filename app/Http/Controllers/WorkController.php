@@ -346,6 +346,7 @@ class WorkController extends Controller
                         ->select('count', 'id', 'record_id');
                     },
                     'total_break_time',
+                    'approver:id,name,icon_path,icon_bg',
                     'department' => function ($q) {
                         $q->select('id', 'name', 'unit_id', 'custom_unit_label');
                     },
@@ -363,9 +364,12 @@ class WorkController extends Controller
                             ->select('id', 'project_record_id', 'amount', 'status', 'timecard_record_id', 'meta');
                     },
                     'project_segments' => function ($q) {
-                        $q->with(['project' => function ($query) {
-                            $query->select('id', 'name', 'unit_id', 'custom_unit_label', 'has_actual_func', 'actual_statuses')->with('manager:id,name,icon_path,icon_bg');
-                        }]);
+                        $q->with([
+                            'approver:id,name,icon_path,icon_bg',
+                            'project' => function ($query) {
+                                $query->select('id', 'name', 'unit_id', 'custom_unit_label', 'has_actual_func', 'actual_statuses')->with('manager:id,name,icon_path,icon_bg');
+                            },
+                        ]);
                     },
                 ]);
             },
@@ -395,6 +399,7 @@ class WorkController extends Controller
         }
         $users = $users->get();
         $lastIndex = !empty($users) ? count($users) - 1 : null;
+        $adminApprovers = User::where('id', 610)->get(['id', 'name', 'icon_path', 'icon_bg'])->values();
         $recordList = [];
         $managedProjectIds = $this->managedShiftProjectIds($active_user);
         $timeCardRecords = $users->flatMap->time_card_records->groupBy('user_id');
@@ -461,6 +466,7 @@ class WorkController extends Controller
                     'weather' => $customFieldData[$userId][$targetShiftDay]->value_int ?? null,
                     'authority' => $authority,
                     'force_authority' => $active_user->isAdmin(),
+                    'admin_approvers' => $adminApprovers,
                     'total_break_time' => $time_card?->total_break_time->first()->total_break_minute ?? 0,
                     'ability' => [
                         'overtime_request' => $overtime_ability,

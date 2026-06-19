@@ -44,6 +44,11 @@ class TimecardProjectSegment extends Model
         return $this->belongsTo(ProjectRecord::class, 'project_id');
     }
 
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by')->select('id', 'name', 'icon_path', 'icon_bg');
+    }
+
     public function timecardRecord()
     {
         return $this->belongsTo(timecardRecord::class, 'timecard_record_id');
