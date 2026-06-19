@@ -59,6 +59,11 @@ class timecardRecord extends Model
         return $this->hasMany(ProjectCase::class);
     }
 
+    public function approver()
+    {
+        return $this->belongsTo(User::class, 'approved_by')->select('id', 'name', 'icon_path', 'icon_bg');
+    }
+
     public function project_segments()
     {
         return $this->hasMany(TimecardProjectSegment::class, 'timecard_record_id');

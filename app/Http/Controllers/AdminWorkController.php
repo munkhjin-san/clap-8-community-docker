@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\timecardCostRecord;
 use App\Models\timecardIncentive;
+use App\Models\TimecardProjectSegment;
 use App\Models\TimecardAuditEvent;
 use App\Models\TimecardAuditEventProjection;
 use App\Models\TimecardCostOcrRun;
@@ -76,12 +77,14 @@ class AdminWorkController extends Controller{
                     ->where('value_int', 1)
                     ->select('type_id', 'value_int', 'date', 'table_record_id');
                 },
-                'project_segments',
+                'project_segments' => function ($q) {
+                    $q->with('project:id,name');
+                },
                 'vehicle_data' => function ($q) {
-                    $q->with('before_user', 'after_user');
+                    $q->with('before_user', 'after_user', 'project:id,name', 'project_segment.project:id,name');
                 },
                 'vehicle_records' => function ($q) {
-                    $q->with('before_user', 'after_user');
+                    $q->with('before_user', 'after_user', 'project:id,name', 'project_segment.project:id,name');
                 }
               ])
               ->with(['department', 'car_project']);
@@ -125,7 +128,8 @@ class AdminWorkController extends Controller{
         ->with(['timecard' => function ($q) {
             $q->select('id', 'day');
         }])
-        ->select('id', 'date_month', 'department', 'type', 'expenses', 'user_id', 'record_id')
+        ->with(['project:id,name', 'projectSegment.project:id,name'])
+        ->select('id', 'date_month', 'department', 'type', 'expenses', 'user_id', 'record_id', 'project_id', 'timecard_project_segment_id')
         ->get();
         
         
@@ -288,35 +292,28 @@ class AdminWorkController extends Controller{
                     $departmentCountsTemp = [];
 
                     foreach ($user->time_card_records as $record) {
-                        // Add work time directly
-                        $workTimeInMinutes += $record->work_time;
+                        $segments = $record->project_segments ?? collect();
+                        $workTimeInMinutes += $segments->isNotEmpty()
+                            ? (int) $segments->where('segment_type', TimecardProjectSegment::TYPE_WORK)->sum('minutes')
+                            : (int) $record->work_time;
 
-                        // Check department name exists
-                        $departmentName = $record['department']['name'] ?? null;
-                        if ($departmentName) {
-                            $month = Carbon::parse($record['day'])->format('Y-m');
-                            $groupKey = $departmentName . '|' . $user->name . '|' . $month;
+                        foreach ($this->timecardDepartmentRows($record, $user->name) as $departmentRow) {
+                            $groupKey = $departmentRow['department'] . '|' . $departmentRow['username'] . '|' . $departmentRow['month'];
 
-                            // Initialize group
                             if (!isset($departmentCountsTemp[$groupKey])) {
                                 $departmentCountsTemp[$groupKey] = [
                                     'count' => 0,
-                                    'department' => $departmentName,
-                                    'username' => $user->name,
-                                    'month' => $month,
+                                    'department' => $departmentRow['department'],
+                                    'username' => $departmentRow['username'],
+                                    'month' => $departmentRow['month'],
                                 ];
                             }
                             $departmentCountsTemp[$groupKey]['count']++;
                         }
-                        if ($record->car_mileage > 0) {
-                            $my_car_usage[] = [
-                                'user_name' => $user->name,
-                                'date' => $record->day,
-                                'mileage' => $record->car_mileage,
-                                'project' => $record?->car_project?->name,
-                                'gas_full_price' => $record->gas_full_price,
-                            ];
-                            $total_gas_price += $record->gas_full_price;
+
+                        foreach ($this->timecardMyCarRows($record, $user->name) as $myCarRow) {
+                            $my_car_usage[] = $myCarRow;
+                            $total_gas_price += (int) ($myCarRow['gas_full_price'] ?? 0);
                         }
                         if($user->work_type == 1 && in_array($record->day, $legal_holiday_shifts)) {
                             // If work type is 1 and the day is a legal holiday, add to legal holiday worked time
@@ -381,7 +378,7 @@ class AdminWorkController extends Controller{
                         return $shift->shiftType->value;
                     }
                 });
-                $user['monthly_mileage'] = $user->time_card_records->sum('car_mileage');
+                $user['monthly_mileage'] = $user->time_card_records->sum(fn ($record) => $this->timecardMileageTotal($record));
                 $user['yearly_holiday_minutes'] = $total_holidays;
                 $user['work_minutes_per_day'] = $user_work_minutes_per_day;
                 $user['legal_holiday_shifts'] = $legal_holiday_shifts;
@@ -408,6 +405,85 @@ class AdminWorkController extends Controller{
         return response()->json($responseArray);
 
     }
+    private function timecardDepartmentRows($record, string $userName): array
+    {
+        $month = Carbon::parse($record->day)->format('Y-m');
+        $segments = $record->project_segments ?? collect();
+
+        if ($segments->isNotEmpty()) {
+            return $segments
+                ->filter(fn ($segment) => $segment->project?->name)
+                ->unique(fn ($segment) => (int) ($segment->project_id ?? $segment->project?->id))
+                ->map(fn ($segment) => [
+                    'department' => $segment->project->name,
+                    'username' => $userName,
+                    'month' => $month,
+                ])
+                ->values()
+                ->all();
+        }
+
+        $departmentName = $record['department']['name'] ?? null;
+        if (!$departmentName) {
+            return [];
+        }
+
+        return [[
+            'department' => $departmentName,
+            'username' => $userName,
+            'month' => $month,
+        ]];
+    }
+
+    private function timecardMyCarRows($record, string $userName): array
+    {
+        $segments = $record->project_segments ?? collect();
+        $rows = [];
+
+        foreach ($segments as $segment) {
+            $detailValues = is_array($segment->detail_values ?? null) ? $segment->detail_values : [];
+            $mileage = $detailValues['mileage'] ?? null;
+            if (!is_array($mileage)) {
+                continue;
+            }
+
+            $distance = (int) ($mileage['mileage'] ?? 0);
+            $gasPrice = (int) ($mileage['gas_full_price'] ?? 0);
+            if ($distance <= 0 && $gasPrice <= 0) {
+                continue;
+            }
+
+            $rows[] = [
+                'user_name' => $userName,
+                'date' => $record->day,
+                'mileage' => $distance,
+                'project' => $segment->project?->name,
+                'gas_full_price' => $gasPrice,
+            ];
+        }
+
+        if (!empty($rows)) {
+            return $rows;
+        }
+
+        if ((int) $record->car_mileage <= 0) {
+            return [];
+        }
+
+        return [[
+            'user_name' => $userName,
+            'date' => $record->day,
+            'mileage' => (int) $record->car_mileage,
+            'project' => $record?->car_project?->name,
+            'gas_full_price' => (int) $record->gas_full_price,
+        ]];
+    }
+
+    private function timecardMileageTotal($record): int
+    {
+        return collect($this->timecardMyCarRows($record, ''))->sum(fn ($row) => (int) ($row['mileage'] ?? 0));
+    }
+
     public function work_audit_logs(Request $request)
     {
         $validated = $request->validate([

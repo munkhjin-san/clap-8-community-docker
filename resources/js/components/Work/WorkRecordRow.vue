@@ -54,8 +54,8 @@
                                             {{ segmentTypeLabel(mobileSegment) }}
                                         </span>
                                         <strong>{{ segmentProjectName(mobileSegment) }}</strong>
-                                        <div v-for="manager in segmentProjectManager(mobileSegment)" :key="manager.id" class="flex items-center">
-                                            <UserPanel :size="14" :user="manager"/>
+                                        <div v-for="approver in segmentApprovers(mobileSegment)" :key="approver.id" class="flex items-center">
+                                            <UserPanel :size="14" :user="approver"/>
 
                                         </div>
                                     </div>
@@ -341,8 +341,8 @@
             <td class="project-segment-cell"
                 :class="{'project-segment-cell-empty': !segment}"
             >
-                <div v-for="manager in segmentProjectManager(segment)" :key="manager.id" class="flex items-center justify-center">
-                    <UserPanel :size="18" :user="manager"/>
+                <div v-for="approver in segmentApprovers(segment)" :key="approver.id" class="flex items-center justify-center">
+                    <UserPanel :size="18" :user="approver"/>
                 </div>
             </td>
             <td
@@ -789,6 +789,26 @@ const segmentProjectManager = (segment) => {
             : null)
     )
 }
+const normalizedUserList = (users) => {
+    if (!users) return []
+    return (Array.isArray(users) ? users : [users]).filter(Boolean)
+}
+
+const segmentApprovers = (segment) => {
+    if (!segment) return []
+    if (segment?.approver) return [segment.approver]
+
+    const targetUserId = Number(props.item?.user_id)
+    const managers = normalizedUserList(segmentProjectManager(segment))
+        .filter(manager => Number(manager?.id) !== targetUserId)
+
+    if (managers.length) return managers
+
+    return Number(props.item?.position_id) === 6
+        ? normalizedUserList(props.item?.admin_approvers)
+        : []
+}
+
 const projectForSegment = (segment) => {
     if (segment?.project) return segment.project
     const projectId = segmentProjectId(segment)
