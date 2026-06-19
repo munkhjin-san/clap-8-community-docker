@@ -1,144 +1,138 @@
 <template>
-    <div class="work-modal" @mousedown="emit('closeModal')">
-        <div class="work-modal-inner overstyle" @mousedown.stop>
-            <Transition name="modalFade">
-                <div class="work-loader" v-if="loading == 0">
-                    <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
-                </div> 
-            </Transition>
-            <div class="recordFormTitle" style="z-index: 26; gap:30px;">
-                <p style="font-size: 18px;">{{ approveYear }}年{{ approveMonth }}月の勤怠予定承認</p>
-                <div @click="emit('closeModal')" class="cursor-pointer" style="margin: auto 0 auto auto;">
-                    <svg class="modalWindowCloseButton" version="1.1" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 32 32">
-                        <path d="M31.165 28.569l-1.67-1.855-1.681-1.841-6.777-7.318c-0.362-0.387-0.964-1.006-1.363-1.412-0.227-0.23-0.227-0.594-0.001-0.826 0.397-0.408 0.993-1.023 1.355-1.409 1.133-1.215 2.25-2.446 3.378-3.667l3.375-3.674c1.12-1.227 2.233-2.463 3.335-3.709 0.569-0.64 0.583-1.621 0-2.278-0.629-0.712-1.715-0.779-2.426-0.15-1.247 1.103-2.482 2.218-3.711 3.338l-3.672 3.374c-1.222 1.128-2.453 2.246-3.669 3.378-0.49 0.456-0.967 0.925-1.447 1.394-0.211 0.206-0.551 0.206-0.765 0-0.48-0.469-0.957-0.938-1.448-1.394-1.213-1.13-2.443-2.248-3.665-3.375l-3.672-3.374c-1.23-1.121-2.465-2.234-3.711-3.338-0.641-0.566-1.621-0.582-2.279 0-0.712 0.63-0.779 1.717-0.149 2.428 1.103 1.247 2.218 2.482 3.336 3.709l3.375 3.674c1.127 1.222 2.244 2.453 3.378 3.667 0.36 0.385 0.957 1.002 1.354 1.409 0.227 0.232 0.225 0.597-0.001 0.826-0.401 0.406-1.002 1.024-1.363 1.412l-3.389 3.655-3.388 3.661-1.682 1.841-1.668 1.855c-0.6 0.669-0.615 1.707 0 2.392 0.661 0.732 1.789 0.792 2.522 0.131l1.855-1.667 1.841-1.682 7.318-6.776c0.487-0.455 0.959-0.922 1.432-1.389 0.214-0.209 0.557-0.209 0.769 0 0.476 0.466 0.949 0.934 1.433 1.389l7.318 6.776 1.841 1.682 1.855 1.667c0.671 0.602 1.707 0.618 2.392 0 0.736-0.659 0.796-1.789 0.135-2.522z"></path>
-                    </svg>
+    <Modal @close="emit('closeModal')" size="large" :loader="loading == 0" :bodyStyle="'overflow:hidden;height:calc(100% - 110px);display:flex;flex-direction:column;'">
+        <template #title>
+            {{ approveYear }}年{{ approveMonth }}月の勤怠予定承認
+        </template>
+        <template #content>
+            <div class="flex items-center z-[3]">
+                <label class="cursor-pointer px-3 py-2 text-[14px] mb-[-1px] border border-solid border-[transparent] !box-border" :class="{'selectedTypeTab': selectedType == 'shift'}">
+                    <input v-model="selectedType" type="radio" class="hidden" value="shift"/>
+                    勤怠予定
+                </label>
+                <label class="cursor-pointer px-3 py-2 text-[14px] mb-[-1px] border border-solid border-[transparent] !box-border" :class="{'selectedTypeTab': selectedType == 'plannedLeave'}">
+                    <input v-model="selectedType" type="radio" class="hidden" value="plannedLeave"/>
+                    計画休暇
+                </label>
+            </div>
+            <template v-if="selectedType == 'shift'">
+                <div class="approval-toolbar">
+                    <button style="margin: unset;" class="work-button" @click.stop="menu.setMenu( { id: 199, name: 'workMemberSelector'})">メンバー({{ filterGroups.length }})</button>
+                    <div class="approval-month-control">
+                        <MonthPickerNew
+                            v-model:month="approveMonth"
+                            v-model:year="approveYear"
+                            :right="'auto'"
+                            @setDate="setDate"
+                        />
+                    </div>
+                    <button
+                        style="margin: unset;"
+                        :class="['work-button', 'approve-all-button', { 'is-disabled': approvablePendingCount === 0 }]"
+                        @click="approveAll"
+                    >
+                        {{ bulkApproveLabel }}
+                    </button>
+                    <Transition name="modalFade">
+                        <WorkMembers 
+                            v-if="menu.id == 199 && menu.name == 'workMemberSelector'"
+                            :workUsers="workUsers"
+                            :workGroups="workGroups"
+                            :loading="loading"
+                            customStyle="width: fit-content; left:0; top:40px; max-width: 100%;"
+                            v-model:users="checkedUsers"
+                        />
+                    </Transition>
                 </div>
-            </div>
-            <div class="approval-toolbar">
-                <button style="margin: unset;" class="work-button" @click.stop="menu.setMenu( { id: 199, name: 'workMemberSelector'})">メンバー</button>
-                <div class="approval-month-control">
-                    <span>月度</span>
-                    <MonthPickerNew
-                        v-model:month="approveMonth"
-                        v-model:year="approveYear"
-                        :right="'auto'"
-                        @setDate="setDate"
-                    />
+                <div v-if="loading !== 0 && filterGroups.length" class="approval-table-wrapper">
+                    <table style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>
+                                    日付
+                                </th>
+                                <th v-for="user in filterGroups" :key="user.id" class="p-[10px]">
+                                    <div class="approval-user-card">
+                                        <div class="approval-user-name">{{ user.name }}</div>
+                                        <div class="approval-user-stats">
+                                            <span>休日 {{ calculatedHoliday(user) }}</span>
+                                            <span>所定 {{ user.should_work_hours / 60 }}時間 / {{ user.work_day_num }}日</span>
+                                            <span>勤務 {{ user.planned_shift_data.workMinutes / 60 }}時間 / {{ user.planned_shift_data.workDays }}日</span>
+                                            <span>有給 {{ user.planned_shift_data.paidLeaveMinutes / 60 }}時間</span>
+                                            <span>出退勤 {{ DateTime.fromISO(user.planned_shift_data.startTime).toFormat('HH:mm') }} ~ {{ DateTime.fromISO(user.planned_shift_data.endTime).toFormat('HH:mm') }}</span>
+                                        </div>
+                                    </div>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="shift, index in shiftRecords" :key="index">
+                                <td :class="[getDayClass(index)]">
+                                    {{ dayFormatter(index) }}
+                                </td>
+                                <td v-for="user in filterGroups" :key="user.id" :class="approvalCellClass(user, shift[user.id])">
+                                    <div v-if="shift[user.id]" class="approval-cell">
+                                        <div class="approval-shift-line">
+                                            <span 
+                                                :class="['approval-shift-type', getShiftClass(shift[user.id]?.shift_type)]"
+                                            >
+                                                {{ shift[user.id]?.shift_type?.abbreviation }}
+                                            </span>
+                                            <span :class="['approval-status']">
+                                                {{ statusLabel(shift[user.id]?.status_flag) }}
+                                            </span>
+                                        </div>
+                                        <div v-if="shiftRequiresProject(shift[user.id]) && projectName(shift[user.id])" :class="['approval-project-chip', { 'is-missing': !shift[user.id]?.department }]">
+                                            <strong>{{ projectName(shift[user.id]) }}</strong>
+                                        </div>
+                                        <div class="approval-before" v-if="shift[user.id]?.old_shift">
+                                            変更前:
+                                            <span :class="getShiftClass(shift[user.id]?.old_shift?.shift_type)">
+                                                {{ shift[user.id]?.old_shift?.shift_type.abbreviation }}
+                                            </span>
+                                            <span v-if="shift[user.id]?.old_shift?.department">
+                                                / {{ shift[user.id].old_shift.department.name }}
+                                            </span>
+                                        </div>
+                                        <div class="approval-note" v-if="isSelfShift(shift[user.id])">
+                                            本人のため承認不可
+                                        </div>
+                                        <div class="approval-note" v-else-if="isOutOfScopeShift(user, shift[user.id])">
+                                            担当外プロジェクト
+                                        </div>
+                                        <div v-if="authorityCheck(user, shift[user.id]) && shift[user.id]?.status_flag !== 1" class="authority-buttons">
+                                            <CommandButton 
+                                                customClass="custom-padding" 
+                                                v-if="shift[user.id]?.status_flag == 2" 
+                                                :buttons="[
+                                                    {title: '承認', action:() => shiftApprove(shift[user.id], 3)}, 
+                                                    {title: '差戻', action:() => shiftApprove(shift[user.id])}
+                                                ]" 
+                                            />
+                                            <CommandButton 
+                                                customClass="custom-padding" 
+                                                v-else-if="shift[user.id]?.status_flag == 3" 
+                                                :buttons="[{title: '取消', action:() => shiftApprove(shift[user.id], 2)}]" 
+                                            />
+                                        </div>
+                                    </div>
+                                    <span v-else class="approval-empty">-</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div class="approval-summary">
-                    <span>選択 {{ filterGroups.length }}名</span>
-                    <span>承認対象 {{ approvablePendingCount }}件</span>
-                    <span v-if="outOfScopePendingCount">担当外 {{ outOfScopePendingCount }}件</span>
-                    <span v-if="approvableProjectSummary">{{ approvableProjectSummary }}</span>
+                <div v-else-if="loading != 0" style="height: calc(100% - 128px); display: flex; align-items: center; justify-content: center;">
+                    メンバーを選択してください。
                 </div>
-                <button
-                    style="margin: unset;"
-                    :class="['work-button', 'approve-all-button', { 'is-disabled': approvablePendingCount === 0 }]"
-                    @click="approveAll"
-                >
-                    {{ bulkApproveLabel }}
-                </button>
-                <Transition name="modalFade">
-                    <WorkMembers 
-                        v-if="menu.id == 199 && menu.name == 'workMemberSelector'"
-                        :workUsers="workUsers"
-                        :workGroups="workGroups"
-                        :loading="loading"
-                        customStyle="width: fit-content; left:0; top:40px; max-width: 100%;"
-                        v-model:users="checkedUsers"
-                    />
-                </Transition>
-            </div>
-            <div v-if="loading !== 0 && filterGroups.length" class="approval-table-wrapper">
-                <table style="width: 100%;">
-                    <thead>
-                        <tr>
-                            <th>
-                                日付
-                            </th>
-                            <th v-for="user in filterGroups" :key="user.id" class="p-[10px]">
-                                <div class="approval-user-card">
-                                    <div class="approval-user-name">{{ user.name }}</div>
-                                    <div class="approval-user-stats">
-                                        <span>休日 {{ calculatedHoliday(user) }}</span>
-                                        <span>所定 {{ user.should_work_hours / 60 }}時間 / {{ user.work_day_num }}日</span>
-                                        <span>勤務 {{ user.planned_shift_data.workMinutes / 60 }}時間 / {{ user.planned_shift_data.workDays }}日</span>
-                                        <span>有給 {{ user.planned_shift_data.paidLeaveMinutes / 60 }}時間</span>
-                                        <span>出退勤 {{ DateTime.fromISO(user.planned_shift_data.startTime).toFormat('HH:mm') }} ~ {{ DateTime.fromISO(user.planned_shift_data.endTime).toFormat('HH:mm') }}</span>
-                                    </div>
-                                </div>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="shift, index in shiftRecords" :key="index">
-                            <td :class="[getDayClass(index)]">
-                                {{ dayFormatter(index) }}
-                            </td>
-                            <td v-for="user in filterGroups" :key="user.id" :class="approvalCellClass(user, shift[user.id])">
-                                <div v-if="shift[user.id]" class="approval-cell">
-                                    <div class="approval-shift-line">
-                                        <span 
-                                            :class="['approval-shift-type', getShiftClass(shift[user.id]?.shift_type)]"
-                                        >
-                                            {{ shift[user.id]?.shift_type?.abbreviation }}
-                                        </span>
-                                        <span :class="['approval-status', statusClass(shift[user.id]?.status_flag)]">
-                                            {{ statusLabel(shift[user.id]?.status_flag) }}
-                                        </span>
-                                    </div>
-                                    <div v-if="shiftRequiresProject(shift[user.id])" :class="['approval-project-chip', { 'is-missing': !shift[user.id]?.department }]">
-                                        <span>プロジェクト</span>
-                                        <strong>{{ projectName(shift[user.id]) }}</strong>
-                                    </div>
-                                    <div v-else class="approval-non-project">
-                                        プロジェクト対象外
-                                    </div>
-                                    <div class="approval-before" v-if="shift[user.id]?.old_shift">
-                                        変更前:
-                                        <span :class="getShiftClass(shift[user.id]?.old_shift?.shift_type)">
-                                            {{ shift[user.id]?.old_shift?.shift_type.abbreviation }}
-                                        </span>
-                                        <span v-if="shift[user.id]?.old_shift?.department">
-                                            / {{ shift[user.id].old_shift.department.name }}
-                                        </span>
-                                    </div>
-                                    <div class="approval-note" v-if="isSelfShift(shift[user.id])">
-                                        本人のため承認不可
-                                    </div>
-                                    <div class="approval-note" v-else-if="isOutOfScopeShift(user, shift[user.id])">
-                                        担当外プロジェクト
-                                    </div>
-                                    <div v-if="authorityCheck(user, shift[user.id]) && shift[user.id]?.status_flag !== 1" class="authority-buttons">
-                                        <CommandButton 
-                                            customClass="custom-padding" 
-                                            v-if="shift[user.id]?.status_flag == 2" 
-                                            :buttons="[
-                                                {title: '承認', action:() => shiftApprove(shift[user.id], 3)}, 
-                                                {title: '差戻', action:() => shiftApprove(shift[user.id])}
-                                            ]" 
-                                        />
-                                        <CommandButton 
-                                            customClass="custom-padding" 
-                                            v-else-if="shift[user.id]?.status_flag == 3" 
-                                            :buttons="[{title: '取消', action:() => shiftApprove(shift[user.id], 2)}]" 
-                                        />
-                                    </div>
-                                </div>
-                                <span v-else class="approval-empty">-</span>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div v-else-if="loading != 0" style="height: calc(100% - 128px); display: flex; align-items: center; justify-content: center;">
-                メンバーを選択してください。
-            </div>
-        </div>
-    </div>
+            </template>
+            <template v-else-if="selectedType == 'plannedLeave'">
+                <PlannedLeaveApproval :userId="checkedUsers[0]" />
+            </template>
+        </template>
+    </Modal>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick } from 'vue';
 import CommandButton from '../Global/CommandButton.vue';
 import { useAuthUserStore } from '@/store/auth';
 import { useMenuStore } from '@/store/menu';
@@ -151,6 +145,9 @@ import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import { useDashboardStore } from '@/store/dashboard';
 import { usePublicHolidayStore } from '@/store/publicHoliday';
+import Modal from '../Global/Modal.vue';
+import PlannedLeaveApproval from './PlannedLeave/PlannedLeaveApproval.vue';
+import { useRoute } from 'vue-router';
     const props = defineProps([
         'selectedYear',
         'selectedMonth',
@@ -180,7 +177,7 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
     const loading = ref(0)
     const badge = useBadgeStore()
     const checkedUsers = ref([])
-    
+    const selectedType = ref('shift')
     const statusLabels = {
         1: '確定済',
         2: '申請中',
@@ -190,11 +187,17 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
     const { ask, ping } = useDialog()
     const { getBatchDashboardData } = useDashboardStore()
     const publicHolidayStore = usePublicHolidayStore()
+    const route = useRoute()
     onMounted(async() => {
         publicHolidayStore.ensureLoaded()
         await fetchWorkGroups()
         const exist = workUsers.value.filter(ob => props.usersCheckArray.includes(ob.id))
         checkedUsers.value = exist.map(ob => ob.id)
+        await nextTick()
+        console.log('route.query', route.query) 
+        if(route.query.tab == 'planned_leave'){
+            selectedType.value = 'plannedLeave'
+        }
     })
 
     const yearlyHolidays = computed(() => {
@@ -228,11 +231,6 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
     const approvablePendingCount = computed(() => {
         return selectedShiftEntries.value.filter(({ user, shift }) => {
             return Number(shift.status_flag) === 2 && authorityCheck(user, shift)
-        }).length
-    })
-    const outOfScopePendingCount = computed(() => {
-        return selectedShiftEntries.value.filter(({ user, shift }) => {
-            return isOutOfScopeShift(user, shift)
         }).length
     })
     const approvableProjectSummary = computed(() => {
@@ -284,7 +282,7 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
             'is-confirmed': Number(status) === 1,
         }
     }
-    const projectName = (shift) => shift?.department?.name ?? 'プロジェクト未設定'
+    const projectName = (shift) => shift?.department?.name ?? ''
     const shiftRequiresProject = (shift) => {
         const shiftType = shift?.shift_type
         if (!shiftType) return false
@@ -388,7 +386,11 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
     }
 </script>
 <style scoped lang="scss">
-    
+    .selectedTypeTab{
+        border: 1px solid var(--calendarBorder);
+        border-bottom-color: var(--background-color);
+        background-color: var(--background-color);
+    }
     .overstyle{
         display: flex;
         flex-direction: column;
@@ -412,9 +414,11 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         align-items: center;
         justify-content: space-between;
         gap: 14px;
-        margin: 10px 0 18px;
+        margin: 0 0 18px;
         position: relative;
         flex-wrap: wrap;
+        border-top: 1px solid var(--calendarBorder);
+        padding-top: 10px;
     }
     .approval-summary {
         display: flex;
@@ -444,42 +448,6 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         font-size: 12px;
         white-space: nowrap;
     }
-    .approval-month-control :deep(.monthPicker) {
-        width: 128px;
-        height: 34px;
-        border: 1px solid var(--formBorder);
-        border-radius: 4px;
-        background: var(--background-color);
-        transition: background-color 0.15s ease, border-color 0.15s ease;
-    }
-    .approval-month-control :deep(.monthPicker:hover) {
-        border-color: var(--primary-color);
-        background: var(--bg3);
-    }
-    .approval-month-control :deep(.monthPicker > div:first-child) {
-        align-items: center;
-        display: flex;
-        height: 100%;
-        justify-content: center;
-        width: 100%;
-    }
-    .approval-month-control :deep(.monthPicker > div:first-child)::after {
-        content: "";
-        border-left: 4px solid transparent;
-        border-right: 4px solid transparent;
-        border-top: 5px solid currentColor;
-        margin-left: 8px;
-        opacity: 0.65;
-    }
-    .approval-month-control :deep(#activateButton) {
-        align-items: center;
-        display: flex;
-        font-size: 13px;
-        height: 100%;
-    }
-    .approval-month-control :deep(.month-grid) {
-        right: 0 !important;
-    }
     .approve-all-button {
         background-color: tomato;
     }
@@ -493,6 +461,9 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         min-height: 0;
         overflow: auto;
         -webkit-overflow-scrolling: touch;
+    }
+    .approval-table-wrapper::-webkit-scrollbar{
+        height: 8px;
     }
     .approval-user-card {
         min-width: 180px;
@@ -528,19 +499,17 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         gap: 8px;
     }
     .approval-shift-type {
-        font-size: 13px;
+        font-size: 12px;
         line-height: 1.3;
     }
     .approval-status {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: 56px;
         padding: 2px 8px;
-        border: 1px solid var(--formBorder);
         border-radius: 3px;
         background: var(--background-color);
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.4;
         white-space: nowrap;
     }
@@ -680,7 +649,7 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
     }
     .authority-buttons {
         display: flex; 
-        justify-content: center; 
+        justify-content: end; 
         gap: 10px; 
         align-items: center;
         font-size: 12px;

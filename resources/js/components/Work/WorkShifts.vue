@@ -196,7 +196,7 @@
 </template>
 <script setup>
 import LoaderButton from '../Global/LoaderButton.vue'
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useTheme } from '@/store/theme';
 import { useResponsive } from '@/store/responsive';
 import ShortInput from '../Form/ShortInput.vue';
@@ -265,12 +265,17 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
     const yearOptions = [DateTime.now().minus({year: 1}).year, DateTime.now().year, DateTime.now().plus({year: 1}).year]
     const { getBatchDashboardData } = useDashboardStore()
     const publicHolidayStore = usePublicHolidayStore()
+    const route = useRoute()
     onMounted(async() => {
         publicHolidayStore.ensureLoaded()
         propsCheck()
         getRemainingDays()
         await fetchShiftData()
         isShiftRecord()
+        await nextTick()
+        if(route.query.action === 'request_planned_leave_change'){
+            checkLeave.value = 1
+        }
     })
     const shiftDateInstance = computed(() => DateTime.fromObject({ year: shiftYear.value, month: shiftMonth.value }))
     const yearlyHolidays = computed(() => {

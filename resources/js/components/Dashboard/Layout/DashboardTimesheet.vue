@@ -172,6 +172,50 @@
                     </ExpansionPanelItem>
                 </ExpansionGrid>
             </div>
+            <div v-if="data.data.pendingPlannedLeaveChangeRequests.length" class="mt-3">
+                <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis">
+                    <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 py-0.5">PM</span>
+                    計画有給変更申請
+                </p>
+                <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
+                    <ExpansionPanelItem
+                        hide-actions
+                        static
+                        :tile="true"
+                        class="rm-p"
+                        v-for="item in data.data.pendingPlannedLeaveChangeRequests"
+                    >
+                        <template #title="{ expanded }">
+                            <PanelTitle :expanded="expanded">
+                                <div class="flex items-center truncate">
+                                    <div class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
+                                    <div class="flex items-center truncate">
+                                        <UserPanel v-if="item.user" disable-instant with-name size="25" :user="item.user"/>
+                                    </div>
+                                </div>
+                            </PanelTitle>
+                        </template>
+                        <template #body>
+                            <PanelData>
+                                <div class="flex flex-col gap-1">
+                                    <div class="text-[12px]">
+                                        変更前 : {{ DateTime.fromISO(item.original_date.toString()).toFormat('y / M / d', { locale: 'ja' }) }}
+                                    </div>
+                                    <div class="text-[12px]">
+                                        変更後 : {{ DateTime.fromISO(item.requested_date.toString()).toFormat('y / M / d', { locale: 'ja' }) }}
+                                    </div>
+                                    <div>
+                                        <div class="text-[12px]">
+                                            理由 : {{ item.reason || '未入力' }}
+                                        </div>
+                                    </div>
+                                    <router-link :to="{name: 'timesheet', query: {action: 'shift_confirm', user_id: item.user?.id, tab:'planned_leave'}}" class="jump-link mt-2 ml-auto" @click="">対応する</router-link>
+                                </div>                                
+                            </PanelData>
+                        </template>
+                    </ExpansionPanelItem>
+                </ExpansionGrid>
+            </div>
             <div v-if="nothingTodo">
                 <div class="text-sm text-[gray] mb-3 text-center">
                     対応事項はありません。
@@ -190,30 +234,13 @@ import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
-import { pendingTimesheedData } from '@/interface/dashboard';
-import { storeToRefs } from 'pinia';
+import type { DashboardTimesheetCard } from '@/interface/dashboard';
 import { useDashboardStore } from '@/store/dashboard';
 import { computed, onMounted } from 'vue';
 import { useAuthUserStore } from '@/store/auth';
 
 const props = defineProps<{
-    data: {
-        title: string,
-        data: {
-            pendingTimesheets: pendingTimesheedData[],
-            departuresReportUsers: [] | any[],
-            pendingPlannedLeaves: [] | any[],
-            pendingAttendance: {
-                user_id: number,
-                date_year_month: string,
-            } | null
-        },
-        order?: number,
-        type: string
-        canResize?: boolean
-        canFullscreen?: boolean
-        col: string
-    }
+    data: DashboardTimesheetCard
     fullscreen: boolean
 }>()
 
@@ -235,6 +262,7 @@ const actionCount = computed(() => {
     return (
         (props.data.data.pendingAttendance ? 1 : 0) +
         props.data.data.pendingPlannedLeaves.length +
+        props.data.data.pendingPlannedLeaveChangeRequests.length +
         departureReportCount.value +
         props.data.data.pendingTimesheets.length
     )
@@ -247,7 +275,7 @@ onMounted(() => {
     }
 })
 const nothingTodo = computed(() => {
-    return !props.data.data.pendingAttendance && !props.data.data.pendingTimesheets.length && !props.data.data.departuresReportUsers.length && !props.data.data.pendingPlannedLeaves.length && !dashboardStore.annualLeaveData.planned_leaves_this_year.length && !dashboardStore.annualLeaveData.planned_leaves_last_year.length
+    return !props.data.data.pendingAttendance && !props.data.data.pendingTimesheets.length && !props.data.data.departuresReportUsers.length && !props.data.data.pendingPlannedLeaves.length && !props.data.data.pendingPlannedLeaveChangeRequests.length && !dashboardStore.annualLeaveData.planned_leaves_this_year.length && !dashboardStore.annualLeaveData.planned_leaves_last_year.length
 })
 defineExpose({
     cardType: props.data.type,

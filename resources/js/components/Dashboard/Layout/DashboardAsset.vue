@@ -141,7 +141,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { useAuthUserStore } from '@/store/auth';
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
-import { Asset } from '@/interface/assetInterface';
+import type { DashboardAssetCard } from '@/interface/dashboard';
 import AssetContainer from '@/components/Asset/AssetContainer.vue';
 import UserPanel from '@/components/Global/UserPanel.vue';
 import AssetMovement from '@/components/Asset/AssetMovement.vue';
@@ -152,18 +152,7 @@ import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 // import MySurveyAnswers from '@/components/Survey/MySurveyAnswers.vue';
 
 const props = defineProps<{
-    data: {
-        title: string,
-        data : {
-            in_use: Asset[]
-            waiting_approval?: Asset[]
-        },
-        order?: number,
-        type: string
-        canResize?: boolean
-        canFullscreen?: boolean
-        col?: string
-    }
+    data: DashboardAssetCard
     fullscreen: boolean
 }>()
 

@@ -15,10 +15,15 @@ use App\Models\customFieldDataRecord;
 
 use App\Models\ProjectCase;
 use App\Models\shiftRecord;
+use App\Models\PlannedLeaveChangeRequest;
+use App\Models\workTemp;
+use App\Enums\PlannedLeaveChangeRequestStatus;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use App\Services\SharedService;
 use Carbon\Carbon;
@@ -38,6 +43,14 @@ class AdminWorkController extends Controller{
         private KintoneClient $api
     ) {
         $this->sharedService = $sharedService;
+    }
+    private function active_user(){
+        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
+        if($sub){
+            return $sub;
+        }else{
+            return Auth::user();
+        }
     }
 
     public function get_admin_work(Request $request) {
@@ -625,54 +638,161 @@ class AdminWorkController extends Controller{
     }
 
     public function change_planned_shifts(Request $request){
-        $changedShifts = $request->shifts;
-        $shiftDays = collect($request->shifts)->pluck('shift_day');
-        if(!empty((array)$changedShifts)){
-            $updatedShifts = [];
-            $existingShift = shiftRecord::whereIn('shift_day', $shiftDays)
-                                        ->where('user_id', $request->userId)
-                                        ->where('shift_type', 3)
-                                        ->get()->pluck('shift_day');
-            if(count($existingShift) > 0){
-                $string = '';
-                foreach($existingShift as $day){
-                    $string = $string . $day . ' ';
-                }
-                throw ValidationException::withMessages(['message' => $string . '日はすでに計画された計画有給のため、変更することはできません。']);
-            }
-            $startDate = Carbon::parse($request->startDate);
-            $endDate = $startDate->copy()->addYear()->subDay();
-            $allShiftsValid = collect($changedShifts)->every(function ($shift) use ($startDate, $endDate) {
-                $shiftDay = Carbon::parse($shift['shift_day']);
-                return $shiftDay->between($startDate, $endDate);
-            });
-        
-            if (!$allShiftsValid) {
-                throw ValidationException::withMessages(['message' => "{$startDate->format('Y-m-d')}から{$endDate->format('Y-m-d')}の間で選択してください。"]);
+        $updatedShifts = $this->changePlannedShiftsForUser(
+            (array) $request->shifts,
+            (int) $request->userId,
+            $request->startDate
+        );
 
-            }
-            shiftRecord::whereIn('shift_day', $shiftDays)
-                        ->where('user_id', $request->userId)
-                        ->whereNot('shift_type', 3)
-                        ->delete();
-            foreach($changedShifts as $shift){
-                $shiftRecord = shiftRecord::findOrFail($shift['id']);
+        return response()->json(['updated_shifts' => $updatedShifts]);
+    }
 
-                $newShift = shiftRecord::create([
-                    "user_id" => $shiftRecord->user_id,
-                    "start_time" => $shiftRecord->start_time,
-                    "end_time" => $shiftRecord->end_time,
-                    "status_flag" => 1,
-                    "shift_day" => $shift['shift_day'],
-                    "descendant_of" => $shiftRecord->id,
-                    "shift_type" => 3,
-                    "planned_year" => $shiftRecord->planned_year
-                ]);
-                $shiftRecord->delete();
-                $updatedShifts[] = $newShift;
-            }
-            return response()->json(['updated_shifts' => $updatedShifts]);
+    public function respond_planned_leave_change_request(Request $request)
+    {
+        $data = $request->validate([
+            'id' => 'required|integer|exists:planned_leave_change_requests,id',
+            'action' => 'required|string|in:approve,reject',
+        ]);
+
+        $user = $this->active_user();
+        $changeRequest = PlannedLeaveChangeRequest::with(['project_record.manager', 'shift_record'])
+            ->findOrFail($data['id']);
+
+        if ($changeRequest->status !== PlannedLeaveChangeRequestStatus::Pending) {
+            throw ValidationException::withMessages(['message' => 'この申請は既に処理されています。']);
         }
-        return 'changed shifts empty';
+
+        $isAdmin = $this->canAdminPlannedLeaveChangeRequest($user);
+        $isProjectManager = $this->canPmPlannedLeaveChangeRequest($user, $changeRequest);
+
+        if (!$isAdmin && !$isProjectManager) {
+            abort(403);
+        }
+
+        DB::transaction(function () use ($changeRequest, $user, $data, $isAdmin) {
+            $now = Carbon::now();
+            $approved = $data['action'] === 'approve';
+
+            if ($isAdmin) {
+                if ($approved && $changeRequest->shift_record) {
+                    $updatedShifts = $this->changePlannedShiftsForUser([
+                        [
+                            'id' => $changeRequest->shift_record->id,
+                            'shift_day' => $changeRequest->requested_date->toDateString(),
+                        ],
+                    ], $changeRequest->user_id, $this->plannedLeaveStartDate($changeRequest));
+                    $changeRequest->shift_record_id = $updatedShifts[0]->id ?? $changeRequest->shift_record_id;
+                }
+
+                $changeRequest->approver_id = $user->id;
+                $changeRequest->approval_date = $now;
+                $changeRequest->status = $approved
+                    ? PlannedLeaveChangeRequestStatus::Approved
+                    : PlannedLeaveChangeRequestStatus::Rejected;
+                $changeRequest->save();
+
+                return;
+            }
+
+            $changeRequest->pm_id = $user->id;
+            $changeRequest->pm_approval_date = $now;
+            if (!$approved) {
+                $changeRequest->status = PlannedLeaveChangeRequestStatus::Rejected;
+            }
+            $changeRequest->save();
+        });
+
+        return response()->json($changeRequest->fresh([
+            'user:id,name,icon_path,icon_bg,position_id',
+            'approver:id,name,icon_path,icon_bg,position_id',
+            'pmApprover:id,name,icon_path,icon_bg,position_id',
+            'project_record:id,name',
+            'shift_record:id,shift_day,user_id',
+        ]));
+    }
+
+    private function changePlannedShiftsForUser(array $changedShifts, int $userId, string $startDate): array
+    {
+        if(empty($changedShifts)){
+            throw ValidationException::withMessages(['message' => '変更対象の計画有給がありません。']);
+        }
+
+        $shiftDays = collect($changedShifts)->pluck('shift_day');
+        $updatedShifts = [];
+        $existingShift = shiftRecord::whereIn('shift_day', $shiftDays)
+                                    ->where('user_id', $userId)
+                                    ->where('shift_type', 3)
+                                    ->get()->pluck('shift_day');
+        if(count($existingShift) > 0){
+            $string = '';
+            foreach($existingShift as $day){
+                $string = $string . $day . ' ';
+            }
+            throw ValidationException::withMessages(['message' => $string . '日はすでに計画された計画有給のため、変更することはできません。']);
+        }
+        $startDate = Carbon::parse($startDate);
+        $endDate = $startDate->copy()->addYear()->subDay();
+        $allShiftsValid = collect($changedShifts)->every(function ($shift) use ($startDate, $endDate) {
+            $shiftDay = Carbon::parse($shift['shift_day']);
+            return $shiftDay->between($startDate, $endDate);
+        });
+    
+        if (!$allShiftsValid) {
+            throw ValidationException::withMessages(['message' => "{$startDate->format('Y-m-d')}から{$endDate->format('Y-m-d')}の間で選択してください。"]);
+
+        }
+        shiftRecord::whereIn('shift_day', $shiftDays)
+                    ->where('user_id', $userId)
+                    ->whereNot('shift_type', 3)
+                    ->delete();
+        foreach($changedShifts as $shift){
+            $shiftRecord = shiftRecord::findOrFail($shift['id']);
+
+            $newShift = shiftRecord::create([
+                "user_id" => $shiftRecord->user_id,
+                "start_time" => $shiftRecord->start_time,
+                "end_time" => $shiftRecord->end_time,
+                "status_flag" => 1,
+                "shift_day" => $shift['shift_day'],
+                "descendant_of" => $shiftRecord->id,
+                "shift_type" => 3,
+                "planned_year" => $shiftRecord->planned_year
+            ]);
+            $shiftRecord->delete();
+            $updatedShifts[] = $newShift;
+        }
+
+        return $updatedShifts;
+    }
+
+    private function plannedLeaveStartDate(PlannedLeaveChangeRequest $changeRequest): string
+    {
+        $user = User::findOrFail($changeRequest->user_id);
+        if(!$user->user_code || !$changeRequest->shift_record){
+            throw ValidationException::withMessages(['message' => '勤務表テンプレートが見つかりません。']);
+        }
+
+        $workTemp = workTemp::where('user_code', $user->user_code)
+            ->whereYear('date', $changeRequest->shift_record->planned_year)
+            ->first();
+
+        if(!$workTemp){
+            throw ValidationException::withMessages(['message' => '勤務表テンプレートが見つかりません。']);
+        }
+
+        return Carbon::parse($workTemp->date)->toDateString();
+    }
+
+    private function canAdminPlannedLeaveChangeRequest(User $user): bool
+    {
+        return in_array($user->id, [608, 610], true);
+    }
+
+    private function canPmPlannedLeaveChangeRequest(User $user, PlannedLeaveChangeRequest $changeRequest): bool
+    {
+        return (bool) $changeRequest->pm_approval_required
+            && !$changeRequest->pm_id
+            && $changeRequest->project_record
+            && $changeRequest->project_record->manager->contains('id', $user->id);
     }
 }

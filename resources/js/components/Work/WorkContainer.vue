@@ -209,6 +209,12 @@ import Error from '@/components/Global/Error.vue'
             }, 500)
             
         }
+        if(route.query.action === 'shift_confirm'){
+            approvalModal.value = true
+        }
+        else if(route.query.action === 'request_planned_leave_change'){
+            selectShift()
+        }
     })
     let isClearing = false
     watch(() => usersCheckArray.value, (newValue) => {

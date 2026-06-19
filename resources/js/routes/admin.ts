@@ -167,6 +167,18 @@ export const adminRoutes: RouteRecordRaw[] = [
                 component: () => import('@/components/AccountControl/Office/AdminOffice.vue'),
             },
             {
+                path: 'employee-change-applications',
+                name: 'employee-change-applications',
+                meta: { head: '各種届出' },
+                component: () => import('@/components/AccountControl/EmployeeChangeApplications.vue'),
+            },
+            {
+                path: 'employee-change-applications/:applicationId',
+                name: 'employee-change-application-detail',
+                meta: { head: '各種届出' },
+                component: () => import('@/components/AccountControl/EmployeeChangeApplications.vue'),
+            },
+            {
                 path: 'ai-control',
                 name: 'admin-ai',
                 meta: { head: 'AI管理' },

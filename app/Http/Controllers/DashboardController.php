@@ -42,6 +42,7 @@ use App\Models\SystemUpdateCheck;
 use App\Models\SystemUpdateRecord;
 use App\Models\UserLeaveRecord;
 use App\Models\EmployeeChangeApplication;
+use App\Models\PlannedLeaveChangeRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Laravel\Ai\Responses\StreamedAgentResponse;
@@ -341,12 +342,34 @@ class DashboardController extends Controller
         $departuresReportUsers = $this->departuresReportUsers();
         $pendingPlannedLeaves = $this->pendingPlannedLeaves();
         $pendingAttendance = $this->pendingAttendance();
+        $pendingPlannedLeaveChangeRequests = $this->pendingPlannedLeaveChangeRequests();
         return [
             "pendingTimesheets" => $pendingTimesheets,
             "departuresReportUsers" => $departuresReportUsers,
             "pendingPlannedLeaves" => $pendingPlannedLeaves,
             "pendingAttendance" => $pendingAttendance,
+            "pendingPlannedLeaveChangeRequests" => $pendingPlannedLeaveChangeRequests,
         ];
+    }
+    public function pendingPlannedLeaveChangeRequests(){
+        $user = $this->active_user();
+        $requests = PlannedLeaveChangeRequest::where('status', 'pending')
+            ->when(in_array($user->id, [608, 610], true), function ($q) {
+                return $q->where(function ($query) {
+                    $query->where('pm_approval_required', false)
+                        ->orWhereNotNull('pm_id');
+                });
+            }, function ($q) use ($user) {
+                return $q
+                    ->where('pm_approval_required', true)
+                    ->whereNull('pm_id')
+                    ->whereHas('project_record.manager', function($q2) use ($user){
+                        $q2->where('users.id', $user->id);
+                    });
+            })
+            ->with(['user', 'project_record:id,name', 'pmApprover:id,name'])
+            ->get();
+        return $requests;
     }
     public function pendingAttendance() {
         
@@ -901,15 +924,15 @@ class DashboardController extends Controller
             ->with(['user.positions', 'projectRecord' => fn($query) => $query->select(['id', 'name']), 'createdUser'])
             ->select('id', 'user_id', 'project_record_id', 'status', 'created_at', 'updated_at', 'confirmed_at', 'score', 'support_level')
             ->get();
-        // $changeRequests = EmployeeChangeApplication::where('status', ApplicationStatus::Submitted->value)
-        //     ->with([
-        //         'user:id,name,icon_path,icon_bg,position_id',
-        //     ])
-        //     ->get();
+        $changeRequests = EmployeeChangeApplication::where('status', ApplicationStatus::Submitted->value)
+            ->with([
+                'user:id,name,icon_path,icon_bg,position_id',
+            ])
+            ->get();
         return [
             'pendingEvaluations' => $evaluations,
             'pendingAssignments' => $assigns,
-            // 'pendingChangeRequests' => $changeRequests,
+            'pendingChangeRequests' => $changeRequests,
         ];
     }
     private function getAdminMembers() {

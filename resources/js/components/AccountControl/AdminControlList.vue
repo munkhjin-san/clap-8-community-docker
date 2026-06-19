@@ -14,9 +14,8 @@
                     <div class="admin-tab-item" @click="router.push({name: 'glowdnine'})" :class="{'selected-tab' : route.name == 'glowdnine'}">グラウドナイン</div>
                     <div class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
                     <div class="admin-tab-item" @click="router.push({name: 'refresh-control'})" :class="{'selected-tab' : route.path.includes('refresh-control')}">リフレッシュ</div>
+                    <div class="admin-tab-item" @click="router.push({name: 'employee-change-applications'})" :class="{'selected-tab' : route.name == 'employee-change-applications'}">各種届出</div>
                     <div class="admin-tab-item" @click="router.push({name: 'admin-offices'})" :class="{'selected-tab' : route.name == 'admin-offices'}">営業所</div>
-                    <div class="admin-tab-item" @click="router.push({name: 'admin-positions'})" :class="{'selected-tab' : route.name == 'admin-positions'}">役職</div>
-                    <div class="admin-tab-item" @click="router.push({name: 'admin-ai'})" :class="{'selected-tab' : route.name == 'admin-ai'}">AI</div>
                 </div>
                 <div v-if="auth.isBoss || auth.isPM" class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
             </div>

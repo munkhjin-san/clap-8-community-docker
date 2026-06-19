@@ -1,13 +1,11 @@
-import { Asset } from "@/interface/assetInterface";
-import { CalendarRecord } from "@/interface/calendarInterface";
-import { CustomForm } from "@/interface/customFormInterface";
-import { pendingTimesheedData, UserWithShift } from "@/interface/dashboard";
-import { Message, Task, User } from "@/interface/globalInterface";
-import { Incident } from "@/interface/incident";
-import { Post } from "@/interface/postInterface";
-import { Evaluation, Project, ProjectAssignRecord } from "@/interface/projectInterface";
-import { Shift, WorkItem } from "@/interface/workInterface";
-import type { EmergencyContactRecord } from "@/interface/supportInterface";
+import {
+    DASHBOARD_COLLECTION_KEYS,
+    createDashboardCollectionData,
+    type DashboardCollectionData,
+    type DashboardResponseData,
+} from "@/interface/dashboard";
+import type { Incident } from "@/interface/incident";
+import type { Shift } from "@/interface/workInterface";
 import axios from "axios";
 import { DateTime } from "luxon";
 import { defineStore } from "pinia";
@@ -15,49 +13,7 @@ import { computed, ref } from "vue";
 import { useDashboardGoalsStore } from "./dashboardGoals";
 
 export const useDashboardStore = defineStore('dashboardStore', () => {
-    const collection = ref({
-        pendingEvaluations: [] as Evaluation[],
-        assets: {
-            in_use: [] as Asset[],
-            waiting_approval: [] as Asset[],
-        },
-        incidents: {
-            attention: [] as Incident[],
-            emergency_contacts: [] as EmergencyContactRecord[],
-        },
-        overdueGoals: [] as any[], //data ignored just for layout purposes
-        challenges: [] as Post[],
-        forms: [] as CustomForm[],
-        
-        pendingApprovalTasks: [] as Task[],
-        pendingGoalsUserForHR: [] as User[],
-        remindedMessages: [] as Message[],
-        schedules: {
-            temp_schedules: [] as CalendarRecord[],
-            this_week_schedules: [] as CalendarRecord[],
-            next_week_schedules: [] as CalendarRecord[],
-        },
-        pendingDailyReports: [] as any[],
-        mustCheckMessages: [] as Message[],
-        mustSignMessages: [] as Message[],
-        unfinishedTasks: [] as Task[],
-        untouchedTasks: [] as Task[],      
-        personnelEvaluation: {
-            pendingEvaluations: [] as any[],
-        },  
-        timesheet: {
-            pendingTimesheets: [] as pendingTimesheedData[],
-            departuresReportUsers: [] as UserWithShift[],
-            pendingPlannedLeaves: [] as any[],
-            pendingAttendance: null as any,
-        },
-        projects: {
-            officer_approval_waiting: [] as Project[],
-            assign_approval_waiting: [] as ProjectAssignRecord[],
-        },
-        notices: [] as any[],
-        systemUpdates: [] as number[],
-    })
+    const collection = ref<DashboardCollectionData>(createDashboardCollectionData())
 
     const annualLeaveData = ref<{
         remaining_days: number;
@@ -82,8 +38,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
     ]
     const dashboardPostBadgeCount = computed(() => {
         return collection.value.challenges.filter((challenge) => {
-            const attentionType = (challenge as Post & { attention_type?: string }).attention_type
-            return !dashboardPostReminderTypes.includes(attentionType ?? '')
+            return !dashboardPostReminderTypes.includes(challenge.attention_type ?? '')
         }).length
     })
     const isNewIncident = (incident: Incident) => !incident.last_read_at && !(incident.read_histories?.length)
@@ -105,19 +60,20 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
 
             // Special-case: backend currently returns BOTH overdueGoals and overdueGraveCount
             // inside the overdueGraveCount payload.
-            const overduePayload = (res.data as any)?.overdueGraveCount;
+            const data: DashboardResponseData = res.data
+            const overduePayload = data.overdueGraveCount;
             if (overduePayload && typeof overduePayload === 'object') {
                 if (Array.isArray(overduePayload.overdueGoals)) {
-                    (collection.value as any).overdueGoals = overduePayload.overdueGoals;
+                    collection.value.overdueGoals = overduePayload.overdueGoals;
                 }
                 if (typeof overduePayload.overdueGraveCount === 'number') {
-                    (collection.value as any).overdueGraveCount = overduePayload.overdueGraveCount;
+                    collection.value.overdueGraveCount = overduePayload.overdueGraveCount;
                 }
             }
 
-            for (const key in collection.value) {
-                if (res.data.hasOwnProperty(key)) {
-                    (collection.value as any)[key] = res.data[key];
+            for (const key of DASHBOARD_COLLECTION_KEYS) {
+                if (Object.prototype.hasOwnProperty.call(data, key)) {
+                    Object.assign(collection.value, { [key]: data[key] });
                 }
             }
 
@@ -142,7 +98,9 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         collection.value.schedules.temp_schedules.length + collection.value.pendingDailyReports.length +
         normalCheckMessages + collection.value.mustSignMessages.length + 
         collection.value.unfinishedTasks.length + collection.value.untouchedTasks.length +
-        collection.value.personnelEvaluation.pendingEvaluations.length + 
+        (collection.value.personnelEvaluation.pendingEvaluations.length ?? 0) + 
+        (collection.value.personnelEvaluation.pendingAssignments.length ?? 0) +
+        (collection.value.personnelEvaluation.pendingChangeRequests?.length ?? 0) +
         collection.value.notices.length + collection.value.projects.assign_approval_waiting.length + 
         collection.value.projects.officer_approval_waiting.length +
         incidentBadgeCount.value + collection.value.systemUpdates.length 
