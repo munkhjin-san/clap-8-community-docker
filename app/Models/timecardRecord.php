@@ -9,6 +9,11 @@ use Carbon\Carbon;
 class timecardRecord extends Model
 {
     use SoftDeletes;
+
+    public const STATUS_DRAFT = 0;
+    public const STATUS_SUBMITTED = 1;
+    public const STATUS_APPROVED = 2;
+    public const STATUS_REJECTED = 10;
     
     public function user(){
         return $this->belongsTo(User::class);
@@ -43,6 +48,9 @@ class timecardRecord extends Model
     public function vehicle_data(){
         return $this->hasOne(timecardVehicle::class, 'record_id', 'id');
     }
+    public function vehicle_records(){
+        return $this->hasMany(timecardVehicle::class, 'record_id', 'id');
+    }
     public function car_project(){
         return $this->hasOne(ProjectRecord::class, 'id', 'car_used_project');
     }
@@ -50,10 +58,34 @@ class timecardRecord extends Model
     {
         return $this->hasMany(ProjectCase::class);
     }
+
+    public function project_segments()
+    {
+        return $this->hasMany(TimecardProjectSegment::class, 'timecard_record_id');
+    }
     protected $appends = ['training_minutes'];
 
     public function getTrainingMinutesAttribute(): int
     {
+        if ($this->relationLoaded('project_segments')) {
+            $segmentMinutes = $this->project_segments
+                ->where('segment_type', TimecardProjectSegment::TYPE_TRAINING)
+                ->sum('minutes');
+
+            if ($segmentMinutes > 0) {
+                return (int) $segmentMinutes;
+            }
+        }
+        if ($this->exists) {
+            $segmentMinutes = $this->project_segments()
+                ->where('segment_type', TimecardProjectSegment::TYPE_TRAINING)
+                ->sum('minutes');
+
+            if ($segmentMinutes > 0) {
+                return (int) $segmentMinutes;
+            }
+        }
+
         if (!$this->training_start_time || !$this->training_end_time) {
             return 0;
         }

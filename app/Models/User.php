@@ -13,6 +13,9 @@ class User extends Authenticatable
 {
     // use Notifiable;
     use HasApiTokens, Notifiable, SoftDeletes;
+
+    public const ADMIN_USER_IDS = [608, 610];
+
     /**
      * The attributes that are mass assignable.
      *
@@ -171,6 +174,9 @@ class User extends Authenticatable
     public function workTemps(){
         return $this->hasOne(workTemp::class, 'user_code', 'user_code');
     }
+    public function paidLeaveAccount(){
+        return $this->hasOne(PaidLeaveAccount::class);
+    }
     public function work_groups(){
         return $this->belongsToMany(ProjectRecord::class, 'project_members', 'user_id', 'project_id')->withPivot(['authority']);
     }
@@ -234,6 +240,10 @@ class User extends Authenticatable
     public function isProjectManager($projectId): bool
     {
         return $this->work_groups()->where('project_id', $projectId)->wherePivot('authority', 1)->exists();
+    }
+    public function isAdmin(): bool
+    {
+        return in_array((int) $this->id, self::ADMIN_USER_IDS, true);
     }
     public function oauthCredentials()
     {

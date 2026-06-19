@@ -16,4 +16,10 @@ class timecardVehicle extends Model
     public function after_user(){
         return $this->belongsTo(User::class, 'confirm_after_user')->select('id', 'name', 'icon_path', 'icon_bg');
     }
+    public function project(){
+        return $this->belongsTo(ProjectRecord::class, 'project_id');
+    }
+    public function project_segment(){
+        return $this->belongsTo(TimecardProjectSegment::class, 'timecard_project_segment_id');
+    }
 }
