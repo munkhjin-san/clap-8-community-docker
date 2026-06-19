@@ -1,9 +1,12 @@
-import { DashboardCard } from '@/interface/dashboard'
-import { Message, Task } from '@/interface/globalInterface'
-import { CustomForm } from '@/interface/customFormInterface'
-import { Post } from '@/interface/postInterface'
-import { Asset } from '@/interface/assetInterface'
-import { CalendarRecord } from '@/interface/calendarInterface'
+import {
+    createDashboardAssetCardData,
+    createDashboardIncidentCardData,
+    createDashboardPersonnelEvaluationCardData,
+    createDashboardProjectCardData,
+    createDashboardScheduleCardData,
+    createDashboardTimesheetCardData,
+    type DashboardCard,
+} from '@/interface/dashboard'
 import type { Component } from 'vue'
 import { markRaw } from 'vue'
 
@@ -21,9 +24,6 @@ import DashboardTimesheet from '@/components/Dashboard/Layout/DashboardTimesheet
 import DashboardNotice from '@/components/Dashboard/Layout/DashboardNotice.vue'
 import DashboardProject from '@/components/Dashboard/Layout/DashboardProject.vue'
 import { useAuthUserStore } from '@/store/auth'
-import { Project, ProjectAssignRecord } from '@/interface/projectInterface'
-import { Incident } from '@/interface/incident'
-import type { EmergencyContactRecord } from '@/interface/supportInterface'
 
 /**
  * Layout type constants
@@ -152,7 +152,7 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         layout: 'message',
         col: 'col-span-2',
         order: undefined,
-        data: [] as Message[],
+        data: [],
         canFullscreen: true,
         canResize: true,
     },
@@ -162,7 +162,7 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         layout: 'message',
         col: 'col-span-1',
         order: undefined,
-        data: [] as Message[],
+        data: [],
         canFullscreen: true,
         canResize: true,
     },
@@ -172,7 +172,7 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         layout: 'message',
         col: 'col-span-1',
         order: undefined,
-        data: [] as Message[],
+        data: [],
         canFullscreen: true,
         canResize: true,
     },
@@ -182,7 +182,7 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         layout: 'task',
         col: 'col-span-1',
         order: undefined,
-        data: [] as Task[],
+        data: [],
         canFullscreen: true,
         canResize: true,
     },
@@ -192,7 +192,7 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         layout: 'task',
         col: 'col-span-1',
         order: undefined,
-        data: [] as Task[],
+        data: [],
         canFullscreen: true,
         canResize: true,
     },
@@ -202,7 +202,7 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         layout: 'task',
         col: 'col-span-1',
         order: undefined,
-        data: [] as Task[],
+        data: [],
         canFullscreen: true,
         canResize: true,
     },
@@ -212,7 +212,7 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         layout: 'survey',
         col: 'col-span-1',
         order: undefined,
-        data: [] as CustomForm[],
+        data: [],
         canFullscreen: true,
         canResize: true,
     },    
@@ -232,10 +232,7 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         layout: 'project',
         col: 'col-span-1',
         order: undefined,
-        data: {
-            officer_approval_waiting: [] as Project[],
-            assign_approval_waiting: [] as ProjectAssignRecord[],
-        },
+        data: createDashboardProjectCardData(),
         canFullscreen: false,
         canResize: true,
     },
@@ -245,7 +242,7 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         layout: 'challenge',
         col: 'col-span-1',
         order: undefined,
-        data: [] as Post[],
+        data: [],
         canFullscreen: false,
         canResize: true,
     },
@@ -255,9 +252,7 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         layout: 'assets',
         col: 'col-span-1',
         order: undefined,
-        data: {
-            in_use: [] as Asset[]
-        },
+        data: createDashboardAssetCardData(),
         canFullscreen: true,
         canResize: true,
     },
@@ -267,10 +262,7 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         layout: 'incidents',
         col: 'col-span-1',
         order: undefined,
-        data: {
-            attention: [] as Incident[],
-            emergency_contacts: [] as EmergencyContactRecord[],
-        },
+        data: createDashboardIncidentCardData(),
         canFullscreen: true,
         canResize: true,
     },
@@ -280,9 +272,7 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         layout: 'schedules',
         col: 'col-span-1',
         order: undefined,
-        data: {
-            temp_schedules: [] as CalendarRecord[]
-        },
+        data: createDashboardScheduleCardData(),
         canFullscreen: false,
         canResize: true,
     },
@@ -292,13 +282,7 @@ export const DEFAULT_DASHBOARD_CARDS: DashboardCard[] = [
         layout: 'timesheet',
         col: 'col-span-1',
         order: undefined,
-        data: {
-            pendingTimesheets: [] as any[],
-            departuresReportUsers: [],
-            pendingPlannedLeaves: [],
-            pendingAttendance: null,
-            autoApprovedTimesheets: [] as any[],
-        },
+        data: createDashboardTimesheetCardData(),
         canFullscreen: false,
         canResize: true,
     },
@@ -323,10 +307,7 @@ export const ADMIN_PERSONNEL_EVALUATION_CARD: DashboardCard = {
     layout: 'personnelEvaluation',
     col: 'col-span-1',
     order: undefined,
-    data: {
-        pendingEvaluations: [] as any[],
-        pendingAssignments: [] as any[],
-    },
+    data: createDashboardPersonnelEvaluationCardData(),
     canFullscreen: false,
     canResize: true,
 }
@@ -337,8 +318,11 @@ export const ADMIN_PERSONNEL_EVALUATION_CARD: DashboardCard = {
 export function getDefaultDashboardCards(): DashboardCard[] {
     return DEFAULT_DASHBOARD_CARDS.filter(card => {
         // Overdue goals card - only include for non-partner and non-registered users
-        if (card.type === 'overdueGoals') {
+        if (card.type === 'overdueGoals' || card.type === 'notice') {
             return !auth.isPartner && !auth.isRegistered
+        }
+        if(card.type === 'timesheet' || card.type === 'post') {
+            return !auth.isPartner
         }
         return true
     })
@@ -348,22 +332,18 @@ export function getDefaultDashboardCards(): DashboardCard[] {
  * Helper to determine if a card should be shown
  */
 export function shouldShowCard(card: DashboardCard): boolean {
-    const { layout, data } = card
-    const shownWithDataCards = ['message', 'task', 'challenge',]
-    // Cards with v-show based on data length
-    if (shownWithDataCards.includes(layout)) {
-        return Array.isArray(data) && data.length > 0
+    switch (card.layout) {
+        case 'message':
+        case 'task':
+        case 'challenge':
+            return card.data.length > 0
+        case 'schedules':
+            return card.data.temp_schedules.length > 0
+        case 'project':
+            return card.data.officer_approval_waiting.length > 0
+                || card.data.assign_approval_waiting.length > 0
+                || (card.data.comments?.length ?? 0) > 0
+        default:
+            return true
     }
-
-    // Schedules card
-    if (layout === 'schedules') {
-        return (data as any)?.temp_schedules?.length > 0
-    } else if (layout === 'project') {
-        return (data as any)?.officer_approval_waiting?.length > 0 
-        || (data as any)?.assign_approval_waiting?.length > 0
-        || (data as any)?.comments?.length > 0
-    }
-
-    // All other cards show by default
-    return true
 }

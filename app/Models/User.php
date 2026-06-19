@@ -292,6 +292,22 @@ class User extends Authenticatable
         return $this->hasOne(UserLeaveRecord::class, 'user_id', 'id')
             ->where('active', 1);
     }
+
+    public function employeeChangeApplications()
+    {
+        return $this->hasMany(EmployeeChangeApplication::class, 'user_id', 'id');
+    }
+
+    public function submittedEmployeeChangeApplications()
+    {
+        return $this->hasMany(EmployeeChangeApplication::class, 'submitted_by', 'id');
+    }
+
+    public function reviewedEmployeeChangeApplications()
+    {
+        return $this->hasMany(EmployeeChangeApplication::class, 'reviewed_by', 'id');
+    }
+
     public function getRefreshCurrentBalanceAttribute(): int
     {
         $refreshAccount = $this->refreshAccount;

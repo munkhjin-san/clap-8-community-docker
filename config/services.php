@@ -90,5 +90,12 @@ return [
         'internal_token' => env('VITE_SOCKET_TOKEN'),
     ],
 
+    'cuenote' => [
+        'username' => env('CUENOTE_USERNAME'),
+        'password' => env('CUENOTE_PASSWORD'),
+        'address_book_id' => env('CUENOTE_ADDRESS_BOOK_ID'),
+        'delivery_url' => env('CUENOTE_DELIVERY_URL', 'https://sms-console.cuenote.jp/v9/delivery'),
+    ],
+
 
 ];

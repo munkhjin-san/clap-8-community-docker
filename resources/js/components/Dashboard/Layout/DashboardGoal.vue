@@ -229,6 +229,7 @@ import { storeToRefs } from 'pinia';
 import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import { useRoute } from 'vue-router';
+import type { DashboardOverdueGoalCard } from '@/interface/dashboard';
 type OutcomeGoalGroup = {
     year: number;
     which_half: string;
@@ -237,15 +238,7 @@ type OutcomeGoalGroup = {
 }
 
 const props = defineProps<{
-    data: {
-        title: string,
-        data: any[],
-        order?: number,
-        type: string
-        canResize?: boolean
-        canFullscreen?: boolean
-        col: string
-    },
+    data: DashboardOverdueGoalCard,
     fullscreen: boolean,
 }>()
 

@@ -21,6 +21,7 @@ use App\Models\ShiftOvertimeRequest;
 use App\Models\ProjectCase;
 use App\Models\TimecardProjectSegment;
 use App\Models\TimecardCostOcrRun;
+use App\Models\PlannedLeaveChangeRequest;
 use App\Services\SharedService;
 use App\Services\TimeSheet\TimecardAuditLogService;
 use App\Services\TimeSheet\TimecardReceiptStorageService;
@@ -4470,11 +4471,134 @@ class WorkController extends Controller
         $paidholidays = shiftRecord::where('user_id', $request->user_id)
                                     ->where('planned_year', $request->year)
                                     ->where('shift_type', 3)
-                                    ->select('shift_day', 'user_id')
+                                    ->select('shift_day', 'user_id', 'id', 'planned_year')
                                     ->orderBy('shift_day')
+                                    ->with(['planned_leave_change_request'])
                                     ->get();
-        return response()->json($paidholidays);
+
+        $workTemp = [];
+        $user = User::find($request->user_id);
+        if($user->user_code){
+            $workTemp = workTemp::where('user_code', $user->user_code)->whereYear('date', $request->year)->first();
+        }
+        
+        
+        $selectableProjects = ProjectRecord::whereHas('members', function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })->select('id', 'name')->get();
+        
+        $pmApprovalNeeded = $user->position_id != 6 && count($selectableProjects) > 0;
+        return response()->json([
+            'paidholidays' => $paidholidays,
+            'workTemp' => $workTemp,
+            'pmApprovalNeeded' => $pmApprovalNeeded,
+            'selectableProjects' => $selectableProjects
+
+        ]);
     }
+    public function planned_leave_change_request(Request $request){
+        $request->validate([
+            'shift_id' => 'required|integer|exists:shift_records,id',
+            'change_request_date' => 'required|date',
+            'project_id' => 'nullable|integer|exists:project_records,id',
+            'pm_approval_required' => 'nullable|boolean',
+            'reason' => 'nullable|string',
+        ]);
+        
+        $shift = shiftRecord::findOrFail($request->shift_id);
+        $user = User::find($shift->user_id);
+        if($user->user_code == null){
+            throw ValidationException::withMessages(['message' => 'ユーザーコードが設定されていません。']);
+        }
+        $planned_year = $shift->planned_year;
+        $change_request_date = Carbon::create($request->change_request_date);
+        $work_temp = workTemp::where('user_code', $user->user_code)->where(fn($query) => $query->whereYear('date', $planned_year))->first();
+        if(!$work_temp){
+            throw ValidationException::withMessages(['message' => '勤務表テンプレートが見つかりません。']);
+        }
+        $startLimit = Carbon::create($work_temp->date);
+        $endLimit = Carbon::create($work_temp->date)->addYear()->subDay();
+        $makeSureBetween = $change_request_date->between($startLimit, $endLimit);
+        if(!$makeSureBetween){
+            throw ValidationException::withMessages(['message' => "変更申請日は{$startLimit->toDateString()}から{$endLimit->toDateString()}の間に設定してください。"]);
+        }
+        $checkDuplicatePlannedLeave = shiftRecord::where('user_id', $shift->user_id)
+                                    ->where('shift_type', 3)
+                                    ->where('shift_day', $change_request_date->toDateString())
+                                    ->exists();
+        if($checkDuplicatePlannedLeave){
+            throw ValidationException::withMessages(['message' => '既に同日に計画有給が存在しています。']);
+        }
+        $checkDuplicateRequest = PlannedLeaveChangeRequest::where('user_id', $shift->user_id)
+                                    ->where('shift_record_id', $shift->id)
+                                    ->exists();
+        if($checkDuplicateRequest){
+            throw ValidationException::withMessages(['message' => '既に同シフトに対して変更申請が存在しています。']);
+        }
+        $pmApprovalRequired = $request->boolean('pm_approval_required');
+        if($pmApprovalRequired){
+            if(!$request->project_id){
+                throw ValidationException::withMessages(['message' => 'プロジェクトを選択してください。']);
+            }
+            $belongsToProject = ProjectRecord::where('id', $request->project_id)
+                ->whereHas('members', function ($query) use ($user) {
+                    $query->where('user_id', $user->id);
+                })
+                ->exists();
+            if(!$belongsToProject){
+                throw ValidationException::withMessages(['message' => '選択したプロジェクトに所属していません。']);
+            }
+        }
+        $createRequest = PlannedLeaveChangeRequest::create([
+            'user_id' => $shift->user_id,
+            'shift_record_id' => $shift->id,
+            'original_date' => $shift->shift_day,
+            'requested_date' => $change_request_date->toDateString(),
+            'status' => 'pending',
+            'project_id' => $request->project_id ?? null,
+            'pm_approval_required' => $pmApprovalRequired,
+            'reason' => $request->reason ?? null,
+        ]);
+        return response()->json($createRequest);
+
+
+    }
+    public function planned_leave_change_requests(Request $request)
+    {
+        $user = $this->active_user();
+
+        return response()->json($this->plannedLeaveChangeRequestQuery($user)
+            ->with([
+                'user:id,name,icon_path,icon_bg,position_id',
+                'approver:id,name,icon_path,icon_bg,position_id',
+                'pmApprover:id,name,icon_path,icon_bg,position_id',
+                'project_record:id,name',
+                'shift_record:id,shift_day,user_id',
+            ])
+            ->orderBy('created_at')
+            ->get());
+    }
+
+    private function plannedLeaveChangeRequestQuery(User $user)
+    {
+        $query = PlannedLeaveChangeRequest::query();
+
+        if ($this->canAdminPlannedLeaveChangeRequest($user)) {
+            return $query;
+        }
+
+        return $query
+            ->where('pm_approval_required', true)
+            ->whereHas('project_record.manager', function ($q) use ($user) {
+                $q->where('users.id', $user->id);
+            });
+    }
+
+    private function canAdminPlannedLeaveChangeRequest(User $user): bool
+    {
+        return in_array($user->id, [608, 610], true);
+    }
+
     public function annual_leave_data(Request $request){
         $user = $this->active_user();
         $year = Carbon::now()->year;

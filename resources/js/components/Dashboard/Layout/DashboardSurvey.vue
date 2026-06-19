@@ -93,7 +93,7 @@
             
 </template>
 <script setup lang="ts">
-import { CustomForm } from '@/interface/customFormInterface';
+import type { DashboardSurveyCard } from '@/interface/dashboard';
 import { defineAsyncComponent, onMounted, ref, useTemplateRef, watch } from 'vue';
 import BaseLayout from './BaseLayout.vue';
 import CommandButton from '@/components/Global/CommandButton.vue';
@@ -106,15 +106,7 @@ import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import Error from '@/components/Global/Error.vue'
 
 const props = defineProps<{
-    data: {
-        title: string,
-        data: CustomForm[],
-        order?: number,
-        type: string
-        canResize?: boolean
-        canFullscreen?: boolean
-        col?: string
-    }
+    data: DashboardSurveyCard
     fullscreen: boolean
 }>()
 

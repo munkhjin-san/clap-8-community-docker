@@ -63,15 +63,6 @@
                                 </svg>                     
                                 <a class="jump-link" :href="`mailto:${userData.work_email}`">{{userData.work_email}}</a>
                             </div>
-                            <div class="gap-2 bg-[var(--bg3)] rounded-full pl-3 flex" v-if="isSelf && auth.isEmployee || auth.isAdmin">
-                                
-                                <div @click="showRefreshHistory = true" title="リフレッシュ" class="flex gap-1 items-center cursor-pointer">
-                                    <svg fill="var(--primary-color)" xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 0 152 152"><path d="M35.35664,122.00491c-2.92196,4.71027-6.09263,9.26686-9.03117,13.97086-1.53951,2.46444-3.33378,7.18873-6.0073,8.3482-3.69011,1.60036-7.54913-.52241-7.82955-4.58333-.20116-2.91308,2.19207-6.1748,3.69795-8.63033,3.5865-5.84821,7.75654-11.39238,11.81684-16.91359-3.52069-5.04324-6.16224-10.79308-7.39876-16.85097-5.15406-25.25064,8.69527-47.64356,29.41981-60.71786,25.29294-15.95632,54.14093-17.83465,81.49292-27.78443,3.39769-1.23597,7.61434-4.24429,11.06763-1.54447,1.41795,1.10857,1.8595,2.68369,2.03845,4.40686.14072,1.355.25042,3.28182.31016,4.67031,1.65578,38.48073-9.9261,85.51135-46.39714,105.09187-15.61261,8.38208-37.00117,11.79489-53.88275,5.44193-3.39181-1.27642-6.21515-3.0805-9.29709-4.90505ZM64.46498,88.42486c-8.13962,7.74857-15.57825,16.25774-22.55533,25.06733-.1484.56878,2.62196,2.09445,3.20674,2.40824,13.86161,7.43824,34.81025,3.94291,48.24892-3.11919,29.48572-15.49492,39.75076-53.33804,40.72847-84.36919.03954-1.25506.16262-8.09017-.15083-8.66259-.26877-.49082-.40163-.11804-.63624-.04258-3.74828,1.20558-7.35931,2.70103-11.17357,3.77578-14.06932,3.96434-28.46257,6.06422-42.40211,10.91821-26.54063,9.2419-53.72366,26.99623-49.0277,59.29154.4657,3.20276,2.07105,8.46276,3.70516,11.23819.14153.24037-.08594.48899.49917.37106,16.13675-19.90509,35.39727-37.40145,57.30399-50.80299,2.40554-1.4716,10.43623-6.57973,12.71964-6.63968,2.89089-.0759,5.13694,2.83283,4.40191,5.59945-.2283.85932-1.1071,1.75234-1.77223,2.32705-3.69668,3.19412-10.53862,6.70129-14.88047,9.72891-9.90494,6.90682-19.47192,14.58696-28.21551,22.91048Z"></path></svg>
-                                    <p v-if="userData?.refresh_current_balance !== undefined">{{ amountOfMoneyParser(userData?.refresh_current_balance) }}円</p> 
-                                    <span class="jump-link ml-2">詳細</span>
-                                </div>    
-                                <PrivateChip />                                        
-                            </div>
                         </div>
                     </div>                   
                 </div>
@@ -111,6 +102,62 @@
                         </div>
 
                     </div>
+                </div>
+            </div>
+            <div v-if="isSelf" id="user-private-part" class="bg-[var(--background-color)] p-8 under960:p-4 rounded mt-8">
+                <div class="private-section-header">
+                    <div class="private-section-title">
+                        <PrivateChip />
+                        <div>
+                            <p class="private-eyebrow">本人限定メニュー</p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        class="private-history-button"
+                        @click="employeeChangeHistory = true"
+                    >
+                        各種届出履歴
+                    </button>
+                </div>
+                <div class="private-action-grid">
+                    <button
+                        type="button"
+                        @click="variousNotificationCreate = true"
+                        class="private-action-card"
+                    >
+                        <span class="private-action-icon private-action-icon-document">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" height="35" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z" />
+                                <path d="M14 2v5h5" />
+                                <path d="M9 13h6" />
+                                <path d="M9 17h4" />
+                            </svg>
+                        </span>
+                        <span class="private-action-content">
+                            <span class="private-action-title">各種届出</span>
+                            <span class="private-action-text">住所・通勤・休暇などの変更申請</span>
+                        </span>
+                    </button>
+                    <button
+                        v-if="(isSelf && auth.isEmployee) || auth.isAdmin"
+                        type="button"
+                        @click="showRefreshHistory = true"
+                        class="private-action-card private-action-card-balance"
+                    >
+                        <span class="private-action-icon private-action-icon-leaf">
+                            <svg data-v-7a77f310="" fill="var(--primary-color)" xmlns="http://www.w3.org/2000/svg" height="30" viewBox="0 0 152 152">
+                                <path data-v-7a77f310="" d="M35.35664,122.00491c-2.92196,4.71027-6.09263,9.26686-9.03117,13.97086-1.53951,2.46444-3.33378,7.18873-6.0073,8.3482-3.69011,1.60036-7.54913-.52241-7.82955-4.58333-.20116-2.91308,2.19207-6.1748,3.69795-8.63033,3.5865-5.84821,7.75654-11.39238,11.81684-16.91359-3.52069-5.04324-6.16224-10.79308-7.39876-16.85097-5.15406-25.25064,8.69527-47.64356,29.41981-60.71786,25.29294-15.95632,54.14093-17.83465,81.49292-27.78443,3.39769-1.23597,7.61434-4.24429,11.06763-1.54447,1.41795,1.10857,1.8595,2.68369,2.03845,4.40686.14072,1.355.25042,3.28182.31016,4.67031,1.65578,38.48073-9.9261,85.51135-46.39714,105.09187-15.61261,8.38208-37.00117,11.79489-53.88275,5.44193-3.39181-1.27642-6.21515-3.0805-9.29709-4.90505ZM64.46498,88.42486c-8.13962,7.74857-15.57825,16.25774-22.55533,25.06733-.1484.56878,2.62196,2.09445,3.20674,2.40824,13.86161,7.43824,34.81025,3.94291,48.24892-3.11919,29.48572-15.49492,39.75076-53.33804,40.72847-84.36919.03954-1.25506.16262-8.09017-.15083-8.66259-.26877-.49082-.40163-.11804-.63624-.04258-3.74828,1.20558-7.35931,2.70103-11.17357,3.77578-14.06932,3.96434-28.46257,6.06422-42.40211,10.91821-26.54063,9.2419-53.72366,26.99623-49.0277,59.29154.4657,3.20276,2.07105,8.46276,3.70516,11.23819.14153.24037-.08594.48899.49917.37106,16.13675-19.90509,35.39727-37.40145,57.30399-50.80299,2.40554-1.4716,10.43623-6.57973,12.71964-6.63968,2.89089-.0759,5.13694,2.83283,4.40191,5.59945-.2283.85932-1.1071,1.75234-1.77223,2.32705-3.69668,3.19412-10.53862,6.70129-14.88047,9.72891-9.90494,6.90682-19.47192,14.58696-28.21551,22.91048Z"></path>
+                            </svg>
+                        </span>
+                        <span class="private-action-content">
+                            <span class="private-action-title">リフレッシュ補助金</span>
+                            <span v-if="userData?.refresh_current_balance !== undefined" class="private-balance">
+                                {{ amountOfMoneyParser(userData?.refresh_current_balance) }}円
+                            </span>
+                        </span>
+                        <span class="private-action-link">詳細</span>
+                    </button>
                 </div>
             </div>
             <div v-if="isSelf || (userData?.user_album && userData.user_album.length > 0)"  class="bg-[var(--background-color)] p-8 under960:p-4 rounded mt-8">
@@ -266,6 +313,23 @@
                 />
             </Transition>
         </Teleport>
+        <Teleport to="body">
+            <Transition name="modalFade">
+                <VariousNotificationCreate
+                    v-if="variousNotificationCreate"
+                    :user-id="userData?.id ?? null"
+                    @close="variousNotificationCreate = false"
+                />
+            </Transition>
+        </Teleport>
+        <Teleport to="body">
+            <Transition name="modalFade">
+                <EmployeeChangeApplicationHistory
+                    v-if="employeeChangeHistory"
+                    @close="employeeChangeHistory = false"
+                />
+            </Transition>
+        </Teleport>
     </div>
 </template>
 <script setup lang="ts">
@@ -297,7 +361,11 @@ const ProfileInfoEditor = defineAsyncComponent({ loader: () => import('./Profile
 const WeatherUpdater = defineAsyncComponent({ loader: () => import('../Global/WeatherUpdater.vue'), errorComponent: Error })
 const UserIntroFile = defineAsyncComponent({ loader: () => import('./UserEditComps/UserIntroFile.vue'), errorComponent: Error })
 const UserRefreshHistoryModal = defineAsyncComponent({ loader: () => import('./UserRefreshHistoryModal.vue'), errorComponent: Error })
+const VariousNotificationCreate = defineAsyncComponent({ loader: () => import('./VariousNotificationCreate.vue'), errorComponent: Error })
+const EmployeeChangeApplicationHistory = defineAsyncComponent({ loader: () => import('./EmployeeChangeApplicationHistory.vue'), errorComponent: Error })
 const userData = ref<User | null>(null);
+const variousNotificationCreate = ref(false);
+const employeeChangeHistory = ref(false);
 const loading = ref(true);
 const route = useRoute();
 const api = useApi()
@@ -393,10 +461,11 @@ const getNews = async () => {
     }
 }
 const fetchUserData = async () => {
-    console.log('ff')
-    const id = route.params.userId
+    const id = Number(route.params.userId)
     if(!id) return
-
+    if(auth.id && id === auth.id && route.query.mode === 'change'){
+        variousNotificationCreate.value = true
+    }
     const data = await api.post('/profile_get_update_user', { id })
     if (data && 'id' in data) {
         userData.value = data
@@ -591,6 +660,151 @@ const previewProfile = () => {
     white-space: pre-wrap;
     word-break: break-word;
     margin: 0;
+}
+
+.private-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 22px;
+}
+
+.private-section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.private-eyebrow {
+    margin: 0;
+    color: var(--primary-color);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.private-description {
+    margin: 2px 0 0;
+    color: var(--third-color);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.private-history-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box !important;
+    min-height: 34px;
+    padding: 7px 12px;
+    border: 1px solid var(--formBorder);
+    border-radius: 4px;
+    color: var(--link-color);
+    background: var(--background-color);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+    transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.private-history-button:hover,
+.private-history-button:focus-visible {
+    background: var(--bg3);
+    border-color: var(--link-color);
+}
+
+.private-action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 30px;
+}
+
+.private-action-card {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    box-sizing: border-box !important;
+    min-height: 104px;
+    padding: 16px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: var(--bg3);
+    color: var(--primary-color);
+    text-align: left;
+    transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+.private-action-card:hover,
+.private-action-card:focus-visible {
+    border-color: var(--primary-color);
+    background: var(--background-color);
+    transform: translateY(-1px);
+}
+
+.private-action-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 6px;
+}
+.private-action-content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.private-action-title {
+    color: var(--primary-color);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+.private-action-text {
+    color: var(--third-color);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.private-balance {
+    color: gray;
+}
+
+.private-action-link {
+    margin-left: auto;
+    color: var(--link-color);
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+@media (max-width: 960px) {
+    .private-section-header {
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .private-history-button {
+        width: 100%;
+    }
+
+    .private-action-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .private-action-card {
+        min-height: 92px;
+        padding: 14px;
+    }
 }
 </style>
 <style>

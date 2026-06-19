@@ -112,26 +112,13 @@
     </BaseLayout>
 </template>
 <script setup lang="ts">
-import { CalendarRecord } from '@/interface/calendarInterface';
+import type { DashboardScheduleCard } from '@/interface/dashboard';
 import BaseLayout from './BaseLayout.vue';
-import PanelData from './PanelData.vue';
 import CompactSchedule from '@/components/Calendar/CompactSchedule.vue';
 import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 const props = defineProps<{
-    data: {
-        title: string,
-        data: { 
-            temp_schedules: CalendarRecord[]
-            this_week_schedules: CalendarRecord[]
-            next_week_schedules: CalendarRecord[]
-        },
-        order?: number,
-        type: string
-        canResize?: boolean
-        canFullscreen?: boolean
-        col?: string
-    }
+    data: DashboardScheduleCard
     fullscreen: boolean
 }>()
 

@@ -93,6 +93,34 @@ export type Shift = {
     overtime_request: any
     status_flag: number
     departure_report: string | null
+    planned_leave_change_request?: PlannedLeaveChangeRequest | null
+}
+export type PlannedLeaveChangeRequestStatus = 'pending' | 'approved' | 'rejected'
+export type PlannedLeaveChangeRequest = {
+    id: number
+    user_id: number
+    shift_record_id: number | null
+    approver_id: number | null
+    pm_id: number | null
+    project_id: number | null
+    original_date: Date | string
+    requested_date: Date | string
+    reason: string | null
+    pm_approval_required: boolean
+    pm_approval_date: string | null
+    approval_date: string | null
+    status: PlannedLeaveChangeRequestStatus
+    status_label: string
+    created_at: string
+    updated_at: string
+    user?: User
+    approver?: User | null
+    pm_approver?: User | null
+    pmApprover?: User | null
+    project_record?: {
+        id: number
+        name: string
+    } | null
 }
 export type TimeCard = {
     id: number | null
