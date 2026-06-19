@@ -260,24 +260,24 @@ class AdminWorkController extends Controller{
                             $legal_holiday_shifts[] = $record->shift_day;
                         }
                         // Extract common values
-                        $month = Carbon::parse($record->shift_day)->format('Y-m');
-                        $departmentName = $record['department']['name'] ?? null;
+                        // $month = Carbon::parse($record->shift_day)->format('Y-m');
+                        // $departmentName = $record['department']['name'] ?? null;
 
-                        // Only process if department name exists
-                        if ($departmentName) {
-                            $groupKey = "{$departmentName}|{$user->name}|{$month}";
+                        // // Only process if department name exists
+                        // if ($departmentName) {
+                        //     $groupKey = "{$departmentName}|{$user->name}|{$month}";
 
-                            // Initialize counter
-                            if (!isset($departmentCountsTemp[$groupKey])) {
-                                $departmentCountsTemp[$groupKey] = [
-                                    'count' => 0,
-                                    'department' => $departmentName,
-                                    'username' => $user->name,
-                                    'month' => $month,
-                                ];
-                            }
-                            $departmentCountsTemp[$groupKey]['count']++;
-                        }
+                        //     // Initialize counter
+                        //     if (!isset($departmentCountsTemp[$groupKey])) {
+                        //         $departmentCountsTemp[$groupKey] = [
+                        //             'count' => 0,
+                        //             'department' => $departmentName,
+                        //             'username' => $user->name,
+                        //             'month' => $month,
+                        //         ];
+                        //     }
+                        //     $departmentCountsTemp[$groupKey]['count']++;
+                        // }
 
                         // Paid hours + shift record array logic
                         $shift_type = $record->shiftType;
@@ -291,8 +291,8 @@ class AdminWorkController extends Controller{
 
                     }
 
-                    // Merge into the main department counts collection
-                    $allDepartmentCounts = $allDepartmentCounts->merge($departmentCountsTemp);
+                    // // Merge into the main department counts collection
+                    // $allDepartmentCounts = $allDepartmentCounts->merge($departmentCountsTemp);
                 }
 
                 $workTimeInMinutes = 0;
@@ -302,25 +302,27 @@ class AdminWorkController extends Controller{
                 $total_gas_price = 0;
                 if ($user->time_card_records->isNotEmpty()) {
                     $departmentCountsTemp = [];
-
+                    
                     foreach ($user->time_card_records as $record) {
+                       
                         $segments = $record->project_segments ?? collect();
                         $workTimeInMinutes += $segments->isNotEmpty()
                             ? (int) $segments->where('segment_type', TimecardProjectSegment::TYPE_WORK)->sum('minutes')
                             : (int) $record->work_time;
 
                         foreach ($this->timecardDepartmentRows($record, $user->name) as $departmentRow) {
+                             
                             $groupKey = $departmentRow['department'] . '|' . $departmentRow['username'] . '|' . $departmentRow['month'];
 
                             if (!isset($departmentCountsTemp[$groupKey])) {
                                 $departmentCountsTemp[$groupKey] = [
-                                    'count' => 0,
+                                    'work_time' => 0,
                                     'department' => $departmentRow['department'],
                                     'username' => $departmentRow['username'],
                                     'month' => $departmentRow['month'],
                                 ];
                             }
-                            $departmentCountsTemp[$groupKey]['count']++;
+                            $departmentCountsTemp[$groupKey]['work_time'] += $departmentRow['work_time'];
                         }
 
                         foreach ($this->timecardMyCarRows($record, $user->name) as $myCarRow) {
@@ -421,7 +423,6 @@ class AdminWorkController extends Controller{
     {
         $month = Carbon::parse($record->day)->format('Y-m');
         $segments = $record->project_segments ?? collect();
-
         if ($segments->isNotEmpty()) {
             return $segments
                 ->filter(fn ($segment) => $segment->project?->name)
@@ -430,6 +431,7 @@ class AdminWorkController extends Controller{
                     'department' => $segment->project->name,
                     'username' => $userName,
                     'month' => $month,
+                    'work_time' => (int) $segment->where('segment_type', TimecardProjectSegment::TYPE_WORK)->sum('minutes'),
                 ])
                 ->values()
                 ->all();
@@ -444,6 +446,7 @@ class AdminWorkController extends Controller{
             'department' => $departmentName,
             'username' => $userName,
             'month' => $month,
+            'work_time' => (int) $record->work_time,
         ]];
     }
 

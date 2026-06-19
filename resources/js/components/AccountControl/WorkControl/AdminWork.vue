@@ -258,7 +258,8 @@ import { useApi } from '@/composables/api';
                 "計上月" : department.month,
                 "部門" : department.department,
                 "氏名" : department.username,
-                "稼働日数" : department.count,
+                '月間労働時間(分)' : department.work_time,
+                '月間労働時間' : department.work_time / 60,
             }
             data.push(row)
         })
