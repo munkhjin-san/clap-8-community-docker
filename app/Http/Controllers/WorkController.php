@@ -1262,7 +1262,12 @@ class WorkController extends Controller
         $trainingOverlapMinutes = $attendanceMode === 'work_and_training'
             ? $this->trainingOverlapMinutesFromRequest($request, $startTime, $endTime)
             : 0;
-        $workTimeMinutes = max(0, $this->workReportTimeService->minutesBetweenTimes($startTime, $endTime) - $trainingOverlapMinutes - $breakTime);
+        $projectGapMinutes = $this->workReportTimeService->projectGapMinutes(
+            $request->input('project_time_entries', []),
+            $startTime,
+            $endTime
+        );
+        $workTimeMinutes = max(0, $this->workReportTimeService->minutesBetweenTimes($startTime, $endTime) - $trainingOverlapMinutes - $projectGapMinutes - $breakTime);
 
         if ($workTimeMinutes >= 360 && $breakTime < 60) {
             throw ValidationException::withMessages(['message' => '6時間以上の勤務の場合、最低でも60分間の休憩を取る必要があります。']);

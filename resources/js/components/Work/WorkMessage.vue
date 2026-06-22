@@ -10,19 +10,14 @@
     </div>
 </template>
 <script setup lang="ts">
-import { WorkItem } from '../../interface/workInterface';
+import type { plannedLeave, tempData as PlannedLeaveTempData } from '../../interface/workInterface';
 import { computed } from 'vue';
 const emit = defineEmits(['close'])
 
 const props = defineProps<{
-    item: {
-        date: string,
-        endDate: string,
-        remaining_days: number
-        tempData: WorkItem
-    }
+    item: plannedLeave
 }>()
 
-const tempData = computed(() => props.item.tempData as WorkItem)
+const tempData = computed<PlannedLeaveTempData>(() => props.item.tempData)
 
 </script>

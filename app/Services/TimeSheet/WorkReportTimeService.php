@@ -92,6 +92,75 @@ class WorkReportTimeService
             ->all();
     }
 
+    public function projectGapMinutes(iterable $segments, ?string $requestedStartTime = null, ?string $requestedEndTime = null): int
+    {
+        $segments = collect($segments)
+            ->filter(fn ($segment) => is_array($segment))
+            ->map(function ($segment) {
+                return [
+                    'project_id' => (int) ($segment['project_id'] ?? 0),
+                    'segment_type' => $this->sanitizeSegmentType($segment['segment_type'] ?? null),
+                    'start_time' => $this->normalizeTime($segment['start_time'] ?? null),
+                    'end_time' => $this->normalizeTime($segment['end_time'] ?? null),
+                ];
+            })
+            ->filter(fn ($segment) => $segment['project_id'] > 0 && $segment['start_time'] !== null && $segment['end_time'] !== null)
+            ->values();
+
+        if ($segments->count() < 2) {
+            return 0;
+        }
+
+        $segments = collect($this->sortProjectSegmentsByTime($segments, $requestedStartTime, $requestedEndTime));
+        $workSegments = $segments
+            ->where('segment_type', TimecardProjectSegment::TYPE_WORK)
+            ->values();
+
+        if ($workSegments->count() < 2) {
+            return 0;
+        }
+
+        $trainingSegments = $segments
+            ->where('segment_type', TimecardProjectSegment::TYPE_TRAINING)
+            ->values();
+
+        return (int) $workSegments->reduce(function ($total, $segment, $index) use ($workSegments, $trainingSegments) {
+            if ($index === 0) {
+                return $total;
+            }
+
+            $previous = $workSegments[$index - 1];
+            $gap = $this->gapMinutesBetweenSegments($previous, $segment);
+            if ($gap <= 0) {
+                return $total;
+            }
+
+            $trainingInGap = $trainingSegments->sum(function ($trainingSegment) use ($previous, $segment) {
+                return $this->overlapMinutesForTimes($previous['end_time'], $segment['start_time'], $trainingSegment['start_time'], $trainingSegment['end_time']);
+            });
+
+            return $total + max(0, $gap - $trainingInGap);
+        }, 0);
+    }
+
+    private function gapMinutesBetweenSegments(array $previous, array $segment): int
+    {
+        $previousStart = $this->timeToMinutes($previous['start_time'] ?? null);
+        $previousEnd = $this->timeToMinutes($previous['end_time'] ?? null);
+        $currentStart = $this->timeToMinutes($segment['start_time'] ?? null);
+
+        if ($previousStart === null || $previousEnd === null || $currentStart === null) {
+            return 0;
+        }
+
+        $previousEnd = $previousEnd >= $previousStart ? $previousEnd : $previousEnd + 1440;
+        if ($currentStart < $previousStart) {
+            $currentStart += 1440;
+        }
+
+        return max(0, $currentStart - $previousEnd);
+    }
+
     public function buildProjectSegments(Request $request, bool $hasWorkHours): array
     {
         $hasTrainingHours = $request->filled('training_start_time') && $request->filled('training_end_time');
@@ -140,29 +209,8 @@ class WorkReportTimeService
 
         $incomingSegments = collect($this->sortProjectSegmentsByTime($incomingSegments, $request->start_time, $request->end_time));
 
-        $gapMinutes = 0;
-        $workSegmentsForGap = $incomingSegments
-            ->where('segment_type', TimecardProjectSegment::TYPE_WORK)
-            ->values();
-        $trainingSegmentsForGap = $incomingSegments
-            ->where('segment_type', TimecardProjectSegment::TYPE_TRAINING)
-            ->values();
-        $workSegmentsForGap->each(function ($segment, $index) use ($workSegmentsForGap, $trainingSegmentsForGap, &$gapMinutes) {
-            if ($index === 0) {
-                return;
-            }
-
-            $previous = $workSegmentsForGap[$index - 1];
-            $gap = $this->minutesBetweenTimes($previous['end_time'], $segment['start_time']);
-            $trainingInGap = $trainingSegmentsForGap->sum(function ($trainingSegment) use ($previous, $segment) {
-                return $this->overlapMinutesForTimes($previous['end_time'], $segment['start_time'], $trainingSegment['start_time'], $trainingSegment['end_time']);
-            });
-            $gapMinutes += max(0, $gap - $trainingInGap);
-        });
-
         $breakMinutes = max(0, (int) ($request->breakTime ?? 0));
-        $breakFromGaps = min($breakMinutes, $gapMinutes);
-        $remainingBreakDeduction = max(0, $breakMinutes - $breakFromGaps);
+        $remainingBreakDeduction = $breakMinutes;
         $rawWorkMinutesBefore = 0;
         $status = ((int) $request->status_flag) === timecardRecord::STATUS_SUBMITTED
             ? TimecardProjectSegment::STATUS_SUBMITTED

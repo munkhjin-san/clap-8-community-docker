@@ -26,11 +26,13 @@
                     <div class="project-time-header">
                         <p class="report-header">プロジェクト別入力</p>
                         <div class="project-time-summary">
+                            <span v-if="includesWorkHours && projectTimeGapMinutes">勤怠範囲 {{ attendanceSpanTotalLabel }}</span>
+                            <span v-if="projectTimeUnpaidGapSummary">{{ projectTimeUnpaidGapSummary }}</span>
+                            <span v-if="projectTimeBreakSummary">{{ projectTimeBreakSummary }}</span>
                             <span v-if="includesWorkHours">就業 {{ workTimeTotalLabel }}</span>
-                            <span v-if="includesWorkHours">就業入力 {{ projectWorkTimeTotalLabel }}</span>
+                            <span v-if="showProjectWorkInputSummary">就業入力 {{ projectWorkTimeTotalLabel }}</span>
                             <span v-if="showCalculatedOvertimeSummary" class="project-time-summary-overtime">残業 {{ calculatedOvertimeLabel }}</span>
                             <span v-if="includesTrainingHours">研修 {{ projectTrainingTimeTotalLabel }}</span>
-                            <span v-if="projectTimeBreakSummary">{{ projectTimeBreakSummary }}</span>
                         </div>
                     </div>
                     <div v-if="shift?.overtime_request" class="project-time-message">
@@ -456,6 +458,7 @@
                             </div>
                         </section>
                     </div>
+                    <p v-if="projectTimeUnpaidGapMessage" class="project-time-message">{{ projectTimeUnpaidGapMessage }}</p>
                     <p v-if="projectTimeBreakMessage" class="project-time-message">{{ projectTimeBreakMessage }}</p>
                     <p v-if="projectTimeWarning" class="project-time-warning">{{ projectTimeWarning }}</p>
                 </div>
@@ -2193,21 +2196,48 @@ import { useTour } from '@/composables/useTour';
         return projectTimeOverlapWarningForEntries(workProjectEntries.value, '就業')
             || projectTimeOverlapWarningForEntries(trainingProjectEntries.value, '研修')
     })
-    const projectTimeGapMinutes = computed(() => {
-        return workProjectEntries.value.reduce((total, entry, index, entries) => {
-            if (index === 0) return total
-            const previousEnd = timeStringToMinutes(entries[index - 1].end_time)
+    const projectTimeGapBetweenEntries = (previousEntry, entry) => {
+        const previousStart = timeStringToMinutes(previousEntry.start_time)
+        const previousEnd = timeStringToMinutes(previousEntry.end_time)
+        let currentStart = timeStringToMinutes(entry.start_time)
+
+        if (previousStart === null || previousEnd === null || currentStart === null) return 0
+
+        const previousEndOffset = previousEnd >= previousStart ? previousEnd : previousEnd + 1440
+        if (currentStart < previousStart) {
+            currentStart += 1440
+        }
+
+        return Math.max(0, currentStart - previousEndOffset)
+    }
+    const projectTimeGapRanges = computed(() => {
+        const entries = sortProjectSegmentsByTime(workProjectEntries.value, editStartTime.value, editEndTime.value)
+        return entries.reduce((ranges, entry, index) => {
+            if (index === 0) return ranges
+            const previousEntry = entries[index - 1]
+            const previousEnd = timeStringToMinutes(previousEntry.end_time)
             const currentStart = timeStringToMinutes(entry.start_time)
-            if (previousEnd === null || currentStart === null) return total
-            const gap = currentStart >= previousEnd ? currentStart - previousEnd : currentStart + 1440 - previousEnd
+            if (previousEnd === null || currentStart === null) return ranges
+            const gap = projectTimeGapBetweenEntries(previousEntry, entry)
+            if (gap <= 0) return ranges
             const trainingInGap = trainingProjectEntries.value.reduce((trainingTotal, trainingEntry) => {
                 return trainingTotal + overlapMinutes(previousEnd, currentStart, timeStringToMinutes(trainingEntry.start_time), timeStringToMinutes(trainingEntry.end_time))
             }, 0)
-            return total + Math.max(0, gap - trainingInGap)
-        }, 0)
+            const minutes = Math.max(0, gap - trainingInGap)
+            if (minutes > 0) {
+                ranges.push({
+                    start_time: previousEntry.end_time,
+                    end_time: entry.start_time,
+                    minutes,
+                })
+            }
+            return ranges
+        }, [])
     })
-    const projectTimeBreakFromGaps = computed(() => Math.min(Number(breakTimeSelect.value || 0), projectTimeGapMinutes.value))
-    const projectTimeBreakDeductionMinutes = computed(() => Math.max(0, Number(breakTimeSelect.value || 0) - projectTimeBreakFromGaps.value))
+    const projectTimeGapMinutes = computed(() => {
+        return projectTimeGapRanges.value.reduce((total, range) => total + range.minutes, 0)
+    })
+    const projectTimeBreakDeductionMinutes = computed(() => Number(breakTimeSelect.value || 0))
     const projectTimeRawMinutesBefore = (index) => {
         return projectTimeEntries.value
             .slice(0, index)
@@ -2265,15 +2295,20 @@ import { useTour } from '@/composables/useTour';
         })
     }
 
-    const diffInMinutes = computed(() => {
+    const attendanceSpanMinutes = computed(() => {
         if (!includesWorkHours.value || !editStartTime.value || !editEndTime.value) {
             return 0
         }
         const start = timeStringToMinutes(editStartTime.value)
         const end = timeStringToMinutes(editEndTime.value)
         if (start === null || end === null) return 0
-        const differenceInMinutes = end >= start ? end - start : end + 1440 - start
-        return Math.max(0, differenceInMinutes - trainingOverlapMinutes.value - breakTimeSelect.value);
+        return end >= start ? end - start : end + 1440 - start
+    })
+    const diffInMinutes = computed(() => {
+        return Math.max(
+            0,
+            attendanceSpanMinutes.value - trainingOverlapMinutes.value - Number(breakTimeSelect.value || 0) - projectTimeGapMinutes.value
+        )
     })
     const trainingTimeMinutes = computed(() => {
         if (!includesTrainingHours.value) {
@@ -2291,10 +2326,17 @@ import { useTour } from '@/composables/useTour';
             return isTrainingProjectEntry(entry) ? total + projectTimeEntryMinutes(entry, index) : total
         }, 0)
     })
+    const attendanceSpanTotalLabel = computed(() => formatProjectTimeMinutes(attendanceSpanMinutes.value))
     const workTimeTotalLabel = computed(() => formatProjectTimeMinutes(diffInMinutes.value))
     const trainingTimeTotalLabel = computed(() => formatProjectTimeMinutes(trainingTimeMinutes.value))
     const projectWorkTimeTotalLabel = computed(() => formatProjectTimeMinutes(projectWorkTimeTotalMinutes.value))
     const projectTrainingTimeTotalLabel = computed(() => formatProjectTimeMinutes(projectTrainingTimeTotalMinutes.value))
+    const showProjectWorkInputSummary = computed(() => {
+        return includesWorkHours.value
+            && projectWorkTimeTotalMinutes.value > 0
+            && diffInMinutes.value > 0
+            && projectWorkTimeTotalMinutes.value !== diffInMinutes.value
+    })
     const regularWorkMinutes = computed(() => {
         const userRegularMinutes = Number(props.item?.work_time_day ?? 0)
         if (userRegularMinutes > 0) return userRegularMinutes
@@ -2371,15 +2413,21 @@ import { useTour } from '@/composables/useTour';
         if (!breakMinutes) return ''
         return `休憩 ${formatProjectTimeMinutes(breakMinutes)}`
     })
+    const projectTimeUnpaidGapSummary = computed(() => {
+        if (!projectTimeGapMinutes.value) return ''
+        return `中抜け ${formatProjectTimeMinutes(projectTimeGapMinutes.value)}`
+    })
+    const projectTimeUnpaidGapMessage = computed(() => {
+        if (!includesWorkHours.value || !projectTimeGapRanges.value.length) return ''
+        const ranges = projectTimeGapRanges.value
+            .map(range => `${formatTime(range.start_time)} - ${formatTime(range.end_time)}`)
+            .join('、')
+
+        return `${ranges} は中抜けとして自動計算されます。`
+    })
     const projectTimeBreakMessage = computed(() => {
         const breakMinutes = Number(breakTimeSelect.value || 0)
         if (!includesWorkHours.value || !breakMinutes) return ''
-        if (projectTimeBreakFromGaps.value >= breakMinutes) {
-            return `休憩${formatProjectTimeMinutes(breakMinutes)}はプロジェクト間の空き時間から自動計算されます。`
-        }
-        if (projectTimeBreakFromGaps.value > 0) {
-            return `休憩${formatProjectTimeMinutes(breakMinutes)}のうち${formatProjectTimeMinutes(projectTimeBreakFromGaps.value)}は空き時間、残り${formatProjectTimeMinutes(projectTimeBreakDeductionMinutes.value)}は先頭プロジェクトから順に自動控除されます。`
-        }
         return `休憩${formatProjectTimeMinutes(breakMinutes)}は先頭プロジェクトから順に自動控除されます。`
     })
     const hasIncompleteProjectTimeEntry = computed(() => {
