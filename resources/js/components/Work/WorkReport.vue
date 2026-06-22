@@ -2689,22 +2689,19 @@ import { useTour } from '@/composables/useTour';
         margin-bottom: 18px;
     }
     .attendance-mode-tabs{
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        display: flex;
         gap: 8px;
     }
     .attendance-mode-tab{
-        min-height: 38px;
+        padding: 5px 10px;
         display: flex;
         align-items: center;
         justify-content: center;
         border: 1px solid var(--calendarBorder);
-        border-radius: 4px;
         background: var(--background-color);
         color: var(--primary-color);
         cursor: pointer;
         font-size: 13px;
-        font-weight: 400;
     }
     .attendance-mode-tab input{
         position: absolute;
@@ -2714,7 +2711,6 @@ import { useTour } from '@/composables/useTour';
     .attendance-mode-tab-active{
         border-color: var(--primary-color);
         background: var(--bg3);
-        font-weight: 500;
     }
     .attendance-mode-tab-disabled{
         cursor: default;

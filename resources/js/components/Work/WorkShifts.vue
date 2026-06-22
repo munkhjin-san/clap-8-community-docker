@@ -83,9 +83,7 @@
                                 <p v-if="zan_nissu && selectedShiftType !== 3 && selectedShiftType !== 27" class="paid-leave-balance">
                                     有給残日数:
                                     <strong :class="{ negative: projectedPaidLeaveMinutes < 0 }">{{ formatLeaveBalance(projectedPaidLeaveMinutes) }}</strong>
-                                    <span v-if="paidLeaveDeltaMinutes !== 0" class="paid-leave-balance-detail">
-                                        現在 {{ formatLeaveBalance(basePaidLeaveMinutes) }} / 選択 {{ signedLeaveMinutes(-paidLeaveDeltaMinutes) }}
-                                    </span>
+                                   
                                 </p>
                                 <p v-if="selectedShiftType == 3">計画有給: <strong>{{ remainingDays }}</strong>日</p>
                                 <p v-if="selectedShiftType !== 3 && selectedShiftType !== 27">休日数: <strong>{{ holidayCount }}</strong>日／所定休日数: <strong>{{ shouldHoliday }}</strong>日</p>

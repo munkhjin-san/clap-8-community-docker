@@ -89,10 +89,10 @@ final class BadgeService
                 ->where(function ($q) {
                     $q->where(fn ($q) =>
                         $q->where('mini', 1)
-                        ->whereDate('created_at', '=', now()->subDays(7))
+                        ->whereDate('created_at', '=', now()->subDays(6))
                     )->orWhere(fn ($q) =>
                         $q->where('mini', 0)
-                        ->whereDate('created_at', '=', now()->subDays(14))
+                        ->whereDate('created_at', '=', now()->subDays(13))
                     );
                 })
                 ->whereDoesntHave('awards', function ($q) use ($user) {
