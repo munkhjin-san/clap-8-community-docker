@@ -536,10 +536,12 @@ import { mkConfig, generateCsv, download } from 'export-to-csv'
             await reload()
         }
         await nextTick()
-        let scrollPosition = document.querySelector('.today');
+        const today = DateTime.now().toISODate()
+        const recordsWrapper = document.querySelector('.records-wrapper')
+        let scrollPosition = recordsWrapper?.querySelector(`[data-work-day="${today}"]`) || recordsWrapper?.querySelector('.today') || document.querySelector('.today');
         
         if (scrollPosition) {
-            scrollPosition.scrollIntoView({ behavior: 'instant', block: 'center' });
+            scrollPosition.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'nearest' });
         }
         
     }

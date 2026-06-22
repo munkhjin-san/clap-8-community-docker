@@ -18,7 +18,13 @@
                 :key="group.key"
                 class="mobile-day-card"
             >
-                <div class="mobile-day-card-date">{{ group.label }}</div>
+                <div
+                    class="mobile-day-card-date"
+                    :class="mobileDayDateClass(group)"
+                    :data-work-day="group.key"
+                >
+                    {{ group.label }}
+                </div>
                 <table class="mobile-day-member-table">
                     <tbody>
                         <WorkRecordRow
@@ -187,6 +193,12 @@ import { useResponsive } from '@/store/responsive';
     const mobileDayLabel = (date) => {
         const parsed = DateTime.fromISO(date ?? '')
         return parsed.isValid ? parsed.toFormat('M / d (ccc)') : ''
+    }
+    const mobileDayDateClass = (group) => {
+        return {
+            today: group?.key === DateTime.now().toISODate(),
+            working: (group?.records ?? []).some(record => record?.time_card?.stamp_flag == 0),
+        }
     }
     const mobileDayGroups = computed(() => {
         const groups = []

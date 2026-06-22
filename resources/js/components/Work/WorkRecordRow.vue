@@ -277,6 +277,7 @@
                 class="work-date-cell"
                 :rowspan="projectSegmentRowspan"
                 :class="[getDayClass, {'working' : item.time_card?.stamp_flag == 0}]"
+                :data-work-day="displayDayFull"
             >
                 <div class="td-first">{{ dayFormatter }}</div>
             </td>
@@ -1317,27 +1318,17 @@ const closeProjectDetailBox = () => {
 const addProjectDetailOutsideListeners = () => {
     removeProjectDetailOutsideClick()
     document.addEventListener('click', handleProjectDetailDocumentClick, true)
-    document.addEventListener('scroll', handleProjectDetailScroll, true)
     window.addEventListener('resize', closeProjectDetailBox)
 }
 const removeProjectDetailOutsideClick = () => {
     document.removeEventListener('click', handleProjectDetailDocumentClick)
     document.removeEventListener('click', handleProjectDetailDocumentClick, true)
-    document.removeEventListener('scroll', handleProjectDetailScroll, true)
     window.removeEventListener('resize', closeProjectDetailBox)
 }
 const handleProjectDetailOpenEvent = (event) => {
     if (event.detail?.sourceId === projectDetailInstanceId) return
     if (activeProjectDetail.value) closeProjectDetailBox()
     if (activeOvertimeBoxKey.value) closeOvertimeApproveBox()
-}
-const handleProjectDetailScroll = (event) => {
-    if (!activeProjectDetail.value) return
-
-    const target = event.target
-    if (target instanceof Element && target.closest('.project-chip-box')) return
-
-    closeProjectDetailBox()
 }
 const handleProjectDetailDocumentClick = (event) => {
     if (!activeProjectDetail.value) return
@@ -1742,12 +1733,13 @@ const hasTruthyAbility = (ability) => Object.values(ability ?? {}).some(value =>
 const hasRowAction = computed(() => hasTruthyAbility(props.item?.ability))
 const hasProjectSegmentAction = (segment) => hasTruthyAbility(segment?.ability)
 const hasReportAction = (segment, segmentIndex) => {
+    if (segment?.legacy) return hasRowAction.value
     if (segment) return hasProjectSegmentAction(segment)
     if (segmentIndex === 0) return hasRowAction.value
     return false
 }
 const reportActionSegment = (segment) => {
-    return segment && hasProjectSegmentAction(segment) ? segment : null
+    return segment && !segment.legacy && hasProjectSegmentAction(segment) ? segment : null
 }
 const isCompactBlankRow = computed(() => {
     return !props.item?.time_card
@@ -1911,22 +1903,12 @@ const closeOvertimeApproveBox = () => {
 const addOvertimeApproveOutsideListeners = () => {
     removeOvertimeApproveOutsideListeners()
     document.addEventListener('click', handleOvertimeApproveDocumentClick, true)
-    document.addEventListener('scroll', handleOvertimeApproveScroll, true)
     window.addEventListener('resize', closeOvertimeApproveBox)
 }
 const removeOvertimeApproveOutsideListeners = () => {
     document.removeEventListener('click', handleOvertimeApproveDocumentClick)
     document.removeEventListener('click', handleOvertimeApproveDocumentClick, true)
-    document.removeEventListener('scroll', handleOvertimeApproveScroll, true)
     window.removeEventListener('resize', closeOvertimeApproveBox)
-}
-const handleOvertimeApproveScroll = (event) => {
-    if (!activeOvertimeBoxKey.value) return
-
-    const target = event.target
-    if (target instanceof Element && target.closest('.project-chip-box')) return
-
-    closeOvertimeApproveBox()
 }
 const handleOvertimeApproveDocumentClick = (event) => {
     if (!activeOvertimeBoxKey.value) return
