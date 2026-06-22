@@ -16,7 +16,7 @@
         custom-class="full"
         name="address"
         place-holder="変更後の住所"
-        rules="required|max:1000"
+        rules="required"
     />
 
     <div class="address-change-file">

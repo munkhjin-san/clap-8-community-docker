@@ -40,7 +40,7 @@
             custom-class="full"
             name="public_route"
             place-holder="公共交通機関のルート"
-            rules="required|max:1000"
+            rules="required"
         />
 
         <div class="flex gap-8 under960:flex-col">
@@ -51,7 +51,16 @@
                     custom-class="full"
                     name="public_pass_amount"
                     place-holder="定期金額"
-                    rules="required|max:100"
+                    rules="required"
+                />
+            </div>
+            <div class="flex-1">
+                <ShortInput
+                    ref="publicOneWayFareRef"
+                    v-model="params.public_transportation.one_way_fare"
+                    custom-class="full"
+                    name="public_one_way_fare"
+                    place-holder="片道代"
                 />
             </div>
             <div class="flex-1">
@@ -61,7 +70,6 @@
                     custom-class="full"
                     name="public_other_amount"
                     place-holder="その他の交通費金額（バス代等）"
-                    rules="max:100"
                 />
             </div>
         </div>
@@ -77,7 +85,7 @@
 
     <div v-else-if="params.mode === 'car'" class="space-y-8">
         <p class="commute-change-note">
-            自家用車での通勤の方は、車の車種（普通自動車／軽自動車）や自宅から勤務地までの距離をご入力ください。なお、自家用車での通勤の場合、車の任意保険加入証明書の写し／車検証の写しを提出していただく必要があります。
+            自家用車での通勤の方は、燃料種別や自宅から勤務地までの距離をご入力ください。なお、自家用車での通勤の場合、車検証の写しを提出していただく必要があります。
         </p>
         <div class="flex gap-8 under960:flex-col">
             <ShortInput
@@ -93,15 +101,15 @@
 
             <div class="min-w-[200px]">
                 <ItemSelector
-                    ref="carTypeRef"
-                    v-model="params.car.car_type"
-                    :clearable="true"
+                    ref="carFuelTypeRef"
+                    v-model="params.car.fuel_type"
+                    :clearable="false"
                     :close-on-select="true"
                     :multiple="false"
-                    :options="carTypeOptions"
+                    :options="fuelTypeOptions"
                     class="commute-change-selector"
-                    name="car_type"
-                    place-holder="車種を選択してください"
+                    name="fuel_type"
+                    place-holder="燃料を選択してください"
                     rules="required"
                 />
             </div>
@@ -112,11 +120,22 @@
                     custom-class="min-h-[40px]"
                     name="car_one_way_distance"
                     place-holder="片道の距離（km）"
-                    rules="required|max:100"
+                    rules="required"
                     class="fit"
                     type="number"
                 />
             </div>
+        </div>
+        <div class="commute-change-file">
+            <FileUploader
+                ref="vehicleInspectionFilesRef"
+                v-model="params.car.vehicle_inspection_files"
+                accept=".jpg,.jpeg,.png,.pdf"
+                custom-place-holder="車検証"
+                path="/various_changes/commute_change/vehicle_inspection"
+                rules="required"
+            />
+            <p v-if="vehicleInspectionFileError" class="commute-change-error">{{ vehicleInspectionFileError }}</p>
         </div>
         <div>
             <label class="flex items-center gap-2 text-sm">
@@ -130,7 +149,7 @@
     <div v-else-if="params.mode === 'bicycle'" class="space-y-8">
         <p class="commute-change-note">
             自転車通勤を希望する方、または公共交通機関から自転車通勤に変更される方は、最寄りのバス停や電車の駅をご入力ください。<br>
-            支給されるのは定期金額の半額となりますので、定期金額の入力もお願いします。<br>
+            雨天時に利用する通勤方法も入力してください。<br>
             駐輪場においては、自己負担となります。<br>
             ※通勤場所までが2km以内で通勤手当支給対象外の場合、駐輪場代は会社負担となります。
         </p>
@@ -151,7 +170,7 @@
                     custom-class="full"
                     name="bicycle_route"
                     place-holder="公共交通機関のルート"
-                    rules="required|max:1000"
+                    rules="required"
                 />
             </div>
             
@@ -163,17 +182,13 @@
         <div class="flex gap-8 under960:flex-col">
              <div class="flex-1">
                 <ShortInput
-                    ref="bicyclePassAmountRef"
-                    v-model="params.bicycle.pass_amount"
+                    ref="bicycleRainyCommuteMethodRef"
+                    v-model="params.bicycle.rainy_commute_method"
                     custom-class="full"
-                    name="bicycle_pass_amount"
-                    place-holder="定期金額"
-                    rules="required|max:100"
-                    type="number"
+                    name="bicycle_rainy_commute_method"
+                    place-holder="雨天時の通勤方法"
+                    rules="required"
                 />
-                <p class="commute-change-field-note">
-                    ※通勤場所までの距離が2km以上の場合、定期金額の半額が通勤手当として支給されます。ここには、定期金額の満額を記載してください。
-                </p>
             </div>
             <div class="flex-1">
                 <ShortInput
@@ -182,7 +197,6 @@
                     custom-class="full"
                     name="bicycle_other_amount"
                     place-holder="その他の交通費金額（定期対象外のバス代等）"
-                    type="number"
                 />
             </div>
             <div class="flex-1">
@@ -192,7 +206,6 @@
                     custom-class="full"
                     name="bicycle_parking_amount"
                     place-holder="駐輪場代"
-                    type="number"
                 />
                 <p class="commute-change-field-note">
                     通勤場所までの距離が2km未満の場合、駐輪場代は会社が負担します。※通勤手当対象者は記載不要
@@ -209,15 +222,24 @@
         </div>
     </div>
 
-    <div v-else-if="params.mode && params.mode !== 'walking'" class="commute-change-empty">
-        詳細項目は後で追加します。
+    <div v-else-if="params.mode === 'walking'" class="space-y-8">
+        <ShortInput
+            ref="walkingEffectiveDateRef"
+            v-model="params.walking.effective_date"
+            class="fit"
+            name="walking_effective_date"
+            place-holder="通勤変更適用日"
+            rules="required"
+            type="date"
+        />
     </div>
 </div>
 </template>
 
 <script setup lang="ts">
 import type { Component } from 'vue';
-import { reactive, ref } from 'vue';
+import { reactive, ref, watch } from 'vue';
+import FileUploader from '@/components/Form/FileUploader.vue';
 import ItemSelector from '@/components/Form/ItemSelector.vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import ShortInput from '@/components/Form/ShortInput.vue';
@@ -227,11 +249,18 @@ import PublicTransportationChangeIcon from './Icons/PublicTransportationChange.v
 import WalkingChangeIcon from './Icons/WalkingChange.vue';
 
 type CommuteMode = 'public_transportation' | 'car' | 'bicycle' | 'walking'
+type FuelType = 'レギュラー' | 'ハイオク'
+
+type UploadedFile = {
+    id: number
+    [key: string]: unknown
+}
 
 type PublicTransportationPayload = {
     effective_date: string
     route: string
     pass_amount: string
+    one_way_fare: string
     other_amount: string
     share_with_pm: boolean
 }
@@ -239,17 +268,22 @@ type PublicTransportationPayload = {
 type CarPayload = {
     effective_date: string
     one_way_distance: string
-    car_type: string
+    fuel_type: FuelType
+    vehicle_inspection_files: UploadedFile[]
     share_with_pm: boolean
 }
 
 type BicyclePayload = {
     effective_date: string
     route: string
-    pass_amount: string
+    rainy_commute_method: string
     other_amount: string
     parking_amount: string
     share_with_pm: boolean
+}
+
+type WalkingPayload = {
+    effective_date: string
 }
 
 type CommuteChangePayload = {
@@ -257,6 +291,7 @@ type CommuteChangePayload = {
     public_transportation: PublicTransportationPayload
     car: CarPayload
     bicycle: BicyclePayload
+    walking: WalkingPayload
 }
 
 const modeOptions: { label: string; value: CommuteMode; icon: Component }[] = [
@@ -266,13 +301,7 @@ const modeOptions: { label: string; value: CommuteMode; icon: Component }[] = [
     { label: '徒歩', value: 'walking', icon: WalkingChangeIcon },
 ]
 
-const carTypeOptions = [
-    '普通自動車',
-    '軽自動車',
-    '自動二輪（大型）',
-    '自動二輪（中型）',
-    '原動機付自転車',
-]
+const fuelTypeOptions: FuelType[] = ['レギュラー', 'ハイオク']
 
 const params = reactive<CommuteChangePayload>({
     mode: '',
@@ -280,42 +309,57 @@ const params = reactive<CommuteChangePayload>({
         effective_date: '',
         route: '',
         pass_amount: '',
+        one_way_fare: '',
         other_amount: '',
         share_with_pm: false,
     },
     car: {
         effective_date: '',
         one_way_distance: '',
-        car_type: '',
+        fuel_type: 'レギュラー',
+        vehicle_inspection_files: [],
         share_with_pm: false,
     },
     bicycle: {
         effective_date: '',
         route: '',
-        pass_amount: '',
+        rainy_commute_method: '',
         other_amount: '',
         parking_amount: '',
         share_with_pm: false,
+    },
+    walking: {
+        effective_date: '',
     },
 })
 
 const modeError = ref('')
 const shareWithPmError = ref('')
+const vehicleInspectionFileError = ref('')
 
 const publicEffectiveDateRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const publicRouteRef = ref<InstanceType<typeof LongInput> | null>(null)
 const publicPassAmountRef = ref<InstanceType<typeof ShortInput> | null>(null)
+const publicOneWayFareRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const publicOtherAmountRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const carEffectiveDateRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const carOneWayDistanceRef = ref<InstanceType<typeof ShortInput> | null>(null)
-const carTypeRef = ref<InstanceType<typeof ItemSelector> | null>(null)
+const carFuelTypeRef = ref<InstanceType<typeof ItemSelector> | null>(null)
+const vehicleInspectionFilesRef = ref<InstanceType<typeof FileUploader> | null>(null)
 const bicycleEffectiveDateRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const bicycleRouteRef = ref<InstanceType<typeof ShortInput> | null>(null)
-const bicyclePassAmountRef = ref<InstanceType<typeof ShortInput> | null>(null)
+const bicycleRainyCommuteMethodRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const bicycleOtherAmountRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const bicycleParkingAmountRef = ref<InstanceType<typeof ShortInput> | null>(null)
+const walkingEffectiveDateRef = ref<InstanceType<typeof ShortInput> | null>(null)
 
-const validateTargets = async (targets: Array<{ validate?: () => Promise<{ valid: boolean }> } | null>) => {
+watch(() => params.mode, () => {
+    modeError.value = ''
+    shareWithPmError.value = ''
+    vehicleInspectionFileError.value = ''
+})
+
+const validateTargets = async (targets: Array<{ validate?: () => Promise<{ valid: boolean } | undefined> } | null>) => {
     let result = true
     for (const target of targets) {
         const validation = await target?.validate?.() || { valid: false }
@@ -330,7 +374,6 @@ const validatePublicTransportation = async () => {
         publicEffectiveDateRef.value,
         publicRouteRef.value,
         publicPassAmountRef.value,
-        publicOtherAmountRef.value,
     ])
 
     shareWithPmError.value = params.public_transportation.share_with_pm ? '' : 'PMへの共有確認が必要です。'
@@ -342,26 +385,32 @@ const validateCar = async () => {
     const validInputs = await validateTargets([
         carEffectiveDateRef.value,
         carOneWayDistanceRef.value,
-        carTypeRef.value,
+        carFuelTypeRef.value,
+        vehicleInspectionFilesRef.value,
     ])
 
+    vehicleInspectionFileError.value = params.car.vehicle_inspection_files.length > 1 ? '車検証は1ファイルのみ添付してください。' : ''
     shareWithPmError.value = params.car.share_with_pm ? '' : 'PMへの共有確認が必要です。'
 
-    return validInputs && !shareWithPmError.value
+    return validInputs && !vehicleInspectionFileError.value && !shareWithPmError.value
 }
 
 const validateBicycle = async () => {
     const validInputs = await validateTargets([
         bicycleEffectiveDateRef.value,
         bicycleRouteRef.value,
-        bicyclePassAmountRef.value,
-        bicycleOtherAmountRef.value,
-        bicycleParkingAmountRef.value,
+        bicycleRainyCommuteMethodRef.value,
     ])
 
     shareWithPmError.value = params.bicycle.share_with_pm ? '' : 'PMへの共有確認が必要です。'
 
     return validInputs && !shareWithPmError.value
+}
+
+const validateWalking = async () => {
+    return await validateTargets([
+        walkingEffectiveDateRef.value,
+    ])
 }
 
 const validate = async () => {
@@ -380,7 +429,11 @@ const validate = async () => {
         return await validateBicycle()
     }
 
-    return true
+    if (params.mode === 'walking') {
+        return await validateWalking()
+    }
+
+    return false
 }
 
 const getPayload = () => ({
@@ -388,9 +441,18 @@ const getPayload = () => ({
     detail: params.mode === 'public_transportation'
         ? { ...params.public_transportation }
         : params.mode === 'car'
-            ? { ...params.car }
+            ? {
+                ...params.car,
+                vehicle_inspection_file_ids: params.car.vehicle_inspection_files.map(file => file.id),
+            }
             : params.mode === 'bicycle'
-                ? { ...params.bicycle }
+                ? {
+                    ...params.bicycle,
+                    other_amount: String(params.bicycle.other_amount ?? ''),
+                    parking_amount: String(params.bicycle.parking_amount ?? ''),
+                }
+                : params.mode === 'walking'
+                    ? { ...params.walking }
                 : {},
 })
 
@@ -434,6 +496,12 @@ defineExpose({ validate, getPayload })
     font-size: 11px;
     line-height: 1.6;
     margin-top: 8px;
+}
+
+.commute-change-file {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .commute-change-selector {

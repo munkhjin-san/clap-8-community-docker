@@ -6,7 +6,7 @@
         custom-class="full"
         name="work_location"
         place-holder="勤務変更場所"
-        rules="required|max:100"
+        rules="required"
     />
 
     <ShortInput
@@ -25,7 +25,7 @@
         custom-class="full"
         name="route"
         place-holder="自宅から勤務地までの経路"
-        rules="required|max:1000"
+        rules="required"
     />
 
     <div class="flex gap-8 under960:flex-col">
@@ -36,7 +36,6 @@
                 custom-class="full"
                 name="monthly_pass_amount"
                 place-holder="公共交通機関の場合は定期金額_1か月分"
-                rules="max:100"
             />
         </div>
         <div class="flex-1">
@@ -46,7 +45,6 @@
                 custom-class="full"
                 name="one_way_distance"
                 place-holder="マイカー通勤の場合は、距離_片道"
-                rules="max:100"
             />
         </div>
     </div>

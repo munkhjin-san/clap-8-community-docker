@@ -25,7 +25,7 @@
             custom-class="full"
             name="illness_name"
             place-holder="傷病名"
-            rules="required|max:100"
+            rules="required"
         />
 
         <div class="flex gap-8 under960:flex-col">
@@ -119,7 +119,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue';
+import { reactive, ref, watch } from 'vue';
 import ShortInput from '@/components/Form/ShortInput.vue';
 
 type LeaveMode = 'illness' | 'childbirth_childcare'
@@ -177,7 +177,11 @@ const maternityEndRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const childcareStartRef = ref<InstanceType<typeof ShortInput> | null>(null)
 const childcareEndRef = ref<InstanceType<typeof ShortInput> | null>(null)
 
-const validateTargets = async (targets: Array<{ validate?: () => Promise<{ valid: boolean }> } | null>) => {
+watch(() => params.mode, () => {
+    modeError.value = ''
+})
+
+const validateTargets = async (targets: Array<{ validate?: () => Promise<{ valid: boolean } | undefined> } | null>) => {
     let result = true
     for (const target of targets) {
         const validation = await target?.validate?.() || { valid: false }
@@ -199,13 +203,17 @@ const validate = async () => {
         ])
     }
 
-    return await validateTargets([
-        expectedBirthDateRef.value,
-        maternityStartRef.value,
-        maternityEndRef.value,
-        childcareStartRef.value,
-        childcareEndRef.value,
-    ])
+    if (params.mode === 'childbirth_childcare') {
+        return await validateTargets([
+            expectedBirthDateRef.value,
+            maternityStartRef.value,
+            maternityEndRef.value,
+            childcareStartRef.value,
+            childcareEndRef.value,
+        ])
+    }
+
+    return false
 }
 
 const getPayload = () => ({
