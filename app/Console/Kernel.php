@@ -59,12 +59,11 @@ class Kernel extends ConsoleKernel
         $schedule->command('contact-batches:poll')->everyFifteenMinutes();
         $schedule->command('app:seal-audit-daily-digest')->dailyAt('03:00')->appendOutputTo(storage_path('logs/timecard-audit-seal.log'));
         $schedule->command('app:verify-timecard-audit-integrity --require-digest --date='.now()->subDay()->toDateString())->dailyAt('03:15')->appendOutputTo(storage_path('logs/timecard-audit-integrity.log'));
-        // $schedule->command('app:approve-daily-report')->dailyAt('04:00')->appendOutputTo(storage_path('logs/daily-report-approval.log'));
+        $schedule->command('app:approve-daily-report')->dailyAt('04:00');
         // Finance weekly digest — every Monday at 08:00 JST
-        // $schedule->command('finance:weekly-digest')->weeklyOn(1, '08:00')->appendOutputTo(storage_path('logs/finance-digest-cron.log'));
         
         $schedule->command('timesheet:daily-report-confirmation')->dailyAt('08:00')->appendOutputTo(storage_path('logs/incidents/daily-report-confirmation.log'));
-        $schedule->command('timesheet:daily-report-missing-streaks')->dailyAt('08:15')->appendOutputTo(storage_path('logs/incidents/daily-report-missing-streaks.log'));
+        $schedule->command('timesheet:daily-report-missing-streaks')->dailyAt('08:15');
     }
 
     /**

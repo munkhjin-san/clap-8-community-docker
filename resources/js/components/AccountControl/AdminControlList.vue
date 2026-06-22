@@ -8,7 +8,7 @@
                 <div v-if="auth.isAdmin" class="admin-tab-container">
                     <div class="admin-tab-item" @click="router.push({name: 'account'})" :class="{'selected-tab' : route.name == 'account' }">アカウント</div>
                     <div class="admin-tab-item" @click="router.push({name: 'attendance'})" :class="{'selected-tab' : route.path.includes('workcontrol')}">タイムシート</div>
-                    <div class="admin-tab-item" @click="router.push({name: 'clapcount'})" :class="{'selected-tab' : route.name == 'clapcount'}">クラップ数集計</div>
+                    <!-- <div class="admin-tab-item" @click="router.push({name: 'clapcount'})" :class="{'selected-tab' : route.name == 'clapcount'}">クラップ数集計</div> -->
                     <div class="admin-tab-item" @click="router.push({name: 'learningcontrol'})" :class="{'selected-tab' : route.path.includes('learningcontrol')}">研修</div>
                     <div class="admin-tab-item" @click="router.push({name: 'projectlist'})" :class="{'selected-tab' : route.path.includes('projectcontrol')}">プロジェクト</div>
                     <div class="admin-tab-item" @click="router.push({name: 'glowdnine'})" :class="{'selected-tab' : route.name == 'glowdnine'}">グラウドナイン</div>
@@ -16,6 +16,9 @@
                     <div class="admin-tab-item" @click="router.push({name: 'refresh-control'})" :class="{'selected-tab' : route.path.includes('refresh-control')}">リフレッシュ</div>
                     <div class="admin-tab-item" @click="router.push({name: 'employee-change-applications'})" :class="{'selected-tab' : route.name == 'employee-change-applications'}">各種届出</div>
                     <div class="admin-tab-item" @click="router.push({name: 'admin-offices'})" :class="{'selected-tab' : route.name == 'admin-offices'}">営業所</div>
+                    <!-- <div class="admin-tab-item" @click="router.push({name: 'admin-ai'})" :class="{'selected-tab' : route.name == 'admin-ai'}">AI</div>
+                    <div class="admin-tab-item" @click="router.push({name: 'cost-master'})" :class="{'selected-tab' : route.name == 'cost-master'}">コスト</div>
+                    <div class="admin-tab-item" @click="router.push({name: 'actual-results'})" :class="{'selected-tab' : route.name == 'actual-results'}">実績</div> -->
                 </div>
                 <div v-if="auth.isBoss || auth.isPM" class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
             </div>

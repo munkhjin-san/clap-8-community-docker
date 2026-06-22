@@ -15,7 +15,6 @@ use App\Models\customFieldDataRecord;
 use App\Models\customFieldPartsRecord;
 use App\Models\timecardVehicle;
 use App\Models\workGroup;
-use App\Models\workTemp;
 use App\Models\attendanceRecord;
 use App\Models\ShiftOvertimeRequest;
 use App\Models\ProjectCase;
@@ -740,37 +739,20 @@ class WorkController extends Controller
     public function get_work_temp(Request $request) {
         $data = $request->validate([
             'planned_year' => 'required',
-            'user_code'    => 'required',
+            'user_code'    => 'nullable',
             'user_id'      => 'required',
         ]);
         $planned_year = $data['planned_year'];
-        $user_code = $data['user_code'];
         $user_id = $data['user_id'];
         $ledgerWindow = $this->paidLeaveLedger->plannedLeaveWindowForUser((int) $user_id, (int) $planned_year);
         if ($ledgerWindow) {
             return response()->json($ledgerWindow);
         }
 
-        $work_temp = workTemp::where('user_code', $user_code)
-                            ->where(function ($query) use ($planned_year) {
-                                
-                                $query->whereYear('date', $planned_year);
-                                
-                            })->first();
-        $consumed_days = 0;
-        $remaining_days = 0;
-        if($work_temp){
-            $work_temp_date = $work_temp->date;
-            $until_next = Carbon::parse($work_temp_date)->addYear()->format('Y-m-d');
-            $consumed_days = shiftRecord::where('planned_year', $planned_year)->where('shift_type', 3)->where('user_id', $user_id)->count();
-            $plannedDateCarbon = Carbon::createFromFormat('Y-m-d', $work_temp_date);
-            $remaining_days = $plannedDateCarbon->year === 2023 ? 0 : $work_temp->planned_days - $consumed_days;
-        }
-
         $data = [
-            "workTemp" => $work_temp ?? null,
-            "consumed_days" => $consumed_days > 0 ? $consumed_days : 0,
-            "remaining_days" => $remaining_days > 0 ? $remaining_days : 0,
+            "workTemp" => null,
+            "consumed_days" => 0,
+            "remaining_days" => 0,
         ];
         return response()->json($data);
 
@@ -4556,11 +4538,9 @@ class WorkController extends Controller
                                     ->with(['planned_leave_change_request'])
                                     ->get();
 
-        $workTemp = [];
         $user = User::find($request->user_id);
-        if($user->user_code){
-            $workTemp = workTemp::where('user_code', $user->user_code)->whereYear('date', $request->year)->first();
-        }
+        $ledgerWindow = $this->paidLeaveLedger->plannedLeaveWindowForUser((int) $user->id, (int) $request->year);
+        $workTemp = $ledgerWindow['workTemp'] ?? [];
         
         
         $selectableProjects = ProjectRecord::whereHas('members', function ($query) use ($user) {
@@ -4587,17 +4567,14 @@ class WorkController extends Controller
         
         $shift = shiftRecord::findOrFail($request->shift_id);
         $user = User::find($shift->user_id);
-        if($user->user_code == null){
-            throw ValidationException::withMessages(['message' => 'ユーザーコードが設定されていません。']);
-        }
         $planned_year = $shift->planned_year;
         $change_request_date = Carbon::create($request->change_request_date);
-        $work_temp = workTemp::where('user_code', $user->user_code)->where(fn($query) => $query->whereYear('date', $planned_year))->first();
-        if(!$work_temp){
+        $ledgerWindow = $this->paidLeaveLedger->plannedLeaveWindowForUser((int) $user->id, (int) $planned_year);
+        if(!$ledgerWindow){
             throw ValidationException::withMessages(['message' => '勤務表テンプレートが見つかりません。']);
         }
-        $startLimit = Carbon::create($work_temp->date);
-        $endLimit = Carbon::create($work_temp->date)->addYear()->subDay();
+        $startLimit = Carbon::create($ledgerWindow['period_start']);
+        $endLimit = Carbon::create($ledgerWindow['period_end']);
         $makeSureBetween = $change_request_date->between($startLimit, $endLimit);
         if(!$makeSureBetween){
             throw ValidationException::withMessages(['message' => "変更申請日は{$startLimit->toDateString()}から{$endLimit->toDateString()}の間に設定してください。"]);
@@ -4693,8 +4670,8 @@ class WorkController extends Controller
             $remaining_days = (float) $remaining_days;
         }
         return response()->json([
-            'planned_leaves_this_year' => $planned_leaves_this_year,
-            'planned_leaves_last_year' => $planned_leaves_last_year,
+            'planned_leaves_this_year' => $planned_leaves_this_year['paidholidays'] ?? [],
+            'planned_leaves_last_year' => $planned_leaves_last_year['paidholidays'] ?? [],
             'remaining_days' => $remaining_days
          ]);
     }

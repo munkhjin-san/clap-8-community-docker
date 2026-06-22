@@ -24,6 +24,8 @@ class PaidLeaveLedgerService
 
     private const PART_TIME_POSITION_ID = 15;
 
+    private const PLANNED_LEAVE_PLANNING_OPEN_DAY = 20;
+
     private const PART_TIME_GRANT_TABLE = [
         ['min_annual_days' => 169, 'max_annual_days' => 216, 'days' => [6 => 7, 18 => 8, 30 => 9, 42 => 10, 54 => 12, 66 => 13, 78 => 15]],
         ['min_annual_days' => 121, 'max_annual_days' => 168, 'days' => [6 => 5, 18 => 6, 30 => 6, 42 => 8, 54 => 9, 66 => 10, 78 => 11]],
@@ -335,8 +337,9 @@ class PaidLeaveLedgerService
         $policy = $this->activePolicy();
         $start = Carbon::create($year, $month, 1)->startOfDay();
         $end = $start->copy()->endOfMonth();
+        $externallyReflectedPlannedLeaveCutoff = $this->externallyReflectedPlannedLeaveCutoff($account);
 
-        DB::transaction(function () use ($account, $policy, $start, $end, $createdByUserId) {
+        DB::transaction(function () use ($account, $policy, $start, $end, $createdByUserId, $externallyReflectedPlannedLeaveCutoff) {
             $activePaidLeaveShifts = shiftRecord::query()
                 ->where('user_id', $account->user_id)
                 ->whereBetween('shift_day', [$start->toDateString(), $end->toDateString()])
@@ -371,6 +374,15 @@ class PaidLeaveLedgerService
                     ->where('source_key', $sourceKey)
                     ->with('allocations.grant')
                     ->first();
+
+                // Kintone opening balances are already net of planned leaves that existed at import time.
+                if ($this->isExternallyReflectedPlannedLeaveShift($shift, $externallyReflectedPlannedLeaveCutoff)) {
+                    if ($existing) {
+                        $this->deleteUsageAndRestoreGrants($existing);
+                    }
+
+                    continue;
+                }
 
                 if ($existing && (int) $existing->amount_minutes === $amount && (string) $existing->usage_type === $usageType) {
                     continue;
@@ -451,126 +463,66 @@ class PaidLeaveLedgerService
             ->orderBy('name')
             ->get()
             ->map(function (User $user) use ($policy, $year) {
-                $minutesPerDay = $this->minutesPerLeaveDayForUser($user, $policy);
-                $grants = $user->paidLeaveAccount?->grants ?? collect();
-                $periods = $grants
-                    ->filter(fn (PaidLeaveGrant $grant) => $this->plannedRequiredMinutesForGrant($grant) > 0)
-                    ->filter(fn (PaidLeaveGrant $grant) => $this->plannedPeriodOverlapsYear($grant, $year))
-                    ->map(function (PaidLeaveGrant $grant) use ($user, $minutesPerDay) {
-                    $periodStart = $grant->granted_at->copy();
-                    $periodEnd = $periodStart->copy()->addYear()->subDay();
-                    $plannedShifts = $this->plannedShiftsForPeriod($user->id, $periodStart, $periodEnd);
-
-                    $plannedMinutes = $plannedShifts->count() * $minutesPerDay;
-                    $requiredMinutes = $this->plannedRequiredMinutesForGrant($grant);
-
-                    return [
-                        'grant_id' => $grant->id,
-                        'period_start' => $periodStart->toDateString(),
-                        'period_end' => $periodEnd->toDateString(),
-                        'granted_days' => $grant->grant_days,
-                        'remaining_days' => $this->minutesToDays((int) $grant->remaining_minutes, $minutesPerDay),
-                        'planned_required_days' => $this->minutesToDays($requiredMinutes, $minutesPerDay),
-                        'planned_days' => $this->minutesToDays($plannedMinutes, $minutesPerDay),
-                        'planned_remaining_days' => $this->minutesToDays(max(0, $requiredMinutes - $plannedMinutes), $minutesPerDay),
-                        'status' => $plannedMinutes >= $requiredMinutes ? 'ok' : 'short',
-                        'shift_records' => $plannedShifts,
-                    ];
-                })->values();
-
-                if ($periods->isEmpty() && $user->user_code) {
-                    $legacyTemp = workTemp::query()
-                        ->where('user_code', $user->user_code)
-                        ->whereYear('date', $year)
-                        ->first();
-
-                    if ($legacyTemp) {
-                        $periodStart = Carbon::parse($legacyTemp->date)->setYear($year)->startOfDay();
-                        $periodEnd = $periodStart->copy()->addYear()->subDay();
-                        $plannedShifts = $this->plannedShiftsForPeriod($user->id, $periodStart, $periodEnd);
-                        $requiredDays = (float) ($legacyTemp->planned_days ?? 0);
-                        $plannedMinutes = $plannedShifts->count() * $minutesPerDay;
-                        $requiredMinutes = $this->daysToMinutes($requiredDays, $minutesPerDay);
-
-                        $periods = collect([[
-                            'grant_id' => "legacy:{$legacyTemp->id}",
-                            'legacy' => true,
-                            'period_start' => $periodStart->toDateString(),
-                            'period_end' => $periodEnd->toDateString(),
-                            'granted_days' => $requiredDays * 2,
-                            'remaining_days' => null,
-                            'planned_required_days' => $requiredDays,
-                            'planned_days' => $this->minutesToDays($plannedMinutes, $minutesPerDay),
-                            'planned_remaining_days' => $this->minutesToDays(max(0, $requiredMinutes - $plannedMinutes), $minutesPerDay),
-                            'status' => $plannedMinutes >= $requiredMinutes ? 'ok' : 'short',
-                            'shift_records' => $plannedShifts,
-                        ]]);
-                    }
-                }
-
                 return [
                     'id' => $user->id,
                     'name' => $user->name,
                     'user_code' => $user->user_code,
                     'joined_date' => $user->joined_date,
-                    'grant_periods' => $periods,
+                    'grant_periods' => $this->plannedLeavePeriodsForUserModel($user, $policy, $year, Carbon::today(), true),
                 ];
             });
     }
 
-    public function plannedLeaveWindowForUser(int $userId, int $plannedYear): ?array
+    public function plannedLeavePeriodsForUser(User|int $user, ?int $year = null, ?Carbon $asOf = null, bool $includeExpected = true): Collection
     {
         $policy = $this->activePolicy();
-        $user = User::query()
-            ->where('id', $userId)
-            ->with(['paidLeaveAccount.grants' => function ($query) {
-                $query->where(function ($inner) {
-                        $inner->where('planned_required_minutes', '>', 0)
-                            ->orWhere('grant_type', PaidLeaveGrant::TYPE_ANNUAL);
-                    })
-                    ->orderBy('granted_at');
-            }])
-            ->first();
+        $user = $user instanceof User
+            ? $user
+            : User::query()
+                ->where('id', $user)
+                ->with('paidLeaveAccount.grants')
+                ->first();
 
-        if (! $user || ! $user->paidLeaveAccount) {
-            return null;
+        if (! $user) {
+            return collect();
         }
 
-        $minutesPerDay = $this->minutesPerLeaveDayForUser($user, $policy);
-        $grants = $user->paidLeaveAccount->grants
-            ->filter(fn (PaidLeaveGrant $grant) => $this->plannedRequiredMinutesForGrant($grant) > 0)
-            ->filter(fn (PaidLeaveGrant $grant) => $grant->granted_at)
+        return $this->plannedLeavePeriodsForUserModel($user, $policy, $year, $asOf ?: Carbon::today(), $includeExpected);
+    }
+
+    public function plannedLeaveReminderPeriodsForUser(User|int $user, ?Carbon $asOf = null): Collection
+    {
+        $asOf = ($asOf ?: Carbon::today())->copy()->startOfDay();
+
+        return $this->plannedLeavePeriodsForUser($user, null, $asOf, true)
+            ->filter(fn (array $period) => (bool) $period['planning_allowed'] && (float) $period['planned_remaining_days'] > 0)
+            ->map(fn (array $period) => [
+                'shift_count' => $period['shift_count'],
+                'tempData' => $period['workTemp'],
+                'remaining_days' => $period['planned_remaining_days'],
+            ])
             ->values();
+    }
 
-        $grant = $grants
-            ->first(fn (PaidLeaveGrant $grant) => (int) $grant->granted_at->format('Y') === $plannedYear)
-            ?: $grants->first(fn (PaidLeaveGrant $grant) => $this->plannedPeriodOverlapsYear($grant, $plannedYear));
-
-        if (! $grant) {
+    public function plannedLeaveWindowForUser(int $userId, int $plannedYear): ?array
+    {
+        $periods = $this->plannedLeavePeriodsForUser($userId, $plannedYear);
+        $period = $periods->first(fn (array $period) => (int) $period['planned_year'] === $plannedYear)
+            ?: $periods->first();
+        if (! $period) {
             return null;
         }
-
-        $periodStart = $grant->granted_at->copy()->startOfDay();
-        $periodEnd = $periodStart->copy()->addYear()->subDay();
-        $plannedShifts = $this->plannedShiftsForPeriod($user->id, $periodStart, $periodEnd);
-        $plannedMinutes = $plannedShifts->count() * $minutesPerDay;
-        $requiredMinutes = $this->plannedRequiredMinutesForGrant($grant);
 
         return [
-            'workTemp' => [
-                'id' => "grant:{$grant->id}",
-                'date' => $periodStart->toDateString(),
-                'period_end' => $periodEnd->toDateString(),
-                'planned_days' => $this->minutesToDays($requiredMinutes, $minutesPerDay),
-                'granted_days' => $grant->grant_days,
-                'grant_id' => $grant->id,
-                'source' => 'glowd',
-            ],
-            'consumed_days' => $this->minutesToDays($plannedMinutes, $minutesPerDay),
-            'remaining_days' => $this->minutesToDays(max(0, $requiredMinutes - $plannedMinutes), $minutesPerDay),
-            'period_start' => $periodStart->toDateString(),
-            'period_end' => $periodEnd->toDateString(),
-            'source' => 'glowd',
+            'workTemp' => $period['workTemp'],
+            'consumed_days' => $period['planned_days'],
+            'remaining_days' => $period['planned_remaining_days'],
+            'period_start' => $period['period_start'],
+            'period_end' => $period['period_end'],
+            'planning_allowed_from' => $period['planning_allowed_from'],
+            'planning_allowed' => $period['planning_allowed'],
+            'source' => $period['source'],
+            'period' => $period,
         ];
     }
 
@@ -742,21 +694,6 @@ class PaidLeaveLedgerService
         return $this->adminLedgerHistory($account->fresh());
     }
 
-    private function plannedPeriodOverlapsYear(PaidLeaveGrant $grant, int $year): bool
-    {
-        if (! $grant->granted_at) {
-            return false;
-        }
-
-        $periodStart = $grant->granted_at->copy()->startOfDay();
-        $periodEnd = $periodStart->copy()->addYear()->subDay();
-        $yearStart = Carbon::create($year, 1, 1)->startOfDay();
-        $yearEnd = Carbon::create($year, 12, 31)->endOfDay();
-
-        return $periodStart->lessThanOrEqualTo($yearEnd)
-            && $periodEnd->greaterThanOrEqualTo($yearStart);
-    }
-
     private function plannedShiftsForPeriod(int $userId, Carbon $periodStart, Carbon $periodEnd): Collection
     {
         return shiftRecord::query()
@@ -805,6 +742,236 @@ class PaidLeaveLedgerService
             'name' => $user->name,
             'user_code' => $user->user_code,
         ];
+    }
+
+    private function plannedLeavePeriodsForUserModel(User $user, PaidLeavePolicy $policy, ?int $year, Carbon $asOf, bool $includeExpected): Collection
+    {
+        $asOf = $asOf->copy()->startOfDay();
+        $targetYears = collect($year ? [$year] : [$asOf->year - 1, $asOf->year, $asOf->year + 1])
+            ->map(fn ($value) => (int) $value)
+            ->unique()
+            ->values();
+
+        $user->loadMissing('paidLeaveAccount.grants');
+        $account = $user->paidLeaveAccount ?: $this->ensureAccount($user);
+        $account->setRelation('user', $user);
+        $account->loadMissing('grants');
+
+        $periods = collect();
+        $actualGrantDates = collect();
+
+        foreach ($account->grants as $grant) {
+            if ($grant->grant_type !== PaidLeaveGrant::TYPE_ANNUAL || ! $grant->granted_at) {
+                continue;
+            }
+
+            $requiredMinutes = $this->plannedRequiredMinutesForGrant($grant);
+            if ($requiredMinutes <= 0) {
+                continue;
+            }
+
+            $periodStart = $grant->granted_at->copy()->startOfDay();
+            $periodEnd = $periodStart->copy()->addYear()->subDay();
+            if (! $targetYears->contains(fn (int $targetYear) => $this->periodOverlapsYear($periodStart, $periodEnd, $targetYear))) {
+                continue;
+            }
+
+            $actualGrantDates->push($periodStart->toDateString());
+            $periods->push($this->plannedLeavePeriodPayload(
+                user: $user,
+                policy: $policy,
+                periodStart: $periodStart,
+                requiredMinutes: $requiredMinutes,
+                grantDays: (float) $grant->grant_days,
+                source: 'glowd',
+                asOf: $asOf,
+                grant: $grant,
+            ));
+        }
+
+        if ($includeExpected) {
+            $expectedYears = $year
+                ? collect([$year - 1, $year, $year + 1])
+                : $targetYears;
+
+            foreach ($expectedYears->unique()->values() as $targetYear) {
+                $expectedGrantDate = $this->expectedGrantDateForYear($account, $policy, (int) $targetYear);
+                if (! $expectedGrantDate || $actualGrantDates->contains($expectedGrantDate->toDateString())) {
+                    continue;
+                }
+
+                $grantDays = $this->expectedGrantDaysForPlanning($user, $account, $policy, $expectedGrantDate);
+                if (! $grantDays || $grantDays <= 0) {
+                    continue;
+                }
+
+                $minutesPerDay = $this->minutesPerLeaveDayForAccount($account, $policy);
+                $requiredMinutes = (int) round($this->daysToMinutes((float) $grantDays, $minutesPerDay) / 2);
+                if ($requiredMinutes <= 0) {
+                    continue;
+                }
+
+                $periodStart = $expectedGrantDate->copy()->startOfDay();
+                $periodEnd = $periodStart->copy()->addYear()->subDay();
+                if (! $targetYears->contains(fn (int $targetYear) => $this->periodOverlapsYear($periodStart, $periodEnd, $targetYear))) {
+                    continue;
+                }
+
+                $periods->push($this->plannedLeavePeriodPayload(
+                    user: $user,
+                    policy: $policy,
+                    periodStart: $periodStart,
+                    requiredMinutes: $requiredMinutes,
+                    grantDays: (float) $grantDays,
+                    source: 'expected',
+                    asOf: $asOf,
+                ));
+            }
+        }
+
+        foreach ($targetYears as $targetYear) {
+            if ($periods->contains(fn (array $period) => $this->periodOverlapsYear(
+                Carbon::parse($period['period_start'])->startOfDay(),
+                Carbon::parse($period['period_end'])->endOfDay(),
+                (int) $targetYear
+            ))) {
+                continue;
+            }
+
+            $legacyPeriod = $this->legacyPlannedLeavePeriodForYear($user, $policy, (int) $targetYear, $asOf);
+            if ($legacyPeriod) {
+                $periods->push($legacyPeriod);
+            }
+        }
+
+        return $periods
+            ->sortBy('period_start')
+            ->values();
+    }
+
+    private function expectedGrantDaysForPlanning(User $user, PaidLeaveAccount $account, PaidLeavePolicy $policy, Carbon $grantDate): ?float
+    {
+        if (! $account->joined_date) {
+            return null;
+        }
+
+        if ((int) ($user->position_id ?? 0) === self::PART_TIME_POSITION_ID) {
+            return $this->expectedGrantDaysFor($account, $policy, $grantDate);
+        }
+
+        $rules = $policy->rules->where('active', true)->sortBy('service_months')->values();
+        $joined = Carbon::parse($account->joined_date)->startOfDay();
+        $serviceMonths = $this->serviceMonths($joined, $grantDate);
+
+        return $this->ruleForServiceMonths($rules, $serviceMonths)?->grant_days;
+    }
+
+    private function legacyPlannedLeavePeriodForYear(User $user, PaidLeavePolicy $policy, int $year, Carbon $asOf): ?array
+    {
+        if (! $user->user_code) {
+            return null;
+        }
+
+        $legacyTemp = workTemp::query()
+            ->where('user_code', $user->user_code)
+            ->whereYear('date', $year)
+            ->first();
+
+        if (! $legacyTemp) {
+            return null;
+        }
+
+        $minutesPerDay = $this->minutesPerLeaveDayForUser($user, $policy);
+        $requiredDays = (float) ($legacyTemp->planned_days ?? 0);
+
+        return $this->plannedLeavePeriodPayload(
+            user: $user,
+            policy: $policy,
+            periodStart: Carbon::parse($legacyTemp->date)->startOfDay(),
+            requiredMinutes: $this->daysToMinutes($requiredDays, $minutesPerDay),
+            grantDays: $requiredDays * 2,
+            source: 'legacy',
+            asOf: $asOf,
+            legacyTemp: $legacyTemp,
+        );
+    }
+
+    private function plannedLeavePeriodPayload(
+        User $user,
+        PaidLeavePolicy $policy,
+        Carbon $periodStart,
+        int $requiredMinutes,
+        ?float $grantDays,
+        string $source,
+        Carbon $asOf,
+        ?PaidLeaveGrant $grant = null,
+        ?workTemp $legacyTemp = null,
+    ): array {
+        $periodStart = $periodStart->copy()->startOfDay();
+        $periodEnd = $periodStart->copy()->addYear()->subDay();
+        $minutesPerDay = $this->minutesPerLeaveDayForUser($user, $policy);
+        $plannedShifts = $this->plannedShiftsForPeriod((int) $user->id, $periodStart, $periodEnd);
+        $plannedMinutes = $plannedShifts->count() * $minutesPerDay;
+        $planningAllowedFrom = $this->plannedLeavePlanningAllowedFrom($periodStart);
+        $plannedRequiredDays = $this->minutesToDays($requiredMinutes, $minutesPerDay);
+        $plannedDays = $this->minutesToDays($plannedMinutes, $minutesPerDay);
+        $plannedRemainingDays = $this->minutesToDays(max(0, $requiredMinutes - $plannedMinutes), $minutesPerDay);
+        $periodId = $grant
+            ? "grant:{$grant->id}"
+            : ($legacyTemp ? "legacy:{$legacyTemp->id}" : "expected:{$user->id}:{$periodStart->toDateString()}");
+
+        $workTemp = [
+            'id' => $periodId,
+            'date' => $periodStart->toDateString(),
+            'endDate' => $periodEnd->toDateString(),
+            'period_end' => $periodEnd->toDateString(),
+            'planned_days' => $plannedRequiredDays,
+            'granted_days' => $grantDays,
+            'grant_id' => $grant?->id,
+            'source' => $source,
+            'planning_allowed_from' => $planningAllowedFrom->toDateString(),
+            'planning_allowed' => $asOf->greaterThanOrEqualTo($planningAllowedFrom),
+            'user_code' => $user->user_code,
+            'user_name' => $user->name,
+        ];
+
+        return [
+            'id' => $periodId,
+            'grant_id' => $grant?->id,
+            'source' => $source,
+            'legacy' => $source === 'legacy',
+            'period_start' => $periodStart->toDateString(),
+            'period_end' => $periodEnd->toDateString(),
+            'planning_allowed_from' => $planningAllowedFrom->toDateString(),
+            'planning_allowed' => $asOf->greaterThanOrEqualTo($planningAllowedFrom),
+            'planned_year' => (int) $periodStart->year,
+            'granted_days' => $grantDays,
+            'remaining_days' => $grant ? $this->minutesToDays((int) $grant->remaining_minutes, $minutesPerDay) : null,
+            'planned_required_days' => $plannedRequiredDays,
+            'planned_days' => $plannedDays,
+            'planned_remaining_days' => $plannedRemainingDays,
+            'shift_count' => $plannedShifts->count(),
+            'status' => $plannedMinutes >= $requiredMinutes ? 'ok' : 'short',
+            'shift_records' => $plannedShifts,
+            'workTemp' => $workTemp,
+        ];
+    }
+
+    private function plannedLeavePlanningAllowedFrom(Carbon $periodStart): Carbon
+    {
+        $previousMonth = $periodStart->copy()->subMonthNoOverflow()->startOfMonth();
+        $day = min(self::PLANNED_LEAVE_PLANNING_OPEN_DAY, $previousMonth->daysInMonth);
+
+        return $previousMonth->day($day)->startOfDay();
+    }
+
+    private function periodOverlapsYear(Carbon $periodStart, Carbon $periodEnd, int $year): bool
+    {
+        $yearStart = Carbon::create($year, 1, 1)->startOfDay();
+        $yearEnd = Carbon::create($year, 12, 31)->endOfDay();
+
+        return $periodStart->lessThanOrEqualTo($yearEnd)
+            && $periodEnd->greaterThanOrEqualTo($yearStart);
     }
 
     private function currentGrantSummary(PaidLeaveAccount $account, PaidLeavePolicy $policy, Carbon $asOf): array
@@ -1103,6 +1270,78 @@ class PaidLeaveLedgerService
         return $account->grants()->exists()
             || $account->usages()->exists()
             || $account->adjustments()->exists();
+    }
+
+    private function externallyReflectedPlannedLeaveCutoff(PaidLeaveAccount $account): ?Carbon
+    {
+        $openingGrant = PaidLeaveGrant::query()
+            ->where('paid_leave_account_id', $account->id)
+            ->where('grant_type', PaidLeaveGrant::TYPE_OPENING_BALANCE)
+            ->where('source_system', 'kintone')
+            ->orderBy('created_at')
+            ->first(['created_at']);
+
+        if (! $openingGrant) {
+            return null;
+        }
+
+        $cutoff = $account->last_synced_at ? Carbon::parse($account->last_synced_at) : null;
+        $grantCreatedAt = $openingGrant->created_at ? Carbon::parse($openingGrant->created_at) : null;
+
+        if ($grantCreatedAt && (! $cutoff || $grantCreatedAt->greaterThan($cutoff))) {
+            return $grantCreatedAt;
+        }
+
+        return $cutoff;
+    }
+
+    private function isExternallyReflectedPlannedLeaveShift(shiftRecord $shift, ?Carbon $cutoff): bool
+    {
+        if (! $cutoff || (int) $shift->shift_type !== 3) {
+            return false;
+        }
+
+        if ($this->shiftCreatedNoLaterThan($shift, $cutoff)) {
+            return true;
+        }
+
+        return $this->hasExternallyReflectedPlannedLeaveAncestor($shift, $cutoff);
+    }
+
+    private function hasExternallyReflectedPlannedLeaveAncestor(shiftRecord $shift, Carbon $cutoff): bool
+    {
+        $ancestorId = (int) ($shift->descendant_of ?? 0);
+        $seen = [];
+
+        while ($ancestorId > 0) {
+            if (isset($seen[$ancestorId])) {
+                return false;
+            }
+            $seen[$ancestorId] = true;
+
+            $ancestor = shiftRecord::withTrashed()
+                ->select('id', 'shift_type', 'descendant_of', 'created_at', 'updated_at')
+                ->find($ancestorId);
+
+            if (! $ancestor) {
+                return false;
+            }
+
+            if ((int) $ancestor->shift_type === 3 && $this->shiftCreatedNoLaterThan($ancestor, $cutoff)) {
+                return true;
+            }
+
+            $ancestorId = (int) ($ancestor->descendant_of ?? 0);
+        }
+
+        return false;
+    }
+
+    private function shiftCreatedNoLaterThan(shiftRecord $shift, Carbon $cutoff): bool
+    {
+        $createdAt = $shift->created_at ?: $shift->updated_at;
+
+        return $createdAt && Carbon::parse($createdAt)->lessThanOrEqualTo($cutoff);
     }
 
     private function adjustmentLabel(string $type): string

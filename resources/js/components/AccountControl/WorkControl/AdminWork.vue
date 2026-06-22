@@ -260,6 +260,7 @@ import { useApi } from '@/composables/api';
                 "氏名" : department.username,
                 '月間労働時間(分)' : department.work_time,
                 '月間労働時間' : department.work_time / 60,
+                '職務手当に含まれる時間外' : department.job_allowance_over_time,
             }
             data.push(row)
         })

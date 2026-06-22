@@ -16,11 +16,11 @@ use App\Models\shiftRecord;
 use App\Models\taskRecord;
 use App\Models\timecardRecord;
 use App\Models\User;
-use App\Models\workTemp;
 use App\Models\PostRecord;
 use App\Models\CustomfieldRead;
 use App\Models\customFieldDataRecord;
 use App\Services\BadgeService;
+use App\Services\PaidLeaveLedgerService;
 use App\Models\ProjectGoal;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -38,7 +38,8 @@ class RemindController extends Controller
         protected BadgeService $badgeService,
         protected ReminderMessageService $reminderMessageService,
         protected RemindTaskService $remindTaskService,
-        protected ProjectController $projectController    
+        protected ProjectController $projectController,
+        protected PaidLeaveLedgerService $paidLeaveLedger
     ){
 
     } 
@@ -596,40 +597,17 @@ class RemindController extends Controller
         return response()->json($data);
     }
     public function remind_planned_leave(){
-        $notificationUser = User::select('name', 'id', 'icon_path', 'icon_bg')->findOrFail(610);
-        $date = Carbon::now();
-        $year = $date->year;
         $active_user = $this->active_user();
-        $user_code = $active_user->user_code;
-        $tempData = workTemp::where('user_code', $user_code)
-                    ->where(function ($query) use ($year) {
-                        $query->whereYear('date', $year - 1)
-                              ->orWhereYear('date', $year)
-                              ->orWhereYear('date', $year + 1);
-                    })
-                    ->get();
-        $list = [];
-        foreach($tempData as $temp) {
-            $startDate = $temp->date;
-           $endDate = Carbon::parse($startDate)
-            ->addYear()
-            ->subDay()
-            ->format('Y-m-d');
-            $planned_year = Carbon::createFromFormat('Y-m-d', $startDate)->year;
-            $temp['notification_user'] = $notificationUser;
-            $temp['endDate'] = $endDate;
-            $planned_shifts = shiftRecord::where('planned_year', $planned_year)->where('shift_type', 3)->where('user_id', Auth::id())->count();
-            $plannedDateCarbon = Carbon::createFromFormat('Y-m-d', $startDate);
-            $remaining_days = $planned_year === 2023 ? 0 : $temp->planned_days - $planned_shifts;
-            if($remaining_days > 0){
-                $list[] = [
-                    "shift_count" => $planned_shifts,
-                    "tempData" => $temp,
-                    "remaining_days" => $remaining_days,
-                ];
-                
-            }
-        }
+        $notificationUser = User::select('name', 'id', 'icon_path', 'icon_bg')->findOrFail(610);
+        $list = $this->paidLeaveLedger
+            ->plannedLeaveReminderPeriodsForUser($active_user)
+            ->map(function (array $item) use ($notificationUser) {
+                $item['tempData']['notification_user'] = $notificationUser;
+
+                return $item;
+            })
+            ->values()
+            ->all();
         $data = [
             "remind_planned_leave" => $list
         ];

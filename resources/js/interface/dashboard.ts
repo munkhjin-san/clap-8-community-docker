@@ -8,7 +8,7 @@ import type { Incident } from "./incident"
 import type { NoticeRecord } from "./notice"
 import type { Post } from "./postInterface"
 import type { Project, ProjectAssignRecord } from "./projectInterface"
-import type { PlannedLeaveChangeRequest, Shift, WorkItem } from "./workInterface"
+import type { PlannedLeaveChangeRequest, Shift, plannedLeave } from "./workInterface"
 import type { EmergencyContactRecord } from "./supportInterface"
 
 export type UserWithShift = User & {
@@ -135,12 +135,7 @@ export type DashboardPersonnelEvaluationCardData = {
     pendingChangeRequests: EmployeeChangeApplication[] | null,
 }
 
-export type DashboardPendingPlannedLeave = {
-    date: string,
-    endDate: string,
-    remaining_days: number,
-    tempData: WorkItem,
-}
+export type DashboardPendingPlannedLeave = plannedLeave
 
 export type PendingTimesheetData = {
     overtime: number

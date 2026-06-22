@@ -17,7 +17,6 @@ use App\Models\customFieldDataRecord;
 use App\Models\ProjectCase;
 use App\Models\shiftRecord;
 use App\Models\PlannedLeaveChangeRequest;
-use App\Models\workTemp;
 use App\Enums\PlannedLeaveChangeRequestStatus;
 
 use Illuminate\Http\Request;
@@ -115,7 +114,7 @@ class AdminWorkController extends Controller{
         ]);
         $user_codes = $all_users->pluck('user_code')->toArray();
         $user_codes_str = implode('","', $user_codes);
-        $fields = ['基本給単位', '社員コード数値'];
+        $fields = ['基本給単位', '社員コード数値', '職務手当に含まれる時間外'];
         $query = "社員コード数値 in (\"{$user_codes_str}\")";
         $limit = 500;
         $kin_records = $this->api->getRecords(1305, $query . " limit {$limit}", $fields); 
@@ -300,6 +299,11 @@ class AdminWorkController extends Controller{
                 $legal_holiday_worked_time_in_minutes = 0;
 
                 $total_gas_price = 0;
+                $result = collect($kin_records)
+                ->first(function ($record) use ($user) {
+                    return data_get($record, '社員コード数値.value') == $user->user_code;
+                });
+                $jobAllowanceOverTime = data_get($result, '職務手当に含まれる時間外.value', 0);
                 if ($user->time_card_records->isNotEmpty()) {
                     $departmentCountsTemp = [];
                     
@@ -320,6 +324,7 @@ class AdminWorkController extends Controller{
                                     'department' => $departmentRow['department'],
                                     'username' => $departmentRow['username'],
                                     'month' => $departmentRow['month'],
+                                    'job_allowance_over_time' => $jobAllowanceOverTime,
                                 ];
                             }
                             $departmentCountsTemp[$groupKey]['work_time'] += $departmentRow['work_time'];
@@ -367,10 +372,7 @@ class AdminWorkController extends Controller{
                     $user->id,
                     ($monthly_expenses->get($user->id, 0) + $total_gas_price)
                 );
-                $result = collect($kin_records)
-                    ->first(function ($record) use ($user) {
-                        return data_get($record, '社員コード数値.value') == $user->user_code;
-                    });
+                
 
                 $salaryUnit = $unitMap[data_get($result, '基本給単位.value')] ?? null;
                 
@@ -423,27 +425,27 @@ class AdminWorkController extends Controller{
     {
         $month = Carbon::parse($record->day)->format('Y-m');
 
-$segments = $record->project_segments ?? collect();
+        $segments = $record->project_segments ?? collect();
 
-if ($segments->isNotEmpty()) {
-    return $segments
-        ->filter(fn ($segment) => $segment->project?->name)
-        ->groupBy(fn ($segment) => (int) ($segment->project_id ?? $segment->project?->id))
-        ->map(function ($projectSegments) use ($userName, $month) {
-            $project = $projectSegments->first()->project;
+        if ($segments->isNotEmpty()) {
+            return $segments
+                ->filter(fn ($segment) => $segment->project?->name)
+                ->groupBy(fn ($segment) => (int) ($segment->project_id ?? $segment->project?->id))
+                ->map(function ($projectSegments) use ($userName, $month) {
+                    $project = $projectSegments->first()->project;
 
-            return [
-                'department' => $project->name,
-                'username' => $userName,
-                'month' => $month,
-                'work_time' => (int) $projectSegments
-                    ->where('segment_type', TimecardProjectSegment::TYPE_WORK)
-                    ->sum('minutes'),
-            ];
-        })
-        ->values()
-        ->all();
-}
+                    return [
+                        'department' => $project->name,
+                        'username' => $userName,
+                        'month' => $month,
+                        'work_time' => (int) $projectSegments
+                            ->where('segment_type', TimecardProjectSegment::TYPE_WORK)
+                            ->sum('minutes'),
+                    ];
+                })
+                ->values()
+                ->all();
+        }
 
         $departmentName = $record['department']['name'] ?? null;
         if (!$departmentName) {
@@ -862,19 +864,19 @@ if ($segments->isNotEmpty()) {
     private function plannedLeaveStartDate(PlannedLeaveChangeRequest $changeRequest): string
     {
         $user = User::findOrFail($changeRequest->user_id);
-        if(!$user->user_code || !$changeRequest->shift_record){
+        if(!$changeRequest->shift_record){
             throw ValidationException::withMessages(['message' => '勤務表テンプレートが見つかりません。']);
         }
 
-        $workTemp = workTemp::where('user_code', $user->user_code)
-            ->whereYear('date', $changeRequest->shift_record->planned_year)
-            ->first();
-
-        if(!$workTemp){
+        $ledgerWindow = $this->paidLeaveLedger->plannedLeaveWindowForUser(
+            (int) $user->id,
+            (int) $changeRequest->shift_record->planned_year
+        );
+        if(!$ledgerWindow){
             throw ValidationException::withMessages(['message' => '勤務表テンプレートが見つかりません。']);
         }
 
-        return Carbon::parse($workTemp->date)->toDateString();
+        return Carbon::parse($ledgerWindow['period_start'])->toDateString();
     }
 
     private function canAdminPlannedLeaveChangeRequest(User $user): bool

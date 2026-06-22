@@ -4,7 +4,6 @@ use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetCategoryController;
 use App\Http\Controllers\CustomFormController;
 use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\ProjectCustomerReportController;
 use App\Http\Controllers\ProjectManagementController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
@@ -48,10 +47,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\AppCommentController;
 use App\Http\Controllers\EmployeeController;
-use App\Http\Controllers\GoalToolController;
-use App\Http\Controllers\GoalChatController;
 use App\Http\Controllers\FinanceToolController;
-use App\Http\Controllers\TimesheetToolController;
 use App\Http\Controllers\FinanceChatController;
 use App\Models\User;
 /*
@@ -124,8 +120,6 @@ Route::prefix('cdn_external')->group(function () {
 Route::get('/public-surveys/{token}', [PublicSurveyController::class, 'show']);
 Route::get('/public-surveys/{token}/data', [PublicSurveyController::class, 'data']);
 Route::post('/public-surveys/{token}/answers', [PublicSurveyController::class, 'submit'])->middleware('throttle:20,1');
-Route::get('/customer-reports/{token}', [ProjectCustomerReportController::class, 'showPublic']);
-Route::get('/customer-reports/{token}/data', [ProjectCustomerReportController::class, 'publicData']);
 Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::post('/push/subscribe', [PushController::class, 'subscribe']);
     Route::get('/push/test', [PushController::class, 'test']);
@@ -658,11 +652,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_yearly_plan', [ProjectController::class, 'get_yearly_plan']);
         Route::get('/get_profit', [ProjectController::class, 'get_profit']);
         Route::get('/get_settlement', [ProjectController::class, 'get_settlement']);
-        Route::get('/projects/{project}/customer-report', [ProjectCustomerReportController::class, 'index']);
-        Route::post('/projects/{project}/customer-report/generate', [ProjectCustomerReportController::class, 'generate']);
-        Route::put('/projects/{project}/customer-report/{report}', [ProjectCustomerReportController::class, 'update']);
-        Route::post('/projects/{project}/customer-report/{report}/ai-improve', [ProjectCustomerReportController::class, 'improve']);
-        Route::post('/projects/{project}/customer-report/{report}/publish', [ProjectCustomerReportController::class, 'publish']);
         Route::post('/get_partners_tags', [ProjectController::class, 'get_partners_tags']);
         Route::get('/get_task_comment_badge', [ProjectController::class, 'get_task_comment_badge']);
         Route::get('/get_dispatch_data', [ProjectController::class, 'get_dispatch_data']);
@@ -957,10 +946,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/incident_report_assignment', [IncidentController::class, 'createIncidentReportAssignment']);
         Route::get('incident_related_mentionable_users', [IncidentController::class, 'incidentRelatedMentionableUsers']);
         Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
-
-        // Goal & KPI MCP Server (Model Context Protocol / JSON-RPC 2.0)
-        Route::post('/mcp/goal', [GoalToolController::class, 'handle']);
-        Route::post('/mcp/goal/chat', [GoalChatController::class, 'chat']);
 
         // Unified AI Chat — Goal + Finance + Timesheet (role-based)
         Route::post('/mcp/chat', [FinanceChatController::class, 'chat']);

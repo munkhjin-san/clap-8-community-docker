@@ -323,10 +323,10 @@ const departureReportCount = computed(() => {
 const actionCount = computed(() => {
     return (
         (props.data.data.pendingAttendance ? 1 : 0) +
-        props.data.data.pendingPlannedLeaves.length +
-        props.data.data.pendingPlannedLeaveChangeRequests.length +
+        (props.data.data.pendingPlannedLeaves?.length ?? 0) +
+        (props.data.data.pendingPlannedLeaveChangeRequests?.length ?? 0) +
         departureReportCount.value +
-        props.data.data.pendingTimesheets.length +
+        (props.data.data.pendingTimesheets?.length ?? 0) +
         autoApprovedCount.value
     )
 })
