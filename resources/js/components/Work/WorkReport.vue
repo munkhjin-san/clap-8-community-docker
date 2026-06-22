@@ -140,7 +140,10 @@
                                 :style="{ order: detailDisplayOrder(entry, 'expenses') }"
                             >
                                 <div class="project-detail-head">
-                                    <p class="project-detail-title">経費</p>
+                                    <div class="flex items-center gap-1">
+                                        <WorkReportIcon :size="16" which="expenses" />
+                                        <p class="project-detail-title">経費</p>
+                                    </div>
                                     <button v-if="!isProjectEntryLocked(entry)" type="button" class="project-time-action-button" title="経費を削除" aria-label="経費を削除" @click="removeProjectDetail(entry, 'expenses')">−</button>
                                 </div>
                                 <CostField
@@ -193,7 +196,10 @@
                                 :style="{ order: detailDisplayOrder(entry, 'mileage') }"
                             >
                                 <div class="project-detail-head">
-                                    <p class="project-detail-title">マイカーの走行距離（往復）</p>
+                                    <div class="flex items-center gap-1">
+                                        <WorkReportIcon :size="16" which="mileage" />
+                                        <p class="project-detail-title">マイカーの走行距離（往復）</p>
+                                    </div>
                                     <button v-if="!isProjectEntryLocked(entry)" type="button" class="project-time-action-button" title="マイカーを削除" aria-label="マイカーを削除" @click="removeProjectDetail(entry, 'mileage')">−</button>
                                 </div>
                                 <div class="flex gap-4 items-center flex-wrap">
@@ -227,7 +233,10 @@
                                 :style="{ order: detailDisplayOrder(entry, 'actual') }"
                             >
                                 <div class="project-detail-head">
-                                    <p class="project-detail-title">実績報告</p>
+                                    <div class="flex items-center gap-1">
+                                        <WorkReportIcon :size="16" which="actual" />
+                                        <p class="project-detail-title">実績報告</p>
+                                    </div>
                                     <button v-if="!isProjectEntryLocked(entry)" type="button" class="project-time-action-button" title="実績報告を削除" aria-label="実績報告を削除" @click="removeProjectDetail(entry, 'actual')">−</button>
                                 </div>
                                 <template v-if="actualStatusDefsForEntry(entry).length">
@@ -337,7 +346,10 @@
                                 :style="{ order: detailDisplayOrder(entry, 'vehicle') }"
                             >
                                 <div class="project-detail-head">
-                                    <p class="project-detail-title">運転業務</p>
+                                    <div class="flex items-center gap-1">
+                                        <WorkReportIcon :size="16" which="vehicle" />
+                                        <p class="project-detail-title">運転業務</p>
+                                    </div>
                                     <button v-if="!isProjectEntryLocked(entry)" type="button" class="project-time-action-button" title="運転業務を削除" aria-label="運転業務を削除" @click="removeProjectDetail(entry, 'vehicle')">−</button>
                                 </div>
                                 <VehicleField
@@ -354,7 +366,13 @@
                                     :style="{ order: detailDisplayOrder(entry, detail.type) }"
                                 >
                                     <div class="project-detail-head">
-                                        <p  class="project-detail-title">{{ detail.label }}</p>
+                                        <div class="flex items-center gap-1">
+                                            <WorkReportIcon :size="16" :which="detail.type" /> 
+                                            <p class="project-detail-title">
+                                                {{ detail.label }}
+                                            </p>
+                                        </div>
+                                        
                                         <button
                                             v-if="!isLocked"
                                             type="button"
@@ -374,6 +392,7 @@
                                             v-model="entry.detail_values.incident"
                                             :disabled="isProjectEntryLocked(entry)"
                                         />
+                                        <p class="project-time-message !mt-2">緊急性の高いものは即時に報告してください</p>
                                     </template>
                                     <template v-else-if="detail.type === 'allowance'">
                                         <CustomField
@@ -425,7 +444,10 @@
                                 :style="{ order: detailDisplayOrder(entry, 'overtime') }"
                             >
                                 <div class="project-detail-head">
-                                    <p class="project-detail-title">時間外業務内容</p>
+                                    <div class="flex items-center gap-1">
+                                        <WorkReportIcon :size="16" which="comment" />
+                                        <p class="project-detail-title">時間外業務内容</p>
+                                    </div>
                                 </div>
                                 <p v-if="isProjectEntryLocked(entry)" class="project-locked-note">{{ projectLockNote(entry) }}</p>
                                 <CustomField

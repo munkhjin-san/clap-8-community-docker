@@ -24,7 +24,7 @@
                     <div class="mobile-project-segment-person">
                         <div class="mobile-project-segment-person-main">
                             <span class="mobile-project-segment-date">{{ dayFormatter }}</span>
-                            <strong>{{ item.user_name }}</strong>
+                            <p>{{ item.user_name }}</p>
                         </div>
                         <div class="mobile-project-segment-daily-meta">
                             <span v-if="hasHeader('予定')" :class="getShiftClass">
@@ -50,10 +50,10 @@
                             <template v-if="mobileSegment">
                                 <div class="mobile-project-segment-head">
                                     <div class="mobile-project-segment-title">
-                                        <span class="mobile-project-segment-type" :class="`project-segment-type-${segmentType(mobileSegment)}`">
+                                        <span v-if="props.item.position_id === 15" class="mobile-project-segment-type" :class="`project-segment-type-${segmentType(mobileSegment)}`">
                                             {{ segmentTypeLabel(mobileSegment) }}
                                         </span>
-                                        <strong>{{ segmentProjectName(mobileSegment) }}</strong>
+                                        <p>{{ segmentProjectName(mobileSegment) }}</p>
                                         <div v-for="approver in segmentApprovers(mobileSegment)" :key="approver.id" class="flex items-center">
                                             <UserPanel :size="14" :user="approver"/>
 

@@ -841,7 +841,16 @@ class ProjectController extends Controller
         $project->members()->sync($members);
         $project->manager()->syncWithPivotValues($manager, ['authority' => 1]);
 
-        if (!$id && $filteredParams['status'] != 'draft') {
+        $isNew = !$id;
+        $newStatus = $filteredParams['status'];
+        $oldStatus = $id ? $record->status : null;
+
+        $isFirstSubmit =
+            ($isNew && $newStatus !== 'draft') ||
+            (!$isNew && $oldStatus === 'draft' && $newStatus !== 'draft');
+
+        
+        if ($isFirstSubmit) {
             $query = "order by レコード番号 desc limit 1";
             $fields = ["文字列__1行__3"];
             
