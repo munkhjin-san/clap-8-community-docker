@@ -8,8 +8,7 @@
                 <div v-if="auth.isAdmin" class="admin-tab-container">
                     <div class="admin-tab-item" @click="router.push({name: 'account'})" :class="{'selected-tab' : route.name == 'account' }">アカウント</div>
                     <div class="admin-tab-item" @click="router.push({name: 'attendance'})" :class="{'selected-tab' : route.path.includes('workcontrol')}">タイムシート</div>
-                    <!-- <div class="admin-tab-item" @click="router.push({name: 'clapcount'})" :class="{'selected-tab' : route.name == 'clapcount'}">クラップ数集計</div> -->
-                    <div class="admin-tab-item" @click="router.push({name: 'learningcontrol'})" :class="{'selected-tab' : route.path.includes('learningcontrol')}">研修</div>
+                    <div class="admin-tab-item" @click="router.push({name: 'learningcontrol'})" :class="{'selected-tab' : route.path.includes('learningcontrol')}">ラーニング</div>
                     <div class="admin-tab-item" @click="router.push({name: 'projectlist'})" :class="{'selected-tab' : route.path.includes('projectcontrol')}">プロジェクト</div>
                     <div class="admin-tab-item" @click="router.push({name: 'glowdnine'})" :class="{'selected-tab' : route.name == 'glowdnine'}">グラウドナイン</div>
                     <div class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
