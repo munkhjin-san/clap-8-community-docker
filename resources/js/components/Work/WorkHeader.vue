@@ -146,6 +146,6 @@
         z-index: 20;
     }
     .workMemberSelector{
-        z-index: 24;
+        z-index: 40;
     }
 </style>
