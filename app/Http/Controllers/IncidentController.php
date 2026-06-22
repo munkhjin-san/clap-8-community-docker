@@ -42,6 +42,11 @@ class IncidentController extends Controller
         return Auth::user();
     }
 
+    private function ensureCanManageIncidentSettings(): void
+    {
+        abort_unless($this->incidentService->canManageIncidentAdministration($this->active_user()), 403);
+    }
+
     public function getIncidents(Request $request)
     {
         $activeUser = $this->active_user();

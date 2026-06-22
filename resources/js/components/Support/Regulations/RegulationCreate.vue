@@ -9,7 +9,7 @@
                     ref="regulationTitle"
                     placeHolder="タイトルを入力（必須）"
                     name="regulationTitle"
-                    rules="required|max:100"
+                    rules="required"
                     label="タイトル"
                     v-model="params.title"
                 />
