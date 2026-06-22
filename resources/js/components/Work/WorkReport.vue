@@ -50,7 +50,7 @@
                             <div class="project-block-head">
                                 <p class="project-block-title">
                                     {{ `プロジェクト ${index + 1}` }}
-                                    <span class="project-type-badge" :class="`project-type-badge-${entryType(entry)}`">{{ projectEntryTypeLabel(entry) }}</span>
+                                    <span v-if="item.position_id === 15" class="project-type-badge" :class="`project-type-badge-${entryType(entry)}`">{{ projectEntryTypeLabel(entry) }}</span>
                                     <span v-if="hasProjectEntryStatusBadge(entry)" class="project-approved-badge">{{ projectEntryStatusLabel(entry) }}</span>
                                 </p>
                                 <div class="op-button-container project-time-actions" v-if="!isProjectEntryLocked(entry)">
@@ -173,8 +173,8 @@
                                     v-model:ocr_applied_fields="costs[costIndex].ocr_applied_fields"
                                     :workGroupAsOptions="workGroupAsOptions.map(ob => ob.name)"
                                     :fieldIndex="costIndex"
-                                    :isRegistered="props.item.position_id === 15"
-                                    :subjectUserId="props.item?.user_id"
+                                    :isRegistered="item.position_id === 15"
+                                    :subjectUserId="item?.user_id"
                                     :timecardRecordId="timeCard?.id"
                                     :timecardCostRecordId="costs[costIndex].id"
                                     :locked="isProjectEntryLocked(entry)"
