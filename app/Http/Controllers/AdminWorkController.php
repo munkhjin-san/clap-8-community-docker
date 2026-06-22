@@ -325,6 +325,7 @@ class AdminWorkController extends Controller{
                                     'username' => $departmentRow['username'],
                                     'month' => $departmentRow['month'],
                                     'job_allowance_over_time' => $jobAllowanceOverTime,
+                                    'should_work_time' => $this->sharedService->work_days_calculator((int) $currentYear, (int) $currentMonth, $user)['work_minutes'],
                                 ];
                             }
                             $departmentCountsTemp[$groupKey]['work_time'] += $departmentRow['work_time'];
