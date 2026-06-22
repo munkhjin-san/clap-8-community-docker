@@ -148,10 +148,19 @@ import { useResponsive } from '@/store/responsive';
     onMounted(() => {
         publicHolidayStore.ensureLoaded()
     })
-
+    const getDayClass = computed(() => {
+        const date = displayDayFull.value
+        const dateInstance = DateTime.fromISO(date)
+        return {
+            'shift-saturday': dateInstance.weekday === 6,
+            'shift-sunday': dateInstance.weekday === 7,
+            'shift-everyholiday' : props.holidays.find(h => DateTime.fromJSDate(h.date).hasSame(dateInstance, 'day')),
+            'today' : date === DateTime.now().toISODate(),
+        }
+    })
     const isLoading = computed(() => Number(props.loading) === 0)
     const selectedUserCount = computed(() => props.usersData?.length ?? 0)
-    const showMobileDayGroups = computed(() => responsive.mobile && selectedUserCount.value > 1)
+    const showMobileDayGroups = computed(() => responsive.mobile)
     const recordsTableComponent = computed(() => {
         return VDataTable
     })
@@ -888,7 +897,6 @@ import { useResponsive } from '@/store/responsive';
     .mobile-day-card {
         background: var(--background-color);
         border: 1px solid var(--calendarBorder);
-        border-radius: 4px;
         margin: 0 12px;
         overflow: hidden;
     }
@@ -909,7 +917,15 @@ import { useResponsive } from '@/store/responsive';
         min-height: 36px;
         padding: 8px 14px;
     }
-
+    .mobile-day-card-date.today{
+        background: #606060;
+        color: #fff;
+    }
+    .mobile-day-card-date.working,
+    .mobile-day-card-date.today.working{
+        background-color: #c5af72;
+        color: #fff;
+    }
     .mobile-day-member-table,
     .mobile-day-member-table tbody,
     .mobile-total-table,

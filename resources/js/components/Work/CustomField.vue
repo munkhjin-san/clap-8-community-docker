@@ -8,8 +8,9 @@
                 name="commentRef"
                 v-model="value"
                 :disabled="props.locked"
+                customClass="!pb-10"
             />      
-            <div class="absolute right-[3px] top-[3px]">
+            <div class="absolute left-[3px] bottom-[3px]">
                 <div class="relative">
                     <div title="下書き保存" @click.stop="menu.setMenu({parent: 'temp_comment'})" class="h-[30px] w-[30px] min-w-[30px] flex items-center justify-center rounded-full bg-[var(--background-color)] hover:bg-[var(--bg3)] cursor-pointer">
                         <svg width="15" height="15" style="fill: var(--third-color);" viewBox="0 0 21.60806 22.36145">
@@ -17,7 +18,7 @@
                         </svg>
                     </div>
                     <Transition nam="modalFade">
-                        <div id="temp_comment" v-if="menu.parent == 'temp_comment'" class="absolute top-[25px] right-[0] z-[7] shadow-me whitespace-nowrap bg-[var(--background-color)]">
+                        <div id="temp_comment" v-if="menu.parent == 'temp_comment'" class="absolute top-[25px] left-[0] z-[7] shadow-me whitespace-nowrap bg-[var(--background-color)]">
                            <div @click="saveComment" class="flex items-center gap-[5px] cursor-pointer p-[10px]">
                                 <AddIcon size="12" />
                                 <p class="text-[var(--primary-color)] text-[12px] ml-[5px]">下書保存</p>

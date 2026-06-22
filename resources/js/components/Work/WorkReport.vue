@@ -50,11 +50,15 @@
                             }"
                         >
                             <div class="project-block-head">
-                                <p class="project-block-title">
-                                    {{ `プロジェクト ${index + 1}` }}
-                                    <span v-if="item.position_id === 15" class="project-type-badge" :class="`project-type-badge-${entryType(entry)}`">{{ projectEntryTypeLabel(entry) }}</span>
-                                    <span v-if="hasProjectEntryStatusBadge(entry)" class="project-approved-badge">{{ projectEntryStatusLabel(entry) }}</span>
-                                </p>
+                                <div class="flex items-center gap-1">
+                                    <Project :size="16"/>
+                                    <p class="project-block-title">
+                                        {{ `プロジェクト ${index + 1}` }}
+                                        <span v-if="item.position_id === 15" class="project-type-badge" :class="`project-type-badge-${entryType(entry)}`">{{ projectEntryTypeLabel(entry) }}</span>
+                                        <span v-if="hasProjectEntryStatusBadge(entry)" class="project-approved-badge">{{ projectEntryStatusLabel(entry) }}</span>
+                                    </p>
+                                </div>
+                                
                                 <div class="op-button-container project-time-actions" v-if="!isProjectEntryLocked(entry)">
                                     <button type="button" class="project-time-action-button" title="プロジェクトを追加" aria-label="プロジェクトを追加" @click="addProjectTimeEntry(index)">＋</button>
                                     <button
@@ -130,7 +134,7 @@
                                 </label>
                                 <div class="project-time-duration">
                                     <span>{{ projectEntryDurationTitle(entry) }}</span>
-                                    <strong>{{ projectTimeDurationLabel(entry, index) }}</strong>
+                                    <p>{{ projectTimeDurationLabel(entry, index) }}</p>
                                 </div>
                             </div>
 
@@ -392,7 +396,9 @@
                                             v-model="entry.detail_values.incident"
                                             :disabled="isProjectEntryLocked(entry)"
                                         />
-                                        <p class="project-time-message !mt-2">緊急性の高いものは即時に報告してください</p>
+                                        <p class="project-time-message !mt-2">緊急性の高いものは即時に
+                                            <router-link target="_blank" class="jump-link" :to="{ name: 'emergency_contact', query: { type: 'incident' } }">報告</router-link>
+                                            してください</p>
                                     </template>
                                     <template v-else-if="detail.type === 'allowance'">
                                         <CustomField
@@ -514,6 +520,7 @@ import { useDialog } from '@/composables/dialog';
 import { getCustomFields, getWorkGroup } from '../../utils/workApi';
 import { useTutorialStore } from '@/store/tutorial';
 import { useTour } from '@/composables/useTour';
+import Project from '../Icons/Project.vue';
 
     const ATTENDANCE_MODE = {
         WORK_ONLY: 'work_only',
@@ -2999,9 +3006,8 @@ import { useTour } from '@/composables/useTour';
         color: var(--primary-color);
         white-space: nowrap;
     }
-    .project-time-duration strong{
+    .project-time-duration p{
         font-size: 13px;
-        font-weight: 600;
     }
     .project-time-actions{
         display: flex;
@@ -3024,9 +3030,6 @@ import { useTour } from '@/composables/useTour';
         color: #d97706;
     }
     #saveButton{
-        position: sticky;
-        bottom: 0;
-        z-index: 4;
         padding: 12px 0 4px;
         background: inherit;
     }

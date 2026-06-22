@@ -2815,7 +2815,6 @@ const hasVehicle = computed(() => {
         padding: 9px 10px;
         box-sizing: border-box !important;
         border: 1px solid var(--calendarBorder);
-        border-radius: 4px;
         background: var(--background-color);
     }
 
@@ -2934,6 +2933,7 @@ const hasVehicle = computed(() => {
         line-height: 1.4;
         text-align: left;
         white-space: nowrap;
+        font-size: 12px;
     }
 
     .mobile-project-segment-detail strong {
@@ -2952,7 +2952,7 @@ const hasVehicle = computed(() => {
     }
 
     .mobile-project-segment-empty-body {
-        align-items: flex-start;
+        align-items: center;
         flex-wrap: wrap;
         justify-content: space-between;
     }
