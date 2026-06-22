@@ -143,9 +143,9 @@
 </script>
 <style scoped lang="scss">
     .workButtons-wrapper{
-        z-index: 20;
+        z-index: 40;
     }
     .workMemberSelector{
-        z-index: 40;
+        z-index: 35;
     }
 </style>
