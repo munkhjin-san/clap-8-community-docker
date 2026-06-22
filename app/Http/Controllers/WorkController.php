@@ -478,7 +478,7 @@ class WorkController extends Controller
                         'overtime_request' => $overtime_ability,
                         'daily_report_create' => $daily_report_ability[0],
                         'daily_report_modify' => !$hasProjectSegmentsForDetails && $daily_report_ability[1],
-                        'daily_report_delete' => !$hasProjectSegmentsForDetails && $daily_report_ability[1] && !$this->hasLockedProjectSegments($time_card, $active_user),
+                        'daily_report_delete' => $daily_report_ability[1] && !$this->hasLockedProjectSegments($time_card, $active_user),
                         'start_stamp' => $daily_report_ability[2],
                         'end_stamp' => $daily_report_ability[3],
                         'break_stamp' => $daily_report_ability[4],
@@ -693,12 +693,11 @@ class WorkController extends Controller
         $valid_shift = (!empty($shift) && $shift->shiftType->id !== 3) || $user->position_id == 15 || $user->position_id < 6;
         $isToday = date('Y-m-d') == $day->format('Y-m-d');
         $isTodayOrPast = date('Y-m-d') >= $day->format('Y-m-d');
-        $overtimePendingApproval = $shift?->overtime_request && (int) $shift->overtime_request->status === 1;
         $managerOrSelfAccess = $user->id == $active_user->id || $authority || $active_user->isAdmin();
-        $create = !$timecardExist && !$has_attendace && !$overtimePendingApproval && $valid_shift && $isTodayOrPast && $managerOrSelfAccess;
+        $create = !$timecardExist && !$has_attendace && $valid_shift && $isTodayOrPast && $managerOrSelfAccess;
         $status = $time_card->status_flag ?? -1;
         $ownEditable = in_array((int) $status, [timecardRecord::STATUS_DRAFT, timecardRecord::STATUS_REJECTED], true) && ($user->id == $active_user->id || $authority);
-        $adminEditable = $active_user->isAdmin() && (int) $status !== timecardRecord::STATUS_APPROVED && !$overtimePendingApproval;
+        $adminEditable = $active_user->isAdmin() && (int) $status !== timecardRecord::STATUS_APPROVED;
         $modify = $timecardExist && !$has_attendace && ($ownEditable || $adminEditable);
         $start_stamp = !$timecardExist && !$has_attendace && $valid_shift && $isToday && $user->id == $active_user->id; 
         $end_stamp = $timecardExist && !$has_attendace && ($time_card->stamp_flag == 0 || $time_card->stamp_flag == 2) && $valid_shift && $isToday && $user->id == $active_user->id;
@@ -1529,6 +1528,115 @@ class WorkController extends Controller
         abort(403, 'このプロジェクトの残業申請を承認する権限がありません。');
     }
 
+    private function updateOvertimeRequestForTimecardApproval(timecardRecord $timecard, User $actor, int $status): void
+    {
+        $overtimeRequest = ShiftOvertimeRequest::where('overtime_day', $timecard->day)
+            ->where('user_id', $timecard->user_id)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$overtimeRequest) {
+            return;
+        }
+
+        $segments = is_array($overtimeRequest->project_segments)
+            ? array_values($overtimeRequest->project_segments)
+            : [];
+
+        foreach ($segments as $segment) {
+            $projectId = (int) ($segment['project_id'] ?? 0);
+            if ($projectId > 0) {
+                $this->ensureOvertimeProjectSegmentApprover($actor, $overtimeRequest, $projectId);
+            }
+        }
+
+        if (!empty($segments)) {
+            $timestamp = now()->toDateTimeString();
+            $segments = array_map(function ($segment) use ($status, $actor, $timestamp) {
+                $segment['status'] = $status;
+                if ($status === 2) {
+                    $segment['approved_by'] = $actor->id;
+                    $segment['approved_at'] = $timestamp;
+                    unset($segment['rejected_by'], $segment['rejected_at']);
+                } elseif ($status === 0) {
+                    $segment['rejected_by'] = $actor->id;
+                    $segment['rejected_at'] = $timestamp;
+                    unset($segment['approved_by'], $segment['approved_at']);
+                }
+
+                return $this->overtimeSegmentWithStatus($segment, $status);
+            }, $segments);
+            $overtimeRequest->project_segments = $segments;
+        }
+
+        $overtimeRequest->status = $this->deriveOvertimeRequestStatus($segments, $status);
+        $overtimeRequest->approved_by = $overtimeRequest->status === 2 ? $actor->id : null;
+        $overtimeRequest->save();
+    }
+
+    private function updateOvertimeRequestForProjectSegment(TimecardProjectSegment $segment, User $actor, int $status): void
+    {
+        $timecard = $segment->timecardRecord
+            ?: timecardRecord::find($segment->timecard_record_id);
+
+        if (!$timecard) {
+            return;
+        }
+
+        $overtimeRequest = ShiftOvertimeRequest::where('overtime_day', $timecard->day)
+            ->where('user_id', $timecard->user_id)
+            ->lockForUpdate()
+            ->first();
+
+        if (!$overtimeRequest) {
+            return;
+        }
+
+        $segments = is_array($overtimeRequest->project_segments)
+            ? array_values($overtimeRequest->project_segments)
+            : [];
+
+        if (empty($segments)) {
+            $overtimeRequest->status = $this->deriveOvertimeRequestStatus([], $status);
+            $overtimeRequest->approved_by = $overtimeRequest->status === 2 ? $actor->id : null;
+            $overtimeRequest->save();
+            return;
+        }
+
+        $this->ensureOvertimeProjectSegmentApprover($actor, $overtimeRequest, (int) $segment->project_id);
+        $matched = false;
+        $timestamp = now()->toDateTimeString();
+
+        $segments = array_map(function ($overtimeSegment) use ($segment, $status, $actor, $timestamp, &$matched) {
+            if ((int) ($overtimeSegment['project_id'] ?? 0) !== (int) $segment->project_id) {
+                return $this->overtimeSegmentWithStatus($overtimeSegment);
+            }
+
+            $matched = true;
+            $overtimeSegment['status'] = $status;
+            if ($status === 2) {
+                $overtimeSegment['approved_by'] = $actor->id;
+                $overtimeSegment['approved_at'] = $timestamp;
+                unset($overtimeSegment['rejected_by'], $overtimeSegment['rejected_at']);
+            } elseif ($status === 0) {
+                $overtimeSegment['rejected_by'] = $actor->id;
+                $overtimeSegment['rejected_at'] = $timestamp;
+                unset($overtimeSegment['approved_by'], $overtimeSegment['approved_at']);
+            }
+
+            return $this->overtimeSegmentWithStatus($overtimeSegment, $status);
+        }, $segments);
+
+        if (!$matched) {
+            return;
+        }
+
+        $overtimeRequest->project_segments = $segments;
+        $overtimeRequest->status = $this->deriveOvertimeRequestStatus($segments, $status);
+        $overtimeRequest->approved_by = $overtimeRequest->status === 2 ? $actor->id : null;
+        $overtimeRequest->save();
+    }
+
     private function overTimeCheck($request, $calculatedMinute, array $projectSegments = [], int $regularMinutes = 0){
         $overTimeRequest = ShiftOvertimeRequest::where('overtime_day', $request->day)->where('user_id', $request->userId)->first();
         if (!$overTimeRequest) {
@@ -1543,7 +1651,9 @@ class WorkController extends Controller
         $requiresProjectSegmentSync = $calculatedMinute > 0
             && empty($existingProjectSegments)
             && !empty($overtimeProjectSegments);
-        $requiresReapproval = $calculatedMinute > (int) $overTimeRequest->minutes
+        $isSubmittedTimecard = (int) ($request->status_flag ?? timecardRecord::STATUS_DRAFT) === timecardRecord::STATUS_SUBMITTED;
+        $requiresReapproval = ($isSubmittedTimecard && (int) $overTimeRequest->status === 0)
+            || $calculatedMinute > (int) $overTimeRequest->minutes
             || $this->overtimeProjectSegmentsExceedApproval($overtimeProjectSegments, $overTimeRequest->project_segments);
 
         if (!$requiresReapproval && !$requiresProjectSegmentSync) {
@@ -1805,11 +1915,6 @@ class WorkController extends Controller
         $overtimeRequestForDay = ShiftOvertimeRequest::where('overtime_day', $request->day)
             ->where('user_id', $request->userId)
             ->first();
-        if ($overtimeRequestForDay && (int) $overtimeRequestForDay->status !== 2 && (int) $request->status_flag === timecardRecord::STATUS_SUBMITTED) {
-            throw ValidationException::withMessages([
-                'message' => '残業申請の承認が完了してから日報を作成してください。',
-            ]);
-        }
 
         $shift_time_difference_seconds = ((int) ($user->work_time_day ?: 480)) * 60;
         $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
@@ -2923,6 +3028,7 @@ class WorkController extends Controller
                     'approved_at' => now(),
                     'approval_source' => null,
                 ]);
+            $this->updateOvertimeRequestForTimecardApproval($time_card_record, $user, 0);
             $this->timecardAuditLogService->logTimecardEvent(
                 'timecard_remanded',
                 $time_card_record,
@@ -2953,23 +3059,7 @@ class WorkController extends Controller
                 return $time_card_record;
             }
 
-            if($request->overTimeRequest){
-                $overtimeSegments = $request->overTimeRequest['project_segments'] ?? [];
-                if (is_array($overtimeSegments) && count($overtimeSegments) > 0) {
-                    if ((int) ($request->overTimeRequest['status'] ?? 1) !== 2) {
-                        throw ValidationException::withMessages([
-                            'message' => '残業申請のプロジェクト別承認が完了していません。',
-                        ]);
-                    }
-                } else {
-                    $data = [
-                        'id' => $request->overTimeRequest['id'],
-                        'status' => 2,
-                        'approved_by' => $user->id
-                    ];
-                    $this->respond_overtime(new Request ($data));
-                }
-            }
+            $this->updateOvertimeRequestForTimecardApproval($time_card_record, $user, 2);
             if ($time_card_record->project_segments()->where('status', '!=', TimecardProjectSegment::STATUS_APPROVED)->exists()) {
                 throw ValidationException::withMessages([
                     'message' => 'プロジェクト別時間の承認が完了していません。',
@@ -3013,6 +3103,7 @@ class WorkController extends Controller
             $segment->approved_at = now();
             $segment->approval_source = TimecardProjectSegment::APPROVAL_SOURCE_USER;
             $segment->save();
+            $this->updateOvertimeRequestForProjectSegment($segment, $user, 2);
 
             if ($segment->timecardRecord) {
                 $this->approveTimecardIfProjectSegmentsComplete($segment->timecardRecord, $user);
@@ -3042,6 +3133,7 @@ class WorkController extends Controller
             $segment->approved_at = now();
             $segment->approval_source = null;
             $segment->save();
+            $this->updateOvertimeRequestForProjectSegment($segment, $user, 0);
 
             if ($segment->timecardRecord) {
                 $segment->timecardRecord->status_flag = timecardRecord::STATUS_REJECTED;

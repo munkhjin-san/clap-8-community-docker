@@ -614,9 +614,14 @@ import Project from '../Icons/Project.vue';
         })
     }
     const isRegisteredStaff = computed(() => Number(props.item?.position_id) === 15)
+    const hasEditableProjectSegment = computed(() => {
+        return Array.isArray(timeCard.value?.project_segments)
+            && timeCard.value.project_segments.some(segment => Boolean(segment?.ability?.edit))
+    })
     const canEditReport = computed(() => Boolean(
         props.item?.ability?.daily_report_create
         || props.item?.ability?.daily_report_modify
+        || hasEditableProjectSegment.value
     ))
     const isApprovedReport = computed(() => Number(timeCard.value?.status_flag) === 2)
     const isLocked = computed(() => isApprovedReport.value || !canEditReport.value)
@@ -736,6 +741,7 @@ import Project from '../Icons/Project.vue';
         comment: entry.comment ?? '',
         status: entry.status ?? null,
         project: entry.project ?? null,
+        ability: entry.ability ?? {},
     })
     const vehicleRecordForProjectSegment = (segment) => {
         const records = Array.isArray(timeCard.value?.vehicle_records) ? timeCard.value.vehicle_records : []
@@ -1359,6 +1365,7 @@ import Project from '../Icons/Project.vue';
                 comment: segment.comment,
                 status: segment.status,
                 project: segment.project ?? null,
+                ability: segment.ability ?? {},
             }))
             projectTimeEntries.value = hasOvertimeRequest.value ? mergeContinuousSameProjectEntries(entries) : entries
             if (projectTimeEntries.value[0]) {
@@ -2702,10 +2709,6 @@ import Project from '../Icons/Project.vue';
         if(!validate) return
         if (includesWorkHours.value && (isInvalidTime(formatTime(editStartTime.value)) || isInvalidTime(formatTime(editEndTime.value)))) {
             ping('就業時間は必須項目です。入力してください。')
-            return
-        }
-        if (action === 'apply' && shift.value?.overtime_request && Number(shift.value.overtime_request.status) !== 2) {
-            ping('残業申請の承認が完了してから日報を申請してください。')
             return
         }
         if(includesWorkHours.value && shift.value?.overtime_request){

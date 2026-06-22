@@ -197,6 +197,10 @@
                                 </div>
                                 <div class="mobile-project-segment-action">
                                     <CommandButton
+                                        v-if="mobileSegmentIndex === 0 && mobileStampButtons.length"
+                                        :buttons="mobileStampButtons"
+                                    />
+                                    <CommandButton
                                         v-if="hasReportAction(mobileSegment, mobileSegmentIndex)"
                                         :buttons="[{title: '報告', action:() => emit('procedureStart', item, reportActionSegment(mobileSegment))}]"
                                     />
@@ -262,6 +266,10 @@
                                             </div>
                                         </div>
                                     </div>
+                                    <CommandButton
+                                        v-if="mobileSegmentIndex === 0 && mobileStampButtons.length"
+                                        :buttons="mobileStampButtons"
+                                    />
                                     <CommandButton
                                         v-if="hasReportAction(mobileSegment, mobileSegmentIndex)"
                                         :buttons="[{title: '報告', action:() => emit('procedureStart', item, reportActionSegment(mobileSegment))}]"
@@ -1741,6 +1749,21 @@ const hasReportAction = (segment, segmentIndex) => {
 const reportActionSegment = (segment) => {
     return segment && !segment.legacy && hasProjectSegmentAction(segment) ? segment : null
 }
+const mobileStampButtons = computed(() => {
+    const buttons = []
+
+    if (props.item?.ability?.start_stamp) {
+        buttons.push({ title: '始業', action: () => start(props.item) })
+    }
+    if (props.item?.ability?.end_stamp) {
+        buttons.push({ title: '終業', action: () => end(props.item) })
+    }
+    if (props.item?.ability?.break_stamp) {
+        buttons.push({ title: props.item?.time_card?.stamp_flag == 0 ? '休憩' : '再開', action: () => takeBreak(props.item) })
+    }
+
+    return buttons
+})
 const isCompactBlankRow = computed(() => {
     return !props.item?.time_card
         && !projectSegments.value.length
