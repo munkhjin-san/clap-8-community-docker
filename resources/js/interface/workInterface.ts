@@ -3,7 +3,7 @@ import { EmoteUser, TaskUser, User } from "./globalInterface"
 export type WorkItem = {
     date: string
     endDate: string
-    notification_user: User | TaskUser
+    notification_user?: User | TaskUser
 }
 
 type NotificationUser = {
@@ -160,10 +160,15 @@ export type plannedLeave = {
 export type tempData = {
     date: string;
     endDate: string;
-    granted_days: number;
-    id: number;
-    notification_user: User;
+    period_end?: string;
+    granted_days: number | null;
+    id: number | string;
+    notification_user?: User;
     planned_days: number;
-    user_code: number;
-    user_name: string;
+    user_code: number | string | null;
+    user_name?: string | null;
+    grant_id?: number | null;
+    source?: string;
+    planning_allowed_from?: string;
+    planning_allowed?: boolean;
 }
