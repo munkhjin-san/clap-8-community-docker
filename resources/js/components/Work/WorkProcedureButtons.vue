@@ -12,6 +12,18 @@
             <div class="work-procedure-button-list">
                 <LoaderButton
                     style="margin:0"
+                    v-if="canApproveDailyReport"
+                    content="日報承認"
+                    @triggered="emit('dailyButtons', 0, item)"
+                />
+                <LoaderButton
+                    style="margin:0"
+                    v-if="canApproveDailyReport"
+                    content="日報差戻"
+                    @triggered="emit('dailyButtons', 1, item)"
+                />
+                <LoaderButton
+                    style="margin:0"
                     v-if="canApproveSelectedProjectSegment"
                     content="日報承認"
                     @triggered="emitProjectSegmentAction('approveProjectSegment', selectedSegment)"
@@ -114,6 +126,9 @@ import { useDashboardStore } from '@/store/dashboard';
     const { getBatchDashboardData } = useDashboardStore()
 
     const selectedSegmentAbility = computed(() => props.selectedSegment?.ability ?? {})
+    const canApproveDailyReport = computed(() => {
+        return !props.selectedSegment && Boolean(props.item?.ability?.daily_report_approve)
+    })
     const canShowDailyReportCancel = computed(() => {
         return !props.selectedSegment && Boolean(props.item?.ability?.daily_report_cancel)
     })
