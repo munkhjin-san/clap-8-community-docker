@@ -109,6 +109,7 @@
         <router-view v-slot="{ Component }">
         <component 
             :is="Component"
+            :assignDataList="assignDataList"
             @close="router.back()"
             @update="fetchMembersAssignData"
         />

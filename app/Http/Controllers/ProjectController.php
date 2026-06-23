@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Ai\Agents\ProjectMemberAssignmentEvaluator;
 use App\Imports\YearlyPlanImport;
 use App\Models\AssetRecord;
 use App\Models\AssetRequest;
@@ -27,6 +28,7 @@ use App\Models\ProjectResourceComment;
 use App\Models\ProjectPlanYear;
 use App\Models\ProjectMemberRole;
 use App\Models\CustomForm;
+use App\Models\Incident;
 use App\Models\ProjectCheckitemCategory;
 use App\Models\ProjectCheckitemTemplate;
 use App\Models\ProjectCheckitems;
@@ -49,7 +51,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\BoardController;
-use App\Http\Controllers\OpenAiController;
 use App\Services\SharedService;
 use App\Services\VarianceService;
 use App\Services\BadgeService;
@@ -78,7 +79,6 @@ class ProjectController extends Controller
     //
     protected $boardController;
     protected $sharedService;
-    protected $openAiController;
 
     
     private const SYSTEM_STATUS_LABELS = [
@@ -91,7 +91,6 @@ class ProjectController extends Controller
     public function __construct(
         BoardController $boardController, 
         SharedService $sharedService, 
-        OpenAiController $openAiController,
         private CachedContractExtractionService $contractExtractionService,
         private KintoneClient $api,
         private GoogleSheetsClient $client,
@@ -100,7 +99,6 @@ class ProjectController extends Controller
     ){
         $this->boardController = $boardController;
         $this->sharedService = $sharedService;
-        $this->openAiController = $openAiController;
     } 
     private function active_user(){
         $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
@@ -5457,29 +5455,85 @@ class ProjectController extends Controller
         以下は、過去36ヶ月間のインシデント履歴です。
         EOD;
 
-        $date = Carbon::now()->subMonths(36)->toDateString();
-        $user = User::findOrFail($user_id);
-        $user_name = $user->name;
-        $user_name_without_space = str_replace(' ', '', $user_name);
-        $query = "当事者 = \"{$user_name_without_space}\" and 作成日時 >= \"{$date}\"";
-        $fields = ["区分", "概要及び時系列", "詳細メモ", "文字列__複数行__2", "懲罰区分"];
-        $recs = $this->api->getRecords(33, $query, $fields);
-        if($recs && count($recs) > 0){
-            $incident_history .= "\n\n";
-            foreach($recs as $index => $rec){
-                $incident_history .= "\n---------インシデント" . ($index + 1) . "-------------\n";
-                $incident_type = $rec['区分']['value'] ?? '';
-                $incident_summary = $rec['概要及び時系列']['value'] ?? '';
-                $incident_details = $rec['詳細メモ']['value'] ?? '';
-                $incident_instruction = $rec['文字列__複数行__2']['value'] ?? '';
+        $date = Carbon::now()->subMonths(36)->startOfDay();
+        $incidents = Incident::query()
+            ->where('caused_by', $user_id)
+            ->where(function ($query) use ($date) {
+                $query->where('occurred_date', '>=', $date->toDateString())
+                    ->orWhere(function ($fallbackQuery) use ($date) {
+                        $fallbackQuery
+                            ->whereNull('occurred_date')
+                            ->where('created_at', '>=', $date);
+                    });
+            })
+            ->with([
+                'category',
+                'punishment',
+                'projectRecord:id,name',
+                'reportedByUser:id,name',
+                'causedByUser:id,name',
+                'reports.assignees.user:id,name',
+            ])
+            ->orderByRaw('COALESCE(occurred_date, DATE(created_at)) DESC')
+            ->orderByDesc('id')
+            ->get();
 
-                $incident_punishment = $rec['懲罰区分']['value'] ?? '';
-                $incident_history .= "【区分】{$incident_type}\n【概要及び時系列】{$incident_summary}\n【詳細】{$incident_details}\n 【指導内容】{$incident_instruction}【懲罰区分】{$incident_punishment}\n\n";
+        if($incidents->isNotEmpty()){
+            $incident_history .= "\n\n";
+            foreach($incidents as $index => $incident){
+                $incident_history .= "\n---------インシデント" . ($index + 1) . "-------------\n";
+                $incident_history .= "【ステータス】" . ($incident->status ?: '未設定') . "\n";
+                $incident_history .= "【発生日】" . ($incident->occurred_date ?: '未設定') . "\n";
+                $incident_history .= "【報告日】" . ($incident->reported_date ?: '未設定') . "\n";
+                $incident_history .= "【区分】" . ($incident->category?->name ?: '未設定') . "\n";
+                $incident_history .= "【懲罰区分】" . ($incident->punishment?->name ?: '未設定') . "\n";
+                $incident_history .= "【当事者】" . ($incident->causedByUser?->name ?: '未設定') . "\n";
+                $incident_history .= "【報告者】" . ($incident->reportedByUser?->name ?: '未設定') . "\n";
+                $incident_history .= "【プロジェクト】" . ($incident->projectRecord?->name ?: '未設定') . "\n";
+                $incident_history .= "【概要及び時系列】" . ($incident->description ?: '未入力') . "\n";
+                $incident_history .= "【発生場所】" . ($incident->occured_location ?: '未入力') . "\n";
+                $incident_history .= "【原因】" . ($incident->reason ?: '未入力') . "\n";
+                $incident_history .= "【詳細】" . ($incident->memo ?: '未入力') . "\n";
+                $incident_history .= "【指導内容】" . ($incident->instruction ?: '未入力') . "\n";
+                $incident_history .= "【是正対応】" . ($incident->resolution ?: '未入力') . "\n";
+                $incident_history .= "【再発防止策】" . ($incident->prevention ?: '未入力') . "\n";
+                $incident_history .= "【再発防止策の実施状況】" . ($incident->prevention_apply_status ?: '未入力') . "\n";
+                $incident_history .= "【対応履歴】" . $this->formatIncidentReportsForAssignment($incident) . "\n\n";
             }
         } else {
             $incident_history .= "\n過去36ヶ月間に懲罰・処分歴はありません。\n\n";
         }
         return $incident_history;
+    }
+
+    private function formatIncidentReportsForAssignment(Incident $incident): string
+    {
+        if (! $incident->reports || $incident->reports->isEmpty()) {
+            return '対応履歴はありません。';
+        }
+
+        return $incident->reports
+            ->map(function ($report) {
+                $assigneeReports = $report->assignees
+                    ->map(function ($assignee) {
+                        return collect([
+                            '担当者: ' . ($assignee->user?->name ?: '不明'),
+                            '対応内容: ' . ($assignee->report ?: '未入力'),
+                            '完了日時: ' . ($assignee->completed_at ?: '未完了'),
+                        ])->join(' / ');
+                    })
+                    ->filter()
+                    ->join(' | ');
+
+                return collect([
+                    'step ' . ($report->step ?: '-'),
+                    '依頼: ' . ($report->request ?: '未入力'),
+                    '報告: ' . ($report->report ?: '未入力'),
+                    '担当者対応: ' . ($assigneeReports ?: '未入力'),
+                    '完了: ' . ($report->completed_at ?: '未完了'),
+                ])->join(' / ');
+            })
+            ->join("\n");
     }
     private function user_monthly_goals_history($user_id){
         $monthly_goals_history = <<<EOD
@@ -5609,14 +5663,15 @@ class ProjectController extends Controller
         $evaluation_details = $this->evaluation_details($data['user_id']);
 
         $monthly_goals_history = $this->user_monthly_goals_history($data['user_id']);
-        $work_conditions = $role->work_conditions;
+        $work_conditions = (array) ($role->work_conditions ?? []);
         $string_work_condition = implode(", ", $work_conditions);
 
         $prompt = <<<EOD
         氏名: {$user->name}
+        社員コード: {$user_code}
         アサイン先プロジェクト: {$project->name}
         プロジェクトのミッション: {$project->mission}
-        プロジェクトのイノーベーション: {$project->innovation}
+        プロジェクトのイノベーション: {$project->innovation}
         プロジェクトのストラテジー: {$project->strategy_miso}
         プロジェクトのオペレーション: {$project->operation}
 
@@ -5626,21 +5681,18 @@ class ProjectController extends Controller
         個別配慮事項: {$condition}
         過去36ヶ月間のインシデント履歴:
         {$incident_history}
-        過去12ヶ月間の月次目標履歴:
+        過去24ヶ月間の月次目標履歴:
         {$monthly_goals_history}
         最新の人事考課の詳細:
         {$evaluation_details}
         EOD;
-        
-        $result = $this->openAiController->non_stream_prompt(new Request([
-            'message' => $prompt,
-            'config_key' => 'project_member_assign_evaluation'
-        ]));
 
-        $data = $result->getData();
+        $response = ProjectMemberAssignmentEvaluator::make()->prompt(
+            $prompt,
+            model: config('ai.providers.openai.models.text.assignment_evaluation', 'gpt-5.5'),
+        );
 
-        $json_result = json_decode($data ?? '{}', true);
-
+        $json_result = $this->normalizeAssignmentEvaluationResult($response->toArray());
 
         $assignRecord = $project->projectAssignRecords()->create([
             'user_id' => $user->id,
@@ -5662,10 +5714,10 @@ class ProjectController extends Controller
                 'order_number' => $index,
             ]);
 
-            $elements = $question['options'] ?? [];
+            $elements = $question['options'] ?? $question['custom_form_block_elements'] ?? [];
             foreach($elements as $elementIndex => $element){
                 $block->elements()->create([
-                    'value' => $element ?? '',
+                    'value' => is_array($element) ? ($element['value'] ?? '') : ($element ?? ''),
                     'has_sub_text' => false,
                     'has_sub_text_required' => false,
                     'is_required' => false,
@@ -5677,8 +5729,140 @@ class ProjectController extends Controller
 
         
 
-        return response()->json($data);
+        return response()->json($json_result);
     }
+
+    private function normalizeAssignmentEvaluationResult(array $result): array
+    {
+        $evaluations = $result['evaluations'] ?? [];
+
+        $mustScore = $this->normalizeAssignmentScore(data_get($evaluations, 'must_conditions.score'));
+        $jobFitScore = $this->normalizeAssignmentScore(data_get($evaluations, 'job_fit.score'));
+        $performanceScore = $this->normalizeAssignmentScore(data_get($evaluations, 'performance_history.score'));
+        $riskScore = $this->normalizeAssignmentScore(data_get($evaluations, 'risk_history.score'));
+
+        $overallScore = $mustScore <= 2
+            ? 0.0
+            : round(
+                ($mustScore * 0.30) + ($jobFitScore * 0.30) + ($performanceScore * 0.25) + ($riskScore * 0.15),
+                1,
+                PHP_ROUND_HALF_UP
+            );
+
+        $decision = $this->assignmentDecision($mustScore, $jobFitScore, $performanceScore, $riskScore, $overallScore);
+
+        $result['version'] = $result['version'] ?? '1.0.0';
+        $result['overall'] = [
+            'score' => $overallScore,
+            'method' => 'weighted_sum_with_gate',
+            'weights' => [
+                'must_conditions' => 0.3,
+                'job_fit' => 0.3,
+                'performance_history' => 0.25,
+                'risk_history' => 0.15,
+            ],
+            'rounding' => 'round_half_up_1dp',
+        ];
+        $result['final_judgement']['decision'] = $decision;
+        $result['final_judgement']['rationale'] = $result['final_judgement']['rationale'] ?? '提示された情報に基づき、評価基準に従って判定しました。';
+        $result['final_judgement']['conditions'] = $result['final_judgement']['conditions'] ?? [];
+        $result['notes']['limitations'] = $result['notes']['limitations'] ?? [];
+        $result['project_manager_check_items'] = $this->normalizeAssignmentCheckItems($result['project_manager_check_items'] ?? []);
+
+        $supportDecision = data_get($result, 'support_level.decision');
+        if (! in_array($supportDecision, ['green', 'orange', 'red'], true)) {
+            $supportDecision = $decision === '不適' ? 'red' : 'orange';
+        }
+
+        $result['support_level'] = [
+            'decision' => $supportDecision,
+            'support_suggestions' => array_values(array_filter(
+                data_get($result, 'support_level.support_suggestions', []),
+                fn ($suggestion) => is_string($suggestion) && trim($suggestion) !== ''
+            )),
+        ];
+        $result['x-rules'] = [
+            'gate_rule' => 'If must_conditions.score <= 2 then overall.score = 0.0 and final_judgement.decision = \'不適\'.',
+            'decision_rule' => 'If overall.score >= 8.0 and all criterion scores >= 7 -> 適正あり; else if overall.score >= 6.5 -> 条件付き適正; else if overall.score >= 5.0 -> 要再検討; else -> 不適 (unless gate rule triggered).',
+        ];
+
+        return $result;
+    }
+
+    private function normalizeAssignmentScore($score): int
+    {
+        return max(1, min(10, (int) $score));
+    }
+
+    private function assignmentDecision(
+        int $mustScore,
+        int $jobFitScore,
+        int $performanceScore,
+        int $riskScore,
+        float $overallScore
+    ): string {
+        if ($mustScore <= 2) {
+            return '不適';
+        }
+
+        if ($overallScore >= 8.0 && min($mustScore, $jobFitScore, $performanceScore, $riskScore) >= 7) {
+            return '適正あり';
+        }
+
+        if ($overallScore >= 6.5) {
+            return '条件付き適正';
+        }
+
+        if ($overallScore >= 5.0) {
+            return '要再検討';
+        }
+
+        return '不適';
+    }
+
+    private function normalizeAssignmentCheckItems(array $items): array
+    {
+        $normalized = [];
+
+        foreach ($items as $item) {
+            $type = $this->normalizeAssignQuestionType($item['type'] ?? null);
+            $content = trim((string) ($item['content'] ?? ''));
+
+            if ($content === '' || ! in_array($type, ['checkbox', 'multitext'], true)) {
+                continue;
+            }
+
+            $options = $item['options'] ?? $item['custom_form_block_elements'] ?? [];
+            $options = array_values(array_filter(array_map(function ($option) {
+                return is_array($option) ? ($option['value'] ?? null) : $option;
+            }, (array) $options), fn ($option) => is_string($option) && trim($option) !== ''));
+
+            $normalized[] = [
+                'type' => $type,
+                'content' => $content,
+                'options' => $type === 'checkbox' ? array_slice($options ?: ['理解しました'], 0, 1) : [],
+            ];
+        }
+
+        $hasOtherItem = collect($normalized)->contains(fn ($item) => $item['type'] === 'multitext' && $item['content'] === 'その他（自由入力）');
+
+        if (! $hasOtherItem) {
+            $otherItem = [
+                'type' => 'multitext',
+                'content' => 'その他（自由入力）',
+                'options' => [],
+            ];
+
+            if (count($normalized) >= 6) {
+                $normalized[5] = $otherItem;
+            } else {
+                $normalized[] = $otherItem;
+            }
+        }
+
+        return array_slice($normalized, 0, 6);
+    }
+
     public function save_member_assign_data(Request $request){
         $request->validate([
             'project_id' => 'required|integer|exists:project_records,id',

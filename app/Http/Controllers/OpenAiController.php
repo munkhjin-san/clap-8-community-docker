@@ -24,6 +24,37 @@ class OpenAiController extends Controller
 {
     private const LUNCH_CHALLENGE_TARGET_COUNT = 10;
 
+    public function models()
+    {
+        $apiKey = config('services.openai.api_key');
+        abort_if(!$apiKey, 500, 'OpenAI APIキーが設定されていません。');
+
+        $models = Cache::remember('openai:selectable_models', now()->addHours(6), function () use ($apiKey) {
+            $baseUrl = rtrim(config('ai.providers.openai.url', 'https://api.openai.com/v1'), '/');
+            $response = Http::withToken($apiKey)->get("{$baseUrl}/models");
+
+            abort_if(!$response->successful(), 500, 'OpenAIモデル一覧の取得に失敗しました。');
+
+            return collect($response->json('data', []))
+                ->pluck('id')
+                ->filter(fn ($id) => is_string($id) && $this->isSelectableGenerationModel($id))
+                ->sort()
+                ->values()
+                ->all();
+        });
+
+        return response()->json($models);
+    }
+
+    private function isSelectableGenerationModel(string $modelId): bool
+    {
+        if (preg_match('/(embedding|whisper|tts|transcribe|moderation|dall-e|image|audio|realtime)/i', $modelId)) {
+            return false;
+        }
+
+        return preg_match('/^(gpt|o[0-9]|o[1-9]|chatgpt)/i', $modelId) === 1;
+    }
+
     public function summarize_contract_comparison(Request $request)
     {
         $data = $request->validate([
