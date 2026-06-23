@@ -174,12 +174,20 @@ class ReportService
     private function incident_message()
     {
         $yesterday = date("Y-m-d",strtotime('-1 day'));
+        $ignoreWords = ['なし', '無し', '特になし', 'ありません', '無し。', 'なし。'];
+
         $timecard = timecardRecord::where('day', $yesterday)
-                        ->whereHas('project_segments', function($q) {
-                            $q->where('details', 'like', '%incident%');
-                        })
-                        ->with('user')
-                        ->get();
+            ->whereHas('project_segments', function ($q) use ($ignoreWords) {
+                $q->whereJsonContains('details', 'incident')
+                ->whereNotNull('detail_values->incident')
+                ->where('detail_values->incident', '!=', '');
+
+                foreach ($ignoreWords as $word) {
+                    $q->where('detail_values->incident', '!=', $word);
+                }
+            })
+            ->with('user')
+            ->get();
         $support_result = SupportMailFormRecord::where('deleted_flag', 0)
                                                 ->where('created_at', '>=', $yesterday)
                                                 ->count();
