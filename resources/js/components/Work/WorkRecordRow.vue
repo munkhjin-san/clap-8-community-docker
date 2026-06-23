@@ -163,7 +163,7 @@
                                                     </div>
                                                     <p v-if="cost.content">{{ cost.content }}</p>
                                                     <div v-if="isCostImage(cost)" class="project-chip-box-file">
-                                                        <img @click="previewCostFile(cost)" v-if="cost?.file_path" :src="costFileUrl(cost)"/>
+                                                        <img @click="previewCostFile(cost)" loading="lazy" v-if="cost?.file_path" :src="costFileUrl(cost)"/>
                                                     </div>
                                                     <div v-else-if="cost.file_path" class="project-chip-box-file">
                                                         <div class="cursor-pointer" style="position:relative;" @click="previewCostFile(cost)">
@@ -393,7 +393,7 @@
                                 </div>
                                 <p v-if="cost.content">{{ cost.content }}</p>
                                 <div v-if="isCostImage(cost)" class="project-chip-box-file">
-                                    <img @click="previewCostFile(cost)" v-if="cost?.file_path" :src="costFileUrl(cost)"/>
+                                    <img @click="previewCostFile(cost)" loading="lazy" v-if="cost?.file_path" :src="costFileUrl(cost)"/>
                                 </div>
                                 <div v-else-if="cost.file_path" class="project-chip-box-file">
                                     <div class="cursor-pointer" style="position:relative;" @click="previewCostFile(cost)">
@@ -464,7 +464,7 @@
                                 </div>
                                 <p v-if="cost.content">{{ cost.content }}</p>
                                 <div v-if="isCostImage(cost)" class="project-chip-box-file">
-                                    <img @click="previewCostFile(cost)" v-if="cost?.file_path" :src="costFileUrl(cost)"/>
+                                    <img @click="previewCostFile(cost)" loading="lazy" v-if="cost?.file_path" :src="costFileUrl(cost)"/>
                                 </div>
                                 <div v-else-if="cost.file_path" class="project-chip-box-file">
                                     <div class="cursor-pointer" style="position:relative;" @click="previewCostFile(cost)">

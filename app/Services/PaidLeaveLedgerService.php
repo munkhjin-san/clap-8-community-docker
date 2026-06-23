@@ -416,6 +416,15 @@ class PaidLeaveLedgerService
                     continue;
                 }
 
+                if ($this->shouldDeferPlannedLeaveUntilFutureGrant($account, $shift, $policy, $amount)) {
+                    $summary['skipped_pending_future_grant']++;
+                    if ($existing) {
+                        $this->deleteUsageAndRestoreGrants($existing);
+                    }
+
+                    continue;
+                }
+
                 if ($existing) {
                     $this->deleteUsageAndRestoreGrants($existing);
                     $summary['replaced_usages']++;
@@ -748,16 +757,29 @@ class PaidLeaveLedgerService
 
     private function plannedRequiredMinutesForGrant(PaidLeaveGrant $grant): int
     {
+        if ($grant->grant_type === PaidLeaveGrant::TYPE_ANNUAL && (float) $grant->grant_days > 0) {
+            $minutesPerDay = (int) round(((int) $grant->amount_minutes) / max(1, (float) $grant->grant_days));
+
+            return $this->plannedRequiredMinutesForGrantDays((float) $grant->grant_days, max(1, $minutesPerDay));
+        }
+
         $storedMinutes = (int) ($grant->planned_required_minutes ?? 0);
         if ($storedMinutes > 0) {
             return $storedMinutes;
         }
 
         if ($grant->grant_type === PaidLeaveGrant::TYPE_ANNUAL && (int) $grant->amount_minutes > 0) {
-            return (int) round(((int) $grant->amount_minutes) / 2);
+            return (int) floor(((int) $grant->amount_minutes) / 2);
         }
 
         return 0;
+    }
+
+    private function plannedRequiredMinutesForGrantDays(float $grantDays, int $minutesPerDay): int
+    {
+        $requiredDays = (int) floor($grantDays / 2);
+
+        return $requiredDays > 0 ? $this->daysToMinutes($requiredDays, $minutesPerDay) : 0;
     }
 
     private function dateString(mixed $value): ?string
@@ -844,7 +866,7 @@ class PaidLeaveLedgerService
                 }
 
                 $minutesPerDay = $this->minutesPerLeaveDayForAccount($account, $policy);
-                $requiredMinutes = (int) round($this->daysToMinutes((float) $grantDays, $minutesPerDay) / 2);
+                $requiredMinutes = $this->plannedRequiredMinutesForGrantDays((float) $grantDays, $minutesPerDay);
                 if ($requiredMinutes <= 0) {
                     continue;
                 }
@@ -1317,6 +1339,7 @@ class PaidLeaveLedgerService
             'replaced_usages' => 0,
             'skipped_existing' => 0,
             'skipped_externally_reflected_planned' => 0,
+            'skipped_pending_future_grant' => 0,
             'removed_externally_reflected_usages' => 0,
             'skipped_zero_amount' => 0,
             'deleted_stale_usages' => 0,
@@ -1462,7 +1485,7 @@ class PaidLeaveLedgerService
             'grant_days' => $grantDays,
             'amount_minutes' => $amountMinutes,
             'remaining_minutes' => $amountMinutes,
-            'planned_required_minutes' => (int) round($amountMinutes / 2),
+            'planned_required_minutes' => $this->plannedRequiredMinutesForGrantDays($grantDays, $minutesPerDay),
             'policy_snapshot' => [
                 'policy_id' => $policy->id,
                 'rule_id' => $rule?->id,
@@ -1488,6 +1511,64 @@ class PaidLeaveLedgerService
         $account->update(['last_granted_at' => now()]);
 
         return true;
+    }
+
+    private function shouldDeferPlannedLeaveUntilFutureGrant(PaidLeaveAccount $account, shiftRecord $shift, PaidLeavePolicy $policy, int $amount): bool
+    {
+        if ((int) $shift->shift_type !== 3 || $amount <= 0 || ! $shift->shift_day) {
+            return false;
+        }
+
+        $usedOn = Carbon::parse($shift->shift_day)->startOfDay();
+        $today = Carbon::today()->startOfDay();
+        if ($usedOn->lessThanOrEqualTo($today)) {
+            return false;
+        }
+
+        if ($this->availableGrantMinutesForDate($account, $usedOn) >= $amount) {
+            return false;
+        }
+
+        $nextGrantDate = $this->nextExpectedGrantDateAfter($account, $policy, $today);
+
+        return $nextGrantDate && $nextGrantDate->lessThanOrEqualTo($usedOn);
+    }
+
+    private function availableGrantMinutesForDate(PaidLeaveAccount $account, Carbon $usedOn): int
+    {
+        return (int) PaidLeaveGrant::query()
+            ->where('paid_leave_account_id', $account->id)
+            ->where('remaining_minutes', '>', 0)
+            ->whereDate('granted_at', '<=', $usedOn->toDateString())
+            ->where(function ($query) use ($usedOn) {
+                $query->whereNull('expires_at')
+                    ->orWhereDate('expires_at', '>=', $usedOn->toDateString());
+            })
+            ->sum('remaining_minutes');
+    }
+
+    private function nextExpectedGrantDateAfter(PaidLeaveAccount $account, PaidLeavePolicy $policy, Carbon $after): ?Carbon
+    {
+        if (! $account->joined_date) {
+            return null;
+        }
+
+        $grantDate = Carbon::parse($account->joined_date)
+            ->startOfDay()
+            ->addMonthsNoOverflow((int) $policy->first_grant_after_months);
+        $intervalMonths = max(1, (int) $policy->annual_grant_interval_months);
+        $effectiveFrom = $policy->effective_from
+            ? Carbon::parse($policy->effective_from)->startOfDay()
+            : null;
+
+        while (
+            $grantDate->lessThanOrEqualTo($after)
+            || ($effectiveFrom && $grantDate->lessThan($effectiveFrom))
+        ) {
+            $grantDate->addMonthsNoOverflow($intervalMonths);
+        }
+
+        return $grantDate;
     }
 
     private function createUsage(PaidLeaveAccount $account, shiftRecord $shift, int $amount, PaidLeavePolicy $policy, ?int $createdByUserId = null): void
