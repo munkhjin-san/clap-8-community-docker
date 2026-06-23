@@ -20,7 +20,7 @@ const props = defineProps<{
 const show = computed(() => {
     const plan = Number(props.planned)
     const actual = Number(props.actual)
-    if(!plan || !actual) return false
+    if(isNaN(plan) || isNaN(actual)) return false
     if(plan === actual) return false
     return actual - plan
 
