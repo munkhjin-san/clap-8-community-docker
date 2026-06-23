@@ -1348,6 +1348,11 @@ class PaidLeaveLedgerService
             return false;
         }
 
+        $shiftDay = $shift->shift_day ? Carbon::parse($shift->shift_day)->startOfDay() : null;
+        if (! $shiftDay || $shiftDay->greaterThan($cutoff->copy()->startOfDay())) {
+            return false;
+        }
+
         if ($this->shiftCreatedNoLaterThan($shift, $cutoff)) {
             return true;
         }

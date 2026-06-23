@@ -504,17 +504,40 @@ class WorkController extends Controller
                 ? $time_card->project_segments->isNotEmpty()
                 : $time_card->project_segments()->exists())
             : false;
-        $hasOvertimeProjectSegments = $overtimeRequest && is_array($overtimeRequest->project_segments) && count($overtimeRequest->project_segments) > 0;
         $dailyReportApproveOrDeny = !$hasProjectSegments && $dailyReportStatus == timecardRecord::STATUS_SUBMITTED && ($authority || $force) && !$has_attendance;
         $dailyReportCancel = !$hasProjectSegments && $dailyReportStatus == timecardRecord::STATUS_APPROVED && ($authority || $force) && !$has_attendance;
-        $overtimeApproveOrDeny = !$hasOvertimeProjectSegments && $overtimeStatus == 1 && ($authority || $force) && !$has_attendance;
-        $overtimeCancel = !$hasOvertimeProjectSegments && $overtimeStatus == 2 && ($authority || $force) && !$has_attendance;
+        $canManageWholeOvertimeRequest = $overtimeRequest && !$has_attendance && $this->canManageWholeOvertimeRequest($active_user, $overtimeRequest, $authority);
+        $overtimeApproveOrDeny = $overtimeStatus == 1 && $canManageWholeOvertimeRequest;
+        $overtimeCancel = $overtimeStatus == 2 && $canManageWholeOvertimeRequest;
         return [
             $dailyReportApproveOrDeny,
             $dailyReportCancel,
             $overtimeApproveOrDeny,
             $overtimeCancel
         ];
+    }
+
+    private function canManageWholeOvertimeRequest(User $activeUser, ShiftOvertimeRequest $overtimeRequest, bool $authority): bool
+    {
+        if (!$activeUser->isAdmin() && (int) $overtimeRequest->user_id === (int) $activeUser->id) {
+            return false;
+        }
+
+        if ($activeUser->isAdmin() || (int) $activeUser->work_authority === 1) {
+            return true;
+        }
+
+        $projectIds = collect(is_array($overtimeRequest->project_segments) ? $overtimeRequest->project_segments : [])
+            ->map(fn ($segment) => (int) ($segment['project_id'] ?? 0))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($projectIds->isEmpty()) {
+            return $authority;
+        }
+
+        return $projectIds->every(fn (int $projectId) => $activeUser->isProjectManager($projectId));
     }
 
     private function canManageProjectSegment(User $activeUser, TimecardProjectSegment $segment, User $targetUser): bool
@@ -682,11 +705,15 @@ class WorkController extends Controller
         $today_or_future = empty($shift) ? false : $date->format('Y-m-d') >= date('Y-m-d');
         $possibleTypes = [1,6,7,8,9,10,11,12,13];
         $userMatch = $user->id == $active_user->id;       
+        $overtimeRequestStatus = $shift?->overtime_request ? (int) $shift->overtime_request->status : null;
+        $rejectedOvertimeRequest = $overtimeRequestStatus === 0;
         $timeCardCheck = empty($time_card)
             || (int) $time_card->status_flag === timecardRecord::STATUS_REJECTED
             || (int) $time_card->status_flag === timecardRecord::STATUS_DRAFT;
-        $overtimeRequestEditable = !$shift?->overtime_request || (int) $shift->overtime_request->status === 0;
-        return !$has_attendance && $today_or_future && in_array($shift->shiftType->id, $possibleTypes) && $userMatch && $timeCardCheck && $active_user->position_id !== 15 && $overtimeRequestEditable;
+        $dateAllowsEdit = $today_or_future || $rejectedOvertimeRequest;
+        $reportAllowsEdit = $rejectedOvertimeRequest || $timeCardCheck;
+        $overtimeRequestEditable = !$shift?->overtime_request || $rejectedOvertimeRequest;
+        return !$has_attendance && $dateAllowsEdit && in_array($shift->shiftType->id, $possibleTypes) && $userMatch && $reportAllowsEdit && $active_user->position_id !== 15 && $overtimeRequestEditable;
     }
     private function has_daily_report($shift, $time_card, $day, $user, $active_user, $has_attendace, $authority){
         $timecardExist = $time_card !== null;
@@ -1642,18 +1669,21 @@ class WorkController extends Controller
         if (!$overTimeRequest) {
             return;
         }
+        $calculatedMinute = max(0, (int) $calculatedMinute);
+        if ($calculatedMinute <= 0) {
+            return;
+        }
         $existingProjectSegments = $overTimeRequest->project_segments ?? [];
+        $requestedMinutes = max(0, (int) $overTimeRequest->minutes);
         $contentByProject = $this->overtimeProjectContentByProject($overTimeRequest->project_segments ?? [], $overTimeRequest->content);
         $fallbackContent = $this->overtimeReasonFromRequest($request) ?: $overTimeRequest->content;
-        $overtimeProjectSegments = $calculatedMinute > 0
-            ? $this->overtimeProjectSegmentsFromTimecardSegments($projectSegments, $regularMinutes, $contentByProject, $fallbackContent)
-            : [];
-        $requiresProjectSegmentSync = $calculatedMinute > 0
+        $overtimeProjectSegments = $this->overtimeProjectSegmentsFromTimecardSegments($projectSegments, $regularMinutes, $contentByProject, $fallbackContent);
+        $requiresProjectSegmentSync = $calculatedMinute === $requestedMinutes
             && empty($existingProjectSegments)
             && !empty($overtimeProjectSegments);
         $isSubmittedTimecard = (int) ($request->status_flag ?? timecardRecord::STATUS_DRAFT) === timecardRecord::STATUS_SUBMITTED;
         $requiresReapproval = ($isSubmittedTimecard && (int) $overTimeRequest->status === 0)
-            || $calculatedMinute > (int) $overTimeRequest->minutes
+            || $calculatedMinute > $requestedMinutes
             || $this->overtimeProjectSegmentsExceedApproval($overtimeProjectSegments, $overTimeRequest->project_segments);
 
         if (!$requiresReapproval && !$requiresProjectSegmentSync) {
@@ -1662,16 +1692,27 @@ class WorkController extends Controller
 
         $nextStatus = $requiresReapproval ? 1 : (int) $overTimeRequest->status;
         $overTimeRequest->status = $nextStatus;
-        $overtimeProjectSegments = $this->mergeOvertimeProjectSegmentApprovalMetadata(
-            $overtimeProjectSegments,
-            $existingProjectSegments,
-            $nextStatus
-        );
-        if ($requiresReapproval) {
-            $overTimeRequest->minutes = $calculatedMinute;
+        $overTimeRequest->approved_by = $nextStatus === 2 ? $overTimeRequest->approved_by : null;
+
+        if ($requiresProjectSegmentSync) {
+            $overtimeProjectSegments = $this->mergeOvertimeProjectSegmentApprovalMetadata(
+                $overtimeProjectSegments,
+                $existingProjectSegments,
+                $nextStatus
+            );
+            $overTimeRequest->project_segments = $overtimeProjectSegments;
+            $overTimeRequest->status = $this->deriveOvertimeRequestStatus($overtimeProjectSegments, $nextStatus);
+        } elseif ($requiresReapproval && is_array($existingProjectSegments) && !empty($existingProjectSegments)) {
+            $overTimeRequest->project_segments = array_map(function ($segment) use ($nextStatus) {
+                if (!is_array($segment)) {
+                    return $segment;
+                }
+                $segment['status'] = $nextStatus;
+                unset($segment['approved_by'], $segment['approved_at'], $segment['rejected_by'], $segment['rejected_at']);
+                return $this->overtimeSegmentWithStatus($segment, $nextStatus);
+            }, $existingProjectSegments);
         }
-        $overTimeRequest->project_segments = $overtimeProjectSegments;
-        $overTimeRequest->status = $this->deriveOvertimeRequestStatus($overtimeProjectSegments, (int) $overTimeRequest->status);
+
         $overTimeRequest->save();
     }
     private function calcNightSeconds(string $startTime, string $endTime, int $breakMinutes = 0): int
