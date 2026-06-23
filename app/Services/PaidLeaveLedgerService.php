@@ -24,6 +24,8 @@ class PaidLeaveLedgerService
 
     private const PART_TIME_POSITION_ID = 15;
 
+    private const PART_TIME_PAID_LEAVE_USER_IDS = [545];
+
     private const PLANNED_LEAVE_PLANNING_OPEN_DAY = 20;
 
     private const PART_TIME_GRANT_TABLE = [
@@ -140,14 +142,23 @@ class PaidLeaveLedgerService
         ];
     }
 
-    public function generateDueGrants(Carbon $runDate, ?Carbon $fromDate = null): array
+    public function generateDueGrants(Carbon $runDate, ?Carbon $fromDate = null, ?int $userId = null): array
     {
         $policy = $this->activePolicy();
         $rules = $policy->rules->where('active', true)->sortBy('service_months')->values();
         $fromDate = $fromDate ?: ($policy->effective_from ?: $runDate);
-        $summary = ['checked' => 0, 'created' => 0, 'skipped_existing' => 0, 'skipped_no_rule' => 0, 'skipped_no_joined_date' => 0, 'skipped_attendance' => 0];
+        $summary = [
+            'checked' => 0,
+            'created' => 0,
+            'skipped_existing' => 0,
+            'skipped_kintone_synced' => 0,
+            'skipped_no_rule' => 0,
+            'skipped_no_joined_date' => 0,
+            'skipped_attendance' => 0,
+        ];
 
         User::query()
+            ->when($userId, fn ($query) => $query->where('id', $userId))
             ->where('partner_flag', 0)
             ->whereNotNull('joined_date')
             ->where(function ($query) {
@@ -165,21 +176,26 @@ class PaidLeaveLedgerService
                     }
 
                     $account = $this->ensureAccount($user);
+                    $openingBalanceCutoff = $this->kintoneOpeningBalanceCutoff($account);
                     $grantDate = $joined->copy()->addMonthsNoOverflow((int) $policy->first_grant_after_months);
                     
                     while ($grantDate->lessThanOrEqualTo($runDate)) {
                         if ($grantDate->greaterThanOrEqualTo($fromDate)) {
-                            $serviceMonths = $this->serviceMonths($joined, $grantDate);
-                            $attendance = $this->attendanceSummaryForGrant($user, $joined, $grantDate, $policy);
-                            $grantPlan = $this->grantPlanForUser($user, $policy, $rules, $joined, $grantDate, $serviceMonths, $attendance);
-
-                            if (! $attendance['eligible']) {
-                                $summary['skipped_attendance']++;
-                            } elseif (! $grantPlan) {
-                                $summary['skipped_no_rule']++;
+                            if ($openingBalanceCutoff && $grantDate->lessThanOrEqualTo($openingBalanceCutoff->copy()->startOfDay())) {
+                                $summary['skipped_kintone_synced']++;
                             } else {
-                                $created = $this->createAnnualGrantIfMissing($account, $policy, $grantPlan, $grantDate, $serviceMonths, $attendance);
-                                $summary[$created ? 'created' : 'skipped_existing']++;
+                                $serviceMonths = $this->serviceMonths($joined, $grantDate);
+                                $attendance = $this->attendanceSummaryForGrant($user, $joined, $grantDate, $policy);
+                                $grantPlan = $this->grantPlanForUser($user, $policy, $rules, $joined, $grantDate, $serviceMonths, $attendance);
+
+                                if (! $attendance['eligible']) {
+                                    $summary['skipped_attendance']++;
+                                } elseif (! $grantPlan) {
+                                    $summary['skipped_no_rule']++;
+                                } else {
+                                    $created = $this->createAnnualGrantIfMissing($account, $policy, $grantPlan, $grantDate, $serviceMonths, $attendance);
+                                    $summary[$created ? 'created' : 'skipped_existing']++;
+                                }
                             }
                         }
 
@@ -877,7 +893,7 @@ class PaidLeaveLedgerService
             return null;
         }
 
-        if ((int) ($user->position_id ?? 0) === self::PART_TIME_POSITION_ID) {
+        if ($this->isPartTimePaidLeaveUser($user)) {
             return $this->expectedGrantDaysFor($account, $policy, $grantDate);
         }
 
@@ -1081,7 +1097,7 @@ class PaidLeaveLedgerService
 
     private function grantPlanForUser(User $user, PaidLeavePolicy $policy, Collection $rules, Carbon $joined, Carbon $grantDate, int $serviceMonths, array $attendance): ?array
     {
-        if ((int) ($user->position_id ?? 0) === self::PART_TIME_POSITION_ID) {
+        if ($this->isPartTimePaidLeaveUser($user)) {
             return $this->partTimeGrantPlanForUser($user, $policy, $rules, $joined, $grantDate, $serviceMonths, $attendance);
         }
 
@@ -1142,6 +1158,12 @@ class PaidLeaveLedgerService
         }
 
         return null;
+    }
+
+    private function isPartTimePaidLeaveUser(User $user): bool
+    {
+        return (int) ($user->position_id ?? 0) === self::PART_TIME_POSITION_ID
+            || in_array((int) $user->id, self::PART_TIME_PAID_LEAVE_USER_IDS, true);
     }
 
     private function attendanceSummaryForGrant(User $user, Carbon $joined, Carbon $grantDate, PaidLeavePolicy $policy): array
@@ -1320,6 +1342,11 @@ class PaidLeaveLedgerService
     }
 
     private function externallyReflectedPlannedLeaveCutoff(PaidLeaveAccount $account): ?Carbon
+    {
+        return $this->kintoneOpeningBalanceCutoff($account);
+    }
+
+    private function kintoneOpeningBalanceCutoff(PaidLeaveAccount $account): ?Carbon
     {
         $openingGrant = PaidLeaveGrant::query()
             ->where('paid_leave_account_id', $account->id)

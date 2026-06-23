@@ -13,7 +13,10 @@ class ReconcilePaidLeaveUsages extends Command
         {--from= : Start date YYYY-MM-DD, defaults to today}
         {--to= : End date YYYY-MM-DD, defaults to one year from today}
         {--user_id= : Limit to one Glowd user id}
-        {--user_code= : Limit to one employee code}';
+        {--user_code= : Limit to one employee code}
+        {--grant-date= : Due-grant run date YYYY-MM-DD. Defaults to today and does not use --to}
+        {--grant-from= : Earliest due grant date to create before reconciling. Defaults to active policy effective date, or grant-date}
+        {--skip-grants : Do not generate due grants before reconciling usages}';
 
     protected $description = 'Reconcile paid-leave shift records into the paid-leave ledger.';
 
@@ -28,6 +31,28 @@ class ReconcilePaidLeaveUsages extends Command
         $userId = $this->resolveUserId();
         if ($userId === 0) {
             return self::FAILURE;
+        }
+
+        if (! $this->option('skip-grants')) {
+            $grantRunDate = $this->option('grant-date')
+                ? Carbon::parse((string) $this->option('grant-date'))->startOfDay()
+                : Carbon::today()->startOfDay();
+            $grantFromDate = $this->option('grant-from')
+                ? Carbon::parse((string) $this->option('grant-from'))->startOfDay()
+                : null;
+            $grantSummary = $paidLeaveLedger->generateDueGrants($grantRunDate, $grantFromDate, $userId);
+
+            $this->info('Due paid leave grants checked.');
+            $this->table(
+                ['Metric', 'Count'],
+                collect([
+                    'grant_run_date' => $grantRunDate->toDateString(),
+                    'grant_from' => $grantFromDate?->toDateString() ?? 'policy/default',
+                    ...$grantSummary,
+                ])
+                    ->map(fn ($value, $key) => [$key, $value])
+                    ->values()
+            );
         }
 
         $summary = $paidLeaveLedger->reconcileShiftUsages($from, $to, $userId);
