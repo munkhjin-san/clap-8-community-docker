@@ -942,7 +942,14 @@ import Project from '../Icons/Project.vue';
 
         const segmentId = Number(cost?.timecard_project_segment_id ?? 0)
         if (segmentId > 0) {
-            return Number(entry.id ?? 0) === segmentId
+            if (entries.some(item => Number(item?.id ?? 0) === segmentId)) {
+                return Number(entry.id ?? 0) === segmentId
+            }
+
+            const sameProjectEntries = entries.filter(item => Number(item?.project_id ?? 0) === Number(entry.project_id))
+            return sameProjectEntries.length === 1
+                && sameProjectEntries[0]?.key === entry.key
+                && costBelongsToProject(cost, entry.project_id)
         }
 
         return firstEntryForProject(entry, entries)?.key === entry.key && costBelongsToProject(cost, entry.project_id)
@@ -1120,7 +1127,15 @@ import Project from '../Icons/Project.vue';
         }
 
         const segmentId = Number(cost?.timecard_project_segment_id ?? 0)
-        return segmentId > 0 && Number(entry.id ?? 0) === segmentId
+        if (segmentId <= 0) return false
+        if (projectTimeEntries.value.some(item => Number(item?.id ?? 0) === segmentId)) {
+            return Number(entry.id ?? 0) === segmentId
+        }
+
+        const sameProjectEntries = projectTimeEntries.value.filter(item => Number(item?.project_id ?? 0) === Number(entry.project_id))
+        return sameProjectEntries.length === 1
+            && sameProjectEntries[0]?.key === entry.key
+            && costBelongsToProject(cost, entry.project_id)
     }
     const removeCostsForProjectId = (projectId) => {
         if (!projectId) return

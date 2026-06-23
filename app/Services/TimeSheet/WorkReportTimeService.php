@@ -197,6 +197,7 @@ class WorkReportTimeService
 
         if ($incomingSegments->isEmpty() && $hasWorkHours && filled($request->department)) {
             $incomingSegments = collect([[
+                'id' => null,
                 'project_id' => (int) $request->department,
                 'segment_type' => TimecardProjectSegment::TYPE_WORK,
                 'start_time' => $this->normalizeTime($request->start_time),
@@ -227,7 +228,7 @@ class WorkReportTimeService
                 }
 
                 return [
-                    'id' => $segment['id'],
+                    'id' => $segment['id'] ?? null,
                     'project_id' => $segment['project_id'],
                     'segment_type' => $segment['segment_type'],
                     'start_time' => $segment['start_time'],

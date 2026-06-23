@@ -2678,20 +2678,23 @@ class WorkController extends Controller
     }
     private function attachProjectSegmentIdsToIncomingCosts(array $costs, timecardRecord $timecard): array
     {
-        $savedSegmentsByKey = $timecard->project_segments()
-            ->get()
-            ->keyBy(fn (TimecardProjectSegment $segment) => $this->projectSegmentVehicleMatchKey($segment));
+        $savedSegments = $timecard->project_segments()->get();
+        $savedSegmentsById = $savedSegments->keyBy('id');
+        $savedSegmentsByKey = $savedSegments->keyBy(fn (TimecardProjectSegment $segment) => $this->projectSegmentVehicleMatchKey($segment));
 
-        return array_map(function (array $cost) use ($savedSegmentsByKey) {
-            if (filled(Arr::get($cost, 'timecard_project_segment_id'))) {
-                return $cost;
-            }
-
+        return array_map(function (array $cost) use ($savedSegmentsById, $savedSegmentsByKey) {
             $segmentKey = Arr::get($cost, 'project_segment_key');
             if (filled($segmentKey) && $savedSegmentsByKey->has($segmentKey)) {
                 $cost['timecard_project_segment_id'] = $savedSegmentsByKey->get($segmentKey)->id;
+                return $cost;
             }
 
+            $segmentId = Arr::get($cost, 'timecard_project_segment_id');
+            if (filled($segmentId) && $savedSegmentsById->has((int) $segmentId)) {
+                return $cost;
+            }
+
+            unset($cost['timecard_project_segment_id']);
             return $cost;
         }, $costs);
     }
