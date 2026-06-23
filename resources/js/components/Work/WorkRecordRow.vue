@@ -137,7 +137,7 @@
                                         @click.stop="toggleProjectDetailBox(mobileSegment, detail)"
                                     >
                                         <span>{{ detail.label }}</span>
-                                        <strong>{{ detail.value }}</strong>
+                                        <strong v-if="detail.type !== 'comment' && detail.type !== 'incident'">{{ detail.value }}</strong>
                                     </button>
                                     <div
                                         v-if="isProjectDetailBoxOpen(mobileSegment)"
@@ -1034,7 +1034,7 @@ const allowanceForSegment = (segment) => {
 const incidentForSegment = (segment) => {
     const incident = String(segmentDetailValues(segment).incident ?? '').trim()
     const label = props.item?.incident ?? ''
-    if (segmentHasDetail(segment, 'incident') && incident) {
+    if (segmentHasDetail(segment, 'incident') && incident && incident !== 'なし') {
         return incident
     }
     if (segmentHasDetail(segment, 'incident')) {
