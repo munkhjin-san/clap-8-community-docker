@@ -1,6 +1,6 @@
 <template>
     <div class="h-[calc(100%-75px)] relative overflow-y-auto" ref="scrollContainer" @scroll="handleScroll"> 
-        <div class="project-detail flex flex-col gap-[15px]" :class="{'!pb-[70px] md:!pb-5': hasPrivilage && (auth.isBoss || auth.isAdmin) && selectedProject?.status == 'pending_director'}">
+        <div class="project-detail flex flex-col gap-[15px] px-5" :class="{'!pb-[70px] md:!pb-5': hasPrivilage && (auth.isBoss || auth.isAdmin) && selectedProject?.status == 'pending_director'}">
             <div v-if="hasPrivilage" class="ml-auto sticky top-0 z-10">
                 <div class="flex gap-4 items-center">
                     <!-- Desktop: inline approval buttons -->
