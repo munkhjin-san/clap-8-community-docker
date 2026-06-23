@@ -33,8 +33,20 @@ class ReconcilePaidLeaveUsages extends Command
         $summary = $paidLeaveLedger->reconcileShiftUsages($from, $to, $userId);
 
         $this->info('Paid leave usages reconciled.');
-        $this->line('Paid leave shifts: ' . $summary['paid_leave_shifts']);
-        $this->line('User-months: ' . $summary['reconciled_user_months']);
+        $this->table(['Metric', 'Count'], [
+            ['Candidate paid-leave shifts', $summary['paid_leave_shifts']],
+            ['User-months scanned', $summary['reconciled_user_months']],
+            ['Active paid-leave shifts in scanned months', $summary['active_paid_leave_shifts']],
+            ['Usages created', $summary['created_usages']],
+            ['Usages replaced', $summary['replaced_usages']],
+            ['Existing usages skipped', $summary['skipped_existing']],
+            ['Kintone-reflected planned leaves skipped', $summary['skipped_externally_reflected_planned']],
+            ['Kintone-reflected usages removed', $summary['removed_externally_reflected_usages']],
+            ['Zero-amount shifts skipped', $summary['skipped_zero_amount']],
+            ['Stale usages deleted', $summary['deleted_stale_usages']],
+            ['User-months skipped: user not found', $summary['skipped_no_user']],
+            ['User-months skipped: no authoritative balance', $summary['skipped_no_authoritative_balance']],
+        ]);
 
         return self::SUCCESS;
     }

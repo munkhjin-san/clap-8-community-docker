@@ -322,16 +322,22 @@ class PaidLeaveLedgerService
         return $summary;
     }
 
-    public function reconcileShiftUsagesForUserMonth(int $userId, int $year, int $month, ?int $createdByUserId = null): void
+    public function reconcileShiftUsagesForUserMonth(int $userId, int $year, int $month, ?int $createdByUserId = null): array
     {
-        $user = User::query()->select('id', 'user_code', 'joined_date', 'retire')->find($userId);
+        $summary = $this->emptyUsageReconcileSummary();
+        $user = User::query()
+            ->select('id', 'user_code', 'joined_date', 'retire')->find($userId);
         if (! $user) {
-            return;
+            $summary['skipped_no_user']++;
+
+            return $summary;
         }
 
         $account = $this->ensureAccount($user);
         if (! $this->accountHasAuthoritativeBalance($account)) {
-            return;
+            $summary['skipped_no_authoritative_balance']++;
+
+            return $summary;
         }
 
         $policy = $this->activePolicy();
@@ -339,7 +345,7 @@ class PaidLeaveLedgerService
         $end = $start->copy()->endOfMonth();
         $externallyReflectedPlannedLeaveCutoff = $this->externallyReflectedPlannedLeaveCutoff($account);
 
-        DB::transaction(function () use ($account, $policy, $start, $end, $createdByUserId, $externallyReflectedPlannedLeaveCutoff) {
+        return DB::transaction(function () use ($account, $policy, $start, $end, $createdByUserId, $externallyReflectedPlannedLeaveCutoff, $summary) {
             $activePaidLeaveShifts = shiftRecord::query()
                 ->where('user_id', $account->user_id)
                 ->whereBetween('shift_day', [$start->toDateString(), $end->toDateString()])
@@ -348,22 +354,25 @@ class PaidLeaveLedgerService
                 ->orderBy('id')
                 ->get()
                 ->filter(fn (shiftRecord $shift) => $this->isPaidLeaveShift($shift));
+            $summary['active_paid_leave_shifts'] = $activePaidLeaveShifts->count();
 
             $activeSourceKeys = $activePaidLeaveShifts->map(fn (shiftRecord $shift) => "shift:{$shift->id}")->all();
 
-            PaidLeaveUsage::query()
+            $staleUsages = PaidLeaveUsage::query()
                 ->where('paid_leave_account_id', $account->id)
                 ->where('source_system', 'glowd')
                 ->whereBetween('used_on', [$start->toDateString(), $end->toDateString()])
                 ->where('source_key', 'like', 'shift:%')
                 ->whereNotIn('source_key', $activeSourceKeys ?: ['__none__'])
                 ->with('allocations.grant')
-                ->get()
-                ->each(fn (PaidLeaveUsage $usage) => $this->deleteUsageAndRestoreGrants($usage));
+                ->get();
+            $summary['deleted_stale_usages'] += $staleUsages->count();
+            $staleUsages->each(fn (PaidLeaveUsage $usage) => $this->deleteUsageAndRestoreGrants($usage));
 
             foreach ($activePaidLeaveShifts as $shift) {
                 $amount = $this->paidLeaveMinutesForShift($shift, $policy, $account);
                 if ($amount <= 0) {
+                    $summary['skipped_zero_amount']++;
                     continue;
                 }
 
@@ -377,23 +386,30 @@ class PaidLeaveLedgerService
 
                 // Kintone opening balances are already net of planned leaves that existed at import time.
                 if ($this->isExternallyReflectedPlannedLeaveShift($shift, $externallyReflectedPlannedLeaveCutoff)) {
+                    $summary['skipped_externally_reflected_planned']++;
                     if ($existing) {
                         $this->deleteUsageAndRestoreGrants($existing);
+                        $summary['removed_externally_reflected_usages']++;
                     }
 
                     continue;
                 }
 
                 if ($existing && (int) $existing->amount_minutes === $amount && (string) $existing->usage_type === $usageType) {
+                    $summary['skipped_existing']++;
                     continue;
                 }
 
                 if ($existing) {
                     $this->deleteUsageAndRestoreGrants($existing);
+                    $summary['replaced_usages']++;
                 }
 
                 $this->createUsage($account, $shift, $amount, $policy, $createdByUserId);
+                $summary['created_usages']++;
             }
+
+            return $summary;
         });
     }
 
@@ -430,13 +446,19 @@ class PaidLeaveLedgerService
             ->unique('key')
             ->values();
 
+        $usageSummary = $this->emptyUsageReconcileSummary();
+
         foreach ($periods as $period) {
-            $this->reconcileShiftUsagesForUserMonth($period['user_id'], $period['year'], $period['month']);
+            $usageSummary = $this->mergeUsageReconcileSummary(
+                $usageSummary,
+                $this->reconcileShiftUsagesForUserMonth($period['user_id'], $period['year'], $period['month']),
+            );
         }
 
         return [
             'paid_leave_shifts' => $shifts->count(),
             'reconciled_user_months' => $periods->count(),
+            ...$usageSummary,
         ];
     }
 
@@ -1263,6 +1285,31 @@ class PaidLeaveLedgerService
             ])
             ->values()
             ->all();
+    }
+
+    private function emptyUsageReconcileSummary(): array
+    {
+        return [
+            'active_paid_leave_shifts' => 0,
+            'created_usages' => 0,
+            'replaced_usages' => 0,
+            'skipped_existing' => 0,
+            'skipped_externally_reflected_planned' => 0,
+            'removed_externally_reflected_usages' => 0,
+            'skipped_zero_amount' => 0,
+            'deleted_stale_usages' => 0,
+            'skipped_no_user' => 0,
+            'skipped_no_authoritative_balance' => 0,
+        ];
+    }
+
+    private function mergeUsageReconcileSummary(array $base, array $addition): array
+    {
+        foreach ($this->emptyUsageReconcileSummary() as $key => $value) {
+            $base[$key] = (int) ($base[$key] ?? 0) + (int) ($addition[$key] ?? 0);
+        }
+
+        return $base;
     }
 
     private function accountHasAuthoritativeBalance(PaidLeaveAccount $account): bool
