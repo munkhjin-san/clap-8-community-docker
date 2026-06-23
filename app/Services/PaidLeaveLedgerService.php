@@ -777,7 +777,12 @@ class PaidLeaveLedgerService
 
     private function plannedRequiredMinutesForGrantDays(float $grantDays, int $minutesPerDay): int
     {
-        $requiredDays = (int) floor($grantDays / 2);
+        $requiredDays = match (true) {
+            $grantDays <= 0 => 0,
+            $grantDays <= 12 => 5,
+            $grantDays <= 16 => 7,
+            default => 10,
+        };
 
         return $requiredDays > 0 ? $this->daysToMinutes($requiredDays, $minutesPerDay) : 0;
     }
