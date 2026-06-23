@@ -349,6 +349,10 @@ import Trash from "@/components/Icons/Trash.vue";
 import LongInput from "@/components/Form/LongInput.vue";
 import { useRoute } from "vue-router";
 
+const props = defineProps<{
+    assignDataList: ProjectAssignRecord[]
+}>();
+
 const emit = defineEmits<{
     close: [flag:boolean]
     update: []
@@ -394,6 +398,12 @@ const initialize = async(memberId: number) => {
     if(!memberId || !selectedProject.value) return;
     refreshing.value = true;
     await getMemberData();
+    const findRole = props.assignDataList.find(assignData => assignData.user_id === memberId);
+    if(findRole && findRole.project_member_role){
+        selectedRole.value = findRole.project_member_role.id;
+    } else {
+        selectedRole.value = null;
+    }   
     refreshing.value = false;
     initializing.value = false;
 }

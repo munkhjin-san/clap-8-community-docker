@@ -108,7 +108,9 @@
         </div>
         <router-view v-slot="{ Component }">
         <component 
+            v-if="isReady"
             :is="Component"
+            :assignDataList="assignDataList"
             @close="router.back()"
             @update="fetchMembersAssignData"
         />
@@ -142,6 +144,7 @@ const route = useRoute()
 const nonMemberUsers = ref<ProjectMember[]>([])
 const menu = useMenuStore()
 const searchName = ref<string>('');
+const isReady = ref(false);
 onMounted(() => {
     fetchMembersAssignData()
 })
@@ -164,6 +167,7 @@ const fetchMembersAssignData = async () => {
         console.error("Failed to fetch members for assignment:", error);
     } finally {
         fetching.value = false;
+        isReady.value = true;
     }
 }
 
