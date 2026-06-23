@@ -1037,6 +1037,9 @@ const incidentForSegment = (segment) => {
     if (segmentHasDetail(segment, 'incident') && incident && incident !== 'なし') {
         return incident
     }
+    if (label === 'なし') {
+        return ''
+    }
     if (segmentHasDetail(segment, 'incident')) {
         return firstSegmentWithDetail('incident') === segment ? label : ''
     }
