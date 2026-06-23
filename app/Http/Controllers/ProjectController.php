@@ -843,7 +843,7 @@ class ProjectController extends Controller
 
         $isNew = !$id;
         $newStatus = $filteredParams['status'];
-        $oldStatus = $id ? $record->status : null;
+        $oldStatus = $id ? $project->status : null;
 
         $isFirstSubmit =
             ($isNew && $newStatus !== 'draft') ||
