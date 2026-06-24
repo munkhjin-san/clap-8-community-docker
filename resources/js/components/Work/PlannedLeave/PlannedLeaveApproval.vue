@@ -192,6 +192,7 @@ onBeforeUnmount(() => {
     border-top: 1px solid var(--calendarBorder);
     flex: 1 1 auto;
     display: flex;
+    overflow: auto;
 }
 .approval-header,
 .approval-actions {

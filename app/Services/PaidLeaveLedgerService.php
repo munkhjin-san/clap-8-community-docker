@@ -342,6 +342,7 @@ class PaidLeaveLedgerService
     {
         $summary = $this->emptyUsageReconcileSummary();
         $user = User::query()
+            ->where('retire', 0)
             ->select('id', 'user_code', 'joined_date', 'retire')->find($userId);
         if (! $user) {
             $summary['skipped_no_user']++;
