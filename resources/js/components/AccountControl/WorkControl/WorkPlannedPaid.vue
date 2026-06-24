@@ -51,7 +51,7 @@
                 <tbody>
                     <tr
                         v-for="row in periodRows"
-                        :key="`${row.user.id}-${row.period.grant_id}`"
+                        :key="`${row.user.id}-${row.period.id}`"
                         :class="{ short: row.period.status === 'short' }"
                     >
                         <td>{{ row.user.name }}</td>
@@ -191,7 +191,9 @@ const filteredData = computed(() => {
 
 const periodRows = computed(() => {
     return filteredData.value.flatMap(user => {
-        return (user.grant_periods || []).map(period => ({ user, period }))
+        return (user.grant_periods || [])
+            .filter(period => Number(period.planned_year) === Number(year.value))
+            .map(period => ({ user, period }))
     })
 })
 

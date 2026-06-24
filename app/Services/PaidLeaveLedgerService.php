@@ -746,6 +746,13 @@ class PaidLeaveLedgerService
         return shiftRecord::query()
             ->where('user_id', $userId)
             ->where('shift_type', 3)
+            ->whereNull('deleted_at')
+            ->whereNotExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('shift_records as newer_shift_records')
+                    ->whereColumn('newer_shift_records.descendant_of', 'shift_records.id')
+                    ->whereNull('newer_shift_records.deleted_at');
+            })
             ->whereBetween('shift_day', [$periodStart->toDateString(), $periodEnd->toDateString()])
             ->with(['old_shift' => function ($query) {
                 $query->select('id', 'shift_day', 'shift_type')->with('shiftType')->withTrashed();
@@ -812,6 +819,7 @@ class PaidLeaveLedgerService
     private function plannedLeavePeriodsForUserModel(User $user, PaidLeavePolicy $policy, ?int $year, Carbon $asOf, bool $includeExpected): Collection
     {
         $asOf = $asOf->copy()->startOfDay();
+        $requestedYear = $year ? (int) $year : null;
         $targetYears = collect($year ? [$year] : [$asOf->year - 1, $asOf->year, $asOf->year + 1])
             ->map(fn ($value) => (int) $value)
             ->unique()
@@ -837,7 +845,11 @@ class PaidLeaveLedgerService
 
             $periodStart = $grant->granted_at->copy()->startOfDay();
             $periodEnd = $periodStart->copy()->addYear()->subDay();
-            if (! $targetYears->contains(fn (int $targetYear) => $this->periodOverlapsYear($periodStart, $periodEnd, $targetYear))) {
+            if ($requestedYear !== null && (int) $periodStart->year !== $requestedYear) {
+                continue;
+            }
+
+            if ($requestedYear === null && ! $targetYears->contains(fn (int $targetYear) => $this->periodOverlapsYear($periodStart, $periodEnd, $targetYear))) {
                 continue;
             }
 
@@ -856,7 +868,7 @@ class PaidLeaveLedgerService
 
         if ($includeExpected) {
             $expectedYears = $year
-                ? collect([$year - 1, $year, $year + 1])
+                ? collect([$year])
                 : $targetYears;
 
             foreach ($expectedYears->unique()->values() as $targetYear) {
@@ -878,7 +890,11 @@ class PaidLeaveLedgerService
 
                 $periodStart = $expectedGrantDate->copy()->startOfDay();
                 $periodEnd = $periodStart->copy()->addYear()->subDay();
-                if (! $targetYears->contains(fn (int $targetYear) => $this->periodOverlapsYear($periodStart, $periodEnd, $targetYear))) {
+                if ($requestedYear !== null && (int) $periodStart->year !== $requestedYear) {
+                    continue;
+                }
+
+                if ($requestedYear === null && ! $targetYears->contains(fn (int $targetYear) => $this->periodOverlapsYear($periodStart, $periodEnd, $targetYear))) {
                     continue;
                 }
 
@@ -895,11 +911,15 @@ class PaidLeaveLedgerService
         }
 
         foreach ($targetYears as $targetYear) {
-            if ($periods->contains(fn (array $period) => $this->periodOverlapsYear(
-                Carbon::parse($period['period_start'])->startOfDay(),
-                Carbon::parse($period['period_end'])->endOfDay(),
-                (int) $targetYear
-            ))) {
+            $hasPeriod = $requestedYear !== null
+                ? $periods->contains(fn (array $period) => (int) $period['planned_year'] === (int) $targetYear)
+                : $periods->contains(fn (array $period) => $this->periodOverlapsYear(
+                    Carbon::parse($period['period_start'])->startOfDay(),
+                    Carbon::parse($period['period_end'])->endOfDay(),
+                    (int) $targetYear
+                ));
+
+            if ($hasPeriod) {
                 continue;
             }
 
