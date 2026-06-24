@@ -337,7 +337,7 @@ const formatDays = (value) => {
 .planned-table th {
     /* border: 1px solid var(--formBorder); */
     padding: 8px;
-    vertical-align: top;
+    vertical-align: middle;
 }
 
 .planned-table th {
