@@ -741,11 +741,12 @@ class PaidLeaveLedgerService
         return $this->adminLedgerHistory($account->fresh());
     }
 
-    private function plannedShiftsForPeriod(int $userId, Carbon $periodStart, Carbon $periodEnd): Collection
+    private function plannedShiftsForPeriod(int $userId, Carbon $periodStart, Carbon $periodEnd, int $plannedYear): Collection
     {
         return shiftRecord::query()
             ->where('user_id', $userId)
             ->where('shift_type', 3)
+            ->where('planned_year', $plannedYear)
             ->whereNull('deleted_at')
             ->whereNotExists(function ($query) {
                 $query->selectRaw('1')
@@ -755,7 +756,7 @@ class PaidLeaveLedgerService
             })
             ->whereBetween('shift_day', [$periodStart->toDateString(), $periodEnd->toDateString()])
             ->with(['old_shift' => function ($query) {
-                $query->select('id', 'shift_day', 'shift_type')->with('shiftType')->withTrashed();
+                $query->select('id', 'shift_day', 'shift_type')->with('shiftType');
             }])
             ->select('shift_type', 'shift_day', 'user_id', 'planned_year', 'id', 'descendant_of')
             ->orderBy('shift_day')
@@ -995,7 +996,8 @@ class PaidLeaveLedgerService
         $periodStart = $periodStart->copy()->startOfDay();
         $periodEnd = $periodStart->copy()->addYear()->subDay();
         $minutesPerDay = $this->minutesPerLeaveDayForUser($user, $policy);
-        $plannedShifts = $this->plannedShiftsForPeriod((int) $user->id, $periodStart, $periodEnd);
+        $plannedYear = (int) $periodStart->year;
+        $plannedShifts = $this->plannedShiftsForPeriod((int) $user->id, $periodStart, $periodEnd, $plannedYear);
         $plannedMinutes = $plannedShifts->count() * $minutesPerDay;
         $planningAllowedFrom = $this->plannedLeavePlanningAllowedFrom($periodStart);
         $plannedRequiredDays = $this->minutesToDays($requiredMinutes, $minutesPerDay);
@@ -1029,7 +1031,7 @@ class PaidLeaveLedgerService
             'period_end' => $periodEnd->toDateString(),
             'planning_allowed_from' => $planningAllowedFrom->toDateString(),
             'planning_allowed' => $asOf->greaterThanOrEqualTo($planningAllowedFrom),
-            'planned_year' => (int) $periodStart->year,
+            'planned_year' => $plannedYear,
             'granted_days' => $grantDays,
             'remaining_days' => $grant ? $this->minutesToDays((int) $grant->remaining_minutes, $minutesPerDay) : null,
             'planned_required_days' => $plannedRequiredDays,
