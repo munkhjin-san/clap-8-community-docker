@@ -756,7 +756,7 @@ class PaidLeaveLedgerService
             })
             ->whereBetween('shift_day', [$periodStart->toDateString(), $periodEnd->toDateString()])
             ->with(['old_shift' => function ($query) {
-                $query->select('id', 'shift_day', 'shift_type')->with('shiftType');
+                $query->select('id', 'shift_day', 'shift_type')->with('shiftType')->withTrashed();
             }])
             ->select('shift_type', 'shift_day', 'user_id', 'planned_year', 'id', 'descendant_of')
             ->orderBy('shift_day')
