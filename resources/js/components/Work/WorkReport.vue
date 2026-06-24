@@ -2389,8 +2389,8 @@ import Project from '../Icons/Project.vue';
             && projectWorkTimeTotalMinutes.value !== diffInMinutes.value
     })
     const regularWorkMinutes = computed(() => {
-        const userRegularMinutes = Number(props.item?.work_time_day ?? 0)
-        if (userRegularMinutes > 0) return userRegularMinutes
+        // const userRegularMinutes = Number(props.item?.work_time_day ?? 0)
+        // if (userRegularMinutes > 0) return userRegularMinutes
         return 480
     })
     const calculatedOvertimeMinutes = computed(() => {
