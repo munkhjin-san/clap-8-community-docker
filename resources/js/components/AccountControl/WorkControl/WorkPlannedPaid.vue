@@ -130,8 +130,8 @@
                                         :class="{'date-color' : theme.dark}"
                                         :value="changedDateFor(shift)"
                                         type="date"
-                                        :min="editPeriod.period_start"
-                                        :max="editPeriod.period_end"
+                                        :min="editPeriod.shift_window_start || editPeriod.period_start"
+                                        :max="editPeriod.shift_window_end || editPeriod.period_end"
                                         @input="getShift($event.target.value, shift.id)"
                                     />
                                 </td>
@@ -254,7 +254,8 @@ const saveShift = async() => {
         {
             shifts: changedShifts.value,
             userId: editUser.value.id,
-            startDate: editPeriod.value.period_start,
+            startDate: editPeriod.value.shift_window_start || editPeriod.value.period_start,
+            endDate: editPeriod.value.shift_window_end || editPeriod.value.period_end,
         },
         {
             toast: '保存しました。',

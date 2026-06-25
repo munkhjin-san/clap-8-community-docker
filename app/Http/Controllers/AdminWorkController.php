@@ -724,7 +724,8 @@ class AdminWorkController extends Controller{
         $updatedShifts = $this->changePlannedShiftsForUser(
             (array) $request->shifts,
             (int) $request->userId,
-            $request->startDate
+            $request->startDate,
+            $request->endDate
         );
 
         return response()->json(['updated_shifts' => $updatedShifts]);
@@ -794,7 +795,7 @@ class AdminWorkController extends Controller{
         ]));
     }
 
-    private function changePlannedShiftsForUser(array $changedShifts, int $userId, string $startDate): array
+    private function changePlannedShiftsForUser(array $changedShifts, int $userId, string $startDate, ?string $endDate = null): array
     {
         if(empty($changedShifts)){
             throw ValidationException::withMessages(['message' => '変更対象の計画有給がありません。']);
@@ -814,7 +815,7 @@ class AdminWorkController extends Controller{
             throw ValidationException::withMessages(['message' => $string . '日はすでに計画された計画有給のため、変更することはできません。']);
         }
         $startDate = Carbon::parse($startDate);
-        $endDate = $startDate->copy()->addYear()->subDay();
+        $endDate = $endDate ? Carbon::parse($endDate) : $startDate->copy()->addYear()->subDay();
         $allShiftsValid = collect($changedShifts)->every(function ($shift) use ($startDate, $endDate) {
             $shiftDay = Carbon::parse($shift['shift_day']);
             return $shiftDay->between($startDate, $endDate);
