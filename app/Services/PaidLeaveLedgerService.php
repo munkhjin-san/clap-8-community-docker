@@ -1151,6 +1151,7 @@ class PaidLeaveLedgerService
 
         $periods = collect();
         $actualGrantDates = collect();
+        $kintonePlanningCarryoverWindows = $this->kintonePlanningCarryoverWindows($account, $policy);
 
         foreach ($account->grants as $grant) {
             if ($grant->grant_type !== PaidLeaveGrant::TYPE_ANNUAL || ! $grant->granted_at) {
@@ -1180,6 +1181,7 @@ class PaidLeaveLedgerService
                 continue;
             }
 
+            $carryoverWindow = $kintonePlanningCarryoverWindows[(int) $periodStart->year] ?? null;
             $actualGrantDates->push($periodStart->toDateString());
             $periods->push($this->plannedLeavePeriodPayload(
                 user: $user,
@@ -1190,6 +1192,8 @@ class PaidLeaveLedgerService
                 source: 'glowd',
                 asOf: $asOf,
                 grant: $grant,
+                shiftWindowStart: $carryoverWindow['start'] ?? null,
+                shiftWindowEnd: $carryoverWindow['end'] ?? null,
             ));
         }
 
@@ -1225,6 +1229,7 @@ class PaidLeaveLedgerService
                     continue;
                 }
 
+                $carryoverWindow = $kintonePlanningCarryoverWindows[(int) $periodStart->year] ?? null;
                 $periods->push($this->plannedLeavePeriodPayload(
                     user: $user,
                     policy: $policy,
@@ -1233,6 +1238,8 @@ class PaidLeaveLedgerService
                     grantDays: (float) $grantDays,
                     source: 'expected',
                     asOf: $asOf,
+                    shiftWindowStart: $carryoverWindow['start'] ?? null,
+                    shiftWindowEnd: $carryoverWindow['end'] ?? null,
                 ));
             }
         }
@@ -1259,6 +1266,56 @@ class PaidLeaveLedgerService
         return $periods
             ->sortBy('period_start')
             ->values();
+    }
+
+    private function kintonePlanningCarryoverWindows(PaidLeaveAccount $account, PaidLeavePolicy $policy): array
+    {
+        $windows = [];
+
+        foreach ($account->grants as $grant) {
+            if ($grant->grant_type !== PaidLeaveGrant::TYPE_ANNUAL || ! $grant->granted_at) {
+                continue;
+            }
+
+            if ($this->shouldUseActualGrantForPlannedLeave($grant, $account, $policy)) {
+                continue;
+            }
+
+            $expectedGrantDate = $this->expectedGrantDateForYear($account, $policy, (int) $grant->granted_at->format('Y'));
+            if (! $expectedGrantDate) {
+                continue;
+            }
+
+            $actualStart = $grant->granted_at->copy()->startOfDay();
+            $actualEnd = $actualStart->copy()->addYear()->subDay()->endOfDay();
+            $expectedStart = $expectedGrantDate->copy()->startOfDay();
+            $expectedEnd = $expectedStart->copy()->addYear()->subDay()->endOfDay();
+            $this->mergePlanningCarryoverWindow(
+                $windows,
+                (int) $expectedStart->year,
+                $actualStart->lessThan($expectedStart) ? $actualStart : $expectedStart,
+                $actualEnd->greaterThan($expectedEnd) ? $actualEnd : $expectedEnd,
+            );
+        }
+
+        return $windows;
+    }
+
+    private function mergePlanningCarryoverWindow(array &$windows, int $year, Carbon $start, Carbon $end): void
+    {
+        if (! isset($windows[$year])) {
+            $windows[$year] = ['start' => $start->copy(), 'end' => $end->copy()];
+
+            return;
+        }
+
+        if ($start->lessThan($windows[$year]['start'])) {
+            $windows[$year]['start'] = $start->copy();
+        }
+
+        if ($end->greaterThan($windows[$year]['end'])) {
+            $windows[$year]['end'] = $end->copy();
+        }
     }
 
     private function shouldUseActualGrantForPlannedLeave(PaidLeaveGrant $grant, PaidLeaveAccount $account, PaidLeavePolicy $policy): bool
@@ -1332,12 +1389,16 @@ class PaidLeaveLedgerService
         Carbon $asOf,
         ?PaidLeaveGrant $grant = null,
         ?workTemp $legacyTemp = null,
+        ?Carbon $shiftWindowStart = null,
+        ?Carbon $shiftWindowEnd = null,
     ): array {
         $periodStart = $periodStart->copy()->startOfDay();
         $periodEnd = $periodStart->copy()->addYear()->subDay();
+        $shiftWindowStart = ($shiftWindowStart ?: $periodStart)->copy()->startOfDay();
+        $shiftWindowEnd = ($shiftWindowEnd ?: $periodEnd)->copy()->endOfDay();
         $minutesPerDay = $this->minutesPerLeaveDayForUser($user, $policy);
         $plannedYear = (int) $periodStart->year;
-        $plannedShifts = $this->plannedShiftsForPeriod((int) $user->id, $periodStart, $periodEnd, $plannedYear);
+        $plannedShifts = $this->plannedShiftsForPeriod((int) $user->id, $shiftWindowStart, $shiftWindowEnd, $plannedYear);
         $plannedMinutes = $plannedShifts->count() * $minutesPerDay;
         $planningAllowedFrom = $this->plannedLeavePlanningAllowedFrom($periodStart);
         $plannedRequiredDays = $this->minutesToDays($requiredMinutes, $minutesPerDay);
@@ -1369,6 +1430,8 @@ class PaidLeaveLedgerService
             'legacy' => $source === 'legacy',
             'period_start' => $periodStart->toDateString(),
             'period_end' => $periodEnd->toDateString(),
+            'shift_window_start' => $shiftWindowStart->toDateString(),
+            'shift_window_end' => $shiftWindowEnd->toDateString(),
             'planning_allowed_from' => $planningAllowedFrom->toDateString(),
             'planning_allowed' => $asOf->greaterThanOrEqualTo($planningAllowedFrom),
             'planned_year' => $plannedYear,
