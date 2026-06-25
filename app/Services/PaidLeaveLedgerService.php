@@ -1007,7 +1007,7 @@ class PaidLeaveLedgerService
                 'amount_minutes' => (int) $grant->amount_minutes,
                 'remaining_days' => $this->minutesToDays((int) $grant->remaining_minutes, $minutesPerDay),
                 'remaining_minutes' => (int) $grant->remaining_minutes,
-                'planned_required_days' => $this->minutesToDays($this->plannedRequiredMinutesForGrant($grant), $minutesPerDay),
+                'planned_required_days' => $this->plannedRequiredDaysForGrant($grant, $minutesPerDay),
                 'source_system' => $grant->source_system,
                 'note' => $grant->note,
             ])->values(),
@@ -1060,7 +1060,10 @@ class PaidLeaveLedgerService
         if ($grant->grant_type === PaidLeaveGrant::TYPE_ANNUAL && (float) $grant->grant_days > 0) {
             $minutesPerDay = (int) round(((int) $grant->amount_minutes) / max(1, (float) $grant->grant_days));
 
-            return $this->plannedRequiredMinutesForGrantDays((float) $grant->grant_days, max(1, $minutesPerDay));
+            return $this->daysToMinutes(
+                $this->plannedRequiredDaysForGrantDays((float) $grant->grant_days),
+                max(1, $minutesPerDay)
+            );
         }
 
         $storedMinutes = (int) ($grant->planned_required_minutes ?? 0);
@@ -1077,14 +1080,37 @@ class PaidLeaveLedgerService
 
     private function plannedRequiredMinutesForGrantDays(float $grantDays, int $minutesPerDay): int
     {
-        $requiredDays = match (true) {
+        $requiredDays = $this->plannedRequiredDaysForGrantDays($grantDays);
+
+        return $requiredDays > 0 ? $this->daysToMinutes($requiredDays, $minutesPerDay) : 0;
+    }
+
+    private function plannedRequiredDaysForGrant(PaidLeaveGrant $grant, int $minutesPerDay): float
+    {
+        if ($grant->grant_type === PaidLeaveGrant::TYPE_ANNUAL && (float) $grant->grant_days > 0) {
+            return $this->plannedRequiredDaysForGrantDays((float) $grant->grant_days);
+        }
+
+        $storedMinutes = (int) ($grant->planned_required_minutes ?? 0);
+        if ($storedMinutes > 0) {
+            return $this->minutesToDays($storedMinutes, $minutesPerDay);
+        }
+
+        if ((int) $grant->amount_minutes > 0) {
+            return $this->minutesToDays((int) floor(((int) $grant->amount_minutes) / 2), $minutesPerDay);
+        }
+
+        return 0;
+    }
+
+    private function plannedRequiredDaysForGrantDays(float $grantDays): int
+    {
+        return match (true) {
             $grantDays <= 0 => 0,
             $grantDays <= 12 => 5,
             $grantDays <= 16 => 7,
             default => 10,
         };
-
-        return $requiredDays > 0 ? $this->daysToMinutes($requiredDays, $minutesPerDay) : 0;
     }
 
     private function dateString(mixed $value): ?string
@@ -1131,7 +1157,11 @@ class PaidLeaveLedgerService
                 continue;
             }
 
-            $requiredMinutes = $this->plannedRequiredMinutesForGrant($grant);
+            $minutesPerDay = $this->minutesPerLeaveDayForUser($user, $policy);
+            $requiredMinutes = $this->daysToMinutes(
+                $this->plannedRequiredDaysForGrant($grant, $minutesPerDay),
+                $minutesPerDay
+            );
             if ($requiredMinutes <= 0) {
                 continue;
             }
@@ -1143,6 +1173,10 @@ class PaidLeaveLedgerService
             }
 
             if ($requestedYear === null && ! $targetYears->contains(fn (int $targetYear) => $this->periodOverlapsYear($periodStart, $periodEnd, $targetYear))) {
+                continue;
+            }
+
+            if (! $this->shouldUseActualGrantForPlannedLeave($grant, $account, $policy)) {
                 continue;
             }
 
@@ -1225,6 +1259,20 @@ class PaidLeaveLedgerService
         return $periods
             ->sortBy('period_start')
             ->values();
+    }
+
+    private function shouldUseActualGrantForPlannedLeave(PaidLeaveGrant $grant, PaidLeaveAccount $account, PaidLeavePolicy $policy): bool
+    {
+        if ((string) $grant->source_system !== 'kintone' || (int) $grant->source_app_id !== 605 || ! $grant->granted_at) {
+            return true;
+        }
+
+        $expectedGrantDate = $this->expectedGrantDateForYear($account, $policy, (int) $grant->granted_at->format('Y'));
+        if (! $expectedGrantDate) {
+            return true;
+        }
+
+        return $grant->granted_at->isSameDay($expectedGrantDate);
     }
 
     private function expectedGrantDaysForPlanning(User $user, PaidLeaveAccount $account, PaidLeavePolicy $policy, Carbon $grantDate): ?float
