@@ -176,12 +176,12 @@ class PaidLeaveLedgerService
                     }
 
                     $account = $this->ensureAccount($user);
-                    $openingBalanceCutoff = $this->kintoneOpeningBalanceCutoff($account);
+                    $kintoneSyncedCutoff = $this->kintonePaidLeaveSyncedCutoff($account);
                     $grantDate = $joined->copy()->addMonthsNoOverflow((int) $policy->first_grant_after_months);
                     
                     while ($grantDate->lessThanOrEqualTo($runDate)) {
                         if ($grantDate->greaterThanOrEqualTo($fromDate)) {
-                            if ($openingBalanceCutoff && $grantDate->lessThanOrEqualTo($openingBalanceCutoff->copy()->startOfDay())) {
+                            if ($kintoneSyncedCutoff && $grantDate->lessThanOrEqualTo($kintoneSyncedCutoff->copy()->startOfDay())) {
                                 $summary['skipped_kintone_synced']++;
                             } else {
                                 $serviceMonths = $this->serviceMonths($joined, $grantDate);
@@ -297,6 +297,297 @@ class PaidLeaveLedgerService
                     $summary['created_accounts']++;
                 }
                 $summary['created_opening_grants']++;
+            });
+        }
+
+        return $summary;
+    }
+
+    public function importKintoneAnnualLeaveHistory(
+        bool $dryRun = true,
+        ?Carbon $asOf = null,
+        ?string $userCode = null,
+        bool $allowExistingOpeningBalance = false
+    ): array {
+        $asOf = ($asOf ?: Carbon::today())->copy()->endOfDay();
+        $employeeCodeField = '社員ｺｰﾄﾞ';
+        $grantYearField = '付与年度';
+        $grantDateField = '当年度有休付与日';
+        $expiresAtField = '消滅日';
+        $krewExpiresAtField = '日付_0';
+        $grantDaysField = '付与日数';
+        $usedDaysField = '消化日数合計';
+        $usedHoursField = '消化時間合計';
+        $remainingDaysField = '残日数1';
+        $expiredDaysField = '消滅日数';
+        $plannedTableField = '計画付与テーブル';
+        $joinedDateField = '入社日';
+        $retiredDateField = '退職日';
+
+        $fields = [
+            '$id',
+            $employeeCodeField,
+            '氏名',
+            $grantYearField,
+            $grantDateField,
+            $expiresAtField,
+            $krewExpiresAtField,
+            $grantDaysField,
+            $usedDaysField,
+            $usedHoursField,
+            $remainingDaysField,
+            $expiredDaysField,
+            $plannedTableField,
+            $joinedDateField,
+            $retiredDateField,
+        ];
+        $query = 'order by 付与年度 asc, 当年度有休付与日 asc';
+        if ($userCode !== null && trim($userCode) !== '') {
+            $query = $employeeCodeField . ' = "' . $this->escapeKintoneQueryString(trim($userCode)) . '" ' . $query;
+        }
+
+        $records = $this->kintone->getAllRecords(605, $query, $fields);
+        $policy = $this->activePolicy();
+        $summary = [
+            'dry_run' => $dryRun,
+            'as_of' => $asOf->toDateString(),
+            'fetched' => count($records),
+            'eligible_records' => 0,
+            'matched_users' => 0,
+            'created_accounts' => 0,
+            'created_grants' => 0,
+            'created_usages' => 0,
+            'created_usage_allocations' => 0,
+            'created_expiration_adjustments' => 0,
+            'created_balance_adjustments' => 0,
+            'expanded_usage_dates' => 0,
+            'aggregate_usage_rows' => 0,
+            'unexpanded_usage_rows' => 0,
+            'target_balance_mismatches' => 0,
+            'skipped_blank_code' => 0,
+            'skipped_no_user' => 0,
+            'skipped_no_grant_date' => 0,
+            'skipped_future_grant' => 0,
+            'skipped_existing_grant' => 0,
+            'skipped_existing_opening_balance' => 0,
+        ];
+        $dryRunWouldCreateAccounts = [];
+
+        foreach ($records as $record) {
+            $recordId = (string) ($this->kintoneRecordValue($record, '$id') ?? '');
+            $employeeCode = trim((string) ($this->kintoneRecordValue($record, $employeeCodeField) ?? ''));
+            if ($employeeCode === '') {
+                $summary['skipped_blank_code']++;
+                continue;
+            }
+
+            $grantDate = $this->parseKintoneDate($this->kintoneRecordValue($record, $grantDateField));
+            if (! $grantDate) {
+                $summary['skipped_no_grant_date']++;
+                continue;
+            }
+
+            if ($grantDate->greaterThan($asOf)) {
+                $summary['skipped_future_grant']++;
+                continue;
+            }
+
+            $summary['eligible_records']++;
+            $user = User::query()
+                ->where('user_code', $employeeCode)
+                ->select('id', 'name', 'user_code', 'joined_date', 'retire', 'position_id', 'work_time_day')
+                ->first();
+            if (! $user) {
+                $summary['skipped_no_user']++;
+                continue;
+            }
+
+            $summary['matched_users']++;
+            $account = PaidLeaveAccount::query()->where('user_id', $user->id)->first();
+            if (! $allowExistingOpeningBalance && $account && $this->accountHasKintoneOpeningBalance($account)) {
+                $summary['skipped_existing_opening_balance']++;
+                continue;
+            }
+
+            $grantSourceKey = "kintone:605:{$recordId}:grant";
+            if ($account && PaidLeaveGrant::query()
+                ->where('paid_leave_account_id', $account->id)
+                ->where('source_system', 'kintone')
+                ->where('source_key', $grantSourceKey)
+                ->exists()) {
+                $summary['skipped_existing_grant']++;
+                continue;
+            }
+
+            $minutesPerDay = $this->minutesPerLeaveDayForUser($user, $policy);
+            $grantDays = $this->kintoneNumberValue($record, $grantDaysField);
+            $amountMinutes = $this->daysToMinutes($grantDays, $minutesPerDay);
+            $usageItems = $this->kintoneHistoryUsageItems($record, $grantDate, $minutesPerDay);
+            $expiredMinutes = $this->daysToMinutes($this->kintoneNumberValue($record, $expiredDaysField), $minutesPerDay);
+            $targetRemainingMinutes = $this->daysToMinutes($this->kintoneNumberValue($record, $remainingDaysField), $minutesPerDay);
+            $calculatedRemainingMinutes = $amountMinutes
+                - collect($usageItems)->sum('amount_minutes')
+                - $expiredMinutes;
+            $balanceAdjustmentMinutes = $targetRemainingMinutes - $calculatedRemainingMinutes;
+
+            if ($dryRun) {
+                if (! $account && ! isset($dryRunWouldCreateAccounts[$user->id])) {
+                    $summary['created_accounts']++;
+                    $dryRunWouldCreateAccounts[$user->id] = true;
+                }
+
+                $summary['created_grants']++;
+                $summary['created_usages'] += count($usageItems);
+                $summary['created_usage_allocations'] += count($usageItems);
+                $summary['created_expiration_adjustments'] += $expiredMinutes > 0 ? 1 : 0;
+                $summary['created_balance_adjustments'] += $balanceAdjustmentMinutes !== 0 ? 1 : 0;
+                $summary['expanded_usage_dates'] += collect($usageItems)->where('expanded', true)->count();
+                $summary['aggregate_usage_rows'] += collect($usageItems)->where('aggregate', true)->count();
+                $summary['unexpanded_usage_rows'] += collect($usageItems)->where('unexpanded', true)->count();
+                $summary['target_balance_mismatches'] += $balanceAdjustmentMinutes !== 0 ? 1 : 0;
+                continue;
+            }
+
+            DB::transaction(function () use (
+                $user,
+                $record,
+                $recordId,
+                $employeeCode,
+                $grantSourceKey,
+                $policy,
+                $grantDate,
+                $grantYearField,
+                $grantDateField,
+                $expiresAtField,
+                $krewExpiresAtField,
+                $grantDaysField,
+                $usedDaysField,
+                $usedHoursField,
+                $remainingDaysField,
+                $expiredDaysField,
+                $joinedDateField,
+                $retiredDateField,
+                $grantDays,
+                $amountMinutes,
+                $minutesPerDay,
+                $usageItems,
+                $expiredMinutes,
+                $targetRemainingMinutes,
+                $asOf,
+                &$summary
+            ) {
+                $account = $this->ensureAccount($user);
+
+                if (PaidLeaveGrant::query()
+                    ->where('paid_leave_account_id', $account->id)
+                    ->where('source_system', 'kintone')
+                    ->where('source_key', $grantSourceKey)
+                    ->exists()) {
+                    $summary['skipped_existing_grant']++;
+                    return;
+                }
+
+                $joinedDate = $user->joined_date ? Carbon::parse($user->joined_date)->startOfDay() : null;
+                $serviceMonths = $joinedDate && $grantDate->greaterThanOrEqualTo($joinedDate)
+                    ? $this->serviceMonths($joinedDate, $grantDate)
+                    : null;
+                $expiresAt = $this->kintoneHistoryExpiryDate($record, $grantDate, $policy);
+                $grant = PaidLeaveGrant::create([
+                    'paid_leave_account_id' => $account->id,
+                    'paid_leave_policy_id' => null,
+                    'grant_type' => PaidLeaveGrant::TYPE_ANNUAL,
+                    'granted_at' => $grantDate->toDateString(),
+                    'expires_at' => $expiresAt?->toDateString(),
+                    'service_months' => $serviceMonths,
+                    'grant_days' => $grantDays,
+                    'amount_minutes' => $amountMinutes,
+                    'remaining_minutes' => $amountMinutes,
+                    'planned_required_minutes' => $this->plannedRequiredMinutesForGrantDays($grantDays, $minutesPerDay),
+                    'policy_snapshot' => [
+                        'source_app_id' => 605,
+                        'source_record_id' => $recordId,
+                        'kintone_grant_year' => $this->kintoneRecordValue($record, $grantYearField),
+                        'kintone_grant_date' => $this->kintoneRecordValue($record, $grantDateField),
+                        'kintone_expires_at' => $this->kintoneRecordValue($record, $expiresAtField)
+                            ?: $this->kintoneRecordValue($record, $krewExpiresAtField),
+                        'kintone_grant_days' => $this->kintoneRecordValue($record, $grantDaysField),
+                        'kintone_used_days' => $this->kintoneRecordValue($record, $usedDaysField),
+                        'kintone_used_hours' => $this->kintoneRecordValue($record, $usedHoursField),
+                        'kintone_remaining_days' => $this->kintoneRecordValue($record, $remainingDaysField),
+                        'kintone_expired_days' => $this->kintoneRecordValue($record, $expiredDaysField),
+                        'minutes_per_leave_day' => $minutesPerDay,
+                        'imported_as_of' => $asOf->toDateString(),
+                    ],
+                    'source_system' => 'kintone',
+                    'source_key' => $grantSourceKey,
+                    'source_app_id' => 605,
+                    'source_record_id' => $recordId ?: null,
+                    'note' => 'Kintone app 605 annual paid-leave lot imported.',
+                ]);
+
+                $summary['created_grants']++;
+                foreach ($usageItems as $usageItem) {
+                    if ($this->createKintoneHistoryUsage($account, $grant, $usageItem)) {
+                        $summary['created_usages']++;
+                        $summary['created_usage_allocations']++;
+                        $summary['expanded_usage_dates'] += $usageItem['expanded'] ? 1 : 0;
+                        $summary['aggregate_usage_rows'] += $usageItem['aggregate'] ? 1 : 0;
+                        $summary['unexpanded_usage_rows'] += $usageItem['unexpanded'] ? 1 : 0;
+                    }
+                }
+
+                if ($expiredMinutes > 0) {
+                    $adjustedOn = $expiresAt ?: $grantDate;
+                    if ($this->createKintoneHistoryGrantAdjustment(
+                        $account,
+                        $grant,
+                        "kintone:605:{$recordId}:expiration",
+                        $adjustedOn,
+                        -$expiredMinutes,
+                        'expiration',
+                        'Kintone app 605 expired days imported.',
+                        $recordId
+                    )) {
+                        $summary['created_expiration_adjustments']++;
+                    }
+                }
+
+                $grant->refresh();
+                $balanceAdjustmentMinutes = $targetRemainingMinutes - (int) $grant->remaining_minutes;
+                if ($balanceAdjustmentMinutes !== 0) {
+                    if ($this->createKintoneHistoryGrantAdjustment(
+                        $account,
+                        $grant,
+                        "kintone:605:{$recordId}:balance-reconcile",
+                        $asOf,
+                        $balanceAdjustmentMinutes,
+                        'kintone_balance_reconcile',
+                        'Adjusted to Kintone app 605 remaining balance for this grant lot.',
+                        $recordId
+                    )) {
+                        $summary['created_balance_adjustments']++;
+                    }
+                    $summary['target_balance_mismatches']++;
+                }
+
+                $account->fill([
+                    'user_code' => $employeeCode,
+                    'joined_date' => $user->joined_date ?: $this->kintoneRecordValue($record, $joinedDateField),
+                    'last_synced_at' => now(),
+                    'source_system' => 'kintone',
+                    'source_app_id' => 605,
+                    'source_record_id' => null,
+                    'source_payload' => [
+                        'source' => 'kintone_app_605_history',
+                        'last_record_id' => $recordId,
+                        'as_of' => $asOf->toDateString(),
+                        'retired_date' => $this->kintoneRecordValue($record, $retiredDateField),
+                    ],
+                ])->save();
+
+                if ($account->wasRecentlyCreated) {
+                    $summary['created_accounts']++;
+                }
             });
         }
 
@@ -1385,6 +1676,267 @@ class PaidLeaveLedgerService
         return $base;
     }
 
+    private function kintoneHistoryUsageItems(array $record, Carbon $grantDate, int $minutesPerDay): array
+    {
+        $recordId = (string) ($this->kintoneRecordValue($record, '$id') ?? '');
+        $items = [];
+        $rows = (array) ($this->kintoneRecordValue($record, '計画付与テーブル') ?? []);
+
+        foreach ($rows as $index => $row) {
+            $cells = (array) ($row['value'] ?? []);
+            $rowId = (string) ($row['id'] ?? $index);
+            $kind = (string) ($this->kintoneTableCellValue($cells, '区分') ?? '');
+            $usedDays = $this->kintoneTableCellNumberValue($cells, '消化日数');
+            $usedHours = $this->kintoneTableCellNumberValue($cells, '消化時間');
+            if ($usedDays <= 0 && $usedHours <= 0) {
+                continue;
+            }
+
+            $baseDate = $this->parseKintoneDate(
+                $this->kintoneTableCellValue($cells, '計画付与日')
+                    ?: $this->kintoneTableCellValue($cells, '日付')
+            ) ?: $grantDate->copy();
+            $reason = (string) ($this->kintoneTableCellValue($cells, '変更事由') ?? '');
+            $expectedDays = (int) round($usedDays);
+            $canExpand = abs($usedDays - $expectedDays) < 0.0001 && $expectedDays > 1 && $usedHours <= 0;
+            $expandedDates = $canExpand
+                ? $this->expandKintoneUsageDates($baseDate, $reason, $expectedDays)
+                : [];
+
+            if ($canExpand && count($expandedDates) === $expectedDays) {
+                foreach ($expandedDates as $part => $date) {
+                    $items[] = [
+                        'source_key' => "kintone:605:{$recordId}:usage:{$rowId}:{$date}:{$part}",
+                        'used_on' => $date,
+                        'amount_minutes' => $minutesPerDay,
+                        'usage_type' => $kind === '計画消化' ? 'planned_shift' : 'shift',
+                        'note' => $this->kintoneUsageNote($kind, $usedDays, $usedHours, $reason, $rowId, true),
+                        'expanded' => true,
+                        'aggregate' => false,
+                        'unexpanded' => false,
+                    ];
+                }
+
+                continue;
+            }
+
+            $amountMinutes = $this->daysToMinutes($usedDays, $minutesPerDay) + (int) round($usedHours * 60);
+            $items[] = [
+                'source_key' => "kintone:605:{$recordId}:usage:{$rowId}:aggregate",
+                'used_on' => $baseDate->toDateString(),
+                'amount_minutes' => $amountMinutes,
+                'usage_type' => $usedHours > 0 && $usedDays <= 0
+                    ? 'hourly_shift'
+                    : ($kind === '計画消化' ? 'planned_shift' : 'shift'),
+                'note' => $this->kintoneUsageNote($kind, $usedDays, $usedHours, $reason, $rowId, false),
+                'expanded' => false,
+                'aggregate' => true,
+                'unexpanded' => $canExpand,
+            ];
+        }
+
+        return $items;
+    }
+
+    private function expandKintoneUsageDates(Carbon $baseDate, string $reason, int $expectedDays): array
+    {
+        $dates = [$baseDate->toDateString() => true];
+        $text = trim($reason);
+        if ($text === '') {
+            return array_keys($dates);
+        }
+
+        if (function_exists('mb_convert_kana')) {
+            $text = mb_convert_kana($text, 'n', 'UTF-8');
+        }
+
+        $currentMonth = (int) $baseDate->month;
+        if (preg_match_all('/(?:(\d{1,2})\s*[\/月]\s*)?(\d{1,2})(?:\s*日)?(?!\s*[\/月])/u', $text, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $monthText = $match[1] ?? '';
+                $day = (int) ($match[2] ?? 0);
+                if ($monthText !== '') {
+                    $currentMonth = (int) $monthText;
+                }
+
+                $month = $currentMonth;
+                if ($month < 1 || $month > 12 || $day < 1 || $day > 31) {
+                    continue;
+                }
+
+                $year = (int) $baseDate->year;
+                if ((int) $baseDate->month >= 10 && $month <= 3) {
+                    $year++;
+                } elseif ((int) $baseDate->month <= 3 && $month >= 10) {
+                    $year--;
+                }
+
+                if (! checkdate($month, $day, $year)) {
+                    continue;
+                }
+
+                $dates[Carbon::create($year, $month, $day)->toDateString()] = true;
+            }
+        }
+
+        $dateList = array_keys($dates);
+        sort($dateList);
+
+        return count($dateList) === $expectedDays ? $dateList : [$baseDate->toDateString()];
+    }
+
+    private function createKintoneHistoryUsage(PaidLeaveAccount $account, PaidLeaveGrant $grant, array $usageItem): bool
+    {
+        $usage = PaidLeaveUsage::firstOrCreate(
+            ['source_system' => 'kintone', 'source_key' => $usageItem['source_key']],
+            [
+                'paid_leave_account_id' => $account->id,
+                'used_on' => $usageItem['used_on'],
+                'amount_minutes' => $usageItem['amount_minutes'],
+                'usage_type' => $usageItem['usage_type'],
+                'status' => 'confirmed',
+                'note' => $usageItem['note'],
+            ],
+        );
+
+        if (! $usage->wasRecentlyCreated) {
+            return false;
+        }
+
+        $usage->allocations()->create([
+            'paid_leave_grant_id' => $grant->id,
+            'amount_minutes' => $usageItem['amount_minutes'],
+        ]);
+        $this->applyGrantMinuteDelta($grant, -((int) $usageItem['amount_minutes']));
+
+        return true;
+    }
+
+    private function createKintoneHistoryGrantAdjustment(
+        PaidLeaveAccount $account,
+        PaidLeaveGrant $grant,
+        string $sourceKey,
+        Carbon $adjustedOn,
+        int $amountMinutes,
+        string $type,
+        string $note,
+        string $recordId
+    ): bool {
+        $adjustment = $account->adjustments()->firstOrCreate(
+            ['source_system' => 'kintone', 'source_key' => $sourceKey],
+            [
+                'paid_leave_grant_id' => $grant->id,
+                'adjusted_on' => $adjustedOn->toDateString(),
+                'amount_minutes' => $amountMinutes,
+                'adjustment_type' => $type,
+                'source_app_id' => 605,
+                'source_record_id' => $recordId ?: null,
+                'note' => $note,
+            ],
+        );
+
+        if (! $adjustment->wasRecentlyCreated) {
+            return false;
+        }
+
+        $this->applyGrantMinuteDelta($grant, $amountMinutes);
+
+        return true;
+    }
+
+    private function kintoneHistoryExpiryDate(array $record, Carbon $grantDate, PaidLeavePolicy $policy): Carbon
+    {
+        $expiresAt = $this->parseKintoneDate(
+            $this->kintoneRecordValue($record, '消滅日')
+                ?: $this->kintoneRecordValue($record, '日付_0')
+        );
+
+        if ($expiresAt) {
+            return $expiresAt;
+        }
+
+        $months = (int) ($policy->expires_after_months ?: 24);
+
+        return $grantDate->copy()->addMonthsNoOverflow($months);
+    }
+
+    private function kintoneUsageNote(string $kind, float $usedDays, float $usedHours, string $reason, string $rowId, bool $expanded): string
+    {
+        $parts = [
+            'Kintone app 605 usage imported.',
+            "row={$rowId}",
+            "kind={$kind}",
+            "days={$usedDays}",
+            "hours={$usedHours}",
+        ];
+        if ($reason !== '') {
+            $parts[] = "reason={$reason}";
+        }
+        if ($expanded) {
+            $parts[] = 'multi-day row expanded from reason dates';
+        }
+
+        return implode('; ', $parts);
+    }
+
+    private function applyGrantMinuteDelta(PaidLeaveGrant $grant, int $delta): void
+    {
+        $grant->remaining_minutes = (int) $grant->remaining_minutes + $delta;
+        $grant->save();
+    }
+
+    private function kintoneRecordValue(array $record, string $field, $default = null)
+    {
+        return $record[$field]['value'] ?? $default;
+    }
+
+    private function kintoneNumberValue(array $record, string $field): float
+    {
+        $value = $this->kintoneRecordValue($record, $field);
+
+        return $value === null || $value === '' ? 0.0 : (float) $value;
+    }
+
+    private function kintoneTableCellValue(array $cells, string $field, $default = null)
+    {
+        return $cells[$field]['value'] ?? $default;
+    }
+
+    private function kintoneTableCellNumberValue(array $cells, string $field): float
+    {
+        $value = $this->kintoneTableCellValue($cells, $field);
+
+        return $value === null || $value === '' ? 0.0 : (float) $value;
+    }
+
+    private function parseKintoneDate($value): ?Carbon
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->startOfDay();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function escapeKintoneQueryString(string $value): string
+    {
+        return str_replace(['\\', '"'], ['\\\\', '\\"'], $value);
+    }
+
+    private function accountHasKintoneOpeningBalance(PaidLeaveAccount $account): bool
+    {
+        return PaidLeaveGrant::query()
+            ->where('paid_leave_account_id', $account->id)
+            ->where('grant_type', PaidLeaveGrant::TYPE_OPENING_BALANCE)
+            ->where('source_system', 'kintone')
+            ->where('source_key', 'like', 'kintone:794:%:opening-balance')
+            ->exists();
+    }
+
     private function accountHasAuthoritativeBalance(PaidLeaveAccount $account): bool
     {
         return $account->grants()->exists()
@@ -1394,7 +1946,23 @@ class PaidLeaveLedgerService
 
     private function externallyReflectedPlannedLeaveCutoff(PaidLeaveAccount $account): ?Carbon
     {
-        return $this->kintoneOpeningBalanceCutoff($account);
+        return $this->kintonePaidLeaveSyncedCutoff($account);
+    }
+
+    private function kintonePaidLeaveSyncedCutoff(PaidLeaveAccount $account): ?Carbon
+    {
+        $cutoffs = collect([
+            $this->kintoneOpeningBalanceCutoff($account),
+            $this->kintoneHistoryImportCutoff($account),
+        ])->filter();
+
+        if ($cutoffs->isEmpty()) {
+            return null;
+        }
+
+        return $cutoffs
+            ->sortBy(fn (Carbon $cutoff) => $cutoff->getTimestamp())
+            ->last();
     }
 
     private function kintoneOpeningBalanceCutoff(PaidLeaveAccount $account): ?Carbon
@@ -1418,6 +1986,38 @@ class PaidLeaveLedgerService
         }
 
         return $cutoff;
+    }
+
+    private function kintoneHistoryImportCutoff(PaidLeaveAccount $account): ?Carbon
+    {
+        $payload = is_array($account->source_payload) ? $account->source_payload : [];
+        $payloadAsOf = ($payload['source'] ?? null) === 'kintone_app_605_history'
+            ? ($payload['as_of'] ?? null)
+            : null;
+        $cutoff = $this->parseKintoneDate($payloadAsOf);
+        if ($cutoff) {
+            return $cutoff->endOfDay();
+        }
+
+        $historyGrant = PaidLeaveGrant::query()
+            ->where('paid_leave_account_id', $account->id)
+            ->where('source_system', 'kintone')
+            ->where('source_app_id', 605)
+            ->where('source_key', 'like', 'kintone:605:%:grant')
+            ->orderBy('created_at')
+            ->first(['created_at', 'policy_snapshot']);
+
+        if (! $historyGrant) {
+            return null;
+        }
+
+        $snapshot = is_array($historyGrant->policy_snapshot) ? $historyGrant->policy_snapshot : [];
+        $snapshotAsOf = $this->parseKintoneDate($snapshot['imported_as_of'] ?? null);
+        if ($snapshotAsOf) {
+            return $snapshotAsOf->endOfDay();
+        }
+
+        return $historyGrant->created_at ? Carbon::parse($historyGrant->created_at) : null;
     }
 
     private function isExternallyReflectedPlannedLeaveShift(shiftRecord $shift, ?Carbon $cutoff): bool
