@@ -14,8 +14,7 @@
                     class="next-unread-btn"
                     @click="goToNextUnread"
                 >
-                    次の未読コメントへ
-                    <span class="next-unread-btn__meta">{{ DateTime.fromFormat(nextUnreadPeriod, 'yyyy-MM').toFormat('M月') }}・{{ nextUnreadCount }}</span>
+                    <span>{{ DateTime.fromFormat(nextUnreadPeriod, 'yyyy-MM').toFormat('M月') }}・{{ nextUnreadCount }}</span>
                     <svg width="9" height="9" viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M8.835 31.913c-0.769 0-1.538-0.293-2.124-0.879-1.173-1.173-1.173-3.075 0-4.248l10.786-10.786-10.786-10.786c-1.173-1.173-1.173-3.075 0-4.248s3.075-1.173 4.248 0l12.91 12.91c1.173 1.173 1.173 3.075 0 4.248l-12.91 12.91c-0.586 0.586-1.355 0.879-2.124 0.879z"></path></svg>
                 </button>
                 <div @click="emit('close')" class="flex items-center justify-end cursor-pointer w-[60px] h-[60px] pc ml-auto">
