@@ -44,11 +44,12 @@
                         <div v-if="canUseField('occurred_date')">
                             <span>発生日</span>
                             <div v-if="canEditField('occurred_date')" class="mt-3 w-full">
-                                <input
+                                <ShortInput
+                                    ref="occurredDateRef"
                                     v-model="mutableParams.occurred_date"
                                     type="date"
-                                    class="custom-a-input"
-                                    :class="{'date-color' : theme.dark }"
+                                    rules="required"
+                                    place-holder="発生日"
                                 />
                             </div>
                             <strong v-else>{{ formatDate(localIncident.occurred_date) }}</strong>
@@ -56,11 +57,12 @@
                         <div v-if="canUseField('reported_date')">
                             <span>報告日</span>
                             <div v-if="canEditField('reported_date')" class="mt-3 w-full">
-                                <input
+                                <ShortInput
+                                    ref="reportedDateRef"
                                     v-model="mutableParams.reported_date"
                                     type="date"
-                                    class="custom-a-input"
-                                    :class="{'date-color' : theme.dark }"
+                                    rules="required"
+                                    place-holder="報告日"
                                 />
                             </div>
                             <strong v-else>{{ formatDate(localIncident.reported_date) }}</strong>
@@ -172,7 +174,12 @@
                         </div>
                         <div v-else class="flex flex-col gap-6">
                             <div v-if="canEditField('description')" class="bg-[var(--background-color)]">
-                                <LongInput v-model="mutableParams.description" place-holder="インシデントの概要" />
+                                <LongInput
+                                    ref="descriptionRef"
+                                    v-model="mutableParams.description"
+                                    place-holder="インシデントの概要"
+                                    rules="required"
+                                />
                             </div>
                             <div v-if="canEditField('occured_location')" class="bg-[var(--background-color)]">
                                 <ShortInput v-model="mutableParams.occured_location" place-holder="発生場所" />
@@ -516,7 +523,6 @@
                 </main>
                 <aside v-if="!isCreateMode || canCreateNextAssignment" class="incident-detail-assignment">
                     <section class="incident-detail-section incident-assignment-section">
-                        <div class="post-separetor"><div>{{ isCreateMode ? '初回担当者' : '対応ログ' }}</div></div>
                         <div v-if="!isCreateMode && incidentReports.length" class="incident-assignment-steps">
                             <div
                                 v-for="reportStep in incidentReports"
@@ -568,7 +574,6 @@
                                 </div>
                             </div>
                         </div>
-                        <div v-else-if="!isCreateMode" class="incident-assignment-empty">対応担当はまだ設定されていません。</div>
                         <div v-if="canCreateNextAssignment" class="incident-next-assignment">
                             <p v-if="isCreateMode" class="incident-assignment-empty">作成時に最初の対応担当として設定されます。</p>
                             <LongInput
@@ -721,6 +726,9 @@ const historyLoading = ref(false)
 const localIncident = ref<Incident>({ ...(props.incident ?? createBlankIncident()) })
 const mutableParams = ref<Partial<Incident>>({ ...(props.incident ?? createBlankIncident()) })
 const selectedCausedByUser = ref<User | null>(props.incident?.caused_by_user ?? null)
+const occurredDateRef = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
+const reportedDateRef = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
+const descriptionRef = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
 const uploadedFiles = ref<CommonFile[]>([...(props.incident?.files ?? [])])
 const incidentLogs = ref<UpdateLog[]>([])
 const markedReadIncidentIds = ref<Set<number>>(new Set())
@@ -1394,6 +1402,17 @@ const showHistory = async (forceReload = false) => {
 
 const saveChanges = async () => {
     if (saving.value || !canEditIncident.value || !hasChanges.value) return
+
+    const requiredFields = [occurredDateRef.value, reportedDateRef.value, descriptionRef.value]
+    let valid = true
+    for (const field of requiredFields) {
+        const result = await field?.validate()
+        valid = valid && Boolean(result?.valid)
+    }
+    if (!valid) {
+        dialog.ping('必須項目を入力してください。')
+        return
+    }
 
     saving.value = true
     try {
@@ -2134,8 +2153,6 @@ const formatLogValue = (value: unknown) => {
 
 .incident-next-assignment{
     margin-top: 18px;
-    padding-top: 18px;
-    border-top: 1px solid var(--calendarBorder);
     display: flex;
     flex-direction: column;
     gap: 12px;
