@@ -51,7 +51,7 @@
                 <tbody>
                     <tr
                         v-for="row in periodRows"
-                        :key="`${row.user.id}-${row.period.grant_id}`"
+                        :key="`${row.user.id}-${row.period.id}`"
                         :class="{ short: row.period.status === 'short' }"
                     >
                         <td>{{ row.user.name }}</td>
@@ -130,8 +130,8 @@
                                         :class="{'date-color' : theme.dark}"
                                         :value="changedDateFor(shift)"
                                         type="date"
-                                        :min="editPeriod.period_start"
-                                        :max="editPeriod.period_end"
+                                        :min="editPeriod.shift_window_start || editPeriod.period_start"
+                                        :max="editPeriod.shift_window_end || editPeriod.period_end"
                                         @input="getShift($event.target.value, shift.id)"
                                     />
                                 </td>
@@ -191,7 +191,9 @@ const filteredData = computed(() => {
 
 const periodRows = computed(() => {
     return filteredData.value.flatMap(user => {
-        return (user.grant_periods || []).map(period => ({ user, period }))
+        return (user.grant_periods || [])
+            .filter(period => Number(period.planned_year) === Number(year.value))
+            .map(period => ({ user, period }))
     })
 })
 
@@ -252,7 +254,8 @@ const saveShift = async() => {
         {
             shifts: changedShifts.value,
             userId: editUser.value.id,
-            startDate: editPeriod.value.period_start,
+            startDate: editPeriod.value.shift_window_start || editPeriod.value.period_start,
+            endDate: editPeriod.value.shift_window_end || editPeriod.value.period_end,
         },
         {
             toast: '保存しました。',
@@ -335,7 +338,7 @@ const formatDays = (value) => {
 .planned-table th {
     /* border: 1px solid var(--formBorder); */
     padding: 8px;
-    vertical-align: top;
+    vertical-align: middle;
 }
 
 .planned-table th {

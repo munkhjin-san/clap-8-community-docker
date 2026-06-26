@@ -49,7 +49,7 @@
         </Transition>
         <LunchChallengePopup
             :visible="lunchChallengeVisible"
-            :challenge="lunchChallengeData"
+            :challenge="lunchChallengeData ?? {}"
             :loading="lunchChallengeLoading"
             @close="closeLunchChallenge"
             @reload="refreshLunchChallenge"
@@ -212,30 +212,10 @@ import { storeToRefs } from 'pinia';
         maybeCheckLunchChallenge()
     })
     async function loadBadges() {
-        const jobs = []
-
-        jobs.push(badge.getBoardBadge(true, 'initialLoad'))
-
-        jobs.push(badge.getbadgeSummary())
-        // if(auth.user?.position_id < 6){
-        //     jobs.push(badge.getManagersGoalsBadge())
-        // }
-
-        // jobs.push(
-        //     badge.getMembersGoalsBadge(),
-        //     badge.getSalaryIssueBadge(),
-        //     badge.getAssetBadge(),
-        //     badge.getTaskCommentBadge(),
-        //     badge.getGoalIssueCommentBadge(),
-        //     badge.getContactCommentBadge(),
-        //     badge.getTodayReadableBadge()
-        // )
-
-        // if(auth.user?.position_id <= 6 || [610,608].includes(auth.activeUser.id)){
-        //     jobs.push(badge.getFinanceCommentBadge())
-        // }
-
-        await Promise.all(jobs)
+        await Promise.all([
+            badge.getBoardBadge(true, 'initialLoad'),
+            badge.getbadgeSummary(),
+        ])
     }
     const warningStorageKey = (type: string) => `warning_closed_time_${type}`
 
@@ -263,6 +243,7 @@ import { storeToRefs } from 'pinia';
             return {
                 type: 'timesheet',
                 pending: pendingTimeSheets.value,
+                href: '/dashboard?tab=timesheet',
             }
         }
 

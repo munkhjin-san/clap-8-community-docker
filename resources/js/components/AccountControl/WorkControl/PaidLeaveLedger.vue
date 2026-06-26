@@ -409,7 +409,7 @@ input {
 
 .ledger-table th {
     position: sticky;
-    top: -1px;
+    top: -15px;
     z-index: 1;
     background: #363636;
     color: #fff;

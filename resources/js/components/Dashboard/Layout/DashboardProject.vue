@@ -159,7 +159,7 @@
                                         <div class="text-[14px] flex-1 whitespace-nowrap overflow-hidden text-ellipsis leading-normal">
                                             {{ comment.project_name }}
                                         </div>
-                                        <span class="side-notification side-notification--comment-only" style="position: static; text-indent: inherit;">{{ comment.count }}</span>
+                                        <span class="side-notification side-notification--comment-only" style="position: static; text-indent: inherit; z-index: 0;">{{ comment.count }}</span>
                                     </div>
                                 </PanelTitle>
                             </template>

@@ -135,6 +135,10 @@ watch(() => props.userId, () => {
     opacity: 0.78;
 }
 @media (max-width: 640px) {
+    .planned-leave-year-control :deep(.month-grid) {
+        left: 0 !important;
+        right: auto !important;
+    }
     .planned-leave-header {
         align-items: flex-start;
         flex-direction: column;

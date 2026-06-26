@@ -1952,7 +1952,7 @@ class WorkController extends Controller
             ->where('user_id', $request->userId)
             ->first();
 
-        $shift_time_difference_seconds = ((int) ($user->work_time_day ?: 480)) * 60;
+        $shift_time_difference_seconds = ((int) 480) * 60;
         $shift_time_difference_seconds = max(0, $shift_time_difference_seconds);
         $time_difference_seconds = 0;
         $night_difference_seconds = 0;

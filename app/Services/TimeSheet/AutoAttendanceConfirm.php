@@ -26,18 +26,12 @@ class AutoAttendanceConfirm
         [$currentYear, $currentMonth] = explode('-', $currentDate);
         foreach($attendanceDatas as $userid => $data){
             $workTime = $data['user']['position_id'] !== 15 ? $data['should_work'] : $data['planned_work'];
-            $noOverTimeHours = 0;
+            $workType = $data['user']['work_type'] == 0 ? 'フレックス' : '通常';
             
-            if ($data['worked_time'] > $data['should_work']) {
-                $noOverTimeHours = $data['worked_time'] - $data['month_over_time'] - $data['night_over_time'];
-            } else {
-                $noOverTimeHours = $data['worked_time'];
-            }
             
             $shift_records = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
                         ->where('user_id', $userid)->get();
-            $user_work_time_day = $data['user']['work_time_day'] ?? 0;
             $half_day_holiday = $shift_records->where('shift_type', 6)->count();
             $planned_paid_holiday = $shift_records->where('shift_type', 3)->count();
             $petitionType8_count = $shift_records->where('shift_type', 5)->count();
@@ -52,11 +46,9 @@ class AutoAttendanceConfirm
             $shiftTypes = [13, 12, 11, 10, 9, 8, 7, 6];
             $hours_count = 0;
             $working_hour_low = 0;
-            if ($data['month_over_time'] > 0) {
-                $over_time = $data['month_over_time'] + $data['night_over_time'];
-            } else {
-                $over_time = $data['month_over_time'];
-            }
+           
+            $over_time = $data['month_over_time'];
+            
             foreach ($shiftTypes as $type) {
                 $count = $shift_records->where('shift_type', $type)->count();
                 $hours_count += $type === 6 ? $count * 0.5 : $count;
@@ -65,11 +57,17 @@ class AutoAttendanceConfirm
                 }
             }
             $closed_day = $shift_records->where('shift_type', 2)->count();
+            $noOverTimeHours = 0;
+            $user_work_time_day = $data['user']['work_time_day'] ?? 0;
             $condolence_hours = $user_work_time_day * $data['condolence_leave'];
             $oda_hours = $user_work_time_day * $data['oda_leave'];
             $transfer_hours = $user_work_time_day * $data['transfer_leave'];
             $closed_hours = $user_work_time_day * $closed_day;
             $special_hours = $user_work_time_day * $data['special_holiday'];
+            
+            
+            $noOverTimeHours = $data['worked_time'] - $data['month_over_time'] - $data['night_over_time'];
+            
             $special_holiday = $data['transfer_leave'] + $data['special_holiday'];
             $absence_days = ($working_hour_low - $data['workedday_count']) + $data['holiday_count'];
             $attendance_record = new attendanceRecord;
@@ -96,7 +94,7 @@ class AutoAttendanceConfirm
             $attendance_record->pay_day = 20;
             $attendance_record->month_petition = '済';
             $attendance_record->prescribed_working_hours = $workTime / 60;
-            $attendance_record->work_type = $data['user']['work_type'] == 0 ? 'フレックス' : '通常';
+            $attendance_record->work_type = $workType;
             $attendance_record->working_days_shift = $data['shift_count'];
             $attendance_record->normal_working_days = $data['workedday_count'];
             $attendance_record->holiday_working_days = $data['holiday_count'];

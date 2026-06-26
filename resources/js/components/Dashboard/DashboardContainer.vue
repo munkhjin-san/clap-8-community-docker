@@ -921,9 +921,19 @@ onMounted(async () => {
     if (typeof document !== 'undefined') {
         document.addEventListener('keydown', handleGlobalGridKeydown, true)
     }
-    init()
+    await init()
+    const routeParams = route.query
+    if(routeParams.tab){
+        const tab = routeParams.tab as string
+        scrollToCard(`card-${tab}`)
+    }
 })
-
+const scrollToCard = (cardId: string) => {
+    const card = document.getElementById(cardId)
+    if(card){
+        card.scrollIntoView({ behavior: 'instant', block: 'center' })
+    }
+}
 const init = async() => {
     try {
         await dashboardGoalsStore.initDashboardData() // Uses cache if fresh
