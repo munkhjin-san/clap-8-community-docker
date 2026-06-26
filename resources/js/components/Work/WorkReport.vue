@@ -413,6 +413,9 @@
                                             ref="customFieldRef"
                                             :locked="isProjectEntryLocked(entry)"
                                         />
+                                        <p class="project-time-message !mt-2">
+                                            諸手当は1日単位で登録します。複数プロジェクトがある場合も、この日で1回のみ選択できます。
+                                        </p>
                                     </template>
                                     <template v-else-if="detail.type === 'comment'">
                                         <CustomField
@@ -1066,6 +1069,9 @@ import Project from '../Icons/Project.vue';
     const commentDetailCount = computed(() => {
         return projectTimeEntries.value.filter(entry => isProjectDetailVisible(entry, 'comment')).length
     })
+    const allowanceDetailEntry = computed(() => {
+        return projectTimeEntries.value.find(entry => isProjectDetailVisible(entry, 'allowance')) ?? null
+    })
     const canRemoveProjectDetail = (entry, type) => {
         if (type !== 'comment') return true
         return commentDetailCount.value > 1
@@ -1077,6 +1083,7 @@ import Project from '../Icons/Project.vue';
 
         return projectDetailOptions.filter(option => {
             if (option.type === 'actual' && !projectForEntry(entry)?.has_actual_func) return false
+            if (option.type === 'allowance' && allowanceDetailEntry.value && allowanceDetailEntry.value !== entry) return false
             return !isProjectDetailVisible(entry, option.type)
         })
     }
@@ -1092,6 +1099,10 @@ import Project from '../Icons/Project.vue';
     }
     const addProjectDetail = (entry, type) => {
         ensureProjectDetailValues(entry)
+        if (type === 'allowance' && allowanceDetailEntry.value && allowanceDetailEntry.value !== entry) {
+            ping('諸手当は1日1回のみ登録できます。')
+            return
+        }
         updateProjectEntryDetails(entry, details => [...details, type])
         if (type === 'expenses' && projectCostIndexes(entry).length === 0) {
             addCostFieldForProject(entry)
@@ -2854,7 +2865,6 @@ import Project from '../Icons/Project.vue';
         border-radius: 3px;
         color: var(--primary-color);
         font-size: 11px;
-        font-weight: 600;
         vertical-align: middle;
     }
     .project-type-badge{
