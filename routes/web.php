@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetCategoryController;
+use App\Http\Controllers\AccountChooserController;
 use App\Http\Controllers\CustomFormController;
+use App\Http\Controllers\CommunityContextController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectManagementController;
 use Illuminate\Support\Facades\Route;
@@ -70,12 +72,12 @@ Route::match(['get', 'post'],'/zoom1_event', [AutoJobController::class, 'zoom_ev
 
 Route::get("/departure_report", [AutoJobController::class, 'departure_report'])->name('departure_activate')->middleware('signed');;
 
-Route::get('app/public/{app_name}', function ($app_name, Request $request) {    
-    $query = $request->getQueryString(); 
-    $url = "/{$app_name}";    
+Route::get('app/public/{app_name}', function ($app_name, Request $request) {
+    $query = $request->getQueryString();
+    $url = "/{$app_name}";
     if ($query) {
         $url .= '?' . $query;
-    }    
+    }
     return redirect($url);
 });
 
@@ -104,7 +106,7 @@ Route::get('/emote_rearrange', [AutoJobController::class, 'emote_rearrange']);
 // Route::get('/for_kintone_pop', [ContentController::class, 'for_kintone_pop']);
 // Route::get('/clap_process', [AutoJobController::class, 'clap_process']);
 
-Route::get('/content_api/{which}/{path}', [ContentController::class, 'iconTransferApi']);   
+Route::get('/content_api/{which}/{path}', [ContentController::class, 'iconTransferApi']);
 Route::get('/export_ical', [CalendarController::class, 'export_ical']);
 // Route::get('/help/{any?}', function () {
 //     return view('help');
@@ -120,7 +122,7 @@ Route::prefix('cdn_external')->group(function () {
 Route::get('/public-surveys/{token}', [PublicSurveyController::class, 'show']);
 Route::get('/public-surveys/{token}/data', [PublicSurveyController::class, 'data']);
 Route::post('/public-surveys/{token}/answers', [PublicSurveyController::class, 'submit'])->middleware('throttle:20,1');
-Route::group(["middleware"=> ["auth", "session.expired"]],function(){
+Route::group(["middleware"=> ["auth", "session.expired", "community.active", "app.blade"]],function(){
     Route::post('/push/subscribe', [PushController::class, 'subscribe']);
     Route::get('/push/test', [PushController::class, 'test']);
 
@@ -155,38 +157,38 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     })->where('app_name', '(task|file)');
 
     Route::get('/home',function (Request $request) {
-        $query = $request->id; 
+        $query = $request->id;
         if($query){
-            $url = "/notice/{$query}";    
-            return redirect($url);  
+            $url = "/notice/{$query}";
+            return redirect($url);
         }else{
             return redirect("/board");
         }
-        
-        
+
+
     });
-        
+
     Route::get('/employee', function () {return redirect("/members");});
     Route::get('/notice/{id}', function ($id) {return redirect("/dashboard/notice?notice_id={$id}");});
 
     Route::get('/{name}/{any?}',[BoardController::class, "index"])
     ->whereIn('name', [
         'community',
-        'board', 
-        'challenge', 
-        'post', 
-        'knowledge', 
-        'nice', 
-        'members', 
-        'schedule', 
-        'timesheet', 
-        'admin_control', 
-        'support', 
-        'settings', 
-        'user', 
-        'learning', 
-        'project', 
-        'survey', 
+        'board',
+        'challenge',
+        'post',
+        'knowledge',
+        'nice',
+        'members',
+        'schedule',
+        'timesheet',
+        'admin_control',
+        'support',
+        'settings',
+        'user',
+        'learning',
+        'project',
+        'survey',
         'remind',
         'contact',
         'asset-partner',
@@ -205,6 +207,19 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     });
     Route::get('/kintone_file', [ContentController::class, 'kintone_file']);
     Route::post('/auth_check', [UserController::class, 'auth_check']);
+    Route::get('/account_chooser/accounts', [AccountChooserController::class, 'index']);
+    Route::post('/account_chooser/remember', [AccountChooserController::class, 'remember']);
+    Route::post('/account_chooser/switch', [AccountChooserController::class, 'switch']);
+    Route::get('/community_context', [CommunityContextController::class, 'index']);
+    Route::patch('/community_context', [CommunityContextController::class, 'update']);
+    Route::patch('/community_context/switch', [CommunityContextController::class, 'switch']);
+    Route::get('/community_context/roles', [CommunityContextController::class, 'roles']);
+    Route::get('/community_context/capabilities', [CommunityContextController::class, 'capabilities']);
+    Route::post('/community_context/roles', [CommunityContextController::class, 'createRole']);
+    Route::patch('/community_context/roles/{role}', [CommunityContextController::class, 'updateRole']);
+    Route::patch('/community_context/roles/{role}/members', [CommunityContextController::class, 'syncRoleMembers']);
+    Route::delete('/community_context/roles/{role}', [CommunityContextController::class, 'deleteRole']);
+    Route::patch('/community_context/memberships/{membership}', [CommunityContextController::class, 'updateMembership']);
 
     Route::get('/lesson_files/{path}', [ContentController::class, 'lessonFileTransfer']);
 
@@ -212,7 +227,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         // Board
     Route::post('/board_list', [BoardController::class, 'board_list']); // 一覧表示API
     Route::post('/search_board_list', [BoardController::class, 'search_board_list']);
-    Route::post('/board_create', [BoardController::class, 'board_create']); // 作成API
+    Route::post('/board_create', [BoardController::class, 'board_create'])->middleware('blade:board.create'); // 作成API
     Route::post('/board_edit', [BoardController::class, 'board_edit']); // 編集API
     Route::post('/board_delete', [BoardController::class, 'board_delete']); // 削除API
     Route::post('/get_messages', [BoardController::class, 'get_messages']); // コメント一覧表示API
@@ -222,23 +237,23 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::post('/chat_edit_api', [BoardController::class, 'chatEdit']); //メッセージ削除
     Route::post('/chat_mark_unread', [BoardController::class, 'chat_mark_unread']);
     Route::patch('/board_badge', [BoardController::class, 'update_board_badge']); // #20201207_006
-    Route::get('/board_badge', [BoardController::class, 'get_board_badge']); 
+    Route::get('/board_badge', [BoardController::class, 'get_board_badge']);
     Route::post('/icon_up_api', [BoardController::class, 'getIconUp']);
-    Route::post('/pin_board_api', [BoardController::class, 'pinBoard']); 
-    Route::post('/attach_upload_api', [BoardController::class, 'attachUpload']); 
-    Route::post('/remove_temp_file', [BoardController::class, 'removeTemp']); 
+    Route::post('/pin_board_api', [BoardController::class, 'pinBoard']);
+    Route::post('/attach_upload_api', [BoardController::class, 'attachUpload']);
+    Route::post('/remove_temp_file', [BoardController::class, 'removeTemp']);
     Route::post('/check_request_api', [BoardController::class, 'checkRequest']);
-    Route::post('/remind_add', [BoardController::class, 'remindRequest']); 
-    Route::post('/send_reaction_api', [BoardController::class, 'sendReaction']); 
+    Route::post('/remind_add', [BoardController::class, 'remindRequest']);
+    Route::post('/send_reaction_api', [BoardController::class, 'sendReaction']);
     Route::post('/notification_board', [BoardController::class, 'notification_board']);
-    
+
     Route::post('/message_search', [BoardController::class, 'messageSearch']);
-    Route::post('/get_target_message', [BoardController::class, 'getTargetMessage']); 
-    Route::post('/get_bottom_messages', [BoardController::class, 'getAppend']); 
-    Route::post('/get_instant_user', [BoardController::class, 'getInstantUser']);   
-    Route::post('/set_admin_role', [BoardController::class, 'setAdminRole']); 
-    Route::post('/remove_group_member', [BoardController::class, 'removeGroupMember']); 
-    Route::post('/group_add_member', [BoardController::class, 'groupAddMember']); 
+    Route::post('/get_target_message', [BoardController::class, 'getTargetMessage']);
+    Route::post('/get_bottom_messages', [BoardController::class, 'getAppend']);
+    Route::post('/get_instant_user', [BoardController::class, 'getInstantUser']);
+    Route::post('/set_admin_role', [BoardController::class, 'setAdminRole']);
+    Route::post('/remove_group_member', [BoardController::class, 'removeGroupMember']);
+    Route::post('/group_add_member', [BoardController::class, 'groupAddMember']);
     Route::post('/get_edit_user', [BoardController::class, 'getEditUser']);
     Route::post('/signature_upload_api', [BoardController::class, 'signFile']);
     // Route::post('/save_user_signature', [BoardController::class, 'saveSignature']);
@@ -247,7 +262,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::post('/board_possible_users', [BoardController::class, 'board_possible_users']);
     Route::post('/send_reconfirm_email', [BoardController::class, 'send_reconfirm_email']);
     Route::post('/addable_board_members', [BoardController::class, 'addable_board_members']);
-    Route::post('/get_file_list', [FileController::class, 'fetchFileList']); 
+    Route::post('/get_file_list', [FileController::class, 'fetchFileList']);
     Route::get('/incomplete_check', [BoardController::class, 'incomplete_check']);
     Route::put('/draft_send', [BoardController::class, 'draftSend']);
     Route::put('/set_message_schedule', [BoardController::class, 'set_message_schedule']);
@@ -256,26 +271,26 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::post('/post_send_emote', [PostController::class, 'post_send_emote']);
     Route::post('/comment_send_emote', [PostController::class, 'comment_send_emote']);
     // Task
-    Route::get('/task_list', [TaskController::class, 'getTask']); 
-    Route::patch('/complete_task', [TaskController::class, 'completeTask']); 
-    Route::patch('/task_item', [TaskController::class, 'updateTask']); 
+    Route::get('/task_list', [TaskController::class, 'getTask']);
+    Route::patch('/complete_task', [TaskController::class, 'completeTask']);
+    Route::patch('/task_item', [TaskController::class, 'updateTask']);
     Route::post('/task_file_upload', [TaskController::class, 'task_file_upload']);
-    Route::get('/task_badge', [TaskController::class, 'get_task_badge']);    
-    Route::post('/task_edit_api', [TaskController::class, 'taskEdit']); 
-    Route::delete('/task_item', [TaskController::class, 'taskDelete']);  
+    Route::get('/task_badge', [TaskController::class, 'get_task_badge']);
+    Route::post('/task_edit_api', [TaskController::class, 'taskEdit']);
+    Route::delete('/task_item', [TaskController::class, 'taskDelete']);
     Route::put('/task_item', [TaskController::class, 'addTask']);
-    Route::put('/task_sub_item', [TaskController::class, 'addSubTask']);  
+    Route::put('/task_sub_item', [TaskController::class, 'addSubTask']);
     Route::put('/task_approve_request', [TaskController::class, 'task_approve_request']);
     Route::put('/task_approve', [TaskController::class, 'task_approve']);
     Route::put('/task_update_prize', [TaskController::class, 'task_update_prize']);
     Route::put('/task_update_flag', [TaskController::class, 'task_update_flag']);
     Route::put('/task_update_pin', [TaskController::class, 'task_update_pin']);
-    Route::post('/update_task_comment_check', [TaskController::class, 'update_task_comment_check']); 
+    Route::post('/update_task_comment_check', [TaskController::class, 'update_task_comment_check']);
     Route::get('/get_task_comment_list', [TaskController::class, 'get_task_comment_list']);
-    Route::put('/task_comment', [TaskController::class, 'task_comment']); 
-    Route::delete('/task_comment', [TaskController::class, 'task_comment_delete']); 
-    Route::put('/task_comment_update', [TaskController::class, 'task_comment_update']); 
-    Route::post('/add_board_task', [TaskController::class, 'addBoardTask']); 
+    Route::put('/task_comment', [TaskController::class, 'task_comment']);
+    Route::delete('/task_comment', [TaskController::class, 'task_comment_delete']);
+    Route::put('/task_comment_update', [TaskController::class, 'task_comment_update']);
+    Route::post('/add_board_task', [TaskController::class, 'addBoardTask']);
         // Admin Panel User:
         Route::get('/get_controllable_users', [AdminAccountController::class, 'get_controllable_users']);
         Route::post('/user_add', [AdminAccountController::class, 'addUser']);
@@ -314,13 +329,13 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/admin/actual-results/edit-histories', [AdminActualResultController::class, 'editHistories']);
         Route::post('/admin/actual-results/calculate', [AdminActualResultController::class, 'calculate']);
         Route::patch('/admin/actual-results/departments/{department}/accounts', [AdminActualResultController::class, 'updateDepartmentAccount']);
-        Route::post('/one_shot_confirmation', [WorkController::class, 'one_shot_confirmation']);    
-        
+        Route::post('/one_shot_confirmation', [WorkController::class, 'one_shot_confirmation']);
+
         //User
         Route::post('/user_generate_file_key', [UserController::class, 'generate_key']);
         Route::post('/user_icon_cropped_up_api', [UserController::class, 'croppedUp']);
-        Route::post('/user_icon_create_api', [UserController::class, 'userIconCreate']); 
-        Route::post('/profile_profile_edit_api', [UserController::class, 'profileEdit']); 
+        Route::post('/user_icon_create_api', [UserController::class, 'userIconCreate']);
+        Route::post('/profile_profile_edit_api', [UserController::class, 'profileEdit']);
         Route::post('/user_pass_change_api', [UserController::class, 'passChange']); // パスワード変更API
         Route::post('/profile_get_update_user', [UserController::class, 'profile_get_update_user']);
         Route::post('/profile_set_color', [UserController::class, 'setColor']);
@@ -337,13 +352,12 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/save_user_signature', [UserController::class, 'saveSignature']);
         Route::get('/ical_url_generate', [CalendarController::class, 'ical_url_generate']);
         Route::post('/get_albums', [UserController::class, 'get_albums']);
-        Route::patch('/set_active_linked_account', [UserController::class, 'set_active_linked_account']);
         Route::patch('/set_footer_view ', function(Request $request){
             $update = Auth::user()->update([
                 "footer_view" => $request->value
             ]);
             return $update;
-        }); 
+        });
 
         Route::post('/get_posts', [PostController::class, 'get_posts']);
         Route::post('/delete_post', [PostController::class, 'delete_post']);
@@ -458,7 +472,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/evaluate_member', [ProjectController::class, 'evaluate_member']);
         Route::post('/save_member_assign_data', [ProjectController::class, 'save_member_assign_data']);
         Route::get('/user_related_goal_member_data', [ProjectController::class, 'user_related_goal_member_data']);
-        
+
         Route::patch('/project_change_status', [ProjectController::class, 'project_change_status']);
         Route::patch('/project_checkitem_update', [ProjectController::class, 'project_checkitem_update']);
         Route::post('/project_checkitem_comment_add', [ProjectController::class, 'project_checkitem_comment_add']);
@@ -560,10 +574,10 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_notice', [NoticeController::class, 'get_notice']);
         Route::post('/read_notice', [NoticeController::class, 'read_notice']);
         Route::get('/notice_badge', [NoticeController::class, 'get_notice_badge']);
-        Route::post('/notice_file_upload', [NoticeController::class, 'notice_file_upload']);
-        Route::post('/notice_delete_file', [NoticeController::class, 'notice_delete_file']);
-        Route::post('/notice_add_record', [NoticeController::class, 'notice_add_record']);
-        Route::delete('/notice_delete', [NoticeController::class, 'notice_delete']);
+        Route::post('/notice_file_upload', [NoticeController::class, 'notice_file_upload'])->middleware('blade:notice.manage');
+        Route::post('/notice_delete_file', [NoticeController::class, 'notice_delete_file'])->middleware('blade:notice.manage');
+        Route::post('/notice_add_record', [NoticeController::class, 'notice_add_record'])->middleware('blade:notice.manage');
+        Route::delete('/notice_delete', [NoticeController::class, 'notice_delete'])->middleware('blade:notice.manage');
         Route::get('/load_notice_body', [NoticeController::class, 'load_notice_body']);
 
         // Lessons
@@ -623,14 +637,12 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::put('/update_project_progress', [ProjectController::class, 'update_project_progress']);
         Route::put('/apply_kadai', [ProjectController::class, 'apply_kadai']);
         Route::post('/get_selectable_users', [ProjectController::class, 'get_selectable_users']);
-        Route::post('/users_with_goals', [ProjectController::class, 'users_with_goals']);
         Route::get('/check_goal_create_permission', [ProjectController::class, 'check_goal_create_permission']);
         Route::post('/get_previous_evaluation', [ProjectController::class, 'get_previous_evaluation']);
         Route::post('/create_project', [ProjectController::class, 'create_project']);
         Route::get('/get_salary_options', [ProjectController::class, 'get_salary_options']);
         Route::post('/get_evaluations', [ProjectController::class, 'get_evaluations']);
         Route::post('/save_evaluation_grade', [ProjectController::class, 'save_evaluation_grade']);
-        Route::post('/upload_evaluation_csv', [ProjectController::class, 'upload_evaluation_csv']);
         Route::put('/save_member_role', [ProjectController::class, 'save_member_role']);
         Route::post('/set_increase_request', [ProjectController::class, 'set_increase_request']);
         Route::post('/get_evaluation_data', [ProjectController::class, 'get_evaluation_data']);
@@ -683,6 +695,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/update_resource_kintone', [ProjectController::class, 'update_resource_kintone']);
 
         // Project plan (accounts/amounts) - new prefixed schema
+        Route::middleware('blade:finance.manage')->group(function () {
         Route::get('/projects/{project}/plan/grid', [ProjectPlanController::class, 'grid']);
         Route::post('/projects/{project}/plan/grid', [ProjectPlanController::class, 'save']);
         Route::post('/projects/{project}/plan/lock', [ProjectPlanController::class, 'lock']);
@@ -706,6 +719,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/projects/{project}/profit-plan/confirm', [ProjectProfitPlanController::class, 'confirm']);
         Route::post('/projects/{project}/profit-plan/unlock', [ProjectProfitPlanController::class, 'unlock']);
         Route::post('/projects/{project}/profit-plan/monthly-revision', [ProjectProfitPlanController::class, 'monthlyRevision']);
+        });
         Route::get('/projects/{project}/management-lists', [ProjectManagementController::class, 'index']);
         Route::post('/projects/{project}/management-lists', [ProjectManagementController::class, 'storeList']);
         Route::put('/projects/{project}/management-lists/{list}', [ProjectManagementController::class, 'updateList']);
@@ -744,7 +758,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_gantt_projects', [TaskController::class, 'get_gantt_projects']);
         Route::patch('/quick_edit_task', [TaskController::class, 'quick_edit_task']);
         Route::get('/get_gantt_project_tasks', [TaskController::class, 'get_gantt_project_tasks']);
-        
+
         Route::get('/get_custom_forms', [CustomFormController::class, 'get_custom_forms']);
         Route::get('/get_active_project_creation_form', [CustomFormController::class, 'get_active_project_creation_form']);
         Route::get('/custom_forms/{form}/projects', [CustomFormController::class, 'get_form_projects']);
@@ -780,7 +794,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/contact_batches/{batch}/dismiss', [ContactController::class, 'dismiss_contact_batch']);
         Route::get('/contact_batch_notifications', [ContactController::class, 'contact_batch_notifications']);
         Route::post('/contact_batch_notifications/{notification}/read', [ContactController::class, 'contact_batch_notification_read']);
-        
+
         // Remind
         Route::get('/remind_attendance', [RemindController::class, 'remind_attendance']);
         Route::get('/remind_unsigned_messages', [RemindController::class, 'remind_unsigned_messages']);
@@ -817,8 +831,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_possible_members', [AssetController::class, 'get_possible_members']);
         Route::get('/get_asset_users', [AssetController::class, 'get_asset_users']);
         Route::post('/create_asset', [AssetController::class, 'create_asset']);
-        Route::get('/get_assets', [AssetController::class, 'get_assets']);       
-        Route::get('/admin_asset_list', [AssetController::class, 'admin_asset_list']);       
+        Route::get('/get_assets', [AssetController::class, 'get_assets']);
+        Route::get('/admin_asset_list', [AssetController::class, 'admin_asset_list']);
         Route::delete('/delete_asset', [AssetController::class, 'delete_asset']);
         Route::post('/asset_apply_request', [AssetController::class, 'asset_apply_request']);
         Route::post('/asset_return_request', [AssetController::class, 'asset_return_request']);

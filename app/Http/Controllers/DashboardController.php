@@ -63,14 +63,9 @@ class DashboardController extends Controller
         protected PaidLeaveLedgerService $paidLeaveLedger,
     ){
 
-    } 
+    }
     private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if($sub){
-            return $sub;
-        }else{
-            return Auth::user();
-        }
+        return Auth::user();
     }
     public function dashboard_data(Request $request)
     {
@@ -121,7 +116,7 @@ class DashboardController extends Controller
     public function projects()
     {
         $activeUser = $this->active_user();
-        
+
         $officer_approval_waiting = match (true) {
             in_array($activeUser->id, [608, 610], true) => ProjectRecord::select('id', 'status', 'name', 'contract_started_at', 'category', 'date_start', 'date_end')
             ->whereIn('status', [
@@ -212,7 +207,7 @@ class DashboardController extends Controller
             )
             ->filter(fn ($comment) => ($comment['count'] ?? 0) > 0)
             ->values();
-        
+
         return [
             'officer_approval_waiting' => $officer_approval_waiting,
             'assign_approval_waiting' => $assign_approval_waiting,
@@ -274,9 +269,9 @@ class DashboardController extends Controller
             ])
             ->get();
 
-        
 
-        
+
+
         $forms->each(function ($form) {
             $answeredUserIds = $form->survey_answers->pluck('user_id')->toArray();
             $form->users->each(function ($user) use ($answeredUserIds) {
@@ -342,6 +337,8 @@ class DashboardController extends Controller
 
 
     public function timesheet() {
+
+
         $pendingTimesheets = $this->pendingDailyReports();
         $autoApprovedTimesheets = $this->autoApprovedDailyReports();
         $departuresReportUsers = $this->departuresReportUsers();
@@ -378,10 +375,10 @@ class DashboardController extends Controller
         return $requests;
     }
     public function pendingAttendance() {
-        
+
         $user = Auth::user();
         if ($user->position_id < 6 || $user->position_id === 14) return null;
-        
+
         $previousMonth = Carbon::now()->subMonthNoOverflow()->format('Y-m');
         $previousM = Carbon::now()->subMonthNoOverflow()->month;
         $previousY = Carbon::now()->subMonthNoOverflow()->year;
@@ -545,7 +542,7 @@ class DashboardController extends Controller
             $overtimeRequestsCount = (int) ($overtimeRequests->get($user->id) ?? 0);
             $shiftCount = $shiftRows->get($user->id, collect())->values();
             $hasPendingTimecardsForUser = $hasPendingTimecards->contains((int) $user->id);
-            
+
              $d = [
                 "user" => $user,
                 "timecard" => $timeCardsCount,
@@ -553,7 +550,7 @@ class DashboardController extends Controller
                 "overtime" => $overtimeRequestsCount,
                 "shift" => $shiftCount,
             ];
-            if($hasPendingTimecardsForUser || $timeCardsCount->count() || $overtimeRequestsCount || $shiftCount->count()){                    
+            if($hasPendingTimecardsForUser || $timeCardsCount->count() || $overtimeRequestsCount || $shiftCount->count()){
                 $list[] = $d;
             }
 
@@ -797,7 +794,7 @@ class DashboardController extends Controller
             'this_week_schedules' => $thisWeek,
             'next_week_schedules' => $nextWeek,
         ];
-        
+
     }
     public function challenges()
     {
@@ -823,7 +820,7 @@ class DashboardController extends Controller
             ->where('date_start', '<=', $now->copy()->endOfDay())
             ->where('date_end', '>=', $now->copy()->startOfDay())
             ->get();
-        
+
         $updateNeed = (clone $challengesQuery)
             ->whereIn('status_flag', [0, 5])
             ->where('date_end', '<', $now->copy()->startOfDay())
@@ -948,7 +945,7 @@ class DashboardController extends Controller
     }
     private function latestReachedProgressCheckpoint(Carbon $start, Carbon $end, Carbon $now): ?int
     {
-        
+
         foreach ([75, 50] as $checkpoint) {
             if ($now->greaterThanOrEqualTo($this->progressCheckpointDate($start, $end, $checkpoint))) {
                 return $checkpoint;
@@ -1121,10 +1118,10 @@ class DashboardController extends Controller
     }
     public function pendingGoalsUserForHR() {
         $user = Auth::user();
-        if ($user->id === 631) {
+        if ($user->canHrApprove()) {
             $members = $this->getAdminMembers();
             return $members;
-        } 
+        }
         return [];
         // elseif ($user->position_id == 6) {
         //     $members = $this->getUserMembers($user->id);
@@ -1133,7 +1130,7 @@ class DashboardController extends Controller
         // } else {
         //     $members = $this->getUserMentors($user->id);
         // }
-        
+
         // $data = [
         //     "remind_project_not_approved" => $members,
         //     "not_approved_increases" => $user->id === 604 || $user->id === 631 ? $this->not_approved_increases() : []

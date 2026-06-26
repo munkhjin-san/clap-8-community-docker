@@ -20,9 +20,7 @@ class AppCommentController extends Controller
 
     private function active_user()
     {
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-
-        return $sub ?: Auth::user();
+        return Auth::user();
     }
 
     public function index(Request $request)

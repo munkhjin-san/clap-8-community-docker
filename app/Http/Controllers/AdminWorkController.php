@@ -47,15 +47,11 @@ class AdminWorkController extends Controller{
         $this->sharedService = $sharedService;
     }
     private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if($sub){
-            return $sub;
-        }else{
-            return Auth::user();
-        }
+        return Auth::user();
     }
 
     public function get_admin_work(Request $request) {
+        abort_unless($request->user()->canManageTimesheets(), 403, 'この機能へのアクセス権限がありません。');
 
         $month = $request->month;
         $today = Carbon::now();
@@ -882,7 +878,7 @@ class AdminWorkController extends Controller{
 
     private function canAdminPlannedLeaveChangeRequest(User $user): bool
     {
-        return in_array($user->id, [608, 610], true);
+        return $user->isAdmin();
     }
 
     private function canPmPlannedLeaveChangeRequest(User $user, PlannedLeaveChangeRequest $changeRequest): bool

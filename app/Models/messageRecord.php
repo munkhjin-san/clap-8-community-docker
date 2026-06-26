@@ -4,11 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\BelongsToCommunity;
 use Laravel\Scout\Searchable;
 
 class messageRecord extends Model
 {   
-    use SoftDeletes; 
+    use SoftDeletes;
+    use BelongsToCommunity;
     public function checkUsers()
     {
         return $this->belongsToMany(User::class, 'message_check_users')->withPivot(['checked'])->withTimestamps()->select('users.id', 'users.name', 'users.icon_path', 'users.deleted_at');

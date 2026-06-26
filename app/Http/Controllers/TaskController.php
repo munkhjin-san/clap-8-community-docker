@@ -28,12 +28,7 @@ class TaskController extends Controller
         $this->sharedService = $sharedService;
     }
     private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if($sub){
-            return $sub;
-        }else{
-            return Auth::user();
-        }
+        return Auth::user();
     }
     public function getTask(Request $request){
         $user_id = $request->user_id;

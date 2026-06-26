@@ -62,11 +62,6 @@ class AdminPaidLeaveLedgerController extends Controller
         $user = Auth::user();
         abort_unless($user, 401, '認証が必要です。');
 
-        $sub = $user->linked()
-            ->where('main_id', Auth::id())
-            ->wherePivot('active', 1)
-            ->first();
-
-        return (int) ($sub?->id ?? $user->id);
+        return (int) $user->id;
     }
 }

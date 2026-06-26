@@ -73,13 +73,23 @@
                     </div>
                 </div>
                 <div class="si-box">
-                    <ItemSelector 
+                    <ItemSelector
                         placeHolder="役職"
                         :multiple="false"
                         :clearable="true"
                         :options="positions"
                         :close-on-select="true"
                         v-model="userParams.position_id"
+                    />
+                </div>
+                <div class="si-box" v-if="roles && roles.length">
+                    <ItemSelector
+                        placeHolder="ロール（権限）"
+                        :multiple="false"
+                        :clearable="true"
+                        :options="roles"
+                        :close-on-select="true"
+                        v-model="userParams.community_role_id"
                     />
                 </div>
                 <div class="si-box" v-if="!isPartner">
@@ -185,17 +195,6 @@
                 </div>
 
                 <div style="padding: 15px;border: solid thin tomato;" class="si-box">
-                    <MemberSelector 
-                        v-if="!isPartner"
-                        placeHolder="サブアカウント"
-                        v-model="subParams.linked"
-                        :options="linkables"
-                        rules=""
-                        name="workgroup_users"
-                        :closeOnSelect="false"
-                        :multiple="true"
-                    />
-                    
                     <div class="si-box" v-if="editUserData" style="flex-direction:column">
                         <span class="user form-label" style="color:red;">退職</span>
                         <div class="input-inner-wrapper" style="margin-top:10px">
@@ -229,7 +228,7 @@ import LoaderButton from '../Global/LoaderButton.vue';
 import ItemSelector from '../Form/ItemSelector.vue';
 import { useApi } from '@/composables/api';
     const emit = defineEmits(['postFinish'])
-    const props = defineProps(['positions', 'offices', 'editUserData', 'workGroups', 'linkables'])
+    const props = defineProps(['positions', 'offices', 'editUserData', 'workGroups', 'linkables', 'roles'])
     const processing = ref(false)
     const showPassword = ref(false)
     const passwordReset = ref(false)
@@ -257,11 +256,11 @@ import { useApi } from '@/composables/api';
         user_code:props.editUserData ? props.editUserData.user_code :  '',
         on_leave: props.editUserData ? props.editUserData.on_leave : 0,
         joined_date: props.editUserData ? props.editUserData.joined_date : '',
+        community_role_id: props.editUserData ? props.editUserData.community_role_id : '',
     })
 
     const subParams = reactive({
         workGroup: props.editUserData && props.editUserData.work_groups ? props.editUserData.work_groups.map(ob => ob.id) :  [],
-        linked: props.editUserData && props.editUserData.linked ? props.editUserData.linked :  [],
     })
 
     const api = useApi()
@@ -294,7 +293,6 @@ import { useApi } from '@/composables/api';
             const val = await target?.validate() || {valid: false}
             result = result * val.valid
         }
-        
         if (!result) return
         if (processing.value) return
 
@@ -304,7 +302,6 @@ import { useApi } from '@/composables/api';
         const params = {
             id: props.editUserData ? props.editUserData.id : null,
             user_params: userParams,
-            linked: subParams.linked.map(ob => ob.id),
             work_groups: subParams.workGroup,
             password_reset: props.editUserData && passwordReset.value
         }
@@ -492,11 +489,5 @@ import { useApi } from '@/composables/api';
             margin-top: 10px;
         }
     }
-        
 
 </style>
-        
-        
-        
-        
-        

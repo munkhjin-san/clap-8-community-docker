@@ -6,12 +6,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
+use App\Models\Concerns\BelongsToCommunity;
 use Carbon\Carbon;
 
 class ProjectRecord extends Model
 {
     use HasFactory;
     use SoftDeletes;
+    use BelongsToCommunity;
 
     public function members(){
         return $this->belongsToMany(User::class, 'project_members', 'project_id', 'user_id')

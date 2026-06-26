@@ -266,7 +266,7 @@
                                     </div>
                                 </div>
                                 <button
-                                    v-if="auth.hasPrivilage"
+                                    v-if="auth.can('finance.analyze')"
                                     type="button"
                                     class="finance-ai-analyze-button"
                                     :disabled="!hasSelectedProjects || financeAnalysisLoading"

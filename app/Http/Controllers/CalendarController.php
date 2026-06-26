@@ -29,12 +29,7 @@ class CalendarController extends Controller
         $this->googleController = $googleController;
     }
     private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if($sub){
-            return $sub;
-        }else{
-            return Auth::user();
-        }
+        return Auth::user();
     }
     public function urlsafe_base64_encode($str){
         return str_replace(array('+', '/', '='), array('-', '_', ''), base64_encode($str));

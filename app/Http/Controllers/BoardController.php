@@ -19,6 +19,8 @@ use App\Models\UserLeaveRecord;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Services\Community\CommunityContext;
+use App\Services\Community\CommunityResolver;
 use Illuminate\Support\Facades\File; 
 use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Mail;
@@ -45,12 +47,7 @@ class BoardController extends Controller
         $this->sharedService = $sharedService;
     }
     private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if($sub){
-            return $sub;
-        }else{
-            return Auth::user();
-        }
+        return Auth::user();
     }
     public function start_private_board(Request $request){
         $with = $request['with'];
@@ -108,6 +105,8 @@ class BoardController extends Controller
         return $with;
     }
     public function index(Request $request){ 
+        $communityContext = app(CommunityContext::class);
+        app(CommunityResolver::class)->resolveFor(Auth::user());
         $id = $request->query('id');
         $m = $request->query('m');
         if($id && $m){
@@ -125,11 +124,11 @@ class BoardController extends Controller
             }
         }
         $no_partner_zone = ['post', 'work', 'support', 'project'];
-        if(in_array($name, $no_partner_zone) && Auth::user()->partner_flag == 1){
+        if(in_array($name, $no_partner_zone) && ($communityContext->isPartner() || Auth::user()->partner_flag == 1)){
             return redirect('board');
         }
         $no_registered_zone = ['post', 'learning'];
-        if(in_array($name, $no_registered_zone) && Auth::user()->position_id == 15){
+        if(in_array($name, $no_registered_zone) && ($communityContext->isRegistered() || Auth::user()->position_id == 15)){
             return redirect('board');
         } 
         // echo $id; 
@@ -138,7 +137,13 @@ class BoardController extends Controller
         
         $user = auth()->user()->load(['weathers' => function($q) use($today){
             $q->where('type_id', 43)->where('date', $today);
-        }, 'project_settings', 'linked']);
+        }, 'project_settings', 'communityMemberships.community', 'communityMemberships.role']);
+        $user->setAttribute('active_community', $communityContext->community());
+        $user->setAttribute('active_membership', $communityContext->membership());
+        $user->setAttribute('communities', $communityContext->authPayload($user)['communities']);
+        $user->setAttribute('community_scope', $communityContext->scope());
+        $user->setAttribute('community_role', $communityContext->membership()?->role);
+        $user->setAttribute('community_capabilities', $communityContext->capabilities());
        
         return view('board')->with(array('initialDate'=> $date, 'user' => $user));
 
@@ -1077,9 +1082,7 @@ class BoardController extends Controller
         
     }
     public function get_board_badge(){       
-        $linked = Auth::user()->linked()->get()->pluck('id')->toArray();
-        array_push($linked, Auth::id());
-        // return response()->json($linked); 
+        $linked = [Auth::id()];
         $leavePeriod = $this->user_onleave(Auth::id());
         $list = [];
         foreach($linked as $user_id){

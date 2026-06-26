@@ -5,11 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\BelongsToCommunity;
 
 class CalendarRecord extends Model
 {
     use HasFactory;
     use SoftDeletes;
+    use BelongsToCommunity;
     public function calendar_users(){
         return $this->belongsToMany(User::class, 'calendar_users', 'record_id', 'user_id')->select(['users.id as id', 'users.name','users.icon_path', 'users.email', 'users.icon_bg'])->distinct();
     }

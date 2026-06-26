@@ -199,7 +199,7 @@ final class BadgeService
                 });
             }
         })
-        ->when($user->id == 631, function($q) {
+        ->when($user->canHrApprove(), function($q) {
             $q->orWhere('status', 4);
         })
         ->select('id', 'project_id', 'user_id', 'year', 'which_half', 'status')->get();

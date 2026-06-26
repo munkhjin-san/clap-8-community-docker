@@ -8,14 +8,25 @@ import { useMessageUsers } from '@/store/messageUsers'
 import { useProjectUsers } from '@/store/projectUsers'
 import { useResponsive } from '@/store/responsive'
 import { useSideMenuView } from '@/store/sideMenuView'
+import { useAuthUserStore } from '@/store/auth'
 
 const router = createRouter({
     history: createWebHistory(),
     routes,
 })
 
+// Maps an app route name to the blade that gates it. A role without the blade
+// is redirected away. Dashboard/board/settings are built-in (no entry here).
+const ROUTE_BLADE: Record<string, string> = {
+    project: 'app.project',
+    schedule: 'app.schedule',
+    timesheet: 'app.timesheet',
+    learning: 'app.learning',
+    contact: 'app.contact',
+    post: 'app.post',
+}
+
 router.beforeEach((to, from) => {
-    void to
     void from
 
     const keyboardStore = useKeyboardStore()
@@ -29,6 +40,18 @@ router.beforeEach((to, from) => {
 
     if (virtualKeyboardNavigator.virtualKeyboard) {
         virtualKeyboardNavigator.virtualKeyboard.overlaysContent = false
+    }
+
+    // Block navigation to an app the active role can't access (admin bypasses
+    // via can()). Skipped until auth is loaded; the backend enforces regardless.
+    const auth = useAuthUserStore()
+    if (auth.id) {
+        for (const matched of to.matched) {
+            const blade = ROUTE_BLADE[matched.name as string]
+            if (blade && !auth.can(blade)) {
+                return { name: 'board' }
+            }
+        }
     }
 })
 

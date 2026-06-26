@@ -4,11 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\BelongsToCommunity;
 use Carbon\Carbon;
 
 class timecardRecord extends Model
 {
     use SoftDeletes;
+    use BelongsToCommunity;
 
     public const STATUS_DRAFT = 0;
     public const STATUS_SUBMITTED = 1;

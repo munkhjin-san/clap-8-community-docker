@@ -56,12 +56,7 @@ class ContactController extends Controller
         return response()->json($types);
     }
     private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if($sub){
-            return $sub;
-        }else{
-            return Auth::user();
-        }
+        return Auth::user();
     }
     private function get_company_name($image)
     {

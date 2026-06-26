@@ -16,8 +16,7 @@ class AssetCategoryController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        $sub = $user->linked()->where('main_id', $user->id)->wherePivot('active', 1)->first();
-        return $sub ?: $user;
+        return $user;
     }
 
     private function ensureAdmin(): void

@@ -132,7 +132,7 @@ import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
     const router = useRouter()
     const auth = useAuthUserStore()
-    if (!auth.isAdmin) {
+    if (!auth.can('support.inbox.view')) {
         router.replace({ name: 'dashboard-support' })
     }
     const list = ref([])

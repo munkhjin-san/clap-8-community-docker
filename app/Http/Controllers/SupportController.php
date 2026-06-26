@@ -35,21 +35,22 @@ use App\Models\EmergencyContact;
 use App\Models\EmergencyContactAction;
 use App\Models\Incident;
 use App\Models\User;
+use App\Services\Community\CommunityPermissionService;
 use OpenAI;
 
 class SupportController extends Controller
 {
-    private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if($sub){
-            return $sub;
-        }else{
-            return Auth::user();
-        }
+    public function __construct(private CommunityPermissionService $permissions)
+    {
     }
+
+    private function active_user(){
+        return Auth::user();
+    }
+    // Support administration (FAQ / regulations / system updates) is admin-only.
     private function isSupportAdmin(): bool
     {
-        return in_array($this->active_user()->id, [608, 610]);
+        return $this->active_user()->isAdmin();
     }
 
     private function authorizeSupportAdmin(): void
@@ -105,11 +106,7 @@ class SupportController extends Controller
         return response()->json($incement);
     }
     public function faq_add_record(Request $request){
-        $adminIds = [608, 610];
-        $user_id = $this->active_user()->id;
-        if (!in_array($user_id, $adminIds)) {
-            abort(403);
-        }
+        $this->authorizeSupportAdmin();
         $request->validate([
             'question' => 'required|string|max:200',
             'answer'   => 'required|string|max:500',
@@ -138,11 +135,7 @@ class SupportController extends Controller
         return response()->json($record);
     }
     public function faq_delete_record(Request $request){
-        $adminIds = [608, 610];
-        $user_id = $this->active_user()->id;
-        if (!in_array($user_id, $adminIds)) {
-            abort(403);
-        }
+        $this->authorizeSupportAdmin();
         $request->validate(['id' => 'required|integer']);
         $record = questionAndAnswerRecord::findOrFail($request->id);
         $record->update(['deleted_flag' => 1]);
@@ -154,11 +147,7 @@ class SupportController extends Controller
         return response()->json(['success' => true]);
     }
     public function faq_tag_save(Request $request){
-        $adminIds = [608, 610];
-        $user_id = $this->active_user()->id;
-        if (!in_array($user_id, $adminIds)) {
-            abort(403);
-        }
+        $this->authorizeSupportAdmin();
         $request->validate([
             'text' => 'required|string|max:100',
         ]);
@@ -169,11 +158,7 @@ class SupportController extends Controller
         return response()->json($tag);
     }
     public function faq_tag_delete(Request $request){
-        $adminIds = [608, 610];
-        $user_id = $this->active_user()->id;
-        if (!in_array($user_id, $adminIds)) {
-            abort(403);
-        }
+        $this->authorizeSupportAdmin();
         $request->validate(['id' => 'required|integer']);
         qandaTagRecord::findOrFail($request->id)->update(['deleted_flag' => 1]);
         return response()->json(['success' => true]);
@@ -191,8 +176,7 @@ class SupportController extends Controller
     public function get_recieved_consults(){
 
         
-        $user_id = $this->active_user()->id;
-        $has_privilage = in_array($user_id, [610, 608, 516, 517, 519, 518, 526, 494]);
+        $has_privilage = $this->permissions->can('support.inbox.view', $this->active_user());
         $record_list = supportMailFormRecord::where('deleted_flag','=', 0)
         ->when(!$has_privilage, function($q){
             $q->where('user_id', Auth::id());

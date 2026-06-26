@@ -77,7 +77,7 @@
           @click="unlockPlan"
         >確定解除</button>
         <button
-          v-if="!lockState.is_locked && (auth.isAdmin || auth.isBoss) "
+          v-if="!lockState.is_locked && auth.can('finance.manage')"
           class="text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           :disabled="isReadOnly"
           @click="confirmAndLock"

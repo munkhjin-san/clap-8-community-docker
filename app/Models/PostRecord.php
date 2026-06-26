@@ -5,11 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Concerns\BelongsToCommunity;
 
 class PostRecord extends Model
 {
     use HasFactory;
     use SoftDeletes;
+    use BelongsToCommunity;
     public function user(){
         return $this->belongsTo(User::class)->select('id', 'name', 'icon_path', 'icon_bg');
     }

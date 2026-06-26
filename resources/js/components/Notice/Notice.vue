@@ -1,9 +1,9 @@
 <template>
     <div>
-        <FloatButton 
-            class="fixed" 
+        <FloatButton
+            class="fixed"
             @action="createWindow = true, editTarget = null"
-            v-if="auth.isAdmin || auth.isBoss"
+            v-if="auth.can('notice.manage')"
         >
             <template #icon>
                 <AddIcon/>

@@ -84,13 +84,14 @@
           
         <Transition name="modalFade">
             <div class="overlay" v-if="showModalContent">                      
-                <UserCreate 
+                <UserCreate
                     :positions="positions"
                     :offices="offices"
                     :editUserData="editUserData"
                     :workGroups="workGroups"
                     :passwordFlag="passwordFlag"
                     :linkables="linkables"
+                    :roles="roles"
                     @postFinish="postFinish"
                 />
             </div>   
@@ -122,6 +123,7 @@ import { useApi } from '@/composables/api';
     const linkables = ref([])
     const positions = ref([])
     const offices = ref([])
+    const roles = ref([])
     const workTypeOptions = [
         { value: 0, label: 'フレックス' },
         { value: 1, label: '通常' },
@@ -133,12 +135,13 @@ import { useApi } from '@/composables/api';
         fetch.value++
     })
     const getUsers = async() => {
-        const { w, o, p, l, u } = await api.get('/get_controllable_users')     
+        const { w, o, p, l, u, r } = await api.get('/get_controllable_users')
         usersList.value = u
         workGroups.value = w
         linkables.value = l
         positions.value = p
         offices.value = o
+        roles.value = r ?? []
     }
     const tabUsers = computed(() => {
         return usersList.value.filter(user => user.retire == retire.value && user.on_leave == on_leave.value)

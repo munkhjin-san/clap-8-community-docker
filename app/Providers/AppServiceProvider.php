@@ -13,6 +13,7 @@ use App\Infrastructure\Kintone\{KintoneClient,KintonePlanProvider};
 use App\Infrastructure\Sheets\{GoogleSheetsClient,GoogleSheetsActualProvider};
 use Illuminate\Support\Facades\Gate;
 use App\Models\User;
+use App\Services\Community\CommunityContext;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -40,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(BoardControllerProxy::class, fn($app) =>
             new BoardControllerProxy($app->make(\App\Http\Controllers\BoardController::class))
         );
+        $this->app->scoped(CommunityContext::class, fn () => new CommunityContext());
     }
 
     /**

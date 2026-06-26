@@ -313,19 +313,37 @@ export const ADMIN_PERSONNEL_EVALUATION_CARD: DashboardCard = {
 }
 
 /**
- * Get default dashboard cards filtered by user permissions
+ * Maps a dashboard card type to the app blade that gates it. A card whose
+ * underlying app is disabled for the role is hidden. Cards NOT listed here
+ * (chat reminders, tasks) belong to built-in apps and are always available.
+ */
+export const CARD_APP_BLADE: Record<string, string> = {
+    forms: 'app.form',
+    overdueGoals: 'app.project',
+    projects: 'app.project',
+    challenges: 'app.post',
+    incidents: 'app.project',
+    assets: 'app.asset',
+    schedules: 'app.schedule',
+    timesheet: 'app.timesheet',
+    notice: 'app.notice',
+    personnelEvaluation: 'app.project',
+}
+
+/**
+ * Whether the card's underlying app is enabled for the current role.
+ * Built-in cards (no mapping) are always enabled; admin bypasses via auth.can.
+ */
+export function isCardAppEnabled(card: Pick<DashboardCard, 'type'>): boolean {
+    const blade = CARD_APP_BLADE[card.type]
+    return blade ? auth.can(blade) : true
+}
+
+/**
+ * Get default dashboard cards filtered by the role's app blades.
  */
 export function getDefaultDashboardCards(): DashboardCard[] {
-    return DEFAULT_DASHBOARD_CARDS.filter(card => {
-        // Overdue goals card - only include for non-partner and non-registered users
-        if (card.type === 'overdueGoals' || card.type === 'notice') {
-            return !auth.isPartner && !auth.isRegistered
-        }
-        if(card.type === 'timesheet' || card.type === 'post') {
-            return !auth.isPartner
-        }
-        return true
-    })
+    return DEFAULT_DASHBOARD_CARDS.filter(card => isCardAppEnabled(card))
 }
 
 /**

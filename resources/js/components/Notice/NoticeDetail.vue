@@ -4,7 +4,7 @@
             <div class="recordFormTitle" style="align-items: baseline;">
                 <p v-if="item" style="overflow-wrap: anywhere; font-size: large;line-height: 1.5;">{{ item.title }}</p>
                 <div style="margin-left: auto;padding-left: 20px;display: flex; align-items: center;position: relative;">
-                    <ItemMenu v-if="auth.isAdmin || auth.isBoss" :items="[
+                    <ItemMenu v-if="auth.can('notice.manage')" :items="[
                         {title: '編集する', action: () => emit('edit', item)},
                         {title: '削除する', action: () => emit('delete', item)}
                     ]"/>

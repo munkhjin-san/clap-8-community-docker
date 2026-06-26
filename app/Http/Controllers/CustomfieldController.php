@@ -73,7 +73,7 @@ class CustomfieldController extends Controller{
             'user_album' => fn($q) => $q->where('deleted_flag', 0)->with('tags'),
             'weathers' => fn($q) => $q->where('type_id', 43)->whereDate('date', today()),
             'days_weathers' => fn($q) => $q->where('type_id', 43)->where('deleted_flag', 0)->whereDate('date', '<', today())->latest('date')->limit(5),
-            'portfolio','linked',
+            'portfolio','communityMemberships.community','communityMemberships.role',
         ]);
         return response()->json($user);
 

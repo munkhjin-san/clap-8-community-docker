@@ -27,8 +27,8 @@
                     />
                 </div>
                 
-                 <FloatButton 
-                    v-if="auth.user && auth.user.partner_flag !== 1"
+                 <FloatButton
+                    v-if="auth.can('board.create')"
                     :hide-on="panelContainer"
                     @click="create()"
                 >

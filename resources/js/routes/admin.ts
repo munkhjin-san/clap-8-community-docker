@@ -12,7 +12,12 @@ export const adminRoutes: RouteRecordRaw[] = [
             {
                 path: 'account',
                 name: 'account',
-                component: () => import('@/components/AccountControl/AdminAccount.vue'),
+                component: () => import('@/components/AccountControl/CommunityControl/CommunityAdmin.vue'),
+            },
+            {
+                path: 'permissions',
+                name: 'community-permissions',
+                component: () => import('@/components/AccountControl/CommunityControl/CommunityPermissionControl.vue'),
             },
             {
                 path: 'clapcount',

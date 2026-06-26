@@ -197,7 +197,8 @@ import {
     CARD_ADMIN_DATA_KEY_BY_TYPE,
     CARD_REFRESH_KEYS_BY_TYPE,
     CARD_ADMIN_REFRESH_KEYS_BY_TYPE,
-    shouldShowCard
+    shouldShowCard,
+    isCardAppEnabled
 } from '@/config/dashboardCards';
 import './dashboard.css'
 import Badge from '../Global/Badge.vue';
@@ -242,6 +243,11 @@ const canSeeIncidentCard = computed(() => {
         || (collection.incidents.emergency_contacts && collection.incidents.emergency_contacts.length > 0)
 })
 const permissionAllowedDashboardCards = computed(() => dashboardCards.value.filter((card) => {
+    // A card whose underlying app is disabled for this role is always hidden,
+    // even if a saved layout still references it.
+    if (!isCardAppEnabled(card)) {
+        return false
+    }
     if (card.type === 'incidents' && !canSeeIncidentCard.value) {
         return route.params.type === card.type
     }

@@ -6,8 +6,10 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Carbon\Carbon;
+use App\Services\Community\CommunityPermissionService;
 use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
@@ -180,8 +182,16 @@ class User extends Authenticatable
     public function work_groups(){
         return $this->belongsToMany(ProjectRecord::class, 'project_members', 'user_id', 'project_id')->withPivot(['authority']);
     }
-    public function linked(){
-        return $this->belongsToMany(User::class, 'user_linked_accounts', 'main_id', 'link_id')->withPivot(['active']);
+    public function communities(): BelongsToMany
+    {
+        return $this->belongsToMany(Community::class, 'community_user')
+            ->using(CommunityMembership::class)
+            ->withPivot(['community_role_id', 'scope', 'is_default', 'last_active_at'])
+            ->withTimestamps();
+    }
+    public function communityMemberships(): HasMany
+    {
+        return $this->hasMany(CommunityMembership::class);
     }
     public function knowledge(){
         return $this->hasMany(KnowledgeRecord::class, 'user_id');
@@ -243,7 +253,67 @@ class User extends Authenticatable
     }
     public function isAdmin(): bool
     {
+        if (app()->bound(CommunityPermissionService::class)) {
+            return app(CommunityPermissionService::class)->isAdmin($this);
+        }
+
         return in_array((int) $this->id, self::ADMIN_USER_IDS, true);
+    }
+    public function isBoss(): bool
+    {
+        if (app()->bound(CommunityPermissionService::class)) {
+            return app(CommunityPermissionService::class)->isBoss($this);
+        }
+
+        return $this->position_id !== null && (int) $this->position_id < 6;
+    }
+    public function isPM(): bool
+    {
+        if (app()->bound(CommunityPermissionService::class)) {
+            return app(CommunityPermissionService::class)->isPM($this);
+        }
+
+        return (int) $this->position_id === 6;
+    }
+    public function isPartnerScope(): bool
+    {
+        if (app()->bound(CommunityPermissionService::class)) {
+            return app(CommunityPermissionService::class)->isPartner($this);
+        }
+
+        return (int) $this->partner_flag === 1;
+    }
+    public function isRegisteredScope(): bool
+    {
+        if (app()->bound(CommunityPermissionService::class)) {
+            return app(CommunityPermissionService::class)->isRegistered($this);
+        }
+
+        return (int) $this->position_id === 15;
+    }
+    // Manage any member's timecard/shift/overtime: the work_authority column
+    // (per-user grant) or the timesheet.manage_all blade (admin bypasses).
+    public function canManageTimesheets(): bool
+    {
+        if ((int) $this->work_authority === 1) {
+            return true;
+        }
+
+        if (app()->bound(CommunityPermissionService::class)) {
+            return app(CommunityPermissionService::class)->can('timesheet.manage_all', $this);
+        }
+
+        return in_array((int) $this->id, self::ADMIN_USER_IDS, true);
+    }
+    // HR approval / confirmation (monthly-goal confirm & view, member assignment,
+    // change applications). Replaces the hardcoded HR id 631. Admin bypasses.
+    public function canHrApprove(): bool
+    {
+        if (app()->bound(CommunityPermissionService::class)) {
+            return app(CommunityPermissionService::class)->can('hr.approve', $this);
+        }
+
+        return in_array((int) $this->id, [608, 610, 631], true);
     }
     public function oauthCredentials()
     {

@@ -22,12 +22,7 @@ class CustomFormController extends Controller
     private const PROJECT_CREATION_USAGE = 'project_creation';
 
     private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if($sub){
-            return $sub;
-        }else{
-            return Auth::user();
-        }
+        return Auth::user();
     }
     public function get_survey(Request $request){
         $request->validate([

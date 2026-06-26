@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Crypt;
 use App\Models\User;
+use App\Http\Controllers\AccountChooserController;
+use App\Services\Community\CommunityResolver;
 
 class LoginController extends Controller
 {
@@ -49,5 +51,27 @@ class LoginController extends Controller
     public function username()
     {
         return 'login';
+    }
+
+    protected function authenticated(Request $request, $user)
+    {
+        app(CommunityResolver::class)->resolveFor($user);
+
+        $cookieValue = $request->cookie(AccountChooserController::COOKIE_NAME, '[]');
+        $ids = json_decode((string) $cookieValue, true);
+        $ids = is_array($ids) ? $ids : [];
+        $ids[] = (int) $user->id;
+
+        cookie()->queue(cookie(
+            AccountChooserController::COOKIE_NAME,
+            json_encode(array_values(array_unique(array_map('intval', $ids)))),
+            60 * 24 * 180,
+            null,
+            null,
+            $request->isSecure(),
+            true,
+            false,
+            'lax'
+        ));
     }
 }

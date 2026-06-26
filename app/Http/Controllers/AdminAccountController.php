@@ -14,6 +14,8 @@ use App\Models\workGroup;
 use App\Models\workGroupUser;
 use App\Models\userDetail;
 use App\Models\UserLeaveRecord;
+use App\Models\CommunityRole;
+use App\Services\Community\CommunityContext;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 use App\Services\SharedService;
@@ -44,11 +46,9 @@ class AdminAccountController extends Controller
                             ->whereNotIn('name', $ng_list)
                             ->with('offices')
                             ->with('work_groups')
-                            ->with('linked')
                             ->get();
         $position_list_label = positionRecord::select('name', 'id')->orderBy('sort_flag', 'asc')->get();
         $office_list_label = officeRecord::select('name', 'id')->get();
-        $linkable_accounts = User::where('linkable', 1)->select('id', 'name', 'icon_path', 'icon_bg')->get();
         $work_groups = workGroup::select('name', 'id')
         ->whereHas('members')
         ->when($with_users, function ($q) {
@@ -65,12 +65,27 @@ class AdminAccountController extends Controller
         ->whereHas('members')
         ->orWhereHas('manager')
         ->get();
+
+        // Attach each user's community role (for the active community) and the
+        // selectable role list, so the user editor can assign roles.
+        $activeCommunityId = app(CommunityContext::class)->communityId();
+        $roleByUser = $activeCommunityId
+            ? DB::table('community_user')->where('community_id', $activeCommunityId)->pluck('community_role_id', 'user_id')
+            : collect();
+        $user_list->each(function ($user) use ($roleByUser) {
+            $user->community_role_id = $roleByUser[$user->id] ?? null;
+        });
+        $roles = $activeCommunityId
+            ? CommunityRole::where('community_id', $activeCommunityId)->orderBy('sort_order')->get(['id', 'key', 'name'])
+            : collect();
+
         $data = [
             "u" => $user_list,
             "p" => $position_list_label,
             "o" => $office_list_label,
-            "l" => $linkable_accounts,
-            "w" => $projects
+            "l" => [],
+            "w" => $projects,
+            "r" => $roles,
         ];
 
         return response()->json($data);
@@ -174,20 +189,70 @@ class AdminAccountController extends Controller
         }
     
             $user->work_groups()->syncWithPivotValues($request->work_groups, ['updated_at' => now()]);
-        
-        
-            $user->linked()->syncWithPivotValues($request->linked, ['updated_at' => now()]);
-        
-        
-        
-                
+
+        $this->assignCommunityRole($user, $user_params['community_role_id'] ?? null);
+
         $arr = [
             "message" => "success",
             "success" => true,
             "data" => $user,
-        ]; 
+        ];
         return response()->json($arr);
-    
+
+    }
+
+    /**
+     * Assign a user to a community role within the active community.
+     * Creates the membership if missing; protects the last admin.
+     */
+    private function assignCommunityRole(User $user, $roleId): void
+    {
+        $communityId = app(CommunityContext::class)->communityId();
+        if (!$communityId || !$roleId) {
+            return;
+        }
+
+        $role = CommunityRole::where('community_id', $communityId)->where('id', (int) $roleId)->first();
+        if (!$role) {
+            return;
+        }
+
+        $existing = DB::table('community_user')
+            ->where('community_id', $communityId)
+            ->where('user_id', $user->id)
+            ->first();
+
+        $currentRole = $existing ? CommunityRole::find($existing->community_role_id) : null;
+        if ($currentRole?->key === 'admin' && $role->key !== 'admin') {
+            $adminRoleIds = CommunityRole::where('community_id', $communityId)->where('key', 'admin')->pluck('id');
+            $adminCount = DB::table('community_user')
+                ->where('community_id', $communityId)
+                ->whereIn('community_role_id', $adminRoleIds)
+                ->count();
+            if ($adminCount <= 1) {
+                throw ValidationException::withMessages([
+                    'community_role_id' => '管理者ロールには最低1名のメンバーが必要です。',
+                ]);
+            }
+        }
+
+        if ($existing) {
+            DB::table('community_user')->where('id', $existing->id)->update([
+                'community_role_id' => $role->id,
+                'updated_at' => now(),
+            ]);
+        } else {
+            DB::table('community_user')->insert([
+                'community_id' => $communityId,
+                'user_id' => $user->id,
+                'community_role_id' => $role->id,
+                'scope' => (int) ($user->partner_flag ?? 0) === 1 ? 'partner' : 'internal',
+                'is_default' => true,
+                'last_active_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     public function workgroupDelete(Request $request){

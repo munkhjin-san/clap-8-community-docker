@@ -44,12 +44,7 @@ class RemindController extends Controller
 
     } 
     private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if($sub){
-            return $sub;
-        }else{
-            return Auth::user();
-        }
+        return Auth::user();
     }
     public function remind_attendance(Request $request){
         $auth_user = Auth::user();
@@ -407,7 +402,7 @@ class RemindController extends Controller
     }
     public function remind_project_not_approved() {
         $user = Auth::user();
-        if ($user->id === 631) {
+        if ($user->canHrApprove()) {
             $members = $this->getAdminMembers();
         } else {
             $members = [];
@@ -422,7 +417,7 @@ class RemindController extends Controller
         
         $data = [
             "remind_project_not_approved" => $members,
-            "not_approved_increases" => $user->id === 604 || $user->id === 631 ? $this->not_approved_increases() : []
+            "not_approved_increases" => $user->id === 604 || $user->canHrApprove() ? $this->not_approved_increases() : []
         ];
         return response()->json($data);
     }

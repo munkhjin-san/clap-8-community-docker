@@ -17,12 +17,7 @@ use Auth;
 class NoticeController extends Controller
 {
     private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if($sub){
-            return $sub;
-        }else{
-            return Auth::user();
-        }
+        return Auth::user();
     }
     public function get_notices(Request $request){
         $key = $request->keyword;

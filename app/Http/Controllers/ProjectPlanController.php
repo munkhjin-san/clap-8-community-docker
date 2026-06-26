@@ -21,18 +21,11 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class ProjectPlanController extends Controller
 {
-    private const HQ_USER_ID = 610;
-
     public function __construct(private CoAInstaller $coaInstaller)
     {
     }
     private function activeUser(): User
     {
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if ($sub) {
-            return $sub;
-        }
-
         return Auth::user();
     }
     /**
@@ -505,7 +498,7 @@ class ProjectPlanController extends Controller
     public function unlock(ProjectRecord $project, Request $request)
     {
         $user = $this->activeUser();
-        abort_unless((int) $user->id === self::HQ_USER_ID, 403, '解除権限がありません。');
+        abort_unless($user->isAdmin(), 403, '解除権限がありません。');
 
         $data = $request->validate([
             'plan_year_id' => ['nullable', 'integer', 'exists:project_plan_years,id'],
@@ -548,7 +541,7 @@ class ProjectPlanController extends Controller
             ->orderByRaw('scenario_key = ? desc', [$scenarioKey])
             ->first();
 
-        if ($lock && (int) Auth::id() !== self::HQ_USER_ID) {
+        if ($lock && !Auth::user()?->isAdmin()) {
             abort(403, '確定済みのため編集できません。');
         }
     }

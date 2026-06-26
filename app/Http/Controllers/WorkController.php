@@ -54,12 +54,7 @@ class WorkController extends Controller
         $this->sharedService = $sharedService;
     }
     private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if($sub){
-            return $sub;
-        }else{
-            return Auth::user();
-        }
+        return Auth::user();
     }
     private function canExportWorkCsv(User $user): bool
     {
@@ -523,7 +518,7 @@ class WorkController extends Controller
             return false;
         }
 
-        if ($activeUser->isAdmin() || (int) $activeUser->work_authority === 1) {
+        if ($activeUser->canManageTimesheets()) {
             return true;
         }
 
@@ -622,7 +617,7 @@ class WorkController extends Controller
         if ((int) $activeUser->id === (int) $targetUser->id) {
             return;
         }
-        if ($activeUser->isAdmin() || (int) $activeUser->work_authority === 1) {
+        if ($activeUser->canManageTimesheets()) {
             return;
         }
         if ($this->hasTimesheetManagerAuthority($activeUser, $targetUser, $timecard, $shift, $this->managedShiftProjectIds($activeUser), $incomingProjectIds)) {
@@ -636,7 +631,7 @@ class WorkController extends Controller
         if (!$activeUser->isAdmin() && (int) $timecard->user_id === (int) $activeUser->id) {
             abort(403, '自分の日報は承認できません。');
         }
-        if ($activeUser->isAdmin() || (int) $activeUser->work_authority === 1) {
+        if ($activeUser->canManageTimesheets()) {
             return;
         }
 

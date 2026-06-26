@@ -63,7 +63,7 @@ use App\Infrastructure\Kintone\KintoneClient;
 use App\Infrastructure\Sheets\GoogleSheetsClient;
 use Illuminate\Database\Eloquent\Collection;
 use Maatwebsite\Excel\Facades\Excel;
-use Illuminate\Support\Facades\File; 
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Laravel\Facades\Image;
 use Google_Client;
@@ -80,7 +80,7 @@ class ProjectController extends Controller
     protected $boardController;
     protected $sharedService;
 
-    
+
     private const SYSTEM_STATUS_LABELS = [
         1 => '新規契約',
         2 => '継続契約',
@@ -89,8 +89,8 @@ class ProjectController extends Controller
         5 => 'アポイント取得',
     ];
     public function __construct(
-        BoardController $boardController, 
-        SharedService $sharedService, 
+        BoardController $boardController,
+        SharedService $sharedService,
         private CachedContractExtractionService $contractExtractionService,
         private KintoneClient $api,
         private GoogleSheetsClient $client,
@@ -99,14 +99,9 @@ class ProjectController extends Controller
     ){
         $this->boardController = $boardController;
         $this->sharedService = $sharedService;
-    } 
+    }
     private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if($sub){
-            return $sub;
-        }else{
-            return Auth::user();
-        }
+        return Auth::user();
     }
 
     public function get_projects(Request $request) {
@@ -175,7 +170,7 @@ class ProjectController extends Controller
             'checkitems.children',
             'checkitems.children.categoryRecord',
             'reports.user',
-            'reports.files'        
+            'reports.files'
         ])
         ->get();
         $now = Carbon::now();
@@ -184,14 +179,14 @@ class ProjectController extends Controller
         // Load role_record for members and managers pivots
         $projects->each(function ($p) use ($confirmBadgeMap, $commentBadgeMap, $selectedYear, $selectedMonth) {
             $p->loadMemberRoles();
-            
+
             $allMemberIds = $p->manager()
                 ->pluck('users.id')
                 ->merge($p->members()->pluck('users.id'))
                 ->unique()
                 ->values()
                 ->toArray();
-            
+
             $totalWorkTimePerProject = $this->sharedService->collectWorkTimePerProject($p->id, $allMemberIds, $selectedYear, $selectedMonth);
             $p->total_work_time = $totalWorkTimePerProject['totalWorkTime'];
             $p->total_work_day = $totalWorkTimePerProject['totalWorkDay'];
@@ -223,7 +218,7 @@ class ProjectController extends Controller
         $string = "{$user_name}:{$password}";
         $x_token = base64_encode($string);
         $headers = [
-            'Authorization' => 'Basic', 
+            'Authorization' => 'Basic',
             'X-Cybozu-Authorization' => $x_token
         ];
         foreach($projects as $project){
@@ -233,9 +228,9 @@ class ProjectController extends Controller
             ];
             $departmentQueryString = http_build_query($departmentQueryParams);
             $departmentUrl = "https://glowd-hldgs.cybozu.com/k/v1/records.json?" . $departmentQueryString;
-    
-            
-    
+
+
+
             $departmentResponse = Http::withHeaders($headers)->get($departmentUrl);
             if (isset($departmentResponse->json()['records']) && count($departmentResponse->json()['records'])){
                 foreach($departmentResponse->json()['records'] as $department) {
@@ -245,9 +240,9 @@ class ProjectController extends Controller
                     $project->kpi = $department['文字列__複数行__4']['value'];
                     $project->save();
                 }
-                
+
             }
-            
+
         }
         return response()->json($projects);
     }
@@ -258,7 +253,7 @@ class ProjectController extends Controller
 
         $previous_half = $which_half === 'first' ? 'second' : 'first';
         $previous_year = $which_half === 'first' ? $year - 1 : $year;
-    
+
         $thisEvaluation = EvaluationRecord::where('user_id', $userId)
             ->where('year', $year)
             ->where('which_half', $which_half)
@@ -290,7 +285,7 @@ class ProjectController extends Controller
                 'needed_count' => 0,
             ],
         ];
-        if($active_user->position_id < 6){
+        if($active_user->isBoss()){
             return $data;
         }
 
@@ -310,9 +305,9 @@ class ProjectController extends Controller
         $data['this_span']['created_count'] = $thisGoalsCount;
         $data['previous_span']['created_count'] = $previousGoalsCount;
         $now = Carbon::now();
-        //if after 20th, add 1 or keep curreent month 
+        //if after 20th, add 1 or keep curreent month
         $targetMonth = $now->copy()->day >= 20 ? $now->month + 1 : $now->month;
-        
+
         $thisMap = [
             4 => max(0, $thisSpanTotal - 5),
             5 => max(0, $thisSpanTotal - 4),
@@ -396,11 +391,11 @@ class ProjectController extends Controller
         $project_managers = ProjectMember::where('authority', 1)->whereHas('project')->pluck('user_id')->unique()->toArray();
         $is_pm = in_array($user->id, $project_managers);
 
-        $is_boss = $user->position_id && $user->position_id < 6;
+        $is_boss = $user->isBoss();
 
         $is_mentor = ($user->general_position && $user->general_position !== '一般職') || $is_boss;
 
-        $is_admin = in_array($user->id, [608, 610]);
+        $is_admin = $user->isAdmin();
 
         $members_goals = [];
 
@@ -420,14 +415,14 @@ class ProjectController extends Controller
             $mentor_approval_needed_goals_with_salary_issue = User::whereNot('id', $user->id)
             ->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
             ->with(['outcome_goals' => function ($q) use ($user, $approvalGoalColumns, $resultSubmissionLogs) {
-                $q->whereHas('salaryIssue', function ($q) use ($user){                
+                $q->whereHas('salaryIssue', function ($q) use ($user){
                     $q->whereIn('status', [2, 7])->whereHas('evaluation', function ($subQuery) use ($user) {
                         $subQuery->where('mentor_id', $user->id);
                     });
                 })->select($approvalGoalColumns)->with(['statusLogs' => $resultSubmissionLogs]);
             }])
             ->whereHas('outcome_goals', function ($q) use ($user) {
-                $q->whereHas('salaryIssue', function ($q) use ($user){                
+                $q->whereHas('salaryIssue', function ($q) use ($user){
                     $q->whereIn('status', [2, 7])->whereHas('evaluation', function ($subQuery) use ($user) {
                         $subQuery->where('mentor_id', $user->id);
                     });
@@ -437,12 +432,12 @@ class ProjectController extends Controller
         if($is_admin){
             $admin_approval_needed_goals_with_salary_issue = User::select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
             ->with(['outcome_goals' => function ($q) use ($user, $approvalGoalColumns, $resultSubmissionLogs) {
-                $q->whereHas('salaryIssue', function ($q) use ($user){                
+                $q->whereHas('salaryIssue', function ($q) use ($user){
                     $q->whereIn('status', [3, 4, 9]);
                 })->select($approvalGoalColumns)->with(['statusLogs' => $resultSubmissionLogs]);
             }])
             ->whereHas('outcome_goals', function ($q) use ($user) {
-                $q->whereHas('salaryIssue', function ($q) use ($user){                
+                $q->whereHas('salaryIssue', function ($q) use ($user){
                     $q->whereIn('status', [3, 4, 9]);
                 });
             })->get();
@@ -472,7 +467,7 @@ class ProjectController extends Controller
             ->select($approvalGoalColumns)->with(['statusLogs' => $resultSubmissionLogs])])->get();
         }
         if($is_boss){
-            
+
             $managers_goals = User::whereNot('id', $user->id)
             ->whereIn('id', $project_managers)
             ->whereHas('outcome_goals', function ($q) {
@@ -512,29 +507,29 @@ class ProjectController extends Controller
             'admin_approval_needed_goals' => $admin_approval_needed_goals,
             'goal_required_data' => $goal_required_data,
         ];
-        return response()->json($data);       
-        
+        return response()->json($data);
+
     }
     private function goalLoader($self_id, $target_user_id, $year, $which_half){
         return ProjectGoal::where('year', $year)
             ->where('which_half', $which_half)
             ->where('user_id', $target_user_id)
             ->with([
-                'project' => fn($q) => 
+                'project' => fn($q) =>
                     $q->select('id', 'name')
                     ->withExists(['manager as is_manager' => fn ($q) => $q->where('users.id', $self_id)])
-                    ->withExists(['members as is_member' => fn ($q) => $q->where('users.id', $self_id)]),    
+                    ->withExists(['members as is_member' => fn ($q) => $q->where('users.id', $self_id)]),
                 'statusLogs' => fn($q) => $q->with('user'),
-                'files', 
-                'steps', 
+                'files',
+                'steps',
                 'reports' => fn($q) => $q->with('user'),
                 'user' => fn($q) => $q->select('id', 'name', 'icon_path', 'icon_bg', 'position_id', 'general_position')
             ])
             ->withCount(['goal_notifications' => fn($q) => $q->where('target_user_id', $self_id)])
             ->with(['salaryIssue' => fn ($q) => $q->with([
-                    'files', 
-                    'actions', 
-                    'reports', 
+                    'files',
+                    'actions',
+                    'reports',
                     'statusLogs' => fn ($q) => $q->with('user')
                     ])->withCount(['issue_notifications' => fn($q) => $q->where('target_user_id', $self_id)
                 ])
@@ -558,15 +553,15 @@ class ProjectController extends Controller
     }
     public function get_project_criteria(Request $request){
 
-        
-        
-        
+
+
+
         // $user_name = env('KINTONE_USER_NAME');
         // $password = env('KINTONE_PASSWORD');
         // $string = "{$user_name}:{$password}";
         // $x_token = base64_encode($string);
         // $headers = [
-        //     'Authorization' => 'Basic', 
+        //     'Authorization' => 'Basic',
         //     'X-Cybozu-Authorization' => $x_token,
         // ];
         // $appId = '1272';
@@ -585,10 +580,10 @@ class ProjectController extends Controller
         //     'query' => $query,
         //     'fields' => $fields
         // ];
-        
+
         // $queryString = http_build_query($queryParams);
         // $url = "https://glowd-hldgs.cybozu.com/k/v1/records.json?{$queryString}";
-        
+
         // $response = Http::withHeaders($headers)->get($url);
         // $responseData = $response->json();
         // $recieve = [];
@@ -608,7 +603,7 @@ class ProjectController extends Controller
         //         if (isset($record['文字列__1行__1']['value'])) {
         //             $levels[] = [
         //                 'level' => $record['文字列__1行__1']['value'],
-        //                 'standards' => $standards, 
+        //                 'standards' => $standards,
         //             ];
         //         }
         //     }
@@ -637,7 +632,7 @@ class ProjectController extends Controller
             }
             $projectGoal->steps()->whereNotIn('id',  $newSteps)->delete();
         }
-        
+
         return response()->json($projectGoal);
     }
     public function get_applied_goals(Request $request) {
@@ -655,7 +650,7 @@ class ProjectController extends Controller
                 'message' => 'No project goals found for the given date.'
             ], 404);
         }
-    
+
         return response()->json([
             'message' => 'Project goals found',
             'projectGoals' => $projectGoals,
@@ -702,7 +697,7 @@ class ProjectController extends Controller
                                         ->where('user_id', $user_id)
                                         ->with(['mentor', 'checklist'])
                                         ->first();
-        
+
         return response()->json($evaluation);
     }
     public function get_selectable_users(Request $request) {
@@ -725,62 +720,19 @@ class ProjectController extends Controller
                                     ->where('which_half', $params['which_half'])
                                     ->with('steps', 'user:general_position,id');
                             }]);
-                        })                     
+                        })
                         ->with('positions')
                         ->get();
         $mentors = $userList->filter(function ($user) {
-            return ($user->general_position !== null && $user->general_position !== '一般職') 
+            return ($user->general_position !== null && $user->general_position !== '一般職')
                     || ($user->position_id !== null && $user->position_id < 6);
-        })->values(); 
-        
+        })->values();
+
         $data = [
             'users' => $userList,
             'mentors' => $mentors,
         ];
         return response()->json($data);
-    }
-    public function users_with_goals(Request $request) {
-        $user = $this->active_user();
-        $position_id = $user->position_id;
-        // if(!$position_id){
-        //     return response()->json([]);
-        // }
-        $only_self = $position_id > 6 && !in_array($user->id, [608, 610]);
-        $limited_members = $position_id == 6 && !in_array($user->id, [608, 610]);
-        $memberIds = [];
-        if($limited_members){
-            $projects = ProjectRecord::with('members:id')
-            ->whereHas('manager', fn ($q) => $q->where('users.id', $user->id))   
-            ->get();
-
-            $memberIds = $projects->flatMap->members->pluck('id')->unique()->values()->all();
-        }
-        
-        $userList = User::where('retire', 0)
-        ->where('partner_flag', 0)
-        ->whereNotIn('position_id',[13,14,15] )
-        ->where('hide_flag', 0)
-        ->when($only_self, function ($q) use ($user) {
-            $q->where('id', $user->id);
-        })
-        ->when($limited_members, fn ($q) => $q->whereIn('id', $memberIds))
-        ->select('id', 'name', 'icon_path', 'icon_bg')
-        ->get();
-        $self = [
-            'id' => $user->id,
-            'name' => $user->name,
-            'icon_path' => $user->icon_path,
-            'icon_bg' => $user->icon_bg,
-        ];
-        $userList = $userList->prepend($self);
-        // $userList = $userList->merge([
-        //     'id' => $user->id,
-        //     'name' => $user->name,
-        //     'icon_path' => $user->icon_path,
-        //     'icon_bg' => $user->icon_bg,
-        // ]);
-
-        return response()->json($userList);
     }
     public function check_goal_create_permission(Request $request){
         $request->validate([
@@ -788,7 +740,7 @@ class ProjectController extends Controller
         ]);
         $active_user = $this->active_user();
         $managerId = $active_user->id;
-        
+
         $checkProject = ProjectRecord::whereHas('manager', fn ($q) => $q->where('users.id', $managerId))
             ->whereHas('members', fn ($q) => $q->where('users.id', $request->user_id))
             ->exists();
@@ -801,7 +753,7 @@ class ProjectController extends Controller
 
         $id = $request->id ?? null;
         $params = $request->params;
-        
+
         $filteredParams = collect($params)->only([
             'name',
             'project_type_id',
@@ -847,14 +799,14 @@ class ProjectController extends Controller
             ($isNew && $newStatus !== 'draft') ||
             (!$isNew && $oldStatus === 'draft' && $newStatus !== 'draft');
 
-        
+
         if ($isFirstSubmit) {
             $query = "order by レコード番号 desc limit 1";
             $fields = ["文字列__1行__3"];
-            
+
             $recs = $this->api->getRecords(26, $query, $fields);
-            
-            $rec = $recs[0] ?? null; 
+
+            $rec = $recs[0] ?? null;
             if ($rec) {
                 $d_code = $rec['文字列__1行__3']['value'] ?? null;
                 if ($d_code) {
@@ -871,9 +823,9 @@ class ProjectController extends Controller
                     ]);
                 }
             }
-            
+
         }
-        
+
         $tasks = $request->tasks ?? [];
         if(count($tasks)) {
             $this->create_generated_project_tasks($tasks, $project->id);
@@ -885,7 +837,7 @@ class ProjectController extends Controller
             if (!$spec->exists) {
                 $spec->created_by = Auth::id();
             }
-            
+
             if ($specs !== null) {
                 $spec->spec_data = $specs;
             }
@@ -893,7 +845,7 @@ class ProjectController extends Controller
                 $spec->plan_data = $plan;
             }
             $spec->updated_by = Auth::id();
-            
+
             $spec->save();
             if ($specs !== null) {
                 $files = $this->collectProjectSpecFileIds($specs);
@@ -903,7 +855,7 @@ class ProjectController extends Controller
             }
             $this->sharedService->createCheckItems($project->id);
         }
-        
+
         $raw = $request->input('contract_data');
         if (is_string($raw)) {
             $contract = json_decode($raw, true);
@@ -938,7 +890,7 @@ class ProjectController extends Controller
             'version'           => $nextVersion,
             'active'            => true,
         ]);
-        
+
         return response()->json($project);
     }
     private function collectProjectSpecFileIds($specs): array
@@ -1277,19 +1229,19 @@ class ProjectController extends Controller
             'type'    => $request->type,
         ]);
 
-        if($request->attached_temp_files){ 
-            foreach($request->attached_temp_files as $item){      
+        if($request->attached_temp_files){
+            foreach($request->attached_temp_files as $item){
                 $file = messageFile::findOrFail($item['id']);
                 $file->update(['project_checkitem_report_id' => $report->id]);
                 $path = "project_checkitem_report_files";
-                File::isDirectory(storage_path("app/{$path}")) or File::makeDirectory(storage_path("app/{$path}"), 0755, true, true);         
+                File::isDirectory(storage_path("app/{$path}")) or File::makeDirectory(storage_path("app/{$path}"), 0755, true, true);
                 $srcPath = "{$file->id}.{$file->extension}";
                 $destPath = "{$file->id}_{$file->user_id}.{$file->extension}";
                 $temp_path = storage_path("app/temp_upload/{$srcPath}");
-                Storage::disk('local')->move("temp_upload/{$file->id}.{$file->extension}", "{$path}/{$destPath}");                
+                Storage::disk('local')->move("temp_upload/{$file->id}.{$file->extension}", "{$path}/{$destPath}");
             }
         }
-        
+
         $syntax = '/\[To:(.*?)\:\]/';
         preg_match_all($syntax, $report->content, $matches);
         $mentioned_targets = $matches[1];
@@ -1565,7 +1517,7 @@ class ProjectController extends Controller
             'app' => 166,
             "fields" => ['文字列__1行_', '基本給', '新等級'],
         ];
-        
+
         $queryStringSpecs = http_build_query($queryParamsSpecs);
         $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryStringSpecs";
         $profits = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
@@ -1576,7 +1528,7 @@ class ProjectController extends Controller
             $records = $responseData['records'];
             foreach ($records as $record) {
                 $recieve[] = [
-                    'basic_salary'=>$record['文字列__1行_']['value'], 
+                    'basic_salary'=>$record['文字列__1行_']['value'],
                     'salary_grade'=>$record['新等級']['value'],
                     'base_salary'=>$record['基本給']['value'],
                 ];
@@ -1610,8 +1562,8 @@ class ProjectController extends Controller
             return response()->json(['message' => '人事担当より人事考課設定していないため、現在作成できません。'], 404);
         }
 
-        $privilageUsers = [608, 610, 631, $evaluation->mentor_id, $attributes['user_id']];
-        if (!in_array($active_user->id, $privilageUsers)) {
+        $privilageUsers = [$evaluation->mentor_id, $attributes['user_id']];
+        if (!$active_user->canHrApprove() && !in_array($active_user->id, $privilageUsers)) {
             return response()->json(['message' => '権限がありません。'], 403);
         }
         $targetYear = $request->year;
@@ -1651,7 +1603,7 @@ class ProjectController extends Controller
                 $sum_of_achievment >= 360 => 1,
                 default => 0,
             };
-        }          
+        }
 
 
         $response = [];
@@ -1676,11 +1628,11 @@ class ProjectController extends Controller
         $params = $request->params;
         if(isset($params['mentor_id']) && $attr['attributes']['user_id'] == $params['mentor_id']) {
             throw ValidationException::withMessages(['message' => '自分自身をメンターに設定することはできません。']);
-            
+
         }
         if(isset($params['general_position'])) {
             User::find($attr['attributes']['user_id'])->update(['general_position' => $params['general_position']]);
-        }        
+        }
         $update = EvaluationRecord::updateOrCreate($attr['attributes'] , $params);
         return response()->json($update);
     }
@@ -1690,7 +1642,7 @@ class ProjectController extends Controller
         ]);
         $member = ProjectMember::findOrFail($request->id)->update([
             'role' => $request->role
-        ]);       
+        ]);
         return response()->json($member);
     }
     public function set_increase_request(Request $request){
@@ -1790,7 +1742,7 @@ class ProjectController extends Controller
         $id = $request->id;
         $status = $request->status;
         $comment = $request->comment;
-        
+
         $issue = SalaryIssue::findOrFail($id);
         $status_before = $issue->status;
         $issue->update(['status' => $status]);
@@ -1809,7 +1761,7 @@ class ProjectController extends Controller
             $issue->update(['comment' => $new_comment]);
         }
 
-        return response()->json(['message' => 'Successfully approved!']); 
+        return response()->json(['message' => 'Successfully approved!']);
     }
     public function get_salary_issues(Request $request) {
         $date = $request->date;
@@ -1826,7 +1778,7 @@ class ProjectController extends Controller
         ]);
         $id = $request->id;
         ProjectRecord::findOrFail($id)->delete();
-       
+
         return response()->json(['message' => 'Successfully deleted!']);
     }
     public function approve_outcome_goal(Request $request){
@@ -1855,7 +1807,7 @@ class ProjectController extends Controller
             $new_comment = $current_comment ? "{$current_comment}\n{$fullComment}" : $fullComment;
             $goal->update(['comment' => $new_comment]);
         }
-        return response()->json(['message' => 'Successfully approved!']); 
+        return response()->json(['message' => 'Successfully approved!']);
     }
     public function update_issue_report(Request $request) {
         $request->validate([
@@ -1878,7 +1830,7 @@ class ProjectController extends Controller
         ]);
         $id = $request->id;
         SalaryIssue::findOrFail($id)->delete();
-       
+
         return response()->json(['message' => 'Successfully deleted!']);
     }
     private function members_of_project_managed_by_user($user){
@@ -1910,12 +1862,12 @@ class ProjectController extends Controller
         $managinProjectData = $this->members_of_project_managed_by_user($user);
         $selfProjects = $this->projects_participate_by_user($user);
         $projectData = array_merge($managinProjectData, $selfProjects);
-        
+
         if(!count($projectData)){
             return response()->json([]);
         }
         $goals = $this->goals_fetch_by_users($projectData, $date);
-        
+
         return response()->json($goals);
     }
 
@@ -1930,7 +1882,7 @@ class ProjectController extends Controller
                 "type" => "manager"
             ];
         })->toArray();
-        
+
         if(!count($projectsData)){
             return response()->json([]);
         }
@@ -1953,7 +1905,7 @@ class ProjectController extends Controller
                 });
             }
         })
-        ->when($user->id == 631, function($q) {
+        ->when($user->canHrApprove(), function($q) {
             $q->orWhere('status', 4);
         })
         ->select('id', 'project_id', 'user_id', 'year', 'which_half', 'status')->get();
@@ -1992,10 +1944,10 @@ class ProjectController extends Controller
             })->orWhere(function($query){
                 $query->whereIn('status', [1, 8])->where('user_id', Auth::id());
             });
-        })            
+        })
         ->with('project_goal')
         ->get();
-        
+
         $data = [];
 
         // return response()->json($salary_issues);
@@ -2005,8 +1957,8 @@ class ProjectController extends Controller
             $issue_half = $issue->project_goal->which_half;
 
             $is_my_mentee = $evaluations->contains(function ($evaluation) use ($issue_year, $issue_half, $user, $issue) {
-                return $evaluation->mentor_id == $user->id 
-                && $evaluation->year == $issue_year 
+                return $evaluation->mentor_id == $user->id
+                && $evaluation->year == $issue_year
                 && $evaluation->which_half == $issue_half
                 && $evaluation->user_id == $issue->user_id;
             });
@@ -2022,7 +1974,7 @@ class ProjectController extends Controller
                     'status' => $issue->status,
                 ];
             }
-        }           
+        }
 
         return response()->json($data);
     }
@@ -2033,12 +1985,12 @@ class ProjectController extends Controller
             $response = $this->getMemberBadges($user, $date);
         } elseif ($user->position_id < 6 && ($user->id !== 610 && $user->id !== 608)) {
             $response = $this->getManagerBadges($user, $date);
-        } elseif ($user->id === 631) {
+        } elseif ($user->canHrApprove()) {
             $response = $this->getChangeBadge($date);
         } else {
             $response = $this->remindedBadges($user);
         }
-        
+
         $task_counts = $this->project_task_badge($user);
         $asset_badge = $this->asset_badge($user);
 
@@ -2067,11 +2019,11 @@ class ProjectController extends Controller
                 'asset_badge' => $asset_badge,
             ],
             $response,
-            
+
         );
-        
-       
-        
+
+
+
         return response()->json($data);
     }
     private function asset_badge($user){
@@ -2119,9 +2071,9 @@ class ProjectController extends Controller
 
     private function getManagerBadges($user, $date)
     {
-        
 
-        $managerIds = ProjectRecord::with('manager:id') 
+
+        $managerIds = ProjectRecord::with('manager:id')
             ->get()
             ->flatMap(fn($project) => $project->manager->pluck('id'))
             ->unique()
@@ -2159,7 +2111,7 @@ class ProjectController extends Controller
                 ->get();
         return $this->calculateGoalStats($goals);
     }
-    private function getChangeBadge($date) 
+    private function getChangeBadge($date)
     {
         $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
         $user_ids = User::where('deleted_flag', 0)
@@ -2218,7 +2170,7 @@ class ProjectController extends Controller
                     });
             });
         }])->get();
-        
+
 
         return $badge_counts;
     }
@@ -2241,13 +2193,13 @@ class ProjectController extends Controller
         $data = Excel::toArray(new EvaluationImport, $filePath);
 
 
-        
+
 
 
 
             if (isset($data[11])) {
                 $main_categories = $data[11];
-                
+
                 $main_categories = array_map(function($item){
                     return $item[0];
                 }, $main_categories);
@@ -2291,11 +2243,11 @@ class ProjectController extends Controller
                                 return $item['skill'];
                             })->values()->all(),
                         ];
-                    })->values()->all(),          
+                    })->values()->all(),
                 ];
             })->values()->all();
 
-            
+
             $output->push([
                 "title" => $main_category,
                 "children" => $grouped
@@ -2303,8 +2255,8 @@ class ProjectController extends Controller
 
         }
         // dd($output);
-        return response()->json($output);      
-     
+        return response()->json($output);
+
 
     }
 
@@ -2367,7 +2319,7 @@ class ProjectController extends Controller
             'app' => '1181',
             "query" => "部門 = \"{$project_name}\""
         ];
-        
+
         $queryString = http_build_query($queryParams);
         $url = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryString";
 
@@ -2386,10 +2338,10 @@ class ProjectController extends Controller
             '期日'                   => '期日',
 
         ];
-        
+
         $manuals = array_map(function ($record) use ($fields) {
             $table = $record['テーブル1']['value'] ?? [];
-        
+
             $rules = array_map(function ($item) use ($fields) {
                 $rule = [];
                 $rule['id'] = $item['id'] ?? '';
@@ -2402,7 +2354,7 @@ class ProjectController extends Controller
                 }
                 return $rule;
             }, $table);
-        
+
             return [
                 'title' => $record['タイトル']['value'] ?? '',
                 'id' => $record['$id']['value'] ?? '',
@@ -2423,7 +2375,7 @@ class ProjectController extends Controller
         $queryParams = [
             'app' => '1181',
             'id' => $record_id,
-        ];        
+        ];
         $queryString = http_build_query($queryParams);
         $url = "https://glowd-hldgs.cybozu.com/k/v1/record.json?$queryString";
 
@@ -2433,7 +2385,7 @@ class ProjectController extends Controller
     }
     public function update_manuals(Request $request) {
         $record_id = $request->manual['id'] ?? null;
-        
+
         if(!$record_id){
             throw ValidationException::withMessages(['message' => 'エラーが発生しました。']);
         }
@@ -2444,7 +2396,7 @@ class ProjectController extends Controller
         foreach($risks as $risk){
             $prev_risk = $risk['value']['リスク']['value'];
             $prev_management = $risk['value']['リスク対策']['value'];
-            
+
             $updated_value = $rules->where('id', $risk['id'])->first();
             if($updated_value){
                 $prev_risk = $updated_value['job']['リスク'] ;
@@ -2469,7 +2421,7 @@ class ProjectController extends Controller
             "id" => $record_id,
             "record" => [
                 "テーブル1" => [
-                    "value" => $exists                    
+                    "value" => $exists
                 ]
             ]
         ];
@@ -2477,7 +2429,7 @@ class ProjectController extends Controller
             'app' => '1181',
             'id' => $record_id,
         ];
-        
+
         $queryString = http_build_query($queryParams);
         $url = "https://glowd-hldgs.cybozu.com/k/v1/record.json?$queryString";
 
@@ -2506,11 +2458,11 @@ class ProjectController extends Controller
             });
             $response = $this->update_manual_record_table($updated, $record_id);
             return response()->json($response);
-            
+
         }else{
             $new_rule = [
                 "id" => "",
-                "value" => []                    
+                "value" => []
             ];
             foreach($job['job'] as $key => $value){
                 $new_rule['value'][$key] = [
@@ -2520,8 +2472,8 @@ class ProjectController extends Controller
             $updated = $rules->push($new_rule);
             $response = $this->update_manual_record_table($updated, $record_id);
             return response()->json($response);
-            
-        }        
+
+        }
 
     }
     private function upsertManualRecord(ProjectRecord $project, string $title, ?string $recordId = null): array
@@ -2603,14 +2555,14 @@ class ProjectController extends Controller
             "id" => $record_id,
             "record" => [
                 "テーブル1" => [
-                    "value" => $rules                    
+                    "value" => $rules
                 ]
             ]
         ];
         $queryParams = [
             'app' => '1181',
             'id' => $record_id,
-        ];        
+        ];
         $queryString = http_build_query($queryParams);
         $url = "https://glowd-hldgs.cybozu.com/k/v1/record.json?$queryString";
         $response = Http::withHeaders($this->kintone_headers())->put($url,$data);
@@ -2644,7 +2596,7 @@ class ProjectController extends Controller
         ]);
         return response()->json($this->deleteManualRecordById((string) $request->manual_id));
     }
-    
+
 
     public function get_contracts(Request $request) {
         $request->validate([
@@ -2653,11 +2605,11 @@ class ProjectController extends Controller
         $project_name = $request->project_name;
 
         $queryParams = [
-            
+
             "query" => "部門 = \"{$project_name}\"",
         ];
-        
-        $contractValues = $this->contract_fetch($queryParams);       
+
+        $contractValues = $this->contract_fetch($queryParams);
 
         $contract_ids = array_map(function($record){
             return $record['契約書id']['value'] ?? '';
@@ -2692,7 +2644,7 @@ class ProjectController extends Controller
             }
             return $spec;
         }, $specsValues);
-        
+
 
         $contractsClean = array_map(function ($record) use ($specsClean) {
             $contract = [];
@@ -2713,7 +2665,7 @@ class ProjectController extends Controller
             "action" => ['詳細']
         ];
         $table_columns = [
-            "レコード番号", 
+            "レコード番号",
             "契約案件名",
             "案件担当者",
             "取引先",
@@ -2729,8 +2681,8 @@ class ProjectController extends Controller
             'table_columns' => $table_columns
         ]);
     }
-    private function contract_fetch($query){   
-        
+    private function contract_fetch($query){
+
         $contract_fields = [
             "レコード番号", "担当者", "取引先検索", "取引先", "役職名", "代表者名", "契約案件名", "甲会社名", "甲役職", "甲代表者名", "取引先検索_1", "部門", "乙会社名", "乙役職", "乙代表者名",
             "契約締結日", "契約期間開始日", "契約期間終了日", "契約終了",
@@ -2795,7 +2747,7 @@ class ProjectController extends Controller
                 : null;
 
             $bonus_calc = $transitionDate ? $transitionDate->year === $planYear->fiscal_year : false;
-            
+
             $out = $this->planFormulaService->buildMonthlyBalance(
                 $project->id,
                 $planYear->id,
@@ -2819,14 +2771,14 @@ class ProjectController extends Controller
         $subHeaders   = $subHeaders->toArray();
 
         // 2) Build: month number -> array of column indexes for that month
-      
+
         $fyStart = 3;
 
-        $targetLabels = [];  
+        $targetLabels = [];
         for ($i = 0; $i < 12; $i++) {
             $d = Carbon::create($year, $fyStart, 1)->addMonthsNoOverflow($i);
             $label = sprintf('%d年%d月', $d->year, $d->month);
-            $targetLabels[$label] = $d->month;  
+            $targetLabels[$label] = $d->month;
         }
         $monthIndexMap = [];
         foreach (array_values($targetLabels) as $m) {
@@ -2898,9 +2850,9 @@ class ProjectController extends Controller
 
             if (!empty($cols)) {
                 foreach ($rows as $row) {
-                    
+
                     $get = fn($alias) => isset($cols[$alias]) ? (float) ($row[$cols[$alias]] ?? 0) : 0.0;
-                    
+
                     // sales: two columns combined
                     $sales    += round($get('sales_1') + $get('sales_2'), 0, PHP_ROUND_HALF_UP);
                     // expenses: sum of six
@@ -2921,14 +2873,14 @@ class ProjectController extends Controller
                     }
                 }
             }
-            
+
             $out[$m] = [
                 'sales'       => (int) $sales,
                 'expense'     => (int) $expense,
                 'profit'      => (int) $profit,
                 'profit_rate' => $profit_rate, // could be null if not found
             ];
-            
+
         }
 
         return response()->json($out);
@@ -2948,10 +2900,10 @@ class ProjectController extends Controller
         $startDate = $startInstance->copy()->startOfMonth()->toDateString();
         $endDate = $endInstance->copy()->endOfMonth()->toDateString();
         $out = [];
-        
+
         $query = "部門 = \"{$project_name}\" and 日付 >= \"{$startDate}\" and 日付 <= \"{$endDate}\"";
         $fields = ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率", '部門', '日付', '業績連動賞与積立金'];
-        
+
         $recs = $this->api->getRecords(1068, $query . " limit {$limit} offset {$offset}", $fields);
 
         foreach($recs as $r) {
@@ -2994,11 +2946,11 @@ class ProjectController extends Controller
         $needed_ranges = [];
         $sDate = $request->start ? Carbon::createFromFormat('Y-m-d', $request->start . '-01') : Carbon::createFromDate((int) $year, 3, 1);
         $eDate = $request->end ? Carbon::createFromFormat('Y-m-d', $request->end . '-01') : $sDate->copy()->addMonthsNoOverflow(11);
-        
+
         for ($d = $sDate->copy(); $d->lessThanOrEqualTo($eDate); $d->addMonth()) {
             $needed_ranges[] = sprintf('%04d%02d', $d->year, $d->month);
         }
-        
+
         $spreadsheet = $svc->spreadsheets->get($sheet_id);
         $sheets = $spreadsheet->getSheets();
         $existing = [];
@@ -3009,7 +2961,7 @@ class ProjectController extends Controller
             }
         }
         if (empty($existing)) {
-            return response()->json([]); 
+            return response()->json([]);
         }
 
         $findRanges = array_map(fn($t) => "'{$t}'!B:B", $existing);
@@ -3021,15 +2973,15 @@ class ProjectController extends Controller
         };
         $needle = $canon($project_name);
 
-        $hitRowsByTab = []; 
+        $hitRowsByTab = [];
         foreach ($findResp->getValueRanges() as $i => $vr) {
             $title = $existing[$i];
-            $values = $vr->getValues() ?? []; 
+            $values = $vr->getValues() ?? [];
             $hits = [];
             foreach ($values as $rIdx => $row) {
-                $colB = $row[0] ?? ''; 
+                $colB = $row[0] ?? '';
                 if ($canon($colB) === $needle) {
-                    $hits[] = $rIdx + 1; 
+                    $hits[] = $rIdx + 1;
                 }
             }
             $hitRowsByTab[$title] = $hits;
@@ -3087,7 +3039,7 @@ class ProjectController extends Controller
             // you can use int if you're dealing with whole yen
             return is_numeric($normalized) ? (float) $normalized : null;
         }
-    
+
         foreach ($hitRowsByTab as $title => $rows) {
             foreach ($rows as $rowNum) {
                 $vals = $valueRanges[$k]->getValues()[0] ?? [];
@@ -3113,7 +3065,7 @@ class ProjectController extends Controller
 
                 $k++;
             }
-            
+
         }
         return response()->json($result);
     }
@@ -3142,7 +3094,7 @@ class ProjectController extends Controller
                         $query->where('value', 3)->whereNull('approved_by');
                     });
                 })->orWhere(function($query) use ($active_user){
-                    $query->when($active_user->id == 610 || $active_user->id == 608, function($query){
+                    $query->when($active_user->isAdmin(), function($query){
                         $query->whereHas('steps', function($query){
                             $query->whereIn('value', [4,7])->whereNull('approved_by');
                         });
@@ -3168,7 +3120,7 @@ class ProjectController extends Controller
             $query = "order by \$id desc limit 10";
         }
         $fields = ['会社名', '$id'];
-        
+
         $partnersData = $this->api->getRecords(118, $query ?? '', $fields);
         $partnersRecords = $partnersData ?? [];
         $data = array_map(fn($record) => $record['会社名']['value'] ?? '', $partnersRecords);
@@ -3177,7 +3129,7 @@ class ProjectController extends Controller
                 array_unshift($data, $keyword);
             }
         }
-        
+
         return response()->json($data);
 
     }
@@ -3213,7 +3165,7 @@ class ProjectController extends Controller
         ]);
         $project = ProjectRecord::findOrFail($request->project_id);
         $project_name = $project->name;
-        
+
         $query = "部門 = \"{$project_name}\"";
 
         $responseData = $this->api->getRecords(262, $query, []);
@@ -3238,7 +3190,7 @@ class ProjectController extends Controller
             "fields" => ["売上高合計", "内部売上高合計", "販売管理費合計", "間接費配賦", "利益", "利益率", '部門', '日付', '業績連動賞与積立金'],
             "totalCount" => "true",
         ];
-        
+
         $queryStringSpecs = http_build_query($queryParamsSpecs);
         $urlSpecs = "https://glowd-hldgs.cybozu.com/k/v1/records.json?$queryStringSpecs";
         $profits = Http::withHeaders($this->kintone_headers())->get($urlSpecs);
@@ -3250,7 +3202,7 @@ class ProjectController extends Controller
         $client = new Google_Client();
         $client->setApplicationName('Google Sheets API');
         $client->setScopes(['https://www.googleapis.com/auth/spreadsheets.readonly']);
-        $client->setAuthConfig(storage_path('app/spread_json_key/gen-lang-client-0333646800-e777adab076d.json')); 
+        $client->setAuthConfig(storage_path('app/spread_json_key/gen-lang-client-0333646800-e777adab076d.json'));
         $client->setAccessType('offline');
         $service = new Google_Service_Sheets($client);
         $sheet_id = '1HTacPGjBDtg3KAK0hToBeJW__fqCp9iH01a38Ihjet8';
@@ -3258,7 +3210,7 @@ class ProjectController extends Controller
         $sheets = $spreadsheet->getSheets();
 
         $needed_ranges = [];
-        
+
         $sDate = $startInstance->copy();
         $eDate = $endInstance->copy();
         while ($sDate->lessThanOrEqualTo($eDate)) {
@@ -3270,9 +3222,9 @@ class ProjectController extends Controller
         foreach ($sheets as $sheet) {
             if(in_array($sheet['properties']['title'], $needed_ranges)){
                 $ranges[] = $sheet['properties']['title'];
-            }             
+            }
         }
-        
+
         $params = [
             'ranges' => $ranges,
             'valueRenderOption' => 'UNFORMATTED_VALUE'
@@ -3303,7 +3255,7 @@ class ProjectController extends Controller
 
         $startInstance = Carbon::createFromDate($interval['startYear'], $interval['startMonth'], 1);
         $endInstance = Carbon::createFromDate($interval['endYear'], $interval['endMonth'], 1);
-        
+
         if ($endInstance->lt($startInstance)) {
             return response()->json([
                 'error' => true,
@@ -3316,7 +3268,7 @@ class ProjectController extends Controller
                 'error' => true,
                 'message' => '最大12ヶ月まで選択できます。',
             ], 422);
-        }      
+        }
         $start = $startInstance->toDateString();
         $end = $endInstance->toDateString();
         $query = ProjectRecord::query()->whereIn('id', $project_ids);
@@ -3331,9 +3283,9 @@ class ProjectController extends Controller
         });
 
         $projects = $query->get();
-        $project_names = $projects->pluck('name', 'id')->toArray();   
+        $project_names = $projects->pluck('name', 'id')->toArray();
 
-        $project_names_str = implode('","', $project_names); 
+        $project_names_str = implode('","', $project_names);
 
         //get settlement data
         $batchSettlementData = $this->settlementCollector($startInstance, $endInstance);
@@ -3345,7 +3297,7 @@ class ProjectController extends Controller
         $totalCount = $firstLoad['totalCount'] ?? 0;
         $fisrtData = $firstLoad['records'] ?? [];
         $firstDataClean = $this->kintone_record_cleaner($fisrtData);
-        
+
         if(count($firstDataClean)){
             $profitDataCollection = collect($firstDataClean);
         }
@@ -3366,7 +3318,7 @@ class ProjectController extends Controller
                 }
                 $offset += 500;
             }
-        }        
+        }
         //get yearly plan data
 
         // Calculate years between startInstance and endInstance
@@ -3383,20 +3335,20 @@ class ProjectController extends Controller
             $filePathYear = $endMonth < 3 && $year === $endYear ? $endYear - 1 : $year;
             $file_path = storage_path("app/yearly_plan/{$filePathYear}.xlsx");
             $file_exists = file_exists($file_path);
-            if($file_exists){              
-            
+            if($file_exists){
+
                 $file = Excel::toCollection(new YearlyPlanImport, $file_path);
                 $yearlyPlanData[$year] = $file[0];
                 $yearlyPlanData[$year]->shift()->toArray();
                 $month_headers = $yearlyPlanData[$year]->shift()->toArray();
-                $sub_headers = $yearlyPlanData[$year]->shift()->toArray();  
+                $sub_headers = $yearlyPlanData[$year]->shift()->toArray();
             }else{
-                
+
                 $planYear = ProjectPlanYear::query()
                 ->where('fiscal_year', $filePathYear)
                 ->where('start_month', 3)
                 ->first();
-                
+
                 if (!$planYear && $filePathYear !== $year) {
                     $planYear = ProjectPlanYear::query()
                         ->where('fiscal_year', $year)
@@ -3446,10 +3398,10 @@ class ProjectController extends Controller
                 $month_headers[$year] = [];
                 $sub_headers[$year] = [];
             }
-            
-        }    
-        //get yearly plan data        
-        
+
+        }
+        //get yearly plan data
+
         $plan_res_data = [];
         $default_data = [
             "sales" => 0,
@@ -3506,11 +3458,11 @@ class ProjectController extends Controller
             if (!$shouldSkip) {
                 $periodTotals[$key][$scenario]['sales'] = ($periodTotals[$key][$scenario]['sales'] ?? 0) + $sales;
                 $periodTotals[$key][$scenario]['expense'] = ($periodTotals[$key][$scenario]['expense'] ?? 0) + $expense;
-                
+
             } else {
                 $periodTotals[$key][$scenario]['expense'] = ($periodTotals[$key][$scenario]['expense'] ?? 0) + $expense - $sales;
             }
-            
+
             $periodTotals[$key][$scenario]['profit_rate'] = 0;
             if (array_key_exists('has_data', $values)) {
                 $periodTotals[$key][$scenario]['has_data'] = ($periodTotals[$key][$scenario]['has_data'] ?? false) || !empty($values['has_data']);
@@ -3535,7 +3487,7 @@ class ProjectController extends Controller
                 $month = $stDate->month;
                 $year = $stDate->year;
                 $periodKey = sprintf('%04d-%02d', $year, $month);
-                
+
                 $settle_tab_index = sprintf('%04d%02d', $year, $month);
                 $projectsData = $yearlyPlanData[$year]->first(fn($row) => $row[1] === $project_name);
                 $shouldSkip =
@@ -3550,16 +3502,16 @@ class ProjectController extends Controller
                     foreach($month_headers as $key => $header){
                         if(!$month_found){
                             if($header == "{$year}年{$month}月"){
-                                $month_found = true;  
-                                $month_target_indexes[] = $key;      
+                                $month_found = true;
+                                $month_target_indexes[] = $key;
                             }
                         }else{
                             if($header == null || $header == "{$year}年{$month}月"){
-                                $month_target_indexes[] = $key; 
+                                $month_target_indexes[] = $key;
                             }else{
                                 break;
                             }
-                        }                        
+                        }
                     }
                     $sub_headers_for_target_month = array_filter($sub_headers, function ($key) use($month_target_indexes) {
                         return in_array($key, $month_target_indexes);
@@ -3585,7 +3537,7 @@ class ProjectController extends Controller
                     ];
                     $plan_res_data[$project_name][$periodKey]['yearly_plan'] = $planData;
 
-                    
+
                     $sumData[$project_name]['yearly_plan']['sales'] = ($sumData[$project_name]['yearly_plan']['sales'] ?? 0) + $totalSales;
                     $sumData[$project_name]['yearly_plan']['expense'] = ($sumData[$project_name]['yearly_plan']['expense'] ?? 0) + $totalExpense;
                     if (!$shouldSkip) {
@@ -3594,7 +3546,7 @@ class ProjectController extends Controller
                     } else {
                         $summarizeData['yearly_plan']['expense'] = ($summarizeData['yearly_plan']['expense'] ?? 0) + $totalExpense - $totalSales;
                     }
-                    
+
                     $accumulatePeriodTotals($periodKey, 'yearly_plan', $planData, $shouldSkip);
                 } else if (!empty($yearlyOut)) {
                     $totalSales = $yearlyOut[$id][$periodKey]['sales'] ?? 0;
@@ -3607,7 +3559,7 @@ class ProjectController extends Controller
                     ];
                     $plan_res_data[$project_name][$periodKey]['yearly_plan'] = $planData;
 
-                    
+
                     $sumData[$project_name]['yearly_plan']['sales'] = ($sumData[$project_name]['yearly_plan']['sales'] ?? 0) + $totalSales;
                     $sumData[$project_name]['yearly_plan']['expense'] = ($sumData[$project_name]['yearly_plan']['expense'] ?? 0) + $totalExpense;
                     if (!$shouldSkip) {
@@ -3616,10 +3568,10 @@ class ProjectController extends Controller
                     } else {
                         $summarizeData['yearly_plan']['expense'] = ($summarizeData['yearly_plan']['expense'] ?? 0) + $totalExpense - $totalSales;
                     }
-                    
+
                     $accumulatePeriodTotals($periodKey, 'yearly_plan', $planData, $shouldSkip);
-                    
-                    
+
+
                 } else {
                     $plan_res_data[$project_name][$periodKey]['yearly_plan']  = $default_data;
                     $accumulatePeriodTotals($periodKey, 'yearly_plan', $default_data, $shouldSkip);
@@ -3628,7 +3580,7 @@ class ProjectController extends Controller
 
 
 
-                
+
                 $dateInstance = Carbon::createFromDate($year, $month, 1);
                 $profitData = $profitDataCollection->where('部門', $project_name)
                 ->filter(function ($item) use ($year, $month) {
@@ -3656,16 +3608,16 @@ class ProjectController extends Controller
                     }  else {
                         $summarizeData['profit']['expense'] = ($summarizeData['profit']['expense'] ?? 0) + $totalExpense - $totalSales;
                     }
-                    
+
                     $accumulatePeriodTotals($periodKey, 'profit', $profitData, $shouldSkip);
-                    
-                    
+
+
                 }
                 else{
                     $plan_res_data[$project_name][$periodKey]['profit'] = $default_data;
                     $accumulatePeriodTotals($periodKey, 'profit', $default_data, $shouldSkip);
-                }        
-                
+                }
+
 
 
 
@@ -3674,19 +3626,19 @@ class ProjectController extends Controller
                 if (!empty($settlements )) {
                     $settlement_headers = $settlements[1];
                     $settlement_data = array_slice($settlements, 2);
-                    $project_index_in_settlement = array_search($project_name, array_column($settlement_data, 1)); 
+                    $project_index_in_settlement = array_search($project_name, array_column($settlement_data, 1));
                     if($project_index_in_settlement !== false){
                         $settlementOfProject = $settlement_data[$project_index_in_settlement];
                         $settlement_sales_index = array_search('収入', $settlement_headers);
                         $settlement_expense_index = array_search('支出', $settlement_headers);
                         $settlement_additional_expense_index = array_search('間接費配賦', $settlement_headers);
                         $settlement_profit_index = array_search('利益', $settlement_headers);
-                        $settlement_profit_rate_index = array_search('利益率', $settlement_headers);                                
+                        $settlement_profit_rate_index = array_search('利益率', $settlement_headers);
                         $settlement_sales_val = $settlementOfProject[$settlement_sales_index] ?? 0;
                         $settlement_expense_val = $settlementOfProject[$settlement_expense_index] ?? 0;
                         $settlement_additional_expense_val = $settlementOfProject[$settlement_additional_expense_index] ?? 0;
                         $settlement_profit_val = $settlementOfProject[$settlement_profit_index] ?? 0;
-                        $settlement_profit_rate_val = $settlementOfProject[$settlement_profit_rate_index] ?? 0; 
+                        $settlement_profit_rate_val = $settlementOfProject[$settlement_profit_rate_index] ?? 0;
                         $totalSales = round((float) str_replace(',', '', $settlement_sales_val), 0, PHP_ROUND_HALF_UP);
                         $totalExpense = (float) str_replace(',', '', $settlement_expense_val) + (float) str_replace(',', '', $settlement_additional_expense_val);
                         $plan_res_data[$project_name][$periodKey]['settlement']= [
@@ -3701,14 +3653,14 @@ class ProjectController extends Controller
                         $sumData[$project_name]['settlement']['profit'] = ($sumData[$project_name]['settlement']['profit'] ?? 0) + round((float)(float) str_replace(',', '', $settlement_profit_val), 0, PHP_ROUND_HALF_UP);
                         // $summarizeData['settlement']['sales'] = ($summarizeData['settlement']['sales'] ?? 0) + $totalSales;
                         // $summarizeData['settlement']['expense'] = ($summarizeData['settlement']['expense'] ?? 0) + $totalExpense;
-                        
+
                         $accumulatePeriodTotals($periodKey, 'settlement', $plan_res_data[$project_name][$periodKey]['settlement'], in_array($project_name, ['間接費部門', '積立部門'], true));
-                        
+
                     } else {
                         $plan_res_data[$project_name][$periodKey]['settlement'] = $default_settlement_data;
                         $accumulatePeriodTotals($periodKey, 'settlement', $default_settlement_data, in_array($project_name, ['間接費部門', '積立部門'], true));
-                    }                    
-                    
+                    }
+
 
                 } else if ($profitData) {
                     // $totalSales = round( (float) $profitData['売上高合計'] + (float) $profitData['内部売上高合計'], 0, PHP_ROUND_HALF_UP);
@@ -3726,13 +3678,13 @@ class ProjectController extends Controller
                     $sumData[$project_name]['settlement']['expense'] = ($sumData[$project_name]['settlement']['expense'] ?? 0) + $settlementFromProfit['expense'];
                     $sumData[$project_name]['settlement']['profit'] = ($sumData[$project_name]['settlement']['profit'] ?? 0) + $settlementFromProfit['profit'];
                     $sumData[$project_name]['settlement']['is_forecast'] = $settlementFromProfit['is_forecast'];
-                    
+
                     $accumulatePeriodTotals($periodKey, 'settlement', $settlementFromProfit, $shouldSkip);
                 } else {
                     $plan_res_data[$project_name][$periodKey]['settlement'] = $default_settlement_data;
                     $accumulatePeriodTotals($periodKey, 'settlement', $default_settlement_data, in_array($project_name, ['間接費部門', '積立部門'], true));
                 }
-                $sumData[$project_name]['settlement']['id'] = $id; 
+                $sumData[$project_name]['settlement']['id'] = $id;
                 $v[$project_name] = [
                     'sales'   => VarianceService::achToVar(VarianceService::pct($sumData[$project_name]['settlement']['sales']??null,   $sumData[$project_name]['profit']['sales']??null)),
                     'expenses' => VarianceService::achToVar(VarianceService::pct($sumData[$project_name]['settlement']['expense']??null, $sumData[$project_name]['profit']['expense']??null)),
@@ -3753,7 +3705,7 @@ class ProjectController extends Controller
             $periodTotal['yearly_plan']['profit'] = $periodTotal['yearly_plan']['sales'] - $periodTotal['yearly_plan']['expense'];
         }
         $summarizeData['settlement']['expense'] = (int) round($summarizeData['settlement']['expense'] ?? 0, 0, PHP_ROUND_HALF_UP);
-        
+
         $final_data = [
             'plan_res_data' => $plan_res_data,
             'sumData' => $sumData,
@@ -3769,8 +3721,8 @@ class ProjectController extends Controller
     public function analyze_finance(Request $request, FinanceAnalysisService $financeAnalysis): JsonResponse
     {
         $activeUser = $this->active_user();
-        $canAnalyze = ((int) ($activeUser->position_id ?? 99) <= 6)
-            || in_array((int) $activeUser->id, [608, 610], true);
+        $canAnalyze = app(\App\Services\Community\CommunityPermissionService::class)
+            ->can('finance.analyze', $activeUser);
 
         abort_unless($canAnalyze, 403, '財務AI分析の権限がありません。');
 
@@ -3817,7 +3769,7 @@ class ProjectController extends Controller
 
         $active = $this->active_user();
         $projects = ProjectRecord::when(
-            $active->position_id < 6 || $active->id === 610,
+            $active->isBoss(),
             fn($q) => $q,
             fn($q) => $q->whereHas('manager', fn($sq) => $sq->where('users.id', $active->id))
         )->pluck('name')->all();
@@ -3836,7 +3788,7 @@ class ProjectController extends Controller
             $projectsExpr = '部門 in ('.implode(',', $escaped).')';
             $dateExpr = sprintf('日付 >= "%s" and 日付 < "%s"', $ymdStart, $ymdEndNext);
             return $projectsExpr.' and '.$dateExpr;
-        }    
+        }
         // If you must pass project names to an external API, escape them properly.
         // Better: filter by 部門 after fetching instead of hand-built IN (...) strings.
         $projectSet = array_flip($projects); // fast membership test
@@ -3944,7 +3896,7 @@ class ProjectController extends Controller
         foreach ($projects as $dept) {
             $ps = $projectTotals[$dept]['profit']     ?? ['sales'=>0,'expense'=>0,'profit'=>0];
             $ss = $projectTotals[$dept]['settlement'] ?? ['sales'=>0,'expense'=>0,'profit'=>0];
-    
+
             $out[$dept] = [
                 'sales'    => VarianceService::achToVar(VarianceService::pct($ss['sales'],   $ps['sales'])),
                 'expense' => VarianceService::achToVar(VarianceService::pct($ss['expense'], $ps['expense'])),
@@ -3967,7 +3919,7 @@ class ProjectController extends Controller
         ->select('id', 'name', 'name_kana', 'motto', 'icon_path', 'icon_bg', 'icon_bg', 'icon_bg', 'office_id', 'position_id')->with(['positions'])
         ->get();
         return response()->json($users);
-    }   
+    }
     public function set_project_goal_step_status(Request $request){
         $request->validate([
             'project_goal_id' => 'required',
@@ -3998,7 +3950,7 @@ class ProjectController extends Controller
             'user_id' => 'required',
             'year' => 'required',
             'which_half' => 'required|in:first,second',
-        ]); 
+        ]);
 
 
         $previous_goals = ProjectGoal::where('user_id', $request->user_id)
@@ -4018,23 +3970,23 @@ class ProjectController extends Controller
         ]);
         $project_goal = ProjectGoal::findOrFail($request->goal_id);
         if($request->type == 'kgi'){
-            
+
             $project_goal->update([
                 'achievement_rate' => $request->progress,
             ]);
-            return response([], 200); 
+            return response([], 200);
         }
         else if($request->type == 'kpi'){
             $step = $project_goal->steps()->findOrFail($request->step_id);
             $step->update([
                 'progress' => $request->progress,
             ]);
-            return response([], 200); 
+            return response([], 200);
         }
         else{
             return response()->json(['message' => 'Invalid type'], 422);
-        }       
-        
+        }
+
     }
     public function salary_issue_action_complete(Request $request){
         $request->validate([
@@ -4075,7 +4027,7 @@ class ProjectController extends Controller
                 })
                 ->orWhere('id', 610);
             })
-            ->where('id', '!=', $user->id) 
+            ->where('id', '!=', $user->id)
             ->select('id', 'name', 'icon_path', 'icon_bg')
             ->get();
 
@@ -4125,29 +4077,29 @@ class ProjectController extends Controller
                 DB::table('project_finance_comment_mentions')->insert($rows);
             }
         });
-        if(!empty($data['mentioned_user_ids'])){     
+        if(!empty($data['mentioned_user_ids'])){
             $emails = User::whereIn('id', $data['mentioned_user_ids'])
                     ->pluck('email')
                     ->filter()          // drop null/empty
                     ->unique()
                     ->values()
-                    ->all();          
-            $project = ProjectRecord::findOrFail($data['project_record_id']);              
-            
+                    ->all();
+            $project = ProjectRecord::findOrFail($data['project_record_id']);
+
             $e_title = $project->name;
-                                                 
+
             $rawContent    = (string) ($data['comment'] ?? '');
             $emailContent  = preg_replace('/\s*\[To:[^:\]\|]+(?:\|\d+)?:\]\s*/u', ' ', $rawContent);
             $emailContent  = trim(preg_replace('/\s{2,}/', ' ', $emailContent));
 
             $blocked = preg_match('/\b(pass|pw|password)\b/i', $rawContent)
             || str_contains($rawContent, 'パスワード')
-            || str_contains($rawContent, 'ﾊﾟｽﾜｰﾄﾞ');        
+            || str_contains($rawContent, 'ﾊﾟｽﾜｰﾄﾞ');
             $url = rtrim(config('app.url'), '/') . "/project/{$project->id}/finance";
             // $url .= "?period={$data['period']}";
 
             SendProjectEmail::dispatchSync($emails, new ProjectMention($project, $emailContent, $blocked, $url, auth()->user()));
-            
+
         }
         // load author for UI if you want
         $comment->load(['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply']);
@@ -4165,7 +4117,7 @@ class ProjectController extends Controller
                 ->where('period', $data['period'])
                 ->with(['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply'])
                 ->get();
-        
+
         return response()->json($comment);
     }
     public function monthlyCount(Request $req, ProjectRecord $project)
@@ -4219,7 +4171,7 @@ class ProjectController extends Controller
         $user = $this->active_user();
         $userId = $user->id;
 
-        $isDirector = ($user->position_id < 6) || ($userId === 610);
+        $isDirector = $user->isBoss();
 
         if ($isDirector) {
             $projectIds = ProjectRecord::query()->pluck('id');
@@ -4301,7 +4253,7 @@ class ProjectController extends Controller
     public function mark_finance_read(Request $request, ProjectRecord $project) {
         $data = $request->validate(['period' => ['required', 'date_format:Y-m']]);
         $user = $this->active_user();
-        
+
         ProjectFinanceLastRead::updateOrCreate(
             ['project_record_id' => $project->id, 'user_id' => $user->id, 'period' => $data['period']],
             ['last_read_at' => now()]
@@ -4315,7 +4267,7 @@ class ProjectController extends Controller
         $request->validate([
             'id' => 'required',
             'comment' => 'required',
-        ]); 
+        ]);
         $comment = ProjectFinanceComment::findOrFail($request->id);
         $comment->update(['comment' => $request->comment]);
         return response(200);
@@ -4324,7 +4276,7 @@ class ProjectController extends Controller
     public function finance_comment_delete(Request $request){
         $request->validate([
             'id' => 'required',
-        ]); 
+        ]);
         $comment = ProjectFinanceComment::findOrFail($request->id);
         $comment->delete();
         return response(200);
@@ -4391,7 +4343,7 @@ class ProjectController extends Controller
         $request->validate([
             'id' => 'required',
             'comment' => 'required',
-        ]); 
+        ]);
         $comment = ProjectResourceComment::findOrFail($request->id);
         $comment->update(['comment' => $request->comment]);
         return response(200);
@@ -4400,7 +4352,7 @@ class ProjectController extends Controller
     public function resource_comment_delete(Request $request){
         $request->validate([
             'id' => 'required',
-        ]); 
+        ]);
         $comment = ProjectResourceComment::findOrFail($request->id);
         $comment->delete();
         return response(200);
@@ -4433,7 +4385,7 @@ class ProjectController extends Controller
         return response()->json($counts);
     }
 
-    
+
     public function project_cases(ProjectRecord $project, Request $req)
     {
         $user = $this->active_user();
@@ -4443,7 +4395,7 @@ class ProjectController extends Controller
             ->where('user_id', $user->id)
             ->exists();
         $isDirector = (int) $project->director_id === (int) $user->id;
-        $isExecutive = ($user->position_id && $user->position_id < 6) || $user->id == 608;
+        $isExecutive = $user->isBoss();
 
         abort_unless($isProjectMember || $isDirector || $isExecutive, 403, '閲覧権限がありません。');
 
@@ -4506,7 +4458,7 @@ class ProjectController extends Controller
         $isProjectMember = ProjectMember::where('project_id', $project->id)
             ->where('user_id', $user->id)
             ->exists();
-        $isDirector = ($user->position_id && $user->position_id < 6) || in_array($user->id, [608, 610]);
+        $isDirector = $user->isBoss();
 
         abort_unless($isProjectMember || $isDirector, 403, 'このプロジェクトには報告権限がありません。');
 
@@ -4534,7 +4486,7 @@ class ProjectController extends Controller
             'state'             => $data['state'],
             'submitted_at'      => $data['state'] === 'submitted' ? now() : null,
         ];
-        
+
         $exists = ProjectCase::where('report_date', $reportDate)
                 ->where('user_id', $user_id)
                 ->where('project_record_id', $project->id)
@@ -4757,7 +4709,7 @@ class ProjectController extends Controller
         return $map[$value] ?? $value;
     }
 
-   
+
 
     public function download_yearly_template(Request $req) {
         $data = $req->validate([
@@ -4779,7 +4731,7 @@ class ProjectController extends Controller
             'year' => 'required|integer',
             'projectName' => 'string'
         ]);
-    
+
         Excel::import(new YearlyBudgetImport($data['project_id'], $data['year'], $data['projectName']), $data['file']);
 
         return response()->json(['ok' => true]);
@@ -4799,20 +4751,20 @@ class ProjectController extends Controller
             'user_id' => $user->id,
         ]);
 
-        if($request->attached_temp_files){ 
-            foreach($request->attached_temp_files as $item){      
+        if($request->attached_temp_files){
+            foreach($request->attached_temp_files as $item){
                 $file = messageFile::findOrFail($item['id']);
                 $col = $which === 'goal' ? 'project_goal_report_id' : 'salary_issue_report_id';
                 $file->update([$col => $report->id]);
                 $path = "project_goal_report_files";
-                File::isDirectory(storage_path("app/{$path}")) or File::makeDirectory(storage_path("app/{$path}"), 0755, true, true);         
+                File::isDirectory(storage_path("app/{$path}")) or File::makeDirectory(storage_path("app/{$path}"), 0755, true, true);
                 $srcPath = "{$file->id}.{$file->extension}";
                 $destPath = "{$file->id}_{$file->user_id}.{$file->extension}";
                 $temp_path = storage_path("app/temp_upload/{$srcPath}");
-                Storage::disk('local')->move("temp_upload/{$file->id}.{$file->extension}", "{$path}/{$destPath}");                
+                Storage::disk('local')->move("temp_upload/{$file->id}.{$file->extension}", "{$path}/{$destPath}");
             }
         }
-        
+
         $notification_targets = [];
         $payload = [];
         if($which === 'goal'){
@@ -4834,10 +4786,10 @@ class ProjectController extends Controller
                     'year' => $record->year,
                     'created_at' => now(),
                     'updated_at' => now(),
-                    
+
                 ];
             }
-            
+
         } else {
             $notification_targets = [];
             if($record->user_id !== $user->id){
@@ -4852,7 +4804,7 @@ class ProjectController extends Controller
                 throw new \Exception("関連する目標が見つかりません。");
             }
             foreach($notification_targets as $target_user_id){
-                
+
                 $payload[] = [
                     'user_id' => $record->user_id,
                     'target_user_id' => $target_user_id,
@@ -4863,13 +4815,13 @@ class ProjectController extends Controller
                     'salary_issue_id' => $record->id,
                     'created_at' => now(),
                     'updated_at' => now(),
-                    
+
                 ];
             }
         }
         $notification_targets = array_unique($notification_targets);
         $goal_record = $which === 'goal' ? $record : $record->project_goal;
-        
+
         ProjectMemberReportNotification::insert($payload);
 
         $syntax = '/\[To:(.*?)\:\]/';
@@ -4920,7 +4872,7 @@ class ProjectController extends Controller
             });
 
             $setting = $project_setting->firstWhere('project_id', $project->id);
-        
+
             if($is_member || $is_manager){
                 $myProjects[] = [
                     'id' => $project->id,
@@ -5107,7 +5059,7 @@ class ProjectController extends Controller
             return false;
         }
 
-        if (($user->position_id && $user->position_id < 6) || in_array($user->id, [608, 610])) {
+        if ($user->isBoss()) {
             return true;
         }
 
@@ -5228,7 +5180,7 @@ class ProjectController extends Controller
                         '部門コード'   => (string)($r['新部門ｺｰﾄﾞ']['value'] ?? ''),
                         'レコード番号' => (int)($r['レコード番号']['value'] ?? 0),
                         '雇用形態'     => (string)($v['雇用形態']['value'] ?? ''),
-                        '勤務地'       => (string)($v['勤務地']['value'] ?? '') 
+                        '勤務地'       => (string)($v['勤務地']['value'] ?? '')
                     ];
 
                     $val = trim((string)($v['雇用形態']['value'] ?? ''));
@@ -5358,7 +5310,7 @@ class ProjectController extends Controller
 
         return $memberMeta;
     }
-    public function update_resource_kintone(Request $request) 
+    public function update_resource_kintone(Request $request)
     {
         $data = $request->validate([
             'quantity' => 'required|numeric',
@@ -5376,7 +5328,7 @@ class ProjectController extends Controller
         $index = collect($table)->search(fn ($row) =>
             data_get($row, 'value.ルックアップ_4.value') === $data['member']
         );
-        
+
         if ($index === false) {
             abort(404);
         }
@@ -5393,7 +5345,7 @@ class ProjectController extends Controller
             ];
         }, $table, array_keys($table));
 
-        
+
         $updated = $this->api->putRecord(1068, $data['recordId'], [
             '給料手当テーブル' => ['value' => $tableForPut],
         ]);
@@ -5572,7 +5524,7 @@ class ProjectController extends Controller
             $monthly_goals_history .= "\n過去24ヶ月間に月次目標の記録はありません。\n\n";
         }
         return $monthly_goals_history;
-        
+
     }
     private function user_work_condition($user_id){
         $condition_data = <<<EOD
@@ -5580,10 +5532,10 @@ class ProjectController extends Controller
         EOD;
         $survey = CustomForm::with(['blocks' => function($q) use($user_id)  {
             $q->with(['answers' => function($q)use($user_id)  {
-                $q->where('user_id', $user_id)->with('files');                    
+                $q->where('user_id', $user_id)->with('files');
             }])->with(['elements' => function($q) use($user_id) {
                 $q->with(['answers' => function($q)use($user_id)  {
-                    $q->where('user_id', $user_id);  
+                    $q->where('user_id', $user_id);
                 }]);
             }]);
         }])
@@ -5605,7 +5557,7 @@ class ProjectController extends Controller
                                 if($element_answer->sub_text){
                                     $condition_data .= $element_answer->sub_text;
                                 }
-                                
+
                             }
                         }
                     }
@@ -5621,7 +5573,7 @@ class ProjectController extends Controller
         $evaluation_data = <<<EOD
         以下は、最新の人事考課の詳細です。
         EOD;
-        $today = Carbon::now(); 
+        $today = Carbon::now();
         $whichHalf = ($today->month >= 3 && $today->month <= 9) ? 'first' : 'second';
         $fiscalYear = ($today->month >= 3) ? $today->year : $today->year - 1;
         $evaluation = EvaluationRecord::where('user_id', $user_id)
@@ -5654,7 +5606,7 @@ class ProjectController extends Controller
 
         $project = ProjectRecord::findOrFail($data['project_id']);
         $role = ProjectMemberRole::findOrFail($data['role_id']);
-        
+
         $user_code = $user->user_code;
 
         $condition = $this->user_work_condition($data['user_id']);
@@ -5703,7 +5655,7 @@ class ProjectController extends Controller
             'support_level' => $json_result['support_level']['decision'] ?? null,
             'project_member_role_id' => $role->id,
         ]);
-        
+
         $questions = $json_result['project_manager_check_items'] ?? [];
         foreach($questions as $index => $question){
             $block = $assignRecord->questions()->create([
@@ -5725,9 +5677,9 @@ class ProjectController extends Controller
             }
         }
 
-        
 
-        
+
+
 
         return response()->json($json_result);
     }
@@ -6025,9 +5977,9 @@ class ProjectController extends Controller
         $project = ProjectRecord::findOrFail($request->project_id);
         $assignRecords = $project->projectAssignRecords()
         ->with([
-            'questions.elements', 
-            'questions.answers.element_answers', 
-            'actions.user', 
+            'questions.elements',
+            'questions.answers.element_answers',
+            'actions.user',
             'actions.actualUser',
             'user:id,name,icon_path,icon_bg,position_id',
             'projectMemberRole:id,title'
@@ -6036,7 +5988,7 @@ class ProjectController extends Controller
         ->get();
         // $members = $project->members_and_managers()->with('pivot')->get();
 
-        
+
 
         return response()->json($assignRecords);
     }
@@ -6050,7 +6002,7 @@ class ProjectController extends Controller
 
         $assignRecord = ProjectAssignRecord::findOrFail($request->assign_record_id);
         $previous_level = $assignRecord->support_level;
-        
+
         if($previous_level !== $request->support_level){
             $color_map = [
                 'red' => ['label' => '重点対応', 'color' => '#FF0000', 'class' => 'support_red'],
@@ -6129,7 +6081,7 @@ class ProjectController extends Controller
         ]);
 
         $activeUser = $this->active_user();
-        if (!in_array((int) ($activeUser?->id ?? 0), [608, 610], true)) {
+        if (!($activeUser && $activeUser->isAdmin())) {
             return response()->json(['error' => '権限がありません。'], 403);
         }
 
@@ -6267,9 +6219,9 @@ class ProjectController extends Controller
         ]);
 
         $activeUser = $this->active_user();
-        
+
         // Guard: admin only (HR)
-        if (!in_array((int) ($activeUser?->id ?? 0), [608, 610], true)) {
+        if (!($activeUser && $activeUser->isAdmin())) {
             return response()->json(['error' => '権限がありません。'], 403);
         }
 

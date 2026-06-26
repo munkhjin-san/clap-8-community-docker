@@ -1,32 +1,36 @@
 <template>
     <div :class="['side-menu-root', {sideMenuView : sideMenuView.active}]" @mouseenter="setView(true)" @mouseleave="setView(false)">
         <div class="side-menu-inner" v-if="auth.user">    
-            <router-link :to="{name: 'community'}" :class="['side-menu-route !pt-[5px]', { selectedRoute: route.fullPath.startsWith('/community')}]">
+            <router-link :to="{name: 'community'}" :title="communityName" :aria-label="communityName" :class="['side-menu-route !pt-[5px]', { selectedRoute: route.fullPath.startsWith('/community')}]">
                 <div class="side-menu-route-inner -ml-[3px] relative">               
-                    <svg id="a" data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" style="height: auto;width: 30px;" viewBox="0 0 951.96296 588.82123">
-                        <path d="M293.67254,0l181.86274,179.96296L657.39802,0l294.56493,295.29042-293.62847,293.53081-181.93646-179.82123-182.66194,179.82123L0,294.42767,293.67254,0ZM657.53528,407.90955L293.73608,46.03412,46,294.42767l247.73608,248.39356,158.33448-157.39356-157.53528-158.48187-67.48187,67.48187,89.96375,91-22.48187,22.48187-113.48187-113.48187,113.48187-113.48187,362.2008,361.87543,249.22687-247.53081-249.22687-249.2563-157.62847,158.2563,157.56493,157.56493,68.34462-67.42767-90.49142-90.45798,22.89396-23.26394,113.6896,113.78483-113.57402,113.41895Z" style="fill: #c5af72;"/>
-                        <polygon points="294.53528 271.9458 408.01716 385.42767 294.53528 498.90955 91 294.42767 293.73608 91.03412 657.53528 452.90955 815.07056 294.42767 658.33448 137.03412 590.10761 203.56493 680.01716 294.42767 658.02697 316.48719 544.47577 204.91937 657.57774 89.86631 860.92884 295.22687 656.73608 497.82123 293.73608 137.03412 137 294.42767 294.53528 452.90955 362.01716 385.42767 271.4885 294.93247 294.53528 271.9458" style="fill: #c5af72;"/>
-                    </svg>
+                    <img v-if="communityIconUrl" class="side-community-icon" :src="communityIconUrl" :alt="communityName" loading="lazy">
+                    <div v-else class="side-community-icon side-community-icon-fallback">{{ communityInitial }}</div>
                     <span class="side-notification" style="width: 8px; height: 8px; min-width: 8px; left: 25px; top: 10px;" v-if="badge.communityBadgeStatus"></span>
-                    <span v-if="sideMenuView.active">グラウド株式会社</span>                    
-                </div> 
+                    <span v-if="sideMenuView.active">{{ communityName }}</span>
+                </div>
             </router-link>
             <div :class="['side-menu-route']" style="padding:14px;flex-direction: column;height: auto;overflow: visible;min-height: auto">
-                <div @click.prevent.stop="setActiveUser(auth.id)" class="side-menu-route-inner">  
-                    <div :class="['side-user-icon', { 'active-user-icon' : auth.linked.length && auth.activeUser && auth.activeUser.id == auth.id} ]">
+                <div class="side-menu-route-inner">
+                    <div class="side-user-icon active-user-icon">
                         <UserPanel :user="auth.user" :disableInstant="true" imgClass="userMidIcon" size="25"/>
-                        <span style="top: -3px;right: auto;left: 20px;" v-if="auth.linked.length && auth.id && badge.totalUserBadge(auth.id) && auth.activeUser.id !== auth.id" class="side-notification">{{ badgeFilter(badge.totalUserBadge(auth.id))}}</span> 
                     </div>                         
                     <div class="sideMenuUserName" style="white-space: break-spaces;display: flex;align-items: center;gap:5px;" v-if="sideMenuView.active">{{ auth.user.name }}
                         <WeatherIcon style="margin-right: 10px;min-width: 20px;" v-if="todayWeather !== null" :key="`weather_${todayWeather}`" :which="todayWeather" size="20"/>
                     </div>                   
                 </div>
-                <div @click.prevent.stop="setActiveUser(user.id)" v-for="user in auth.user.linked" class="side-menu-route-inner">
-                    <div :class="['side-user-icon', { 'active-user-icon' : auth.linked.length && auth.activeUser && auth.activeUser.id == user.id} ]">
-                        <UserPanel :user="user" :disableInstant="true" imgClass="userMidIcon" size="25"/>
-                        <span style="top: -3px;right: auto;left: 20px;" v-if="auth.linked.length && user.id && badge.totalUserBadge(user.id) && auth.activeUser.id !== user.id" class="side-notification">{{ badgeFilter(badge.totalUserBadge(user.id))}}</span> 
-                    </div>
-                    <div class="sideMenuUserName" style="white-space: break-spaces;display: flex;align-items: center;gap:5px;" v-if="sideMenuView.active">{{user.name }}</div>
+                <div v-if="sideMenuView.active && auth.communities.length > 1" class="community-switcher">
+                    <select :value="auth.activeCommunity?.id" @change="switchCommunity">
+                        <option v-for="community in auth.communities" :key="community.id" :value="community.id">
+                            {{ community.name }}
+                        </option>
+                    </select>
+                </div>
+                <div v-if="sideMenuView.active && auth.accountChooserAccounts.length > 1" class="community-switcher">
+                    <select :value="auth.id" @change="switchAccount">
+                        <option v-for="account in auth.accountChooserAccounts" :key="account.id" :value="account.id">
+                            {{ account.name }}
+                        </option>
+                    </select>
                 </div>
             </div>
             <router-link :to="{name: 'dashboard'}" :class="['side-menu-route', { selectedRoute: selectedRoute('dashboard')}]">
@@ -52,7 +56,7 @@
                     <Badge v-if="badge.totalBoardBadge(auth.activeUser.id)" :count="badge.totalBoardBadge(auth.activeUser.id)"/>
                 </div> 
             </router-link>
-            <router-link :to="{name: 'project'}" v-if="!auth.isPartner && auth.user" :class="['side-menu-route', { selectedRoute: isActive}]">
+            <router-link :to="{name: 'project'}" v-if="auth.can('app.project') && auth.user" :class="['side-menu-route', { selectedRoute: isActive}]">
                 <div class="side-menu-route-inner">   
                     <svg class="side-app-icon" version="1.1" xmlns="http://www.w3.org/2000/svg" style="height: 18px;min-width:17px;overflow: visible;" viewBox="0 0 45 32">
                         <path d="M32.084 18.983c0.433 0.409 0.938 0.722 1.492 0.95 0.433 0.18 1.191 0.265 1.732 0.265 0.553 0 1.191-0.096 1.72-0.277 0.553-0.192 1.059-0.529 1.492-0.938s0.782-0.914 1.023-1.456c0.241-0.553 0.373-1.155 0.373-1.756 0.024-1.203-0.457-2.43-1.323-3.284-0.433-0.433-0.938-0.782-1.504-1.011-0.565-0.241-1.179-0.361-1.78-0.361s-1.215 0.12-1.78 0.361c-0.565 0.241-1.083 0.577-1.504 1.011-0.854 0.866-1.347 2.081-1.323 3.284-0.012 1.203 0.517 2.394 1.383 3.212zM33.829 14.28c0.397-0.385 0.926-0.601 1.48-0.601s1.083 0.217 1.48 0.601c0.397 0.385 0.638 0.914 0.65 1.48s-0.18 1.131-0.577 1.552c-0.385 0.433-1.071 0.686-1.564 0.698-0.481 0.012-1.155-0.289-1.54-0.71-0.192-0.217-0.349-0.457-0.445-0.722s-0.144-0.541-0.132-0.83c0-0.553 0.253-1.083 0.65-1.468zM35.308 23.471c1.107 0 2.262 0.289 3.164 0.902 0.926 0.626 1.78 1.684 2.202 2.37 0.325 0.517 0.866 0.77 1.395 0.553 0.517-0.204 0.686-0.83 0.553-1.371-0.12-0.541-0.577-1.395-1.059-2.045-0.505-0.662-1.167-1.323-2.25-1.949-1.215-0.71-2.454-1.035-4.018-1.035s-2.803 0.325-4.018 1.035c-1.083 0.626-1.744 1.287-2.25 1.949-0.493 0.65-0.938 1.504-1.059 2.045s0.048 1.167 0.553 1.371c0.541 0.217 1.083-0.036 1.395-0.553 0.421-0.686 1.275-1.756 2.201-2.37s2.081-0.902 3.188-0.902z"></path>
@@ -67,7 +71,7 @@
                     />
                 </div>                
             </router-link>
-            <router-link :to="{name: 'schedule'}"  :class="['side-menu-route', { selectedRoute: selectedRoute('schedule')}]">
+            <router-link :to="{name: 'schedule'}" v-if="auth.can('app.schedule')" :class="['side-menu-route', { selectedRoute: selectedRoute('schedule')}]">
                 <div class="side-menu-route-inner">   
                     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 32" class="side-app-icon" style="width: auto; height: 18px;min-width:17px">
                         <path d="M35.556 27.791v-1.812l-0.011-2.902-0.057-11.584-0.011-2.89-0.011-1.445v-0.195c0-0.080 0-0.172-0.011-0.252-0.011-0.172-0.034-0.333-0.069-0.493-0.069-0.333-0.184-0.642-0.333-0.941-0.298-0.596-0.757-1.101-1.296-1.48-0.551-0.367-1.193-0.596-1.858-0.654-0.161-0.011-0.344-0.011-0.447-0.011h-1.090l-1.239 0.011c-0.080 0-0.138-0.069-0.138-0.138v-0.631c0-0.080-0.011-0.161-0.023-0.241-0.046-0.31-0.161-0.619-0.321-0.895-0.321-0.539-0.849-0.963-1.457-1.135-0.149-0.046-0.31-0.080-0.47-0.092-0.080 0-0.161-0.011-0.241-0.011h-0.688c-0.642 0-1.273 0.252-1.732 0.688-0.459 0.424-0.746 1.055-0.78 1.686v0.539c0 0.115-0.103 0.218-0.218 0.206-0.814-0.057-9.715-0.057-10.586-0.023-0.046 0-0.080-0.034-0.080-0.069 0-0.172 0.011-0.585 0-0.642 0-0.080-0.011-0.161-0.023-0.241-0.046-0.31-0.161-0.619-0.321-0.895-0.321-0.539-0.849-0.963-1.457-1.135-0.149-0.046-0.31-0.080-0.47-0.092-0.057-0.011-0.138-0.023-0.218-0.023h-0.688c-0.642 0-1.273 0.252-1.732 0.688-0.459 0.424-0.746 1.055-0.78 1.686v0.642c0 0.103-0.080 0.183-0.183 0.183l-2.707-0.023c-0.654 0.023-1.308 0.218-1.87 0.562s-1.032 0.837-1.353 1.411c-0.161 0.287-0.287 0.596-0.367 0.918-0.046 0.161-0.069 0.321-0.092 0.493-0.011 0.080-0.011 0.161-0.023 0.252v1.675l-0.023 2.902c-0.023 3.865-0.057 7.719-0.069 11.584l-0.011 2.89v2.202c0.011 0.344 0.057 0.688 0.149 1.009 0.183 0.665 0.551 1.262 1.032 1.743s1.090 0.837 1.755 1.021c0.333 0.092 0.677 0.138 1.021 0.138h27.733c0.080 0 0.172-0.011 0.252-0.011 0.172-0.023 0.344-0.046 0.505-0.080 0.677-0.149 1.296-0.493 1.801-0.941 0.505-0.459 0.895-1.044 1.101-1.698 0.115-0.321 0.172-0.665 0.195-1.009 0-0.080 0-0.172 0.011-0.252v-0.195zM25.359 5.987v-0.275l0.023-1.090 0.034-2.122c0.011-0.092 0.057-0.172 0.126-0.241s0.161-0.103 0.252-0.103h0.723c0.023 0 0.046 0 0.069 0.011 0.092 0.023 0.172 0.092 0.229 0.172 0.023 0.046 0.046 0.080 0.046 0.126v0.378l0.023 1.090 0.046 2.122c0.023 0.229-0.183 0.493-0.459 0.493-0.195 0-0.551-0.011-0.551-0.011h-0.138c-0.011 0-0.034 0-0.046-0.011-0.034-0.011-0.057-0.011-0.092-0.023-0.115-0.046-0.206-0.138-0.252-0.241-0.023-0.057-0.034-0.103-0.046-0.161v-0.046c0.011-0.011 0.011-0.011 0.011-0.069zM8.786 5.987v-0.275l0.023-1.090 0.034-2.122c0.011-0.092 0.046-0.172 0.126-0.241 0.069-0.069 0.161-0.103 0.252-0.103h0.723c0.023 0 0.046 0 0.069 0.011 0.092 0.023 0.172 0.092 0.229 0.172 0.023 0.046 0.046 0.080 0.046 0.126v0.378l0.023 1.090 0.046 2.122c0.023 0.229-0.218 0.493-0.459 0.493s-0.551-0.011-0.551-0.011h-0.138c-0.011 0-0.034 0-0.046-0.011-0.034-0.011-0.057-0.011-0.092-0.023-0.115-0.046-0.206-0.138-0.252-0.241-0.023-0.057-0.034-0.103-0.046-0.161v-0.046c0.011-0.011 0-0.011 0.011-0.069zM33.308 7.157v1.445l-0.011 2.89-0.057 11.584-0.011 2.902v2.099c-0.011 0.138-0.034 0.275-0.080 0.413-0.092 0.264-0.252 0.505-0.459 0.7-0.218 0.183-0.47 0.321-0.734 0.378-0.057 0.011-0.115 0.023-0.183 0.034-0.034 0-0.092 0.011-0.138 0.011h-27.642c-0.138 0-0.275-0.011-0.413-0.057-0.264-0.069-0.516-0.218-0.723-0.413s-0.356-0.447-0.436-0.711c-0.046-0.138-0.057-0.275-0.069-0.413v-2.145l-0.011-2.89c-0.011-3.865-0.046-7.719-0.069-11.584l-0.034-2.913-0.011-1.445v-0.126c0-0.034 0-0.080 0.011-0.115 0.011-0.069 0.023-0.149 0.034-0.218 0.034-0.149 0.092-0.287 0.161-0.424 0.149-0.264 0.356-0.505 0.619-0.665 0.264-0.172 0.551-0.264 0.86-0.287l2.707-0.034c0.069 0 0.115 0.046 0.115 0.115l0.011 0.688c0 0.034 0 0.126 0.011 0.195 0 0.080 0.011 0.149 0.023 0.229 0.046 0.31 0.161 0.596 0.321 0.86 0.321 0.516 0.837 0.918 1.422 1.067 0.149 0.034 0.298 0.069 0.447 0.080h0.367s0.275-0.011 0.551-0.011c0.642 0 1.193-0.229 1.64-0.631s0.746-0.975 0.791-1.594c0.011-0.184 0.011-0.229 0.011-0.333l0.023-0.447c0-0.069 0.057-0.126 0.138-0.126 0.872 0.034 9.864 0.034 10.724-0.034 0.057 0 0.103 0.034 0.103 0.092 0 0.241 0.023 0.849 0.046 1.067 0.034 0.275 0.161 0.596 0.321 0.86 0.321 0.516 0.837 0.918 1.422 1.067 0.149 0.034 0.298 0.069 0.447 0.080h0.367s0.367 0 0.551-0.011c0.665-0.034 1.193-0.229 1.64-0.631s0.746-0.975 0.791-1.594c0.011-0.184 0.011-0.229 0.011-0.333l0.011-0.275 0.011-0.218c0-0.080 0.069-0.138 0.138-0.138l1.296 0.011h0.723c0.229 0 0.528 0 0.631 0.011 0.298 0.023 0.585 0.138 0.837 0.31s0.447 0.413 0.585 0.677c0.069 0.138 0.115 0.275 0.138 0.424 0.011 0.069 0.023 0.149 0.023 0.218v0.31z"></path> <path d="M30.509 10.598c-2.11-0.069-4.221-0.103-6.331-0.126-1.055-0.011-2.11-0.023-3.166-0.023l-3.166-0.011-3.166 0.011-3.166 0.023-4.748 0.069-1.583 0.034c-0.413 0.011-0.757 0.344-0.768 0.768-0.011 0.436 0.333 0.791 0.768 0.803l1.583 0.034 4.748 0.069 3.166 0.023 3.166 0.011 3.166-0.011c1.055 0 2.11-0.023 3.166-0.023 2.11-0.023 4.221-0.057 6.331-0.126 0.39-0.011 0.723-0.333 0.734-0.723 0.011-0.436-0.31-0.791-0.734-0.803zM15.771 15.61c-0.195-0.080-0.39-0.115-0.585-0.138-0.195-0.034-0.39-0.034-0.585-0.034s-0.39 0.011-0.585 0.034c-0.195 0.023-0.39 0.046-0.585 0.103-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.034s0.39-0.057 0.585-0.138c0.218-0.092 0.413-0.264 0.505-0.505 0.183-0.447-0.046-0.952-0.505-1.135zM22.366 15.61c-0.195-0.080-0.39-0.115-0.585-0.138-0.195-0.034-0.39-0.034-0.585-0.034s-0.39 0.011-0.585 0.034c-0.195 0.023-0.39 0.046-0.585 0.103-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.034s0.39-0.057 0.585-0.138c0.218-0.092 0.413-0.264 0.505-0.505 0.183-0.447-0.046-0.952-0.505-1.135zM29.075 15.61c-0.195-0.080-0.39-0.115-0.585-0.138-0.195-0.034-0.39-0.034-0.585-0.034s-0.39 0.011-0.585 0.034c-0.195 0.023-0.39 0.046-0.585 0.103-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.034s0.39-0.057 0.585-0.138c0.218-0.092 0.413-0.264 0.505-0.505 0.172-0.447-0.057-0.952-0.505-1.135zM9.049 20.198c-0.195-0.080-0.39-0.103-0.585-0.138s-0.39-0.034-0.585-0.034c-0.195 0-0.39 0.011-0.585 0.034s-0.39 0.046-0.585 0.103c-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.046 0.195-0.023 0.39-0.057 0.585-0.138 0.218-0.092 0.413-0.264 0.505-0.505 0.172-0.436-0.046-0.952-0.505-1.124zM15.771 20.198c-0.195-0.080-0.39-0.103-0.585-0.138s-0.39-0.034-0.585-0.034c-0.195 0-0.39 0.011-0.585 0.034s-0.39 0.046-0.585 0.103c-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.046 0.195-0.023 0.39-0.057 0.585-0.138 0.218-0.092 0.413-0.264 0.505-0.505 0.183-0.436-0.046-0.952-0.505-1.124zM22.366 20.198c-0.195-0.080-0.39-0.103-0.585-0.138s-0.39-0.034-0.585-0.034c-0.195 0-0.39 0.011-0.585 0.034s-0.39 0.046-0.585 0.103c-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.046 0.195-0.023 0.39-0.057 0.585-0.138 0.218-0.092 0.413-0.264 0.505-0.505 0.183-0.436-0.046-0.952-0.505-1.124zM29.075 20.198c-0.195-0.080-0.39-0.103-0.585-0.138s-0.39-0.034-0.585-0.034c-0.195 0-0.39 0.011-0.585 0.034s-0.39 0.046-0.585 0.103c-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.046 0.195-0.023 0.39-0.057 0.585-0.138 0.218-0.092 0.413-0.264 0.505-0.505 0.172-0.436-0.057-0.952-0.505-1.124zM9.049 24.774c-0.195-0.080-0.39-0.115-0.585-0.138-0.195-0.034-0.39-0.034-0.585-0.034s-0.39 0.011-0.585 0.034c-0.195 0.023-0.39 0.046-0.585 0.103-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.034s0.39-0.057 0.585-0.138c0.218-0.092 0.413-0.264 0.505-0.505 0.172-0.447-0.046-0.963-0.505-1.135zM15.771 24.774c-0.195-0.080-0.39-0.115-0.585-0.138-0.195-0.034-0.39-0.034-0.585-0.034s-0.39 0.011-0.585 0.034c-0.195 0.023-0.39 0.046-0.585 0.103-0.287 0.080-0.528 0.31-0.619 0.619-0.138 0.47 0.138 0.963 0.619 1.090 0.195 0.057 0.39 0.080 0.585 0.103s0.39 0.034 0.585 0.034c0.195 0 0.39-0.011 0.585-0.034s0.39-0.057 0.585-0.138c0.218-0.092 0.413-0.264 0.505-0.505 0.183-0.447-0.046-0.963-0.505-1.135z"></path>
@@ -75,7 +79,7 @@
                     <span v-if="sideMenuView.active">スケジュール</span>                    
                 </div>                
             </router-link>
-            <router-link :to="{name: 'timesheet'}" v-if="auth.user && (auth.id == 685 || auth.id == 686 || auth.id == 833) || !auth.isPartner" :class="['side-menu-route', { selectedRoute: selectedRoute('timesheet')}]">
+            <router-link :to="{name: 'timesheet'}" v-if="auth.can('app.timesheet')" :class="['side-menu-route', { selectedRoute: selectedRoute('timesheet')}]">
                 <div class="side-menu-route-inner">   
                     <svg class="side-app-icon" version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" style="width:auto; height: 20px;min-width:17px">
                         <path d="M30.827 10.021c-0.79-1.951-1.963-3.748-3.442-5.253s-3.264-2.716-5.214-3.531c-1.963-0.816-4.080-1.237-6.183-1.237-2.116 0.013-4.233 0.433-6.183 1.249s-3.723 2.040-5.202 3.544c-1.479 1.504-2.652 3.289-3.442 5.24-0.778 1.951-1.173 4.054-1.16 6.132 0.013 2.091 0.433 4.182 1.237 6.107 0.816 1.925 1.989 3.697 3.48 5.151s3.264 2.626 5.189 3.391c1.925 0.778 4.207 1.147 6.069 1.147 0.956 0 2.065-0.115 3.085-0.306s2.014-0.484 2.983-0.867c1.925-0.765 3.697-1.925 5.189-3.378s2.69-3.213 3.493-5.138c0.816-1.925 1.249-4.016 1.262-6.107 0.025-2.091-0.37-4.194-1.16-6.145zM28.367 21.304c-0.65 1.632-1.645 3.123-2.869 4.386s-2.716 2.282-4.335 2.983-3.57 1.071-5.176 1.071-3.544-0.382-5.163-1.084c-1.619-0.688-3.111-1.708-4.335-2.971s-2.218-2.754-2.881-4.373c-0.663-1.619-1.007-3.378-0.994-5.138s0.382-3.493 1.071-5.1c0.688-1.606 1.696-3.060 2.932-4.284 2.486-2.435 5.916-3.837 9.383-3.812 3.468-0.013 6.884 1.39 9.358 3.825 1.237 1.211 2.244 2.677 2.92 4.284 0.688 1.594 1.045 3.34 1.058 5.087s-0.319 3.493-0.969 5.125z"></path>
@@ -85,7 +89,7 @@
                     <span v-if="breakTimeStore.inBreak" :class="{'absolute-text' : !sideMenuView.active}" style="color: tomato;font-size: 10px;">(休憩中)</span>                    
                 </div>                
             </router-link> 
-            <router-link :to="{name: 'learning'}" :class="['side-menu-route', { selectedRoute: selectedRoute('learning')}]">
+            <router-link :to="{name: 'learning'}" v-if="auth.can('app.learning')" :class="['side-menu-route', { selectedRoute: selectedRoute('learning')}]">
                 <div class="side-menu-route-inner"> 
                     <svg class="side-app-icon" version="1.1" xmlns="http://www.w3.org/2000/svg" width="31" height="32" viewBox="0 0 31 32" style="width: 20px !important; height: auto;min-width:20px;">
                         <path d="M30.632 27.002l-0.181-3.754-0.384-7.508-0.204-3.754c-0.023-0.486-0.384-0.905-0.882-0.961h-0.034c-0.645-0.079-1.289-0.113-1.934-0.124-0.633 0-1.266 0.023-1.9 0.079-1.255 0.113-2.499 0.328-3.731 0.645-1.221 0.328-2.431 0.746-3.596 1.3-0.893 0.418-1.764 0.939-2.555 1.583-0.271-0.215-0.543-0.418-0.825-0.599-0.543-0.362-1.119-0.667-1.696-0.939-1.165-0.554-2.363-0.972-3.584-1.3-1.21-0.328-2.454-0.554-3.709-0.667s-2.533-0.136-3.833 0.011h-0.011c-0.486 0.057-0.882 0.464-0.905 0.972l-0.339 7.508-0.328 7.508c0 0.068 0 0.136 0.011 0.192 0.079 0.509 0.543 0.859 1.063 0.825 0.543-0.034 1.119-0.023 1.707 0.023s1.187 0.124 1.787 0.226c1.199 0.192 2.397 0.475 3.562 0.814 1.176 0.339 2.329 0.735 3.46 1.199 0.565 0.237 1.199 0.554 1.741 0.792 0.418 0.181 0.972 0.452 1.515 0.769 0.294 0.17 0.656 0.17 0.95 0 0.599-0.351 1.3-0.746 1.515-0.859 0.531-0.271 1.085-0.52 1.651-0.758 1.131-0.452 2.295-0.837 3.483-1.165 1.187-0.317 2.397-0.588 3.596-0.78 0.599-0.102 1.21-0.181 1.809-0.226 0.599-0.057 1.199-0.079 1.764-0.057h0.090c0.531 0 0.95-0.452 0.927-0.995zM27.669 26.041c-0.656 0.068-1.3 0.158-1.945 0.271-1.278 0.226-2.544 0.509-3.788 0.871s-2.476 0.78-3.675 1.289c-0.599 0.26-1.199 0.531-1.787 0.848-0.204 0.113-0.667 0.384-0.95 0.554-0.147 0.090-0.328 0.090-0.475 0l-0.984-0.565c-0.577-0.305-1.176-0.577-1.764-0.837-1.199-0.509-2.408-0.939-3.652-1.312-1.232-0.362-2.488-0.667-3.777-0.893-0.645-0.113-1.289-0.204-1.945-0.26-0.192-0.011-0.384-0.034-0.565-0.045-0.204-0.011-0.351-0.181-0.339-0.384l0.317-6.095 0.328-6.581c0.825-0.023 1.673 0.023 2.522 0.102 1.142 0.124 2.273 0.328 3.381 0.633s2.182 0.69 3.189 1.187c0.509 0.249 0.995 0.52 1.459 0.814 0.475 0.294 0.927 0.599 1.334 0.95 0.373 0.317 0.939 0.339 1.346 0.034l0.045-0.034c0.871-0.656 1.809-1.232 2.816-1.73 1.006-0.486 2.081-0.882 3.189-1.176 1.097-0.305 2.228-0.52 3.37-0.645 0.724-0.079 1.459-0.124 2.182-0.124 0.192 0 0.351 0.158 0.362 0.351l0.136 2.488 0.43 7.508 0.147 2.431c0.011 0.17-0.124 0.317-0.294 0.328-0.181-0.023-0.396 0-0.611 0.023z"></path>
@@ -94,7 +98,7 @@
                     <span v-if="sideMenuView.active">ラーニング</span>                  
                 </div>
             </router-link>
-            <router-link v-if="!auth.isPartner && !auth.isRegistered" :to="{name: 'contact'}" :class="['side-menu-route', { selectedRoute: selectedRoute('contact')}]">
+            <router-link v-if="auth.can('app.contact')" :to="{name: 'contact'}" :class="['side-menu-route', { selectedRoute: selectedRoute('contact')}]">
                 <div class="side-menu-route-inner">   
                     <svg class="side-app-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28.23 29.26" style="height: 21px;min-width:17px;"> 
                         <path class="cls-1" d="M13,15.4c.34-.05.76-.15,1.02-.24,1.46-.52,2.48-2.02,2.48-3.57.02-3.56-4.26-5.33-6.78-2.82-2.26,2.3-.92,6.03,2.04,6.61.45.09.99.07,1.24.03ZM11.27,10.32c.67-.69,1.87-.69,2.54,0,1.04,1.02.54,2.66-.7,3.13-.18.07-.82.1-1.14-.02-.29-.11-.56-.28-.77-.5-.68-.71-.66-1.93.06-2.6Z"/>
@@ -113,7 +117,7 @@
                 </div>
                
             </router-link>
-            <router-link :to="{name: 'post'}" v-if="!auth.isPartner && !auth.activeUser.linkable && !auth.isRegistered" :class="['side-menu-route', { selectedRoute: selectedRoute('post')}]">
+            <router-link :to="{name: 'post'}" v-if="auth.can('app.post') && !auth.activeUser.linkable" :class="['side-menu-route', { selectedRoute: selectedRoute('post')}]">
                 <div class="side-menu-route-inner">  
                     <svg class="side-app-icon" xmlns="http://www.w3.org/2000/svg" id="Layer_2" data-name="Layer 2" viewBox="0 0 21.76 21.79" style="width: auto; height: 21px;min-width:17px">
                         <path class="cls-1" d="m21.54.32c-.25-.3-.67-.39-1.04-.25h0c-.84.33-1.68.66-2.51,1-.84.34-1.67.68-2.5,1.02-1.67.68-3.33,1.38-4.99,2.07l-4.99,2.08L.52,8.35c-.27.11-.48.37-.52.71s.18.7.51.84h.01c.69.31,1.39.6,2.08.89l2.09.86c.7.28,3.95,1.5,4.24,1.6s.6.06.86-.17,6.1-6.39,6.1-6.39c.23-.23.22-.61-.02-.83s-.6-.2-.83.02l-5.71,5.43c-.16.15-.39.19-.59.1-.42-.19-4.51-1.88-5.16-2.14-.16-.06-.16-.28,0-.35l2.59-1.04,5.01-2.02c1.67-.68,3.34-1.35,5.01-2.03.59-.24,1.74-.72,2.42-1,.2-.08.4.12.31.31l-3.04,7.42-2.04,5.01c-.36.9-.73,1.79-1.09,2.69-.06.15-.28.16-.34,0l-1.52-3.53c-.15-.31-.56-.46-.92-.32s-.5.5-.37.81l2.22,6c.1.26.33.48.65.54.39.07.78-.16.94-.53h0c.7-1.67,1.39-3.33,2.08-4.99l2.07-4.99L21.69,1.26c.12-.29.09-.66-.15-.95Z"/>
@@ -135,7 +139,7 @@
                 <GlowdNews :newsItems="newsItems"/>
                      
                 <div style="width:100%;bottom: 0;left: 0;display: flex;flex-direction: column;gap:15px;padding: 10px 20px 20px 20px;">   
-                    <router-link :to="adminRoute" v-if="[608, 610].includes(auth.activeUser.id) || (auth.activeUser.position_id && auth.activeUser.position_id <= 6)" class="login-link jump-link" style="cursor: pointer;font-size: 15px;">管理画面</router-link>
+                    <router-link :to="adminRoute" v-if="auth.isAdmin || auth.isBoss" class="login-link jump-link" style="cursor: pointer;font-size: 15px;">管理画面</router-link>
                 </div>         
                                                  
             </div>     
@@ -145,11 +149,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import UserPanel from '@/components/Global/UserPanel.vue'
 import GlowdNews from './GlowdNews.vue'
 import { useAuthUserStore } from '@/store/auth'
-import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useSideMenuView } from '@/store/sideMenuView';
 import { useBadgeStore } from '@/store/badge'
@@ -168,7 +171,11 @@ import Badge from './Badge.vue';
     const breakTimeStore = useBreakTime()
     const { normalBadgeCount } = storeToRefs(useDashboardGoalsStore())
     const { badgeCount, pulseBadgeCount } = storeToRefs(useDashboardStore())
+    const communityName = computed(() => auth.activeCommunity?.name || 'コミュニティ')
+    const communityInitial = computed(() => communityName.value.charAt(0).toUpperCase())
+    const communityIconUrl = computed(() => auth.activeCommunity?.config?.icon_path ? `/board_icon_thumbnail/${auth.activeCommunity.config.icon_path}/45` : '')
     onMounted(() => {
+        auth.loadAccountChooserAccounts()
         setTimeout(() => {
             getGlowdNews()
             breakTimeStore.checkBreakTime()       
@@ -203,7 +210,7 @@ import Badge from './Badge.vue';
         return []
     })
     const adminRoute = computed(() => {
-        return [608, 610].includes(auth.activeUser.id) ? { name: 'account' } : { name: 'custom-form-control' };
+        return auth.isAdmin ? { name: 'account' } : { name: 'custom-form-control' };
     });
 
     const isActive = computed(() => {
@@ -216,6 +223,20 @@ import Badge from './Badge.vue';
     const setView = (val:boolean) => {
         if(sideMenuView.active !== val && !props.switchLoader){
             sideMenuView.setSideMenuView(val)
+        }
+    }
+    const switchCommunity = async(event: Event) => {
+        const communityId = Number((event.target as HTMLSelectElement).value)
+        if(communityId && communityId !== auth.activeCommunity?.id){
+            await auth.switchCommunity(communityId)
+            window.location.reload()
+        }
+    }
+    const switchAccount = async(event: Event) => {
+        const userId = Number((event.target as HTMLSelectElement).value)
+        if(userId && userId !== auth.id){
+            await auth.setActiveUser(userId)
+            window.location.reload()
         }
     }
     const getGlowdNews = async() => {                
@@ -257,6 +278,38 @@ import Badge from './Badge.vue';
     justify-content: center;
     position: relative;
     margin-left: -3px
+}
+.side-community-icon{
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    border-radius: 8px;
+    object-fit: cover;
+}
+.side-community-icon-fallback{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: solid thin var(--formBorder);
+    background: var(--bg3);
+    color: var(--primary-color);
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+}
+.community-switcher{
+    width: 100%;
+    padding-left: 42px;
+}
+.community-switcher select{
+    width: 100%;
+    min-height: 30px;
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--background-color);
+    color: var(--primary-color);
+    font-size: 12px;
 }
 .active-user-icon{
     border: 2px solid rgb(0, 128, 248);

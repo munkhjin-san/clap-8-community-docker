@@ -52,7 +52,7 @@ class UserController extends Controller{
     }
     public function saveSignature(Request $request){
         $auth_id = Auth::id();
-        $user = User::with('linked')->findOrFail($auth_id);
+        $user = User::findOrFail($auth_id);
         $unique_number = rand(1000, 9999); 
         $current_timestamp = time(); 
         $new_a_path = $current_timestamp . $unique_number; 
@@ -312,7 +312,7 @@ class UserController extends Controller{
             ->where('date', '<', $today)
             ->orderBy('date', 'desc')
             ->limit(5);
-        }])->with(['portfolio', 'linked', 'project_settings', 'refreshAccount.grants'])
+        }])->with(['portfolio', 'communityMemberships.community', 'communityMemberships.role', 'project_settings', 'refreshAccount.grants'])
         ->first();         
         $list->append('refresh_current_balance');
         return response()->json($list);
@@ -393,35 +393,6 @@ class UserController extends Controller{
             return response()->json($claps);
         }
     }
-    public function set_active_linked_account(Request $request){
-        $request->validate([
-            'id' => 'required',
-        ]);
-
-        if($request->id == Auth::id()){
-            Auth::user()->linked()->update(['active' => 0]);
-        }else{
-            $target = Auth::user()->linked()->where('link_id', $request->id)->exists();
-            if($target){
-                Auth::user()->linked()->whereNot('link_id', $request->id)->update(['active' => 0]);
-                Auth::user()->linked()->where('link_id', $request->id)->update(['active' => 1]);
-            }           
-        }
-        
-        $updated = $this->profile_get_update_user(new Request (["id" =>  Auth::id()]));
-        $rebound = array(
-            array(
-                "event" => "switch:".Auth::id(),
-                "data" => array("to" => $request->id)
-            )            
-        );
-
-        SocketEmitter::dispatchAfterResponse([
-            [ "event" => "switch:".Auth::id(), "data" => ["to" => $request->id]]
-        ]);
-        return response()->json(["user" => $updated->original]);
-        
-    }
     public function get_random_member_data(Request $request){
         // return response('ok', 200);
         $users = User::where('deleted_flag', 0)
@@ -466,12 +437,7 @@ class UserController extends Controller{
         return response()->json($user);
     }
     private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if($sub){
-            return $sub;
-        }else{
-            return Auth::user();
-        }
+        return Auth::user();
     }
     public function auth_check(Request $request){
         $r = Auth::id() == $request->id;

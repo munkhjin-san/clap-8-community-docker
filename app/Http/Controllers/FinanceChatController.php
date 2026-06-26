@@ -23,12 +23,7 @@ class FinanceChatController extends Controller
     private function active_user(): \App\Models\User
     {
         $user = Auth::user();
-        $sub = $user->linked()
-            ->where('main_id', $user->id)
-            ->wherePivot('active', 1)
-            ->first();
-
-        return $sub ?: $user;
+        return $user;
     }
 
     private static function resolveRole(\App\Models\User $user): string
