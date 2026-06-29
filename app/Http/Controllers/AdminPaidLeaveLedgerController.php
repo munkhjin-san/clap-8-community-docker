@@ -6,6 +6,7 @@ use App\Models\PaidLeaveAccount;
 use App\Services\PaidLeaveLedgerService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class AdminPaidLeaveLedgerController extends Controller
 {
@@ -40,6 +41,8 @@ class AdminPaidLeaveLedgerController extends Controller
         $data = $request->validate([
             'amount_days' => ['required', 'numeric', 'min:-365', 'max:365', 'not_in:0'],
             'adjusted_on' => ['required', 'date'],
+            'paid_leave_grant_id' => ['sometimes', 'nullable', 'integer'],
+            'adjustment_type' => ['sometimes', 'nullable', 'string', Rule::in(['manual', 'manual_deduction', 'manual_restore'])],
             'note' => ['sometimes', 'nullable', 'string', 'max:1000'],
         ]);
 
@@ -48,7 +51,9 @@ class AdminPaidLeaveLedgerController extends Controller
             (float) $data['amount_days'],
             $data['adjusted_on'],
             $data['note'] ?? null,
-            $this->activeUserId()
+            $this->activeUserId(),
+            $data['paid_leave_grant_id'] ?? null,
+            $data['adjustment_type'] ?? 'manual'
         ));
     }
 

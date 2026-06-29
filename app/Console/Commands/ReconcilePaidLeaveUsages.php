@@ -67,6 +67,7 @@ class ReconcilePaidLeaveUsages extends Command
             ['Existing usages skipped', $summary['skipped_existing']],
             ['Kintone-reflected planned leaves skipped', $summary['skipped_externally_reflected_planned']],
             ['Pending future grants skipped', $summary['skipped_pending_future_grant']],
+            ['Planned-year grants missing skipped', $summary['skipped_missing_planned_year_grant']],
             ['Kintone-reflected usages removed', $summary['removed_externally_reflected_usages']],
             ['Zero-amount shifts skipped', $summary['skipped_zero_amount']],
             ['Stale usages deleted', $summary['deleted_stale_usages']],

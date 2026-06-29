@@ -1597,11 +1597,13 @@ import Project from '../Icons/Project.vue';
     watch(attendanceMode, (mode) => {
         if (mode === ATTENDANCE_MODE.TRAINING_ONLY) {
             breakTimeSelect.value = 0
+            if (!projectTimeEntries.value.length) {
+                setProjectTimeEntryDefaults()
+            }
             projectTimeEntries.value.forEach(entry => {
                 entry.segment_type = PROJECT_SEGMENT_TYPE.TRAINING
             })
             normalizeProjectEntriesForMode()
-            setProjectTimeEntryDefaults()
             return
         }
 

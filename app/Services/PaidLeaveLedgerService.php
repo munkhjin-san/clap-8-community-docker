@@ -717,6 +717,15 @@ class PaidLeaveLedgerService
                     continue;
                 }
 
+                if ($this->shouldSkipPlannedLeaveWithoutMatchingGrantYear($account, $shift, $amount)) {
+                    $summary['skipped_missing_planned_year_grant']++;
+                    if ($existing) {
+                        $this->deleteUsageAndRestoreGrants($existing);
+                    }
+
+                    continue;
+                }
+
                 if ($existing) {
                     $this->deleteUsageAndRestoreGrants($existing);
                     $summary['replaced_usages']++;
@@ -863,6 +872,32 @@ class PaidLeaveLedgerService
             'source' => $period['source'],
             'period' => $period,
         ];
+    }
+
+    public function plannedLeaveYearForShiftDate(int $userId, string $shiftDay, ?int $preferredYear = null): ?int
+    {
+        $day = Carbon::parse($shiftDay)->startOfDay();
+        $candidateYears = collect([$preferredYear, (int) $day->year - 1, (int) $day->year, (int) $day->year + 1])
+            ->filter(fn ($year) => $year !== null && (int) $year > 0)
+            ->map(fn ($year) => (int) $year)
+            ->unique()
+            ->values();
+
+        foreach ($candidateYears as $candidateYear) {
+            $periods = $this->plannedLeavePeriodsForUser($userId, $candidateYear);
+            $matchingPeriod = $periods->first(function (array $period) use ($day) {
+                $start = Carbon::parse($period['shift_window_start'] ?? $period['period_start'])->startOfDay();
+                $end = Carbon::parse($period['shift_window_end'] ?? $period['period_end'])->endOfDay();
+
+                return $day->greaterThanOrEqualTo($start) && $day->lessThanOrEqualTo($end);
+            });
+
+            if ($matchingPeriod) {
+                return (int) $matchingPeriod['planned_year'];
+            }
+        }
+
+        return $preferredYear && $preferredYear > 0 ? (int) $preferredYear : null;
     }
 
     public function adminLedgerUsers(?string $search = null): Collection
@@ -1015,20 +1050,51 @@ class PaidLeaveLedgerService
         ];
     }
 
-    public function createManualAdjustment(PaidLeaveAccount $account, float $amountDays, string $adjustedOn, ?string $note, ?int $createdByUserId = null): array
+    public function createManualAdjustment(
+        PaidLeaveAccount $account,
+        float $amountDays,
+        string $adjustedOn,
+        ?string $note,
+        ?int $createdByUserId = null,
+        ?int $grantId = null,
+        string $adjustmentType = 'manual',
+    ): array
     {
         $policy = $this->activePolicy();
         $amountMinutes = $this->daysToMinutesForAccount($amountDays, $account, $policy);
 
-        $account->adjustments()->create([
-            'adjusted_on' => Carbon::parse($adjustedOn)->toDateString(),
-            'amount_minutes' => $amountMinutes,
-            'adjustment_type' => 'manual',
-            'source_system' => 'glowd',
-            'source_key' => 'manual:' . uniqid('', true),
-            'note' => $note,
-            'created_by_user_id' => $createdByUserId,
-        ]);
+        DB::transaction(function () use ($account, $adjustedOn, $amountMinutes, $adjustmentType, $note, $createdByUserId, $grantId) {
+            $grant = null;
+            if ($grantId) {
+                $grant = PaidLeaveGrant::query()
+                    ->where('paid_leave_account_id', $account->id)
+                    ->whereKey($grantId)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $grant) {
+                    throw ValidationException::withMessages(['paid_leave_grant_id' => '指定された付与年度が見つかりません。']);
+                }
+
+                $nextRemainingMinutes = (int) $grant->remaining_minutes + $amountMinutes;
+                if ($nextRemainingMinutes < 0) {
+                    throw ValidationException::withMessages(['amount_days' => '指定された付与年度の残数が不足しています。']);
+                }
+
+                $grant->update(['remaining_minutes' => $nextRemainingMinutes]);
+            }
+
+            $account->adjustments()->create([
+                'paid_leave_grant_id' => $grant?->id,
+                'adjusted_on' => Carbon::parse($adjustedOn)->toDateString(),
+                'amount_minutes' => $amountMinutes,
+                'adjustment_type' => $adjustmentType,
+                'source_system' => 'glowd',
+                'source_key' => 'manual:' . uniqid('', true),
+                'note' => $note,
+                'created_by_user_id' => $createdByUserId,
+            ]);
+        });
 
         return $this->adminLedgerHistory($account->fresh());
     }
@@ -1770,6 +1836,7 @@ class PaidLeaveLedgerService
             'skipped_existing' => 0,
             'skipped_externally_reflected_planned' => 0,
             'skipped_pending_future_grant' => 0,
+            'skipped_missing_planned_year_grant' => 0,
             'removed_externally_reflected_usages' => 0,
             'skipped_zero_amount' => 0,
             'deleted_stale_usages' => 0,
@@ -2191,6 +2258,9 @@ class PaidLeaveLedgerService
             'expiration' => '失効',
             'negative_usage' => 'マイナス使用',
             'manual' => '手動調整',
+            'manual_deduction' => '手動控除',
+            'manual_restore' => '手動戻し',
+            'kintone_balance_reconcile' => 'Kintone残高調整',
             default => $type,
         };
     }
@@ -2264,6 +2334,11 @@ class PaidLeaveLedgerService
             return false;
         }
 
+        $plannedYear = $this->plannedUsageYear($shift);
+        if ($plannedYear && $this->availableGrantMinutesForPlannedYear($account, $plannedYear, $usedOn) >= $amount) {
+            return false;
+        }
+
         if ($this->availableGrantMinutesForDate($account, $usedOn) >= $amount) {
             return false;
         }
@@ -2271,6 +2346,18 @@ class PaidLeaveLedgerService
         $nextGrantDate = $this->nextExpectedGrantDateAfter($account, $policy, $today);
 
         return $nextGrantDate && $nextGrantDate->lessThanOrEqualTo($usedOn);
+    }
+
+    private function shouldSkipPlannedLeaveWithoutMatchingGrantYear(PaidLeaveAccount $account, shiftRecord $shift, int $amount): bool
+    {
+        $plannedYear = $this->plannedUsageYear($shift);
+        if (! $plannedYear || $amount <= 0 || ! $shift->shift_day) {
+            return false;
+        }
+
+        $usedOn = Carbon::parse($shift->shift_day)->startOfDay();
+
+        return ! $this->hasGrantForPlannedYear($account, $plannedYear, $usedOn);
     }
 
     private function availableGrantMinutesForDate(PaidLeaveAccount $account, Carbon $usedOn): int
@@ -2284,6 +2371,33 @@ class PaidLeaveLedgerService
                     ->orWhereDate('expires_at', '>=', $usedOn->toDateString());
             })
             ->sum('remaining_minutes');
+    }
+
+    private function availableGrantMinutesForPlannedYear(PaidLeaveAccount $account, int $plannedYear, Carbon $usedOn): int
+    {
+        return (int) PaidLeaveGrant::query()
+            ->where('paid_leave_account_id', $account->id)
+            ->where('grant_type', PaidLeaveGrant::TYPE_ANNUAL)
+            ->where('remaining_minutes', '>', 0)
+            ->whereYear('granted_at', $plannedYear)
+            ->where(function ($query) use ($usedOn) {
+                $query->whereNull('expires_at')
+                    ->orWhereDate('expires_at', '>=', $usedOn->toDateString());
+            })
+            ->sum('remaining_minutes');
+    }
+
+    private function hasGrantForPlannedYear(PaidLeaveAccount $account, int $plannedYear, Carbon $usedOn): bool
+    {
+        return PaidLeaveGrant::query()
+            ->where('paid_leave_account_id', $account->id)
+            ->where('grant_type', PaidLeaveGrant::TYPE_ANNUAL)
+            ->whereYear('granted_at', $plannedYear)
+            ->where(function ($query) use ($usedOn) {
+                $query->whereNull('expires_at')
+                    ->orWhereDate('expires_at', '>=', $usedOn->toDateString());
+            })
+            ->exists();
     }
 
     private function nextExpectedGrantDateAfter(PaidLeaveAccount $account, PaidLeavePolicy $policy, Carbon $after): ?Carbon
@@ -2330,19 +2444,7 @@ class PaidLeaveLedgerService
             'created_by_user_id' => $createdByUserId,
         ]);
 
-        $grants = PaidLeaveGrant::query()
-            ->where('paid_leave_account_id', $account->id)
-            ->where('remaining_minutes', '>', 0)
-            ->whereDate('granted_at', '<=', $usage->used_on)
-            ->where(function ($query) use ($usage) {
-                $query->whereNull('expires_at')
-                    ->orWhereDate('expires_at', '>=', $usage->used_on);
-            })
-            ->orderByRaw('expires_at is null')
-            ->orderBy('expires_at')
-            ->orderBy('granted_at')
-            ->lockForUpdate()
-            ->get();
+        $grants = $this->grantsForUsageAllocation($account, $usage, $shift);
 
         foreach ($grants as $grant) {
             if ($remaining <= 0) {
@@ -2388,6 +2490,54 @@ class PaidLeaveLedgerService
             ->delete();
 
         $usage->delete();
+    }
+
+    private function grantsForUsageAllocation(PaidLeaveAccount $account, PaidLeaveUsage $usage, shiftRecord $shift): Collection
+    {
+        $plannedYear = $this->plannedUsageYear($shift);
+        if ($plannedYear) {
+            $plannedYearGrants = PaidLeaveGrant::query()
+                ->where('paid_leave_account_id', $account->id)
+                ->where('grant_type', PaidLeaveGrant::TYPE_ANNUAL)
+                ->where('remaining_minutes', '>', 0)
+                ->whereYear('granted_at', $plannedYear)
+                ->where(function ($query) use ($usage) {
+                    $query->whereNull('expires_at')
+                        ->orWhereDate('expires_at', '>=', $usage->used_on);
+                })
+                ->orderByRaw('expires_at is null')
+                ->orderBy('expires_at')
+                ->orderBy('granted_at')
+                ->lockForUpdate()
+                ->get();
+
+            return $plannedYearGrants;
+        }
+
+        return PaidLeaveGrant::query()
+            ->where('paid_leave_account_id', $account->id)
+            ->where('remaining_minutes', '>', 0)
+            ->whereDate('granted_at', '<=', $usage->used_on)
+            ->where(function ($query) use ($usage) {
+                $query->whereNull('expires_at')
+                    ->orWhereDate('expires_at', '>=', $usage->used_on);
+            })
+            ->orderByRaw('expires_at is null')
+            ->orderBy('expires_at')
+            ->orderBy('granted_at')
+            ->lockForUpdate()
+            ->get();
+    }
+
+    private function plannedUsageYear(shiftRecord $shift): ?int
+    {
+        if ((int) $shift->shift_type !== 3 || ! $shift->planned_year) {
+            return null;
+        }
+
+        $plannedYear = (int) $shift->planned_year;
+
+        return $plannedYear > 0 ? $plannedYear : null;
     }
 
     private function isPaidLeaveShift(shiftRecord $shift): bool

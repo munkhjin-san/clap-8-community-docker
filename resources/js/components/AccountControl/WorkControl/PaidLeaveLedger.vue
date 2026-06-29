@@ -89,6 +89,17 @@
                     <section class="detail-section">
                         <h3>手動調整</h3>
                         <div class="adjust-form">
+                            <select v-model="adjustForm.paid_leave_grant_id">
+                                <option :value="null">付与年度なし</option>
+                                <option v-for="grant in detail.grants" :key="grant.id" :value="grant.id">
+                                    {{ grant.grant_year || grant.granted_at }} / 残 {{ formatBalance(grant.remaining_minutes) }}
+                                </option>
+                            </select>
+                            <select v-model="adjustForm.adjustment_type">
+                                <option value="manual">手動調整</option>
+                                <option value="manual_deduction">手動控除</option>
+                                <option value="manual_restore">手動戻し</option>
+                            </select>
                             <input v-model="adjustForm.adjusted_on" type="date" :class="{'date-color': theme.dark}" />
                             <input v-model.number="adjustForm.amount_days" type="number" step="0.5" placeholder="+1 / -1" />
                             <button type="button" class="ledger-button primary" :disabled="savingAdjustment || !adjustForm.amount_days" @click="saveAdjustment">
@@ -164,6 +175,8 @@ const search = useDebouncedRef('', 600)
 const adjustForm = reactive({
     adjusted_on: DateTime.now().toISODate(),
     amount_days: '',
+    paid_leave_grant_id: null,
+    adjustment_type: 'manual',
 })
 const theme = useTheme();
 onMounted(() => {
@@ -186,6 +199,7 @@ const loadUsers = async(whichLoading) => {
 const selectUser = async(user) => {
     selectedAccountId.value = user.account_id
     detail.value = await api.get(`/admin/paid-leave-ledger/${user.account_id}`, {}, { loadingRef: detailLoading })
+    adjustForm.paid_leave_grant_id = null
 }
 
 const saveAdjustment = async() => {
@@ -193,6 +207,8 @@ const saveAdjustment = async() => {
     const payload = {
         adjusted_on: adjustForm.adjusted_on,
         amount_days: Number(adjustForm.amount_days),
+        paid_leave_grant_id: adjustForm.paid_leave_grant_id ? Number(adjustForm.paid_leave_grant_id) : null,
+        adjustment_type: adjustForm.adjustment_type,
         note: null,
     }
     const response = await api.post(`/admin/paid-leave-ledger/${selectedAccountId.value}/adjustments`, payload, {
@@ -202,6 +218,7 @@ const saveAdjustment = async() => {
     if (response) {
         detail.value = response
         adjustForm.amount_days = ''
+        adjustForm.paid_leave_grant_id = null
         await loadUsers('table')
     }
 }
@@ -314,7 +331,8 @@ const grantDateTitle = (user) => {
     align-items: center;
 }
 
-input {
+input,
+select {
     min-height: 32px;
     border: 1px solid var(--formBorder);
     border-radius: 0;
@@ -463,8 +481,12 @@ input {
 
 .adjust-form {
     display: grid;
-    grid-template-columns: 130px 100px auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+}
+
+.adjust-form .ledger-button {
+    width: 100%;
 }
 
 .grant-list {
