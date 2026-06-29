@@ -606,7 +606,9 @@ const grouped = computed<Group[]>(() => {
     const bucket = findBucket(dt);
     if (!bucket) return;
 
-    const rowsMap = groupMaps.get(entry.status)!;
+    const entryStatus = entry.status || fallbackStatus;
+    const rowsMap = groupMaps.get(groupMaps.has(entryStatus) ? entryStatus : fallbackStatus);
+    if (!rowsMap) return;
     const reporterId = entry.reporter?.id ?? 0;
     const reporterName = entry.reporter?.name ?? '未設定メンバー';
     const caseMeta: CaseTimelineEntry = {
