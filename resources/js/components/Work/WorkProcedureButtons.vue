@@ -101,7 +101,7 @@
 <script setup>
 import { useAuthUserStore } from '../../store/auth';
 import LoaderButton from '../Global/LoaderButton.vue';
-import { inject, computed } from 'vue';
+import { inject, computed, onMounted, onUnmounted } from 'vue';
 import { DateTime } from 'luxon';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
@@ -174,6 +174,36 @@ import { useDashboardStore } from '@/store/dashboard';
     }
     const formatedDay = computed(() => {
         return DateTime.fromISO(props.item?.day_full).toFormat('M月d日')
+    })
+    const handleEnterPress = (event) => {
+        if (event.key !== 'Enter' || event.repeat || event.isComposing) return
+
+        const target = event.target
+        if (target instanceof HTMLElement) {
+            const tag = target.tagName
+            if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(tag) || target.isContentEditable) {
+                return
+            }
+        }
+
+        if (canApproveSelectedProjectSegment.value) {
+            event.preventDefault()
+            emitProjectSegmentAction('approveProjectSegment', props.selectedSegment)
+            return
+        }
+
+        if (canApproveDailyReport.value) {
+            event.preventDefault()
+            emit('dailyButtons', 0, props.item)
+        }
+    }
+
+    onMounted(() => {
+        window.addEventListener('keydown', handleEnterPress)
+    })
+
+    onUnmounted(() => {
+        window.removeEventListener('keydown', handleEnterPress)
     })
 </script>
 <style scoped>

@@ -60,7 +60,7 @@
                                 </div>
                                 
                                 <div class="op-button-container project-time-actions" v-if="!isProjectEntryLocked(entry)">
-                                    <button type="button" class="project-time-action-button" title="プロジェクトを追加" aria-label="プロジェクトを追加" @click="addProjectTimeEntry(index)">＋</button>
+                                    <button type="button" class="project-time-action-button project-time-action-disabled" title="プロジェクトを追加" aria-label="プロジェクトを追加" @click="addProjectTimeEntry(index)">＋</button>
                                     <button
                                         type="button"
                                         class="project-time-action-button"
@@ -492,6 +492,7 @@
                     <p v-if="projectTimeUnpaidGapMessage" class="project-time-message">{{ projectTimeUnpaidGapMessage }}</p>
                     <p v-if="projectTimeBreakMessage" class="project-time-message">{{ projectTimeBreakMessage }}</p>
                     <p v-if="projectTimeWarning" class="project-time-warning">{{ projectTimeWarning }}</p>
+                    <p class="project-time-message">プロジェクトの追加分は7月1日に開始されます。</p>
                 </div>
                 <!-- <IncentiveField v-if="item.position_id === 15" v-model="incentives"/> -->
                 <div id="saveButton" class="si-box" style="display: flex; justify-content: center; gap: 20px;">
