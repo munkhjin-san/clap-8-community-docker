@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="relative">
         <div class="grow-wrap" ref="growRef" :class="{focused: modelValue}">
             <textarea 
                 :style="{width: `${width - 30}px`, maxWidth:`${width - 30}px`}"
