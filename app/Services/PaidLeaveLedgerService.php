@@ -651,9 +651,8 @@ class PaidLeaveLedgerService
         $policy = $this->activePolicy();
         $start = Carbon::create($year, $month, 1)->startOfDay();
         $end = $start->copy()->endOfMonth();
-        $externallyReflectedPlannedLeaveCutoff = $this->externallyReflectedPlannedLeaveCutoff($account);
 
-        return DB::transaction(function () use ($account, $policy, $start, $end, $createdByUserId, $externallyReflectedPlannedLeaveCutoff, $summary) {
+        return DB::transaction(function () use ($account, $policy, $start, $end, $createdByUserId, $summary) {
             $activePaidLeaveShifts = shiftRecord::query()
                 ->where('user_id', $account->user_id)
                 ->whereBetween('shift_day', [$start->toDateString(), $end->toDateString()])
@@ -692,12 +691,12 @@ class PaidLeaveLedgerService
                     ->with('allocations.grant')
                     ->first();
 
-                // Kintone opening balances are already net of planned leaves that existed at import time.
-                if ($this->isExternallyReflectedPlannedLeaveShift($shift, $externallyReflectedPlannedLeaveCutoff)) {
-                    $summary['skipped_externally_reflected_planned']++;
+                // Only skip when Kintone history has the same usage. Import timing alone is not proof.
+                if ($this->hasImportedKintoneUsageForShift($account, $shift, $amount)) {
+                    $summary['skipped_imported_kintone_usage']++;
                     if ($existing) {
                         $this->deleteUsageAndRestoreGrants($existing);
-                        $summary['removed_externally_reflected_usages']++;
+                        $summary['removed_imported_kintone_overlap_usages']++;
                     }
 
                     continue;
@@ -1834,10 +1833,10 @@ class PaidLeaveLedgerService
             'created_usages' => 0,
             'replaced_usages' => 0,
             'skipped_existing' => 0,
-            'skipped_externally_reflected_planned' => 0,
+            'skipped_imported_kintone_usage' => 0,
             'skipped_pending_future_grant' => 0,
             'skipped_missing_planned_year_grant' => 0,
-            'removed_externally_reflected_usages' => 0,
+            'removed_imported_kintone_overlap_usages' => 0,
             'skipped_zero_amount' => 0,
             'deleted_stale_usages' => 0,
             'skipped_no_user' => 0,
@@ -2122,9 +2121,19 @@ class PaidLeaveLedgerService
             || $account->adjustments()->exists();
     }
 
-    private function externallyReflectedPlannedLeaveCutoff(PaidLeaveAccount $account): ?Carbon
+    private function hasImportedKintoneUsageForShift(PaidLeaveAccount $account, shiftRecord $shift, int $amount): bool
     {
-        return $this->kintonePaidLeaveSyncedCutoff($account);
+        if ($amount <= 0 || ! $shift->shift_day) {
+            return false;
+        }
+
+        return PaidLeaveUsage::query()
+            ->where('paid_leave_account_id', $account->id)
+            ->where('source_system', 'kintone')
+            ->where('source_key', 'like', 'kintone:605:%:usage:%')
+            ->whereDate('used_on', Carbon::parse($shift->shift_day)->toDateString())
+            ->where('amount_minutes', $amount)
+            ->exists();
     }
 
     private function kintonePaidLeaveSyncedCutoff(PaidLeaveAccount $account): ?Carbon
@@ -2196,60 +2205,6 @@ class PaidLeaveLedgerService
         }
 
         return $historyGrant->created_at ? Carbon::parse($historyGrant->created_at) : null;
-    }
-
-    private function isExternallyReflectedPlannedLeaveShift(shiftRecord $shift, ?Carbon $cutoff): bool
-    {
-        if (! $cutoff || (int) $shift->shift_type !== 3) {
-            return false;
-        }
-
-        $shiftDay = $shift->shift_day ? Carbon::parse($shift->shift_day)->startOfDay() : null;
-        if (! $shiftDay || $shiftDay->greaterThan($cutoff->copy()->startOfDay())) {
-            return false;
-        }
-
-        if ($this->shiftCreatedNoLaterThan($shift, $cutoff)) {
-            return true;
-        }
-
-        return $this->hasExternallyReflectedPlannedLeaveAncestor($shift, $cutoff);
-    }
-
-    private function hasExternallyReflectedPlannedLeaveAncestor(shiftRecord $shift, Carbon $cutoff): bool
-    {
-        $ancestorId = (int) ($shift->descendant_of ?? 0);
-        $seen = [];
-
-        while ($ancestorId > 0) {
-            if (isset($seen[$ancestorId])) {
-                return false;
-            }
-            $seen[$ancestorId] = true;
-
-            $ancestor = shiftRecord::withTrashed()
-                ->select('id', 'shift_type', 'descendant_of', 'created_at', 'updated_at')
-                ->find($ancestorId);
-
-            if (! $ancestor) {
-                return false;
-            }
-
-            if ((int) $ancestor->shift_type === 3 && $this->shiftCreatedNoLaterThan($ancestor, $cutoff)) {
-                return true;
-            }
-
-            $ancestorId = (int) ($ancestor->descendant_of ?? 0);
-        }
-
-        return false;
-    }
-
-    private function shiftCreatedNoLaterThan(shiftRecord $shift, Carbon $cutoff): bool
-    {
-        $createdAt = $shift->created_at ?: $shift->updated_at;
-
-        return $createdAt && Carbon::parse($createdAt)->lessThanOrEqualTo($cutoff);
     }
 
     private function adjustmentLabel(string $type): string
