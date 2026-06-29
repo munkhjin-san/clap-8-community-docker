@@ -2285,11 +2285,15 @@ class PaidLeaveLedgerService
 
         $usedOn = Carbon::parse($shift->shift_day)->startOfDay();
         $today = Carbon::today()->startOfDay();
+        $plannedYear = $this->plannedUsageYear($shift);
+        if ($plannedYear && $this->plannedYearGrantIsFuture($account, $policy, $plannedYear, $today)) {
+            return true;
+        }
+
         if ($usedOn->lessThanOrEqualTo($today)) {
             return false;
         }
 
-        $plannedYear = $this->plannedUsageYear($shift);
         if ($plannedYear && $this->availableGrantMinutesForPlannedYear($account, $plannedYear, $usedOn) >= $amount) {
             return false;
         }
@@ -2330,11 +2334,14 @@ class PaidLeaveLedgerService
 
     private function availableGrantMinutesForPlannedYear(PaidLeaveAccount $account, int $plannedYear, Carbon $usedOn): int
     {
+        $today = Carbon::today()->toDateString();
+
         return (int) PaidLeaveGrant::query()
             ->where('paid_leave_account_id', $account->id)
             ->where('grant_type', PaidLeaveGrant::TYPE_ANNUAL)
             ->where('remaining_minutes', '>', 0)
             ->whereYear('granted_at', $plannedYear)
+            ->whereDate('granted_at', '<=', $today)
             ->where(function ($query) use ($usedOn) {
                 $query->whereNull('expires_at')
                     ->orWhereDate('expires_at', '>=', $usedOn->toDateString());
@@ -2344,15 +2351,36 @@ class PaidLeaveLedgerService
 
     private function hasGrantForPlannedYear(PaidLeaveAccount $account, int $plannedYear, Carbon $usedOn): bool
     {
+        $today = Carbon::today()->toDateString();
+
         return PaidLeaveGrant::query()
             ->where('paid_leave_account_id', $account->id)
             ->where('grant_type', PaidLeaveGrant::TYPE_ANNUAL)
             ->whereYear('granted_at', $plannedYear)
+            ->whereDate('granted_at', '<=', $today)
             ->where(function ($query) use ($usedOn) {
                 $query->whereNull('expires_at')
                     ->orWhereDate('expires_at', '>=', $usedOn->toDateString());
             })
             ->exists();
+    }
+
+    private function plannedYearGrantIsFuture(PaidLeaveAccount $account, PaidLeavePolicy $policy, int $plannedYear, Carbon $today): bool
+    {
+        $actualGrantDate = PaidLeaveGrant::query()
+            ->where('paid_leave_account_id', $account->id)
+            ->where('grant_type', PaidLeaveGrant::TYPE_ANNUAL)
+            ->whereYear('granted_at', $plannedYear)
+            ->orderBy('granted_at')
+            ->value('granted_at');
+
+        if ($actualGrantDate) {
+            return Carbon::parse($actualGrantDate)->startOfDay()->greaterThan($today);
+        }
+
+        $expectedGrantDate = $this->expectedGrantDateForYear($account, $policy, $plannedYear);
+
+        return $expectedGrantDate && $expectedGrantDate->greaterThan($today);
     }
 
     private function nextExpectedGrantDateAfter(PaidLeaveAccount $account, PaidLeavePolicy $policy, Carbon $after): ?Carbon
@@ -2456,6 +2484,7 @@ class PaidLeaveLedgerService
                 ->where('grant_type', PaidLeaveGrant::TYPE_ANNUAL)
                 ->where('remaining_minutes', '>', 0)
                 ->whereYear('granted_at', $plannedYear)
+                ->whereDate('granted_at', '<=', Carbon::today()->toDateString())
                 ->where(function ($query) use ($usage) {
                     $query->whereNull('expires_at')
                         ->orWhereDate('expires_at', '>=', $usage->used_on);
