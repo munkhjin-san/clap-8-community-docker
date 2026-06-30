@@ -32,7 +32,7 @@ interface State {
     salary_issue: any[]
     asset: []
     task_comment: {project_id: number, task_id: number, comments: number}[],
-    finance_comment: {total_unread: number, projects: {project_id: number, total_unread: number, period_counts: {[period: string]: number}}[]},
+    finance_comment: {total_unread: number, projects: {project_id: number, project_name: string, total_unread: number, period_counts: {[period: string]: number}}[]},
     goal_issue_comment: [],
     contact_comment: [],
     contact_batch_notification_count: number,
@@ -88,7 +88,7 @@ export const useBadgeStore = defineStore('badge', () => {
     const salary_issue = ref<any[]>([]);
     const asset = ref<any[]>([]);
     const task_comment = ref<{project_id: number, task_id: number, comments: number}[]>([]);
-    const finance_comment = ref<{total_unread: number, projects: {project_id: number, total_unread: number, period_counts: {[period: string]: number}}[]}>({total_unread: 0, projects: []});
+    const finance_comment = ref<{total_unread: number, projects: {project_id: number, project_name: string, total_unread: number, period_counts: {[period: string]: number}}[]}>({total_unread: 0, projects: []});
     const goal_issue_comment = ref<any[]>([]);
     const contact_comment = ref<any[]>([]);
     const contact_batch_notification_count = ref(0);
@@ -356,6 +356,59 @@ export const useBadgeStore = defineStore('badge', () => {
             ) ?? null;
     });
 
+    // 次の未読コメントの遷移先を求める。
+    // 1) まず現在のプロジェクトの残り未読月（時系列順、無ければ最古へループ）
+    // 2) 無ければ他プロジェクトを「最も早い未読月」が近い順にたどる
+    const nextFinanceUnread = computed(() => {
+        return (
+            currentProjectId: number,
+            currentPeriod: string
+        ): { project_id: number; project_name: string; period: string; count: number; sameProject: boolean } | null => {
+            const projects = finance_comment.value?.projects ?? [];
+            const unreadMonths = (p: { period_counts: { [period: string]: number } }) =>
+                Object.keys(p.period_counts ?? {})
+                    .filter((m) => (p.period_counts[m] ?? 0) > 0)
+                    .sort(); // yyyy-MM は文字列ソートで時系列順
+
+            // 1) 現在のプロジェクト内の次の未読月
+            const current = projects.find((p) => p.project_id === currentProjectId);
+            if (current) {
+                const months = unreadMonths(current).filter((m) => m !== currentPeriod);
+                const target = months.find((m) => m > currentPeriod) ?? months[0];
+                if (target) {
+                    return {
+                        project_id: currentProjectId,
+                        project_name: current.project_name,
+                        period: target,
+                        count: current.period_counts[target] ?? 0,
+                        sameProject: true,
+                    };
+                }
+            }
+
+            // 2) 他プロジェクト（最も早い未読月が近い順）
+            const others = projects
+                .filter((p) => p.project_id !== currentProjectId)
+                .map((p) => ({ p, months: unreadMonths(p) }))
+                .filter((x) => x.months.length > 0)
+                .sort((a, b) =>
+                    a.months[0] < b.months[0] ? -1 : a.months[0] > b.months[0] ? 1 : a.p.project_id - b.p.project_id
+                );
+            if (others.length) {
+                const { p, months } = others[0];
+                return {
+                    project_id: p.project_id,
+                    project_name: p.project_name,
+                    period: months[0],
+                    count: p.period_counts[months[0]] ?? 0,
+                    sameProject: false,
+                };
+            }
+
+            return null;
+        };
+    });
+
     const assetsBadgeByFilter = computed(() => {
         return (filterData: {by: string, value: any}[]) => {
             const userAssets = asset.value;
@@ -470,6 +523,7 @@ export const useBadgeStore = defineStore('badge', () => {
         salaryIssueByFilter,
         taskCommentBadgeByFilter,
         financeCommentBadgeByFilter,
+        nextFinanceUnread,
         goalAndSalaryTotal,
         projectTotal,
         projectCommentTotal,
