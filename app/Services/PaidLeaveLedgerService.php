@@ -634,7 +634,7 @@ class PaidLeaveLedgerService
         $summary = $this->emptyUsageReconcileSummary();
         $user = User::query()
             ->where('retire', 0)
-            ->select('id', 'user_code', 'joined_date', 'retire')->find($userId);
+            ->select('id', 'user_code', 'joined_date', 'retire', 'work_time_day')->find($userId);
         if (! $user) {
             $summary['skipped_no_user']++;
 
@@ -2445,6 +2445,7 @@ class PaidLeaveLedgerService
         
         if ($remaining > 0 && ! $policy->allow_negative_balance) {
             $this->deleteUsageAndRestoreGrants($usage->fresh('allocations.grant'));
+            return;
             throw ValidationException::withMessages(['message' => '有休残数が不足しています。']);
         }
 
@@ -2730,7 +2731,10 @@ class PaidLeaveLedgerService
     {
         $user = $account->relationLoaded('user') ? $account->user : null;
         if ($user instanceof User) {
-            return $this->minutesPerLeaveDayForUser($user, $policy);
+            $minutes = (int) ($user->work_time_day ?? 0);
+            if ($minutes > 0) {
+                return $minutes;
+            }
         }
 
         $minutes = $account->user_id
