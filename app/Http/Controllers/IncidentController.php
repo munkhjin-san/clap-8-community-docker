@@ -299,8 +299,9 @@ class IncidentController extends Controller
                 ->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
                 ->where('retire', 0)
                 ->where('hide_flag', 0)
-                ->orderByRaw('users.id = ? desc', [$activeUser->id])
-                ->orderBy('name')
+                ->where('id', '>', 105)
+                ->whereNotNull('position_id')
+                ->orderBy('position_id')
                 ->get(),
             'projects' => ProjectRecord::query()
                 ->select('id', 'name', 'date_start', 'date_end', 'category')
@@ -313,7 +314,6 @@ class IncidentController extends Controller
             'filter_users' => User::query()
                 ->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
                 ->whereIn('id', $filterUserIds)
-                ->orderBy('name')
                 ->get(),
             'filter_projects' => ProjectRecord::query()
                 ->select('id', 'name', 'date_start', 'date_end', 'category')
@@ -819,7 +819,7 @@ class IncidentController extends Controller
 
         $validated = $request->validate([
             'title' => ['sometimes', 'nullable', 'string'],
-            'description' => ['sometimes', 'nullable', 'string'],
+            'description' => ['required', 'string'],
             'caused_by' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
             'incident_category_id' => ['sometimes', 'nullable', 'integer', 'exists:incident_categories,id'],
             'incident_punishment_id' => ['sometimes', 'nullable', 'integer', 'exists:incident_punishments,id'],
@@ -831,8 +831,8 @@ class IncidentController extends Controller
             'occured_location' => ['sometimes', 'nullable', 'string'],
             'memo' => ['sometimes', 'nullable', 'string'],
             'aftermath_comment' => ['sometimes', 'nullable', 'string'],
-            'occurred_date' => ['sometimes', 'nullable', 'date'],
-            'reported_date' => ['sometimes', 'nullable', 'date'],
+            'occurred_date' => ['required', 'date'],
+            'reported_date' => ['required', 'date'],
             'instruction_date' => ['sometimes', 'nullable', 'date'],
             'related_parties' => ['sometimes', 'nullable', 'string'],
             'project_record_id' => ['sometimes', 'nullable', 'integer', 'exists:project_records,id'],
@@ -918,7 +918,7 @@ class IncidentController extends Controller
         $validated = $request->validate([
             'id' => ['required', 'integer', 'exists:incidents,id'],
             'title' => ['sometimes', 'nullable', 'string'],
-            'description' => ['sometimes', 'nullable', 'string'],
+            'description' => ['sometimes', 'required', 'string'],
             'reported_by' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
             'caused_by' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
             'incident_category_id' => ['sometimes', 'nullable', 'integer', 'exists:incident_categories,id'],
@@ -931,8 +931,8 @@ class IncidentController extends Controller
             'occured_location' => ['sometimes', 'nullable', 'string'],
             'memo' => ['sometimes', 'nullable', 'string'],
             'aftermath_comment' => ['sometimes', 'nullable', 'string'],
-            'occurred_date' => ['sometimes', 'nullable', 'date'],
-            'reported_date' => ['sometimes', 'nullable', 'date'],
+            'occurred_date' => ['sometimes', 'required', 'date'],
+            'reported_date' => ['sometimes', 'required', 'date'],
             'instruction_date' => ['sometimes', 'nullable', 'date'],
             'related_parties' => ['sometimes', 'nullable', 'string'],
             'project_record_id' => ['sometimes', 'nullable', 'integer', 'exists:project_records,id'],

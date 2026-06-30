@@ -530,8 +530,7 @@ import Badge from './Badge.vue';
         width: 65vw;
         transform: translateX(calc(-65vw - 2px));
         height: 100%;
-        z-index: 23;
-        z-index: 26;
+        z-index: 30;
     }
     .sideMenuView {
         transform: translateX(0);

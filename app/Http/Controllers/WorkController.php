@@ -1077,8 +1077,13 @@ class WorkController extends Controller
 
             foreach ($shift_array as $shift) {
                 $date = $shift['date'];
-                $type = $shift['type'];
-                $planned_year = $shift['planned_year'];
+                $type = (int) $shift['type'];
+                $planned_year = $this->plannedYearForShiftSave(
+                    (int) $user_id,
+                    (string) $date,
+                    $type,
+                    $shift['planned_year'] ?? null
+                );
                 $needsProject = $this->shiftTypeHasWorkTime($shiftTypesById->get($type), $workMinutesPerDay);
                 $departmentId = $needsProject ? ($shift['department_id'] ?? null) : null;
                 if ($needsProject && empty($departmentId)) {
@@ -1148,6 +1153,18 @@ class WorkController extends Controller
         $this->sharedService->syncShiftToCalendar($user_id, $year, $month);
 
         return response()->json(['ok' => true]);
+    }
+
+    private function plannedYearForShiftSave(int $userId, string $shiftDay, int $shiftType, mixed $requestedPlannedYear): int
+    {
+        $requestedYear = is_numeric($requestedPlannedYear) ? (int) $requestedPlannedYear : null;
+        if ($shiftType === 3) {
+            return $this->paidLeaveLedger->plannedLeaveYearForShiftDate($userId, $shiftDay, $requestedYear)
+                ?? $requestedYear
+                ?? (int) Carbon::parse($shiftDay)->year;
+        }
+
+        return $requestedYear ?: (int) Carbon::parse($shiftDay)->year;
     }
     
     public function getWorkGroup(Request $request){

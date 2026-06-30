@@ -31,6 +31,7 @@
                                 {{ item.shift?.status_flag == 2 ? '申請中' : item.shift?.shift_type?.abbreviation }}
                             </span>
                             <span v-if="breakTimeFormatted">{{ breakTimeFormatted }}</span>
+                            <span v-if="dayAllowanceLabel">{{ dayAllowanceLabel }}</span>
                             <span v-if="overTimeFormatted">{{ overTimeFormatted }}</span>
                             <span v-if="hasWeather" class="mobile-project-segment-weather">
                                 <WeatherIcon :which="item.weather" :size="17"/>
@@ -355,6 +356,37 @@
                 </div>
             </td>
             <td
+                v-if="segmentIndex === 0"
+                class="project-segment-detail-column project-segment-detail-column-allowance"
+                :rowspan="projectSegmentRowspan"
+            >
+                <button
+                    v-if="dayAllowanceLabel"
+                    type="button"
+                    class="project-segment-detail-column-button"
+                    :title="dayAllowanceLabel"
+                    @click.stop="toggleProjectDetailBox(dayAllowanceSegment, dayAllowanceDetailColumn)"
+                >
+                    {{ shortDetailText(dayAllowanceLabel) }}
+                </button>
+                <div
+                    v-if="dayAllowanceSegment && isProjectDetailBoxOpen(dayAllowanceSegment, 'allowance')"
+                    class="project-chip-box project-chip-box-allowance"
+                    :data-segment-key="segmentKey(dayAllowanceSegment)"
+                    :style="projectDetailBoxStyle"
+                    @click.stop
+                >
+                    <div class="project-chip-box-head">
+                        <div>
+                            <p class="!text-sm !text-[var(--primary-color)]">諸手当</p>
+                            <p>{{ dayFormatter }} ・ 1日単位</p>
+                        </div>
+                        <button type="button" class="project-chip-box-close" @click="closeProjectDetailBox">×</button>
+                    </div>
+                    <pre>{{ dayAllowanceLabel }}</pre>
+                </div>
+            </td>
+            <td
                 v-for="detailColumn in segmentLeadDetailColumns"
                 :key="detailColumn.type"
                 class="project-segment-detail-column"
@@ -661,7 +693,8 @@ const segmentDetailColumns = [
     { type: 'vehicle', label: '車両使用' },
     { type: 'mileage', label: 'マイカー使用' },
 ]
-const segmentLeadDetailColumns = segmentDetailColumns.filter(column => ['allowance', 'incident'].includes(column.type))
+const dayAllowanceDetailColumn = segmentDetailColumns.find(column => column.type === 'allowance')
+const segmentLeadDetailColumns = segmentDetailColumns.filter(column => ['incident'].includes(column.type))
 const segmentTailDetailColumns = segmentDetailColumns.filter(column => !['allowance', 'incident'].includes(column.type))
 const displayDayFull = computed(() => {
     return responsive.mobile ? (props.item.mobile_day_full ?? props.item.day_full) : props.item.day_full
@@ -1031,6 +1064,18 @@ const allowanceForSegment = (segment) => {
     }
     return segmentHasVisibleDetail(segment, 'allowance', readableLabel) ? readableLabel : ''
 }
+const dayAllowanceSegment = computed(() => {
+    return projectSegmentRows.value.find(segment => segment && allowanceForSegment(segment)) ?? null
+})
+const dayAllowanceLabel = computed(() => {
+    const labels = projectSegmentRows.value
+        .map(segment => segment ? allowanceForSegment(segment) : '')
+        .flatMap(label => String(label ?? '').split(/\s+/))
+        .map(label => label.trim())
+        .filter(Boolean)
+
+    return [...new Set(labels)].join(' ')
+})
 const incidentForSegment = (segment) => {
     const incident = String(segmentDetailValues(segment).incident ?? '').trim()
     const label = props.item?.incident ?? ''
@@ -1195,7 +1240,6 @@ const segmentDetailSummary = (segment) => {
     const details = []
     const costSummary = costSummaryForSegment(segment)
     const mileageValue = mileageChipValueForSegment(segment)
-    const allowance = allowanceForSegment(segment)
     const vehicle = vehicleForSegment(segment)
     const incident = incidentForSegment(segment)
     const overtime = overtimeForSegment(segment)
@@ -1204,7 +1248,6 @@ const segmentDetailSummary = (segment) => {
 
     if (costSummary) details.push({ type: 'expenses', label: '経費', value: costSummary, title: costDetailSummaryForSegment(segment) })
     if (mileageValue) details.push({ type: 'mileage', label: 'マイカー', value: mileageValue, title: mileageDetailForSegment(segment) })
-    if (allowance) details.push({ type: 'allowance', label: '諸手当', value: shortDetailText(allowance), title: allowance })
     if (vehicle) details.push({ type: 'vehicle', label: '車両使用', value: shortDetailText(vehicle), title: vehicleDetailForSegment(segment) })
     if (incident) details.push({ type: 'incident', label: 'インシデント', value: 'あり', title: incident })
     if (actual) details.push({ type: 'actual', label: '実績', value: actualTotalForSegment(segment), title: actualDetailForSegment(segment) })

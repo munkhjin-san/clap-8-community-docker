@@ -60,7 +60,7 @@
                                 </div>
                                 
                                 <div class="op-button-container project-time-actions" v-if="!isProjectEntryLocked(entry)">
-                                    <button type="button" class="project-time-action-button" title="プロジェクトを追加" aria-label="プロジェクトを追加" @click="addProjectTimeEntry(index)">＋</button>
+                                    <button type="button" class="project-time-action-button project-time-action-disabled" title="プロジェクトを追加" aria-label="プロジェクトを追加" @click="addProjectTimeEntry(index)">＋</button>
                                     <button
                                         type="button"
                                         class="project-time-action-button"
@@ -413,6 +413,9 @@
                                             ref="customFieldRef"
                                             :locked="isProjectEntryLocked(entry)"
                                         />
+                                        <p class="project-time-message !mt-2">
+                                            諸手当は1日単位で登録します。複数プロジェクトがある場合も、この日で1回のみ選択できます。
+                                        </p>
                                     </template>
                                     <template v-else-if="detail.type === 'comment'">
                                         <CustomField
@@ -489,6 +492,7 @@
                     <p v-if="projectTimeUnpaidGapMessage" class="project-time-message">{{ projectTimeUnpaidGapMessage }}</p>
                     <p v-if="projectTimeBreakMessage" class="project-time-message">{{ projectTimeBreakMessage }}</p>
                     <p v-if="projectTimeWarning" class="project-time-warning">{{ projectTimeWarning }}</p>
+                    <p class="project-time-message">プロジェクトの追加分は7月1日に開始されます。</p>
                 </div>
                 <!-- <IncentiveField v-if="item.position_id === 15" v-model="incentives"/> -->
                 <div id="saveButton" class="si-box" style="display: flex; justify-content: center; gap: 20px;">
@@ -1066,6 +1070,9 @@ import Project from '../Icons/Project.vue';
     const commentDetailCount = computed(() => {
         return projectTimeEntries.value.filter(entry => isProjectDetailVisible(entry, 'comment')).length
     })
+    const allowanceDetailEntry = computed(() => {
+        return projectTimeEntries.value.find(entry => isProjectDetailVisible(entry, 'allowance')) ?? null
+    })
     const canRemoveProjectDetail = (entry, type) => {
         if (type !== 'comment') return true
         return commentDetailCount.value > 1
@@ -1077,6 +1084,7 @@ import Project from '../Icons/Project.vue';
 
         return projectDetailOptions.filter(option => {
             if (option.type === 'actual' && !projectForEntry(entry)?.has_actual_func) return false
+            if (option.type === 'allowance' && allowanceDetailEntry.value && allowanceDetailEntry.value !== entry) return false
             return !isProjectDetailVisible(entry, option.type)
         })
     }
@@ -1092,6 +1100,10 @@ import Project from '../Icons/Project.vue';
     }
     const addProjectDetail = (entry, type) => {
         ensureProjectDetailValues(entry)
+        if (type === 'allowance' && allowanceDetailEntry.value && allowanceDetailEntry.value !== entry) {
+            ping('諸手当は1日1回のみ登録できます。')
+            return
+        }
         updateProjectEntryDetails(entry, details => [...details, type])
         if (type === 'expenses' && projectCostIndexes(entry).length === 0) {
             addCostFieldForProject(entry)
@@ -1586,11 +1598,13 @@ import Project from '../Icons/Project.vue';
     watch(attendanceMode, (mode) => {
         if (mode === ATTENDANCE_MODE.TRAINING_ONLY) {
             breakTimeSelect.value = 0
+            if (!projectTimeEntries.value.length) {
+                setProjectTimeEntryDefaults()
+            }
             projectTimeEntries.value.forEach(entry => {
                 entry.segment_type = PROJECT_SEGMENT_TYPE.TRAINING
             })
             normalizeProjectEntriesForMode()
-            setProjectTimeEntryDefaults()
             return
         }
 
@@ -2854,7 +2868,6 @@ import Project from '../Icons/Project.vue';
         border-radius: 3px;
         color: var(--primary-color);
         font-size: 11px;
-        font-weight: 600;
         vertical-align: middle;
     }
     .project-type-badge{
