@@ -1207,7 +1207,7 @@ class DashboardController extends Controller
         $user = $this->active_user();
         $userId = $user->id;
         $userCreatedAt = $user->joined_date;
-        if(!$userCreatedAt && ($user->position_id <= 13 || $user_position_id === 16)){
+        if (!$userCreatedAt || ($user->position_id === 14 || $user->position_id === 15)) {
             return []; // 安全策: ユーザーの作成日時が不明な場合は空を返す
         }
         // 1. このユーザーにとって「既読」とみなせる最新の通知を1件取得
