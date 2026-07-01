@@ -963,8 +963,17 @@ class WorkController extends Controller
         if ($projectIds === null) {
             return;
         }
+        if (empty($projectIds)) {
+            $query->whereRaw('1 = 0');
+            return;
+        }
 
-        $query->whereIn('department_id', $projectIds);
+        $query->where(function ($approvalScope) use ($projectIds) {
+            $approvalScope->whereIn('department_id', $projectIds)
+                ->orWhereHas('shiftType', function ($shiftTypeQuery) {
+                    $this->scopeNeutralShiftTypes($shiftTypeQuery);
+                });
+        });
     }
     private function canApproveShiftRecord(shiftRecord $shift, $user): bool
     {
@@ -976,8 +985,32 @@ class WorkController extends Controller
         if ($projectIds === null) {
             return true;
         }
+        if (empty($projectIds)) {
+            return false;
+        }
+
+        $shift->loadMissing('shiftType');
+
+        if (!$this->shiftRequiresProjectForApproval($shift)) {
+            return true;
+        }
 
         return $shift->department_id && in_array((int) $shift->department_id, $projectIds, true);
+    }
+    private function scopeNeutralShiftTypes($query): void
+    {
+        $query->whereIn('id', [0, shiftType::LEGAL_HOLIDAY_ID])
+            ->orWhere('full_day', 2);
+    }
+    private function shiftRequiresProjectForApproval(shiftRecord $shift): bool
+    {
+        $type = $shift->shiftType;
+        if (!$type) {
+            return false;
+        }
+
+        return !in_array((int) $type->id, [0, shiftType::LEGAL_HOLIDAY_ID], true)
+            && (int) $type->full_day !== 2;
     }
     private function shiftNetWorkMinutes(?string $startTime, ?string $endTime): int
     {
