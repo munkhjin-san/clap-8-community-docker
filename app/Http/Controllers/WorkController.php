@@ -963,17 +963,7 @@ class WorkController extends Controller
         if ($projectIds === null) {
             return;
         }
-        if (empty($projectIds)) {
-            $query->whereRaw('1 = 0');
-            return;
-        }
-
-        $query->where(function ($approvalScope) use ($projectIds) {
-            $approvalScope->whereIn('department_id', $projectIds)
-                ->orWhereHas('shiftType', function ($shiftTypeQuery) {
-                    $this->scopeNeutralShiftTypes($shiftTypeQuery);
-                });
-        });
+        $this->shiftService->scopeApprovalToManagedProjectsOrNeutralDays($query, $projectIds, $this->managedShiftProjectMemberIds($user));
     }
     private function canApproveShiftRecord(shiftRecord $shift, $user): bool
     {
@@ -985,32 +975,35 @@ class WorkController extends Controller
         if ($projectIds === null) {
             return true;
         }
+        $projectMemberIds = $this->managedShiftProjectMemberIds($user);
         if (empty($projectIds)) {
             return false;
         }
 
         $shift->loadMissing('shiftType');
 
-        if (!$this->shiftRequiresProjectForApproval($shift)) {
-            return true;
+        if (!$this->shiftService->requiresProjectForApproval($shift)) {
+            return in_array((int) $shift->user_id, $projectMemberIds, true);
         }
 
         return $shift->department_id && in_array((int) $shift->department_id, $projectIds, true);
     }
-    private function scopeNeutralShiftTypes($query): void
+    private function managedShiftProjectMemberIds($user): array
     {
-        $query->whereIn('id', [0, shiftType::LEGAL_HOLIDAY_ID])
-            ->orWhere('full_day', 2);
-    }
-    private function shiftRequiresProjectForApproval(shiftRecord $shift): bool
-    {
-        $type = $shift->shiftType;
-        if (!$type) {
-            return false;
+        if ($user->isAdmin()) {
+            return [];
         }
 
-        return !in_array((int) $type->id, [0, shiftType::LEGAL_HOLIDAY_ID], true)
-            && (int) $type->full_day !== 2;
+        return ProjectRecord::whereHas('manager', function ($q) use ($user) {
+            $q->where('users.id', $user->id);
+        })
+            ->with('members:id')
+            ->get()
+            ->flatMap(fn ($project) => $project->members->pluck('id'))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
     private function shiftNetWorkMinutes(?string $startTime, ?string $endTime): int
     {

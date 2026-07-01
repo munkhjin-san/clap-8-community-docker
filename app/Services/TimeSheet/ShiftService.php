@@ -8,6 +8,41 @@ use App\Models\shiftType;
 
 class ShiftService
 {
+    public function scopeApprovalToManagedProjectsOrNeutralDays($query, array $projectIds, ?array $projectMemberIds = null): void
+    {
+        if (empty($projectIds)) {
+            $query->whereRaw('1 = 0');
+            return;
+        }
+
+        $query->where(function ($approvalScope) use ($projectIds, $projectMemberIds) {
+            $approvalScope->whereIn('department_id', $projectIds)
+                ->orWhere(function ($neutralScope) use ($projectMemberIds) {
+                    if ($projectMemberIds !== null) {
+                        $neutralScope->whereIn('user_id', $projectMemberIds);
+                    }
+                    $neutralScope->where(fn ($shiftTypeScope) => $this->scopeNeutralShiftRecords($shiftTypeScope));
+                });
+        });
+    }
+
+    public function requiresProjectForApproval(shiftRecord $shift): bool
+    {
+        $type = $shift->shiftType;
+        if (!$type) {
+            return false;
+        }
+
+        return !in_array((int) $type->id, [0, shiftType::LEGAL_HOLIDAY_ID], true)
+            && (int) $type->full_day !== 2;
+    }
+
+    private function scopeNeutralShiftRecords($query): void
+    {
+        $query->whereIn('shift_type', [0, shiftType::LEGAL_HOLIDAY_ID])
+            ->orWhereHas('shiftType', fn ($shiftTypeQuery) => $shiftTypeQuery->where('full_day', 2));
+    }
+
     public function getShiftData(int $userId, int $year, int $month, int $requestedShiftType = null): array
     {
         $evaluationDate = $this->resolveEvaluationDate($year, $month);

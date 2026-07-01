@@ -216,6 +216,16 @@ import { useRoute } from 'vue-router';
                 .map(group => Number(group.id))
         )
     })
+    const managedProjectUserIds = computed(() => {
+        if (auth.isAdmin) return null
+
+        const users = workGroups.value.flatMap(group => [
+            ...(group.members ?? []),
+            ...(group.manager ?? []),
+        ])
+
+        return new Set(users.map(user => Number(user.id)).filter(id => Number.isFinite(id) && id > 0))
+    })
     const selectedShiftEntries = computed(() => {
         const entries = []
 
@@ -300,7 +310,7 @@ import { useRoute } from 'vue-router';
     const authorityCheck = (user, shift) => {
         if (!shift || isSelfShift(shift)) return false
         if (auth.isAdmin) return true
-        if (!shiftRequiresProject(shift)) return Boolean(managedProjectIds.value?.size)
+        if (!shiftRequiresProject(shift)) return managedProjectUserIds.value?.has(Number(user?.id)) ?? false
 
         return shift.department_id && managedProjectIds.value?.has(Number(shift.department_id))
     }

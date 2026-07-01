@@ -45,6 +45,7 @@ use App\Models\SystemUpdateRecord;
 use App\Models\UserLeaveRecord;
 use App\Models\EmployeeChangeApplication;
 use App\Models\PlannedLeaveChangeRequest;
+use App\Services\TimeSheet\ShiftService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Laravel\Ai\Responses\StreamedAgentResponse;
@@ -61,6 +62,7 @@ class DashboardController extends Controller
         protected RemindTaskService $remindTaskService,
         protected IncidentService $incidentService,
         protected PaidLeaveLedgerService $paidLeaveLedger,
+        protected ShiftService $shiftService,
     ){
 
     } 
@@ -516,7 +518,7 @@ class DashboardController extends Controller
             ->whereIn('user_id', $target_users)
             ->whereYear('shift_day', $year)
             ->where('status_flag', 2)
-            ->when(!$isTimesheetAdmin, fn ($query) => $query->whereIn('department_id', $workGroupIds))
+            ->when(!$isTimesheetAdmin, fn ($query) => $this->shiftService->scopeApprovalToManagedProjectsOrNeutralDays($query, $workGroupIds, $target_users))
             ->where(function ($innerQuery) use ($month, $prev_month, $shift_month) {
                 $innerQuery->whereMonth('shift_day', $month)
                     ->orWhereMonth('shift_day', $prev_month)
