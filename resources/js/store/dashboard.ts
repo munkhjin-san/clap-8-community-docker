@@ -17,6 +17,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
 
     const annualLeaveData = ref<{
         remaining_days: number;
+        remaining_minutes: number;
         planned_leaves_this_year: Shift[];
         planned_leaves_last_year: Shift[];
         refreshed_at: string | null;
@@ -24,6 +25,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         fetching: boolean;
     }>({
         remaining_days: 0,
+        remaining_minutes: 0,
         planned_leaves_this_year: [],
         planned_leaves_last_year: [],
         refreshed_at: null,
@@ -129,6 +131,7 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
             annualLeaveData.value.fetching = true;
             const res = await axios.get('/annual_leave_data');
             annualLeaveData.value.remaining_days = res.data.remaining_days ?? 0;
+            annualLeaveData.value.remaining_minutes = res.data.remaining_minutes ?? 0;
             annualLeaveData.value.planned_leaves_this_year = res.data.planned_leaves_this_year ?? [];
             annualLeaveData.value.planned_leaves_last_year = res.data.planned_leaves_last_year ?? [];
             annualLeaveData.value.refreshed_at = DateTime.now().toISO();

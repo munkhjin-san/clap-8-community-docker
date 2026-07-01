@@ -4859,11 +4859,13 @@ class WorkController extends Controller
 
             $remaining_days = $remaining_days_data['days'] ?? 0;
             $remaining_days = (float) $remaining_days;
+            $remaining_minutes = $remaining_days_data['minutes'] ?? 0;
         }
         return response()->json([
             'planned_leaves_this_year' => $planned_leaves_this_year['paidholidays'] ?? [],
             'planned_leaves_last_year' => $planned_leaves_last_year['paidholidays'] ?? [],
-            'remaining_days' => $remaining_days
+            'remaining_days' => $remaining_days,
+            'remaining_minutes' => $remaining_minutes,
          ]);
     }
     public function send_departure_report(Request $request){
