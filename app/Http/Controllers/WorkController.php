@@ -4854,6 +4854,7 @@ class WorkController extends Controller
         $planned_leaves_last_year = $this->get_planned_leaves(new Request(['user_id' => $user->id, 'year' => $year - 1]))->getData(true);
         $user->code = $user->user_code;
         $remaining_days = 0;
+        $remaining_minutes = 0;
         if($user->user_code){
             $remaining_days_data = $this->get_remaining_days(new Request(['user_code' => $user->user_code]))->getData(true);
 
