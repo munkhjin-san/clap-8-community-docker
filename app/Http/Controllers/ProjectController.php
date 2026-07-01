@@ -5849,7 +5849,7 @@ class ProjectController extends Controller
         if (! $hasOtherItem) {
             $otherItem = [
                 'type' => 'multitext',
-                'content' => 'その他（自由入力）',
+                'content' => 'スキル面での懸念事項、業務環境での懸念事項、その他共有事項',
                 'options' => [],
             ];
 

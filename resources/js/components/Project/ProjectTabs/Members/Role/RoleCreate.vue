@@ -15,7 +15,7 @@
             <div class="si-box">
                 <LongInput 
                     v-model="params.description"
-                    :place-holder="'役割の説明（業務内容など）'"
+                    :place-holder="'求められるスキル、業務詳細'"
                 />
             </div>
             <!-- <div class="si-box">
