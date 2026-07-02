@@ -80,7 +80,7 @@ class AdminWorkController extends Controller{
         ->with(['time_card_records' => function($q) use($currentYear, $currentMonth){
             $q->whereYear('day', $currentYear)
               ->whereMonth('day', $currentMonth)
-              ->select('work_time', 'day', 'id', 'user_id', 'work_group_id', 'car_mileage', 'car_used_project', 'gas_full_price', 'status_flag')
+              ->select('work_time', 'day', 'id', 'user_id', 'work_group_id', 'car_mileage', 'car_used_project', 'gas_full_price', 'status_flag', 'start_time', 'end_time')
               ->orderBy('day', 'asc')
               ->with([
                 'custom_field_data_records' => function($q) {
@@ -446,12 +446,14 @@ class AdminWorkController extends Controller{
                             ->sum('minutes'),
                     ];
                 })
+                ->filter(fn ($row) => (int) $row['work_time'] > 0)
                 ->values()
                 ->all();
         }
 
         $departmentName = $record['department']['name'] ?? null;
-        if (!$departmentName) {
+        $workTime = (int) $record->work_time;
+        if (!$departmentName || $workTime <= 0 || $this->hasSameStartAndEndTime($record)) {
             return [];
         }
 
@@ -459,8 +461,25 @@ class AdminWorkController extends Controller{
             'department' => $departmentName,
             'username' => $userName,
             'month' => $month,
-            'work_time' => (int) $record->work_time,
+            'work_time' => $workTime,
         ]];
+    }
+
+    private function hasSameStartAndEndTime($record): bool
+    {
+        $start = $this->normalizeClockTime($record->start_time ?? null);
+        $end = $this->normalizeClockTime($record->end_time ?? null);
+
+        return $start !== null && $end !== null && $start === $end;
+    }
+
+    private function normalizeClockTime($time): ?string
+    {
+        if ($time === null || $time === '') {
+            return null;
+        }
+
+        return substr((string) $time, 0, 5);
     }
 
     private function timecardMyCarRows($record, string $userName): array
