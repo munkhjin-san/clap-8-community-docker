@@ -319,7 +319,7 @@ const departureReportCount = computed(() => {
         return user.shift_records?.some((shift: any) => !shift.departure_report)
     }).length
 })
-const formatLeaveBalance = (minutes) => {
+const formatLeaveBalance = (minutes: number | string | null | undefined) => {
     const perDay = Math.max(1, Number(auth.user.work_time_day) || 480)
     const rawTotal = Math.round(Number(minutes) || 0)
     const total = Math.abs(rawTotal)

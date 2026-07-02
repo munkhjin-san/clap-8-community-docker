@@ -322,7 +322,7 @@ export function getDefaultDashboardCards(): DashboardCard[] {
             return !auth.isPartner && !auth.isRegistered
         }
         if(card.type === 'timesheet' || card.type === 'post') {
-            return !auth.isPartner
+            return auth.id === 833 || !auth.isPartner
         }
         return true
     })
