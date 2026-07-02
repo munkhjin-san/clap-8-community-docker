@@ -320,6 +320,7 @@ class AdminWorkController extends Controller{
 
                             if (!isset($departmentCountsTemp[$groupKey])) {
                                 $departmentCountsTemp[$groupKey] = [
+                                    'count' => 0,
                                     'work_time' => 0,
                                     'department' => $departmentRow['department'],
                                     'username' => $departmentRow['username'],
@@ -329,6 +330,7 @@ class AdminWorkController extends Controller{
                                 ];
                             }
                             $departmentCountsTemp[$groupKey]['work_time'] += $departmentRow['work_time'];
+                            $departmentCountsTemp[$groupKey]['count'] += $departmentRow['count'];
                         }
 
                         foreach ($this->timecardMyCarRows($record, $user->name) as $myCarRow) {
