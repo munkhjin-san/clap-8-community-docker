@@ -17,9 +17,8 @@
 </template>
 <script setup lang="ts">
 import { TaskComment } from '@/interface/globalInterface';
-import { inject, ref, useTemplateRef } from 'vue';
+import { ref, useTemplateRef } from 'vue';
 import { useAuthUserStore } from '@/store/auth';
-import {  GanttProjectMethods, GanttProjectMethodsKey } from '@/interface/keys';
 import UserPanel from '@/components/Global/UserPanel.vue';
 import { DateParser } from '@/utils/tools';
 import { useApi } from '@/composables/api';
@@ -28,11 +27,13 @@ const auth = useAuthUserStore()
         comment: TaskComment
         editable: number | null
     }>()
-    const emit = defineEmits(['edit'])
+    const emit = defineEmits<{
+        (e: 'edit', value: number | null): void
+        (e: 'changed'): void
+    }>()
     const element = useTemplateRef('editData')
 
     const sending = ref(false)
-    const {refreshProject} = inject(GanttProjectMethodsKey) as GanttProjectMethods
     const checkEdit = () => {
         const editable = props.comment.user.id == auth.id
         if(editable) {
@@ -46,23 +47,21 @@ const auth = useAuthUserStore()
             if(sending.value){
                 return
             }
-            api.put('/task_comment_update', { 
+            await api.put('/task_comment_update', {
                 id: props.comment.id,
                 comment: newVal
             }, {
                 loadingRef: sending
             })
-        
-            refreshProject({})
-            emit('edit', null)            
+
+            emit('changed')
         }
     }
     const remove = async() => {
-        api.del('/task_comment', { 
+        await api.del('/task_comment', {
             id: props.comment.id
             
         })
-        refreshProject({})
-        emit('edit', null)  
+        emit('changed')
     }
 </script>

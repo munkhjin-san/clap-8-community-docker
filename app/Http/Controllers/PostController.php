@@ -322,12 +322,10 @@ class PostController extends Controller
         $continuedRelay = $relays->first(fn (PostRelay $relay) => $relay->acceptedPost);
 
         if ($continuedRelay) {
-            $users = $relays
-                ->map(fn (PostRelay $relay) => $relay->toUser ?? $sourcePost->to_users->firstWhere('id', $relay->to_user_id))
-                ->filter()
-                ->values()
-                ->all();
-            $this->pushRelayChainGroup($groups, $users, 'solid');
+            $continuedUser = $continuedRelay->toUser ?? $sourcePost->to_users->firstWhere('id', $continuedRelay->to_user_id);
+            if ($continuedUser) {
+                $this->pushRelayChainGroup($groups, [$continuedUser], 'solid');
+            }
             return $continuedRelay->acceptedPost;
         }
 

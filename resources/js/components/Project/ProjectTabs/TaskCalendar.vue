@@ -36,7 +36,7 @@
                         v-if="project"
                         type="button"
                         class="c-bar-button task-gantt-today-button !text-[12px] whitespace-nowrap !px-[8px]"
-                        :disabled="!projectIncludesToday"
+                        :disabled="isCurrentMonthSelected"
                         @click="jumpToToday"
                     >
                         今日
@@ -73,6 +73,10 @@
                                             v-model:year="ganttPickerYear"
                                             :display-mode="ganttMode"
                                             :show-navigation="true"
+                                            :previous-badge="previousPeriodUnreadCommentCount"
+                                            :next-badge="nextPeriodUnreadCommentCount"
+                                            :previous-title="previousPeriodUnreadTitle"
+                                            :next-title="nextPeriodUnreadTitle"
                                             right="-42px"
                                             @setDate="setGanttPickerDate"
                                         />
@@ -133,8 +137,17 @@
                                                 +{{ group.task.executors.length - mainExecutorPreviewLimit }}
                                             </span>
                                         </button>
-                                        <button type="button" class="task-gantt-comment" :title="`コメント: ${taskCommentTotal(group.task)}`" @click.stop="commentView = group.task.id">
-                                            {{ taskCommentTotal(group.task) }}
+                                        <button
+                                            type="button"
+                                            class="task-gantt-comment"
+                                            :class="{ 'has-unread': hasUnreadComments(group.task) }"
+                                            :title="taskCommentTitle(group.task)"
+                                            @click.stop="commentView = group.task.id"
+                                        >
+                                            <span class="task-gantt-comment-total">{{ taskCommentTotal(group.task) }}</span>
+                                            <span v-if="taskUnreadCommentCount(group.task)" class="task-gantt-comment-unread">
+                                                {{ unreadCommentLabel(group.task) }}
+                                            </span>
                                         </button>
                                         <GanttButton
                                             v-if="taskExecutor(group.task)"
@@ -169,8 +182,17 @@
                                                 +{{ subTask.task.executors.length - subExecutorPreviewLimit }}
                                             </span>
                                         </button>
-                                        <button type="button" class="task-gantt-sub-comment" :title="`コメント: ${taskCommentTotal(subTask.task)}`" @click.stop="commentView = subTask.task.id">
-                                            {{ taskCommentTotal(subTask.task) }}
+                                        <button
+                                            type="button"
+                                            class="task-gantt-sub-comment"
+                                            :class="{ 'has-unread': hasUnreadComments(subTask.task) }"
+                                            :title="taskCommentTitle(subTask.task)"
+                                            @click.stop="commentView = subTask.task.id"
+                                        >
+                                            <span class="task-gantt-comment-total">{{ taskCommentTotal(subTask.task) }}</span>
+                                            <span v-if="taskUnreadCommentCount(subTask.task)" class="task-gantt-comment-unread">
+                                                {{ unreadCommentLabel(subTask.task) }}
+                                            </span>
                                         </button>
                                         <GanttButton
                                             v-if="taskExecutor(subTask.task)"
@@ -209,7 +231,10 @@
                                     :title="taskTooltip(group.task)"
                                     @click.stop="openTaskText(group.task)"
                                 >
-                                    <span>{{ taskLineTitle(group.task) }}</span>
+                                    <span class="task-gantt-bar-title">{{ taskLineTitle(group.task) }}</span>
+                                    <span v-if="taskUnreadCommentCount(group.task)" class="task-gantt-bar-unread">
+                                        {{ unreadCommentLabel(group.task) }}
+                                    </span>
                                 </button>
                                 <button
                                     v-for="subTask in group.subTasks"
@@ -221,7 +246,10 @@
                                     :title="taskTooltip(subTask.task)"
                                     @click.stop="openTaskText(subTask.task)"
                                 >
-                                    <span>{{ taskLineTitle(subTask.task) }}</span>
+                                    <span class="task-gantt-bar-title">{{ taskLineTitle(subTask.task) }}</span>
+                                    <span v-if="taskUnreadCommentCount(subTask.task)" class="task-gantt-bar-unread">
+                                        {{ unreadCommentLabel(subTask.task) }}
+                                    </span>
                                 </button>
                             </div>
                         </div>
@@ -230,7 +258,12 @@
             </div>
         </div>
         <Transition name="smLoad">
-            <GanttTaskComment v-if="commentingTask" :task="commentingTask" @close="commentView = null" />
+            <GanttTaskComment
+                v-if="commentingTask"
+                :task="commentingTask"
+                @close="commentView = null"
+                @comment-count-change="syncTaskCommentCount"
+            />
         </Transition>
 
         <FloatButton @action="createTask({})" v-if="project" >
@@ -420,28 +453,12 @@ const applyDefaultMemberSelection = () => {
 }
 
 const defaultTimelineYear = computed(() => {
-    const now = DateTime.now()
-    if (!project.value?.date_start || !project.value?.date_end) return now.year
-    const projectStart = DateTime.fromISO(project.value.date_start)
-    const projectEnd = DateTime.fromISO(project.value.date_end)
-    if (projectStart.isValid && projectEnd.isValid) {
-        const projectInterval = Interval.fromDateTimes(projectStart.startOf('day'), projectEnd.endOf('day'))
-        if (projectInterval.contains(now)) return now.year
-        return projectStart.year
-    }
-    return now.year
+    return DateTime.now().year
 })
 
 const defaultMonthForYear = (year: number) => {
     const now = DateTime.now()
-    const projectStart = project.value?.date_start ? DateTime.fromISO(project.value.date_start) : null
-    const projectEnd = project.value?.date_end ? DateTime.fromISO(project.value.date_end) : null
-    const projectInterval = projectStart?.isValid && projectEnd?.isValid
-        ? Interval.fromDateTimes(projectStart.startOf('day'), projectEnd.endOf('day'))
-        : null
-
-    if (projectInterval?.contains(now) && year === now.year) return now.month
-    if (projectStart?.isValid && year === projectStart.year) return projectStart.month
+    if (year === now.year) return now.month
     return 1
 }
 
@@ -513,6 +530,7 @@ onMounted(async () => {
         ganttPanelMode.value = storedPanelMode
     }
     await getTask(0)
+    await badge.getTaskCommentBadge()
     const defaultSelectionChanged = applyDefaultMemberSelection()
     if (defaultSelectionChanged) {
         await getTask()
@@ -643,6 +661,20 @@ const commentingTask = computed(() => {
     const sub = project.value.tasks.flatMap(t => t.sub_tasks).find(s => s.id == commentView.value)
     return main || sub
 })
+
+const findTaskById = (taskId: number) => {
+    if (!project.value) return null
+    const main = project.value.tasks.find(t => t.id == taskId)
+    if (main) return main
+    return project.value.tasks.flatMap(t => t.sub_tasks ?? []).find(s => s.id == taskId) ?? null
+}
+
+const syncTaskCommentCount = (taskId: number, count: number) => {
+    const task = findTaskById(taskId)
+    if (task) {
+        task.comments_count = count
+    }
+}
 interface SelectableSpanData {
     value: number
     unit: string
@@ -851,12 +883,9 @@ const todayCheck = computed(() => {
     return today.startOf('day').toMillis() >= timelineStart.value.toMillis() && today.startOf('day').toMillis() <= timelineEnd.value.toMillis()
 })
 
-const projectIncludesToday = computed(() => {
-    if (!project.value?.date_start || !project.value?.date_end) return false
-    const start = DateTime.fromISO(project.value.date_start)
-    const end = DateTime.fromISO(project.value.date_end)
-    if (!start.isValid || !end.isValid) return false
-    return Interval.fromDateTimes(start.startOf('day'), end.endOf('day')).contains(DateTime.now())
+const isCurrentMonthSelected = computed(() => {
+    const today = DateTime.now()
+    return virtualSpan.selectedYear === today.year && virtualSpan.selectedMonth === today.month
 })
 
 const todayOffset = computed(() => {
@@ -867,12 +896,9 @@ const todayOffset = computed(() => {
 })
 
 const jumpToToday = async () => {
-    if (!projectIncludesToday.value) return
     const today = DateTime.now()
     virtualSpan.selectedYear = today.year
-    if (virtualSpan.selectedMonth) {
-        virtualSpan.selectedMonth = today.month
-    }
+    virtualSpan.selectedMonth = today.month
     await scrollTodayIntoView()
 }
 
@@ -1162,6 +1188,7 @@ const barClass = (bar: GanttBar | null) => ({
     'is-own': !!bar?.isOwn,
     'is-clipped-start': !!bar?.clippedStart,
     'is-clipped-end': !!bar?.clippedEnd,
+    'has-unread-comment': !!bar?.task && hasUnreadComments(bar.task),
 })
 
 const connectorVerticalStyle = (connector: GanttConnector) => ({
@@ -1205,12 +1232,11 @@ const taskMemberTitle = (task: Task) => {
 }
 
 const taskTooltip = (task: Task) => {
-    const comments = taskCommentTotal(task)
     return [
         taskLineTitle(task),
         taskDateRange(task, false),
         `メンバー: ${taskMemberTitle(task)}`,
-        `コメント: ${comments}`,
+        taskCommentTitle(task),
     ].join('\n')
 }
 
@@ -1260,14 +1286,81 @@ const showTaskUsers = (task: Task) => {
     })
 }
 
-const commentCount = (task: Task) => {
+const taskUnreadCommentCount = (task: Task) => {
     const badges = badge.taskCommentBadgeByFilter([{ by: 'task_id', value: task.id }])
     return badges?.[0]?.comments ?? 0
 }
 
-const taskCommentTotal = (task: Task) => {
-    return commentCount(task) || task.comments_count || 0
+const hasUnreadComments = (task: Task) => taskUnreadCommentCount(task) > 0
+
+const unreadCommentLabel = (task: Task) => {
+    const unread = taskUnreadCommentCount(task)
+    return unread > 9 ? '9+' : unread.toString()
 }
+
+const taskCommentTotal = (task: Task) => {
+    return task.comments_count || taskUnreadCommentCount(task) || 0
+}
+
+const taskCommentTitle = (task: Task) => {
+    const total = taskCommentTotal(task)
+    const unread = taskUnreadCommentCount(task)
+    return unread ? `コメント: ${total}（未読 ${unread}）` : `コメント: ${total}`
+}
+
+const adjacentPeriodRange = (direction: -1 | 1) => {
+    if (virtualSpan.selectedYear && virtualSpan.selectedMonth) {
+        const period = DateTime.fromObject({
+            year: virtualSpan.selectedYear,
+            month: virtualSpan.selectedMonth,
+            day: 1,
+        }).plus({ months: direction })
+        return {
+            start: period.startOf('month'),
+            end: period.endOf('month').startOf('day'),
+            label: period.toFormat('yyyy年M月'),
+        }
+    }
+
+    const year = (virtualSpan.selectedYear ?? defaultTimelineYear.value) + direction
+    return {
+        start: DateTime.fromObject({ year, month: 1, day: 1 }).startOf('day'),
+        end: DateTime.fromObject({ year, month: 12, day: 31 }).startOf('day'),
+        label: `${year}年`,
+    }
+}
+
+const taskOverlapsDateRange = (task: Task, start: DateTime, end: DateTime) => {
+    const range = normalTaskRange(task)
+    if (!range) return false
+    return range.start.toMillis() <= end.toMillis() && range.end.toMillis() >= start.toMillis()
+}
+
+const allProjectTasks = computed(() => {
+    return project.value?.tasks.flatMap(task => [task, ...(task.sub_tasks ?? [])]) ?? []
+})
+
+const adjacentPeriodUnreadCommentCount = (direction: -1 | 1) => {
+    const period = adjacentPeriodRange(direction)
+    return allProjectTasks.value.reduce((sum, task) => {
+        const unread = taskUnreadCommentCount(task)
+        if (!unread || taskOverlapsTimeline(task)) return sum
+        return taskOverlapsDateRange(task, period.start, period.end) ? sum + unread : sum
+    }, 0)
+}
+
+const previousPeriodUnreadCommentCount = computed(() => adjacentPeriodUnreadCommentCount(-1))
+const nextPeriodUnreadCommentCount = computed(() => adjacentPeriodUnreadCommentCount(1))
+
+const adjacentPeriodUnreadTitle = (direction: -1 | 1) => {
+    const period = adjacentPeriodRange(direction)
+    const count = direction < 0 ? previousPeriodUnreadCommentCount.value : nextPeriodUnreadCommentCount.value
+    const action = direction < 0 ? '前の期間' : '次の期間'
+    return count > 0 ? `${period.label}の未読コメント: ${count}` : action
+}
+
+const previousPeriodUnreadTitle = computed(() => adjacentPeriodUnreadTitle(-1))
+const nextPeriodUnreadTitle = computed(() => adjacentPeriodUnreadTitle(1))
 
 const updateDate = async (task: Task, event: Event, column: 'start_at' | 'end_at') => {
     const target = event.target as HTMLInputElement
@@ -1576,7 +1669,6 @@ provide(GanttProjectMethodsKey, {
 
 .task-gantt-major-cell {
     font-size: 15px;
-    font-weight: 700;
 }
 
 .task-gantt-minor-cell {
@@ -1895,6 +1987,49 @@ provide(GanttProjectMethodsKey, {
     line-height: 1;
 }
 
+.task-gantt-comment,
+.task-gantt-sub-comment {
+    position: relative;
+    overflow: visible;
+}
+
+.task-gantt-comment.has-unread,
+.task-gantt-sub-comment.has-unread {
+    border-color: #f28c28;
+    background: color-mix(in srgb, #f28c28 12%, transparent);
+    color: #f28c28;
+}
+
+.task-gantt-comment-total {
+    line-height: 1;
+}
+
+.task-gantt-comment-unread {
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    z-index: 2;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: #f28c28;
+    box-shadow: 0 0 0 1px var(--background-color);
+    color: #fff;
+    font-size: 9px;
+    line-height: 14px;
+    text-align: center;
+}
+
+.task-gantt-sub-comment .task-gantt-comment-unread {
+    top: -6px;
+    right: -6px;
+    min-width: 13px;
+    height: 13px;
+    font-size: 8px;
+    line-height: 13px;
+}
+
 .task-gantt-left-sub {
     display: flex;
     align-items: center;
@@ -1961,7 +2096,11 @@ provide(GanttProjectMethodsKey, {
     white-space: nowrap;
 }
 
-.task-gantt-bar span {
+.task-gantt-bar-title {
+    display: block;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
     overflow: hidden;
     padding: 0 9px;
     text-overflow: ellipsis;
@@ -1980,6 +2119,42 @@ provide(GanttProjectMethodsKey, {
 
 .task-gantt-bar:not(.is-own) {
     box-shadow: none;
+}
+
+.task-gantt-bar.has-unread-comment {
+    z-index: 6;
+    overflow: visible;
+}
+
+.task-gantt-bar.has-unread-comment .task-gantt-bar-title {
+    padding-right: 18px;
+}
+
+.task-gantt-bar-unread {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #f28c28;
+    box-shadow: 0 0 0 1px var(--background-color);
+    color: #fff;
+    font-size: 9px;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.task-gantt-sub-bar .task-gantt-bar-unread {
+    top: -7px;
+    right: -7px;
+    min-width: 14px;
+    height: 14px;
+    font-size: 8px;
 }
 
 .task-gantt-bar.is-clipped-start {
