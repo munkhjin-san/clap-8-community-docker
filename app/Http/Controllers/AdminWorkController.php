@@ -330,7 +330,7 @@ class AdminWorkController extends Controller{
                                 ];
                             }
                             $departmentCountsTemp[$groupKey]['work_time'] += $departmentRow['work_time'];
-                            $departmentCountsTemp[$groupKey]['count'] += $departmentRow['count'];
+                            $departmentCountsTemp[$groupKey]['count']++;
                         }
 
                         foreach ($this->timecardMyCarRows($record, $user->name) as $myCarRow) {
