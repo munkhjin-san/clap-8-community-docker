@@ -27,6 +27,10 @@ class DailyReportConfirmation extends Command
         $dayBeforeYesterday = Carbon::now()->subDays(2)->toDateString();
 
         $shifts = shiftRecord::query()
+            ->join('users', function ($join) {
+                $join->on('users.id', '=', 'shift_records.user_id')
+                    ->where('users.retire', 0);
+            })
             ->where('shift_records.shift_type', 1)
             ->whereIn('shift_records.shift_day', [$yesterday, $dayBeforeYesterday])
             ->leftJoin('timecard_records', function ($join) {
