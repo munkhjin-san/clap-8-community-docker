@@ -39,7 +39,9 @@ class AlertDailyReportMissingStreaks extends Command
             'Sent daily report missing streak PM alert for %d user(s).',
             $alertGroups->count()
         ));
-
+        Log::info('Sent daily report missing streak PM alert', [
+            'count' => $alertGroups->count(),
+        ]);
         return self::SUCCESS;
     }
 
