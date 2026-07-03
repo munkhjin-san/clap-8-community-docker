@@ -8,6 +8,7 @@ use App\Services\ReportService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class AlertDailyReportMissingStreaks extends Command
 {
