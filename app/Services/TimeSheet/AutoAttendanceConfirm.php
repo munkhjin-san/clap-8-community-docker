@@ -260,7 +260,7 @@ class AutoAttendanceConfirm
             $month_over_time = 0;
             $annual_calc = $annual_full * $user->work_time_day + $annual_half * $user->work_time_day / 2;
             $annual_leave += $annual_calc;
-            $all_worked_time = ($worked_time + $annual_leave) + ($condolence_leave + $transfer_leave + $oda_leave + $comp_holiday) * $user->work_time_day;
+            $all_worked_time = ($worked_time + $annual_leave) + ($condolence_leave + $transfer_leave + $oda_leave + $comp_holiday + $spec_holiday) * $user->work_time_day;
             if ($shift_work_hours < $all_worked_time) {
                 $month_over_time = $all_worked_time - $shift_work_hours - $night_over_time;
             }
