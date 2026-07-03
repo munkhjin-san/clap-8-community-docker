@@ -230,7 +230,7 @@ class WorkController extends Controller
             if (isset($annual_leave[$user->id])  && isset($month_work_time[$user->id])) {
                 $month_work_time[$user->id] += $annual_leave[$user->id];
             }
-            if ($shift_work_hours < (($month_work_time[$user->id] ?? 0) - ($month_over_time[$user->id] ?? 0))) {
+            if ($user->work_type != 1 && $shift_work_hours < (($month_work_time[$user->id] ?? 0) - ($month_over_time[$user->id] ?? 0))) {
                 $month_over_time[$user->id] = ($month_work_time[$user->id] ?? 0) - $shift_work_hours;
             }
 
