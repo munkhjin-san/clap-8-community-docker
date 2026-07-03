@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Services\PaidLeaveLedgerService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class GeneratePaidLeaveGrants extends Command
 {
@@ -29,7 +30,11 @@ class GeneratePaidLeaveGrants extends Command
                 ->map(fn ($value, $key) => [$key, $value])
                 ->values()
         );
-
+        Log::info('Paid leave grant generation completed.', [
+            'run_date' => $runDate->toDateString(),
+            'from_date' => $fromDate?->toDateString(),
+            'summary' => $summary,
+        ]);
         return self::SUCCESS;
     }
 }
