@@ -89,6 +89,7 @@ class AutoAttendanceConfirm
             $attendance_record->closed_day = $closed_day;
             $attendance_record->absence_days = $absence_days >= 0 ? $absence_days : 0;
             if ($workType == '通常') {
+                $over_time = $over_time + $data['holiday_worked_time'];
                 $absence_hours = $workTime - (
                     $data['annual_leave'] + $condolence_hours + $transfer_hours + $closed_hours + $data['worked_time'] + $oda_hours + $special_hours - $over_time);
             } else {
@@ -275,7 +276,7 @@ class AutoAttendanceConfirm
                 $month_over_time = $all_worked_time - $shift_work_hours - $night_over_time;
             }
             if ($user->work_type == 1) {
-                $month_over_time = $over_time + $holiday_worked_time; 
+                $month_over_time = $over_time; 
             }
             $month_stay_allowance_count = $this->monthlyAllowanceCount($user, 1);
             $month_move_allowance_count = $this->monthlyAllowanceCount($user, 0);

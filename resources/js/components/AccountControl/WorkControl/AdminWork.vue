@@ -480,7 +480,8 @@ import { useApi } from '@/composables/api';
             user.attendance_records.length === 0 &&
             user.position_id > 5 &&
             !user.shift_records.some(shift => shift.status_flag === 2) &&
-            !user.time_card_records.some(record => record.status_flag === 1)
+            !user.time_card_records.some(record => record.status_flag === 1) &&
+            !user.time_card_records.some(record => record.status_flag === 0)
         )
         .map(user => user.id)
         const payload = {
