@@ -165,7 +165,7 @@
 
                     
 
-                    <section v-if="canUseField('description') || canUseField('occured_location') || canUseField('reason')" class="incident-detail-section incident-permission-area incident-permission-area--staff">
+                    <section v-if="canShowSection(['description', 'occured_location', 'reason', 'files'])" class="incident-detail-section incident-permission-area incident-permission-area--staff">
                         <div class="post-separetor"><div>発生内容</div></div>
                         <div v-if="!editMode" class="incident-field-stack">
                             <DetailItem v-if="canUseField('description')" label="概要" :value="localIncident.description" />
@@ -265,7 +265,7 @@
                             保存済みのAIアドバイスはありません。
                         </div>
                     </section>
-                    <section v-if="canUseField('prevention') || canUseField('prevention_apply_status') || canUseField('resolution') || canUseField('memo') || canUseField('amount_of_damage') || canUseField('payee') || canUseField('expense_details')" class="incident-detail-section incident-permission-area incident-permission-area--manager">
+                    <section v-if="canShowSection(['prevention', 'prevention_apply_status', 'resolution', 'memo', 'amount_of_damage', 'payee', 'expense_details'])" class="incident-detail-section incident-permission-area incident-permission-area--manager">
                         <div class="post-separetor"><div>対応・再発防止</div></div>
                         <div v-if="!editMode" class="incident-field-stack">                            
                             <DetailItem v-if="canUseField('prevention')" label="再発防止策" :value="localIncident.prevention" />
@@ -841,8 +841,27 @@ const allowedEditableKeys = computed<readonly IncidentEditableKey[]>(() => {
     if (auth.isPM) return managerEditableKeys
     return staffEditableKeys
 })
-const canUseField = (key: IncidentEditableKey) => allowedEditableKeys.value.includes(key)
-const canEditField = (key: IncidentEditableKey) => editMode.value && canEditIncident.value && canUseField(key)
+const isCausedByActiveUser = computed(() => {
+    return !isCreateMode.value
+        && Boolean(auth.activeUser?.id)
+        && localIncident.value.caused_by === auth.activeUser?.id
+})
+const isReportedByActiveUser = computed(() => {
+    return !isCreateMode.value
+        && Boolean(auth.activeUser?.id)
+        && localIncident.value.reported_by === auth.activeUser?.id
+})
+const allowedViewableKeys = computed<readonly IncidentEditableKey[]>(() => {
+    if (isCreateMode.value) return allowedEditableKeys.value
+    if (canEditAdminFields.value) return fullEditableKeys
+    if (auth.isPM) return managerEditableKeys
+    if (isCausedByActiveUser.value || isReportedByActiveUser.value) return managerEditableKeys
+    return []
+})
+const canUseField = (key: IncidentEditableKey) => allowedViewableKeys.value.includes(key)
+const canSubmitField = (key: IncidentEditableKey) => allowedEditableKeys.value.includes(key)
+const canEditField = (key: IncidentEditableKey) => editMode.value && canEditIncident.value && canSubmitField(key)
+const canShowSection = (keys: readonly IncidentEditableKey[]) => keys.some(key => editMode.value ? canEditField(key) : canUseField(key))
 const incidentReports = computed<IncidentReport[]>(() => {
     return [...(localIncident.value.reports ?? [])]
         .sort((a, b) => ((a.step ?? 0) - (b.step ?? 0)) || (a.id - b.id))
@@ -1033,21 +1052,21 @@ const buildPayload = () => {
 
     if (isCreateMode.value) {
         for (const key of editableKeys) {
-            if (!canUseField(key)) continue
+            if (!canSubmitField(key)) continue
             const nextValue = normalizeUpdateValue(key, mutableParams.value[key])
             if (nextValue !== null && nextValue !== '') {
                 ;(payload as any)[key] = nextValue
             }
         }
 
-        if (canUseField('caused_by')) {
+        if (canSubmitField('caused_by')) {
             const nextCausedBy = selectedCausedByUser.value?.id ?? null
             if (nextCausedBy) {
                 payload.caused_by = nextCausedBy
             }
         }
 
-        if (canUseField('files')) {
+        if (canSubmitField('files')) {
             const nextFileIds = uploadedFiles.value.map(file => file.id).sort((a, b) => a - b)
             if (nextFileIds.length) {
                 ;(payload as Partial<Incident> & { file_ids: number[] }).file_ids = nextFileIds
@@ -1066,7 +1085,7 @@ const buildPayload = () => {
     }
 
     for (const key of editableKeys) {
-        if (!canUseField(key)) continue
+        if (!canSubmitField(key)) continue
         const nextValue = normalizeUpdateValue(key, mutableParams.value[key])
         const currentValue = normalizeUpdateValue(key, localIncident.value[key])
 
@@ -1075,7 +1094,7 @@ const buildPayload = () => {
         }
     }
 
-    if (canUseField('caused_by')) {
+    if (canSubmitField('caused_by')) {
         const nextCausedBy = selectedCausedByUser.value?.id ?? null
         const currentCausedBy = localIncident.value.caused_by ?? null
         if (nextCausedBy !== currentCausedBy) {
@@ -1083,7 +1102,7 @@ const buildPayload = () => {
         }
     }
 
-    if (canUseField('files')) {
+    if (canSubmitField('files')) {
         const nextFileIds = uploadedFiles.value.map(file => file.id).sort((a, b) => a - b)
         const currentFileIds = (localIncident.value.files ?? []).map(file => file.id).sort((a, b) => a - b)
         if (JSON.stringify(nextFileIds) !== JSON.stringify(currentFileIds)) {
@@ -1403,7 +1422,9 @@ const showHistory = async (forceReload = false) => {
 const saveChanges = async () => {
     if (saving.value || !canEditIncident.value || !hasChanges.value) return
 
-    const requiredFields = [occurredDateRef.value, reportedDateRef.value, descriptionRef.value]
+    const requiredFields = [occurredDateRef.value, reportedDateRef.value, descriptionRef.value].filter(
+        (field): field is { validate: () => Promise<{ valid: boolean }> } => Boolean(field)
+    )
     let valid = true
     for (const field of requiredFields) {
         const result = await field?.validate()
