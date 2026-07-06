@@ -313,11 +313,11 @@ export const ADMIN_PERSONNEL_EVALUATION_CARD: DashboardCard = {
 }
 
 /**
- * Maps a dashboard card type to the app blade that gates it. A card whose
+ * Maps a dashboard card type to the app capability that gates it. A card whose
  * underlying app is disabled for the role is hidden. Cards NOT listed here
  * (chat reminders, tasks) belong to built-in apps and are always available.
  */
-export const CARD_APP_BLADE: Record<string, string> = {
+export const CARD_APP_CAPABILITY: Record<string, string> = {
     forms: 'app.form',
     overdueGoals: 'app.project',
     projects: 'app.project',
@@ -335,12 +335,12 @@ export const CARD_APP_BLADE: Record<string, string> = {
  * Built-in cards (no mapping) are always enabled; admin bypasses via auth.can.
  */
 export function isCardAppEnabled(card: Pick<DashboardCard, 'type'>): boolean {
-    const blade = CARD_APP_BLADE[card.type]
-    return blade ? auth.can(blade) : true
+    const capability = CARD_APP_CAPABILITY[card.type]
+    return capability ? auth.can(capability) : true
 }
 
 /**
- * Get default dashboard cards filtered by the role's app blades.
+ * Get default dashboard cards filtered by the role's app capabilities.
  */
 export function getDefaultDashboardCards(): DashboardCard[] {
     return DEFAULT_DASHBOARD_CARDS.filter(card => isCardAppEnabled(card))

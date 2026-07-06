@@ -10,13 +10,10 @@ use Illuminate\Contracts\Filesystem\FileNotFoundException;
 use Pusher\Pusher;
 class FileController extends Controller
 {   
-    private function active_user(){
-        return Auth::user();
-    }
 
 
     public function fetchFileList(Request $request){ 
-        $active_user = $this->active_user(); 
+        $active_user = Auth::user(); 
         $validatedData = $request->validate([
             'board_id' => ['required'],
             'keyword'  => ['sometimes', 'nullable', 'string'],

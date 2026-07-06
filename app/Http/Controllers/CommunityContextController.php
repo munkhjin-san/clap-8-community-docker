@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CommunityMembership;
 use App\Models\CommunityRole;
-use App\Services\Community\CommunityBladeCatalog;
+use App\Services\Community\CommunityCapabilityCatalog;
 use App\Services\Community\CommunityContext;
 use App\Services\Community\CommunityPermissionService;
 use App\Services\Community\CommunityResolver;
@@ -86,7 +86,7 @@ class CommunityContextController extends Controller
         abort_unless($this->permissions->can('role.manage'), 403);
 
         return response()->json([
-            'groups' => CommunityBladeCatalog::groups(),
+            'groups' => CommunityCapabilityCatalog::groups(),
         ]);
     }
 
@@ -100,7 +100,7 @@ class CommunityContextController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'capabilities' => ['sometimes', 'array'],
-            'capabilities.*' => ['string', 'max:120', Rule::in(CommunityBladeCatalog::keys())],
+            'capabilities.*' => ['string', 'max:120', Rule::in(CommunityCapabilityCatalog::keys())],
         ]);
 
         $sortOrder = ((int) $community->roles()->max('sort_order')) + 10;
@@ -127,7 +127,7 @@ class CommunityContextController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'capabilities' => ['sometimes', 'array'],
-            'capabilities.*' => ['string', 'max:120', Rule::in(CommunityBladeCatalog::keys())],
+            'capabilities.*' => ['string', 'max:120', Rule::in(CommunityCapabilityCatalog::keys())],
         ]);
 
         $before = $role->only(['name', 'capabilities']);
@@ -139,6 +139,31 @@ class CommunityContextController extends Controller
         $this->audit('role.updated', null, $before, $role->fresh()->only(['name', 'capabilities']));
 
         return response()->json($this->rolePayload($role->fresh()));
+    }
+
+    /**
+     * Set the selectable shift types for a role (community_role_shift_type).
+     */
+    public function syncRoleShiftTypes(Request $request, CommunityRole $role): JsonResponse
+    {
+        abort_unless($this->permissions->can('role.manage'), 403);
+        abort_unless((int) $role->community_id === (int) $this->context->communityId(), 404);
+
+        $validated = $request->validate([
+            'shift_type_ids' => ['present', 'array'],
+            'shift_type_ids.*' => [
+                'integer',
+                Rule::exists('shift_types', 'id')->where(fn ($q) => $q->where('community_id', $this->context->communityId())->where('deleted_flag', 0)),
+            ],
+        ]);
+
+        $before = $role->shiftTypes()->pluck('shift_types.id')->all();
+        $role->shiftTypes()->sync($validated['shift_type_ids']);
+        $after = $role->shiftTypes()->pluck('shift_types.id')->all();
+
+        $this->audit('role.shift_types_updated', null, ['shift_type_ids' => $before], ['shift_type_ids' => $after]);
+
+        return response()->json(['shift_type_ids' => $after]);
     }
 
     public function deleteRole(CommunityRole $role): JsonResponse
@@ -238,6 +263,7 @@ class CommunityContextController extends Controller
             'name' => $role->name,
             'sort_order' => $role->sort_order,
             'capabilities' => $role->capabilities ?? [],
+            'shift_type_ids' => $role->shiftTypes()->pluck('shift_types.id')->all(),
             'is_system' => $role->is_system,
             'memberships_count' => $role->memberships_count,
             'members' => $role->memberships

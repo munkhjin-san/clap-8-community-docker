@@ -31,19 +31,15 @@ class IncidentController extends Controller
     {
     }
 
-    private function active_user()
-    {
-        return Auth::user();
-    }
 
     private function ensureCanManageIncidentSettings(): void
     {
-        abort_unless($this->incidentService->canManageIncidentAdministration($this->active_user()), 403);
+        abort_unless($this->incidentService->canManageIncidentAdministration(Auth::user()), 403);
     }
 
     public function getIncidents(Request $request)
     {
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         if (!$this->incidentService->canViewIncidentList($activeUser)) {
             abort(403);
@@ -83,7 +79,7 @@ class IncidentController extends Controller
 
     public function exportIncidentCsv(Request $request)
     {
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         if (!$this->incidentService->canManageIncidentAdministration($activeUser)) {
             abort(403);
@@ -234,7 +230,7 @@ class IncidentController extends Controller
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         if (!$this->incidentService->canViewIncidentList($activeUser)) {
             abort(403);
@@ -261,7 +257,7 @@ class IncidentController extends Controller
 
     public function getIncidentOptions()
     {
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
         $canManage = $this->incidentService->canManageIncidentAdministration($activeUser);
         $canView = $this->incidentService->canViewIncidentList($activeUser);
         $filterQuery = $this->incidentService->incidentListQuery($activeUser);
@@ -542,7 +538,7 @@ class IncidentController extends Controller
         ]);
 
         $incident = Incident::findOrFail($validated['id']);
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         if (
             !$this->incidentService->canAccessIncident($incident, $activeUser)
@@ -564,7 +560,7 @@ class IncidentController extends Controller
             'id' => ['required', 'integer', 'exists:incidents,id'],
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
         $incident = Incident::findOrFail($validated['id']);
 
         if (!$this->incidentService->canAccessIncident($incident, $activeUser)) {
@@ -595,7 +591,7 @@ class IncidentController extends Controller
             'content' => ['required', 'string'],
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
         $incident = Incident::findOrFail($validated['incident_id']);
 
         if (!$this->incidentService->canAccessIncident($incident, $activeUser) || !$this->incidentService->canViewIncidentHistory($activeUser)) {
@@ -624,7 +620,7 @@ class IncidentController extends Controller
             'id' => ['required', 'integer', 'exists:incident_advice,id'],
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
         $advice = IncidentAdvice::with('incident')->findOrFail($validated['id']);
         $incident = $advice->incident;
 
@@ -651,7 +647,7 @@ class IncidentController extends Controller
             'type' => ['sometimes', 'nullable', 'string', 'in:resolution,conclusion'],
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
         $incident = Incident::findOrFail($validated['incident_id']);
 
         if (!$this->incidentService->canAccessIncident($incident, $activeUser) || !$this->incidentService->canViewIncidentHistory($activeUser)) {
@@ -673,7 +669,7 @@ class IncidentController extends Controller
             'incident_id' => ['required', 'integer', 'exists:incidents,id'],
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
         $incident = Incident::findOrFail($validated['incident_id']);
         $userBank = collect();
         if ($incident->reportedByUser) {
@@ -692,7 +688,9 @@ class IncidentController extends Controller
                 }
             }
         }
-        $permanentMembers = User::where('position_id', '<', 6)->orWhere('name', '経営管理本部')->select('id', 'name', 'icon_bg','icon_path', 'position_id')->get();
+        $permanentMembers = User::where(function ($q) {
+            $q->where('position_id', '<', 6)->orWhere('name', '経営管理本部');
+        })->inActiveCommunity()->select('id', 'name', 'icon_bg','icon_path', 'position_id')->get();
         $userBank = $userBank->merge($permanentMembers);
         if($incident->projectRecord && $incident->projectRecord->manager){
             foreach($incident->projectRecord->manager as $manager){
@@ -709,7 +707,7 @@ class IncidentController extends Controller
             'type' => ['sometimes', 'nullable', 'string', 'in:resolution,conclusion'],
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
         $incident = Incident::with([
             'reportedByUser',
             'causedByUser',
@@ -815,7 +813,7 @@ class IncidentController extends Controller
 
     public function createIncidentRecord(Request $request)
     {
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         $validated = $request->validate([
             'title' => ['sometimes', 'nullable', 'string'],
@@ -954,7 +952,7 @@ class IncidentController extends Controller
         unset($validated['id']);
         $fileIds = $validated['file_ids'] ?? null;
         unset($validated['file_ids']);
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         if (empty($validated) && $fileIds === null) {
             return response()->json([
@@ -1045,7 +1043,7 @@ class IncidentController extends Controller
             'id' => ['required', 'integer', 'exists:incidents,id'],
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         DB::transaction(function () use ($validated, $activeUser) {
             $incident = Incident::lockForUpdate()->findOrFail($validated['id']);
@@ -1084,7 +1082,7 @@ class IncidentController extends Controller
             'report' => ['sometimes', 'nullable', 'string'],
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         $incident = DB::transaction(function () use ($validated, $activeUser) {
             $assignee = IncidentAssignee::query()
@@ -1117,7 +1115,7 @@ class IncidentController extends Controller
             'report' => ['sometimes', 'nullable', 'string'],
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         $incident = DB::transaction(function () use ($validated, $activeUser) {
             $assignee = IncidentAssignee::query()
@@ -1175,7 +1173,7 @@ class IncidentController extends Controller
             'assignee_ids.*' => ['integer', 'distinct', 'exists:users,id'],
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         $incident = DB::transaction(function () use ($validated, $activeUser) {
             $incident = Incident::query()

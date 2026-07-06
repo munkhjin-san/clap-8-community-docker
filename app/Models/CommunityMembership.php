@@ -42,4 +42,38 @@ class CommunityMembership extends Pivot
     {
         return $this->role?->hasCapability($capability) ?? false;
     }
+
+    /**
+     * Role predicates. A membership fully determines a user's role within its
+     * community, so these live here and CommunityContext delegates to them.
+     */
+    public function capabilities(): array
+    {
+        return $this->role?->capabilities ?? [];
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role?->key === 'admin';
+    }
+
+    public function isBoss(): bool
+    {
+        return $this->role?->key === 'board' || in_array('project.approve', $this->capabilities(), true);
+    }
+
+    public function isPM(): bool
+    {
+        return $this->role?->key === 'pm';
+    }
+
+    public function isPartner(): bool
+    {
+        return $this->role?->key === 'partner' || $this->scope === self::SCOPE_PARTNER;
+    }
+
+    public function isRegistered(): bool
+    {
+        return $this->role?->key === 'registered' || $this->scope === self::SCOPE_REGISTERED;
+    }
 }

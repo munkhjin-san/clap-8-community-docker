@@ -42,6 +42,9 @@
                 </div>
                 <input type="hidden" name="_token" :value="csrfToken">
             </div>
+            <div class="login-group text-center" v-if="passkeySupported" style="margin-top:5px;">
+                <button type="button" class="passkey-login-btn" :disabled="passkeyBusy" @click="passkeyLogin">パスキーでログイン</button>
+            </div>
             <div class="login-group text-center" v-if="errorMessage">
                 <p class="valid-error">{{ errorMessage }}</p>
             </div>
@@ -55,23 +58,42 @@
 <script setup>
     import { useTheme } from '@/store/theme';
     import { onMounted, ref } from 'vue';
+    import { getPasskey, passkeysSupported } from '@/utils/webauthn';
     const props = defineProps(['message', 'errors'])
     const errorMessage = ref(null)
     const csrfToken = document.head.querySelector('meta[name="csrf-token"]').content
     const theme = useTheme()
+    const passkeySupported = ref(false)
+    const passkeyBusy = ref(false)
     onMounted(() => {
-        window.document.title = `GLOWD - ログイン`; 
+        window.document.title = `GLOWD - ログイン`;
         if(props.message){
             errorMessage.value = props.message
         } else {
             errorMessage.value = sessionStorage.getItem('loginError')
-            sessionStorage.removeItem('loginError')    
+            sessionStorage.removeItem('loginError')
         }
         localStorage.removeItem('hiding_alerts')
+        passkeySupported.value = passkeysSupported()
+    })
 
-    })     
-
-
+    const passkeyLogin = async () => {
+        if (passkeyBusy.value) return
+        passkeyBusy.value = true
+        errorMessage.value = null
+        try {
+            const { data } = await window.axios.get('/passkeys/login/options')
+            const credential = await getPasskey(data.options)
+            await window.axios.post('/passkeys/login', { credential })
+            window.location.href = '/'
+        } catch (e) {
+            if (e?.name !== 'NotAllowedError') {
+                errorMessage.value = 'パスキーでのログインに失敗しました。'
+            }
+        } finally {
+            passkeyBusy.value = false
+        }
+    }
 </script>
 
 <style lang="scss">
@@ -133,6 +155,18 @@
     .login-content{
         width: 35%;
     }
+    .passkey-login-btn{
+        background: none;
+        border: 1px solid var(--primary-color);
+        color: var(--primary-color);
+        border-radius: 6px;
+        padding: 10px 0;
+        width: 100%;
+        max-width: min(160px, 40vw);
+        cursor: pointer;
+        font-size: 14px;
+    }
+    .passkey-login-btn:disabled{ opacity: .6; cursor: default; }
     .login-form{
         background-color:var(--background-color);
         position:relative;

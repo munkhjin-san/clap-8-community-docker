@@ -37,6 +37,7 @@ use App\Services\TimeSheet\AutoAttendanceConfirm;
 use App\Services\TimeSheet\ShiftService;
 use App\Services\TimeSheet\WorkReportTimeService;
 use App\Services\PaidLeaveLedgerService;
+use App\Services\Community\CommunityContext;
 class WorkController extends Controller
 {
     protected $sharedService;
@@ -53,21 +54,20 @@ class WorkController extends Controller
     ) {
         $this->sharedService = $sharedService;
     }
-    private function active_user(){
-        return Auth::user();
-    }
     private function canExportWorkCsv(User $user): bool
     {
-        return $user->isAdmin() || (int) $user->position_id === 6;
+        return $user->isAdmin() || $user->isPM();
     }
     //
     public function index(Request $request){
         
     }
     public function getWorkData(Request $request) {
-        $active_user = $this->active_user();
-        
-        $users_list = $request->work_group ?? [];
+        $active_user = Auth::user();
+
+        // work_group is request-supplied user ids; confine to the active community
+        // before it filters the unscoped TimecardProjectSegment/ProjectCase joins.
+        $users_list = app(CommunityContext::class)->confineUserIds($request->work_group ?? []);
         $current_date = $request->current_date ?? Carbon::now()->format('Y-m');
         [$currentYear, $currentMonth] = explode('-', $current_date);
 
@@ -152,7 +152,7 @@ class WorkController extends Controller
             ->whereYear('shift_day', $currentYear)
             ->whereMonth('shift_day', $currentMonth)
             ->whereIn('user_id', $users_list)
-            ->whereNotIn('shift_type', [18])
+            ->whereNotIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_LEGAL_HOLIDAY))
             ->groupBy('user_id')
             ->orderBy('user_id')
             ->get();              
@@ -269,8 +269,9 @@ class WorkController extends Controller
     }
     public function get_shift_data_table(Request $request){
         $requestDateString = $request->current_date;
-        $active_user = $this->active_user();
-        $users_list = $request->work_group ?? [];
+        $active_user = Auth::user();
+        // Confine request-supplied user ids to the active community.
+        $users_list = app(CommunityContext::class)->confineUserIds($request->work_group ?? []);
         if (($key = array_search($active_user->id, $users_list)) !== false) {
             unset($users_list[$key]);
         
@@ -374,7 +375,7 @@ class WorkController extends Controller
                   ->whereMonth('shift_day', $month)
                   ->with([
                       'shiftType' => function ($query) {
-                          $query->select('id', 'name', 'abbreviation', 'value');
+                          $query->select('id', 'name', 'abbreviation', 'value', 'full_day', 'category', 'hours');
                       },
                       'overtime_request',
                       'department',
@@ -669,7 +670,7 @@ class WorkController extends Controller
     }
     private function lockedProjectSegmentStatuses(?User $user = null): array
     {
-        $user ??= $this->active_user();
+        $user ??= Auth::user();
         if ($user->isAdmin()) {
             return [TimecardProjectSegment::STATUS_APPROVED];
         }
@@ -678,7 +679,7 @@ class WorkController extends Controller
     }
     private function editableProjectSegmentStatuses(?User $user = null): array
     {
-        $user ??= $this->active_user();
+        $user ??= Auth::user();
         if ($user->isAdmin()) {
             return [TimecardProjectSegment::STATUS_DRAFT, TimecardProjectSegment::STATUS_REJECTED, TimecardProjectSegment::STATUS_SUBMITTED];
         }
@@ -698,7 +699,7 @@ class WorkController extends Controller
     }
     private function has_overtime_access($shift, $user, $time_card, $date, $active_user, $has_attendance = false){
         $today_or_future = empty($shift) ? false : $date->format('Y-m-d') >= date('Y-m-d');
-        $possibleTypes = [1,6,7,8,9,10,11,12,13];
+        $possibleTypes = shiftType::idsFor([shiftType::CATEGORY_WORK, shiftType::CATEGORY_ANNUAL_LEAVE_HALF, shiftType::CATEGORY_ANNUAL_LEAVE_HOURLY]); // work + half/hourly annual leave
         $userMatch = $user->id == $active_user->id;       
         $overtimeRequestStatus = $shift?->overtime_request ? (int) $shift->overtime_request->status : null;
         $rejectedOvertimeRequest = $overtimeRequestStatus === 0;
@@ -708,11 +709,11 @@ class WorkController extends Controller
         $dateAllowsEdit = $today_or_future || $rejectedOvertimeRequest;
         $reportAllowsEdit = $rejectedOvertimeRequest || $timeCardCheck;
         $overtimeRequestEditable = !$shift?->overtime_request || $rejectedOvertimeRequest;
-        return !$has_attendance && $dateAllowsEdit && in_array($shift->shiftType->id, $possibleTypes) && $userMatch && $reportAllowsEdit && $active_user->position_id !== 15 && $overtimeRequestEditable;
+        return !$has_attendance && $dateAllowsEdit && in_array($shift->shiftType->id, $possibleTypes) && $userMatch && $reportAllowsEdit && !$active_user->isRegisteredScope() && $overtimeRequestEditable;
     }
     private function has_daily_report($shift, $time_card, $day, $user, $active_user, $has_attendace, $authority){
         $timecardExist = $time_card !== null;
-        $valid_shift = (!empty($shift) && $shift->shiftType->id !== 3) || $user->position_id == 15 || $user->position_id < 6;
+        $valid_shift = (!empty($shift) && !in_array((int) $shift->shiftType->id, shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE), true)) || $user->isRegisteredScope() || $user->isBoss();
         $isToday = date('Y-m-d') == $day->format('Y-m-d');
         $isTodayOrPast = date('Y-m-d') >= $day->format('Y-m-d');
         $managerOrSelfAccess = $user->id == $active_user->id || $authority || $active_user->isAdmin();
@@ -727,7 +728,7 @@ class WorkController extends Controller
         return [$create ,$modify, $start_stamp, $end_stamp, $break_stamp];
     }
     private function has_department_create($shift, $time_card, $day, $active_user, $has_attendace, $user){
-        $valid_shift = !empty($shift) && $shift->shiftType->id !== 0 && $shift->shiftType->id !== 1;
+        $valid_shift = !empty($shift) && !in_array((int) $shift->shiftType->id, shiftType::idsFor([shiftType::CATEGORY_DAY_OFF, shiftType::CATEGORY_WORK]), true); // not day_off / work
         $timecardExist = $time_card !== null;
         $isTodayOrPast = date('Y-m-d') >= $day->format('Y-m-d');
         $access = $user->id == $active_user->id || $active_user->isAdmin();
@@ -742,8 +743,12 @@ class WorkController extends Controller
             'work_group' => ['nullable', 'array'],
         ]);
 
-        $activeUser = $this->active_user();
-        $userIds = $request->work_group ?? [$activeUser->id];
+        $activeUser = Auth::user();
+        // Confine request-supplied user ids to the active community; fall back to self.
+        $userIds = app(CommunityContext::class)->confineUserIds($request->work_group ?? []);
+        if (empty($userIds)) {
+            $userIds = [$activeUser->id];
+        }
         $targetUserId = $userIds[0];
 
         [$year, $month] = array_map('intval', explode('-', $request->current_date));
@@ -780,7 +785,7 @@ class WorkController extends Controller
     }
     public function get_shift_with_work_group(Request $request){
         [$year, $month] = explode('-', $request->current_date);
-        $user = $this->active_user();
+        $user = Auth::user();
         $authenticatedUserId = $user->id;
         if ($user->isAdmin()) {
             $workGroups = ProjectRecord::whereHas('members', function ($q) use ($year, $month){
@@ -844,14 +849,14 @@ class WorkController extends Controller
                         ->whereMonth('shift_day', $month)
                         ->with([
                             'shiftType' => function ($query) {
-                                $query->select('id', 'name', 'abbreviation', 'value', 'full_day');
+                                $query->select('id', 'name', 'abbreviation', 'value', 'full_day', 'category', 'hours');
                             },
                             'department:id,name',
                             'old_shift' => function ($query) {
                                 $query->whereNot('status_flag', 1)->withTrashed()->select('id', 'shift_day', 'shift_type', 'department_id');
                                 $query->with([
                                     'shiftType' => function ($subQuery) {
-                                        $subQuery->select('id', 'name', 'abbreviation', 'value', 'full_day');
+                                        $subQuery->select('id', 'name', 'abbreviation', 'value', 'full_day', 'category', 'hours');
                                     },
                                     'department:id,name',
                                 ]);
@@ -861,14 +866,14 @@ class WorkController extends Controller
                         ->get();
         $work_group_users = collect($work_group_users);
         $work_group_users = $work_group_users->map(function ($user) use($userShifts, $year, $month) {
-            $user_shift_records = $userShifts->where('user_id', $user->id)->whereIn('shift_type', [0, 18, 19, 20, 21, 22, 23, 24, 25, 26]);
+            $user_shift_records = $userShifts->where('user_id', $user->id)->whereIn('shift_type', shiftType::idsFor([shiftType::CATEGORY_DAY_OFF, shiftType::CATEGORY_LEGAL_HOLIDAY, shiftType::CATEGORY_HOLIDAY_WORK]));
             $user_work_minutes_per_day = $user->work_time_day;
             $userWorkTimeData = $this->sharedService->work_days_calculator($year, $month, $user);
             $userPlannedTimeData = $this->sharedService->planned_shift_calculator($userShifts->where('user_id', $user->id));
             $workdayNum = $userWorkTimeData['days'];
             $shift_work_hours = $userWorkTimeData['work_minutes'];
             $total_holidays = $user_shift_records->sum(function ($shift) use ($user_work_minutes_per_day) {
-                $is_full_day = $shift->shiftType->full_day == 2 || $shift->shiftType->id == 0;
+                $is_full_day = $shift->shiftType->full_day == 2 || in_array((int) $shift->shiftType->id, shiftType::idsFor(shiftType::CATEGORY_DAY_OFF), true);
                 $is_half_day = $shift->shiftType->full_day == 1;
                 if($is_full_day){
                     return $user_work_minutes_per_day;
@@ -895,7 +900,7 @@ class WorkController extends Controller
         return response()->json($data);
     }   
     public function shift_approve_all(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         $request->validate([
             'user_ids' => 'required',
             'year_month' => 'required'
@@ -918,7 +923,7 @@ class WorkController extends Controller
         ]);
     }
     public function shift_approve(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         $request->validate([
             'shift_id' => 'required'
         ]);
@@ -999,7 +1004,7 @@ class WorkController extends Controller
             return false;
         }
 
-        if (in_array((int) $type->id, [0, 18], true) || (int) $type->full_day === 2) {
+        if (in_array((int) $type->id, shiftType::idsFor([shiftType::CATEGORY_DAY_OFF, shiftType::CATEGORY_LEGAL_HOLIDAY]), true) || (int) $type->full_day === 2) {
             return false;
         }
 
@@ -1011,7 +1016,7 @@ class WorkController extends Controller
     }
     public function shiftAdd(Request $request)
     {
-        $user         = $this->active_user();
+        $user         = Auth::user();
         $user_id      = $request->userId;
         $position_id  = (int) $request->position_id;
         $shift_array  = $request->shift_array;
@@ -1040,7 +1045,12 @@ class WorkController extends Controller
             }
 
             // 2) Your normal validations (kept as-is)
-            $holidayTypes = [0, 2, 3, 5, 14, 15, 16, 17];
+            // day_off/absence/planned_paid/annual_full/special-leave(condolence,transfer,ODA)/comp_holiday
+            // (preserves the original [0,2,3,5,14,15,16,17] set — special_holiday id 27 was not included).
+            $holidayTypes = shiftType::idsFor(array_merge(
+                [shiftType::CATEGORY_DAY_OFF, shiftType::CATEGORY_ABSENCE, shiftType::CATEGORY_PLANNED_PAID_LEAVE, shiftType::CATEGORY_ANNUAL_LEAVE_FULL, shiftType::CATEGORY_COMP_HOLIDAY],
+                shiftType::SPECIAL_LEAVE
+            ));
 
             $holidays = collect($shift_array)->whereIn('type', $holidayTypes)->pluck('date')->all();
             $overtimeCheck = shiftRecord::where('user_id', $user_id)
@@ -1048,7 +1058,7 @@ class WorkController extends Controller
                 ->whereHas('overtime_request')
                 ->exists();
 
-            $nonWorkDays = collect($shift_array)->reject(fn($s) => $s['type'] === 0)->pluck('date')->all();
+            $nonWorkDays = collect($shift_array)->reject(fn($s) => in_array((int) $s['type'], shiftType::idsFor(shiftType::CATEGORY_DAY_OFF), true))->pluck('date')->all();
             $waitingAllowanceCheck = timecardRecord::where('user_id', $user_id)
                 ->whereIn('day', $nonWorkDays)
                 ->with([
@@ -1143,6 +1153,12 @@ class WorkController extends Controller
             }
 
             if (!empty($newRows)) {
+                // Bulk insert() bypasses the BelongsToCommunity creating hook, so stamp
+                // the active community here (only when present, mirroring the trait).
+                $communityId = app(CommunityContext::class)->communityId();
+                if ($communityId) {
+                    $newRows = array_map(fn ($row) => $row + ['community_id' => $communityId], $newRows);
+                }
                 shiftRecord::insert($newRows);
             }
 
@@ -1158,7 +1174,7 @@ class WorkController extends Controller
     private function plannedYearForShiftSave(int $userId, string $shiftDay, int $shiftType, mixed $requestedPlannedYear): int
     {
         $requestedYear = is_numeric($requestedPlannedYear) ? (int) $requestedPlannedYear : null;
-        if ($shiftType === 3) {
+        if (in_array($shiftType, shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE), true)) {
             return $this->paidLeaveLedger->plannedLeaveYearForShiftDate($userId, $shiftDay, $requestedYear)
                 ?? $requestedYear
                 ?? (int) Carbon::parse($shiftDay)->year;
@@ -1168,7 +1184,7 @@ class WorkController extends Controller
     }
     
     public function getWorkGroup(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         $auth_user_id = $user->id;
         $ids = User::ADMIN_USER_IDS;
         if ($user->isAdmin()) {
@@ -1280,7 +1296,7 @@ class WorkController extends Controller
     }
 
     public function check_break_time(){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $today = Carbon::now()->format('Y-m-d');
         $inBreak = timecardBreakRecord::where('break_flag', 1)
                             ->where('user_id', $active_user->id)
@@ -1936,7 +1952,7 @@ class WorkController extends Controller
     public function saveTimeCard(Request $request){
         $today = Carbon::now()->isoFormat('YYYY-MM-DD');
         $this->breakTimeCheck($request);
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         $user = User::select('work_time_day', 'work_type', 'id', 'name', 'position_id')->findOrFail($request->userId);
         $attendanceMode = $request->attendance_mode ?? 'work_only';
@@ -2535,7 +2551,7 @@ class WorkController extends Controller
         }
     }
     private function saveWorkIncentive($user, $request, $is_exist){
-        if($user->position_id === 15){
+        if($user->isRegisteredScope()){
             [$currentYear, $currentMonth] = explode('-', $request->day);
             $yearMonth = $currentYear . '-' . $currentMonth;
             $filteredCosts = array_filter($request->incentiveValues ?? [], function ($incentive) {
@@ -3006,7 +3022,7 @@ class WorkController extends Controller
         ]);
     }
     public function deleteTimeCard(Request $request){
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
         return DB::transaction(function () use ($request, $activeUser) {
             $is_exist = timecardRecord::where('day', $request->date)
                 ->where('user_id', $request->userId)
@@ -3058,7 +3074,7 @@ class WorkController extends Controller
         return response()->json($result[$user_id]);
     }
     public function remandTimeCard(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         $time_card_record = DB::transaction(function () use ($request, $user) {
             $time_card_record = timecardRecord::where('user_id', $request->user_id )
                 ->where('day', '=' , $request->record_day )
@@ -3100,7 +3116,7 @@ class WorkController extends Controller
 
     }
     public function approveTimeCard(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         $time_card_record = DB::transaction(function () use ($request, $user) {
             $time_card_record = timecardRecord::where('user_id', $request->user_id )
                 ->where('day', $request->record_day )
@@ -3143,7 +3159,7 @@ class WorkController extends Controller
 
     public function approveTimecardProjectSegment(Request $request)
     {
-        $user = $this->active_user();
+        $user = Auth::user();
         $segment = DB::transaction(function () use ($request, $user) {
             $segment = TimecardProjectSegment::with(['project:id,name', 'timecardRecord'])
                 ->lockForUpdate()
@@ -3173,7 +3189,7 @@ class WorkController extends Controller
 
     public function rejectTimecardProjectSegment(Request $request)
     {
-        $user = $this->active_user();
+        $user = Auth::user();
         $segment = DB::transaction(function () use ($request, $user) {
             $segment = TimecardProjectSegment::with(['project:id,name', 'timecardRecord'])
                 ->lockForUpdate()
@@ -3204,7 +3220,7 @@ class WorkController extends Controller
 
     public function cancelTimecardProjectSegment(Request $request)
     {
-        $user = $this->active_user();
+        $user = Auth::user();
         $segment = DB::transaction(function () use ($request, $user) {
             $segment = TimecardProjectSegment::with(['project:id,name', 'timecardRecord'])
                 ->lockForUpdate()
@@ -3305,7 +3321,7 @@ class WorkController extends Controller
 
 
     public function cancelTimeCard(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $time_card_record = DB::transaction(function () use ($request, $active_user) {
             $time_card_record = timecardRecord::where('user_id', $request->user_id )
                 ->where('day', $request->record_day )
@@ -3361,7 +3377,7 @@ class WorkController extends Controller
     }
     public function attendanceConfirm(Request $request){
         
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $user_list = $request->user_id ?? [$active_user->id];
         $date = $request->date_year_month;
             
@@ -3383,7 +3399,7 @@ class WorkController extends Controller
         $user_id = $request->user['id'];
 
         $attendance_record = attendanceRecord::where('user_id', '=' , $user_id )->where('date_year_month', '=' , $request->date_year_month )->first();
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $work_type_flag = $request->user['work_type'];
         $work_type = $work_type_flag == 0 ? 'フレックス' : '通常';
         $user_code = $request->user->user_code ?? 99999999;
@@ -3459,7 +3475,7 @@ class WorkController extends Controller
             'segment_index' => 'nullable|integer|min:0',
             'project_id' => 'nullable|integer',
         ]);
-        $user = $this->active_user();
+        $user = Auth::user();
         $overtimeRequest = ShiftOvertimeRequest::findOrFail($request->id);
         $status = (int) $request->status;
         $segments = is_array($overtimeRequest->project_segments) ? array_values($overtimeRequest->project_segments) : [];
@@ -3550,9 +3566,9 @@ class WorkController extends Controller
         ]);
     }
     public function work_badge(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         if($user->work_authority == 1){
-            $ids = [608, 610, $user->id];
+            $ids = array_merge(User::whereCommunityRole('admin')->pluck('id')->all(), [$user->id]); // exclude community admins + self
             $work_group_list = workGroup::whereHas('members', function($q) use($user) {
                 $q->whereIn('users.id', [$user->id]);
             })->with(['members' => function($q) use($ids) {
@@ -3999,7 +4015,7 @@ class WorkController extends Controller
             $nextMonthDate = $currentDate->addMonthNoOverflow();
             $nextMonthYear = $nextMonthDate->year;
             $nextMonth = $nextMonthDate->month;
-            $auth_user = $this->active_user();
+            $auth_user = Auth::user();
             $shiftNotSubmittedList = [];
             if($auth_user->isAdmin() || in_array($auth_user->position_id, [1, 2, 3, 4, 5, 14, null])){
                 
@@ -4007,7 +4023,7 @@ class WorkController extends Controller
             }
             $nextMonthShift = shiftRecord::whereYear('shift_day', $nextMonthYear)
                                         ->whereMonth('shift_day', $nextMonth)
-                                        ->where('user_id', $auth_user->id)->get();
+                                        ->where('user_id', Auth::id())->get();
             $numberOfDays = cal_days_in_month(CAL_GREGORIAN, $nextMonth, $nextMonthYear);
 
             if(count($nextMonthShift) < $numberOfDays){
@@ -4433,7 +4449,7 @@ class WorkController extends Controller
             'mode' => ['nullable', 'in:summary,project_detail'],
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
         abort_unless($this->canExportWorkCsv($activeUser), 403, 'CSVを出力する権限がありません。');
 
         $rawUserIds = collect(explode(',', $data['users']))
@@ -4476,7 +4492,7 @@ class WorkController extends Controller
             $q->whereYear('shift_day', $year)->whereMonth('shift_day', $month)
                 ->with([
                     'shiftType' => function ($query) {
-                        $query->select('id', 'name', 'abbreviation', 'value');
+                        $query->select('id', 'name', 'abbreviation', 'value', 'full_day', 'category', 'hours');
                     },
                     'overtime_request'
                 ])
@@ -4532,7 +4548,7 @@ class WorkController extends Controller
                 $cases = empty($time_card_record) ? collect() : collect($time_card_record->project_case);
                 
                 $satisfy = empty($time_card_record) ? [] : $time_card_record->custom_field_data_records->where('type_id', 41)->first();  
-                $isRegistered = $user->position_id == 15;
+                $isRegistered = $user->isRegisteredScope();
                 $costFormatted = '';
                 if($isRegistered){
                     $transportCost = collect($costs)->where('type', 1)->sum('expenses');
@@ -4685,7 +4701,7 @@ class WorkController extends Controller
     public function get_planned_leaves(Request $request){
         $paidholidays = shiftRecord::where('user_id', $request->user_id)
                                     ->where('planned_year', $request->year)
-                                    ->where('shift_type', 3)
+                                    ->whereIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE))
                                     ->select('shift_day', 'user_id', 'id', 'planned_year')
                                     ->orderBy('shift_day')
                                     ->with(['planned_leave_change_request'])
@@ -4733,7 +4749,7 @@ class WorkController extends Controller
             throw ValidationException::withMessages(['message' => "変更申請日は{$startLimit->toDateString()}から{$endLimit->toDateString()}の間に設定してください。"]);
         }
         $checkDuplicatePlannedLeave = shiftRecord::where('user_id', $shift->user_id)
-                                    ->where('shift_type', 3)
+                                    ->whereIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE))
                                     ->where('shift_day', $change_request_date->toDateString())
                                     ->exists();
         if($checkDuplicatePlannedLeave){
@@ -4775,7 +4791,7 @@ class WorkController extends Controller
     }
     public function planned_leave_change_requests(Request $request)
     {
-        $user = $this->active_user();
+        $user = Auth::user();
 
         return response()->json($this->plannedLeaveChangeRequestQuery($user)
             ->with([
@@ -4806,11 +4822,11 @@ class WorkController extends Controller
 
     private function canAdminPlannedLeaveChangeRequest(User $user): bool
     {
-        return in_array($user->id, [608, 610], true);
+        return $user->isAdmin();
     }
 
     public function annual_leave_data(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         $year = Carbon::now()->year;
         $planned_leaves_this_year = $this->get_planned_leaves(new Request(['user_id' => $user->id, 'year' => $year]))->getData(true);
         $planned_leaves_last_year = $this->get_planned_leaves(new Request(['user_id' => $user->id, 'year' => $year - 1]))->getData(true);

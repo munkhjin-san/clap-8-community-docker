@@ -12,7 +12,7 @@
                 :item-value="itemValue"
                 :items="itemOptions"
                 :label="placeHolder"
-                :menu-props="{ scrollStrategy: 'close', maxWidth: selectorRef ? selectorRef.clientWidth : undefined }"
+                :menu-props="{ scrollStrategy: 'close', maxWidth: selectorRef ? selectorRef.clientWidth : undefined, contentClass: 'item-selector-menu' }"
                 :multiple="multiple"
                 auto-select-first
                 autocomplete="off"
@@ -196,5 +196,27 @@ import 'styles/selector.css';
 .item-selector-option.v-list-item--highlighted,
 .item-selector-option[aria-selected="true"] {
     background: var(--bg2) !important;
+}
+
+/* Dropdown menu is teleported out of this component to a Vuetify overlay (which
+   renders under the light theme — surface = white), so force the app background
+   on the overlay content + list. */
+.item-selector-menu,
+.item-selector-menu .v-sheet,
+.item-selector-menu .v-list {
+    background: var(--background-color) !important;
+    background-color: var(--background-color) !important;
+    color: var(--primary-color) !important;
+}
+
+/* The app sets a global `* { transition: all }` (theme-switch helper). On open
+   that animates the list background from the light-theme surface (white) to the
+   dark override above — the white flash. Kill the transition on the list/items so
+   the color applies instantly. (Left off the overlay content, so Vuetify's open
+   animation is preserved.) */
+.item-selector-menu .v-sheet,
+.item-selector-menu .v-list,
+.item-selector-menu .v-list .v-list-item {
+    transition: none !important;
 }
 </style>

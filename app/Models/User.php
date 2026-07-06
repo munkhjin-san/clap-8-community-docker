@@ -11,10 +11,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Carbon\Carbon;
 use App\Services\Community\CommunityPermissionService;
 use Laravel\Sanctum\HasApiTokens;
-class User extends Authenticatable
+use Laravel\Fortify\TwoFactorAuthenticatable;
+use Laravel\Passkeys\Contracts\PasskeyUser;
+use Laravel\Passkeys\PasskeyAuthenticatable;
+class User extends Authenticatable implements PasskeyUser
 {
     // use Notifiable;
-    use HasApiTokens, Notifiable, SoftDeletes;
+    use HasApiTokens, Notifiable, SoftDeletes, TwoFactorAuthenticatable, PasskeyAuthenticatable;
 
     public const ADMIN_USER_IDS = [608, 610];
 
@@ -38,6 +41,7 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password', 'remember_token',
+        'two_factor_secret', 'two_factor_recovery_codes',
     ];
 
     /**
@@ -47,9 +51,11 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'position_id'    => 'int', 
+        'two_factor_confirmed_at' => 'datetime',
+        'email_otp_enabled_at' => 'datetime',
+        'position_id'    => 'int',
         'office_id' => 'int',
-        'icon_path' => 'string',   
+        'icon_path' => 'string',
         'hide_flag' => 'int',
         'partner_flag' => 'int',
         'award_charge' => 'int'
@@ -253,43 +259,91 @@ class User extends Authenticatable
     }
     public function isAdmin(): bool
     {
-        if (app()->bound(CommunityPermissionService::class)) {
-            return app(CommunityPermissionService::class)->isAdmin($this);
-        }
-
-        return in_array((int) $this->id, self::ADMIN_USER_IDS, true);
+        return app(CommunityPermissionService::class)->isAdmin($this);
     }
     public function isBoss(): bool
     {
-        if (app()->bound(CommunityPermissionService::class)) {
-            return app(CommunityPermissionService::class)->isBoss($this);
-        }
-
-        return $this->position_id !== null && (int) $this->position_id < 6;
+        return app(CommunityPermissionService::class)->isBoss($this);
     }
     public function isPM(): bool
     {
-        if (app()->bound(CommunityPermissionService::class)) {
-            return app(CommunityPermissionService::class)->isPM($this);
-        }
-
-        return (int) $this->position_id === 6;
+        return app(CommunityPermissionService::class)->isPM($this);
     }
     public function isPartnerScope(): bool
     {
-        if (app()->bound(CommunityPermissionService::class)) {
-            return app(CommunityPermissionService::class)->isPartner($this);
-        }
-
-        return (int) $this->partner_flag === 1;
+        return app(CommunityPermissionService::class)->isPartner($this);
     }
     public function isRegisteredScope(): bool
     {
-        if (app()->bound(CommunityPermissionService::class)) {
-            return app(CommunityPermissionService::class)->isRegistered($this);
-        }
+        return app(CommunityPermissionService::class)->isRegistered($this);
+    }
 
-        return (int) $this->position_id === 15;
+    /**
+     * Canonical capability check for this user against the community
+     * authorization model (admin bypass + the user's role capabilities,
+     * resolved side-effect-free via CommunityPermissionService). This is the
+     * PHP counterpart to the frontend `auth.can(capability)`; use it instead of
+     * position_id / hardcoded-id checks. Note: unlike isBoss/isPM/etc. above,
+     * this does NOT gate on app()->bound() — that guard resolves false (the
+     * service is auto-resolved, never explicitly bound), which would make this
+     * always return false. The service self-guards missing community tables.
+     */
+    public function hasCapability(string $capability): bool
+    {
+        return app(CommunityPermissionService::class)->can($capability, $this);
+    }
+
+    /**
+     * Query scope: users whose community-membership role grants $capability.
+     * The query counterpart to hasCapability() for whereIn/list contexts (e.g.
+     * "all refresh-eligible employees"). Admin is included because the admin
+     * role stores the full capability set (it also bypasses at runtime).
+     */
+    public function scopeWhereHasCapability($query, string $capability)
+    {
+        return $query->whereIn('id', function ($q) use ($capability) {
+            $q->select('cu.user_id')
+                ->from('community_user as cu')
+                ->join('community_roles as r', 'r.id', '=', 'cu.community_role_id')
+                ->whereJsonContains('r.capabilities', $capability);
+        });
+    }
+
+    /**
+     * Query scope: users whose community-membership role key is one of $keys
+     * (e.g. 'admin'). The list counterpart to isAdmin()/the role predicates, for
+     * whereIn/whereNotIn contexts that previously hardcoded admin id arrays.
+     * Not community-filtered (single active community today) — mirrors
+     * scopeWhereHasCapability.
+     *
+     * @param  string|array<int,string>  $keys
+     */
+    public function scopeWhereCommunityRole($query, string|array $keys)
+    {
+        $keys = (array) $keys;
+
+        return $query->whereIn('id', function ($q) use ($keys) {
+            $q->select('cu.user_id')
+                ->from('community_user as cu')
+                ->join('community_roles as r', 'r.id', '=', 'cu.community_role_id')
+                ->whereIn('r.key', $keys);
+        });
+    }
+
+    /**
+     * Confine a user list to the ACTIVE community's members. `User` is not
+     * community-scoped (membership lives in the community_user pivot, not a
+     * column), so any picker/list endpoint built on `User::...` would otherwise
+     * span every community. Apply this to member-picker endpoints.
+     *
+     * Fails open (no filter) when there is no active community — matching the
+     * BelongsToCommunity global scope and harmless while single-community.
+     */
+    public function scopeInActiveCommunity($query)
+    {
+        $ids = app(\App\Services\Community\CommunityContext::class)->userIds();
+
+        return $ids === null ? $query : $query->whereIn('id', $ids);
     }
     // Manage any member's timecard/shift/overtime: the work_authority column
     // (per-user grant) or the timesheet.manage_all blade (admin bypasses).
@@ -299,21 +353,13 @@ class User extends Authenticatable
             return true;
         }
 
-        if (app()->bound(CommunityPermissionService::class)) {
-            return app(CommunityPermissionService::class)->can('timesheet.manage_all', $this);
-        }
-
-        return in_array((int) $this->id, self::ADMIN_USER_IDS, true);
+        return app(CommunityPermissionService::class)->can('timesheet.manage_all', $this);
     }
     // HR approval / confirmation (monthly-goal confirm & view, member assignment,
     // change applications). Replaces the hardcoded HR id 631. Admin bypasses.
     public function canHrApprove(): bool
     {
-        if (app()->bound(CommunityPermissionService::class)) {
-            return app(CommunityPermissionService::class)->can('hr.approve', $this);
-        }
-
-        return in_array((int) $this->id, [608, 610, 631], true);
+        return app(CommunityPermissionService::class)->can('hr.approve', $this);
     }
     public function oauthCredentials()
     {

@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCommunity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 class LessonTheme extends Model
 {
     use HasFactory;
+    use BelongsToCommunity;
 
     protected $guarded = [];
     protected $appends = ['survey_completed', 'survey_date'];

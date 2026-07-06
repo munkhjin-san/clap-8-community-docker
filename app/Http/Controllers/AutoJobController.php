@@ -642,7 +642,7 @@ class AutoJobController extends Controller
         $month = $date->month;
         $all_shifts = shiftRecord::whereMonth('shift_day', '>', $month)
                                     ->whereYear('shift_day', '>=', $year)
-                                    ->whereNot('shift_type', 3)
+                                    ->whereNotIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE))
                                     ->update([
                                         'status_flag' => 2
                                     ]);

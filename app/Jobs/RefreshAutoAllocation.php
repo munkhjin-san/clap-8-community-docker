@@ -22,7 +22,6 @@ class RefreshAutoAllocation implements ShouldQueue
     /**
      * @var int[]
      */
-    private const ELIGIBLE_POSITION_IDS = [6, 11, 12, 16];
 
     /**
      * Create a new job instance.
@@ -98,7 +97,7 @@ class RefreshAutoAllocation implements ShouldQueue
         
         foreach ($completed_posts as $post) {
             $toUserIds = $post->to_users
-                ->filter(fn ($user) => in_array((int) $user->position_id, self::ELIGIBLE_POSITION_IDS, true))
+                ->filter(fn ($user) => $user->hasCapability('benefit.refresh'))
                 ->pluck('id')
                 ->unique()
                 ->values();
@@ -139,7 +138,7 @@ class RefreshAutoAllocation implements ShouldQueue
 
         foreach ($uncompleted_grants as $post) {
             $toUserIds = $post->to_users
-                ->filter(fn ($user) => in_array((int) $user->position_id, self::ELIGIBLE_POSITION_IDS, true))
+                ->filter(fn ($user) => $user->hasCapability('benefit.refresh'))
                 ->pluck('id')
                 ->unique()
                 ->values();
@@ -247,7 +246,7 @@ class RefreshAutoAllocation implements ShouldQueue
             ->select('id', 'position_id')
             ->find($userId);
 
-        if (! $user || ! in_array((int) $user->position_id, self::ELIGIBLE_POSITION_IDS, true)) {
+        if (! $user || ! $user->hasCapability('benefit.refresh')) {
             return;
         }
 

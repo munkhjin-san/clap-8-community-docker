@@ -59,7 +59,7 @@ class AdminPaidLeaveLedgerController extends Controller
 
     private function authorizeAdmin(): void
     {
-        abort_unless(in_array($this->activeUserId(), [608, 610], true), 403, '管理者権限がありません。');
+        abort_unless(Auth::user()->isAdmin(), 403, '管理者権限がありません。');
     }
 
     private function activeUserId(): int

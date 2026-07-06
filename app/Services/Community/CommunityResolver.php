@@ -26,6 +26,32 @@ class CommunityResolver
 
         $this->ensureDefaultMembership($user);
 
+        $membership = $this->membershipFor($user);
+
+        if ($membership) {
+            session([self::SESSION_KEY => $membership->community_id]);
+            $membership->forceFill(['last_active_at' => now()])->save();
+        }
+
+        $this->context->setMembership($membership);
+
+        return $membership;
+    }
+
+    /**
+     * Resolve a user's active membership WITHOUT any side-effects — no session
+     * write, no last_active_at, no CommunityContext mutation, no membership
+     * creation. Safe to call for any user (incl. non-acting users, in loops),
+     * which is what per-user permission checks need. Resolution order matches
+     * resolveFor(): the user's membership in the current active community, else
+     * their default, else their first. Returns null if the user has none.
+     */
+    public function membershipFor(User $user): ?CommunityMembership
+    {
+        if (!Schema::hasTable('communities') || !Schema::hasTable('community_user')) {
+            return null;
+        }
+
         $membership = $this->membershipQuery($user)
             ->when(session()->has(self::SESSION_KEY), fn ($query) => $query->where('community_id', session(self::SESSION_KEY)))
             ->first();
@@ -36,13 +62,6 @@ class CommunityResolver
                 ->first()
                 ?: $this->membershipQuery($user)->first();
         }
-
-        if ($membership) {
-            session([self::SESSION_KEY => $membership->community_id]);
-            $membership->forceFill(['last_active_at' => now()])->save();
-        }
-
-        $this->context->setMembership($membership);
 
         return $membership;
     }

@@ -15,9 +15,9 @@ const router = createRouter({
     routes,
 })
 
-// Maps an app route name to the blade that gates it. A role without the blade
+// Maps an app route name to the capability that gates it. A role without the capability
 // is redirected away. Dashboard/board/settings are built-in (no entry here).
-const ROUTE_BLADE: Record<string, string> = {
+const ROUTE_CAPABILITY: Record<string, string> = {
     project: 'app.project',
     schedule: 'app.schedule',
     timesheet: 'app.timesheet',
@@ -47,8 +47,8 @@ router.beforeEach((to, from) => {
     const auth = useAuthUserStore()
     if (auth.id) {
         for (const matched of to.matched) {
-            const blade = ROUTE_BLADE[matched.name as string]
-            if (blade && !auth.can(blade)) {
+            const capability = ROUTE_CAPABILITY[matched.name as string]
+            if (capability && !auth.can(capability)) {
                 return { name: 'board' }
             }
         }

@@ -21,15 +21,12 @@ class CustomFormController extends Controller
 {
     private const PROJECT_CREATION_USAGE = 'project_creation';
 
-    private function active_user(){
-        return Auth::user();
-    }
     public function get_survey(Request $request){
         $request->validate([
             'id' => 'required'
         ]);
 
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
 
             $survey = CustomForm::with(['blocks' => function($q) use($active_user)  {
                 $q->with(['answers' => function($q)use($active_user)  {
@@ -100,7 +97,7 @@ class CustomFormController extends Controller
         return response()->json(['message' => 'Form duplicated successfully'], 200);
     }
     public function get_custom_forms(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
 
         $forms = CustomForm::when($request->filled('status'), function ($q) use ($request) {
                 $q->where('status', $request->input('status'));
@@ -134,7 +131,7 @@ class CustomFormController extends Controller
             })
             ->with(['blocks.checkitemCategories', 'projectType'])
             ->orderBy('created_at', 'desc')
-            ->when($active_user->position_id <= 6 && !in_array($active_user->id, [610, 608]), function ($q) use ($active_user) {
+            ->when(($active_user->isBoss() || $active_user->isPM()) && !$active_user->isAdmin(), function ($q) use ($active_user) {
                 $q->whereHas('admins', function ($q) use ($active_user) {
                     $q->where('user_id', $active_user->id);
                 });
@@ -659,7 +656,7 @@ class CustomFormController extends Controller
     }
     public function save_survey_answer(Request $request){
 
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $survey = DB::transaction(function () use ($request, $active_user) {
             $survey = SurveyAnswer::firstOrCreate([
                 "id" => $request->survey_answer_id,
@@ -851,12 +848,13 @@ class CustomFormController extends Controller
     public function get_authorized_users() {
         $user_list = User::where('position_id', '<=', 6)
                         ->where('retire', 0)
+                        ->inActiveCommunity()
                         ->select('id', 'name', 'icon_path', 'icon_bg')
                         ->get();
         return response()->json($user_list);
     }
     public function get_my_surveys(Request $request) {
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $per_page = (int) $request->input('per_page', 10);
         $per_page = max(1, min($per_page, 50));
         $keyword = trim((string) $request->input('keyword', ''));
@@ -899,7 +897,7 @@ class CustomFormController extends Controller
         return response()->json($surveys);
     }
     public function get_board_forms(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $request->validate([
             'board_id' => 'required|integer',
         ]);
@@ -933,7 +931,7 @@ class CustomFormController extends Controller
             'params' => 'required|array',
             'params.prize' => 'integer|nullable',
         ]);
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $form = CustomForm::findOrFail($request->form_id);
         $user = $form->users()->where('users.id', $active_user->id)->first();
         if(!$user){

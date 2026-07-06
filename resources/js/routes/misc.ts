@@ -39,11 +39,79 @@ export const miscRoutes: RouteRecordRaw[] = [
     },
     {
         path: '/settings',
-        component: () => import('@/components/Settings/Settings.vue'),
+        component: () => import('@/components/Settings/SettingsLayout.vue'),
         name: 'settings',
         meta: {
             title: '設定',
         },
+        children: [
+            {
+                path: 'password',
+                name: 'settings-password',
+                meta: { title: 'パスワードの変更' },
+                component: () => import('@/components/Settings/panels/PasswordPanel.vue'),
+            },
+            {
+                path: 'two-factor',
+                name: 'settings-two-factor',
+                meta: { title: '二段階認証' },
+                component: () => import('@/components/Settings/panels/TwoFactorPanel.vue'),
+            },
+            {
+                path: 'email-otp',
+                name: 'settings-email-otp',
+                meta: { title: 'メール二段階認証' },
+                component: () => import('@/components/Settings/panels/EmailOtpPanel.vue'),
+            },
+            {
+                path: 'passkeys',
+                name: 'settings-passkeys',
+                meta: { title: 'パスキー' },
+                component: () => import('@/components/Settings/panels/PasskeysPanel.vue'),
+            },
+            {
+                path: 'color',
+                name: 'settings-color',
+                meta: { title: 'カラー設定' },
+                component: () => import('@/components/Settings/panels/ColorPanel.vue'),
+            },
+            {
+                path: 'theme',
+                name: 'settings-theme',
+                meta: { title: 'テーマ設定' },
+                component: () => import('@/components/Settings/panels/ThemePanel.vue'),
+            },
+            {
+                path: 'signature',
+                name: 'settings-signature',
+                meta: { title: 'マイサイン' },
+                component: () => import('@/components/Settings/panels/SignaturePanel.vue'),
+            },
+            {
+                path: 'schedule',
+                name: 'settings-schedule',
+                meta: { title: 'スケジュール設定' },
+                component: () => import('@/components/Settings/panels/SchedulePanel.vue'),
+            },
+            {
+                path: 'notification',
+                name: 'settings-notification',
+                meta: { title: '通知設定' },
+                component: () => import('@/components/Settings/panels/NotificationPanel.vue'),
+            },
+            {
+                path: 'notification-guide',
+                name: 'settings-notification-guide',
+                meta: { title: '通知設定案内' },
+                component: () => import('@/components/Settings/panels/NotificationGuidePanel.vue'),
+            },
+            {
+                path: 'footer-menu',
+                name: 'settings-footer-menu',
+                meta: { title: 'フッターメニュー表示' },
+                component: () => import('@/components/Settings/panels/FooterMenuPanel.vue'),
+            },
+        ],
     },
     {
         path: '/help',

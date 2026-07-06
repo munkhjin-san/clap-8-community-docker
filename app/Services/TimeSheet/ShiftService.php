@@ -62,14 +62,14 @@ class ShiftService
             ->where('user_id', $userId)
             ->whereYear('shift_day', $year)
             ->whereMonth('shift_day', $month)
-            ->when($requestedShiftType === 3, fn ($q) => $q->where('shift_type', 3))
+            ->when($requestedShiftType === shiftType::idFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE), fn ($q) => $q->whereIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE)))
             ->with([
-                'shiftType:id,name,abbreviation,value,full_day',
+                'shiftType:id,name,abbreviation,value,full_day,category,hours',
                 'department:id,name',
                 'old_shift' => fn ($q) =>
                     $q->withTrashed()
                       ->select('id', 'shift_day', 'shift_type', 'department_id')
-                      ->with(['shiftType:id,name,abbreviation,value'])
+                      ->with(['shiftType:id,name,abbreviation,value,full_day,category,hours'])
             ])
             ->orderByDesc('created_at')
             ->get();
@@ -80,7 +80,7 @@ class ShiftService
         return shiftRecord::query()
             ->where('user_id', $userId)
             ->whereYear('shift_day', $year)
-            ->where('shift_type', 16)
+            ->where('shift_type', shiftType::idFor(shiftType::CATEGORY_SPECIAL_LEAVE_ODA))
             ->exists();
     }
     private function remainingSpecialHoliday(?string $userPosition, int $usedSpecialHoliday): int
@@ -102,52 +102,52 @@ class ShiftService
     }
     private function countSpecialHoliday(int $userId, int $year): int
     {
-        
+        // 特別休暇 (special_holiday, glowd id 27) taken this year — feeds the
+        // general_position quota in remainingSpecialHoliday(). idsFor returns []
+        // in envs without a special_holiday shift type, so this yields 0 there.
         return shiftRecord::query()
             ->where('user_id', $userId)
             ->whereYear('shift_day', $year)
-            ->where('shift_type', 27)
+            ->whereIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_SPECIAL_HOLIDAY))
             ->count();
     }
 
     private function getAvailableShiftTypes(User $user)
     {
+        // Selectable shift types are now configured per community role
+        // (community_role_shift_type), replacing the old position_id rules. The
+        // old general_position (C-G) branch gated special_holiday (id 27) — per
+        // product decision that gate is buried for now; 27 is assigned to every
+        // role via migration and the remainingSpecialHoliday quota still limits
+        // bookings. work_type and UNUSED_IDS remain orthogonal code-side filters.
         return shiftType::query()
-            ->when(
-                $user->position_id == 15,
-                fn ($q) => $q->whereIn('id', [5, 1]),
-                fn ($q) => $this->applyPositionRules($q, $user)
-            )
+            ->where('active', 1) // inactive types are hidden from selection (still counted in calc)
+            ->whereIn('id', $this->selectableShiftTypeIds($user))
             ->when(
                 $user->work_type == 0,
-                fn ($q) => $q->where('id', '!=', shiftType::LEGAL_HOLIDAY_ID)
-            )
-            ->when(
-                $user->position_id == 12,
-                fn ($q) => $q->whereNotIn('id', [19,20,21,22,23,24,25,26])
+                fn ($q) => $q->where('id', '!=', shiftType::idFor(shiftType::CATEGORY_LEGAL_HOLIDAY))
             )
             ->whereNotIn('id', shiftType::UNUSED_IDS)
             ->get();
     }
 
-    private function applyPositionRules($query, User $user)
+    /**
+     * Shift type ids the user's community role may select. Falls back to all
+     * shift types if the user has no resolvable membership (edge: never in a
+     * normal authenticated request, where ResolveActiveCommunity has run).
+     */
+    private function selectableShiftTypeIds(User $user): array
     {
-        return $query->when(
-            $user->position_id <= 11 || $user->position_id == 16,
-            function ($q) use ($user) {
-                if ($this->isPrivilegedPosition($user)) {
-                    return $q;
-                }
+        $roleId = app(\App\Services\Community\CommunityResolver::class)->membershipFor($user)?->community_role_id;
 
-                return $q->whereNotIn('id', [17, 27]);
-            },
-            fn ($q) => $q->whereNotIn('id', [14, 15, 16, 27])
-        );
-    }
+        if (!$roleId) {
+            return shiftType::query()->pluck('id')->all();
+        }
 
-    private function isPrivilegedPosition(User $user): bool
-    {
-        return in_array($user->general_position, ['C', 'D', 'E', 'F', 'G'], true);
+        return \Illuminate\Support\Facades\DB::table('community_role_shift_type')
+            ->where('community_role_id', $roleId)
+            ->pluck('shift_type_id')
+            ->all();
     }
 
     private function calculateTotalHolidays(int $userId, int $year, int $month, int $workMinutesPerDay): int
@@ -156,8 +156,8 @@ class ShiftService
             ->where('user_id', $userId)
             ->whereYear('shift_day', $year)
             ->whereMonth('shift_day', '!=', $month)
-            ->whereIn('shift_type', [0, 18, 19, 20, 21, 22, 23, 24, 25, 26])
-            ->with('shiftType:id,value,full_day')
+            ->whereIn('shift_type', shiftType::idsFor([shiftType::CATEGORY_DAY_OFF, shiftType::CATEGORY_LEGAL_HOLIDAY, shiftType::CATEGORY_HOLIDAY_WORK]))
+            ->with('shiftType:id,value,full_day,category')
             ->get();
 
         return $shifts->sum(function ($shift) use ($workMinutesPerDay) {
@@ -165,7 +165,7 @@ class ShiftService
 
             if (! $type) return 0;
 
-            if ($type->full_day == 2 || $type->id == 0) {
+            if ($type->full_day == 2 || $type->category === shiftType::CATEGORY_DAY_OFF) {
                 return $workMinutesPerDay;
             }
 

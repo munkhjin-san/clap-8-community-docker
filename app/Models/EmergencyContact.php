@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCommunity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EmergencyContact extends Model
 {
+    use BelongsToCommunity;
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_COMPLETE = 'complete';

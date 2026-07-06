@@ -77,7 +77,9 @@
                             class="perm-edit"
                             title="ロール名・メンバーを編集"
                             @click="openRoleModal(selectedRole)"
-                        >編集</button>
+                        >
+                            <Edit fill="currentColor" size="16"/>
+                        </button>
                         <button
                             v-if="!isProtectedRole(selectedRole)"
                             type="button"
@@ -85,7 +87,9 @@
                             :disabled="selectedRole.memberships_count > 0 || roleSavingId === selectedRole.id"
                             :title="selectedRole.memberships_count > 0 ? '所属メンバーがいるロールは削除できません' : 'ロール削除'"
                             @click="deleteRole(selectedRole)"
-                        >削除</button>
+                        >
+                            <Trash fill="currentColor" size="16"/>
+                        </button>
                     </div>
                 </header>
 
@@ -93,48 +97,70 @@
                     管理者は全ての権限を持つ固定ロールです。編集はできません。
                 </div>
 
-                <div v-for="group in bladeGroups" :key="group.key" class="perm-section">
+                <div v-for="group in capabilityGroups" :key="group.key" class="perm-section">
                     <h4 class="perm-section-title">{{ group.name }}</h4>
 
-                    <!-- app blades: toggle tiles -->
+                    <!-- app capabilities: toggle tiles -->
                     <div v-if="group.key === 'apps'" class="perm-tiles">
                         <button
-                            v-for="blade in group.blades"
-                            :key="blade.key"
+                            v-for="capability in group.capabilities"
+                            :key="capability.key"
                             type="button"
-                            :class="['perm-tile', { on: isOn(blade.key), locked: isProtectedRole(selectedRole) }]"
+                            :class="['perm-tile', { on: isOn(capability.key), locked: isProtectedRole(selectedRole) }]"
                             :disabled="isProtectedRole(selectedRole) || roleSavingId === selectedRole.id"
-                            :title="blade.description"
-                            @click="toggleBlade(blade.key)"
+                            :title="capability.description"
+                            @click="toggleCapability(capability.key)"
                         >
                             <span class="perm-tile-check" aria-hidden="true">
                                 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" height="10" viewBox="0 0 38 32" fill="currentColor">
                                     <path d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path>
                                 </svg>
                             </span>
-                            <span class="perm-tile-name">{{ blade.name }}</span>
+                            <span class="perm-tile-name">{{ capability.name }}</span>
                         </button>
                     </div>
 
-                    <!-- action blades: labeled switches -->
+                    <!-- action capabilities: labeled switches -->
                     <div v-else class="perm-actions">
                         <label
-                            v-for="blade in group.blades"
-                            :key="blade.key"
+                            v-for="capability in group.capabilities"
+                            :key="capability.key"
                             :class="['perm-action', { disabled: isProtectedRole(selectedRole) }]"
                         >
                             <div class="perm-action-text">
-                                <strong>{{ blade.name }}</strong>
-                                <span v-if="blade.description">{{ blade.description }}</span>
+                                <strong>{{ capability.name }}</strong>
+                                <span v-if="capability.description">{{ capability.description }}</span>
                             </div>
                             <input
                                 type="checkbox"
                                 class="perm-switch"
-                                :checked="isOn(blade.key)"
+                                :checked="isOn(capability.key)"
                                 :disabled="isProtectedRole(selectedRole) || roleSavingId === selectedRole.id"
-                                @change="toggleBlade(blade.key)"
+                                @change="toggleCapability(capability.key)"
                             >
                         </label>
+                    </div>
+                </div>
+
+                <!-- shift types: per-role selectable set (catalog CRUD lives in 勤怠管理 › シフト種別) -->
+                <div class="perm-section">
+                    <h4 class="perm-section-title">シフト種別</h4>
+                    <div class="perm-tiles">
+                        <button
+                            v-for="st in shiftTypes"
+                            :key="st.id"
+                            type="button"
+                            :class="['perm-tile', { on: isShiftOn(st.id), locked: isProtectedRole(selectedRole) }]"
+                            :disabled="isProtectedRole(selectedRole) || roleSavingId === selectedRole.id"
+                            :title="st.name"
+                            @click="toggleShiftType(st.id)"
+                        >
+                            <span class="perm-tile-check" aria-hidden="true">
+                                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" height="10" viewBox="0 0 38 32" fill="currentColor"><path d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
+                            </span>
+                            <span class="perm-tile-name">{{ st.abbreviation || st.name }}</span>
+                        </button>
+                        <p v-if="!shiftTypes.length" class="perm-shift-empty">シフト種別がありません。「勤怠管理 › シフト種別」から追加してください。</p>
                     </div>
                 </div>
             </section>
@@ -160,6 +186,8 @@ import FloatButton from '@/components/Global/FloatButton.vue';
 import AddIcon from '@/components/Form/AddIcon.vue';
 import CommunityRoleEditModal from './CommunityRoleEditModal.vue';
 import type { User } from '@/interface/globalInterface';
+import Edit from '@/components/Icons/Edit.vue';
+import Trash from '@/components/Icons/Trash.vue';
 
 type CommunityRole = {
     id: number
@@ -167,13 +195,15 @@ type CommunityRole = {
     name: string
     sort_order?: number
     capabilities: string[]
+    shift_type_ids: number[]
     is_system?: boolean
     memberships_count: number
     members: User[]
 }
 
-type BladeItem = { key: string; name: string; description?: string; kind?: string }
-type BladeGroup = { key: string; name: string; description?: string; blades: BladeItem[] }
+type CapabilityItem = { key: string; name: string; description?: string; kind?: string }
+type CapabilityGroup = { key: string; name: string; description?: string; capabilities: CapabilityItem[] }
+type ShiftType = { id: number; name: string; abbreviation?: string | null; value?: number | null; full_day?: boolean | null }
 
 const auth = useAuthUserStore()
 const api = useApi()
@@ -189,10 +219,14 @@ const rolesLoading = ref(false)
 const roleSavingId = ref<number | null>(null)
 const roles = ref<CommunityRole[]>([])
 const roleDraftNames = ref<Record<number, string>>({})
-const bladeGroups = ref<BladeGroup[]>([])
+const capabilityGroups = ref<CapabilityGroup[]>([])
 const selectedRoleId = ref<number | null>(null)
 const roleModalOpen = ref(false)
 const roleModalTarget = ref<CommunityRole | null>(null)
+
+// Shift types: the community catalog (for per-role assignment tiles). The
+// catalog CRUD itself lives in WorkControl › シフト種別 (ShiftTypeManager.vue).
+const shiftTypes = ref<ShiftType[]>([])
 
 // null target = create mode; a role = edit mode. Same modal handles both.
 const openRoleModal = (role: CommunityRole | null) => {
@@ -214,18 +248,18 @@ const isProtectedRole = (role: CommunityRole): boolean => role.key === 'admin'
 const selectedRole = computed<CommunityRole | null>(
     () => roles.value.find(role => role.id === selectedRoleId.value) ?? null
 )
-const totalBlades = computed(() => bladeGroups.value.reduce((sum, group) => sum + group.blades.length, 0))
+const totalCapabilities = computed(() => capabilityGroups.value.reduce((sum, group) => sum + group.capabilities.length, 0))
 
 const grantRatio = (role: CommunityRole): number => {
     if(isProtectedRole(role)) return 100
-    if(!totalBlades.value) return 0
-    return Math.round((role.capabilities.length / totalBlades.value) * 100)
+    if(!totalCapabilities.value) return 0
+    return Math.round((role.capabilities.length / totalCapabilities.value) * 100)
 }
 
-const isOn = (blade: string): boolean => {
+const isOn = (capability: string): boolean => {
     const role = selectedRole.value
     if(!role) return false
-    return isProtectedRole(role) || role.capabilities.includes(blade)
+    return isProtectedRole(role) || role.capabilities.includes(capability)
 }
 
 const syncRoleDraftNames = () => {
@@ -236,20 +270,23 @@ const loadPermissionSettings = async () => {
     if(!canManageRoles.value || rolesLoading.value) return
     rolesLoading.value = true
     try {
-        const [roleResponse, bladeResponse] = await Promise.all([
+        const [roleResponse, bladeResponse, shiftResponse] = await Promise.all([
             api.get('/community_context/roles'),
             api.get('/community_context/capabilities'),
+            api.get('/community_context/shift_types'),
         ])
         roles.value = ((roleResponse ?? []) as CommunityRole[])
             .map(role => ({
                 ...role,
                 capabilities: role.capabilities ?? [],
+                shift_type_ids: role.shift_type_ids ?? [],
                 members: role.members ?? [],
                 memberships_count: role.memberships_count ?? 0,
             }))
             .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
         syncRoleDraftNames()
-        bladeGroups.value = (bladeResponse?.groups ?? []) as BladeGroup[]
+        capabilityGroups.value = (bladeResponse?.groups ?? []) as CapabilityGroup[]
+        shiftTypes.value = (shiftResponse ?? []) as ShiftType[]
         if(!selectedRole.value){
             // default to the first editable (non-admin) role, else the first role
             selectedRoleId.value = (roles.value.find(role => !isProtectedRole(role)) ?? roles.value[0])?.id ?? null
@@ -311,19 +348,20 @@ const updateRole = async (
     return {
         ...updated,
         capabilities: updated.capabilities ?? [],
+        shift_type_ids: updated.shift_type_ids ?? role.shift_type_ids ?? [],
         members: updated.members ?? role.members ?? [],
         memberships_count: updated.memberships_count ?? role.memberships_count ?? 0,
     }
 }
 
-const toggleBlade = async (blade: string) => {
+const toggleCapability = async (capability: string) => {
     const role = selectedRole.value
     if(!role || isProtectedRole(role) || roleSavingId.value === role.id) return
 
-    const has = role.capabilities.includes(blade)
+    const has = role.capabilities.includes(capability)
     const nextCapabilities = has
-        ? role.capabilities.filter(item => item !== blade)
-        : Array.from(new Set([...role.capabilities, blade]))
+        ? role.capabilities.filter(item => item !== capability)
+        : Array.from(new Set([...role.capabilities, capability]))
 
     // optimistic update
     const previous = role.capabilities
@@ -341,6 +379,39 @@ const toggleBlade = async (blade: string) => {
         roleSavingId.value = null
     }
 }
+
+// ----- Per-role shift-type assignment -----
+const isShiftOn = (id: number): boolean => {
+    const role = selectedRole.value
+    if(!role) return false
+    return isProtectedRole(role) || (role.shift_type_ids ?? []).includes(id)
+}
+
+const toggleShiftType = async (id: number) => {
+    const role = selectedRole.value
+    if(!role || isProtectedRole(role) || roleSavingId.value === role.id) return
+
+    const current = role.shift_type_ids ?? []
+    const next = current.includes(id)
+        ? current.filter(item => item !== id)
+        : Array.from(new Set([...current, id]))
+
+    const previous = current
+    roles.value = roles.value.map(item => item.id === role.id ? { ...item, shift_type_ids: next } : item)
+
+    roleSavingId.value = role.id
+    try {
+        const res = await api.patch(`/community_context/roles/${role.id}/shift-types`, { shift_type_ids: next }) as { shift_type_ids: number[] }
+        const confirmed = res?.shift_type_ids ?? next
+        roles.value = roles.value.map(item => item.id === role.id ? { ...item, shift_type_ids: confirmed } : item)
+    } catch (error) {
+        roles.value = roles.value.map(item => item.id === role.id ? { ...item, shift_type_ids: previous } : item)
+        throw error
+    } finally {
+        roleSavingId.value = null
+    }
+}
+
 
 onMounted(loadPermissionSettings)
 watch(canManageRoles, (canManage) => { if(canManage) void loadPermissionSettings() })
@@ -470,7 +541,7 @@ watch(canManageRoles, (canManage) => { if(canManage) void loadPermissionSettings
 }
 .perm-tile{
     display: flex; align-items: center; gap: 8px;
-    padding: 11px 12px; border-radius: 10px; cursor: pointer;
+    padding: 8px 10px; border-radius: 50px; cursor: pointer;
     border: solid thin var(--formBorder); background: var(--background-color);
     color: var(--primary-color); font-size: 13px; text-align: left;
     transition: background 0.12s, border-color 0.12s;
@@ -478,10 +549,10 @@ watch(canManageRoles, (canManage) => { if(canManage) void loadPermissionSettings
 .perm-tile:hover:not(:disabled){ border-color: var(--primary-color); }
 .perm-tile .perm-tile-check{
     display: inline-flex; align-items: center; justify-content: center;
-    width: 18px; height: 18px; border-radius: 6px; flex: 0 0 auto;
+    width: 18px; height: 18px; border-radius: 999px; flex: 0 0 auto;
     border: solid thin var(--formBorder); color: transparent; font-size: 12px;
 }
-.perm-tile.on{ background: color-mix(in srgb, var(--primary-color) 12%, var(--background-color)); border-color: var(--primary-color); }
+.perm-tile.on{ background: var(--bg3); border-color: var(--primary-color); }
 .perm-tile.on .perm-tile-check{ background: var(--primary-color); border-color: var(--primary-color); color: var(--background-color); }
 .perm-tile.on .perm-tile-name{ font-weight: 600; }
 .perm-tile.locked{ cursor: default; opacity: 0.85; }
@@ -517,5 +588,12 @@ watch(canManageRoles, (canManage) => { if(canManage) void loadPermissionSettings
 @media screen and (max-width: 900px){
     .perm-layout{ grid-template-columns: 1fr; }
     .perm-window{ padding: 12px; }
+}
+
+/* ----- shift types (per-role assignment tiles reuse .perm-tile) ----- */
+.perm-shift-empty {
+    font-size: 12px;
+    color: var(--text-secondary, #888);
+    margin: 4px 0;
 }
 </style>

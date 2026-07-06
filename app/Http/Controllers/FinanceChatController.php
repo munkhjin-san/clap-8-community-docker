@@ -20,16 +20,10 @@ class FinanceChatController extends Controller
     // Role helpers
     // =========================================================================
 
-    private function active_user(): \App\Models\User
-    {
-        $user = Auth::user();
-        return $user;
-    }
 
     private static function resolveRole(\App\Models\User $user): string
     {
-        $adminIds = [608, 610];
-        if (in_array($user->id, $adminIds)) return 'admin';
+        if ($user->isAdmin()) return 'admin';
         $pos = (int) ($user->position_id ?? 99);
         if ($pos <= 5) return 'director';    // 取締役・代表
         if ($pos <= 9) return 'manager';     // 執行役員・マネージャー・SV
@@ -423,7 +417,7 @@ TXT;
             return response()->json(['message' => 'ユーザーの最新メッセージを入力してください。'], 422);
         }
 
-        $user  = $this->active_user();
+        $user  = Auth::user();
         $role  = self::resolveRole($user);
         $now   = Carbon::now();
         $financeFiscalYear = $now->month >= 3 ? (int) $now->year : (int) $now->year - 1;

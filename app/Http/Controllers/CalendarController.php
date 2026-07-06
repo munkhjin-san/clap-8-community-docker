@@ -28,9 +28,6 @@ class CalendarController extends Controller
     public function __construct(GoogleController $googleController) {
         $this->googleController = $googleController;
     }
-    private function active_user(){
-        return Auth::user();
-    }
     public function urlsafe_base64_encode($str){
         return str_replace(array('+', '/', '='), array('-', '_', ''), base64_encode($str));
     }
@@ -249,7 +246,7 @@ class CalendarController extends Controller
         $validatedData = $request->validate([
             'day' => 'required',
         ]);
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $myGroupCheck = MyGroup::where('user_id', $active_user->id)->exists();
         
         if(!$myGroupCheck){
@@ -268,7 +265,7 @@ class CalendarController extends Controller
                     ->pluck('selected_users.*.id')
                     ->flatten()
                     ->toArray();
-        // $myWorkGroups = MyWorkGroup::where('user_id', $this->active_user()->id)->pluck('work_group_id')->toArray();
+        // $myWorkGroups = MyWorkGroup::where('user_id', Auth::user()->id)->pluck('work_group_id')->toArray();
 
         $work_group_users_id = [];
         
@@ -413,21 +410,21 @@ class CalendarController extends Controller
         // WEEKLY_REPEAT
         if($request->repetition_type == 1){
             $record_ids = $this->execute_weekly_record($data, [], true);
-            $r_group_id = $request['repeat_span']['weekly']['repeat_date_from'] . $this->active_user()->id . uniqid();
+            $r_group_id = $request['repeat_span']['weekly']['repeat_date_from'] . Auth::user()->id . uniqid();
             $update_main_values = $this->execute_main_data($record_ids, $data, $r_group_id, $has_prev_date);
             return response()->json($record_ids);
         }
         // MONTHLY_REPEAT
         if($request->repetition_type == 2){
             $record_ids = $this->execute_monthly_record($data, [], true);
-            $r_group_id = $request['repeat_span']['monthly']['repeat_date_from'] . $this->active_user()->id . uniqid();
+            $r_group_id = $request['repeat_span']['monthly']['repeat_date_from'] . Auth::user()->id . uniqid();
             $update_main_values = $this->execute_main_data($record_ids, $data, $r_group_id, $has_prev_date);
             return response()->json($record_ids);
         }
         // YEARLY_REPEAT
         if($request->repetition_type == 3){
             $record_ids = $this->execute_yearly_record($data, [], true);
-            $r_group_id = $request['repeat_span']['yearly']['year_from'] . $request['repeat_span']['yearly']['selected_month'] . $this->active_user()->id . uniqid();
+            $r_group_id = $request['repeat_span']['yearly']['year_from'] . $request['repeat_span']['yearly']['selected_month'] . Auth::user()->id . uniqid();
             $update_main_values = $this->execute_main_data($record_ids, $data, $r_group_id, $has_prev_date);
             return response()->json($record_ids);
         }
@@ -495,7 +492,7 @@ class CalendarController extends Controller
             "release_flag" => $request['release_flag'],
             "edit_all" => $request['edit_all'],
             "members_only" => $request['members_only'],
-            "updated_user" => $this->active_user()->id,
+            "updated_user" => Auth::user()->id,
             "date_start" => $date_start_ready,
             "date_end" => $date_end_ready,
             "department_id" => $request['department_id']
@@ -740,7 +737,7 @@ class CalendarController extends Controller
 
             // }
         }
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $records = CalendarRecord::whereIn('id', $ids)->update([
             "title" => $request['title'],
             "temp_flag" => $request['temp_flag'] ?? 0,
@@ -1011,7 +1008,7 @@ class CalendarController extends Controller
                         ->select('id', 'name', 'icon_path', 'icon_bg')
                         ->where('id', '>', 105)
                         ->get();
-        $groups = MyGroup::where('user_id', $this->active_user()->id)->where('deleted_flag', 0)->with('users')->get();
+        $groups = MyGroup::where('user_id', Auth::user()->id)->where('deleted_flag', 0)->with('users')->get();
         $res = [
             "my_groups" => $groups,
             "all_members" => $members,
@@ -1022,7 +1019,7 @@ class CalendarController extends Controller
         return response()->json($res); 
     }
     public function select_work_group(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $my_work_groups = MyWorkGroup::where('user_id', $active_user->id)->delete();
         $create = MyWorkGroup::create([
             'user_id' => $active_user->id,
@@ -1041,7 +1038,7 @@ class CalendarController extends Controller
            
             if($request->by == 'byGroup'){
                 $user->update(['selected' => $request->value]);
-                // $unselect = MyGroup::where('user_id', $this->active_user()->id)->whereNot('id', $request->group_id)->update(['selected' => false]);
+                // $unselect = MyGroup::where('user_id', Auth::user()->id)->whereNot('id', $request->group_id)->update(['selected' => false]);
             }
             
             return response()->json($user);
@@ -1051,7 +1048,7 @@ class CalendarController extends Controller
                 'updated_at' => now(),
                 'selected_as_calendar_member' => $request->value
             ]);
-            // $unselect = MyGroup::where('user_id', $this->active_user()->id)->whereNot('id', $request->group_id)->update(['selected' => false]);
+            // $unselect = MyGroup::where('user_id', Auth::user()->id)->whereNot('id', $request->group_id)->update(['selected' => false]);
             return response()->json($rec); 
         }
         
@@ -1063,15 +1060,15 @@ class CalendarController extends Controller
         return response()->json($groups); 
     }
     public function calendar_more_users(Request $request){
-        $user = MyGroup::where('user_id', $this->active_user()->id)->latest()->first();
+        $user = MyGroup::where('user_id', Auth::user()->id)->latest()->first();
         $rec = $user->users()->pluck('id')->toArray();        
-        $close_users = User::whereIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_path', 'icon_bg')->get();
-        $other_users = User::whereNotIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_path', 'icon_bg')->get();
+        $close_users = User::whereIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->inActiveCommunity()->select('id', 'name', 'icon_path', 'icon_bg')->get();
+        $other_users = User::whereNotIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->inActiveCommunity()->select('id', 'name', 'icon_path', 'icon_bg')->get();
         $merged_users = $close_users->concat($other_users)->toArray();
         return response()->json($merged_users); 
     }
     public function set_more_members(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         if($request->id){
             $group = MyGroup::findOrFail($request->id);
           
@@ -1088,7 +1085,7 @@ class CalendarController extends Controller
         return response()->json($request->users); 
     }
     public function get_calendar_search(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $gr_list = MyGroup::where('user_id', $active_user->id)->where('selected', 1)->with('selected_users')->get();
         $all_ids = $gr_list->pluck('selected_users')->flatten()->pluck('id')->toArray();
         $list = array_unique($all_ids);
@@ -1188,7 +1185,7 @@ class CalendarController extends Controller
         $record->update([
             "date_start" => $new_start_time,
             "date_end" => $new_end_time,
-            "updated_user" => $this->active_user()->id
+            "updated_user" => Auth::user()->id
         ]);
         $res = CalendarRecord::where('id', $record->id)
         ->with('calendar_users')
@@ -1276,7 +1273,7 @@ class CalendarController extends Controller
         $res = [
             "success" => $update,
             "key" => $key,
-            "url" => url('/export_ical?id='.$this->active_user()->id.'&token='.$key)
+            "url" => url('/export_ical?id='.Auth::user()->id.'&token='.$key)
         ];
 
         return response()->json($res); 
@@ -1284,7 +1281,7 @@ class CalendarController extends Controller
         
     }
     public function get_possible_groups(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $list = boardRecord::where('private_flag', 0)->whereHas('board_to_users', function($q) use($active_user){
             $q->where('user_id', $active_user->id);
         })->with(['board_to_users' => function($q){
@@ -1339,15 +1336,14 @@ class CalendarController extends Controller
         return response()->json($sortedProjects);
     }
     public function get_schedule_summaries(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
 
         $record = CalendarRecord::findOrFail($request->id);
 
         $members = $record->calendar_users()->pluck('id')->toArray();
         $view_users = $record->calendar_view_users()->pluck('id')->toArray();
-        $override = [608, 610];
-        $all_users = array_merge($members, $view_users, $override);
-        $hasPrivilage = in_array($active_user->id, $all_users);
+        $all_users = array_merge($members, $view_users);
+        $hasPrivilage = in_array($active_user->id, $all_users) || $active_user->isAdmin();
         if(!$hasPrivilage){
             throw ValidationException::withMessages(['message' => '閲覧権限がありません。']);
         }
@@ -1509,7 +1505,7 @@ class CalendarController extends Controller
             'status' => 'required|in:0,1',
         ]);
 
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $record = CalendarRecord::findOrFail($request->id);
         switch ($request->status) {
             case 1:

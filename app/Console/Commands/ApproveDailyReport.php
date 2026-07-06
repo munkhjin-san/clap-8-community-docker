@@ -6,6 +6,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use App\Models\shiftRecord;
+use App\Models\shiftType;
 use App\Models\TimecardProjectSegment;
 use App\Models\timecardRecord;
 use App\Services\TimeSheet\WorkReportTimeService;
@@ -102,7 +103,7 @@ class ApproveDailyReport extends Command
         if (
             (int) $timecard->status_flag !== timecardRecord::STATUS_SUBMITTED
             || !$shift
-            || (int) $shift->shift_type !== 1
+            || !in_array((int) $shift->shift_type, shiftType::idsFor(shiftType::CATEGORY_WORK), true)
             || blank($shift->department_id)
             || blank($shift->start_time)
             || blank($shift->end_time)

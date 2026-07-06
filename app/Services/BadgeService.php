@@ -270,7 +270,7 @@ final class BadgeService
     }
     public function asset(User $user) {
         $projects = $this->members_of_project_managed_by_user($user);
-        if(empty($projects) && $user->id != 610 && $user->id != 608){
+        if(empty($projects) && !$user->isAdmin()){
             return [];
         }
         $project_ids = array_map(function($project){
@@ -291,7 +291,7 @@ final class BadgeService
                         $query->where('value', 3)->whereNull('approved_by');
                     });
                 })->orWhere(function($query) use ($user){
-                    $query->when($user->id == 610 || $user->id == 608, function($query){
+                    $query->when($user->isAdmin(), function($query){
                         $query->whereHas('steps', function($query){
                             $query->whereIn('value', [4,7])->whereNull('approved_by');
                         });
@@ -340,7 +340,7 @@ final class BadgeService
     public function financeComment(User $user) {
         $userId = $user->id;
 
-        $isDirector = ($user->position_id < 6) || ($userId === 610);
+        $isDirector = $user->isBoss() || ($userId === 610);
 
         if ($isDirector) {
             $projectIds = ProjectRecord::query()->pluck('id');
@@ -515,9 +515,8 @@ final class BadgeService
      */
     public function getProjectUnreadCount(Authenticatable $user): array
     {
-        $isPrivileged = $user->position_id < 6
-            || $user->id === 610
-            || $user->id === 608;
+        $isPrivileged = $user->isBoss()
+            || $user->isAdmin();
         
         $visibleRecords = $isPrivileged
             ? ProjectRecord::select('id')
@@ -570,9 +569,9 @@ final class BadgeService
     public function checkItemConfirm(Authenticatable $user): array
     {
         $query = ProjectRecord::query();
-        if (in_array($user->id, [610, 608], true)) {
+        if ($user->isAdmin()) {
             $query->whereIn('status', ['pending_director', 'director_approved']);
-        } elseif ($user->position_id < 6) {
+        } elseif ($user->isBoss()) {
             $query->where('status', 'pending_director');
         }  else {
             $query->whereHas('manager', fn ($q) => $q->whereKey($user->id))

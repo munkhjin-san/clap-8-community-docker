@@ -27,9 +27,6 @@ class TaskController extends Controller
     public function __construct(SharedService $sharedService) {
         $this->sharedService = $sharedService;
     }
-    private function active_user(){
-        return Auth::user();
-    }
     public function getTask(Request $request){
         $user_id = $request->user_id;
         $progress_flag = $request->progress_flag;
@@ -65,7 +62,7 @@ class TaskController extends Controller
         }  
     }  
     public function addBoardTask(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $request->validate([
             'board_id' => 'required',
             'qualified_users' => 'required',
@@ -112,7 +109,7 @@ class TaskController extends Controller
         return response()->json(['socket' =>  $socket]);
     }
     public function addTask(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $request->validate([
             'executors' => 'required',
             'remarks' => 'required',
@@ -207,7 +204,7 @@ class TaskController extends Controller
         return $subTask;
     }
     public function completeTask(Request $request){ 
-        $active_user = $this->active_user();        
+        $active_user = Auth::user();        
         $task = taskRecord::findOrFail($request->id);
         $my = $task->executors()->updateExistingPivot($active_user->id, $request->params);
        
@@ -242,7 +239,7 @@ class TaskController extends Controller
         return;
     }
     public function completeSubTask(Request $request){ 
-        $active_user = $this->active_user();   
+        $active_user = Auth::user();   
         taskRecord::findOrFail($request->id)
         ->executors()
         ->updateExistingPivot($active_user->id, $request->params);
@@ -261,7 +258,7 @@ class TaskController extends Controller
         return response()->json(['socket' =>  $socket]);  
     }
     public function updateTask(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $task = taskRecord::findOrFail($request->task_id);
         $task->update(['end_at' => $request->date, 'updated_user' => $active_user->id]);
         return response()->json($request);
@@ -312,7 +309,7 @@ class TaskController extends Controller
         return response()->json($data);
     }
     public function get_task_badge(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $allBoard = boardRecord::whereHas('board_to_users', function($q) use($active_user){
             $q->where('user_id', $active_user->id)->where('deleted_status','=', 0);
         })->pluck('id')->toArray();
@@ -374,7 +371,7 @@ class TaskController extends Controller
         $request->validate([
             'task_id' => 'required',
         ]); 
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $task = taskRecord::findOrFail($request->task_id);
         $task->executors()->updateExistingPivot($active_user->id, ['checked_at' => now()]);
         return response(200);
@@ -524,7 +521,7 @@ class TaskController extends Controller
         $request->validate([
             'task_id' => 'required',
         ]);
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         
         
         $taskUser = taskUser::where('record_id', $request->task_id)
@@ -544,7 +541,7 @@ class TaskController extends Controller
     }
 
     public function task_approve(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $request->validate([
             'user_id' => 'required',
             'task_id' => 'required',
@@ -578,7 +575,7 @@ class TaskController extends Controller
         $request->validate([
             'task_id' => 'required',
         ]);
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         
         
         $taskUser = taskUser::where('record_id', $request->task_id)
@@ -594,7 +591,7 @@ class TaskController extends Controller
         $request->validate([
             'task_id' => 'required'
         ]);
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $taskUser = taskUser::where('record_id', $request->task_id)
                     ->where('user_id', $active_user->id)
                     ->first();

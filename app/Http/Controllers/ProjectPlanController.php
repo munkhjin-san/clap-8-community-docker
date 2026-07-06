@@ -24,10 +24,6 @@ class ProjectPlanController extends Controller
     public function __construct(private CoAInstaller $coaInstaller)
     {
     }
-    private function activeUser(): User
-    {
-        return Auth::user();
-    }
     /**
      * Load plan grid: periods (12 months), accounts, and existing amounts.
      */
@@ -497,7 +493,7 @@ class ProjectPlanController extends Controller
 
     public function unlock(ProjectRecord $project, Request $request)
     {
-        $user = $this->activeUser();
+        $user = Auth::user();
         abort_unless($user->isAdmin(), 403, '解除権限がありません。');
 
         $data = $request->validate([

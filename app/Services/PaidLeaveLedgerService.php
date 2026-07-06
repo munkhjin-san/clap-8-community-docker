@@ -745,7 +745,7 @@ class PaidLeaveLedgerService
             ->when($from, fn ($query) => $query->whereDate('shift_day', '>=', $from->toDateString()))
             ->when($to, fn ($query) => $query->whereDate('shift_day', '<=', $to->toDateString()))
             ->where(function ($query) {
-                $query->where('shift_type', 3)
+                $query->whereIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE))
                     ->orWhereHas('shiftType', function ($inner) {
                         $inner->where('name', 'like', '%有給%')
                             ->orWhere('name', 'like', '%年休%')
@@ -1102,7 +1102,7 @@ class PaidLeaveLedgerService
     {
         return shiftRecord::query()
             ->where('user_id', $userId)
-            ->where('shift_type', 3)
+            ->whereIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE))
             ->where('planned_year', $plannedYear)
             ->whereNull('deleted_at')
             ->whereNotExists(function ($query) {
@@ -1806,7 +1806,7 @@ class PaidLeaveLedgerService
             return true;
         }
 
-        if (in_array((int) $type->id, [0, shiftType::LEGAL_HOLIDAY_ID], true)) {
+        if (in_array((int) $type->id, shiftType::idsFor([shiftType::CATEGORY_DAY_OFF, shiftType::CATEGORY_LEGAL_HOLIDAY]), true)) {
             return false;
         }
 
@@ -2279,7 +2279,7 @@ class PaidLeaveLedgerService
 
     private function shouldDeferPlannedLeaveUntilFutureGrant(PaidLeaveAccount $account, shiftRecord $shift, PaidLeavePolicy $policy, int $amount): bool
     {
-        if ((int) $shift->shift_type !== 3 || $amount <= 0 || ! $shift->shift_day) {
+        if (!in_array((int) $shift->shift_type, shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE), true) || $amount <= 0 || ! $shift->shift_day) {
             return false;
         }
 
@@ -2516,7 +2516,7 @@ class PaidLeaveLedgerService
 
     private function plannedUsageYear(shiftRecord $shift): ?int
     {
-        if ((int) $shift->shift_type !== 3 || ! $shift->planned_year) {
+        if (!in_array((int) $shift->shift_type, shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE), true) || ! $shift->planned_year) {
             return null;
         }
 
@@ -2534,7 +2534,7 @@ class PaidLeaveLedgerService
 
         $name = (string) ($type->name ?? '');
 
-        return (int) $type->id === 3
+        return in_array((int) $type->id, shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE), true)
             || str_contains($name, '有給')
             || str_contains($name, '年休')
             || str_contains($name, '時間休日');
@@ -2542,7 +2542,7 @@ class PaidLeaveLedgerService
 
     private function usageTypeForShift(shiftRecord $shift): string
     {
-        if ((int) $shift->shift_type === 3) {
+        if (in_array((int) $shift->shift_type, shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE), true)) {
             return 'planned_shift';
         }
 
@@ -2572,7 +2572,7 @@ class PaidLeaveLedgerService
         }
 
         $minutesPerDay = $this->minutesPerLeaveDayForAccount($account, $policy);
-        if ((int) $type->id === 3 || (int) $type->full_day === 2) {
+        if (in_array((int) $type->id, shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE), true) || (int) $type->full_day === 2) {
             return $minutesPerDay;
         }
 

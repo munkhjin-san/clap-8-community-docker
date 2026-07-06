@@ -16,6 +16,7 @@ use App\Models\customFieldDataRecord;
 
 use App\Models\ProjectCase;
 use App\Models\shiftRecord;
+use App\Models\shiftType;
 use App\Models\PlannedLeaveChangeRequest;
 use App\Enums\PlannedLeaveChangeRequestStatus;
 
@@ -29,6 +30,7 @@ use App\Services\SharedService;
 use Carbon\Carbon;
 use App\Infrastructure\Kintone\KintoneClient;
 use App\Services\PaidLeaveLedgerService;
+use App\Services\Community\CommunityContext;
 
 
 class AdminWorkController extends Controller{
@@ -46,9 +48,6 @@ class AdminWorkController extends Controller{
     ) {
         $this->sharedService = $sharedService;
     }
-    private function active_user(){
-        return Auth::user();
-    }
 
     public function get_admin_work(Request $request) {
         abort_unless($request->user()->canManageTimesheets(), 403, 'この機能へのアクセス権限がありません。');
@@ -57,10 +56,14 @@ class AdminWorkController extends Controller{
         $today = Carbon::now();
         [$currentYear, $currentMonth] = explode('-', $request->month);
         $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント', '研修サポート'];
-        $ids = [608, 610];
+        $ids = User::whereCommunityRole('admin')->pluck('id')->all(); // exclude community admins from the report
+        // `User` is not community-scoped; confine the report to active-community
+        // members so the project_records join below cannot pull other communities.
+        $communityUserIds = app(CommunityContext::class)->userIds();
         $all_users = User::where('partner_flag', 0)
         ->whereNotIn('name', $ng_list)
         ->whereNotIn('id', $ids)
+        ->when($communityUserIds !== null, fn ($query) => $query->whereIn('id', $communityUserIds))
         ->where(function ($query) {
             $query->where('retire', 0)
                   ->orWhere('retire_date', '>=', Carbon::now());
@@ -118,12 +121,12 @@ class AdminWorkController extends Controller{
         $userIds = $all_users->pluck('id');
 
         $holiday_shifts = shiftRecord::whereIn('user_id', $userIds)
-        ->whereIn('shift_type', [0, 18, 19, 20, 21, 22, 23, 24, 25, 26])
+        ->whereIn('shift_type', shiftType::idsFor([shiftType::CATEGORY_DAY_OFF, shiftType::CATEGORY_LEGAL_HOLIDAY, shiftType::CATEGORY_HOLIDAY_WORK]))
             ->whereYear('shift_day', $currentYear)
             ->select('id', 'user_id', 'shift_day', 'shift_type')
             ->whereHas('shiftType')
             ->with(['shiftType' => function ($query) {
-                $query->select('id', 'name', 'full_day');
+                $query->select('id', 'name', 'full_day', 'category', 'hours');
             }])
             ->get()->groupBy('user_id');
 
@@ -251,7 +254,7 @@ class AdminWorkController extends Controller{
 
                     foreach ($user->shift_records as $record) {
 
-                        if($record->shift_type == 18){
+                        if((int) $record->shift_type === shiftType::idFor(shiftType::CATEGORY_LEGAL_HOLIDAY)){
                             $legal_holiday_shifts[] = $record->shift_day;
                         }
                         // Extract common values
@@ -381,7 +384,7 @@ class AdminWorkController extends Controller{
                 $current_year_holiday_shifts = $holiday_shifts->get($user->id, collect());
 
                 $total_holidays = $current_year_holiday_shifts->sum(function ($shift) use ($user_work_minutes_per_day) {
-                    $is_full_day = $shift->shiftType->full_day == 2 || $shift->shiftType->id == 0;
+                    $is_full_day = $shift->shiftType->full_day == 2 || in_array((int) $shift->shiftType->id, shiftType::idsFor(shiftType::CATEGORY_DAY_OFF), true);
                     $is_half_day = $shift->shiftType->full_day == 1;
                     if($is_full_day){
                         return $user_work_minutes_per_day;
@@ -734,7 +737,7 @@ class AdminWorkController extends Controller{
             'action' => 'required|string|in:approve,reject',
         ]);
 
-        $user = $this->active_user();
+        $user = Auth::user();
         $changeRequest = PlannedLeaveChangeRequest::with(['project_record.manager', 'shift_record'])
             ->findOrFail($data['id']);
 
@@ -801,7 +804,7 @@ class AdminWorkController extends Controller{
         $updatedShifts = [];
         $existingShift = shiftRecord::whereIn('shift_day', $shiftDays)
                                     ->where('user_id', $userId)
-                                    ->where('shift_type', 3)
+                                    ->whereIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE))
                                     ->get()->pluck('shift_day');
         if(count($existingShift) > 0){
             $string = '';
@@ -824,7 +827,7 @@ class AdminWorkController extends Controller{
         $updatedShifts = DB::transaction(function () use ($userId, $changedShifts, $shiftDays) {
             shiftRecord::whereIn('shift_day', $shiftDays)
                         ->where('user_id', $userId)
-                        ->whereNot('shift_type', 3)
+                        ->whereNotIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE))
                         ->delete();
 
             $updatedShifts = [];
@@ -841,7 +844,7 @@ class AdminWorkController extends Controller{
                     "status_flag" => 1,
                     "shift_day" => $shift['shift_day'],
                     "descendant_of" => $shiftRecord->id,
-                    "shift_type" => 3,
+                    "shift_type" => shiftType::idFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE),
                     "planned_year" => $shiftRecord->planned_year
                 ]);
                 $shiftRecord->delete();

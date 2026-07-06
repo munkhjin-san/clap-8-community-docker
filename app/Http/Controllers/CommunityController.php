@@ -12,9 +12,6 @@ use Illuminate\Support\Facades\Auth;
 class CommunityController extends Controller
 {
 
-    private function active_user(){
-        return Auth::user();
-    }
     public function get_office_list(Request $request)
     {
         $offices = officeRecord::with(['employees.related_projects:id,name', 'files'])->orderBy('created_at', 'desc')->get();
@@ -72,7 +69,7 @@ class CommunityController extends Controller
     }
     public function community_members_tree(Request $request)
     {
-        $user = $this->active_user();
+        $user = Auth::user();
 
         $userQuery = User::query()->where('retire', 0)
         ->where('partner_flag', 0)

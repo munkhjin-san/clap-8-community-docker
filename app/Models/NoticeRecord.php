@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCommunity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -10,6 +11,7 @@ class NoticeRecord extends Model
 {
     use HasFactory;
     use SoftDeletes;
+    use BelongsToCommunity;
     public function files(){
         return $this->hasMany(NoticeFile::class, 'record_id', 'id');
     }

@@ -42,7 +42,7 @@ class SharedService
         ->delete();
         $shift_array = shiftRecord::whereMonth('shift_day', $month)->whereYear('shift_day', $year)->where('user_id', $userId)->get();
         foreach($shift_array as $shift){
-            if(in_array( $shift['shift_type'], [0, 2, 3, 5, 14, 15, 16, 18, 27])){
+            if(in_array((int) $shift['shift_type'], shiftType::idsFor(array_merge([shiftType::CATEGORY_DAY_OFF, shiftType::CATEGORY_ABSENCE, shiftType::CATEGORY_PLANNED_PAID_LEAVE, shiftType::CATEGORY_ANNUAL_LEAVE_FULL, shiftType::CATEGORY_LEGAL_HOLIDAY, shiftType::CATEGORY_SPECIAL_HOLIDAY], shiftType::SPECIAL_LEAVE)), true)){
                 $shiftType = shiftType::find($shift['shift_type']);
                 $instance = Carbon::parse($shift['shift_day']); 
                 $start_instance = $instance->clone()->hour(00)->minute(00)->second(00);
@@ -407,7 +407,7 @@ class SharedService
     public function createDepartureReport($user, $date){
         $shift = shiftRecord::where('user_id', $user->id)
             ->where('shift_day', $date)
-            ->where('shift_type', 1)
+            ->whereIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_WORK))
             ->first();
         if(!$shift){
             return [

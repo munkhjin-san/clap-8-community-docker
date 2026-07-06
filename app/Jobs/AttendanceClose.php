@@ -80,12 +80,24 @@ class AttendanceClose implements ShouldQueue
 
         $nowTs = now();
 
+        // A queued job has no request CommunityContext, and upsert() bypasses the
+        // BelongsToCommunity hook, so resolve each user's community from the
+        // membership pivot (preferring their default membership, matching
+        // CommunityResolver) and stamp it onto the rows below.
+        $communityByUser = DB::table('community_user')
+            ->whereIn('user_id', $toCreate->pluck('id'))
+            ->orderByDesc('is_default')
+            ->get(['user_id', 'community_id'])
+            ->groupBy('user_id')
+            ->map(fn ($memberships) => (int) $memberships->first()->community_id);
+
         // 4) Prepare bulk rows
-        $rows = $toCreate->map(function ($user) use ($yearMonth, $nowTs) {
+        $rows = $toCreate->map(function ($user) use ($yearMonth, $nowTs, $communityByUser) {
             $workTypeLabel = ((int) $user->work_type === 0) ? 'フレックス' : '通常';
 
             return [
                 'pay_day' => '20',
+                'community_id' => $communityByUser[$user->id] ?? null,
                 'user_id' => $user->id,
                 'confirmed_by' => 608,
                 'name' => $user->name,

@@ -13,6 +13,7 @@ use App\Models\ProjectRecord;
 use App\Models\ProjectSetIncrease;
 use App\Models\ShiftOvertimeRequest;
 use App\Models\shiftRecord;
+use App\Models\shiftType;
 use App\Models\taskRecord;
 use App\Models\timecardRecord;
 use App\Models\User;
@@ -43,9 +44,6 @@ class RemindController extends Controller
     ){
 
     } 
-    private function active_user(){
-        return Auth::user();
-    }
     public function remind_attendance(Request $request){
         $auth_user = Auth::user();
         $auth_user_id = Auth::id();
@@ -56,8 +54,7 @@ class RemindController extends Controller
         $year = $date->year;
         $month = $date->month;
         $prev_month = $date->clone()->subMonth()->month;
-        $ids = [610, 608];
-        if(in_array($auth_user_id, $ids) || in_array($auth_user->position_id, [1, 2, 3, 4, 5, 14, null])){
+        if($auth_user->isAdmin() || in_array($auth_user->position_id, [1, 2, 3, 4, 5, 14, null])){
             
             return response()->json([
                 'timecard_notSubmitted' => [],
@@ -130,7 +127,7 @@ class RemindController extends Controller
                     }
                 }
                 foreach($shiftSubmittedList as $date => $value2){
-                    if (!is_array($value2) || $value2['type'] != 1) {
+                    if (!is_array($value2) || !in_array((int) $value2['type'], shiftType::idsFor(shiftType::CATEGORY_WORK), true)) {
                         continue;
                     }
                     if (isset($leave_start, $leave_end) && $date >= $leave_start && $date <= $leave_end) {
@@ -205,7 +202,7 @@ class RemindController extends Controller
         return response()->json($data);
     }
     public function remind_task_untouched() {
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $tasks = taskRecord::whereHas('executors', function ($q) use($active_user) {
             $q->where('users.id', $active_user->id)->where('progress_flag', 0);
         })
@@ -225,7 +222,7 @@ class RemindController extends Controller
         return response()->json($data);
     }
     public function remind_task_unfinished() {
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $tasks = taskRecord::whereHas('executors', function ($q) use ($active_user) {
             $q->where('users.id', $active_user->id)->where('progress_flag', 1);
         })
@@ -239,7 +236,7 @@ class RemindController extends Controller
         return response()->json($data);
     }
     public function remind_unsigned_messages(){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $auth_id = $active_user->id;   
         $list = boardToUser::where('user_id', $auth_id)
                             ->where('deleted_status', 0)
@@ -266,7 +263,7 @@ class RemindController extends Controller
         return response()->json($data);
     }
     public function remind_unchecked_messages(){
-        $user = $this->active_user();
+        $user = Auth::user();
         $start_point = Carbon::parse('2023-03-13 00:00:00')->format('Y-m-d');
         $list = boardToUser::where('user_id', $user->id)
                             ->where('deleted_status', 0)
@@ -302,12 +299,12 @@ class RemindController extends Controller
         $prev_month = $month == 1 ? $month : $date->clone()->subMonth()->month;
         $shift_month = $day >= 25 ? $date->clone()->addMonthNoOverflow()->month : $month;
         $prev_month_start = $date->clone()->subMonthNoOverflow()->startOfMonth()->format('Y-m-d');
-        $ids = [608, 610];
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
+        $ids = User::whereCommunityRole('admin')->pluck('id')->all(); // admins excluded from manager lists below
         $target_users = [];
         $workGroupIds = [];
         $list = [];
-        if(in_array($active_user->id, $ids)){
+        if($active_user->isAdmin()){
             $pms = User::where('position_id', 6)
                         ->where('retire', 0)
                         ->where('partner_flag', 0)
@@ -317,7 +314,7 @@ class RemindController extends Controller
             $target_users = $pms;
             $workGroupIds = ProjectRecord::pluck('id')->unique()->values()->toArray();
         }
-        if($active_user->position_id == 6){
+        if($active_user->isPM()){
             $workGroups = ProjectRecord::whereHas('manager', function ($q) use($active_user, $ids) {
                 $q->where('users.id', $active_user->id)->whereNotIn('users.id', $ids);
             })->with('members')->get();
@@ -375,7 +372,7 @@ class RemindController extends Controller
         return response()->json($data);
     }
     public function remind_task_not_approved(){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $tasks = taskRecord::where('comp_flag', 0)
                             ->whereHas('supervisors', function ($q) use($active_user) {
                                 $q->where('users.id', $active_user->id)
@@ -565,7 +562,7 @@ class RemindController extends Controller
                 ->get();
     }
     public function remind_reminded_messages(){
-        $user = $this->active_user();
+        $user = Auth::user();
         // $list = boardRecord::whereHas('board_to_users', function($q) use($user){
         //     $q->where('user_id', $user->id)->where('deleted_status', 0);
         // })->pluck('id')->toArray();
@@ -592,7 +589,7 @@ class RemindController extends Controller
         return response()->json($data);
     }
     public function remind_planned_leave(){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $notificationUser = User::select('name', 'id', 'icon_path', 'icon_bg')->findOrFail(610);
         $list = $this->paidLeaveLedger
             ->plannedLeaveReminderPeriodsForUser($active_user)
@@ -609,7 +606,7 @@ class RemindController extends Controller
         return response()->json($data);
     }
     public function remind_form() {
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $userId = $active_user->id;
         $today = now();
         $prevStart = $today->copy()->subMonthNoOverflow()->startOfMonth();
@@ -676,7 +673,7 @@ class RemindController extends Controller
         return response()->json($data);
     }
     public function remind_asset(){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
 
         $target_assets = AssetRecord::where(function ($query) use ($active_user) {
             $query->whereHas('requests', function ($query) use ($active_user) {
@@ -694,7 +691,7 @@ class RemindController extends Controller
         return response()->json(["remind_asset" => $target_assets]);
     }
     public function remind_temp_reserved_schedules(){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $userId = $active_user->id;
         $records = CalendarRecord::where('temp_flag', 1)->where('date_start', '>=', Carbon::today()->startOfMonth())
             ->whereHas('calendar_users', function ($query) use ($userId) {
@@ -728,9 +725,9 @@ class RemindController extends Controller
         ->whereHas('shift_records', function ($query) use ($badge) {
             $query->when($badge, fn($q) => $q->whereNull('departure_report'))
                   ->where('shift_day', Carbon::now()->toDateString())
-                  ->where('shift_type', 1);
+                  ->whereIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_WORK));
         })->with(['shift_records' => function ($query) {
-            $query->where('shift_day', Carbon::now()->toDateString())->where('shift_type', 1)->select('user_id', 'id', 'departure_report');
+            $query->where('shift_day', Carbon::now()->toDateString())->whereIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_WORK))->select('user_id', 'id', 'departure_report');
         }])->select('id', 'name', 'icon_path', 'icon_bg')->get();
 
         return response()->json([
@@ -747,7 +744,7 @@ class RemindController extends Controller
         }
         $check = shiftRecord::where('user_id', Auth::id())
                 ->where('shift_day', Carbon::now()->toDateString())
-                ->where('shift_type', 1)
+                ->whereIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_WORK))
                 ->whereNull('departure_report')
                 ->exists();
         return response()->json(['should_send' => $check]);
@@ -755,7 +752,7 @@ class RemindController extends Controller
     public function remind_challenge_progress()
     {
         $now = now();
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $challenges = PostRecord::query()
             ->where('app_type', 2)
             ->where('status_flag', 0)
@@ -791,7 +788,7 @@ class RemindController extends Controller
     }
     public function remind_overdue()
     {
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $userId = $active_user->id;
         $now = Carbon::now();
 
@@ -845,7 +842,7 @@ class RemindController extends Controller
 
     public function remind_goal_slot()
     {
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $userId = $active_user->id;
         $now = Carbon::now();
 
@@ -897,7 +894,7 @@ class RemindController extends Controller
     }
 
     private function remindCollect() {
-        $user = $this->active_user();
+        $user = Auth::user();
         $remindedMessages = $this->reminderMessageService->getReminderMessagesForUser($user, ['all']);
         $remindedTasks = $this->remindTaskService->getReminderTaskForUser($user, ['all']);
         $remindForm = $this->remind_form()->getData(true);
@@ -981,7 +978,7 @@ class RemindController extends Controller
         return response()->json($test);
     }
     public function get_today_readable(){
-        $active = $this->active_user();
+        $active = Auth::user();
         $now = Carbon::now()->format('Y-m-d');
         $typeId = 43;
         $latestId = customFieldDataRecord::where('type_id', $typeId)
@@ -1003,7 +1000,7 @@ class RemindController extends Controller
         ]);
     }
     public function near_deadline_goals(){
-        $user = $this->active_user();
+        $user = Auth::user();
         $today = Carbon::now()->format('Y-m-d');
         $year_ago = Carbon::now()->subYear()->format('Y-m-d');
         $base = $user->outcome_goals()->query()
@@ -1037,7 +1034,7 @@ class RemindController extends Controller
     }
     public function badge_summary()
     {
-        $user = $this->active_user();
+        $user = Auth::user();
         $cacheKey = $this->badgeService->badgeSummaryCacheKey($user);
         $ttl     = 60;
         $post_result = [
@@ -1055,13 +1052,13 @@ class RemindController extends Controller
         $data = Cache::remember($cacheKey, $ttl, function () use ($user, $post_result) {
             return [
                 'notice' => 0,
-                'post' => $user->partner_flag === 0 && $user->position_id !== 15 && $user->linkable === 0 ? $this->badgeService->post($user) : $post_result,
+                'post' => $user->partner_flag === 0 && !$user->isRegisteredScope() && $user->linkable === 0 ? $this->badgeService->post($user) : $post_result,
                 'members_goals' => [],
                 'managers_goals' => [],
                 'salary_issue' => [],
                 'asset' => [],
                 'task_comment' => $this->badgeService->taskComment($user),
-                'finance_comment' => $user->position_id <= 6 || in_array($user->id, [610,608]) ? $this->badgeService->financeComment($user) : ['total_unread' => 0, 'projects' => []],
+                'finance_comment' => $user->isBoss() || $user->isPM() || $user->isAdmin() ? $this->badgeService->financeComment($user) : ['total_unread' => 0, 'projects' => []],
                 'goal_issue_comment' => [],
                 'contact_comment' => $this->badgeService->contactComment($user),
                 'contact_batch_notification_count' => $this->badgeService->contactBatchNotification($user),

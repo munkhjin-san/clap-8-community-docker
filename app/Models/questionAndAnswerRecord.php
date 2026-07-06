@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCommunity;
 use Illuminate\Database\Eloquent\Model;
 
 class questionAndAnswerRecord extends Model
-{  
+{
+    use BelongsToCommunity;
+
     public const AI_SYNC_STATUS_NOT_SYNCED = 'not_synced';
     public const AI_SYNC_STATUS_SYNCING = 'syncing';
     public const AI_SYNC_STATUS_SYNCED = 'synced';

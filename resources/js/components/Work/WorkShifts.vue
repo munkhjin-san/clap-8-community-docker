@@ -24,7 +24,7 @@
                         <div @click="checkLeave = 0" style="padding: 10px 0;" :class="['sub-tab-item', { 'selected-sub-tab': checkLeave == 0}]">予定入力</div>
                         <div v-if="usersData[0].position_id !== 15" @click="checkLeave = 1" style="padding: 10px 0;" :class="['sub-tab-item', { 'selected-sub-tab': checkLeave == 1}]">計画有給確認</div>
                     </div>
-                    <div v-if="selectedShiftType == 3 && checkLeave == 0" style="margin-left:auto;display:flex;gap: 10px;">
+                    <div v-if="selectedIsPlannedPaid && checkLeave == 0" style="margin-left:auto;display:flex;gap: 10px;">
                         <MonthPickerNew 
                             v-model:month="shiftMonth"
                             v-model:year="shiftYear"
@@ -41,8 +41,8 @@
                         
                         <!-- <div class="shift-types">
                             <div class="shift-type_name" v-for="(shift_type, index) in groupedLeaves.main" :key="index">
-                                <input type="radio" :disabled="shift_type.id === 3 && notSubmitted || shift_type.id === 16 && odaCheck" :id="shift_type.id" v-model="selectedShiftType" :value="shift_type.id">
-                                <label :class="{'planned-date' : notSubmitted && shift_type.id === 3 || shift_type.id === 16 && odaCheck}" :for="shift_type.id">{{ shift_type.name }}</label>
+                                <input type="radio" :disabled="shift_type.category === SHIFT_CATEGORY.PLANNED_PAID_LEAVE && notSubmitted || shift_type.category === SHIFT_CATEGORY.SPECIAL_LEAVE_ODA && odaCheck" :id="shift_type.id" v-model="selectedShiftType" :value="shift_type.id">
+                                <label :class="{'planned-date' : notSubmitted && shift_type.category === SHIFT_CATEGORY.PLANNED_PAID_LEAVE || shift_type.category === SHIFT_CATEGORY.SPECIAL_LEAVE_ODA && odaCheck}" :for="shift_type.id">{{ shift_type.name }}</label>
                             </div>
                         </div> -->
                         <div class="my-4 flex gap-4 items-center justify-between flex-wrap">
@@ -52,16 +52,16 @@
                                         <option :value="type.id" v-for="type in groupedLeaves.main" :key="'m-'+type.id">{{ type.name }}</option>
                                     </optgroup>
                                     <optgroup label="休日">
-                                        <option :value="type.id" :disabled="type.id === 3 && notSubmitted" v-for="type in groupedLeaves.holiday" :key="'h-'+type.id">{{ type.name }}</option>
+                                        <option :value="type.id" :disabled="type.category === SHIFT_CATEGORY.PLANNED_PAID_LEAVE && notSubmitted" v-for="type in groupedLeaves.holiday" :key="'h-'+type.id">{{ type.name }}</option>
                                     </optgroup>
                                     <optgroup label="年休">
                                         <option :value="type.id" v-for="type in groupedLeaves.planned" :key="'p-'+type.id">{{ type.name }}</option>
                                     </optgroup>
                                     <optgroup label="時間休日">
-                                        <option :value="type.id" :disabled="type.id === 3 && notSubmitted" v-for="type in groupedLeaves.hourly" :key="'h-'+type.id">{{ type.name }}</option>
+                                        <option :value="type.id" :disabled="type.category === SHIFT_CATEGORY.PLANNED_PAID_LEAVE && notSubmitted" v-for="type in groupedLeaves.hourly" :key="'h-'+type.id">{{ type.name }}</option>
                                     </optgroup>
                                     <optgroup label="その他">
-                                        <option :value="type.id" :disabled="type.id === 16 && odaCheck" v-for="type in groupedLeaves.other" :key="'m-'+type.id">{{ type.name }}</option>
+                                        <option :value="type.id" :disabled="type.category === SHIFT_CATEGORY.SPECIAL_LEAVE_ODA && odaCheck" v-for="type in groupedLeaves.other" :key="'m-'+type.id">{{ type.name }}</option>
                                     </optgroup>
                                 </select>
                                 <div v-if="projectSelectionVisible" class="shift-project-selector">
@@ -72,22 +72,22 @@
                                         </option>
                                     </select>
                                 </div>
-                                <select id="planned_year_selector" v-if="selectedShiftType === 3" v-model="plannedLeaveTargetYear" class="custom-a-input">
+                                <select id="planned_year_selector" v-if="selectedIsPlannedPaid" v-model="plannedLeaveTargetYear" class="custom-a-input">
                                     <option :value="year" v-for="year in yearOptions">{{ year }}年度</option>
                                 </select>
-                                <p class="text-sm" v-if="selectedShiftType == 3">期間: {{ DateTime.fromISO(tempStartDate).isValid ? DateTime.fromISO(tempStartDate).toLocaleString() : '' }}~{{ DateTime.fromISO(tempStartEnd).isValid ? DateTime.fromISO(tempStartEnd).toLocaleString() : '' }}</p>
+                                <p class="text-sm" v-if="selectedIsPlannedPaid">期間: {{ DateTime.fromISO(tempStartDate).isValid ? DateTime.fromISO(tempStartDate).toLocaleString() : '' }}~{{ DateTime.fromISO(tempStartEnd).isValid ? DateTime.fromISO(tempStartEnd).toLocaleString() : '' }}</p>
                             </div>
                             
                             <div class="shift-holiday">
-                                <div v-if="selectedShiftType !== 3 && selectedShiftType !== 27">年間休日取得数（現時点）: <strong>{{ displayTotalHolidays }}</strong></div>
-                                <p v-if="zan_nissu && selectedShiftType !== 3 && selectedShiftType !== 27" class="paid-leave-balance">
+                                <div v-if="!selectedIsPlannedPaid && !selectedIsSpecialHoliday">年間休日取得数（現時点）: <strong>{{ displayTotalHolidays }}</strong></div>
+                                <p v-if="zan_nissu && !selectedIsPlannedPaid && !selectedIsSpecialHoliday" class="paid-leave-balance">
                                     有給残日数:
                                     <strong :class="{ negative: projectedPaidLeaveMinutes < 0 }">{{ formatLeaveBalance(projectedPaidLeaveMinutes) }}</strong>
-                                   
+
                                 </p>
-                                <p v-if="selectedShiftType == 3">計画有給: <strong>{{ remainingDays }}</strong>日</p>
-                                <p v-if="selectedShiftType !== 3 && selectedShiftType !== 27">休日数: <strong>{{ holidayCount }}</strong>日／所定休日数: <strong>{{ shouldHoliday }}</strong>日</p>
-                                <p v-if="selectedShiftType == 27">特別休暇: <strong>{{ remainingSpecialHoliday }}</strong>日</p>
+                                <p v-if="selectedIsPlannedPaid">計画有給: <strong>{{ remainingDays }}</strong>日</p>
+                                <p v-if="!selectedIsPlannedPaid && !selectedIsSpecialHoliday">休日数: <strong>{{ holidayCount }}</strong>日／所定休日数: <strong>{{ shouldHoliday }}</strong>日</p>
+                                <p v-if="selectedIsSpecialHoliday">特別休暇: <strong>{{ remainingSpecialHoliday }}</strong>日</p>
                             </div>
                         </div>
                         
@@ -103,7 +103,7 @@
                             <div class="shift-inner">
                                 <div class="shift-month" v-for="(week, index) in dataLoad" :key="index">                
                                     <div class="shift-week" v-for="(day, index) in week" :key="index">
-                                        <div @click="selectShift(day, [], index + 1)" :class="{ 'hidden-date': !day.day_short, 'showed-date': day.day_short, 'planned-date': selectedShift(day) && selectedShift(day).id == 3}">
+                                        <div @click="selectShift(day, [], index + 1)" :class="{ 'hidden-date': !day.day_short, 'showed-date': day.day_short, 'planned-date': selectedShift(day) && selectedShift(day).category === SHIFT_CATEGORY.PLANNED_PAID_LEAVE}">
                                             <div>
                                                 <div class="shift-day" :class="{'shift-saturday' : index == 5, 'shift-sunday' : index == 6, 'shift-everyholiday' : day.day_holiday}">
                                                 {{ day.day_short }}
@@ -156,7 +156,7 @@
                                 />
                             </div>
                         </div>
-                        <div v-if="usersData[0].position_id !== 15 && selectedShiftType !== 3">
+                        <div v-if="usersData[0].position_id !== 15 && !selectedIsPlannedPaid">
                             <section class="border mt-[10px] border-[var(--calendarBorder)] border-solid p-[10px]">
                                 <p class="text-sm font-medium leading-normal">
                                     法定上の所定労働時間
@@ -295,6 +295,11 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         getRemainingDays()
         await fetchWorkGroups()
         await fetchShiftData()
+        // Planned-leave deep link: default the selection to the planned-paid-leave
+        // type now that shift types are loaded (was a hardcoded id 3 in propsCheck).
+        if (props.startDate && plannedPaidLeaveId.value != null) {
+            selectedShiftType.value = plannedPaidLeaveId.value
+        }
         isShiftRecord()
         await nextTick()
         if(route.query.action === 'request_planned_leave_change'){
@@ -333,17 +338,35 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         }
         return calendar
     })
-    const categorize = (name) =>  {
+    // Which dropdown optgroup a shift type belongs to, keyed by its stable
+    // category (mirrors shiftType::CATEGORY_* on the backend). Replaces the old
+    // name-substring matching, which mis-sorted CRUD-renamed types. (String keys
+    // rather than the SHIFT_CATEGORY const, which is declared lower in this file.)
+    const GROUP_BY_CATEGORY = {
+        work: 'main',
+        day_off: 'holiday',
+        legal_holiday: 'holiday',
+        planned_paid_leave: 'planned',
+        annual_leave_full: 'planned',
+        annual_leave_half: 'planned',
+        annual_leave_hourly: 'planned',
+        holiday_work: 'hourly',
+        // absence / special_leave_* / comp_holiday / special_holiday -> 'other'
+    }
+    // Fallback for types without a category yet (e.g. freshly CRUD-created): keep
+    // the legacy name heuristic so they are not all dumped into 'other'.
+    const categorizeByName = (name = '') => {
         if (name.includes('年休') || name === '計画有給') return 'planned'
         if (name === '休日') return 'holiday'
         if (name.includes('時間休日')) return 'hourly'
         if (name.includes('勤務')) return 'main'
         return 'other'
     }
+    const categorize = (type) => GROUP_BY_CATEGORY[type?.category] ?? categorizeByName(type?.name)
 
     const groupedLeaves = computed(() => {
         const g = { main: [], holiday: [], planned: [], hourly: [], other: [] }
-        for (const s of shiftTypes.value) g[categorize(s.name)].push(s)
+        for (const s of shiftTypes.value) g[categorize(s)].push(s)
         return g
     })
     const allWorkGroups = computed(() => {
@@ -419,11 +442,13 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         let totalMinutes = totalHolidayInYearByMinutes.value;
 
         if(selectedShifts.value && selectedShifts.value.length){
-            const selectedHolidays = selectedShifts.value.filter(shift => [0, 18, 19, 20, 21, 22, 23, 24, 25, 26].includes(shift.type));
+            const holidayCats = [SHIFT_CATEGORY.DAY_OFF, SHIFT_CATEGORY.LEGAL_HOLIDAY, SHIFT_CATEGORY.HOLIDAY_WORK];
+            const selectedHolidays = selectedShifts.value.filter(shift => holidayCats.includes(categoryOfId(shift.type)));
             selectedHolidays.forEach(element => {
-                const fullDay = element.type === 0 || element.type === 18;
-                const halfDay = element.type === 19;
-                const minutesValue = shiftTypes.value.find(type => type.id === element.type)?.value || 0;
+                const type = shiftTypeMap.value.get(Number(element.type));
+                const fullDay = isHolidayType(element.type);                                                  // day_off / legal_holiday (was 0 / 18)
+                const halfDay = type?.category === SHIFT_CATEGORY.HOLIDAY_WORK && Number(type?.hours) === 0.5; // 半日休日 (was id 19)
+                const minutesValue = Number(type?.value) || 0;
                 if (fullDay) {
                     totalMinutes += userWorkMinutesPerDay.value;
                 } else if (halfDay) {
@@ -454,7 +479,8 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
             shiftYear.value = DateTime.fromISO(newDate).year;
             shiftMonth.value = DateTime.fromISO(newDate).month;
             plannedLeaveTargetYear.value = DateTime.fromISO(newDate).year;
-            selectedShiftType.value = 3;
+            // selectedShiftType defaults to the planned-paid-leave id after shift
+            // types load (see onMounted) — it can't be resolved here pre-fetch.
         }
     }
     const tempStartDate = computed(() => {
@@ -465,7 +491,7 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         return start.plus({ years: 1 }).minus({ days: 1 })
     })
     const between = computed(() => {
-        return (shiftDateInstance.value > DateTime.fromISO(tempStartDate.value) || shiftDateInstance.value < DateTime.fromISO(tempStartEnd.value)) && selectedShiftType.value == 3
+        return (shiftDateInstance.value > DateTime.fromISO(tempStartDate.value) || shiftDateInstance.value < DateTime.fromISO(tempStartEnd.value)) && selectedIsPlannedPaid.value
     }) 
     const calcBreakMinutes = (workMinutes) => {
         if (workMinutes > 6 * 60) return 60
@@ -489,27 +515,48 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         const breakMin = calcBreakMinutes(gross)
         return Math.max(0, gross - breakMin)
     })
+    // Stable category codes (mirror shiftType::CATEGORY_* on the backend). The
+    // selected/stored value stays the shift_type *id* (the /add_shift contract);
+    // these map an id -> its category so the UI can express system meaning instead
+    // of hardcoded id literals (was 3/16/27/0/18/19..26, which are CRUD-mutable).
+    const SHIFT_CATEGORY = {
+        DAY_OFF: 'day_off',
+        PLANNED_PAID_LEAVE: 'planned_paid_leave',
+        SPECIAL_LEAVE_ODA: 'special_leave_oda',
+        SPECIAL_HOLIDAY: 'special_holiday',
+        LEGAL_HOLIDAY: 'legal_holiday',
+        HOLIDAY_WORK: 'holiday_work',
+    }
     const shiftTypeMap = computed(() => {
         const map = new Map()
+        const add = (t) => { if (t && t.id != null) map.set(Number(t.id), t) }
 
         const list = Array.isArray(shiftTypes.value)
             ? shiftTypes.value
             : Array.isArray(shiftTypes.value?.data)
             ? shiftTypes.value.data
             : []
+        list.forEach(add)
 
-        list.forEach((t) => {
-            map.set(Number(t.id), t)
+        // Existing records may carry a type outside the user's selectable set;
+        // their shift_type relation carries category/hours, so seed those too.
+        ;(Array.isArray(shiftRecords.value) ? shiftRecords.value : []).forEach((r) => {
+            if (r?.shift_type && typeof r.shift_type === 'object') add(r.shift_type)
         })
 
         return map
     })
-    const isHolidayType = (typeId) => typeId === 0 || typeId === 18
+    const categoryOfId = (typeId) => shiftTypeMap.value.get(Number(typeId))?.category ?? null
+    const isCategoryId = (typeId, category) => categoryOfId(typeId) === category
+    const isPlannedPaidId = (typeId) => isCategoryId(typeId, SHIFT_CATEGORY.PLANNED_PAID_LEAVE)
+    const isSpecialHolidayId = (typeId) => isCategoryId(typeId, SHIFT_CATEGORY.SPECIAL_HOLIDAY)
+    // day_off / legal_holiday both count as a full non-working holiday day (was 0 / 18).
+    const isHolidayType = (typeId) => isCategoryId(typeId, SHIFT_CATEGORY.DAY_OFF) || isCategoryId(typeId, SHIFT_CATEGORY.LEGAL_HOLIDAY)
     const isFullDayNonWorkType = (typeId) => {
         const type = shiftTypeMap.value.get(Number(typeId))
         if (!type) return false
 
-        return Number(type.id) === 0 || Number(type.id) === 18 || Number(type.full_day) === 2
+        return isHolidayType(typeId) || Number(type.full_day) === 2
     }
     const shiftTypeHasWorkTime = (typeId) => {
         const type = shiftTypeMap.value.get(Number(typeId))
@@ -520,6 +567,17 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         return Math.max(0, minutesPerDay.value - leaveMinutes) > 0
     }
     const projectSelectionVisible = computed(() => shiftTypeHasWorkTime(selectedShiftType.value))
+    const selectedIsPlannedPaid = computed(() => isPlannedPaidId(selectedShiftType.value))
+    const selectedIsSpecialHoliday = computed(() => isSpecialHolidayId(selectedShiftType.value))
+    // The currently-selectable planned-paid-leave id (was the literal 3) — used to
+    // default the selection when entering via a planned-leave deep link.
+    const plannedPaidLeaveId = computed(() => {
+        const list = Array.isArray(shiftTypes.value) ? shiftTypes.value : []
+        for (const t of list) {
+            if (t?.category === SHIFT_CATEGORY.PLANNED_PAID_LEAVE) return Number(t.id)
+        }
+        return null
+    })
     const paidLeaveMinutesPerDay = computed(() => {
         const ledgerMinutesPerDay = Number(zan_nissu.value?.minutes_per_day)
         if (ledgerMinutesPerDay > 0) return ledgerMinutesPerDay
@@ -540,13 +598,13 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         const type = shiftTypeMap.value.get(Number(typeId))
         const name = String(type?.name || '')
 
-        return Number(typeId) === 3
+        return isPlannedPaidId(typeId)
             || name.includes('有給')
             || name.includes('年休')
             || name.includes('時間休日')
     }
     const paidLeaveMinutesForType = (typeId) => {
-        if (Number(typeId) === 3) {
+        if (isPlannedPaidId(typeId)) {
             return paidLeaveMinutesPerDay.value
         }
 
@@ -609,12 +667,12 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
                 date: shift.date,
                 type,
                 status_flag: shift.status_flag ?? 2,
-                planned_year: shift.planned_year ?? (type === 3 ? plannedLeaveTargetYear.value : shiftYear.value),
+                planned_year: shift.planned_year ?? (isPlannedPaidId(type) ? plannedLeaveTargetYear.value : shiftYear.value),
                 department_id: hasWorkTime ? (shift.department_id || selectedDepartmentId.value || null) : null,
             }
         })
     }
-    const shiftsForSummary = computed(() => selectedShiftType.value === 3 ? selectedShifts.value : normalizedShiftArray())
+    const shiftsForSummary = computed(() => selectedIsPlannedPaid.value ? selectedShifts.value : normalizedShiftArray())
     const summary = computed(() => {
         const shifts = shiftsForSummary.value || []
 
@@ -700,8 +758,8 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
         let existingShift = selectedShifts.value.find(shift => shift.date === date.day_full)
         if (existingShift) {
             if (val) {
-                if(existingShift.type == 3 && existingShift.status_flag == 1){
-                    ping('計画有給を変えることができません。')   
+                if(isPlannedPaidId(existingShift.type) && existingShift.status_flag == 1){
+                    ping('計画有給を変えることができません。')
                     return
                 }
                 const nextDepartmentId = shiftTypeHasWorkTime(type_id) ? (selectedDepartmentId.value || null) : null
@@ -714,10 +772,10 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
                     return
                 }
                 selectedShifts.value = selectedShifts.value.filter(shift => shift.date !== date.day_full);
-                if(type_id == 3 && existingShift.type == 3){
+                if(isPlannedPaidId(type_id) && isPlannedPaidId(existingShift.type)){
                     remainingDays.value++
                 }
-                if(type_id == 27 && existingShift.type == 27){
+                if(isSpecialHolidayId(type_id) && isSpecialHolidayId(existingShift.type)){
                     remainingSpecialHoliday.value++
                 }
             }
@@ -726,21 +784,21 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
                 date: date.day_full,
                 type: type_id,
                 status_flag: status_flag,
-                planned_year: type_id === 3 ? plannedLeaveTargetYear.value : shiftYear.value,
+                planned_year: isPlannedPaidId(type_id) ? plannedLeaveTargetYear.value : shiftYear.value,
                 department_id: shiftTypeHasWorkTime(type_id) ? (record?.department_id ?? selectedDepartmentId.value ?? null) : null,
             });
-            if(val && type_id == 3){
+            if(val && isPlannedPaidId(type_id)){
                 remainingDays.value--
             }
-            if (val && type_id == 27){
+            if (val && isSpecialHolidayId(type_id)){
                 remainingSpecialHoliday.value--
             }
-            if (type_id == 27 && remainingSpecialHoliday.value < 0){
+            if (isSpecialHolidayId(type_id) && remainingSpecialHoliday.value < 0){
                 remainingSpecialHoliday.value = 0
                 selectedShifts.value.pop()
                 ping('特別休暇日数が足りない。これ以上選択できません。')
             }
-            if(type_id == 3){
+            if(isPlannedPaidId(type_id)){
                 const previousPeriodStart = DateTime.fromISO(tempStartDate.value).minus({ years: 1 });
                 const previousPeriodEnd = DateTime.fromISO(tempStartDate.value);
                 if (!tempStartDate.value) return
@@ -770,8 +828,8 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
                 }
             }
         }
-        holidayCount.value = selectedShifts.value.filter(shift => (shift.type === 0 || shift.type === 18)).length
-        workdayCount.value = selectedShifts.value.filter(shift => (shift.type !== 0 && shift.type !== 18)).length
+        holidayCount.value = selectedShifts.value.filter(shift => isHolidayType(shift.type)).length
+        workdayCount.value = selectedShifts.value.filter(shift => !isHolidayType(shift.type)).length
     }
     const selectedShift = (date) => {
         const record = selectedShifts.value.find(shift => shift.date == date.day_full)
@@ -810,18 +868,18 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
             ping('終業時間は始業時間より先にすることができません。')
             return
         }
-        if (selectedShiftType.value !== 3 && selectedShiftType.value !== 27 && projectedPaidLeaveMinutes.value < 0) {
+        if (!selectedIsPlannedPaid.value && !selectedIsSpecialHoliday.value && projectedPaidLeaveMinutes.value < 0) {
             ping('有休残数が不足しています。選択後の残数を確認してください。')
             return
         }
         if (props.usersData[0].position_id !== 15) {
-            if(lastDay > selectedShifts.value.length && selectedShiftType.value !== 3){
+            if(lastDay > selectedShifts.value.length && !selectedIsPlannedPaid.value){
                 required.value = true
                 return
             }
         }
         if(props.usersData[0].work_type == 1 && props.usersData[0].position_id < 13 && props.usersData[0].position_id > 4 && !between.value){
-            const legalHolidays = selectedShifts.value.filter(shift => shift.type === 18);
+            const legalHolidays = selectedShifts.value.filter(shift => isCategoryId(shift.type, SHIFT_CATEGORY.LEGAL_HOLIDAY));
             if(legalHolidays.length !== 4){
                 ping('法定休日は4日必要です。')
                 return
@@ -906,7 +964,7 @@ import { usePublicHolidayStore } from '@/store/publicHoliday';
     watch(
         [selectedShiftType, plannedLeaveTargetYear],
         ([type, year]) => {
-            if (type === 3 && year) {
+            if (isPlannedPaidId(type) && year) {
                 getWorkTemp();
             }
             ensureDefaultDepartment()

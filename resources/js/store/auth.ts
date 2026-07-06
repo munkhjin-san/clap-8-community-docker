@@ -52,15 +52,36 @@ export const useAuthUserStore = defineStore('authUser', () => {
     function setUser(payload: any) {
         id.value = payload?.id ?? null
         name.value = payload?.name ?? ''
-        user.value = payload ?? null
-        communities.value = payload?.communities ?? []
-        activeCommunity.value = payload?.active_community ?? communities.value.find((community) => community.id === payload?.active_membership?.community_id) ?? null
-        communityScope.value = payload?.community_scope ?? payload?.active_membership?.scope ?? null
-        communityRole.value = payload?.community_role ?? payload?.active_membership?.role ?? null
-        communityCapabilities.value = payload?.community_capabilities ?? communityRole.value?.capabilities ?? []
+        // Merge so a PARTIAL user payload (profile / settings / weather / sign
+        // endpoints) doesn't drop fields already on the user.
+        user.value = { ...((user.value as any) ?? {}), ...(payload ?? {}) }
+
+        // Community context (role / capabilities / scope) is owned by the
+        // authoritative auth payload — Root bootstrap (`auth_user`) and the
+        // /community_context endpoints. Partial user payloads omit those flattened
+        // keys, so we must only re-hydrate when the payload actually carries them;
+        // otherwise we'd reset capabilities to [] and the side menu would vanish.
+        const carriesCommunityContext = !!payload && (
+            'community_capabilities' in payload ||
+            'community_role' in payload ||
+            'active_membership' in payload ||
+            'communities' in payload
+        )
+        if (carriesCommunityContext) {
+            communities.value = payload.communities ?? communities.value
+            activeCommunity.value = payload.active_community
+                ?? communities.value.find((community) => community.id === payload?.active_membership?.community_id)
+                ?? activeCommunity.value
+            communityScope.value = payload.community_scope ?? payload?.active_membership?.scope ?? communityScope.value
+            communityRole.value = payload.community_role ?? payload?.active_membership?.role ?? communityRole.value
+            communityCapabilities.value = payload.community_capabilities ?? communityRole.value?.capabilities ?? []
+        }
+
         isPartner.value = communityScope.value === 'partner' || payload?.partner_flag == 1
         isRegistered.value = communityScope.value === 'registered' || payload?.position_id == 15
-        isOnLeave.value = payload?.on_leave
+        if (payload && 'on_leave' in payload) {
+            isOnLeave.value = payload.on_leave
+        }
         linked.value = []
     }
 
@@ -132,8 +153,8 @@ export const useAuthUserStore = defineStore('authUser', () => {
 
     const isAdmin = computed((): boolean => communityRole.value?.key === 'admin' || hasCapability('admin.access'))
 
-    // Blade check with admin super-role bypass. Use for app-access and action blades.
-    const can = (blade: string): boolean => isAdmin.value || communityCapabilities.value.includes(blade)
+    // Capability check with admin super-role bypass. Use for app-access and action capabilities.
+    const can = (capability: string): boolean => isAdmin.value || communityCapabilities.value.includes(capability)
 
     const hasPrivilage = computed((): boolean => {
         const positionId = activeUser.value?.position_id

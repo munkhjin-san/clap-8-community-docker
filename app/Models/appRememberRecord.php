@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCommunity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class appRememberRecord extends Model
-{   
+{
+    use BelongsToCommunity;
+   
     use SoftDeletes;
     protected $fillable = [
         'user_id', 'favorite_tray', 'my_task_priority', 'file_sort_by', 'file_sort_desc', 'task_sort_desc'

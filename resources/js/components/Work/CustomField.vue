@@ -55,7 +55,7 @@
             <div :class="compact ? 'custom-field-compact-section' : 'report-field'">
                 <!-- <p class="report-header">{{ data.title }}</p> -->
                 <div class="report-input flex-wrap md:flex-nowrap">
-                    <div class="report-input-wrapper" v-for="(customPart , index) in data.custom_field_parts_records.filter(part => part.parts_value != 2 || shift_type?.id == 0)" :key="index">
+                    <div class="report-input-wrapper" v-for="(customPart , index) in data.custom_field_parts_records.filter(part => part.parts_value != 2 || shift_type?.category === 'day_off')" :key="index">
                         <div>
                             <input :id="fieldInputId('workAllowance', index)" type="checkbox" :name="fieldInputId('allowance', data.id)" v-model="value" :value="customPart.parts_value" :disabled="props.locked" @change="handleCheckboxChange(customPart, $event)">
                             <label class="allowance-label" :for="fieldInputId('workAllowance', index)">{{ customPart.parts_lavel }}</label>

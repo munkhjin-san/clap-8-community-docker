@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCommunity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class UserAlbum extends Model
 {
+    use BelongsToCommunity;
+
     use SoftDeletes;
     use HasFactory;
     public function tags()

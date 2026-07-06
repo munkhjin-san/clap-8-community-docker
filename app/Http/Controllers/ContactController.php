@@ -55,9 +55,6 @@ class ContactController extends Controller
         $types = ContactType::all();
         return response()->json($types);
     }
-    private function active_user(){
-        return Auth::user();
-    }
     private function get_company_name($image)
     {
         $apiKey = config('app.gemini_api_key');
@@ -744,7 +741,7 @@ class ContactController extends Controller
         
         if ($id == null) {
             $record->update([
-                'created_by' => $this->active_user()->id
+                'created_by' => Auth::user()->id
             ]);
         }
         $type_id = $request->contact_type_id;
@@ -753,7 +750,7 @@ class ContactController extends Controller
             $type_id = $type->id;
         }
         $record->update([
-            'updated_by' => $this->active_user()->id,
+            'updated_by' => Auth::user()->id,
             'contact_type_id' => $type_id
         ]);
 
@@ -935,7 +932,7 @@ class ContactController extends Controller
             'record_id' => 'required',
             'comment' => 'required|string',
         ]);
-        $user = $this->active_user();
+        $user = Auth::user();
         $record = ContactRecord::findOrFail($request->record_id);
         $report = $record->comments()->create([
             'comment' => $request->comment,
@@ -985,7 +982,7 @@ class ContactController extends Controller
         $data = $request->validate([
             'record_id' => 'required'
         ]);
-        $user = $this->active_user();
+        $user = Auth::user();
         $contact = ContactRecord::with(['collaborators', 'type'])->findOrFail($data['record_id']);
         DB::transaction(function () use ($contact, $user) {
             $collaboratorData = [];
@@ -1005,7 +1002,7 @@ class ContactController extends Controller
         ]);
     }
     public function contact_comment_read(Request $request, int $contactId) {
-        $user = $this->active_user();
+        $user = Auth::user();
         
         $lastRead = ContactCommentLastRead::updateOrCreate(
             ['contact_record_id' => $contactId, 'user_id' => $user->id],
@@ -1015,7 +1012,7 @@ class ContactController extends Controller
         return response()->json(['status' => 'ok']);
     }
     public function get_contact_comment_badge() {
-        $user = $this->active_user();
+        $user = Auth::user();
         $userId = $user->id;
                
         $rows = DB::table('contact_record_comments as c')
@@ -1042,7 +1039,7 @@ class ContactController extends Controller
     }
     public function unfollow_contact(int $contactId)
     {
-        $uid = $this->active_user()->id;
+        $uid = Auth::user()->id;
 
         $deleted = DB::table('contact_record_user')
             ->where('user_id', $uid)

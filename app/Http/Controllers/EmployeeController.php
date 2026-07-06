@@ -428,14 +428,10 @@ class EmployeeController extends Controller
             default => 'attachments',
         };
     }
-    private function active_user()
-    {
-        return Auth::user();
-    }
 
     private function ensureAdmin(): void
     {
-        $user = $this->active_user();
-        abort_unless(in_array((int) $user->id, [608, 610], true), Response::HTTP_FORBIDDEN);
+        $user = Auth::user();
+        abort_unless($user->isAdmin(), Response::HTTP_FORBIDDEN);
     }
 }

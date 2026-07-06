@@ -7,6 +7,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use App\Models\timecardRecord;
 use App\Models\shiftRecord;
+use App\Models\shiftType;
 use App\Models\User;
 use App\Models\TimecardMissingOccurrence;
 use App\Mail\DailyReportReminder;
@@ -27,7 +28,7 @@ class DailyReportConfirmation extends Command
         $dayBeforeYesterday = Carbon::now()->subDays(2)->toDateString();
 
         $shifts = shiftRecord::query()
-            ->where('shift_records.shift_type', 1)
+            ->whereIn('shift_records.shift_type', shiftType::idsFor(shiftType::CATEGORY_WORK))
             ->whereIn('shift_records.shift_day', [$yesterday, $dayBeforeYesterday])
             ->leftJoin('timecard_records', function ($join) {
                 $join->on('timecard_records.day', '=', 'shift_records.shift_day')

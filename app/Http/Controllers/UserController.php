@@ -436,14 +436,11 @@ class UserController extends Controller{
         ])->select('id', 'name', 'office_id', 'position_id', 'icon_path', 'icon_bg', 'intro')->findOrFail($request->id);
         return response()->json($user);
     }
-    private function active_user(){
-        return Auth::user();
-    }
     public function auth_check(Request $request){
         $r = Auth::id() == $request->id;
         if($r){
             $user = Auth::user();
-            $active_user = $this->active_user();
+            $active_user = Auth::user();
             $id = $active_user->id;
             $flag = Cache::get("must_sync_{$id}");
             Cache::forget("must_sync_{$id}");

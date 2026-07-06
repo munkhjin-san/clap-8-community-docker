@@ -1,0 +1,54 @@
+app/Models/User.php:270:        return $this->position_id !== null && (int) $this->position_id < 6;
+app/Models/User.php:278:        return (int) $this->position_id === 6;
+app/Models/User.php:294:        return (int) $this->position_id === 15;
+app/Policies/DriveNodePolicy.php:34:            $u->position_id < 6) return Response::allow();
+app/Http/Controllers/OpenAiController.php:759:                (int) $user->position_id < 13 ||
+app/Http/Controllers/OpenAiController.php:760:                (int) $user->position_id === 16
+app/Http/Controllers/DashboardController.php:127:            $activeUser->position_id < 6 => ProjectRecord::select('id', 'status', 'name', 'contract_started_at', 'category', 'date_start', 'date_end')
+app/Http/Controllers/DashboardController.php:132:            $activeUser->position_id === 6 => ProjectRecord::select('id', 'status', 'name', 'contract_started_at', 'category', 'date_start', 'date_end')
+app/Http/Controllers/DashboardController.php:378:        if ($user->position_id < 6 || $user->position_id === 14) return null;
+app/Http/Controllers/DashboardController.php:723:        if($activeUser->position_id == 6){
+app/Http/Controllers/DashboardController.php:1108:        if ($active_user->position_id < 6 || $active_user->position_id === 14) return [];
+app/Http/Controllers/DashboardController.php:1129:        // elseif ($user->position_id == 6) {
+app/Http/Controllers/DashboardController.php:1131:        // } elseif ($user->position_id < 6) {
+app/Http/Controllers/DashboardController.php:1266:        $isPM = $activeUser->position_id == 6;
+app/Http/Controllers/DashboardController.php:1267:        $isBoss = $activeUser->position_id && $activeUser->position_id < 6;
+app/Http/Controllers/AppCommentController.php:93:        $isPM = $user->position_id == 6;
+app/Http/Controllers/AppCommentController.php:94:        $isBoss = $user->position_id && $user->position_id < 6;
+app/Http/Controllers/RemindController.php:317:        if($active_user->position_id == 6){
+app/Http/Controllers/RemindController.php:407:        // elseif ($user->position_id == 6) {
+app/Http/Controllers/RemindController.php:409:        // } elseif ($user->position_id < 6) {
+app/Http/Controllers/RemindController.php:1061:                'finance_comment' => $user->position_id <= 6 || in_array($user->id, [610,608]) ? $this->badgeService->financeComment($user) : ['total_unread' => 0, 'projects' => []],
+app/Http/Controllers/WorkController.php:59:        return $user->isAdmin() || (int) $user->position_id === 6;
+app/Http/Controllers/WorkController.php:716:        $valid_shift = (!empty($shift) && $shift->shiftType->id !== 3) || $user->position_id == 15 || $user->position_id < 6;
+app/Http/Controllers/WorkController.php:1032:        $isSpecial = ($position_id === 15 && $user_id !== $user->id);
+app/Http/Controllers/WorkController.php:2532:        if($user->position_id === 15){
+app/Http/Controllers/WorkController.php:4529:                $isRegistered = $user->position_id == 15;
+app/Http/Controllers/WorkController.php:4697:        $pmApprovalNeeded = $user->position_id != 6 && count($selectableProjects) > 0;
+app/Http/Controllers/ProjectController.php:138:        ->when($position_id == 15, function ($q) use($user) {
+app/Http/Controllers/ProjectController.php:725:                    || ($user->position_id !== null && $user->position_id < 6);
+app/Http/Controllers/ProjectController.php:1981:        if ($user->position_id == 6) {
+app/Http/Controllers/ProjectController.php:1983:        } elseif ($user->position_id < 6 && ($user->id !== 610 && $user->id !== 608)) {
+app/Http/Controllers/BoardController.php:128:        if(in_array($name, $no_registered_zone) && ($communityContext->isRegistered() || Auth::user()->position_id == 15)){
+app/Http/Controllers/CustomFormController.php:134:            ->when($active_user->position_id <= 6 && !in_array($active_user->id, [610, 608]), function ($q) use ($active_user) {
+app/Http/Controllers/CustomFormController.php:905:            // ->when($active_user->position_id <= 6 && ($active_user->id !== 610 && $active_user->id !== 608), function($q) use($active_user){
+app/Services/BadgeService.php:343:        $isDirector = ($user->position_id < 6) || ($userId === 610);
+app/Services/BadgeService.php:518:        $isPrivileged = $user->position_id < 6
+app/Services/BadgeService.php:575:        } elseif ($user->position_id < 6) {
+app/Services/IncidentService.php:116:        $isPM = $user->position_id == 6;
+app/Services/IncidentService.php:143:        return ($user->position_id && $user->position_id < 6) || in_array($user->id, [608, 610], true);
+app/Services/IncidentService.php:148:        return $this->canManageIncidentAdministration($user) || $user->position_id == 6;
+app/Services/IncidentService.php:153:        return $this->canManageIncidentAdministration($user) || $user->position_id == 6;
+app/Services/IncidentService.php:172:        if ($user->position_id == 6) {
+app/Services/IncidentService.php:441:        if ($user->position_id == 6) {
+app/Services/IncidentService.php:479:        if ($user->position_id != 6) {
+app/Services/IncidentService.php:492:        $isPM = $user->position_id == 6;
+app/Services/TimeSheet/ShiftService.php:117:                $user->position_id == 15,
+app/Services/TimeSheet/ShiftService.php:126:                $user->position_id == 12,
+app/Services/TimeSheet/ShiftService.php:136:            $user->position_id <= 11 || $user->position_id == 16,
+app/Services/Community/CommunityPermissionService.php:43:                return $user->position_id !== null && (int) $user->position_id < 6;
+app/Services/Community/CommunityPermissionService.php:56:                return (int) $user->position_id === 6;
+app/Services/Community/CommunityPermissionService.php:82:                return (int) $user->position_id === 15;
+app/Services/TimeSheet/AutoAttendanceConfirm.php:168:            $should_calculate_month_hours = $user->position_id == 12 || $user->position_id == 15;
+app/Services/TimeSheet/AutoAttendanceConfirm.php:199:            $workedday_count = $user->position_id === 15
+app/Services/TimeSheet/AutoAttendanceConfirm.php:245:            if($user->position_id == 15){

@@ -22,9 +22,6 @@ use App\Services\AccountVault;
 
 class AssetController extends Controller
 {
-    private function active_user(){
-        return Auth::user();
-    }
     public function get_possible_projects() 
     {
         $projects = ProjectRecord::with(['members', 'manager'])->select('id', 'name')->get();
@@ -77,7 +74,7 @@ class AssetController extends Controller
         $isUpdate = $id !== null;
 
         if($id == null){
-            $params['created_by'] = $this->active_user()->id;
+            $params['created_by'] = Auth::user()->id;
         }
         // $asset = AssetRecord::findOrNew($id);
         if(!$is_editing && $id){
@@ -205,8 +202,8 @@ class AssetController extends Controller
 
         $asset = AssetRecord::findOrFail($request->id);
 
-        $activeUser = $this->active_user();
-        $isAdmin = in_array($activeUser->id, [608, 610], true);
+        $activeUser = Auth::user();
+        $isAdmin = $activeUser->isAdmin();
         if (! $isAdmin && ($asset->user_id ?? null) !== $activeUser->id) {
             abort(403, 'Forbidden');
         }
@@ -265,7 +262,7 @@ class AssetController extends Controller
     public function get_assets(Request $request) 
     {
 
-        $user = $this->active_user();
+        $user = Auth::user();
         $mode = $request->mode ?? 'normal';
         $projectId = $request->project_id ? [$request->project_id] : [];
         $memberId = $request->user_id ? $request->user_id : [];
@@ -318,7 +315,7 @@ class AssetController extends Controller
             }
         }
 
-        $prioritizeRequests = ($user->id == 610 || $user->id == 608);
+        $prioritizeRequests = $user->isAdmin();
         if ($prioritizeRequests) {
             // Put assets that have related requests on top.
             $assets->withCount('requests');
@@ -401,7 +398,7 @@ class AssetController extends Controller
             'asset_id' => 'required',
         ]);
         $files = $request->file_ids ?? [];
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $assetRecord = AssetRecord::findOrFail($request->asset_id);
         // $to_project = $request->to_project ?? null;
         $moveRequest = $assetRecord->requests()->create([
@@ -463,7 +460,7 @@ class AssetController extends Controller
             'asset_id' => 'required',
         ]);
         $files = $request->file_ids ?? [];
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $assetRecord = AssetRecord::findOrFail($request->asset_id);
         
         $returnRequest = $assetRecord->requests()->create([
@@ -510,7 +507,7 @@ class AssetController extends Controller
         // if($asset_step->value == 1){
             
         //     $asset_request->steps()->create([
-        //         'created_by' => $this->active_user()->id,
+        //         'created_by' => Auth::user()->id,
         //         'value' => 2
         //     ]);
         //     return response()->json($asset_step);
@@ -535,7 +532,7 @@ class AssetController extends Controller
         //     $has_next_step = $asset_request->steps()->where('value', 3)->exists();
         //     if(!$has_next_step){
         //         $asset_request->steps()->create([
-        //             'created_by' => $this->active_user()->id,
+        //             'created_by' => Auth::user()->id,
         //             'value' => $next_step_number
         //         ]);
         //     }            
@@ -545,7 +542,7 @@ class AssetController extends Controller
         // if($asset_step->value == 3){
             
         //     $asset_request->steps()->create([
-        //         'created_by' => $this->active_user()->id,
+        //         'created_by' => Auth::user()->id,
         //         'value' => 4
         //     ]);
         //     return response()->json($asset_step);
@@ -692,7 +689,7 @@ class AssetController extends Controller
     public function get_asset_users(Request $request) 
     {
         
-        $user = $this->active_user();
+        $user = Auth::user();
         $mode = $request->mode ?? 'normal';
         $exclude = $request->exclude ?? [];
 
@@ -773,7 +770,7 @@ class AssetController extends Controller
     }
     public function confirm_asset(Request $request) 
     {
-        $user = $this->active_user();
+        $user = Auth::user();
         $request->validate([
             'asset_id' => 'required',
         ]);

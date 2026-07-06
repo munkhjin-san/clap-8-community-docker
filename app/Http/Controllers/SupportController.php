@@ -44,13 +44,10 @@ class SupportController extends Controller
     {
     }
 
-    private function active_user(){
-        return Auth::user();
-    }
     // Support administration (FAQ / regulations / system updates) is admin-only.
     private function isSupportAdmin(): bool
     {
-        return $this->active_user()->isAdmin();
+        return Auth::user()->isAdmin();
     }
 
     private function authorizeSupportAdmin(): void
@@ -65,7 +62,7 @@ class SupportController extends Controller
         $query = EmergencyContact::query()->where('id', $id);
 
         if (!$this->isSupportAdmin()) {
-            $query->where('user_id', $this->active_user()->id);
+            $query->where('user_id', Auth::user()->id);
         }
 
         return $query->firstOrFail();
@@ -164,7 +161,7 @@ class SupportController extends Controller
         return response()->json(['success' => true]);
     }
     public function support_add_consult(Request $request){
-        $user_id = $this->active_user()->id;
+        $user_id = Auth::user()->id;
         $create = SupportMailFormRecord::create([
             "user_id" => $user_id,
             "kind_value" => $request->kind_value,
@@ -176,7 +173,7 @@ class SupportController extends Controller
     public function get_recieved_consults(){
 
         
-        $has_privilage = $this->permissions->can('support.inbox.view', $this->active_user());
+        $has_privilage = $this->permissions->can('support.inbox.view', Auth::user());
         $record_list = supportMailFormRecord::where('deleted_flag','=', 0)
         ->when(!$has_privilage, function($q){
             $q->where('user_id', Auth::id());
@@ -188,7 +185,7 @@ class SupportController extends Controller
         return response()->json($record_list);
     }
     public function add_memo_to_consult(Request $request){
-        $user_id = $this->active_user()->id;
+        $user_id = Auth::user()->id;
         $create = SupportMailRespondingLog::create([
             "user_id" => $user_id,
             "text" => $request->text,
@@ -214,7 +211,7 @@ class SupportController extends Controller
         $category = $validated['category'] ?? 'all';
         $keyword = trim($validated['keyword'] ?? '');
         $perPage = $validated['per_page'] ?? 10;
-        $activeUserId = $this->active_user()->id;
+        $activeUserId = Auth::user()->id;
 
         $records = SystemUpdateRecord::with(['details.files', 'user'])
             ->when(!$this->isSupportAdmin(), function ($query) {
@@ -275,7 +272,7 @@ class SupportController extends Controller
             $record = SystemUpdateRecord::updateOrCreate(
                 ['id' => $validated['id'] ?? null],
                 [
-                    'user_id' => $this->active_user()->id,
+                    'user_id' => Auth::user()->id,
                     'category' => $validated['category'],
                     'title' => $validated['title'],
                     'summary' => $validated['summary'] ?? null,
@@ -362,7 +359,7 @@ class SupportController extends Controller
         ]);
 
         $recordId = $request->record_id;
-        $userId = $this->active_user()->id;
+        $userId = Auth::user()->id;
 
         $check = SystemUpdateCheck::firstOrCreate([
             'user_id' => $userId,
@@ -400,7 +397,7 @@ class SupportController extends Controller
     {
         $conversations = SupportConversation::with(['items' => function($q) {
             $q->orderBy('created_at', 'asc');
-        }, 'user'])->where('user_id', $this->active_user()->id)->orderBy('created_at', 'desc')->get();
+        }, 'user'])->where('user_id', Auth::user()->id)->orderBy('created_at', 'desc')->get();
         return response()->json($conversations);
     }
     private function generateSummary($text)
@@ -442,7 +439,7 @@ class SupportController extends Controller
         }
         $supportConversation = SupportConversation::firstOrCreate([
             'conversation_id' => $valid_conversation_id,
-            'user_id' => $this->active_user()->id,
+            'user_id' => Auth::user()->id,
         ]);
         if(!$conversationId){
             $supportConversation->update(['title' => $title]);
@@ -606,7 +603,7 @@ class SupportController extends Controller
             'id' => 'required'
         ]);
 
-        $user_id = $this->active_user()->id;
+        $user_id = Auth::user()->id;
         $conversation = SupportConversation::where('id', $request->id)
             ->where('user_id', $user_id)
             ->first();
@@ -659,7 +656,7 @@ class SupportController extends Controller
             ]);
 
 
-            $user_id = $this->active_user()->id;
+            $user_id = Auth::user()->id;
             $id = $request->id ?? null;
             $regulation = RegulationRecord::updateOrCreate(
                 ['id' => $id],
@@ -1029,7 +1026,7 @@ class SupportController extends Controller
             'content' => 'required|string',
         ]);
 
-        $user_id = $this->active_user()->id;
+        $user_id = Auth::user()->id;
         $type = $request->type;
         if($type == 'emergency'){
             $create = EmergencyContact::create([
@@ -1038,7 +1035,7 @@ class SupportController extends Controller
                 'status' => EmergencyContact::STATUS_PENDING,
             ]);
 
-            $sender = $this->active_user();
+            $sender = Auth::user();
             $messageContent = "【GLOWD】緊急連絡\nユーザー: {$sender->name}\n内容: {$request->content}";
 
 

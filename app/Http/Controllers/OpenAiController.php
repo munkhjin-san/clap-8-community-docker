@@ -755,10 +755,7 @@ TXT;
             (int) $user->retire === 0 &&
             (int) $user->partner_flag === 0 &&
             (int) $user->hide_flag === 0 &&
-            (
-                (int) $user->position_id < 13 ||
-                (int) $user->position_id === 16
-            );
+            $user->hasCapability('benefit.lunch_challenge');
     }
 
     private function lunchChallengeTargetUserIds(string $dateKey): array
@@ -772,11 +769,7 @@ TXT;
                     ->where('retire', 0)
                     ->where('partner_flag', 0)
                     ->where('hide_flag', 0)
-                    ->where(function ($query) {
-                        $query->where(function ($employeeQuery) {
-                            $employeeQuery->where('position_id', '<', 13);
-                        })->orWhere('position_id', 16);
-                    })
+                    ->whereHasCapability('benefit.lunch_challenge')
                     ->pluck('id')
                     ->shuffle()
                     ->take(self::LUNCH_CHALLENGE_TARGET_COUNT)

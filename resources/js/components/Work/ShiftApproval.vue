@@ -261,7 +261,7 @@ import { useRoute } from 'vue-router';
         }
     }
     const getShiftClass = (shift) => {
-        return shift && [0,5,14,15,16,3].includes(shift?.id) ? 'shift-sunday' : ''
+        return shift && ['day_off','annual_leave_full','special_leave_condolence','special_leave_transfer','special_leave_oda','planned_paid_leave'].includes(shift?.category) ? 'shift-sunday' : ''
     }
     const holiday = (day) => {
         const dayInstance = DateTime.fromSQL(day)
@@ -287,7 +287,7 @@ import { useRoute } from 'vue-router';
         const shiftType = shift?.shift_type
         if (!shiftType) return false
 
-        return ![0, 18].includes(Number(shiftType.id)) && Number(shiftType.full_day) !== 2
+        return !['day_off','legal_holiday'].includes(shiftType.category) && Number(shiftType.full_day) !== 2
     }
     const isSelfShift = (shift) => {
         return shift && Number(shift.user_id) === Number(auth.activeUser.id)

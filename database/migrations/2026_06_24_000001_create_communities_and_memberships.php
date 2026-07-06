@@ -10,13 +10,21 @@ return new class extends Migration
     private const DEFAULT_COMMUNITY_NAME = 'グラウド株式会社';
     private const DEFAULT_COMMUNITY_SLUG = 'glowd';
 
+    /**
+     * Aggregate-root tables that carry community_id and are community-scoped
+     * (see App\Models\Concerns\BelongsToCommunity). Child / pivot tables are
+     * intentionally excluded — they inherit their community through their
+     * parent root's foreign key, so scoping them would be redundant.
+     *
+     * Note: board_records / message_records / project_goals / task_records are
+     * kept here because, despite being children of a root, they are queried
+     * directly throughout the app and rely on the global scope for isolation.
+     */
     private const COMMUNITY_TABLES = [
         'board_records',
         'message_records',
         'project_records',
         'project_goals',
-        'project_members',
-        'project_member_roles',
         'task_records',
         'timecard_records',
         'shift_records',
@@ -26,11 +34,43 @@ return new class extends Migration
         'asset_records',
         'custom_forms',
         'notice_records',
-        'support_records',
+        'support_conversations',
+        'support_mail_form_records',
         'regulation_records',
-        'faq_records',
         'lesson_themes',
-        'lesson_materials',
+        'emergency_contacts',
+        'contact_records',
+        'incidents',
+        'office_records',
+        'position_records',
+        'question_and_answer_records',
+        // Second wave (2026-06-26 schema audit): independent roots, the custom-field
+        // store, per-community lookups, and user-personal tables.
+        'knowledge_records',
+        'nice_records',
+        'welcome_messages',
+        'evaluation_records',
+        'user_albums',
+        'challenge_records',
+        'my_groups',
+        'work_groups',
+        'employee_change_applications',
+        'paid_leave_accounts',
+        'refresh_accounts',
+        'custom_field_data_records',
+        'tag_records',
+        'asset_types',
+        'shift_types',
+        'incident_categories',
+        'incident_punishments',
+        'incident_statuses',
+        'contact_types',
+        'project_types',
+        'petition_types',
+        'lesson_theme_categories',
+        'search_history_records',
+        'user_details',
+        'app_remember_records',
     ];
 
     public function up(): void

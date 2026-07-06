@@ -5,6 +5,7 @@ use App\Http\Controllers\AssetCategoryController;
 use App\Http\Controllers\AccountChooserController;
 use App\Http\Controllers\CustomFormController;
 use App\Http\Controllers\CommunityContextController;
+use App\Http\Controllers\ShiftTypeController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectManagementController;
 use Illuminate\Support\Facades\Route;
@@ -113,7 +114,44 @@ Route::get('/export_ical', [CalendarController::class, 'export_ical']);
 // })->where('any', '.*')->name('help');
 Route::match(['get', 'post'], '/cron-trigger', [AutoJobController::class, 'cronTest']);
 
-Auth::routes(['register' => false]);
+// --- Auth routes (see docs/sanctum_migration_footprint.md) ---
+// Fortify (config/fortify.php, views=false) owns POST /login (name `login.store`) and
+// POST /logout (name `logout`). We keep only the GET login page here; Fortify registers no
+// view route when views=false. Post-login side-effects live in App\Http\Responses\LoginResponse.
+//
+// Phase 3: the email "forgot password" + password-confirmation flows were retired (unreachable /
+// unused). Self-service password change is UserController@passChange (POST /user_pass_change_api);
+// admin password reset is in the user-management UI.
+Route::get('login', [\App\Http\Controllers\Auth\LoginController::class, 'showLoginForm'])->name('login');
+
+// Two-factor challenge page (Phase 4). Fortify redirects confirmed-2FA users here after the
+// password step, but registers no GET view route when fortify.views=false — so we own it.
+// POST /two-factor-challenge is owned by Fortify (name `two-factor.login.store`).
+Route::get('two-factor-challenge', fn () => view('auth.two-factor-challenge'))
+    ->middleware('guest')->name('two-factor.login');
+
+// Email OTP login challenge (Phase 7): reached pre-auth after the password step.
+Route::middleware('guest')->group(function () {
+    Route::get('email-otp-challenge', [\App\Http\Controllers\Auth\EmailOtpChallengeController::class, 'create'])->name('email-otp.challenge');
+    Route::post('email-otp-challenge', [\App\Http\Controllers\Auth\EmailOtpChallengeController::class, 'store'])->middleware('throttle:6,1');
+    Route::post('email-otp-challenge/resend', [\App\Http\Controllers\Auth\EmailOtpChallengeController::class, 'resend'])->middleware('throttle:3,1')->name('email-otp.resend');
+});
+
+// Account-security endpoints — plain `auth` (not community/capability-scoped) so they're never gated.
+Route::middleware('auth')->group(function () {
+    // Trusted-device management (Phase 6): list / revoke browsers that skip the 2FA challenge.
+    Route::get('/trusted-devices', [\App\Http\Controllers\TrustedDeviceController::class, 'index']);
+    Route::delete('/trusted-devices/{id}', [\App\Http\Controllers\TrustedDeviceController::class, 'destroy'])->whereNumber('id');
+    Route::delete('/trusted-devices', [\App\Http\Controllers\TrustedDeviceController::class, 'destroyAll']);
+
+    // Email-OTP enrollment (Phase 7).
+    Route::post('/user/email-otp/send', [\App\Http\Controllers\Auth\EmailOtpController::class, 'send']);
+    Route::post('/user/email-otp/confirm', [\App\Http\Controllers\Auth\EmailOtpController::class, 'confirm']);
+    Route::delete('/user/email-otp', [\App\Http\Controllers\Auth\EmailOtpController::class, 'destroy']);
+
+    // Passkey listing (Phase 8) — registration/deletion/login are owned by laravel/passkeys via Fortify.
+    Route::get('/user/passkeys', [\App\Http\Controllers\PasskeyController::class, 'index']);
+});
 Route::get('/user_icon_thumbnail/{path}/{size}/{color?}', [ContentController::class, 'user_icon_thumbnail']);
 Route::get('/user_default_thumbnail/{char}/{size}/{color?}', [ContentController::class, 'user_default_thumbnail']);
 Route::prefix('cdn_external')->group(function () {
@@ -122,7 +160,7 @@ Route::prefix('cdn_external')->group(function () {
 Route::get('/public-surveys/{token}', [PublicSurveyController::class, 'show']);
 Route::get('/public-surveys/{token}/data', [PublicSurveyController::class, 'data']);
 Route::post('/public-surveys/{token}/answers', [PublicSurveyController::class, 'submit'])->middleware('throttle:20,1');
-Route::group(["middleware"=> ["auth", "session.expired", "community.active", "app.blade"]],function(){
+Route::group(["middleware"=> ["auth", "session.expired", "community.active", "app.capability"]],function(){
     Route::post('/push/subscribe', [PushController::class, 'subscribe']);
     Route::get('/push/test', [PushController::class, 'test']);
 
@@ -218,8 +256,15 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
     Route::post('/community_context/roles', [CommunityContextController::class, 'createRole']);
     Route::patch('/community_context/roles/{role}', [CommunityContextController::class, 'updateRole']);
     Route::patch('/community_context/roles/{role}/members', [CommunityContextController::class, 'syncRoleMembers']);
+    Route::patch('/community_context/roles/{role}/shift-types', [CommunityContextController::class, 'syncRoleShiftTypes']);
     Route::delete('/community_context/roles/{role}', [CommunityContextController::class, 'deleteRole']);
     Route::patch('/community_context/memberships/{membership}', [CommunityContextController::class, 'updateMembership']);
+    // Shift-type CRUD (community config; community.manage gated in the controller)
+    Route::get('/community_context/shift_type_categories', [ShiftTypeController::class, 'categories']);
+    Route::get('/community_context/shift_types', [ShiftTypeController::class, 'index']);
+    Route::post('/community_context/shift_types', [ShiftTypeController::class, 'store']);
+    Route::patch('/community_context/shift_types/{shiftType}', [ShiftTypeController::class, 'update']);
+    Route::delete('/community_context/shift_types/{shiftType}', [ShiftTypeController::class, 'destroy']);
 
     Route::get('/lesson_files/{path}', [ContentController::class, 'lessonFileTransfer']);
 
@@ -227,7 +272,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         // Board
     Route::post('/board_list', [BoardController::class, 'board_list']); // 一覧表示API
     Route::post('/search_board_list', [BoardController::class, 'search_board_list']);
-    Route::post('/board_create', [BoardController::class, 'board_create'])->middleware('blade:board.create'); // 作成API
+    Route::post('/board_create', [BoardController::class, 'board_create'])->middleware('capability:board.create'); // 作成API
     Route::post('/board_edit', [BoardController::class, 'board_edit']); // 編集API
     Route::post('/board_delete', [BoardController::class, 'board_delete']); // 削除API
     Route::post('/get_messages', [BoardController::class, 'get_messages']); // コメント一覧表示API
@@ -574,10 +619,10 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::get('/get_notice', [NoticeController::class, 'get_notice']);
         Route::post('/read_notice', [NoticeController::class, 'read_notice']);
         Route::get('/notice_badge', [NoticeController::class, 'get_notice_badge']);
-        Route::post('/notice_file_upload', [NoticeController::class, 'notice_file_upload'])->middleware('blade:notice.manage');
-        Route::post('/notice_delete_file', [NoticeController::class, 'notice_delete_file'])->middleware('blade:notice.manage');
-        Route::post('/notice_add_record', [NoticeController::class, 'notice_add_record'])->middleware('blade:notice.manage');
-        Route::delete('/notice_delete', [NoticeController::class, 'notice_delete'])->middleware('blade:notice.manage');
+        Route::post('/notice_file_upload', [NoticeController::class, 'notice_file_upload'])->middleware('capability:notice.manage');
+        Route::post('/notice_delete_file', [NoticeController::class, 'notice_delete_file'])->middleware('capability:notice.manage');
+        Route::post('/notice_add_record', [NoticeController::class, 'notice_add_record'])->middleware('capability:notice.manage');
+        Route::delete('/notice_delete', [NoticeController::class, 'notice_delete'])->middleware('capability:notice.manage');
         Route::get('/load_notice_body', [NoticeController::class, 'load_notice_body']);
 
         // Lessons
@@ -695,7 +740,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/update_resource_kintone', [ProjectController::class, 'update_resource_kintone']);
 
         // Project plan (accounts/amounts) - new prefixed schema
-        Route::middleware('blade:finance.manage')->group(function () {
+        Route::middleware('capability:finance.manage')->group(function () {
         Route::get('/projects/{project}/plan/grid', [ProjectPlanController::class, 'grid']);
         Route::post('/projects/{project}/plan/grid', [ProjectPlanController::class, 'save']);
         Route::post('/projects/{project}/plan/lock', [ProjectPlanController::class, 'lock']);

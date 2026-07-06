@@ -1311,8 +1311,8 @@ class PostController extends Controller
             ]);
     }
     public function post_get_all_possible_users(Request $request){
-        $other_users = User::where('retire', 0)->where('deleted_flag', 0)->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')->get();
-        return response()->json($other_users); 
+        $other_users = User::where('retire', 0)->where('deleted_flag', 0)->inActiveCommunity()->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')->get();
+        return response()->json($other_users);
     }
     public function post_get_challenge_users(Request $request){
         $exclude = collect($request->input('exclude', []))
@@ -1321,6 +1321,7 @@ class PostController extends Controller
             ->values()
             ->all();
         $other_users = $this->eligibleChallengeMemberQuery()
+            ->inActiveCommunity()
             ->whereNotIn('id', array_values(array_unique(array_merge($exclude, PostRelay::EXCLUDED_USER_IDS))))
             ->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')
             ->get();
@@ -1368,8 +1369,8 @@ class PostController extends Controller
         }
     }
     public function post_get_post_users(Request $request){
-        $other_users = User::where('retire', 0)->where('deleted_flag', 0)->where('id', '!=', Auth::id())->where('id', '>', 99)->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')->get();
-        return response()->json($other_users); 
+        $other_users = User::where('retire', 0)->where('deleted_flag', 0)->where('id', '!=', Auth::id())->where('id', '>', 99)->inActiveCommunity()->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')->get();
+        return response()->json($other_users);
     }
     public function update_post_badge(Request $request){
         $auth_user = Auth::user();

@@ -1,0 +1,293 @@
+/* ============================================================
+   Shared Settings styles (global) — used by the layout and
+   every panel under resources/js/components/Settings/panels.
+   Component-local concerns (master/detail columns, the menu
+   rows, transitions) stay scoped in their own components.
+   ============================================================ */
+
+/* ===== Top bars ===== */
+.settings-bar {
+    height: 60px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 16px;
+    background: var(--background-color);
+    border-bottom: 1px solid var(--normalBorder);
+}
+.settings-bar__title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+}
+.settings-bar__ham { display: flex; align-items: center; }
+.settings-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--primary-color);
+    cursor: pointer;
+    transition: background .15s ease;
+    margin-left: -6px;
+}
+.settings-back:hover { background: color-mix(in srgb, var(--primary-color) 12%, transparent); }
+
+/* ===== Scroll area ===== */
+.settings-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+}
+.settings-shell {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 32px 28px 56px;
+}
+
+/* ===== Cards ===== */
+.settings-card {
+    background: var(--background-color);
+    border: 1px solid var(--normalBorder);
+    border-radius: 6px;
+    overflow: hidden;
+}
+.settings-card--pad { padding: 16px; }
+
+/* ===== Panels ===== */
+.settings-panel { display: flex; flex-direction: column; }
+.settings-panel--full { min-height: 60vh; }
+.panel-hint {
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--sub-color);
+    margin: 4px 2px 18px;
+}
+.panel-actions { display: flex; justify-content: center; margin-top: 28px; }
+.panel-actions--left { justify-content: flex-start; }
+.panel-actions--row { gap: 12px; align-items: center; }
+.panel-actions--danger { margin-top: 32px; }
+.panel-actions--danger .l-button,
+.panel-actions--danger .l-spinner { background: #c0392b; }
+
+/* ===== Buttons ===== */
+.settings-btn-secondary {
+    background: var(--bg3);
+    color: var(--primary-color);
+    border: 1px solid var(--normalBorder);
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background .12s ease;
+}
+.settings-btn-secondary:hover { background: color-mix(in srgb, var(--primary-color) 14%, var(--bg3)); }
+.settings-btn-secondary--sm { padding: 6px 12px; font-size: 12px; }
+
+/* ===== Password fields ===== */
+.pw-field { position: relative; margin-bottom: 22px; }
+.pw-field:last-child { margin-bottom: 0; }
+
+/* ===== Color grid ===== */
+.color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+    gap: 12px;
+}
+.color-chip {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+.color-chip:hover { transform: translateY(-2px); }
+.color-chip--selected {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--background-color), 0 0 0 4px var(--primary-color);
+}
+
+/* ===== Option rows (theme / footer) ===== */
+.option-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    border-top: 1px solid var(--panel-separate);
+    cursor: pointer;
+    position: relative;
+    color: var(--primary-color);
+}
+.option-row:first-child { border-top: none; }
+.option-row:hover { background: color-mix(in srgb, var(--primary-color) 8%, transparent); }
+.option-row__icon {
+    flex: none;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--sub-color);
+}
+.option-row__icon svg { width: 20px; height: 20px; }
+.option-row__label { flex: 1; font-size: 15px; }
+.option-row--active .option-row__icon { color: var(--primary-color); }
+.option-radio { position: absolute; opacity: 0; pointer-events: none; }
+.option-check {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--formBorder);
+    position: relative;
+    transition: border-color .15s ease;
+}
+.option-row--active .option-check { border-color: var(--primary-color); }
+.option-row--active .option-check::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border-radius: 50%;
+    background: var(--primary-color);
+}
+
+/* ===== iCal box ===== */
+.ical-box {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+    background: var(--background-color);
+    border: 1px solid var(--normalBorder);
+    border-radius: 6px;
+}
+.ical-box__url {
+    user-select: all;
+    font-size: 13px;
+    word-break: break-all;
+    flex: 1;
+    min-width: 200px;
+    color: var(--link-color);
+}
+
+/* ===== Status banner ===== */
+.status-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+}
+.status-banner--on { background: rgba(22,163,74,.1); }
+.status-banner__dot {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: #16a34a;
+    box-shadow: 0 0 0 4px rgba(22,163,74,.18);
+}
+.status-banner__title { font-size: 15px; font-weight: 600; margin: 0 0 4px; color: #16a34a; }
+.status-banner__desc { font-size: 13px; line-height: 1.6; color: var(--sub-color); margin: 0; }
+
+/* ===== 2FA / passkey bits ===== */
+.tfa-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.tfa-recovery { margin-top: 16px; }
+.recovery-list {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    font-family: monospace;
+    font-size: 14px;
+}
+.recovery-list li {
+    background: var(--bg3);
+    padding: 6px 10px;
+    border-radius: 4px;
+    text-align: center;
+    letter-spacing: 1px;
+}
+.tfa-qr {
+    margin: 16px 0;
+    background: #fff;
+    padding: 14px;
+    border-radius: 6px;
+    width: fit-content;
+}
+.tfa-qr svg { width: 180px; height: 180px; display: block; }
+.tfa-secret { font-size: 13px; margin-top: 4px; }
+.tfa-secret code {
+    background: var(--bg3);
+    padding: 3px 8px;
+    border-radius: 4px;
+    word-break: break-all;
+}
+.tfa-label { display: block; margin: 18px 0 8px; font-size: 13px; font-weight: 600; }
+.tfa-input {
+    width: 180px;
+    padding: 12px;
+    font-size: 20px;
+    letter-spacing: 6px;
+    text-align: center;
+    border: 1px solid var(--formBorder);
+    border-radius: 5px;
+    background: var(--background-color);
+    color: var(--primary-color);
+    outline: none;
+}
+.tfa-input:focus { border-color: var(--primary-color); }
+.tfa-input--text {
+    width: 100%;
+    max-width: 360px;
+    letter-spacing: normal;
+    text-align: left;
+    font-size: 15px;
+}
+.tfa-error { color: #e5484d; font-size: 13px; margin-top: 10px; }
+
+/* ===== Device / passkey list ===== */
+.tfa-devices { margin-top: 24px; }
+.tfa-devices__title {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    color: var(--sub-color);
+    margin: 0 0 8px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.device-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    border-top: 1px solid var(--panel-separate);
+}
+.device-row:first-child { border-top: none; }
+.device-row__info { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 3px; }
+.device-row__name { font-size: 14px; }
+.device-row__current { color: #16a34a; font-size: 11px; margin-left: 4px; }
+.device-row__meta { font-size: 11px; color: var(--sub-color); }
+
+@media screen and (max-width: 959px) {
+    .settings-shell { padding: 20px 16px 60px; }
+    .recovery-list { font-size: 13px; }
+}

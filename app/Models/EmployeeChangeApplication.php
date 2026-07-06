@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCommunity;
 use App\Enums\ApplicationStatus;
 use App\Enums\ApplicationType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,6 +11,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class EmployeeChangeApplication extends Model
 {
+    use BelongsToCommunity;
+
     use HasFactory, SoftDeletes;
 
     protected $guarded = [];

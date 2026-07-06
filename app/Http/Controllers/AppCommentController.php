@@ -18,10 +18,6 @@ class AppCommentController extends Controller
         'incident' => Incident::class,
     ];
 
-    private function active_user()
-    {
-        return Auth::user();
-    }
 
     public function index(Request $request)
     {
@@ -48,7 +44,7 @@ class AppCommentController extends Controller
 
         $commentable = $this->resolveCommentable($validated['type'], (int) $validated['id']);
         $this->authorizeCommentable($commentable);
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         $comment = $commentable->comments()->create([
             'user_id' => $activeUser->id,
@@ -69,7 +65,7 @@ class AppCommentController extends Controller
             ->select('id', 'name', 'icon_path', 'icon_bg')
             ->where('retire', 0)
             ->where('hide_flag', 0)
-            ->whereNot('id', $this->active_user()->id)
+            ->whereNot('id', Auth::user()->id)
             ->orderBy('name')
             ->get();
     }
@@ -87,16 +83,16 @@ class AppCommentController extends Controller
 
     private function authorizeCommentable(Model $commentable): void
     {
-        if ($commentable instanceof Incident && !$this->canAccessIncident($commentable, $this->active_user())) {
+        if ($commentable instanceof Incident && !$this->canAccessIncident($commentable, Auth::user())) {
             abort(403);
         }
     }
 
     private function canAccessIncident(Incident $incident, User $user): bool
     {
-        $isPM = $user->position_id == 6;
-        $isBoss = $user->position_id && $user->position_id < 6;
-        $isAdmin = in_array($user->id, [610, 608], true);
+        $isPM = $user->isPM();
+        $isBoss = $user->isBoss();
+        $isAdmin = $user->isAdmin();
 
         if ($isBoss || $isAdmin) {
             return true;

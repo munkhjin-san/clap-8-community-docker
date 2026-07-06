@@ -74,7 +74,7 @@ class Kernel extends HttpKernel
         'verified.user' => \App\Http\Middleware\VerifyUser::class,
         'session.expired' => \App\Http\Middleware\CheckSessionExpired::class,
         'community.active' => \App\Http\Middleware\ResolveActiveCommunity::class,
-        'blade' => \App\Http\Middleware\EnsureCommunityBlade::class,
-        'app.blade' => \App\Http\Middleware\EnforceAppBlade::class,
+        'capability' => \App\Http\Middleware\EnsureCommunityCapability::class,
+        'app.capability' => \App\Http\Middleware\EnforceAppCapability::class,
     ];
 }

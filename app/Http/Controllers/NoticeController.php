@@ -16,12 +16,9 @@ use Auth;
 
 class NoticeController extends Controller
 {
-    private function active_user(){
-        return Auth::user();
-    }
     public function get_notices(Request $request){
         $key = $request->keyword;
-        $user = $this->active_user();
+        $user = Auth::user();
         $userId = $user->id;
         $notices = NoticeRecord::where('deleted_flag', 0)
         ->when($key, function($q) use($key){
@@ -58,7 +55,7 @@ class NoticeController extends Controller
     }
     public function read_notice(Request $request){
         $record = NoticeRecord::findOrFail($request->record_id);
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         if (!$record->readers->contains($active_user->id)) {
             $record->readers()->attach($active_user->id);
 
@@ -67,7 +64,7 @@ class NoticeController extends Controller
         return response()->json($record);
     }
     public function get_notice_badge(Request $request){
-        $user_id = $this->active_user()->id;
+        $user_id = Auth::user()->id;
         $notice = NoticeRecord::where('deleted_flag', 0)->where('created_at', '>', '2023-10-01')->where('user_id', '!=', $user_id)
         ->whereDoesntHave('readers', function ($query) use($user_id) {
             $query->where('users.id',$user_id);
@@ -77,7 +74,7 @@ class NoticeController extends Controller
     public function notice_file_upload(Request $request ){    
         $ids = [];
         $path = '/notice_temp';
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         // return response()->json($path);
         foreach($request->file() as $file ){         
             $file_extension = $file->getClientOriginalExtension();
@@ -132,7 +129,7 @@ class NoticeController extends Controller
         }else{
             $record = new NoticeRecord;
         }
-        $record->user_id = $this->active_user()->id;
+        $record->user_id = Auth::user()->id;
         $record->title = $request->title;
         $record->body = $request->body;
         $record->save();
@@ -167,7 +164,7 @@ class NoticeController extends Controller
     public function load_notice_body(Request $request){
         $notice = NoticeRecord::findOrFail($request->id); 
         $data = !empty($notice) ? $notice->body : null;
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         if (!$notice->readers->contains($active_user->id)) {
             $notice->readers()->attach($active_user->id);
         }

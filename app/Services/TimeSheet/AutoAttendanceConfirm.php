@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\timecardCostRecord;
 use App\Models\timecardIncentive;
 use App\Models\shiftRecord;
+use App\Models\shiftType;
 use App\Models\attendanceRecord;
 use App\Models\TimecardProjectSegment;
 use Illuminate\Support\Facades\Auth;
@@ -16,12 +17,9 @@ class AutoAttendanceConfirm
     {
         $this->sharedService = $sharedService;
     }
-    private function active_user(){
-        return Auth::user();
-    }
     public function confirm($user_list, $currentDate)
     {   
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $attendanceDatas = $this->build_attendance_data($user_list, $currentDate);
         [$currentYear, $currentMonth] = explode('-', $currentDate);
         foreach($attendanceDatas as $userid => $data){
@@ -32,18 +30,19 @@ class AutoAttendanceConfirm
             $shift_records = shiftRecord::whereYear('shift_day', $currentYear)
                         ->whereMonth('shift_day', $currentMonth)
                         ->where('user_id', $userid)->get();
-            $half_day_holiday = $shift_records->where('shift_type', 6)->count();
-            $planned_paid_holiday = $shift_records->where('shift_type', 3)->count();
-            $petitionType8_count = $shift_records->where('shift_type', 5)->count();
-            $petitionType7_count = $shift_records->where('shift_type', 13)->count();
-            $petitionType6_count = $shift_records->where('shift_type', 12)->count();
-            $petitionType5_count = $shift_records->where('shift_type', 11)->count();
-            $petitionType4_count = $shift_records->where('shift_type', 10)->count();
-            $petitionType3_count = $shift_records->where('shift_type', 9)->count();
-            $petitionType2_count = $shift_records->where('shift_type', 8)->count();
-            $petitionType1_count = $shift_records->where('shift_type', 7)->count();
-            $comp_holiday = $shift_records->where('shift_type', 17)->count();
-            $shiftTypes = [13, 12, 11, 10, 9, 8, 7, 6];
+            $half_day_holiday = $shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_ANNUAL_LEAVE_HALF))->count();
+            $planned_paid_holiday = $shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_PLANNED_PAID_LEAVE))->count();
+            $petitionType8_count = $shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_ANNUAL_LEAVE_FULL))->count();
+            $petitionType7_count = $shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_ANNUAL_LEAVE_HOURLY, 7))->count();
+            $petitionType6_count = $shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_ANNUAL_LEAVE_HOURLY, 6))->count();
+            $petitionType5_count = $shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_ANNUAL_LEAVE_HOURLY, 5))->count();
+            $petitionType4_count = $shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_ANNUAL_LEAVE_HOURLY, 4))->count();
+            $petitionType3_count = $shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_ANNUAL_LEAVE_HOURLY, 3))->count();
+            $petitionType2_count = $shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_ANNUAL_LEAVE_HOURLY, 2))->count();
+            $petitionType1_count = $shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_ANNUAL_LEAVE_HOURLY, 1))->count();
+            $comp_holiday = $shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_COMP_HOLIDAY))->count();
+            $shiftTypes = shiftType::idsFor([shiftType::CATEGORY_ANNUAL_LEAVE_HOURLY, shiftType::CATEGORY_ANNUAL_LEAVE_HALF]);
+            $halfDayShiftTypeId = shiftType::idFor(shiftType::CATEGORY_ANNUAL_LEAVE_HALF);
             $hours_count = 0;
             $working_hour_low = 0;
            
@@ -51,12 +50,12 @@ class AutoAttendanceConfirm
             
             foreach ($shiftTypes as $type) {
                 $count = $shift_records->where('shift_type', $type)->count();
-                $hours_count += $type === 6 ? $count * 0.5 : $count;
-                if ($type !== 6) {
+                $hours_count += $type === $halfDayShiftTypeId ? $count * 0.5 : $count;
+                if ($type !== $halfDayShiftTypeId) {
                     $working_hour_low += $count;
                 }
             }
-            $closed_day = $shift_records->where('shift_type', 2)->count();
+            $closed_day = $shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_ABSENCE))->count();
             $noOverTimeHours = 0;
             $user_work_time_day = $data['user']['work_time_day'] ?? 0;
             $condolence_hours = $user_work_time_day * $data['condolence_leave'];
@@ -137,7 +136,7 @@ class AutoAttendanceConfirm
                     ->whereMonth('shift_day', $currentMonth)
                     ->select('user_id', 'shift_day', 'shift_type', 'status_flag')->with([
                         'shiftType' => function ($query) {
-                            $query->select('id', 'name', 'abbreviation', 'value', 'full_day');
+                            $query->select('id', 'name', 'abbreviation', 'value', 'full_day', 'category', 'hours');
                         }
                     ]);
             },
@@ -167,9 +166,9 @@ class AutoAttendanceConfirm
             $hiddenAttributes = ['attendance_records', 'shift_records', 'time_card_records', 'custom_field_data_records'];
             $userData = $user->makeHidden($hiddenAttributes);
             $attendance = $user->attendance_records->first();
-            $working_shifts = [1, 6, 7, 8, 9, 10, 11, 12, 13];
+            $working_shifts = shiftType::idsFor([shiftType::CATEGORY_WORK, shiftType::CATEGORY_ANNUAL_LEAVE_HALF, shiftType::CATEGORY_ANNUAL_LEAVE_HOURLY]);
             $should_calculate_month_hours = $user->position_id == 12 || $user->position_id == 15;
-            $shift_count = $should_calculate_month_hours ? $user->shift_records->whereIn('shift_type', $working_shifts)->count() : $user->shift_records->whereNotIn('shift_type', [0, 18])->count();
+            $shift_count = $should_calculate_month_hours ? $user->shift_records->whereIn('shift_type', $working_shifts)->count() : $user->shift_records->whereNotIn('shift_type', shiftType::idsFor([shiftType::CATEGORY_DAY_OFF, shiftType::CATEGORY_LEGAL_HOLIDAY]))->count();
             $planned_work_hours = $shift_count * $user->work_time_day;
             if($should_calculate_month_hours){
                 // $planned_work_shifts = $user->shift_records->whereIn('shift_type', $working_shifts)->get();
@@ -177,29 +176,32 @@ class AutoAttendanceConfirm
                 $calculated_planned_minutes = 0;
                 $day_work_minute =  $user->work_time_day;
                 foreach ($planned_work_shifts as $shift) {
-                    switch ($shift['shift_type']) {
-                        case 1:
-                            $calculated_planned_minutes += $day_work_minute;
-                            break;
-                        case 6:
-                            $calculated_planned_minutes += $day_work_minute / 2;
-                            break;
-                        default:
-                            if ($shift['shift_type'] >= 7 && $shift['shift_type'] <= 13) {
-                                $sub_time = $day_work_minute - (($shift['shift_type'] - 6) * 60);
-                                if ($sub_time > 0) {
-                                    $calculated_planned_minutes += $sub_time;
-                                }
-                            }
-                            break;
+                    $category = $shift->shiftType?->category;
+                    if ($category === shiftType::CATEGORY_WORK) {
+                        $calculated_planned_minutes += $day_work_minute;
+                    } elseif ($category === shiftType::CATEGORY_ANNUAL_LEAVE_HALF) {
+                        $calculated_planned_minutes += $day_work_minute / 2;
+                    } elseif ($category === shiftType::CATEGORY_ANNUAL_LEAVE_HOURLY) {
+                        // hours = leave hours (1-7); subtract from the workday like (id-6)*60 did.
+                        $sub_time = $day_work_minute - (((int) ($shift->shiftType?->hours ?? 0)) * 60);
+                        if ($sub_time > 0) {
+                            $calculated_planned_minutes += $sub_time;
+                        }
                     }
                 }
                 $planned_work_hours = $calculated_planned_minutes;
             }
-            $shift_holidays = $user->shift_records->where('shift_type', 0)->pluck('shift_day');
-            $shift_workdays = $user->shift_records->whereIn('shift_type', [1, 6, 7, 8, 9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 24, 26])->pluck('shift_day');
+            $shift_holidays = $user->shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_DAY_OFF))->pluck('shift_day');
+            // workdays = work + partial annual leave + holiday-work. (Now includes the
+            // 6h holiday-work type that the old literal list omitted — confirmed bug fix.)
+            $shift_workdays = $user->shift_records->whereIn('shift_type', shiftType::idsFor([
+                shiftType::CATEGORY_WORK,
+                shiftType::CATEGORY_ANNUAL_LEAVE_HALF,
+                shiftType::CATEGORY_ANNUAL_LEAVE_HOURLY,
+                shiftType::CATEGORY_HOLIDAY_WORK,
+            ]))->pluck('shift_day');
             $worked_holiday_count = $user->time_card_records->whereIn('day', $shift_holidays)->where('work_time', '>', 0)->count();
-            $workedday_count = $user->position_id === 15
+            $workedday_count = $user->isRegisteredScope()
             ? $user->time_card_records->where('work_time', '>', 0)->count()
             : $user->time_card_records->whereIn('day', $shift_workdays)->where('work_time', '>', 0)->count();
             $worked_time = $user->time_card_records->sum('work_time');
@@ -217,26 +219,29 @@ class AutoAttendanceConfirm
             $annual_leave = $shiftRecords
                 ->filter(fn($record) =>
                     $record->shiftType?->full_day === 0 &&
-                    in_array($record->shift_type, [7, 8, 9, 10, 11, 12, 13])
+                    in_array((int) $record->shift_type, shiftType::idsFor(shiftType::CATEGORY_ANNUAL_LEAVE_HOURLY), true)
                 )
                 ->sum(fn($record) => $record->shiftType?->value ?? 0);
 
 
             $annual_full = $shiftRecords
-                ->filter(fn($record) => 
+                ->filter(fn($record) =>
                     $record->shiftType?->full_day === 2 &&
-                    !in_array($record->shift_type, [14, 15, 16, 17, 18, 27])
+                    !in_array((int) $record->shift_type, shiftType::idsFor(array_merge(
+                        shiftType::SPECIAL_LEAVE,
+                        [shiftType::CATEGORY_COMP_HOLIDAY, shiftType::CATEGORY_LEGAL_HOLIDAY, shiftType::CATEGORY_SPECIAL_HOLIDAY]
+                    )), true)
                 )
                 ->count();
 
             $annual_half = $shiftRecords
                 ->filter(fn($record) => $record->shiftType?->full_day === 1)
                 ->count();
-            $condolence_leave = $user->shift_records->where('shift_type', 14)->count();
-            $transfer_leave = $user->shift_records->where('shift_type', 15)->count();
-            $oda_leave = $user->shift_records->where('shift_type', 16)->count();
-            $comp_holiday = $user->shift_records->where('shift_type', 17)->count();
-            $spec_holiday = $user->shift_records->where('shift_type', 27)->count();
+            $condolence_leave = $user->shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_SPECIAL_LEAVE_CONDOLENCE))->count();
+            $transfer_leave = $user->shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_SPECIAL_LEAVE_TRANSFER))->count();
+            $oda_leave = $user->shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_SPECIAL_LEAVE_ODA))->count();
+            $comp_holiday = $user->shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_COMP_HOLIDAY))->count();
+            $spec_holiday = $user->shift_records->whereIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_SPECIAL_HOLIDAY))->count(); // 特別休暇 (id 27) -> special_holiday/special_hours payroll. Empty set => 0 where the type is absent.
             $over_time = $user->time_card_records->sum('over_time');
             $mileage = $user->time_card_records->sum('car_mileage');
             $annual_costs = 0;
@@ -245,7 +250,7 @@ class AutoAttendanceConfirm
                                             ->where('date_month', $currentDate)
                                             ->select('expenses')
                                             ->sum('expenses');
-            if($user->position_id == 15){
+            if($user->isRegisteredScope()){
                 $annual_incentive = timecardIncentive::where('user_id', $user->id)
                                             ->where('date_month', $currentDate)
                                             ->select('count')

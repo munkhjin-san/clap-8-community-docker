@@ -1476,7 +1476,7 @@ const dayFormatter = computed(() => {
 })
 const getShiftClass = computed(() => {
     const shift = props.item.shift?.shift_type
-    return shift && [0,3,5,14,15,16,17,18,27].includes(shift?.id) ? 'shift-sunday' : ''
+    return shift && ['day_off','planned_paid_leave','annual_leave_full','special_leave_condolence','special_leave_transfer','special_leave_oda','comp_holiday','legal_holiday','special_holiday'].includes(shift?.category) ? 'shift-sunday' : ''
 })
 
 const startEarly = computed(() => {

@@ -46,12 +46,9 @@ class BoardController extends Controller
     {
         $this->sharedService = $sharedService;
     }
-    private function active_user(){
-        return Auth::user();
-    }
     public function start_private_board(Request $request){
         $with = $request['with'];
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         if($with){
             $correspondId = (int) $with;
             $checkCurrentBoard = boardRecord::where('private_flag', '=', 1)
@@ -128,7 +125,7 @@ class BoardController extends Controller
             return redirect('board');
         }
         $no_registered_zone = ['post', 'learning'];
-        if(in_array($name, $no_registered_zone) && ($communityContext->isRegistered() || Auth::user()->position_id == 15)){
+        if(in_array($name, $no_registered_zone) && ($communityContext->isRegistered() || Auth::user()->isRegisteredScope())){
             return redirect('board');
         } 
         // echo $id; 
@@ -149,7 +146,7 @@ class BoardController extends Controller
 
     } 
     public function search_board_list(Request $request) {
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $query = boardRecord::query()
             ->whereHas('board_to_users', function($q) use($active_user){
                 $q->where('user_id', $active_user->id)->where('deleted_status', 0);
@@ -187,7 +184,7 @@ class BoardController extends Controller
         }
     }
     public function board_list(Request $request) {       
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $perPage = 40;
         
 
@@ -258,7 +255,7 @@ class BoardController extends Controller
         
     }
     public function postRestoreMessage(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $user = boardToUser::where('record_id', '=', $request->id)->where('user_id', '=', $active_user->id)->first();
         if($user && $user->deleted_status == 1){
             $user->deleted_status = 0;
@@ -269,7 +266,7 @@ class BoardController extends Controller
         return response()->json($request);
     }    
     public function board_create(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $auth_user_id = $active_user->id;
         $file_array = $request->file;
         $file_id_array = [];
@@ -381,7 +378,7 @@ class BoardController extends Controller
     }
     //編集処理
     public function board_edit(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $validatedData = $request->validate([
             'id' => 'required',
         ]);
@@ -412,7 +409,7 @@ class BoardController extends Controller
      
             
             $board = boardRecord::findOrFail($request->id);
-            $active_user = $this->active_user();
+            $active_user = Auth::user();
             if(!empty($board)){
                 if($board->private_flag == 0){
                     $admin_access = $board->board_to_users()->where('user_id', $active_user->id)->where('admin_flag', 1)->exists();
@@ -432,7 +429,7 @@ class BoardController extends Controller
         
     }
     public function cancelSignature(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $auth_id = $active_user->id;
         $originalSign = '';
         $signUser = '';
@@ -456,7 +453,7 @@ class BoardController extends Controller
         return response()->json($signUser);
     }
     // public function saveSignature(Request $request){
-    //     $active_user = $this->active_user();
+    //     $active_user = Auth::user();
     //     $auth_id = $active_user->id;
     //     $user = User::findOrFail($auth_id)->with('linked');
     //     $unique_number = rand(1000, 9999); 
@@ -473,7 +470,7 @@ class BoardController extends Controller
     //     return response()->json($user);
     // }
     public function getEditUser(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $auth_id = $active_user->id;
         $msg_file = messageFile::findOrFail($request->file_id);
         $data = [];
@@ -513,7 +510,7 @@ class BoardController extends Controller
             'board_id'  => ['required', 'integer'],
             'file'      => ['required', 'file', 'max:51200'], // 50MB example
         ]);
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $newFile = messageFile::with(['signUsers'])
         ->findOrFail($validated['file_id']);
 
@@ -564,7 +561,7 @@ class BoardController extends Controller
         });
     }
     public function incomplete_check(Request $request) {
-        $user = $this->active_user();
+        $user = Auth::user();
         $today = Carbon::today();
         $start_point = Carbon::parse('2023-03-13 00:00:00')->format('Y-m-d');
         $list = boardToUser::where('user_id', $user->id)
@@ -610,7 +607,7 @@ class BoardController extends Controller
         return response()->json($data);
     }
     public function attachUpload(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $auth_user_id = $active_user->id;
         $ids = [];
         foreach($request->file() as $file ){
@@ -686,7 +683,7 @@ class BoardController extends Controller
     public function get_messages(Request $request)
     {
         $limit = 30;
-        $active_user = $request->override_user ?? $this->active_user();
+        $active_user = $request->override_user ?? Auth::user();
         $auth_user_id = $active_user->id;
         $targetBoard = boardRecord::query()
             ->select(['id','private_flag']) // only what you use
@@ -773,7 +770,7 @@ class BoardController extends Controller
 
 
         
-        $active_user = $request->override_user ?? $this->active_user();
+        $active_user = $request->override_user ?? Auth::user();
         $auth_user_id = $active_user->id;
         if($request->quot_flag == 1 && $request->reply_flag == 1){
             throw ValidationException::withMessages(['message' => 'commonError']);            
@@ -911,7 +908,7 @@ class BoardController extends Controller
         
     public function chatDelete(Request $request)
     {
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
 
         $validatedData = $request->validate([
             'id' => 'required',
@@ -1013,7 +1010,7 @@ class BoardController extends Controller
         return response()->json($mutatedMessage);
     }
     public function chatEdit(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $validatedData = $request->validate([
             'id' => 'required',
             'message' => 'required'
@@ -1037,7 +1034,7 @@ class BoardController extends Controller
     }
     public function checkSend(Request $request){
 
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $auth_user_id = $active_user->id;        
         $message_record = messageRecord::findOrFail($request->message_id);
         $message_record->checkUsers()->updateExistingPivot($active_user->id, ['checked' => true]);
@@ -1061,7 +1058,7 @@ class BoardController extends Controller
         $request->validate([
             'board_id' => 'required',
         ]);
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $auth_user_id = $active_user->id;
 
         $row = boardToUser::where('record_id', $request->board_id)
@@ -1116,7 +1113,7 @@ class BoardController extends Controller
     
      
     public function pinBoard(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $auth_user_id = $active_user->id;
         if(!empty($auth_user_id) && !empty($request->group_id)){
             $record = boardToUser::where('record_id', '=', $request->group_id)->where('user_id', '=', $auth_user_id)->first();
@@ -1135,7 +1132,7 @@ class BoardController extends Controller
         }
     }
     public function notification_board(Request $request) {
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $auth_user_id = $active_user->id;
         if(!empty($auth_user_id) && !empty($request->group_id)){
             $record = boardToUser::where('record_id', $request->group_id)->where('user_id', $auth_user_id)->first();
@@ -1152,7 +1149,7 @@ class BoardController extends Controller
         }
     }
     public function sendMail($request){
-        $active_user = $request['override_user'] ?? $this->active_user();
+        $active_user = $request['override_user'] ?? Auth::user();
         $auth_user_id = $active_user->id;
 
         if(!empty($request['send_list']) && !empty($auth_user_id) && !empty($request['msg_id'])){
@@ -1213,7 +1210,7 @@ class BoardController extends Controller
         return $mail;
     }
     public function remindRequest(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $auth_user_id = $active_user->id;
 
         $message_remind = messageRemindUser::where('message_id', $request->id)->where('user_id', $auth_user_id)->first();
@@ -1309,7 +1306,7 @@ class BoardController extends Controller
         
     }
     public function sendReaction(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $message = messageRecord::with('reactedUsers')
         ->with('checkedUsers')
         ->with('uncheckedUsers')->findOrFail($request->id);
@@ -1343,7 +1340,7 @@ class BoardController extends Controller
         }        
         
         $keywords = preg_split('/[ \x{3000}]+/u', $processedKeyword);
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         if($request->private_flag && $request->record_id){
             $list = boardRecord::where('id', $request->record_id)->whereHas('board_to_users', function($q) use( $active_user ){
                 $q->where('user_id', $active_user->id)->where('deleted_status', '=', 0);
@@ -1463,7 +1460,7 @@ class BoardController extends Controller
         return response()->json($backData);
     }
     public function getTargetMessage(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $target = messageRecord::findOrFail($request->id);
         $board = boardRecord::findOrFail($target->record_id);
         $board_user = boardToUser::where('record_id', $target->record_id)->where('user_id', $active_user->id)->first();
@@ -1561,7 +1558,7 @@ class BoardController extends Controller
 
     }
     public function getAppend(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $last_message = messageRecord::withTrashed()->findOrFail($request->last_message_id);
         $targetBoard = boardRecord::findOrFail($last_message->record_id);
         $board_user = boardToUser::where('record_id', $targetBoard->id)->where('user_id', $active_user->id)->first();
@@ -1670,7 +1667,7 @@ class BoardController extends Controller
 
 
     public function getIconUp(Request $request ){
-        // $active_user = $this->active_user();
+        // $active_user = Auth::user();
         // $auth_user_id = $active_user->id;
         // if($request->hasFile('file')) {
         //     $file_path = date("YmdHis") . md5(uniqid());
@@ -1716,7 +1713,7 @@ class BoardController extends Controller
     }   
    
     public function setAdminRole(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $validatedData = $request->validate([
             'record_id' => 'required',
             'user_id' => 'required',
@@ -1743,7 +1740,7 @@ class BoardController extends Controller
         throw ValidationException::withMessages(['message' => 'commonError']);
     }
     public function removeGroupMember(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $validatedData = $request->validate([
             'record_id' => 'required',
             'user_id' => 'required',
@@ -1774,7 +1771,7 @@ class BoardController extends Controller
         throw ValidationException::withMessages(['message' => 'commonError']);
     }
     public function groupAddMember(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $validatedData = $request->validate([
             'record_id' => 'required',
             'user_id' => 'required',
@@ -1810,7 +1807,7 @@ class BoardController extends Controller
         throw ValidationException::withMessages(['message' => 'commonError']);
     }
     public function leaveBoard(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $validatedData = $request->validate([
             'id' => 'required',
         ]);
@@ -1831,6 +1828,7 @@ class BoardController extends Controller
     public function board_possible_users(Request $request){
         $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
         $all_users = User::where('deleted_flag', 0)
+        ->inActiveCommunity()
         ->where('retire', 0)
         ->whereNotIn('name', $ng_list)
         ->whereNotIn('id', $request->exclude)
@@ -1992,7 +1990,7 @@ class BoardController extends Controller
             'reaction' => 'required|string',
             'id' => 'required',
         ]);
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $message = messageRecord::with('emotedUsers')->findOrFail($request->id);
         $existingEmote = $message->emotedUsers()->where('user_id', $active_user->id)->first();
         if ($existingEmote && $existingEmote->pivot->emote_name == $request->reaction) {

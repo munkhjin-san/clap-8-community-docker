@@ -325,9 +325,9 @@ import { mkConfig, generateCsv, download } from 'export-to-csv'
     const timeStampStart = async(data) => {
         const month = selectedMonth.value
         if(data || data.position_id === 15 || data.position_id < 6){
-            if(data?.shift?.shift_type.id == 3){
+            if(data?.shift?.shift_type?.category === 'planned_paid_leave'){
                 ping('計画有給設定しているため日報作成ができません。')
-            } else if(data?.shift?.shift_type?.id == 2){
+            } else if(data?.shift?.shift_type?.category === 'absence'){
                 ping('休業日のため日報作成ができません。')
             } else if (data.shift?.status_flag == 2) {
                 ping('勤怠予定は承認されていません。') 
@@ -389,9 +389,9 @@ import { mkConfig, generateCsv, download } from 'export-to-csv'
     const timeStampEdit = (data) => {
         const month = selectedMonth.value
         if(data?.shift || data.position_id === 15 || data.position_id < 6){
-            if(data?.shift?.shift_type?.id == 3){
+            if(data?.shift?.shift_type?.category === 'planned_paid_leave'){
                 ping('計画有給設定しているため日報作成ができません。')
-            } else if(data?.shift?.shift_type?.id == 2){
+            } else if(data?.shift?.shift_type?.category === 'absence'){
                 ping('休業日のため日報作成ができません。')
             } else if (data.shift?.status_flag == 2) {
                 ping('勤怠予定は承認されていません。') 

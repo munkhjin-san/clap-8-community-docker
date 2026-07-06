@@ -11,18 +11,10 @@ use Illuminate\Support\Facades\DB;
 
 class AssetCategoryController extends Controller
 {
-    private function activeUser(): User
-    {
-        /** @var User $user */
-        $user = Auth::user();
-
-        return $user;
-    }
 
     private function ensureAdmin(): void
     {
-        $activeUserId = $this->activeUser()->id;
-        if (!in_array($activeUserId, [608, 610], true)) {
+        if (!Auth::user()->isAdmin()) {
             abort(403, 'Forbidden');
         }
     }

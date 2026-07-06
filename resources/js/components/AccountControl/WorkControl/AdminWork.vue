@@ -432,7 +432,7 @@ import { useApi } from '@/composables/api';
         if(!shifts || !shifts.length) {
             return ''
         }
-        const legalHolidays = shifts.filter(shift => shift.shift_type.id == 18)
+        const legalHolidays = shifts.filter(shift => shift.shift_type.category === 'legal_holiday')
         if(!legalHolidays.length) {
             return ''
         }

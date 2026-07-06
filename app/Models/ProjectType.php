@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCommunity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ProjectType extends Model
 {
+    use BelongsToCommunity;
+
     use SoftDeletes;
 
     protected $guarded = [];

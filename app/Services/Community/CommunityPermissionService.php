@@ -12,10 +12,26 @@ class CommunityPermissionService
     ) {
     }
 
+    // Per-user checks resolve the user's membership WITHOUT side-effects
+    // (resolver->membershipFor), so checking another user — e.g. in a loop —
+    // never mutates the acting user's session/active community. Role predicates
+    // are membership-authoritative: the legacy position_id/partner_flag fallbacks
+    // were retired (2026-07-04) now that every user is guaranteed a membership —
+    // a membership-less user has no role, hence no privilege. The ONLY remaining
+    // fallback is the admin id break-glass (ADMIN_USER_IDS) below/in isAdmin(),
+    // kept to prevent admin lockout if a membership is ever missing/corrupted.
+    // With no $user, fall back to the active CommunityContext as before.
+
     public function can(string $capability, ?User $user = null): bool
     {
         if ($user) {
-            $this->resolver->resolveFor($user);
+            $membership = $this->resolver->membershipFor($user);
+
+            if (!$membership) {
+                return in_array((int) $user->id, User::ADMIN_USER_IDS, true);
+            }
+
+            return $membership->isAdmin() || in_array($capability, $membership->capabilities(), true);
         }
 
         return $this->context->can($capability);
@@ -24,11 +40,13 @@ class CommunityPermissionService
     public function isAdmin(?User $user = null): bool
     {
         if ($user) {
-            $this->resolver->resolveFor($user);
+            $membership = $this->resolver->membershipFor($user);
 
-            if (!$this->context->membership()) {
+            if (!$membership) {
                 return in_array((int) $user->id, User::ADMIN_USER_IDS, true);
             }
+
+            return $membership->isAdmin();
         }
 
         return $this->context->isAdmin();
@@ -37,11 +55,10 @@ class CommunityPermissionService
     public function isBoss(?User $user = null): bool
     {
         if ($user) {
-            $this->resolver->resolveFor($user);
-
-            if (!$this->context->membership()) {
-                return $user->position_id !== null && (int) $user->position_id < 6;
-            }
+            // Role-authoritative. Every user is guaranteed a membership (created
+            // on account creation + ensured by resolveFor); a membership-less user
+            // has no role, so no privilege. (Position fallback retired 2026-07-04.)
+            return $this->resolver->membershipFor($user)?->isBoss() ?? false;
         }
 
         return $this->context->isBoss();
@@ -50,11 +67,7 @@ class CommunityPermissionService
     public function isPM(?User $user = null): bool
     {
         if ($user) {
-            $this->resolver->resolveFor($user);
-
-            if (!$this->context->membership()) {
-                return (int) $user->position_id === 6;
-            }
+            return $this->resolver->membershipFor($user)?->isPM() ?? false;
         }
 
         return $this->context->isPM();
@@ -63,11 +76,7 @@ class CommunityPermissionService
     public function isPartner(?User $user = null): bool
     {
         if ($user) {
-            $this->resolver->resolveFor($user);
-
-            if (!$this->context->membership()) {
-                return (int) $user->partner_flag === 1;
-            }
+            return $this->resolver->membershipFor($user)?->isPartner() ?? false;
         }
 
         return $this->context->isPartner();
@@ -76,11 +85,7 @@ class CommunityPermissionService
     public function isRegistered(?User $user = null): bool
     {
         if ($user) {
-            $this->resolver->resolveFor($user);
-
-            if (!$this->context->membership()) {
-                return (int) $user->position_id === 15;
-            }
+            return $this->resolver->membershipFor($user)?->isRegistered() ?? false;
         }
 
         return $this->context->isRegistered();

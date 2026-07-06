@@ -217,12 +217,9 @@ class MemberController extends Controller
             'today_unread_comments' => $comments
         ]);      
     }
-    private function active_user(){
-        return Auth::user();
-    }
     public function get_today_comments() {
         $typeId = 43;
-        $user = $this->active_user();
+        $user = Auth::user();
         $since = Carbon::now()->subHours(24);
         $items = User::where('retire', 0)
             ->whereHas('custom_field_data_records', function ($q) use ($since) {
@@ -243,7 +240,7 @@ class MemberController extends Controller
     }
     public function create_comment(Request $request) {
         $typeId = 43;
-        $user = $this->active_user();
+        $user = Auth::user();
         $today = Carbon::now()->format('Y-m-d');
         $comment = $request->comment;
 
@@ -261,7 +258,7 @@ class MemberController extends Controller
     }
     public function mark_condition_asread() {
         $typeId = 43;
-        $user = $this->active_user();
+        $user = Auth::user();
         $today = Carbon::now()->format('Y-m-d');
         $latestId = customFieldDataRecord::where('type_id', $typeId)
             ->where('date', $today)
@@ -282,7 +279,7 @@ class MemberController extends Controller
     }
     public function get_unread_today_comments() {
         $typeId = 43;
-        $user = $this->active_user();
+        $user = Auth::user();
         $today = Carbon::now()->format('Y-m-d');
         $read = CustomfieldRead::where('user_id', $user->id)
         ->where('type_id', $typeId)
@@ -982,7 +979,7 @@ class MemberController extends Controller
             'user_id' => 'required',
         ]);
         $user_id = $request->user_id;
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $record_id = $request->custom_field_data_record_id;
         $targetUser = User::findorFail($user_id);
         $record = $targetUser->custom_field_data_records()->findOrFail($record_id);

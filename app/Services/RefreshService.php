@@ -24,7 +24,6 @@ class RefreshService
     /**
      * @var int[]
      */
-    private const ELIGIBLE_POSITION_IDS = [6, 11, 12, 16];
 
     public function __construct(
         private KintoneClient $api,
@@ -294,7 +293,7 @@ class RefreshService
                 continue;
             }
 
-            if (! in_array((int) $user->position_id, self::ELIGIBLE_POSITION_IDS, true)) {
+            if (! $user->hasCapability('benefit.refresh')) {
                 $summary['skipped_ineligible_position']++;
                 continue;
             }
@@ -391,7 +390,7 @@ class RefreshService
 
         $users = User::query()
             ->select('id', 'name', 'icon_path', 'icon_bg', 'position_id', 'user_code', 'general_position', 'joined_date')
-            ->whereIn('position_id', self::ELIGIBLE_POSITION_IDS)
+            ->whereHasCapability('benefit.refresh')
             ->where('retire', 0)
             ->with([
                 'refreshAccount' => function ($query) {
@@ -428,7 +427,7 @@ class RefreshService
             ->whereKey($payload['user_id'])
             ->firstOrFail();
 
-        if (! in_array((int) $user->position_id, self::ELIGIBLE_POSITION_IDS, true)) {
+        if (! $user->hasCapability('benefit.refresh')) {
             abort(422, '対象外の社員です。');
         }
 
@@ -585,7 +584,7 @@ class RefreshService
             ->with('activeLeaveRecord')
             ->firstOrFail();
 
-        if (! in_array((int) $user->position_id, self::ELIGIBLE_POSITION_IDS, true)) {
+        if (! $user->hasCapability('benefit.refresh')) {
             abort(422, '対象外の社員です。');
         }
 

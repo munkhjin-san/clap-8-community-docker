@@ -113,7 +113,7 @@ class IncidentService
 
     public function canAccessIncident(Incident $incident, User $user): bool
     {
-        $isPM = $user->position_id == 6;
+        $isPM = $user->isPM();
 
         if ($this->canManageIncidentAdministration($user)) {
             return true;
@@ -140,17 +140,17 @@ class IncidentService
 
     public function canManageIncidentAdministration(User $user): bool
     {
-        return ($user->position_id && $user->position_id < 6) || in_array($user->id, [608, 610], true);
+        return $user->isBoss() || $user->isAdmin();
     }
 
     public function canViewIncidentHistory(User $user): bool
     {
-        return $this->canManageIncidentAdministration($user) || $user->position_id == 6;
+        return $this->canManageIncidentAdministration($user) || $user->isPM();
     }
 
     public function canManageIncidentWorkflow(User $user): bool
     {
-        return $this->canManageIncidentAdministration($user) || $user->position_id == 6;
+        return $this->canManageIncidentAdministration($user) || $user->isPM();
     }
 
     public function isCompletedIncident(Incident $incident): bool
@@ -169,7 +169,7 @@ class IncidentService
             return true;
         }
 
-        if ($user->position_id == 6) {
+        if ($user->isPM()) {
             return true;
         }
 
@@ -438,7 +438,7 @@ class IncidentService
             return $this->incidentFullFields();
         }
 
-        if ($user->position_id == 6) {
+        if ($user->isPM()) {
             return $this->incidentManagerFields();
         }
 
@@ -476,7 +476,7 @@ class IncidentService
 
     public function managesIncidentProject(User $user): bool
     {
-        if ($user->position_id != 6) {
+        if (!$user->isPM()) {
             return false;
         }
 
@@ -489,7 +489,7 @@ class IncidentService
 
     public function incidentListQuery(User $user)
     {
-        $isPM = $user->position_id == 6;
+        $isPM = $user->isPM();
         $query = $this->incidentQuery(true, $user->id);
 
         if (!$this->canManageIncidentAdministration($user)) {

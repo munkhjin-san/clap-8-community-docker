@@ -104,6 +104,11 @@ export const adminRoutes: RouteRecordRaw[] = [
                         name: 'paid-leave-ledger',
                         component: () => import('@/components/AccountControl/WorkControl/PaidLeaveLedger.vue'),
                     },
+                    {
+                        path: 'shift-types',
+                        name: 'shift-types',
+                        component: () => import('@/components/AccountControl/WorkControl/ShiftTypeManager.vue'),
+                    },
                 ],
             },
             {

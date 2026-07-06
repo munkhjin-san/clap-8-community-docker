@@ -100,9 +100,6 @@ class ProjectController extends Controller
         $this->boardController = $boardController;
         $this->sharedService = $sharedService;
     }
-    private function active_user(){
-        return Auth::user();
-    }
 
     public function get_projects(Request $request) {
         $data = $request->validate([
@@ -133,12 +130,11 @@ class ProjectController extends Controller
 
             $query->overlapping($start, $end);
         }
-        $user = $this->active_user();
-        $position_id = $user->position_id;
+        $user = Auth::user();
         $confirmBadgeMap = $this->badgeService->confirmBadgeMap($user);
         $commentBadgeMap = $this->badgeService->commentBadgeMap($user);
         $projects = $query
-        ->when($position_id == 15, function ($q) use($user) {
+        ->when($user->isRegisteredScope(), function ($q) use($user) {
             $q->whereHas('members', function ($q) use($user) {
                 $q->where('users.id', $user->id);
             });
@@ -248,7 +244,7 @@ class ProjectController extends Controller
     }
     public function requiredGoalData(int $year, string $which_half)
     {
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $userId = $active_user->id;
 
         $previous_half = $which_half === 'first' ? 'second' : 'first';
@@ -378,7 +374,7 @@ class ProjectController extends Controller
         return $data;
     }
     public function get_outcome_goals(Request $request) {
-        $user = $this->active_user();
+        $user = Auth::user();
         $request->validate([
             'year' => 'required',
             'user_id' => 'required',
@@ -668,7 +664,7 @@ class ProjectController extends Controller
             $goal_report->statusLogs()->create([
                 'before_number' => $previous_status,
                 'after_number' => $next_status,
-                'user_id' => $this->active_user()->id,
+                'user_id' => Auth::user()->id,
                 'type' => 'project_goal',
             ]);
         }
@@ -725,7 +721,7 @@ class ProjectController extends Controller
                         ->get();
         $mentors = $userList->filter(function ($user) {
             return ($user->general_position !== null && $user->general_position !== '一般職')
-                    || ($user->position_id !== null && $user->position_id < 6);
+                    || $user->isBoss();
         })->values();
 
         $data = [
@@ -738,7 +734,7 @@ class ProjectController extends Controller
         $request->validate([
             'user_id' => 'required'
         ]);
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $managerId = $active_user->id;
 
         $checkProject = ProjectRecord::whereHas('manager', fn ($q) => $q->where('users.id', $managerId))
@@ -1141,7 +1137,7 @@ class ProjectController extends Controller
             'status' => ['required', Rule::in(['pending', 'done', 'na'])],
         ]);
 
-        $user = $this->active_user();
+        $user = Auth::user();
         abort_if((int)$user->id !== 610, 403, '権限がありません。');
 
         $item = ProjectCheckitems::where('project_record_id', $data['project_id'])
@@ -1220,7 +1216,7 @@ class ProjectController extends Controller
             'content' => 'required|string',
             'type' => 'sometimes|string'
         ]);
-        $user = $this->active_user();
+        $user = Auth::user();
 
         $record = ProjectRecord::findOrFail($request->record_id);
         $report = $record->reports()->create([
@@ -1547,7 +1543,7 @@ class ProjectController extends Controller
         return response()->json($evaluations);
     }
     public function check_evaluation_for_user_in_span(Request $request) {
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $attributes = $request->validate([
             'user_id' => 'required',
             'year' => 'required',
@@ -1734,7 +1730,7 @@ class ProjectController extends Controller
         return response()->json(['message' => 'Successfully deleted!']);
     }
     public function approve_salary_issue(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         $request->validate([
             'id' => 'required',
             'status' => 'required'
@@ -1782,7 +1778,7 @@ class ProjectController extends Controller
         return response()->json(['message' => 'Successfully deleted!']);
     }
     public function approve_outcome_goal(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         $request->validate([
             'id' => 'required',
             'status' => 'required'
@@ -1857,7 +1853,7 @@ class ProjectController extends Controller
         return $s;
     }
     public function get_members_goals_badge(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         $date = Carbon::now();
         $managinProjectData = $this->members_of_project_managed_by_user($user);
         $selfProjects = $this->projects_participate_by_user($user);
@@ -1891,7 +1887,7 @@ class ProjectController extends Controller
         return response()->json($goals);
     }
     private function goals_fetch_by_users(array $projectData, Carbon $date){
-        $user = $this->active_user();
+        $user = Auth::user();
         $goals = ProjectGoal::where(function ($query) use ($projectData, $date) {
             foreach($projectData as $project){
                 $query->orWhere(function ($subQuery) use ($project, $date) {
@@ -1912,7 +1908,7 @@ class ProjectController extends Controller
         return $goals;
     }
     public function get_salary_issue_badge(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         $date = Carbon::now();
         $year = $date->year;
         $current_half = Carbon::now()->between(Carbon::createFromDate($year, 4, 1), Carbon::createFromDate($year, 9, 30)) ? 'first' : 'second';
@@ -1979,11 +1975,11 @@ class ProjectController extends Controller
         return response()->json($data);
     }
     public function get_project_badge() {
-        $user = $this->active_user();
+        $user = Auth::user();
         $date = Carbon::now();
-        if ($user->position_id == 6) {
+        if ($user->isPM()) {
             $response = $this->getMemberBadges($user, $date);
-        } elseif ($user->position_id < 6 && ($user->id !== 610 && $user->id !== 608)) {
+        } elseif ($user->isBoss() && !$user->isAdmin()) {
             $response = $this->getManagerBadges($user, $date);
         } elseif ($user->canHrApprove()) {
             $response = $this->getChangeBadge($date);
@@ -2280,7 +2276,7 @@ class ProjectController extends Controller
 
         $project = ProjectRecord::with('manager')->findOrFail($project_id);
         $managerIds = $project->manager->pluck('id')->toArray();
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $taskRecords = [];
         foreach ($tasks as $task) {
             $taskRecord = taskRecord::create([
@@ -3071,9 +3067,9 @@ class ProjectController extends Controller
     }
 
     public function get_asset_badge(Request $request){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $projects = $this->members_of_project_managed_by_user($active_user);
-        if(empty($projects) && $active_user->id != 610 && $active_user->id != 608){
+        if(empty($projects) && !$active_user->isAdmin()){
             return response()->json([]);
         }
         $project_ids = array_map(function($project){
@@ -3134,7 +3130,7 @@ class ProjectController extends Controller
 
     }
     public function get_task_comment_badge(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
 
         $badge_counts = taskRecord::whereHas('taskUsers', function ($query) use ($user) {
                 $query->where('user_id', $user->id)
@@ -3720,7 +3716,7 @@ class ProjectController extends Controller
 
     public function analyze_finance(Request $request, FinanceAnalysisService $financeAnalysis): JsonResponse
     {
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
         $canAnalyze = app(\App\Services\Community\CommunityPermissionService::class)
             ->can('finance.analyze', $activeUser);
 
@@ -3767,7 +3763,7 @@ class ProjectController extends Controller
             return response()->json(['error' => true, 'message' => '最大12ヶ月まで選択できます。'], 422);
         }
 
-        $active = $this->active_user();
+        $active = Auth::user();
         $projects = ProjectRecord::when(
             $active->isBoss(),
             fn($q) => $q,
@@ -4008,7 +4004,7 @@ class ProjectController extends Controller
     }
     public function mentionable_users(Request $request)
     {
-        $user = $this->active_user();
+        $user = Auth::user();
 
         $request->validate([
             'projectId' => 'required',
@@ -4043,7 +4039,7 @@ class ProjectController extends Controller
 
 
     public function project_finance_comment(Request $req) {
-        $user = $this->active_user();
+        $user = Auth::user();
         $data = $req->validate([
             'project_record_id'   => ['required','integer','exists:project_records,id'],
             'comment'             => ['required','string','max:20000'],
@@ -4168,7 +4164,7 @@ class ProjectController extends Controller
 
     }
     public function get_finance_comment_badge() {
-        $user = $this->active_user();
+        $user = Auth::user();
         $userId = $user->id;
 
         $isDirector = $user->isBoss();
@@ -4252,7 +4248,7 @@ class ProjectController extends Controller
 
     public function mark_finance_read(Request $request, ProjectRecord $project) {
         $data = $request->validate(['period' => ['required', 'date_format:Y-m']]);
-        $user = $this->active_user();
+        $user = Auth::user();
 
         ProjectFinanceLastRead::updateOrCreate(
             ['project_record_id' => $project->id, 'user_id' => $user->id, 'period' => $data['period']],
@@ -4284,7 +4280,7 @@ class ProjectController extends Controller
     }
     public function finance_check(Request $request)
     {
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
 
         $data = $request->validate([
             'id' => ['required', 'integer', 'exists:project_finance_comments,id'],
@@ -4303,7 +4299,7 @@ class ProjectController extends Controller
     }
 
     public function project_resource_comment(Request $req) {
-        $user = $this->active_user();
+        $user = Auth::user();
         $data = $req->validate([
             'member_name'        => ['required','string','max:255'],
             'comment'            => ['required','string','max:20000'],
@@ -4388,7 +4384,7 @@ class ProjectController extends Controller
 
     public function project_cases(ProjectRecord $project, Request $req)
     {
-        $user = $this->active_user();
+        $user = Auth::user();
         abort_unless($user, 401, '認証が必要です。');
 
         $isProjectMember = ProjectMember::where('project_id', $project->id)
@@ -4452,7 +4448,7 @@ class ProjectController extends Controller
     }
     public function project_case_store(ProjectRecord $project, Request $req)
     {
-        $user = $this->active_user();
+        $user = Auth::user();
         abort_unless($user, 401, '認証が必要です。');
 
         $isProjectMember = ProjectMember::where('project_id', $project->id)
@@ -4742,7 +4738,7 @@ class ProjectController extends Controller
             'which' => 'required|string|in:goal,salary_issue',
             'content' => 'required|string',
         ]);
-        $user = $this->active_user();
+        $user = Auth::user();
         $which = $request->which;
 
         $record = $which === 'goal' ? ProjectGoal::findOrFail($request->record_id) : SalaryIssue::findOrFail($request->record_id);
@@ -4844,13 +4840,13 @@ class ProjectController extends Controller
         return response()->json(['id' => $report->id], 201);
     }
     public function goal_issue_comment_badge(Request $request) {
-        $user = $this->active_user();
+        $user = Auth::user();
         $goal_badge_count = ProjectMemberReportNotification::where('target_user_id', $user->id)
             ->get();
         return response()->json($goal_badge_count);
     }
     public function clear_goal_issue_badge(Request $request) {
-        $user = $this->active_user();
+        $user = Auth::user();
         ProjectMemberReportNotification::where('target_user_id', $user->id)->where($request->column, $request->value)
             ->delete();
         $goal_badge_count = ProjectMemberReportNotification::where('target_user_id', $user->id)
@@ -4858,7 +4854,7 @@ class ProjectController extends Controller
         return response()->json($goal_badge_count);
     }
     public function project_list(Request $request) {
-        $user = $this->active_user();
+        $user = Auth::user();
         $projects = ProjectRecord::select('id', 'name')->get();
         $project_setting = $user->project_settings;
         $myProjects = [];
@@ -5054,7 +5050,7 @@ class ProjectController extends Controller
 
     protected function userCanAccessProject(ProjectRecord $project): bool
     {
-        $user = $this->active_user();
+        $user = Auth::user();
         if (!$user) {
             return false;
         }
@@ -5356,7 +5352,7 @@ class ProjectController extends Controller
         $request->validate([
             'project_id' => 'required|integer',
         ]);
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $project = ProjectRecord::findOrFail($request->project_id);
         $data = $request->data;
         $id = $data['id'] ?? null;
@@ -5856,7 +5852,7 @@ class ProjectController extends Controller
         return $managing_projects;
     }
     public function mentees (Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         $year = $request->year;
         $which_half = $request->which_half;
         $evaluationRecords = EvaluationRecord::where('year', $year)
@@ -5887,7 +5883,7 @@ class ProjectController extends Controller
     }
 
     public function user_related_goal_member_data(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         $data = [];
         $year = $request->year;
         $which_half = $request->which_half;
@@ -5940,7 +5936,7 @@ class ProjectController extends Controller
     }
 
     public function markAsSeen(Request $request) {
-        $user = $this->active_user();
+        $user = Auth::user();
         $projectId = $request->input('project_id');
         $type = $request->input('type');
         ProjectRecordReadState::updateOrCreate(
@@ -5963,7 +5959,7 @@ class ProjectController extends Controller
         return response()->json(['status' => 'ok']);
     }
     public function clear_project_report_badge(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
 
         $data = $this->badgeService->getProjectUnreadCount($user);
 
@@ -5993,7 +5989,7 @@ class ProjectController extends Controller
         return response()->json($assignRecords);
     }
     public function update_assign_support_level(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         $request->validate([
             'assign_record_id' => 'required|integer|exists:project_assign_records,id',
             'support_level' => 'required|string',
@@ -6080,7 +6076,7 @@ class ProjectController extends Controller
             'member_confirmation_items' => 'required|string',
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
         if (!($activeUser && $activeUser->isAdmin())) {
             return response()->json(['error' => '権限がありません。'], 403);
         }
@@ -6137,7 +6133,7 @@ class ProjectController extends Controller
     }
 
     public function add_assign_action(Request $request){
-        $user = $this->active_user();
+        $user = Auth::user();
         $request->validate([
             'assign_record_id' => 'required|integer|exists:project_assign_records,id',
             'content' => 'required|string',
@@ -6154,7 +6150,7 @@ class ProjectController extends Controller
         return response()->json($action);
     }
     public function clear_project_confirm_badge(){
-        $user = $this->active_user();
+        $user = Auth::user();
 
         $data = $this->badgeService->checkItemConfirm($user);
 
@@ -6169,7 +6165,7 @@ class ProjectController extends Controller
             'member_comment' => 'nullable|string',
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
         $assignRecord = ProjectAssignRecord::findOrFail($request->assign_record_id);
 
         // Guard: member can only confirm their own record
@@ -6218,7 +6214,7 @@ class ProjectController extends Controller
             'member_confirmation_items' => 'required|string',
         ]);
 
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         // Guard: admin only (HR)
         if (!($activeUser && $activeUser->isAdmin())) {

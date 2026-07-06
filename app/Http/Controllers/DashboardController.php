@@ -25,6 +25,7 @@ use App\Models\PostRecord;
 use App\Models\PostRelay;
 use App\Models\AssetRecord;
 use App\Models\timecardRecord;
+use App\Models\shiftType;
 use App\Models\TimecardProjectSegment;
 use App\Models\shiftRecord;
 use App\Models\ShiftOvertimeRequest;
@@ -45,6 +46,7 @@ use App\Models\SystemUpdateRecord;
 use App\Models\UserLeaveRecord;
 use App\Models\EmployeeChangeApplication;
 use App\Models\PlannedLeaveChangeRequest;
+use App\Services\Community\CommunityContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Laravel\Ai\Responses\StreamedAgentResponse;
@@ -53,7 +55,6 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class DashboardController extends Controller
 {
-    private const TIMESHEET_ADMIN_IDS = [608, 610];
 
     public function __construct(
         protected BadgeService $badgeService,
@@ -64,12 +65,9 @@ class DashboardController extends Controller
     ){
 
     }
-    private function active_user(){
-        return Auth::user();
-    }
     public function dashboard_data(Request $request)
     {
-        $user = $this->active_user();
+        $user = Auth::user();
 
         $requestedData = $request->input('requestedData', []);
         $responseCollection = [];
@@ -83,42 +81,42 @@ class DashboardController extends Controller
         return response()->json($responseCollection);
     }
     public function mustCheckMessages(){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $messages = $this->reminderMessageService->getReminderMessagesForUser($active_user, ['mustCheckMessages']);
         return $messages['mustCheckMessages'];
     }
     public function mustSignMessages(){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $messages = $this->reminderMessageService->getReminderMessagesForUser($active_user, ['mustSignMessages']);
         return $messages['mustSignMessages'];
     }
     public function remindedMessages(){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $messages = $this->reminderMessageService->getReminderMessagesForUser($active_user, ['remindedMessages']);
         return $messages['remindedMessages'];
     }
     public function pendingApprovalTasks(){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $tasks = $this->remindTaskService->getReminderTaskForUser($active_user, ['pendingApprovalTasks']);
         return $tasks['pendingApprovalTasks'];
     }
     public function unfinishedTasks(){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $tasks = $this->remindTaskService->getReminderTaskForUser($active_user, ['unfinishedTasks']);
         return $tasks['unfinishedTasks'];
     }
     public function untouchedTasks(){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $tasks = $this->remindTaskService->getReminderTaskForUser($active_user, ['untouchedTasks']);
         return $tasks['untouchedTasks'];
     }
 
     public function projects()
     {
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         $officer_approval_waiting = match (true) {
-            in_array($activeUser->id, [608, 610], true) => ProjectRecord::select('id', 'status', 'name', 'contract_started_at', 'category', 'date_start', 'date_end')
+            $activeUser->isAdmin() => ProjectRecord::select('id', 'status', 'name', 'contract_started_at', 'category', 'date_start', 'date_end')
             ->whereIn('status', [
                 'pending_director',
                 'director_approved'
@@ -126,12 +124,12 @@ class DashboardController extends Controller
             ->with(['manager' => fn($q) => $q->select('users.name')  ])
             ->get(),
 
-            $activeUser->position_id < 6 => ProjectRecord::select('id', 'status', 'name', 'contract_started_at', 'category', 'date_start', 'date_end')
+            $activeUser->isBoss() => ProjectRecord::select('id', 'status', 'name', 'contract_started_at', 'category', 'date_start', 'date_end')
                 ->where('status', 'pending_director')
                 ->with(['manager' => fn($q) => $q->select('users.name')  ])
                 ->get(),
 
-            $activeUser->position_id === 6 => ProjectRecord::select('id', 'status', 'name', 'contract_started_at', 'category', 'date_start', 'date_end')
+            $activeUser->isPM() => ProjectRecord::select('id', 'status', 'name', 'contract_started_at', 'category', 'date_start', 'date_end')
                 ->where('status', 'returned')
                 ->whereHas('manager', function ($q) use ($activeUser) {
                     $q->where('users.id', $activeUser->id);
@@ -216,7 +214,7 @@ class DashboardController extends Controller
     }
 
     public function forms() {
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $userId = $active_user->id;
         $today = now();
         $prevStart = $today->copy()->subMonthNoOverflow()->startOfMonth();
@@ -282,7 +280,7 @@ class DashboardController extends Controller
     }
     public function overdueGraveCount()
     {
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $userId = $active_user->id;
         $now = Carbon::now();
 
@@ -355,9 +353,9 @@ class DashboardController extends Controller
         ];
     }
     public function pendingPlannedLeaveChangeRequests(){
-        $user = $this->active_user();
+        $user = Auth::user();
         $requests = PlannedLeaveChangeRequest::where('status', 'pending')
-            ->when(in_array($user->id, [608, 610], true), function ($q) {
+            ->when($user->isAdmin(), function ($q) {
                 return $q->where(function ($query) {
                     $query->where('pm_approval_required', false)
                         ->orWhereNotNull('pm_id');
@@ -377,7 +375,7 @@ class DashboardController extends Controller
     public function pendingAttendance() {
 
         $user = Auth::user();
-        if ($user->position_id < 6 || $user->position_id === 14) return null;
+        if ($user->isBoss() || $user->isPartnerScope()) return null;
 
         $previousMonth = Carbon::now()->subMonthNoOverflow()->format('Y-m');
         $previousM = Carbon::now()->subMonthNoOverflow()->month;
@@ -699,12 +697,12 @@ class DashboardController extends Controller
 
     private function timesheetApprovalScope(): array
     {
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
         $targetUsers = [];
         $workGroupIds = [];
         $headquartersIds = [];
         $hqProject = ProjectRecord::where('id', 20)->first();
-        $isTimesheetAdmin = in_array((int) $activeUser->id, self::TIMESHEET_ADMIN_IDS, true);
+        $isTimesheetAdmin = $activeUser->isAdmin();
 
         if($hqProject){
             $headquartersIds = $hqProject->members()->pluck('users.id')->toArray();
@@ -722,9 +720,10 @@ class DashboardController extends Controller
                 ->toArray();
             $workGroupIds = ProjectRecord::pluck('id')->unique()->values()->toArray();
         }
-        if($activeUser->position_id == 6){
-            $workGroups = ProjectRecord::whereHas('manager', function ($q) use($activeUser) {
-                $q->where('users.id', $activeUser->id)->whereNotIn('users.id', self::TIMESHEET_ADMIN_IDS);
+        if($activeUser->isPM()){
+            $adminIds = User::whereCommunityRole('admin')->pluck('id')->all();
+            $workGroups = ProjectRecord::whereHas('manager', function ($q) use($activeUser, $adminIds) {
+                $q->where('users.id', $activeUser->id)->whereNotIn('users.id', $adminIds);
             })->with('members')->get();
 
             $workGroupIds = $workGroups->unique()->pluck('id')->toArray();
@@ -742,11 +741,16 @@ class DashboardController extends Controller
             ->values()
             ->all();
 
+        // `User` is not community-scoped, so the admin branch above can pull users
+        // from other communities. Confine the final list to the active community
+        // (no-op for the PM branch, whose users already come from scoped projects).
+        $targetUsers = app(CommunityContext::class)->confineUserIds($targetUsers);
+
         return [$activeUser, $isTimesheetAdmin, $targetUsers, $workGroupIds];
     }
 
     public function schedules(){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $userId = $active_user->id;
 
         $now = now();
@@ -799,7 +803,7 @@ class DashboardController extends Controller
     public function challenges()
     {
         $now = now();
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $challengeRelays = $this->challengeRelayReminders($active_user->id, $now);
         $niceReminders = $this->niceFollowUpReminders($active_user->id, $now);
         $challengesQuery = PostRecord::query()
@@ -1070,21 +1074,21 @@ class DashboardController extends Controller
         ->whereHas('shift_records', function ($query) use ($badge) {
             $query->when($badge, fn($q) => $q->whereNull('departure_report'))
                   ->where('shift_day', Carbon::now()->toDateString())
-                  ->where('shift_type', 1);
+                  ->whereIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_WORK));
         })->with(['shift_records' => function ($query) {
-            $query->where('shift_day', Carbon::now()->toDateString())->where('shift_type', 1)->select('user_id', 'id', 'departure_report');
+            $query->where('shift_day', Carbon::now()->toDateString())->whereIn('shift_type', shiftType::idsFor(shiftType::CATEGORY_WORK))->select('user_id', 'id', 'departure_report');
         }])->select('id', 'name', 'icon_path', 'icon_bg')->get();
 
         return $target_users;
     }
     public function assets(){
-        $active_user = $this->active_user();
+        $active_user = Auth::user();
         $target_assets = AssetRecord::where('user_id', $active_user->id)
         ->with(['confirm_logs' => fn($q) => $q->whereYear('created_at', now()->year) ])
         ->orderBy('created_at', 'desc')
         ->get();
         $waiting_approval = [];
-        if($active_user->id === 610 || $active_user->id === 608){
+        if($active_user->isAdmin()){
             $waiting_approval = AssetRecord::whereHas('requests')->with(
                 [
                     'requests' => function ($query) {
@@ -1101,8 +1105,8 @@ class DashboardController extends Controller
         ];
     }
     public function pendingPlannedLeaves(){
-        $active_user = $this->active_user();
-        if ($active_user->position_id < 6 || $active_user->position_id === 14) return [];
+        $active_user = Auth::user();
+        if ($active_user->isBoss() || $active_user->isPartnerScope()) return [];
 
         $notificationUser = User::select('name', 'id', 'icon_path', 'icon_bg')->findOrFail(610);
 
@@ -1201,7 +1205,7 @@ class DashboardController extends Controller
 
     public function notices()
     {
-        $user = $this->active_user();
+        $user = Auth::user();
         $userId = $user->id;
         $userCreatedAt = $user->joined_date;
         if(!$userCreatedAt && ($user->position_id <= 13 || $user_position_id === 16)){
@@ -1228,7 +1232,7 @@ class DashboardController extends Controller
         return $unreadNotices;
     }
     private function incidents() {
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
         $query = $this->incidentService->incidentQuery(true, $activeUser->id)
             ->with([
@@ -1260,9 +1264,9 @@ class DashboardController extends Controller
                 $statusQuery->whereNull('status')
                     ->orWhere('status', '!=', '完了');
             });
-        $isPM = $activeUser->position_id == 6;
-        $isBoss = $activeUser->position_id && $activeUser->position_id < 6;
-        $isAdmin = in_array($activeUser->id, [610, 608], true);
+        $isPM = $activeUser->isPM();
+        $isBoss = $activeUser->isBoss();
+        $isAdmin = $activeUser->isAdmin();
         $emergencyContacts = collect();
 
         if (!$isBoss && !$isAdmin) {
@@ -1299,7 +1303,7 @@ class DashboardController extends Controller
     }
 
     public function systemUpdates() {
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
         $target_positions = [
             6, //執行役員,
             16, //プロジェクトリーダー,

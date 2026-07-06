@@ -31,6 +31,55 @@ class CommunityContext
         return $this->membership?->community_id;
     }
 
+    /**
+     * The user ids that belong to the active community (via the community_user
+     * pivot). Returns null when there is no active community, so callers can tell
+     * "no context, do not confine" apart from "active community has no members".
+     *
+     * Use this as the single source of truth whenever a user-id list is built to
+     * filter community-scoped data through an UNSCOPED base/join. `User` is not
+     * community-scoped (membership lives in the pivot, not a column), so a list
+     * from `User::where(...)` or from request input would otherwise span every
+     * community.
+     */
+    public function userIds(): ?array
+    {
+        $communityId = $this->communityId();
+
+        if (!$communityId) {
+            return null;
+        }
+
+        return CommunityMembership::query()
+            ->where('community_id', $communityId)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Narrow a candidate list of user ids to those in the active community.
+     * Pass-through (returns the input unchanged) when there is no active
+     * community, matching the global scope's fail-open behaviour.
+     *
+     * @param  array<int|string>  $ids
+     * @return array<int>
+     */
+    public function confineUserIds(array $ids): array
+    {
+        $candidates = array_values(array_unique(array_map('intval', $ids)));
+
+        $communityUserIds = $this->userIds();
+
+        if ($communityUserIds === null) {
+            return $candidates;
+        }
+
+        return array_values(array_intersect($candidates, $communityUserIds));
+    }
+
     public function roleKey(): ?string
     {
         return $this->membership?->role?->key;
@@ -43,42 +92,42 @@ class CommunityContext
 
     public function capabilities(): array
     {
-        return $this->membership?->role?->capabilities ?? [];
+        return $this->membership?->capabilities() ?? [];
     }
 
-    public function can(string $blade): bool
+    public function can(string $capability): bool
     {
-        // Admin is the fixed super role: it bypasses every blade gate.
+        // Admin is the fixed super role: it bypasses every capability gate.
         if ($this->isAdmin()) {
             return true;
         }
 
-        return in_array($blade, $this->capabilities(), true);
+        return in_array($capability, $this->capabilities(), true);
     }
 
     public function isPartner(): bool
     {
-        return $this->roleKey() === 'partner' || $this->scope() === CommunityMembership::SCOPE_PARTNER;
+        return $this->membership?->isPartner() ?? false;
     }
 
     public function isRegistered(): bool
     {
-        return $this->roleKey() === 'registered' || $this->scope() === CommunityMembership::SCOPE_REGISTERED;
+        return $this->membership?->isRegistered() ?? false;
     }
 
     public function isAdmin(): bool
     {
-        return $this->roleKey() === 'admin';
+        return $this->membership?->isAdmin() ?? false;
     }
 
     public function isBoss(): bool
     {
-        return $this->roleKey() === 'board' || in_array('project.approve', $this->capabilities(), true);
+        return $this->membership?->isBoss() ?? false;
     }
 
     public function isPM(): bool
     {
-        return $this->roleKey() === 'pm';
+        return $this->membership?->isPM() ?? false;
     }
 
     public function authPayload(User $user): array
