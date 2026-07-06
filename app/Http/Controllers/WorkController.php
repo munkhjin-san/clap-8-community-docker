@@ -225,7 +225,7 @@ class WorkController extends Controller
             if (isset($annual_leave[$user->id])  && isset($month_work_time[$user->id])) {
                 $month_work_time[$user->id] += $annual_leave[$user->id];
             }
-            if ($shift_work_hours < (($month_work_time[$user->id] ?? 0) - ($month_over_time[$user->id] ?? 0))) {
+            if ($user->work_type != 1 && $shift_work_hours < (($month_work_time[$user->id] ?? 0) - ($month_over_time[$user->id] ?? 0))) {
                 $month_over_time[$user->id] = ($month_work_time[$user->id] ?? 0) - $shift_work_hours;
             }
 
@@ -963,8 +963,7 @@ class WorkController extends Controller
         if ($projectIds === null) {
             return;
         }
-
-        $query->whereIn('department_id', $projectIds);
+        $this->shiftService->scopeApprovalToManagedProjectsOrNeutralDays($query, $projectIds, $this->managedShiftProjectMemberIds($user));
     }
     private function canApproveShiftRecord(shiftRecord $shift, $user): bool
     {
@@ -976,8 +975,35 @@ class WorkController extends Controller
         if ($projectIds === null) {
             return true;
         }
+        $projectMemberIds = $this->managedShiftProjectMemberIds($user);
+        if (empty($projectIds)) {
+            return false;
+        }
+
+        $shift->loadMissing('shiftType');
+
+        if (!$this->shiftService->requiresProjectForApproval($shift)) {
+            return in_array((int) $shift->user_id, $projectMemberIds, true);
+        }
 
         return $shift->department_id && in_array((int) $shift->department_id, $projectIds, true);
+    }
+    private function managedShiftProjectMemberIds($user): array
+    {
+        if ($user->isAdmin()) {
+            return [];
+        }
+
+        return ProjectRecord::whereHas('manager', function ($q) use ($user) {
+            $q->where('users.id', $user->id);
+        })
+            ->with('members:id')
+            ->get()
+            ->flatMap(fn ($project) => $project->members->pluck('id'))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
     private function shiftNetWorkMinutes(?string $startTime, ?string $endTime): int
     {
@@ -4832,16 +4858,19 @@ class WorkController extends Controller
         $planned_leaves_last_year = $this->get_planned_leaves(new Request(['user_id' => $user->id, 'year' => $year - 1]))->getData(true);
         $user->code = $user->user_code;
         $remaining_days = 0;
+        $remaining_minutes = 0;
         if($user->user_code){
             $remaining_days_data = $this->get_remaining_days(new Request(['user_code' => $user->user_code]))->getData(true);
 
             $remaining_days = $remaining_days_data['days'] ?? 0;
             $remaining_days = (float) $remaining_days;
+            $remaining_minutes = $remaining_days_data['minutes'] ?? 0;
         }
         return response()->json([
             'planned_leaves_this_year' => $planned_leaves_this_year['paidholidays'] ?? [],
             'planned_leaves_last_year' => $planned_leaves_last_year['paidholidays'] ?? [],
-            'remaining_days' => $remaining_days
+            'remaining_days' => $remaining_days,
+            'remaining_minutes' => $remaining_minutes,
          ]);
     }
     public function send_departure_report(Request $request){

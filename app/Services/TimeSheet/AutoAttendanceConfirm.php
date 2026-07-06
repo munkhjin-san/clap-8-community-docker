@@ -82,8 +82,16 @@ class AutoAttendanceConfirm
             $attendance_record->petitionType1_count = $petitionType1_count;
             $attendance_record->closed_day = $closed_day;
             $attendance_record->absence_days = $absence_days >= 0 ? $absence_days : 0;
-            $absence_hours = $workTime - (
-                $data['annual_leave'] + $condolence_hours + $transfer_hours + $closed_hours + $data['worked_time'] + $oda_hours + $special_hours);
+            if ($workType == '通常') {
+                $over_time = $over_time + $data['holiday_worked_time'];
+                $absence_hours = $workTime - (
+                    $data['annual_leave'] + $condolence_hours + $transfer_hours + $closed_hours + $data['worked_time'] + $oda_hours + $special_hours - $over_time);
+            } else {
+                $absence_hours = $workTime - (
+                    $data['annual_leave'] + $condolence_hours + $transfer_hours + $closed_hours + $data['worked_time'] + $oda_hours + $special_hours);
+            }
+            
+            
             $attendance_record->absence_hour = $absence_hours >= 0 ? $absence_hours : 0;
             $attendance_record->date_year_month = $currentDate;
             $attendance_record->user_id = $userid;
@@ -192,8 +200,10 @@ class AutoAttendanceConfirm
                 $planned_work_hours = $calculated_planned_minutes;
             }
             $shift_holidays = $user->shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_DAY_OFF))->pluck('shift_day');
-            // workdays = work + partial annual leave + holiday-work. (Now includes the
-            // 6h holiday-work type that the old literal list omitted — confirmed bug fix.)
+            // (merge) main added legal-holiday worked-time tracking — kept, but via category not id 18.
+            $legal_holidays = $user->shift_records->where('shift_type', shiftType::idFor(shiftType::CATEGORY_LEGAL_HOLIDAY))->pluck('shift_day');
+            // workdays = work + partial annual leave + holiday-work. (Category form
+            // includes the 6h holiday-work type [id 25] that main's literal list still omits.)
             $shift_workdays = $user->shift_records->whereIn('shift_type', shiftType::idsFor([
                 shiftType::CATEGORY_WORK,
                 shiftType::CATEGORY_ANNUAL_LEAVE_HALF,
@@ -201,11 +211,13 @@ class AutoAttendanceConfirm
                 shiftType::CATEGORY_HOLIDAY_WORK,
             ]))->pluck('shift_day');
             $worked_holiday_count = $user->time_card_records->whereIn('day', $shift_holidays)->where('work_time', '>', 0)->count();
+            $legal_holiday_worked_count = $user->time_card_records->whereIn('day', $legal_holidays)->where('work_time', '>', 0)->count();
             $workedday_count = $user->isRegisteredScope()
             ? $user->time_card_records->where('work_time', '>', 0)->count()
             : $user->time_card_records->whereIn('day', $shift_workdays)->where('work_time', '>', 0)->count();
             $worked_time = $user->time_card_records->sum('work_time');
             $holiday_worked_time = $user->time_card_records->whereIn('day', $shift_holidays)->sum('work_time');
+            $legal_holiday_worked_time = $user->time_card_records->whereIn('day', $legal_holidays)->sum('work_time');
             $approved_count = $user->time_card_records->where('status_flag', 2)->count();
             $unapproved_count = $user->time_card_records->where('status_flag', 1)->count();
             $unsaved_count = $user->time_card_records->where('stamp_flag', 1)->whereIn('status_flag', [0, 10])->count();
@@ -260,12 +272,12 @@ class AutoAttendanceConfirm
             $month_over_time = 0;
             $annual_calc = $annual_full * $user->work_time_day + $annual_half * $user->work_time_day / 2;
             $annual_leave += $annual_calc;
-            $all_worked_time = ($worked_time + $annual_leave) + ($condolence_leave + $transfer_leave + $oda_leave + $comp_holiday) * $user->work_time_day;
+            $all_worked_time = ($worked_time + $annual_leave) + ($condolence_leave + $transfer_leave + $oda_leave + $comp_holiday + $spec_holiday) * $user->work_time_day;
             if ($shift_work_hours < $all_worked_time) {
                 $month_over_time = $all_worked_time - $shift_work_hours - $night_over_time;
             }
             if ($user->work_type == 1) {
-                $month_over_time = $over_time;
+                $month_over_time = $over_time; 
             }
             $month_stay_allowance_count = $this->monthlyAllowanceCount($user, 1);
             $month_move_allowance_count = $this->monthlyAllowanceCount($user, 0);
@@ -290,7 +302,9 @@ class AutoAttendanceConfirm
                 'should_work_days' => $workdayNum,
                 'planned_work' => $planned_work_hours,
                 'shift_holidays' => $shift_holidays->count(),
+                'legal_holidays' => $legal_holidays->count(),
                 'holiday_count' => $worked_holiday_count,
+                'legal_holiday_count' => $legal_holiday_worked_count,
                 'workedday_count' => $workedday_count,
                 'approved_count' => $approved_count,
                 'unapproved_count' => $unapproved_count,
@@ -312,6 +326,7 @@ class AutoAttendanceConfirm
                 'month_special_commute_allowance_count' => $month_special_commute_allowance_count,
                 'worked_time' => $worked_time,
                 'holiday_worked_time' => $holiday_worked_time,
+                'legal_holiday_worked_time' => $legal_holiday_worked_time,
                 'night_over_time' => $night_over_time,
                 'annual_costs' => $annual_costs,
                 'annual_incentives' => $annual_incentive,

@@ -258,6 +258,7 @@ import { useApi } from '@/composables/api';
                 "計上月" : department.month,
                 "部門" : department.department,
                 "氏名" : department.username,
+                "稼働日数" : department.count,
                 '月間労働時間(分)' : department.work_time,
                 '月間労働時間' : department.work_time / 60,
                 '職務手当に含まれる時間外' : department.job_allowance_over_time,
@@ -348,6 +349,7 @@ import { useApi } from '@/composables/api';
                 "残業時間（分）": item.over_time,
                 "深夜勤務（分）": item.night_work_time,
                 "研修時間（分）": item.training_time,
+                "法定休日時間（分）": legalHolidayOvertime(item),
                 "インセンティブ件" : item.incentive,
                 "遠方": item.stay_pay,
                 "宿泊数": item.move_pay,
@@ -478,7 +480,8 @@ import { useApi } from '@/composables/api';
             user.attendance_records.length === 0 &&
             user.position_id > 5 &&
             !user.shift_records.some(shift => shift.status_flag === 2) &&
-            !user.time_card_records.some(record => record.status_flag === 1)
+            !user.time_card_records.some(record => record.status_flag === 1) &&
+            !user.time_card_records.some(record => record.status_flag === 0)
         )
         .map(user => user.id)
         const payload = {

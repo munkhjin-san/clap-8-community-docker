@@ -343,7 +343,19 @@ export function isCardAppEnabled(card: Pick<DashboardCard, 'type'>): boolean {
  * Get default dashboard cards filtered by the role's app capabilities.
  */
 export function getDefaultDashboardCards(): DashboardCard[] {
-    return DEFAULT_DASHBOARD_CARDS.filter(card => isCardAppEnabled(card))
+    // (merge) our capability gate (isCardAppEnabled) AND main's role-based
+    // card visibility. NOTE: main's `auth.id === 833` is a hardcoded user id —
+    // a community-rule violation flagged to tame into a capability later.
+    return DEFAULT_DASHBOARD_CARDS.filter(card => {
+        if (!isCardAppEnabled(card)) return false
+        if (card.type === 'overdueGoals' || card.type === 'notice') {
+            return !auth.isPartner && !auth.isRegistered
+        }
+        if (card.type === 'timesheet' || card.type === 'post') {
+            return auth.id === 833 || !auth.isPartner
+        }
+        return true
+    })
 }
 
 /**

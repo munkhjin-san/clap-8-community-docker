@@ -216,6 +216,16 @@ import { useRoute } from 'vue-router';
                 .map(group => Number(group.id))
         )
     })
+    const managedProjectUserIds = computed(() => {
+        if (auth.isAdmin) return null
+
+        const users = workGroups.value.flatMap(group => [
+            ...(group.members ?? []),
+            ...(group.manager ?? []),
+        ])
+
+        return new Set(users.map(user => Number(user.id)).filter(id => Number.isFinite(id) && id > 0))
+    })
     const selectedShiftEntries = computed(() => {
         const entries = []
 
@@ -246,6 +256,11 @@ import { useRoute } from 'vue-router';
         if (names.length <= 2) return names.join(' / ')
 
         return `${names.slice(0, 2).join(' / ')} 他${names.length - 2}件`
+    })
+    const approvableNeutralShiftCount = computed(() => {
+        return selectedShiftEntries.value.filter(({ user, shift }) => {
+            return Number(shift.status_flag) === 2 && authorityCheck(user, shift) && !shiftRequiresProject(shift)
+        }).length
     })
     const bulkApproveLabel = computed(() => {
         return approvablePendingCount.value ? `一括承認（${approvablePendingCount.value}件）` : '一括承認'
@@ -295,6 +310,7 @@ import { useRoute } from 'vue-router';
     const authorityCheck = (user, shift) => {
         if (!shift || isSelfShift(shift)) return false
         if (auth.isAdmin) return true
+        if (!shiftRequiresProject(shift)) return managedProjectUserIds.value?.has(Number(user?.id)) ?? false
 
         return shift.department_id && managedProjectIds.value?.has(Number(shift.department_id))
     }
@@ -333,7 +349,8 @@ import { useRoute } from 'vue-router';
             return
         }
         const projectText = approvableProjectSummary.value ? `<br>対象プロジェクト: ${approvableProjectSummary.value}` : ''
-        const answer = await ask(`承認対象 ${approvablePendingCount.value}件を一括承認します。${projectText}<br>よろしいですか。`)
+        const neutralText = approvableNeutralShiftCount.value ? `<br>休暇・休日など: ${approvableNeutralShiftCount.value}件` : ''
+        const answer = await ask(`承認対象 ${approvablePendingCount.value}件を一括承認します。${projectText}${neutralText}<br>よろしいですか。`)
         if(!answer.value) return
         const userIds = checkedUsers.value
         

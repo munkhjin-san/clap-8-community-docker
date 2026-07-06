@@ -14,12 +14,18 @@
             </div>
             <div class="c-b">
                 <div class="c-b-l" ref="commentParent">
-                    <div class="post-no-comment-text" v-if="!commentsList.length">現在メッセージはありません。</div>
+                    <div v-if="commentsLoading" class="task-comment-loading" aria-live="polite">
+                        <span class="task-comment-loading-spinner"></span>
+                        <span>コメントを読み込み中...</span>
+                    </div>
+                    <div class="post-no-comment-text" v-else-if="!commentsList.length">現在メッセージはありません。</div>
                     <GanttTaskCommentItem 
                         v-for="comment in commentsList" 
+                        :key="comment.id"
                         :editable="editingCommentId" 
                         :comment="comment" 
                         @edit="(val) => editingCommentId = val"
+                        @changed="handleCommentChanged"
                     />
                 </div>
                 
@@ -38,9 +44,7 @@
 
 <script setup lang="ts">
 import { Task, TaskComment } from '@/interface/globalInterface';
-import {  GanttProjectMethods, GanttProjectMethodsKey } from '@/interface/keys';
 import { nextTick, onMounted, ref, useTemplateRef } from 'vue'
-import { inject } from 'vue';
 
 import GanttTaskCommentItem from '@/components/Task/Gantt/GanttTaskCommentItem.vue'
 import { useBadgeStore } from '@/store/badge';
@@ -48,35 +52,44 @@ import { useApi } from '@/composables/api';
 const props = defineProps<{
   task: Task
 }>()
-const emit = defineEmits(['close'])
+const emit = defineEmits<{
+    (e: 'close'): void
+    (e: 'comment-count-change', taskId: number, count: number): void
+}>()
 const sending = ref(false)
-const {refreshProject} = inject(GanttProjectMethodsKey) as GanttProjectMethods
-const editingCommentId = ref(null)
+const commentsLoading = ref(true)
+const commentsLoaded = ref(false)
+const editingCommentId = ref<number | null>(null)
 const commentParent = useTemplateRef('commentParent')
 const commentText = useTemplateRef('commentText')
 const badge = useBadgeStore()
 const commentsList = ref<TaskComment[]>([])
 const api = useApi()
-onMounted(() => {
-    
-    updateChecked()
-    getComments()
+onMounted(async () => {
+    await updateChecked()
+    await getComments('instant')
 })
-const getComments = async() => {
-    const res = await api.get('/get_task_comment_list', {task_record_id: props.task.id})
-    commentsList.value = res
-    setTimeout(() => {
-        scrollToEnd('instant')
-    }, 100);
-    
+const getComments = async(behavior: ScrollBehavior | false = 'smooth') => {
+    commentsLoading.value = !commentsLoaded.value
+    try {
+        const res = await api.get('/get_task_comment_list', {task_record_id: props.task.id})
+        commentsList.value = res
+        emit('comment-count-change', props.task.id, commentsList.value.length)
+        if (behavior) {
+            await nextTick()
+            scrollToEnd(behavior)
+        }
+    } finally {
+        commentsLoaded.value = true
+        commentsLoading.value = false
+    }
 }
 const updateChecked = async() => {
     await api.post('/update_task_comment_check', {task_id: props.task.id})
-    // refreshProject({})
     badge.getTaskCommentBadge()
 }
 const send = async() => {
-    const text = commentText.value?.innerText
+    const text = commentText.value?.innerText?.trim()
     if(sending.value || !text){
         return
     }
@@ -86,16 +99,14 @@ const send = async() => {
     }, {
         loadingRef: sending,
     })
-    refresh()
-    getComments()
-
-}
-const refresh = async() => {
     commentText.value!.innerText = ''
-    refreshProject({})
-    nextTick(() => {
-        scrollToEnd()
-    })
+    await getComments()
+    badge.getTaskCommentBadge()
+}
+const handleCommentChanged = async() => {
+    editingCommentId.value = null
+    await getComments(false)
+    badge.getTaskCommentBadge()
 }
 const scrollToEnd = (behavior?:ScrollBehavior) => {
     const h = commentParent.value?.scrollHeight
@@ -106,3 +117,30 @@ const scrollToEnd = (behavior?:ScrollBehavior) => {
     });
 }
 </script>
+
+<style scoped>
+.task-comment-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 84px;
+    color: #89898F;
+    font-size: 12px;
+}
+
+.task-comment-loading-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid color-mix(in srgb, var(--calendarBorder) 72%, transparent);
+    border-top-color: var(--third-color);
+    border-radius: 50%;
+    animation: task-comment-loading-spin 0.8s linear infinite;
+}
+
+@keyframes task-comment-loading-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+</style>

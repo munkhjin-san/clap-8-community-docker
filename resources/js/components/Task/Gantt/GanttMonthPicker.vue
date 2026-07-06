@@ -3,11 +3,13 @@
         <button
             v-if="showNavigation"
             type="button"
-            class="gantt-picker-nav"
-            title="前の期間"
+            class="gantt-picker-nav gantt-picker-nav-prev"
+            :class="{ 'has-unread': previousBadge > 0 }"
+            :title="previousTitle || '前の期間'"
             @click.stop="shiftPeriod(-1)"
         >
             <Back size="12"/>
+            <span v-if="previousBadge > 0" class="gantt-picker-nav-badge">{{ badgeLabel(previousBadge) }}</span>
         </button>
         <div class="gantt-picker-display">
             <div @click.stop="openMonthPicker" id="activateButton" class="g-y-pick">{{ formatDate }}</div>
@@ -15,11 +17,13 @@
         <button
             v-if="showNavigation"
             type="button"
-            class="gantt-picker-nav"
-            title="次の期間"
+            class="gantt-picker-nav gantt-picker-nav-next"
+            :class="{ 'has-unread': nextBadge > 0 }"
+            :title="nextTitle || '次の期間'"
             @click.stop="shiftPeriod(1)"
         >
             <Back size="12" class="rotate-180"/>
+            <span v-if="nextBadge > 0" class="gantt-picker-nav-badge">{{ badgeLabel(nextBadge) }}</span>
         </button>
         <div id="taskYearPicker" class="month-grid" v-if="menu.id == uniqueId && menu.name == 'taskYearPicker'" :style="{right : right ? right : 'auto'}">
             <div class="grid-container">
@@ -55,9 +59,17 @@ import Back from '@/components/Icons/Back.vue';
         right: string;
         displayMode?: 'month' | 'year';
         showNavigation?: boolean;
+        previousBadge?: number;
+        nextBadge?: number;
+        previousTitle?: string;
+        nextTitle?: string;
     }>(), {
         displayMode: 'month',
         showNavigation: false,
+        previousBadge: 0,
+        nextBadge: 0,
+        previousTitle: '',
+        nextTitle: '',
     })
     
     const emit = defineEmits<{
@@ -136,6 +148,7 @@ import Back from '@/components/Icons/Back.vue';
         }
         emit('setDate')
     }
+    const badgeLabel = (count: number) => count > 9 ? '9+' : count.toString()
 </script>
 
 <style scoped>
@@ -174,6 +187,7 @@ import Back from '@/components/Icons/Back.vue';
 }
 
 .gantt-picker-nav {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -183,6 +197,32 @@ import Back from '@/components/Icons/Back.vue';
     background: transparent;
     color: var(--primary-color);
     cursor: pointer;
+}
+
+.gantt-picker-nav-badge {
+    position: absolute;
+    top: 50%;
+    min-width: 13px;
+    height: 13px;
+    padding: 0 3px;
+    border-radius: 999px;
+    background: #f28c28;
+    box-shadow: 0 0 0 1px var(--background-color);
+    color: #fff;
+    font-size: 8px;
+    font-weight: 700;
+    line-height: 13px;
+    text-align: center;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.gantt-picker-nav-prev .gantt-picker-nav-badge {
+    right: calc(100% - 2px);
+}
+
+.gantt-picker-nav-next .gantt-picker-nav-badge {
+    left: calc(100% - 2px);
 }
 
 .gantt-picker-nav:hover {

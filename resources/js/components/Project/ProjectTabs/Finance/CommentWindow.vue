@@ -5,16 +5,20 @@
                 <div class="mobile w-[40px] m-h-[60px] flex items-center justify-center cursor-pointer" @click="emit('close')">
                     <svg class="dot-menu" version="1.1" width="15" height="15" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg"><path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path></svg>
                 </div>
-                <h4 class="max-w-[calc(100% - 120px)] overflow-hidden overflow-ellipsis whitespace-nowrap">{{DateTime.fromFormat(period, 'yyyy-MM').toFormat('yyyy年M月')}}コメント
-                  <span v-if="commentsList.length">({{ commentsList.length }})</span>
-                </h4>
+                <div class="comment-title-block max-w-[calc(100%-120px)] overflow-hidden">
+                  <div v-if="currentProjectName" class="comment-title-eyebrow" :title="currentProjectName">{{ currentProjectName }}</div>
+                  <p class="overflow-hidden overflow-ellipsis whitespace-nowrap text-xs">{{DateTime.fromFormat(period, 'yyyy-MM').toFormat('yyyy年M月')}}コメント
+                    <span v-if="commentsList.length">({{ commentsList.length }})</span>
+                  </p>
+                </div>
                 <button
-                    v-if="nextUnreadPeriod"
+                    v-if="nextUnread"
                     type="button"
                     class="next-unread-btn"
+                    :title="nextUnread.sameProject ? '次の未読コメントへ' : `${nextUnread.project_name} の未読コメントへ`"
                     @click="goToNextUnread"
                 >
-                    <span>{{ DateTime.fromFormat(nextUnreadPeriod, 'yyyy-MM').toFormat('M月') }}・{{ nextUnreadCount }}</span>
+                    次の未読コメント
                     <svg width="9" height="9" viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M8.835 31.913c-0.769 0-1.538-0.293-2.124-0.879-1.173-1.173-1.173-3.075 0-4.248l10.786-10.786-10.786-10.786c-1.173-1.173-1.173-3.075 0-4.248s3.075-1.173 4.248 0l12.91 12.91c1.173 1.173 1.173 3.075 0 4.248l-12.91 12.91c-0.586 0.586-1.355 0.879-2.124 0.879z"></path></svg>
                 </button>
                 <div @click="emit('close')" class="flex items-center justify-end cursor-pointer w-[60px] h-[60px] pc ml-auto">
@@ -86,13 +90,14 @@ import { DateTime } from 'luxon';
 type Props = {
     type: string;
     currentProjectId: number;
+    currentProjectName?: string;
     period: string;
-    financeCommentBadgeByPeriod: Record<string, number>
 }
 const emit = defineEmits<{
     (e: 'close'): void,
     (e: 'getCommentCounts'): void,
-    (e: 'goToPeriod', period: string): void
+    (e: 'goToPeriod', period: string): void,
+    (e: 'navigateUnread', target: { projectId: number, period: string }): void
 }>()
 const api = useApi()
 const props = defineProps<Props>()
@@ -113,21 +118,17 @@ const editingCommentId = ref<number | null>(null)
 const replyComment = ref<FinanceComment | null>(null)
 const badge = useBadgeStore()
 const dashboardStore = useDashboardStore()
-// 未読コメントが残っている「次の月」を求める（バッジは月ごとの未読件数 {period: count}）
-const nextUnreadPeriod = computed<string | null>(() => {
-  const counts = props.financeCommentBadgeByPeriod ?? {}
-  const unreadPeriods = Object.keys(counts)
-    .filter(p => (counts[p] ?? 0) > 0 && p !== props.period)
-    .sort() // yyyy-MM は文字列ソートで時系列順になる
-  if (!unreadPeriods.length) return null
-  // 現在の月より後で最も近い月。無ければ最も古い未読月へループする。
-  return unreadPeriods.find(p => p > props.period) ?? unreadPeriods[0]
-})
-const nextUnreadCount = computed<number>(() =>
-  nextUnreadPeriod.value ? (props.financeCommentBadgeByPeriod?.[nextUnreadPeriod.value] ?? 0) : 0
-)
+// 次の未読コメントの遷移先（同じプロジェクトの次の月 → 他プロジェクト）を求める。
+// バッジは markRead() で更新されるため、開いた月は対象から外れる。
+const nextUnread = computed(() => badge.nextFinanceUnread(props.currentProjectId, props.period))
 const goToNextUnread = () => {
-  if (nextUnreadPeriod.value) emit('goToPeriod', nextUnreadPeriod.value)
+  const target = nextUnread.value
+  if (!target) return
+  if (target.sameProject) {
+    emit('goToPeriod', target.period) // 同一プロジェクト内は再マウントせず月だけ切り替え
+  } else {
+    emit('navigateUnread', { projectId: target.project_id, period: target.period })
+  }
 }
 const mentionNameToId = computed<Record<string, number>>(() => {
   const map: Record<string, number> = {}
@@ -521,6 +522,27 @@ watch(() => props.period, async () => {
 .next-unread-btn:hover {
     background: var(--bg3);
     color: var(--primary-color);
+}
+@media (max-width: 480px) {
+    .next-unread-btn {
+        margin-left: 6px;
+        padding: 5px 8px;
+        gap: 4px;
+    }
+}
+.comment-title-block {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1.2;
+    min-width: 0;          /* let the title yield room to the button on narrow screens */
+}
+.comment-title-eyebrow {
+    font-size: 11px;
+    color: var(--third-color, #888);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 </style>

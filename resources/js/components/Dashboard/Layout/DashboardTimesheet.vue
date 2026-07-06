@@ -69,7 +69,7 @@
                 </ExpansionGrid>
             </div>
             <div class="text-[13px] p-2 bg-[var(--bg3)] rounded mt-3 w-fit" v-if="dashboardStore.annualLeaveData.remaining_days">
-                有給残日数: {{ dashboardStore.annualLeaveData.remaining_days }}日
+                有給残日数: {{ formatLeaveBalance(dashboardStore.annualLeaveData.remaining_minutes) }}
             </div>
             <div v-if="dashboardStore.annualLeaveData.planned_leaves_last_year.length || dashboardStore.annualLeaveData.planned_leaves_this_year.length" class="mt-3">
                 <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
@@ -319,7 +319,21 @@ const departureReportCount = computed(() => {
         return user.shift_records?.some((shift: any) => !shift.departure_report)
     }).length
 })
+const formatLeaveBalance = (minutes: number | string | null | undefined) => {
+    const perDay = Math.max(1, Number(auth.user.work_time_day) || 480)
+    const rawTotal = Math.round(Number(minutes) || 0)
+    const total = Math.abs(rawTotal)
+    const days = Math.floor(total / perDay)
+    const rest = total % perDay
+    const hours = Math.floor(rest / 60)
+    const mins = rest % 60
 
+    let label = `${days}日`
+    if (hours > 0) label += `${hours}時間`
+    if (mins > 0) label += `${mins}分`
+
+    return rawTotal < 0 ? `-${label}` : label
+}
 const actionCount = computed(() => {
     return (
         (props.data.data.pendingAttendance ? 1 : 0) +

@@ -79,7 +79,7 @@ class AdminWorkController extends Controller{
         ->with(['time_card_records' => function($q) use($currentYear, $currentMonth){
             $q->whereYear('day', $currentYear)
               ->whereMonth('day', $currentMonth)
-              ->select('work_time', 'day', 'id', 'user_id', 'work_group_id', 'car_mileage', 'car_used_project', 'gas_full_price', 'status_flag')
+              ->select('work_time', 'day', 'id', 'user_id', 'work_group_id', 'car_mileage', 'car_used_project', 'gas_full_price', 'status_flag', 'start_time', 'end_time')
               ->orderBy('day', 'asc')
               ->with([
                 'custom_field_data_records' => function($q) {
@@ -319,6 +319,7 @@ class AdminWorkController extends Controller{
 
                             if (!isset($departmentCountsTemp[$groupKey])) {
                                 $departmentCountsTemp[$groupKey] = [
+                                    'count' => 0,
                                     'work_time' => 0,
                                     'department' => $departmentRow['department'],
                                     'username' => $departmentRow['username'],
@@ -328,6 +329,7 @@ class AdminWorkController extends Controller{
                                 ];
                             }
                             $departmentCountsTemp[$groupKey]['work_time'] += $departmentRow['work_time'];
+                            $departmentCountsTemp[$groupKey]['count']++;
                         }
 
                         foreach ($this->timecardMyCarRows($record, $user->name) as $myCarRow) {
@@ -344,30 +346,30 @@ class AdminWorkController extends Controller{
                     // Merge with main department counts
                     $allDepartmentCounts = $allDepartmentCounts->merge($departmentCountsTemp);
                 }
-                if($user->work_type == 0){
-                    $userWorkData = $this->sharedService->work_days_calculator((int) $currentYear, (int) $currentMonth, $user);
+                // if($user->work_type == 0){
+                //     $userWorkData = $this->sharedService->work_days_calculator((int) $currentYear, (int) $currentMonth, $user);
 
-                    $userShouldWorkTimeInMinutes = $userWorkData['work_minutes']; // e.g., 176h → 10560 min
-                    $userDailyMinutes = $user->work_time_day; // e.g., 480 min (8h)
-                    $minimumLegalHolidayMinutes = 4 * $userDailyMinutes; // 1920 min (4 days)
+                //     $userShouldWorkTimeInMinutes = $userWorkData['work_minutes']; // e.g., 176h → 10560 min
+                //     $userDailyMinutes = $user->work_time_day; // e.g., 480 min (8h)
+                //     $minimumLegalHolidayMinutes = 4 * $userDailyMinutes; // 1920 min (4 days)
 
-                    // Actual worked time in minutes for the month
-                    $actualWorkedMinutes = $workTimeInMinutes;
+                //     // Actual worked time in minutes for the month
+                //     $actualWorkedMinutes = $workTimeInMinutes;
 
-                    // Step 1: Calculate total overtime
-                    $totalOvertime = $actualWorkedMinutes - $userShouldWorkTimeInMinutes;
+                //     // Step 1: Calculate total overtime
+                //     $totalOvertime = $actualWorkedMinutes - $userShouldWorkTimeInMinutes;
 
-                    if ($totalOvertime > 0) {
-                        // Step 2: Special overtime threshold
-                        $specialOvertimeThreshold = $userShouldWorkTimeInMinutes + $minimumLegalHolidayMinutes;
+                //     if ($totalOvertime > 0) {
+                //         // Step 2: Special overtime threshold
+                //         $specialOvertimeThreshold = $userShouldWorkTimeInMinutes + $minimumLegalHolidayMinutes;
 
-                        if ($actualWorkedMinutes > $specialOvertimeThreshold) {
-                            $legal_holiday_worked_time_in_minutes = $actualWorkedMinutes - $specialOvertimeThreshold;
-                        } else {
-                        }
-                    } 
+                //         if ($actualWorkedMinutes > $specialOvertimeThreshold) {
+                //             $legal_holiday_worked_time_in_minutes = $actualWorkedMinutes - $specialOvertimeThreshold;
+                //         } else {
+                //         }
+                //     } 
                     
-                }
+                // }
                 $monthly_expenses->put(
                     $user->id,
                     ($monthly_expenses->get($user->id, 0) + $total_gas_price)
@@ -443,12 +445,14 @@ class AdminWorkController extends Controller{
                             ->sum('minutes'),
                     ];
                 })
+                ->filter(fn ($row) => (int) $row['work_time'] > 0)
                 ->values()
                 ->all();
         }
 
         $departmentName = $record['department']['name'] ?? null;
-        if (!$departmentName) {
+        $workTime = (int) $record->work_time;
+        if (!$departmentName || $workTime <= 0 || $this->hasSameStartAndEndTime($record)) {
             return [];
         }
 
@@ -456,8 +460,25 @@ class AdminWorkController extends Controller{
             'department' => $departmentName,
             'username' => $userName,
             'month' => $month,
-            'work_time' => (int) $record->work_time,
+            'work_time' => $workTime,
         ]];
+    }
+
+    private function hasSameStartAndEndTime($record): bool
+    {
+        $start = $this->normalizeClockTime($record->start_time ?? null);
+        $end = $this->normalizeClockTime($record->end_time ?? null);
+
+        return $start !== null && $end !== null && $start === $end;
+    }
+
+    private function normalizeClockTime($time): ?string
+    {
+        if ($time === null || $time === '') {
+            return null;
+        }
+
+        return substr((string) $time, 0, 5);
     }
 
     private function timecardMyCarRows($record, string $userName): array
