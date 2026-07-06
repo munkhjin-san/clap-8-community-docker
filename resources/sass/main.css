@@ -3,6 +3,7 @@
 @import './mobileStyle.css';
 @import './TrayStyle.css';
 @import './workStyle.css';
+@import './admin.css';
 /* these are necessary styles for vue flow */
 @import '@vue-flow/core/dist/style.css';
 
@@ -820,12 +821,6 @@ progress {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  scrollbar-width: none !important;
-}
-
-.post-container::-webkit-scrollbar {
-  width: 0;
-  height: 0;
 }
 
 #cal_month_view::-webkit-scrollbar {
@@ -5104,9 +5099,7 @@ input:-webkit-autofill:active {
   height: 31px;
 }
 
-.searchBarArea:focus {
-  border: solid thin var(--hoverBorder);
-}
+
 
 .searchBarArea {
   padding: 5px 30px 5px 30px;
@@ -5117,8 +5110,11 @@ input:-webkit-autofill:active {
   border: solid thin var(--normalBorder);
   transition: all 0.3s;
   color: var(--primary-color);
+  border-radius: 5px;
 }
-
+.searchBarArea:focus {
+  border: solid thin var(--hoverBorder);
+}
 .memberSearch {
   background-color: var(--background-color) !important;
 }
@@ -6392,9 +6388,8 @@ input:autofill {
 
 .lcontrol {
   font-size: 14px;
-  background: var(--bg3);
   width: 100%;
-  height: 100%;
+  height: calc(100% - 70px);
   overflow: hidden auto;
 }
 
@@ -6649,7 +6644,7 @@ input:autofill {
   height: 100%;
   width: 100%;
   z-index: 6;
-  background: var(--bg2);
+  background: var(--background-color);
   color: var(--primary-color);
 }
 
