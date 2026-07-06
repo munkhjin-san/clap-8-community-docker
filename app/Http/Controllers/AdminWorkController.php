@@ -347,30 +347,30 @@ class AdminWorkController extends Controller{
                     // Merge with main department counts
                     $allDepartmentCounts = $allDepartmentCounts->merge($departmentCountsTemp);
                 }
-                if($user->work_type == 0){
-                    $userWorkData = $this->sharedService->work_days_calculator((int) $currentYear, (int) $currentMonth, $user);
+                // if($user->work_type == 0){
+                //     $userWorkData = $this->sharedService->work_days_calculator((int) $currentYear, (int) $currentMonth, $user);
 
-                    $userShouldWorkTimeInMinutes = $userWorkData['work_minutes']; // e.g., 176h → 10560 min
-                    $userDailyMinutes = $user->work_time_day; // e.g., 480 min (8h)
-                    $minimumLegalHolidayMinutes = 4 * $userDailyMinutes; // 1920 min (4 days)
+                //     $userShouldWorkTimeInMinutes = $userWorkData['work_minutes']; // e.g., 176h → 10560 min
+                //     $userDailyMinutes = $user->work_time_day; // e.g., 480 min (8h)
+                //     $minimumLegalHolidayMinutes = 4 * $userDailyMinutes; // 1920 min (4 days)
 
-                    // Actual worked time in minutes for the month
-                    $actualWorkedMinutes = $workTimeInMinutes;
+                //     // Actual worked time in minutes for the month
+                //     $actualWorkedMinutes = $workTimeInMinutes;
 
-                    // Step 1: Calculate total overtime
-                    $totalOvertime = $actualWorkedMinutes - $userShouldWorkTimeInMinutes;
+                //     // Step 1: Calculate total overtime
+                //     $totalOvertime = $actualWorkedMinutes - $userShouldWorkTimeInMinutes;
 
-                    if ($totalOvertime > 0) {
-                        // Step 2: Special overtime threshold
-                        $specialOvertimeThreshold = $userShouldWorkTimeInMinutes + $minimumLegalHolidayMinutes;
+                //     if ($totalOvertime > 0) {
+                //         // Step 2: Special overtime threshold
+                //         $specialOvertimeThreshold = $userShouldWorkTimeInMinutes + $minimumLegalHolidayMinutes;
 
-                        if ($actualWorkedMinutes > $specialOvertimeThreshold) {
-                            $legal_holiday_worked_time_in_minutes = $actualWorkedMinutes - $specialOvertimeThreshold;
-                        } else {
-                        }
-                    } 
+                //         if ($actualWorkedMinutes > $specialOvertimeThreshold) {
+                //             $legal_holiday_worked_time_in_minutes = $actualWorkedMinutes - $specialOvertimeThreshold;
+                //         } else {
+                //         }
+                //     } 
                     
-                }
+                // }
                 $monthly_expenses->put(
                     $user->id,
                     ($monthly_expenses->get($user->id, 0) + $total_gas_price)

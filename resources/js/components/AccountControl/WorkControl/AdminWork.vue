@@ -349,6 +349,7 @@ import { useApi } from '@/composables/api';
                 "残業時間（分）": item.over_time,
                 "深夜勤務（分）": item.night_work_time,
                 "研修時間（分）": item.training_time,
+                "法定休日時間（分）": legalHolidayOvertime(item),
                 "インセンティブ件" : item.incentive,
                 "遠方": item.stay_pay,
                 "宿泊数": item.move_pay,

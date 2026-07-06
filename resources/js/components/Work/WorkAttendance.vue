@@ -106,6 +106,14 @@
                             <span>{{ holidayWork(attendanceData) }}</span>
                         </div>
                     </div>
+                    <div class="attendance-row" v-if="attendanceData.user.work_type == 1">
+                        <div class="attendance-title">
+                            <span>法定休日出勤</span>
+                        </div>
+                        <div class="attendance-value">
+                            <span>{{ legalHolidayWork(attendanceData) }}</span>
+                        </div>
+                    </div>
                     <div class="attendance-row" v-if="attendanceData.user.position_id !== 15">
                         <div class="attendance-title">
                             <span>慶弔休暇</span>
@@ -330,6 +338,28 @@ import { useDashboardStore } from '@/store/dashboard';
     }
     const annualTime = (data) => {
         return (data.annual_leave)/60 + '時間' 
+    }
+    const legalHolidayWork = (data) => {
+        let days = data.legal_holiday_count + '日'
+        let minutes = data.legal_holiday_worked_time
+        if (minutes === 0) {
+            minutes = '0時間';
+        } else {
+            const hours = Math.floor(minutes / 60);
+            const remainingMinutes = minutes % 60;
+            let formatted = '';
+            
+            if (hours > 0) {
+                formatted += hours + '時間';
+            }
+            
+            if (remainingMinutes > 0) {
+                formatted += remainingMinutes + '分';
+            }
+            
+            minutes = formatted;
+        }
+        return `${days}(${minutes})`
     }
     const holidayWork = (data) => {
         let days = data.holiday_count + '日'
