@@ -124,6 +124,22 @@ class RefreshController extends Controller
         );
     }
 
+    public function refundRakuaward(Request $request)
+    {
+        $request->validate([
+            'year' => 'nullable|integer',
+            'month' => 'nullable|integer',
+        ]);
+
+        return response()->json(
+            $this->refreshService->refundUnselectedRakuaward(
+                $request->integer('year') ?: null,
+                $request->integer('month') ?: null,
+                (int) Auth::id(),
+            )
+        );
+    }
+
     public function storeManagementGrant(Request $request)
     {
         $validated = $request->validate([

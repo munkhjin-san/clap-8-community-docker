@@ -1313,6 +1313,8 @@ class RefreshService
                 'supporter_count' => $post->awards->count(),
                 'granted' => ! is_null($post->rakuaward_granted_at),
                 'granted_at' => optional($post->rakuaward_granted_at)->toIso8601String(),
+                'refunded' => ! is_null($post->rakuaward_refunded_at),
+                'refunded_at' => optional($post->rakuaward_refunded_at)->toIso8601String(),
             ];
         })->values()->all();
 
@@ -1321,7 +1323,46 @@ class RefreshService
             'month' => $month,
             'limit' => self::RAKUAWARD_MONTHLY_LIMIT,
             'granted_count' => $posts->whereNotNull('rakuaward_granted_at')->count(),
+            'refundable_count' => $posts
+                ->filter(fn (PostRecord $post) => is_null($post->rakuaward_granted_at) && is_null($post->rakuaward_refunded_at))
+                ->count(),
             'nominations' => $nominations,
+        ];
+    }
+
+    public function refundUnselectedRakuaward(?int $year, ?int $month, int $actorId): array
+    {
+        $now = Carbon::now();
+        $year = $year ?: $now->year;
+        $month = $month ?: $now->month;
+        $periodStart = Carbon::create($year, $month, 1)->startOfMonth();
+        $periodEnd = (clone $periodStart)->endOfMonth();
+
+        $postIds = PostRecord::query()
+            ->where('app_type', 0)
+            ->where('rakuaward', 1)
+            ->whereBetween('created_at', [$periodStart, $periodEnd])
+            ->whereNull('rakuaward_granted_at')
+            ->whereNull('rakuaward_refunded_at')
+            ->pluck('id');
+
+        $refundedPosts = 0;
+        $refundedUsers = 0;
+        $refundedAmount = 0;
+
+        foreach ($postIds as $postId) {
+            $result = PostRefundService::refundRakuawardCharges((int) $postId);
+            $refundedPosts++;
+            $refundedUsers += $result['users'];
+            $refundedAmount += $result['amount'];
+        }
+
+        return [
+            'year' => $year,
+            'month' => $month,
+            'refunded_posts' => $refundedPosts,
+            'refunded_users' => $refundedUsers,
+            'refunded_amount' => $refundedAmount,
         ];
     }
 

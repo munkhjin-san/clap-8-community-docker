@@ -764,6 +764,10 @@ class PostController extends Controller
 
         // Rakuaward nice: enforce the 500 cap and the created_at -> end-of-month window server-side.
         if ($isRakuawardNice) {
+            if (! is_null($record->rakuaward_granted_at) || ! is_null($record->rakuaward_refunded_at)) {
+                throw ValidationException::withMessages(['charge_bet' => 'この楽アワードのチャージは締め切られました。']);
+            }
+
             if (Carbon::now()->gt(Carbon::parse($record->created_at)->endOfMonth())) {
                 throw ValidationException::withMessages(['charge_bet' => 'チャージ期間が終了しました。']);
             }

@@ -4,8 +4,16 @@
             <div class="topbar-left">
                 <MonthPickerNew v-model:year="year" v-model:month="month" left="0px" @setDate="onSetDate" />
                 <span class="granted-counter">選択済み: {{ grantedCount }} / {{ limit }}</span>
+                <button
+                    type="button"
+                    class="refund-all-button"
+                    :disabled="!refundableCount || refunding || saving"
+                    @click="refundRest"
+                >
+                    未選出を返金{{ refundableCount ? `（${refundableCount}件）` : '' }}
+                </button>
             </div>
-            <p class="topbar-note">チャージ金額をノミネートされたメンバーのリフレッシュへ付与します（最大{{ limit }}名/月）。</p>
+            <p class="topbar-note">上位5名に選ばれなかったノミネートは、チャージした金額がメンバーへ返金されます。</p>
         </section>
 
         <div class="rakuaward-list">
@@ -15,7 +23,7 @@
             <article
                 v-for="nomination in nominations"
                 :key="nomination.id"
-                :class="['rakuaward-card', { granted: nomination.granted }]"
+                :class="['rakuaward-card', { granted: nomination.granted, refunded: nomination.refunded }]"
             >
                 <div class="card-main">
                     <div class="card-people">
@@ -50,6 +58,7 @@
                         <strong>{{ formatCurrency(nomination.charged_amount) }}</strong>
                     </div>
                     <span v-if="nomination.granted" class="granted-badge">付与済み</span>
+                    <span v-else-if="nomination.refunded" class="refunded-badge">返金済み</span>
                     <button
                         v-else
                         type="button"
@@ -59,8 +68,8 @@
                     >
                         リフレッシュへ付与
                     </button>
-                    <p v-if="!nomination.granted && nomination.charged_amount <= 0" class="side-note">チャージなし</p>
-                    <p v-else-if="!nomination.granted && grantedCount >= limit" class="side-note">今月の上限に達しました</p>
+                    <p v-if="!nomination.granted && !nomination.refunded && nomination.charged_amount <= 0" class="side-note">チャージなし</p>
+                    <p v-else-if="!nomination.granted && !nomination.refunded && grantedCount >= limit" class="side-note">今月の上限に達しました</p>
                 </div>
             </article>
         </div>
@@ -86,6 +95,8 @@ type RakuawardNomination = {
     supporter_count: number;
     granted: boolean;
     granted_at: string | null;
+    refunded: boolean;
+    refunded_at: string | null;
 };
 
 type RakuawardResponse = {
@@ -93,16 +104,19 @@ type RakuawardResponse = {
     month: number;
     limit: number;
     granted_count: number;
+    refundable_count: number;
     nominations: RakuawardNomination[];
 };
 
 const api = useApi();
 const loading = ref(false);
 const saving = ref(false);
+const refunding = ref(false);
 const year = ref<number>(DateTime.now().year);
 const month = ref<MonthNumbers>(DateTime.now().month);
 const limit = ref(5);
 const grantedCount = ref(0);
+const refundableCount = ref(0);
 const nominations = ref<RakuawardNomination[]>([]);
 
 const fetchNominations = async () => {
@@ -118,6 +132,7 @@ const fetchNominations = async () => {
 
     limit.value = data.limit;
     grantedCount.value = data.granted_count;
+    refundableCount.value = data.refundable_count;
     nominations.value = data.nominations ?? [];
 };
 
@@ -138,6 +153,23 @@ const grant = async (nomination: RakuawardNomination) => {
         loadingRef: saving,
         ask: `${nomination.nominee?.name ?? '対象メンバー'}さんのリフレッシュに ${formatCurrency(nomination.charged_amount)} を付与しますか？`,
         toast: 'リフレッシュへ付与しました。',
+    });
+
+    if (!result) return;
+
+    await fetchNominations();
+};
+
+const refundRest = async () => {
+    if (!refundableCount.value) return;
+
+    const result = await api.post('/refresh/rakuaward/refund', {
+        year: year.value,
+        month: month.value,
+    }, {
+        loadingRef: refunding,
+        ask: `上位5名に選ばれなかった${refundableCount.value}件のチャージを、チャージしたメンバーへ返金します。よろしいですか？`,
+        toast: 'チャージを返金しました。',
     });
 
     if (!result) return;
@@ -225,7 +257,8 @@ onMounted(() => {
     box-shadow: inset 0 0 0 1px var(--formBorder);
 }
 
-.rakuaward-card.granted {
+.rakuaward-card.granted,
+.rakuaward-card.refunded {
     opacity: 0.7;
 }
 
@@ -345,6 +378,31 @@ onMounted(() => {
     font-weight: 700;
     background: rgba(55, 121, 104, 0.18);
     color: #4c957c;
+}
+
+.refunded-badge {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    background: rgba(184, 74, 74, 0.14);
+    color: #a33d3d;
+}
+
+.refund-all-button {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 4px;
+    border: 1px solid var(--formBorder);
+    background: var(--background-color);
+    color: var(--primary-color);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.refund-all-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .side-note {
