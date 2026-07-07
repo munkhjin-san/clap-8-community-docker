@@ -13,7 +13,8 @@
             </span>
             <span class="py-1 px-4 bg-[var(--bg3)] ml-1" v-else>{{amountOfMoneyParser(possibleAmount)}}円</span>
         </div>
-        <p class="text-center text-[12px] text-[gray] my-3" v-if="isMini">ミニチャレンジのため、最大のチャージ額は500円までです</p>
+        <p class="text-center text-[12px] text-[gray] my-3" v-if="isRakuaward">楽アワードノミネートのため、最大のチャージ額は500円までです</p>
+        <p class="text-center text-[12px] text-[gray] my-3" v-else-if="isMini">ミニチャレンジのため、最大のチャージ額は500円までです</p>
         <div v-if="chargeQuickOptions.length" class="flex flex-wrap justify-center gap-3 mt-2" >
             <button
                 v-for="option in chargeQuickOptions"
@@ -94,7 +95,8 @@ import { amountOfMoneyParser } from '@/utils/tools';
     const chargeStep = 100
     const props = defineProps<{
         chargeTarget: number,
-        isMini: boolean
+        isMini: boolean,
+        isRakuaward?: boolean
     }>()
     const emit = defineEmits<{
         'close': [number | undefined]
@@ -111,7 +113,7 @@ import { amountOfMoneyParser } from '@/utils/tools';
         getMyCharge()
     })
 
-    const maxChargeAmount = computed(() => Math.min(possibleAmount.value, props.isMini ? 500 : 15000))
+    const maxChargeAmount = computed(() => Math.min(possibleAmount.value, (props.isMini || props.isRakuaward) ? 500 : 15000))
     const chargeAmount = computed(() => charge_bet.value?.value ?? 0)
     const numericChargeInput = computed(() => Number.parseInt(chargeInput.value, 10))
 

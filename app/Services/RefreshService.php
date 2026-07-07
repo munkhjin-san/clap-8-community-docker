@@ -10,6 +10,7 @@ use App\Models\RefreshGrant;
 use App\Models\RefreshUsage;
 use App\Models\RefreshUsageAllocation;
 use App\Models\PostRecord;
+use App\Models\PostRelayPrize;
 use App\Models\User;
 use App\Models\UserLeaveRecord;
 use Carbon\Carbon;
@@ -25,6 +26,9 @@ class RefreshService
      * @var int[]
      */
     private const ELIGIBLE_POSITION_IDS = [6, 11, 12, 16];
+
+    // Admin may grant at most this many rakuaward nominations per month.
+    public const RAKUAWARD_MONTHLY_LIMIT = 5;
 
     public function __construct(
         private KintoneClient $api,
@@ -1274,6 +1278,163 @@ class RefreshService
         return 'annual';
     }
 
+    public function getRakuawardNominations(?int $year, ?int $month): array
+    {
+        $now = Carbon::now();
+        $year = $year ?: $now->year;
+        $month = $month ?: $now->month;
+        $periodStart = Carbon::create($year, $month, 1)->startOfMonth();
+        $periodEnd = (clone $periodStart)->endOfMonth();
+
+        $posts = PostRecord::query()
+            ->where('app_type', 0)
+            ->where('rakuaward', 1)
+            ->whereBetween('created_at', [$periodStart, $periodEnd])
+            ->with([
+                'user:id,name,icon_path,icon_bg',
+                'to_users:id,name,icon_path,icon_bg',
+                'awards',
+            ])
+            ->orderByDesc('created_at')
+            ->get();
+
+        $nominations = $posts->map(function (PostRecord $post) {
+            $nominee = $post->to_users->first();
+            $chargedAmount = (int) $post->awards->sum(fn ($user) => (int) ($user->pivot->award_bet ?? 0));
+
+            return [
+                'id' => $post->id,
+                'title' => $post->title,
+                'content' => $post->content,
+                'created_at' => optional($post->created_at)->toIso8601String(),
+                'creator' => $this->rakuawardUserPayload($post->user),
+                'nominee' => $this->rakuawardUserPayload($nominee),
+                'charged_amount' => $chargedAmount,
+                'supporter_count' => $post->awards->count(),
+                'granted' => ! is_null($post->rakuaward_granted_at),
+                'granted_at' => optional($post->rakuaward_granted_at)->toIso8601String(),
+            ];
+        })->values()->all();
+
+        return [
+            'year' => $year,
+            'month' => $month,
+            'limit' => self::RAKUAWARD_MONTHLY_LIMIT,
+            'granted_count' => $posts->whereNotNull('rakuaward_granted_at')->count(),
+            'nominations' => $nominations,
+        ];
+    }
+
+    public function grantRakuawardToRefresh(int $postId, int $actorId): array
+    {
+        return DB::transaction(function () use ($postId, $actorId) {
+            $post = PostRecord::query()
+                ->where('id', $postId)
+                ->where('app_type', 0)
+                ->where('rakuaward', 1)
+                ->with(['to_users:id,name', 'awards'])
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (! is_null($post->rakuaward_granted_at)) {
+                throw ValidationException::withMessages(['post' => 'この楽アワードは既にリフレッシュへ付与済みです。']);
+            }
+
+            $period = Carbon::parse($post->created_at);
+            $grantedThisMonth = PostRecord::query()
+                ->where('app_type', 0)
+                ->where('rakuaward', 1)
+                ->whereNotNull('rakuaward_granted_at')
+                ->whereYear('created_at', $period->year)
+                ->whereMonth('created_at', $period->month)
+                ->count();
+
+            if ($grantedThisMonth >= self::RAKUAWARD_MONTHLY_LIMIT) {
+                throw ValidationException::withMessages([
+                    'post' => '今月の付与上限（' . self::RAKUAWARD_MONTHLY_LIMIT . '件）に達しています。',
+                ]);
+            }
+
+            $nominee = $post->to_users->first();
+            if (! $nominee) {
+                throw ValidationException::withMessages(['post' => 'ノミネート対象者が見つかりません。']);
+            }
+
+            $amount = (int) $post->awards->sum(fn ($user) => (int) ($user->pivot->award_bet ?? 0));
+            if ($amount <= 0) {
+                throw ValidationException::withMessages(['post' => 'チャージ金額がないため付与できません。']);
+            }
+
+            $grantDate = Carbon::now();
+            $account = RefreshAccount::query()->firstOrCreate(
+                ['user_id' => $nominee->id],
+                [
+                    'is_active' => true,
+                    'opening_total_granted' => 0,
+                    'opening_total_used' => 0,
+                    'opening_remaining_amount' => 0,
+                ]
+            );
+
+            RefreshGrant::query()->updateOrCreate(
+                [
+                    'refresh_account_id' => $account->id,
+                    'source_system' => 'glowd',
+                    'source_key' => sha1('rakuaward|' . $post->id),
+                ],
+                [
+                    'grant_type' => 'rakuaward',
+                    'grant_year' => (int) $grantDate->year,
+                    'granted_at' => $grantDate->toDateString(),
+                    'expires_at' => $grantDate->copy()->addYear()->toDateString(),
+                    'amount' => $amount,
+                    'remaining_amount' => $amount,
+                    'note' => $period->format('Y年n月') . ' 楽アワード（' . $post->title . '）',
+                    'created_by_user_id' => $actorId,
+                ]
+            );
+
+            $post->timestamps = false;
+            $post->rakuaward_granted_at = $grantDate;
+            $post->save();
+
+            // Everyone who charged this top-5 nomination earns a GlowdNine play.
+            $post->awards->each(function ($charger) use ($post) {
+                PostRelayPrize::firstOrCreate(
+                    [
+                        'root_post_id' => (int) $post->id,
+                        'user_id' => (int) $charger->id,
+                    ],
+                    [
+                        'prize' => 0,
+                        'try_flag' => 0,
+                    ]
+                );
+            });
+
+            return [
+                'granted' => true,
+                'post_id' => $post->id,
+                'user_id' => $nominee->id,
+                'amount' => $amount,
+            ];
+        });
+    }
+
+    private function rakuawardUserPayload($user): ?array
+    {
+        if (! $user) {
+            return null;
+        }
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'icon_path' => $user->icon_path,
+            'icon_bg' => $user->icon_bg,
+        ];
+    }
+
     private function grantLabel(string $grantType): string
     {
         return match ($grantType) {
@@ -1281,6 +1442,7 @@ class RefreshService
             'challenge' => 'チャレンジ',
             'challenge_award' => 'チャレンジチャージ',
             'challenge_grant' => 'チャレンジ必要経費',
+            'rakuaward' => '楽アワード',
             'manual' => '手動調整',
             'opening_balance' => '移行時残高',
             default => '年次付与',

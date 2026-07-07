@@ -200,11 +200,12 @@
  
         <router-link v-if="hasQuery" :to="`/${String(appName)}`" class="post-list-reset">一覧表示に戻す</router-link>
         <Transition name="modalFade">
-            <Charge 
-                v-if="chargeTarget" 
-                @close="closeCharge" 
+            <Charge
+                v-if="chargeTarget"
+                @close="closeCharge"
                 :chargeTarget="chargeTarget"
                 :isMini="isMini"
+                :isRakuaward="isRakuaward"
             />
         </Transition>
         <Transition name="modalFade">
@@ -288,6 +289,7 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
     })
     const chargeTarget =  ref<number | null>(null)
     const isMini = ref(false)
+    const isRakuaward = ref(false)
     const editTarget = ref<Post | null>(null)
     const updateTarget = ref<Post | null>(null)
     const searchWindow = ref(false)
@@ -373,6 +375,8 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
     const setChargeTarget = (record: Post) => {
         chargeTarget.value = record.id
         isMini.value = record.mini ? true : false
+        // Rakuaward nice charges use the same 500 cap as mini challenges, shown with its own message.
+        isRakuaward.value = record.app_type == 0 && !!record.rakuaward
     }
     onMounted(() => {
         if(route.meta.data && Array.isArray(route.meta.data) && route.meta.data.length){

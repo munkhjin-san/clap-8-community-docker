@@ -82,11 +82,13 @@ export type DashboardOverdueGoalCardData = unknown[]
 export type DashboardChallengeData = Omit<Post, 'id'> & {
     id: number | string
     relay_id?: number
-    attention_type?: 'nice_follow_up' | 'progress_need' | 'update_need' | 'challenge_relay_received' | 'challenge_relay_returned'
+    attention_type?: 'nice_follow_up' | 'progress_need' | 'update_need' | 'challenge_relay_received' | 'challenge_relay_returned' | 'nice_relay_glowd_nine'
     attention_checkpoint?: number
     attention_deadline?: string | null
     attention_is_overdue?: boolean
     attention_progress_percent?: number
+    relay_root_post_id?: number
+    glowd_nine_source?: 'relay' | 'rakuaward'
     declined_by_user?: User | null
     source_post_id?: number
     source_post_title?: string | null

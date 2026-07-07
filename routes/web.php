@@ -301,6 +301,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/admin/paid-leave-ledger/{account}', [AdminPaidLeaveLedgerController::class, 'show']);
         Route::post('/admin/paid-leave-ledger/{account}/adjustments', [AdminPaidLeaveLedgerController::class, 'storeAdjustment']);
         Route::get('/admin/cost-items', [AdminCostMasterController::class, 'index']);
+        Route::get('/admin/cost-items/sync-status', [AdminCostMasterController::class, 'syncStatus']);
         Route::post('/admin/cost-items/sync/kintone', [AdminCostMasterController::class, 'syncKintone']);
         Route::post('/admin/cost-items', [AdminCostMasterController::class, 'store']);
         Route::put('/admin/cost-items/{costItem}', [AdminCostMasterController::class, 'update']);
@@ -367,6 +368,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/challenge_relay_reassign', [PostController::class, 'challenge_relay_reassign']);
         Route::post('/challenge_relay_close', [PostController::class, 'challenge_relay_close']);
         Route::post('/nice_follow_up_dismiss', [PostController::class, 'nice_follow_up_dismiss']);
+        Route::put('/save_relay_prize', [PostController::class, 'save_relay_prize']);
         Route::post('/post_get_post_users', [PostController::class, 'post_get_post_users']);
         Route::post('/post_get_all_possible_users', [PostController::class, 'post_get_all_possible_users']);
         Route::post('/post_get_challenge_users', [PostController::class, 'post_get_challenge_users']);
@@ -381,6 +383,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_top_posts', [PostController::class, 'get_top_posts']);
         Route::post('/post_grant_upload', [PostController::class, 'post_grant_upload']);
         Route::post('/post_remove_file', [PostController::class, 'post_remove_file']);
+        Route::post('/check_rakuaward', [PostController::class, 'check_rakuaward']);
         Route::prefix('/refresh')->group(function () {
             Route::get('/posts', [RefreshController::class, 'indexPosts']);
             Route::patch('/posts/{id}/approve', [RefreshController::class, 'approvePost']);
@@ -390,6 +393,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
             Route::post('/kintone/sync', [RefreshController::class, 'syncKintone']);
             Route::get('/me/summary', [RefreshController::class, 'mySummary']);
             Route::get('/users/{id}/history', [RefreshController::class, 'userHistory']);
+            Route::get('/rakuaward', [RefreshController::class, 'indexRakuaward']);
+            Route::post('/rakuaward/{id}/grant', [RefreshController::class, 'grantRakuaward']);
             Route::get('/management', [RefreshController::class, 'indexManagement']);
             Route::post('/management/grants', [RefreshController::class, 'storeManagementGrant']);
             Route::patch('/management/leave-review', [RefreshController::class, 'confirmLeaveReview']);
@@ -671,7 +676,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/finance_check', [ProjectController::class, 'finance_check']);
         Route::get('/clear_project_report_badge', [ProjectController::class, 'clear_project_report_badge']);
         Route::get('/clear_project_confirm_badge', [ProjectController::class, 'clear_project_confirm_badge']);
-
+        Route::get('/projects/{project}/actual-results', [ProjectController::class, 'actualResultDepartments']);
+        
         Route::get('/get_members_goals_badge', [ProjectController::class, 'get_members_goals_badge']);
         Route::get('/get_managers_goals_badge', [ProjectController::class, 'get_managers_goals_badge']);
         Route::get('/get_salary_issue_badge', [ProjectController::class, 'get_salary_issue_badge']);
@@ -701,9 +707,11 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
 
         Route::get('/projects/{project}/profit-plan', [ProjectProfitPlanController::class, 'show']);
         Route::get('/projects/{project}/profit-plan/cost-items', [ProjectProfitPlanController::class, 'costItems']);
+        Route::get('/projects/{project}/profit-plan/worksites', [ProjectProfitPlanController::class, 'worksites']);
         Route::post('/projects/{project}/profit-plan', [ProjectProfitPlanController::class, 'save']);
         Route::post('/projects/{project}/profit-plan/submit', [ProjectProfitPlanController::class, 'submit']);
         Route::post('/projects/{project}/profit-plan/confirm', [ProjectProfitPlanController::class, 'confirm']);
+        Route::post('/projects/{project}/profit-plan/return', [ProjectProfitPlanController::class, 'returnForRevision']);
         Route::post('/projects/{project}/profit-plan/unlock', [ProjectProfitPlanController::class, 'unlock']);
         Route::post('/projects/{project}/profit-plan/monthly-revision', [ProjectProfitPlanController::class, 'monthlyRevision']);
         Route::get('/projects/{project}/management-lists', [ProjectManagementController::class, 'index']);
@@ -776,6 +784,11 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/contact/{contact}/comment_read', [ContactController::class, 'contact_comment_read']);
         Route::get('get_contact_comment_badge', [ContactController::class, 'get_contact_comment_badge']);
         Route::delete('/unfollow_contact/{contact}', [ContactController::class, 'unfollow_contact']);
+        Route::post('/contact_link_project', [ContactController::class, 'link_contact_project']);
+        Route::delete('/contact_link_project', [ContactController::class, 'unlink_contact_project']);
+        Route::post('/contact_link_related', [ContactController::class, 'link_related_contact']);
+        Route::delete('/contact_link_related', [ContactController::class, 'unlink_related_contact']);
+        Route::get('/contact_project_search', [ContactController::class, 'search_projects']);
         Route::get('/contact_batches', [ContactController::class, 'contact_batches']);
         Route::post('/contact_batches/{batch}/dismiss', [ContactController::class, 'dismiss_contact_batch']);
         Route::get('/contact_batch_notifications', [ContactController::class, 'contact_batch_notifications']);

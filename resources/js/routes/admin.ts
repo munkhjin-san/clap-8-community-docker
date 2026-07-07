@@ -168,6 +168,11 @@ export const adminRoutes: RouteRecordRaw[] = [
                         name: 'applications',
                         component: () => import('@/components/AccountControl/RefreshControl/RefreshApplications.vue'),
                     },
+                    {
+                        path: 'rakuaward',
+                        name: 'rakuaward',
+                        component: () => import('@/components/AccountControl/RefreshControl/RakuawardControl.vue'),
+                    },
                 ],
             },
             {

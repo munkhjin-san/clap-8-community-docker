@@ -107,6 +107,23 @@ class RefreshController extends Controller
         );
     }
 
+    public function indexRakuaward(Request $request)
+    {
+        return response()->json(
+            $this->refreshService->getRakuawardNominations(
+                $request->integer('year') ?: null,
+                $request->integer('month') ?: null,
+            )
+        );
+    }
+
+    public function grantRakuaward(Request $request, string $id)
+    {
+        return response()->json(
+            $this->refreshService->grantRakuawardToRefresh((int) $id, (int) Auth::id())
+        );
+    }
+
     public function storeManagementGrant(Request $request)
     {
         $validated = $request->validate([

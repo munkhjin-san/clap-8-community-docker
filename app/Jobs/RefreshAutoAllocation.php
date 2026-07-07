@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use App\Models\taskUser;
 use App\Models\CustomFormUser;
+use App\Models\PostRelayPrize;
 use Carbon\Carbon;
 use DB;
 use Illuminate\Support\Facades\Log;
@@ -63,9 +64,19 @@ class RefreshAutoAllocation implements ShouldQueue
             ->where('prize', '>', 0)
             ->groupBy('user_id');
 
+        // Completed nice-relay ("GlowdNine") dice-game winnings, one row per participant.
+        $relayQuery = PostRelayPrize::select(
+                'user_id',
+                DB::raw('SUM(prize) as total_prize')
+            )
+            ->whereYear('created_at', $lastMonth->year)
+            ->whereMonth('created_at', $lastMonth->month)
+            ->where('prize', '>', 0)
+            ->groupBy('user_id');
+
         $totals = DB::query()
             ->fromSub(
-                $taskQuery->unionAll($formQuery),
+                $taskQuery->unionAll($formQuery)->unionAll($relayQuery),
                 'monthly_prizes'
             )
             ->select(

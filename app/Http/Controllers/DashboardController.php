@@ -23,6 +23,7 @@ use App\Models\ProjectRecord;
 use App\Models\CalendarRecord;
 use App\Models\PostRecord;
 use App\Models\PostRelay;
+use App\Models\PostRelayPrize;
 use App\Models\AssetRecord;
 use App\Models\timecardRecord;
 use App\Models\TimecardProjectSegment;
@@ -807,6 +808,7 @@ class DashboardController extends Controller
         $active_user = $this->active_user();
         $challengeRelays = $this->challengeRelayReminders($active_user->id, $now);
         $niceReminders = $this->niceFollowUpReminders($active_user->id, $now);
+        $glowdNinePlays = $this->niceRelayGlowdNineReminders($active_user->id);
         $challengesQuery = PostRecord::query()
             ->where('app_type', 2)
             ->whereHas('to_users', function ($q) use ($active_user) {
@@ -887,7 +889,7 @@ class DashboardController extends Controller
             ->sortBy('date_start')
             ->values();
 
-        return $challengeRelays->concat($niceReminders)->concat($final)->values();
+        return $challengeRelays->concat($niceReminders)->concat($glowdNinePlays)->concat($final)->values();
 
     }
     private function challengeRelayReminders(int $userId, Carbon $now)
@@ -979,6 +981,7 @@ class DashboardController extends Controller
 
         $receivedNicePosts = PostRecord::query()
             ->where('app_type', 0)
+            ->where('rakuaward', 0)
             ->where('user_id', '!=', $userId)
             ->where('created_at', '>=', $niceReminderStartDate)
             ->whereHas('to_users', function ($q) use ($userId) {
@@ -1047,6 +1050,32 @@ class DashboardController extends Controller
                 'closed_by_user_id' => $closedByUserId,
                 'closed_at' => $closedAt,
             ]);
+    }
+    private function niceRelayGlowdNineReminders(int $userId)
+    {
+        if (in_array($userId, PostRelay::EXCLUDED_USER_IDS, true)) {
+            return collect();
+        }
+
+        return PostRelayPrize::where('user_id', $userId)
+            ->where('try_flag', 0)
+            ->with(['rootPost.user'])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function (PostRelayPrize $prize) {
+                $post = $prize->rootPost;
+                if (!$post) {
+                    return null;
+                }
+
+                $post['attention_type'] = 'nice_relay_glowd_nine';
+                $post['relay_root_post_id'] = (int) $prize->root_post_id;
+                $post['glowd_nine_source'] = $post->rakuaward ? 'rakuaward' : 'relay';
+
+                return $post;
+            })
+            ->filter()
+            ->values();
     }
     private function firstOrCreateNiceRelay(PostRecord $post, int $userId): PostRelay
     {

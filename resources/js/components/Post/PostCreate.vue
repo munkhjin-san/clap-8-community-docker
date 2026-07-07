@@ -28,6 +28,19 @@
                     リフレッシュ
                 </div>
             </div>
+            <div class="si-box" v-if="app_type == 0 && auth.user.position_id === 6">
+                <div class="switchLabel">
+                    <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">楽アワードノミネート</p>
+                </div>
+                <div class="selectSwitchArea" style="display: flex;width: 100%;margin-top: 10px;">    
+                    <input v-model="rakuaward" :disabled="!isRakuAwardNominatable || !canNominateRakuAward" type="checkbox" id="donate">
+                    <label for="donate" style="min-width: 80px;" :class="['cursor-pointer', { 'rakuaward-switch-label-disabled': !isRakuAwardNominatable || !canNominateRakuAward }]"><span></span>
+                        <div class="switch-toggle"></div>
+                    </label>
+                </div> 
+                <span v-if="!isRakuAwardNominatable" class="text-xs text-[gray]">20日を過ぎてしまったため、楽アワードノミネートすることはできません</span>
+                <span v-if="!canNominateRakuAward" class="text-xs text-[gray]">今月の楽アワードノミネート既に作成してます</span>
+            </div> 
              <div class="si-box" v-if="app_type == 2">
                 <div class="switchLabel">
                     <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">NPO団体に寄付する</p>
@@ -147,11 +160,12 @@
                     
             
             <div class="si-box" v-if="app_type == 0">
-                <MemberSelector 
-                    :placeHolder="'宛先選択（必須）'"
+                <MemberSelector
+                    :placeHolder="rakuaward ? '宛先選択（1名）（必須）' : '宛先選択（必須）'"
                     rules="required"
                     name="recordUsers"
                     :multiple="true"
+                    :limit="rakuaward ? 1 : undefined"
                     ref="recordUsers"
                     :path="possiblePath"
                     :closeOnSelect="false"
@@ -443,6 +457,9 @@ import { useDashboardStore } from '@/store/dashboard'
     const selectedNpo = ref(props.editTarget && props.editTarget.donation_target ? props.editTarget.donation_target : null)
     const chargeable = ref(true)
     const donatable = ref(false)
+    const rakuaward = ref(false)
+    const canNominateRakuAward = ref(true)
+    const rakuawardLoading = ref(false)
     const mini = ref(props.editTarget?.mini ?? false)
     const npoList = donationTargets
     const api = useApi()
@@ -477,6 +494,10 @@ import { useDashboardStore } from '@/store/dashboard'
     const isMiniLocked = computed(() => Boolean(props.popup) || isRelayChallengeCreate.value)
     const refreshPlaceholder = computed(() => {
         return app_type.value == 6 ? 'リフレッシュ写真（必須）（公開）' : 'ファイル'
+    })
+    const isRakuAwardNominatable = computed(() => {
+        const todayDay = DateTime.now().day
+        return todayDay <= 20
     })
     const activeChallengeCategory = computed(() => {
         return challengeCategories.find(category => category.label == selectedChallengeMainCategory.value) ?? null
@@ -627,8 +648,15 @@ import { useDashboardStore } from '@/store/dashboard'
         }
         costsFill()
         loadRefreshSummary()
-
+        checkRakuAwardNominatable()
     })
+    const checkRakuAwardNominatable = async() => {
+        const data = await api.post('/check_rakuaward', null, {
+            loadingRef: rakuawardLoading,
+            silent: true
+        })
+        canNominateRakuAward.value = data
+    }
     watch(donatable, async(newVal) => {
         if (newVal) {
             const result = await ask('必要経費以外のチャージ総額はNPOに寄付します。よろしいでしょうか?')
@@ -694,6 +722,12 @@ import { useDashboardStore } from '@/store/dashboard'
     }, { deep: true })
     watch(isRelayChallengeCreate, () => {
         applyRelayChallengeDefaults()
+    })
+    watch(rakuaward, (isOn) => {
+        // A rakuaward nice starts a 1-to-1 relay, so only one recipient is allowed.
+        if (isOn && to_users.value.length > 1) {
+            to_users.value = to_users.value.slice(0, 1)
+        }
     })
     watch(selectedChallengeMainCategory, () => {
         challengeCategoryValidationError.value = false
@@ -783,7 +817,7 @@ import { useDashboardStore } from '@/store/dashboard'
         
         processing.value = true      
 
-            
+        
         const params = {
             edit_id: props.editTarget ? props.editTarget.id : null,
             to_users: to_users.value.length ? to_users.value.map(ob => ob.id) : [], 
@@ -812,6 +846,7 @@ import { useDashboardStore } from '@/store/dashboard'
             grants: costs,
             mini: mini.value,
             challenge_relay_id: app_type.value == 2 ? challengeRelayId.value : null,
+            rakuaward: rakuaward.value,
         }
 
         const data = await api.post('/post_add_record', params, {
@@ -986,7 +1021,13 @@ import { useDashboardStore } from '@/store/dashboard'
     animation: ai-loader-shimmer 1.8s ease-in-out infinite;
     pointer-events: none;
 } */
-
+.rakuaward-switch-label-disabled {
+    cursor: not-allowed !important;
+    opacity: 0.6;
+}
+.rakuaward-switch-label-disabled .switch-toggle {
+    filter: grayscale(0.5);
+}
 .ai-generation-loader-icon {
     position: relative;
     display: flex;

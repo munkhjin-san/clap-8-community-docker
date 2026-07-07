@@ -19,6 +19,19 @@ class PostRelay extends Model
     public const STATUS_CLOSED = 2;
     public const STATUS_COMPLETED = 3;
 
+    // A nice relay is considered complete once it reaches this many participants.
+    public const NICE_RELAY_LIMIT = 9;
+
+    // Prize tiers a completed-relay participant can win in the GlowdNine dice game.
+    // Mirrors the tiers in resources/js/components/Global/RollDice.vue.
+    // Per-participant results are stored in the post_relay_prizes table.
+    public const GLOWD_NINE_PRIZES = [0, 100, 200, 400, 800];
+
+    public function relayPrizes()
+    {
+        return $this->hasMany(PostRelayPrize::class, 'root_post_id', 'source_post_id');
+    }
+
     protected $guarded = [];
 
     protected $casts = [

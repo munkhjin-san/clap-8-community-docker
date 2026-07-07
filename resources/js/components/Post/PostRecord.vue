@@ -9,6 +9,12 @@
                         <img src="/images/minisuke.webp" class="h-[23px]" />
                         <p class="text-[12px] whitespace-nowrap">ミニ</p>
                     </div>
+                    <div title="このナイスは楽アワードノミネートナイスです" v-if="record.rakuaward"
+                        class="rounded-full bg-[var(--bg3)] px-3 py-1 flex items-center gap-2">
+                        <img v-if="theme.dark" src="/images/raku_dark.webp" class="h-[23px]" />
+                        <img v-else src="/images/raku_light.webp" class="h-[23px]" />
+                        <p class="text-[12px] whitespace-nowrap">ノミネート</p>
+                    </div>
                     <div v-html="title" class="post-title under500:hidden"></div>
                 </div>
                 <div class="flex flex-wrap-reverse items-center justify-end">
@@ -89,10 +95,13 @@
                     </div>
                 </div>
                 <div class="flex flex-col justify-end items-end gap-2 flex-1">
-                    <div class="flex items-center text-sm gap-2 whitespace-nowrap">
+                    <div v-if="record.app_type != 0" class="flex items-center text-sm gap-2 whitespace-nowrap">
                         <PostDate :record="record" which="period" />
                     </div>
-                    <div v-if="record.app_type == 2 && challengeProgressMeta"
+                    <div v-if="record.app_type == 2 && record.status_flag == 0">
+                        <span class="text-sm inline-block mx-1">残り: {{ challengeProgressMeta?.leftdays }}日</span>
+                    </div>
+                    <!-- <div v-if="record.app_type == 2 && challengeProgressMeta"
                         class="w-full min-w-[160px] max-w-[160px] post-progress-block">
                         <div class="h-[13px] overflow-hidden border-[softgray] bg-[var(--bg3)] relative rounded-full">
                             <div class="h-full bg-[var(--check-inactive)] transition-[width] duration-500 ease-out"
@@ -100,7 +109,7 @@
                             <div class="absolute inset-0 flex items-center justify-center text-[10px]">{{
                                 challengeProgressMeta.progress }}%</div>
                         </div>
-                    </div>
+                    </div> -->
 
                     <span v-once v-if="badge.post.last_chargeable_ids.some(id => id === record.id)"
                         class="text-sm text-[tomato] inline-block mx-1">チャージする最終日</span>
@@ -192,7 +201,7 @@
                         </button>
                     </div> -->
                 </div>
-                <div v-if="record.app_type == 2"
+                <div v-if="(record.app_type == 2 && record.status_flag == 0) || (record.app_type == 0 && record.rakuaward)"
                     class="text-[12px] flex-wrap justify-center flex w-fit mx-auto text-[gray] items-center gap-2 whitespace-nowrap">
                     <p>チャージ受付期間：</p>
                     <PostDate :record="record" class="!m-0" which="charge_period" />
@@ -200,14 +209,14 @@
                 <div class="flex flex-col justify-center items-center gap-2 mb-6 mx-auto w-full"
                     v-if="challengeButtonView">
                     <button @click="emit('setChargeTarget', record)" v-if="challengeButtonSwitch" id="chargeAddButton"
-                        class="chargeFormeAddButton cursor-pointer">チャレンジにチャージする</button>
+                        class="chargeFormeAddButton cursor-pointer">{{ isChargeableNice ? 'チャージする' : 'チャレンジにチャージする' }}</button>
                     <button v-else class="chargeFormeAddButton" disabled>{{ canNotCharge }}</button>
                 </div>
                 <div v-if="record.app_type == 5">
                     <button id="glowlympicButton" class="chargeFormeAddButton cursor-pointer">参加期間は終了しました</button>
                 </div>
             </div>
-            <div class="post-footer mb-1 text-sm justify-end" v-if="record.app_type == 2">
+            <div class="post-footer mb-1 text-sm justify-end" v-if="record.app_type == 2 || isChargeableNice">
                 <div>現在のチャージ総額 {{ totalChargeAmmount }}円</div>
             </div>
             <div class="post-footer">
@@ -215,7 +224,7 @@
                     <div class="post-footer-wrap" v-if="record.app_type == 2 && record.grantable && totalExpenses > 0">
                         <div class="text-[14px]">経費合計: {{ amountOfMoneyParser(totalExpenses) }}円</div>
                     </div>
-                    <div v-if="record.app_type == 2" class="post-footer-wrap">
+                    <div v-if="record.app_type == 2 || isChargeableNice" class="post-footer-wrap">
                         <div class="text-[14px] cursor-pointer" @click="viewSupporters" v-if="supporters.length">サポーター
                             {{ supporters.length }}人</div>
                     </div>
@@ -256,7 +265,10 @@
 
             </div>
             <div v-if="relayChainUserCount > 1" class="post-meta-note relay-chain-footer">
-                <p class="mb-[10px] text-xs">{{ record.app_type === 2 ? 'チャレンジリレー' : 'ナイスリレー' }}</p>
+                <p class="mb-[10px] text-xs flex items-center gap-1.5">
+                    <span>{{ record.app_type === 2 ? 'チャレンジリレー' : 'ナイスリレー' }}</span>
+                    <span v-if="isNiceRelayComplete" class="relay-complete-badge">コンプリート</span>
+                </p>
                 
                 <div class="relay-chain-row">
                     <template v-for="(group, index) in relayChainGroups" :key="`relay-group-${index}`">
@@ -359,6 +371,7 @@ import { useApi } from '@/composables/api';
 import { useModal } from '@/composables/modal';
 import { PostMethods, PostMethodsKey } from '@/interface/keys';
 import Back from '../Icons/Back.vue';
+import { useTheme } from '@/store/theme.js';
 const messageUsers = useMessageUsers()
 const menu = useMenuStore()
 const auth = useAuthUserStore()
@@ -434,6 +447,7 @@ const showMore = ref({
     goal: false,
     result: false
 })
+const theme = useTheme()
 const toUsersRef = useTemplateRef('toUsersRef');
 const bodyContentRef = useTemplateRef<HTMLElement>('bodyContentRef')
 const goalContentRef = useTemplateRef<HTMLElement>('goalContentRef')
@@ -443,6 +457,7 @@ const goalNeedsMore = ref(false)
 const resultNeedsMore = ref(false)
 const viewEntries = ref(false)
 const excludedRelayUserIds = [100, 101, 102, 103, 608, 610, 830]
+const NICE_RELAY_LIMIT = 9
 const relayChainGroups = computed(() => {
     if (props.record.relay_chain_groups?.length) {
         return props.record.relay_chain_groups.filter(group => group.connector !== 'dashed')
@@ -482,6 +497,7 @@ const relayChainGroups = computed(() => {
     }))
 })
 const relayChainUserCount = computed(() => relayChainGroups.value.reduce((count, group) => count + group.users.length, 0))
+const isNiceRelayComplete = computed(() => props.record.app_type === 0 && relayChainUserCount.value === NICE_RELAY_LIMIT)
 onMounted(() => {
     const to_user = toUsersRef.value
     if (to_user && to_user.scrollHeight > to_user.clientHeight) {
@@ -551,6 +567,9 @@ const totalExpenses = computed(() => {
 const isMultipleUsers = computed(() => {
     return responsive.mobile && props.record && props.record.to_users && props.record.to_users.length > 1
 })
+// A rakuaward nice is chargeable like a mini challenge: max 500, window = created_at -> end of month.
+const isChargeableNice = computed(() => props.record.app_type == 0 && !!props.record.rakuaward)
+const niceChargeEnd = computed(() => DateTime.fromISO(props.record.created_at).endOf('month'))
 const status = computed(() => {
     if (props.record.app_type !== 2) return;
     const statusMap = {
@@ -567,61 +586,20 @@ const challengeProgressMeta = computed(() => {
     if (props.record.app_type !== 2) {
         return null
     }
-    if (props.record.status_flag == 2 || props.record.status_flag == 3 || props.record.status_flag == 4) {
-        return {
-            progress: 0,
-            label: status.value
-        }
-    }
-    const start = DateTime.fromISO(props.record.date_start).set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
-    const end = DateTime.fromISO(props.record.date_end).set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
-    const now = DateTime.now()
-
-    const isBetween = now >= start && now <= end
-    if (!isBetween) {
-        return null
-    }
-
-    if (!start.isValid || !end.isValid || end <= start) {
-        return null
-    }
-
-    const totalMillis = end.toMillis() - start.toMillis()
-    const elapsedMillis = now.toMillis() - start.toMillis()
-    const rawProgress = (elapsedMillis / totalMillis) * 100
-    const progress = Math.max(0, Math.min(100, Math.round(rawProgress)))
-
-    if (now < start) {
-        return {
-            progress: 0,
-            label: `${Math.max(0, Math.ceil(start.diff(now, 'days').days ?? 0))}日後に開始`
-        }
-    }
-
-    if (now > end) {
-        return {
-            progress: 100,
-            label: '期間終了'
-        }
-    }
-
-    return {
-        progress,
-        label: `残り${Math.max(0, Math.ceil(end.diff(now, 'days').days ?? 0))}日`
-    }
+    const left = DateTime.fromISO(props.record.date_end).diffNow('days').days
+    return { leftdays: left ? Math.ceil(left) : 0 }
 })
 const hasProgressReportBadge = computed(() => {
     return badge.post.progress_report_ids?.includes(props.record.id) ?? false
 })
 const supporters = computed(() => {
-    if (props.record.app_type == 2) {
-        const amounts = props.record.awards
-        return amounts
+    if (props.record.app_type == 2 || isChargeableNice.value) {
+        return props.record.awards
     }
     return []
 })
 const totalChargeAmmount = computed(() => {
-    if (props.record.app_type == 2) {
+    if (props.record.app_type == 2 || isChargeableNice.value) {
         const amounts = props.record.awards.map(ob => {
             return ob.pivot ? ob.pivot.award_bet : 0
         })
@@ -631,32 +609,39 @@ const totalChargeAmmount = computed(() => {
     return ''
 })
 const challengeButtonSwitch = computed(() => {
-    var charged_user = props.record.awards.some(obj => obj.id == auth.id);
-    if (DateTime.fromISO(props.record.created_at) <= DateTime.now().minus({ days: 14 })) return false
-
-    if (DateTime.now() <= customParser(props.record.date_end) && (props.record.status_flag == 0 || props.record.status_flag == 5) && !charged_user) {
-        return true
+    const charged_user = props.record.awards.some(obj => obj.id == auth.id);
+    if (charged_user) return false
+    if (isChargeableNice.value) {
+        return DateTime.now() <= niceChargeEnd.value
     }
+    if (DateTime.fromISO(props.record.created_at) <= DateTime.now().minus({ days: 14 })) return false
+    return DateTime.now() <= customParser(props.record.date_end) && (props.record.status_flag == 0 || props.record.status_flag == 5)
 })
 const canNotCharge = computed(() => {
+    const charged_user = props.record.awards.find(obj => obj.id == auth.id);
+    if (charged_user) return '既にチャージしています'
+    if (isChargeableNice.value) {
+        return DateTime.now() > niceChargeEnd.value ? 'チャージ期間終了しました' : ''
+    }
     if (DateTime.fromISO(props.record.created_at) <= DateTime.now().minus({ days: 14 })) {
         return 'チャージ期間終了しました'
     }
     if (props.record.status_flag > 0 && props.record.status_flag < 5) {
-        return 'チャレンジの結果が確定しました'
-    } else {
-        const charged_user = props.record.awards.find(obj => obj.id == auth.id);
-        if (charged_user) {
-            return '既にチャージしています'
-        } else if (DateTime.now() > customParser(props.record.date_end)) {
-            return 'チャージ期間終了しました'
-        }
+        return 'チャレンジ終了'
     }
+    if (DateTime.now() > customParser(props.record.date_end)) {
+        return 'チャージ期間終了しました'
+    }
+    return ''
 })
 const challengeButtonView = computed(() => {
     if (props.record.app_type == 2) {
-        let flag = props.record.to_users.some(obj => obj.id == auth.id);
-        return !flag
+        return !props.record.to_users.some(obj => obj.id == auth.id)
+    }
+    if (isChargeableNice.value) {
+        const isRecipient = props.record.to_users.some(obj => obj.id == auth.id)
+        const isAuthor = props.record.user_id == auth.id
+        return !isRecipient && !isAuthor
     }
     return false
 })
@@ -861,6 +846,16 @@ const totalCalories = computed(() => {
 
 .relay-chain-footer {
     margin-top: 10px;
+}
+
+.relay-complete-badge {
+    background: var(--bg3);
+    color: var(--primary-color);
+    font-size: 10px;
+    line-height: 1;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    white-space: nowrap;
 }
 
 .relay-chain-user-group {
