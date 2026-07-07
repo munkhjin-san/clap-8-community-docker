@@ -95,7 +95,7 @@
                     </div>
                 </div>
                 <div class="flex flex-col justify-end items-end gap-2 flex-1">
-                    <div v-if="record.app_type != 0" class="flex items-center text-sm gap-2 whitespace-nowrap">
+                    <div class="flex items-center text-sm gap-2 whitespace-nowrap">
                         <PostDate :record="record" which="period" />
                     </div>
                     <div v-if="record.app_type == 2 && record.status_flag == 0">
