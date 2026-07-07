@@ -29,7 +29,8 @@
               <td>{{ user.name }}</td>
               <td v-for="month in months" :key="month">
                 {{ user.task_users?.find((t_user: GlowdNineTaskUser) => t_user.month === month)?.total_prize ? `タスク：${user.task_users.find((t_user: GlowdNineTaskUser) => t_user.month === month).total_prize}\n` : '' }}
-                {{ user.custom_form_users?.find((t_user: GlowdNineTaskUser) => t_user.month === month)?.total_prize ? `フォーム：${user.custom_form_users.find((t_user: GlowdNineTaskUser) => t_user.month === month).total_prize}` : '' }}
+                {{ user.custom_form_users?.find((t_user: GlowdNineTaskUser) => t_user.month === month)?.total_prize ? `フォーム：${user.custom_form_users.find((t_user: GlowdNineTaskUser) => t_user.month === month).total_prize}\n` : '' }}
+                {{ user.relay_prizes?.find((t_user: GlowdNineTaskUser) => t_user.month === month)?.total_prize ? `リレー：${user.relay_prizes.find((t_user: GlowdNineTaskUser) => t_user.month === month).total_prize}` : '' }}
               </td>
             </tr>
           </tbody>

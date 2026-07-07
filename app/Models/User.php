@@ -225,6 +225,9 @@ class User extends Authenticatable
     public function custom_form_users(){
         return $this->hasMany(CustomFormUser::class);
     }
+    public function relay_prizes(){
+        return $this->hasMany(PostRelayPrize::class, 'user_id');
+    }
     public function related_projects()
     {
         return $this->belongsToMany(ProjectRecord::class, 'project_members', 'user_id', 'project_id');
@@ -243,7 +246,18 @@ class User extends Authenticatable
     }
     public function isAdmin(): bool
     {
-        return in_array((int) $this->id, self::ADMIN_USER_IDS, true);
+        $adminIds = config('profitplan.admin_user_ids', self::ADMIN_USER_IDS);
+
+        return in_array((int) $this->id, array_map('intval', (array) $adminIds), true);
+    }
+
+    // Serialized as `is_admin` so the frontend reads admin status from the
+    // server instead of hardcoding ids (see resources/js/store/auth.ts).
+    protected $appends = ['is_admin'];
+
+    public function getIsAdminAttribute(): bool
+    {
+        return $this->isAdmin();
     }
     public function oauthCredentials()
     {

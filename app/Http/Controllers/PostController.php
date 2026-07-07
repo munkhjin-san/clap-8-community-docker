@@ -701,7 +701,7 @@ class PostController extends Controller
                 if ((int) $request->app_type === 0 && !$request->edit_id && !$request->boolean('rakuaward')) {
                     $this->completePendingNiceRelaysForUser($record);
                     $this->createNiceRelaysForPost($record, $request->to_users ?? []);
-                    $this->maybeAwardNiceRelayGlowdNine($record);
+                    $this->maybeAwardRelayGlowdNine($record, PostRelay::TYPE_NICE);
                 }
             }
             if ($request->grantable) {
@@ -1131,18 +1131,20 @@ class PostController extends Controller
 
         if ($openRelay) {
             $openRelay->update($values);
-            return;
+        } else {
+            PostRelay::updateOrCreate(
+                [
+                    'relay_type' => PostRelay::TYPE_CHALLENGE,
+                    'source_post_id' => $record->id,
+                    'from_user_id' => Auth::id(),
+                    'to_user_id' => $toUserId,
+                ],
+                $values
+            );
         }
 
-        PostRelay::updateOrCreate(
-            [
-                'relay_type' => PostRelay::TYPE_CHALLENGE,
-                'source_post_id' => $record->id,
-                'from_user_id' => Auth::id(),
-                'to_user_id' => $toUserId,
-            ],
-            $values
-        );
+        // Passing this baton may complete a 9-person challenge relay -> award GlowdNine.
+        $this->maybeAwardRelayGlowdNine($record, PostRelay::TYPE_CHALLENGE);
     }
     private function closePendingChallengeRelaysForUser(PostRecord $record): void
     {
@@ -1174,6 +1176,9 @@ class PostController extends Controller
             'closed_by_user_id' => Auth::id(),
             'closed_at' => Carbon::now(),
         ]);
+
+        // Continuing the chain may bring it to 9 participants -> award GlowdNine.
+        $this->maybeAwardRelayGlowdNine($record, PostRelay::TYPE_CHALLENGE);
     }
     private function validateRelayChallengePlayers(Request $request): void
     {
@@ -1393,13 +1398,13 @@ class PostController extends Controller
                 'closed_at' => $closedAt,
             ]);
     }
-    private function maybeAwardNiceRelayGlowdNine(PostRecord $post): void
+    private function maybeAwardRelayGlowdNine(PostRecord $post, string $relayType): void
     {
         // Participants who have already posted in this chain (root -> this post).
-        $posterIds = $this->niceChainPosterIds($post);
+        $posterIds = $this->chainPosterIds($post, $relayType);
 
         // The people this newest post hands the baton to (the next participants).
-        $pendingRecipientIds = PostRelay::where('relay_type', PostRelay::TYPE_NICE)
+        $pendingRecipientIds = PostRelay::where('relay_type', $relayType)
             ->where('source_post_id', $post->id)
             ->where('status', PostRelay::STATUS_PENDING)
             ->whereNotIn('to_user_id', PostRelay::EXCLUDED_USER_IDS)
@@ -1416,7 +1421,7 @@ class PostController extends Controller
             return;
         }
 
-        $rootPost = $this->relayRootPost($post, PostRelay::TYPE_NICE);
+        $rootPost = $this->relayRootPost($post, $relayType);
 
         // Every participant gets one GlowdNine play for this completed relay chain.
         $participantIds->each(function ($userId) use ($rootPost) {
@@ -1434,7 +1439,7 @@ class PostController extends Controller
 
         $this->badgeService->invalidateBadgeSummaryCache();
     }
-    private function niceChainPosterIds(PostRecord $post): array
+    private function chainPosterIds(PostRecord $post, string $relayType): array
     {
         $ids = [];
         $visited = [];
@@ -1447,7 +1452,7 @@ class PostController extends Controller
                 $ids[] = (int) $current->user->id;
             }
 
-            $incomingRelay = PostRelay::where('relay_type', PostRelay::TYPE_NICE)
+            $incomingRelay = PostRelay::where('relay_type', $relayType)
                 ->where('accepted_post_id', $current->id)
                 ->orderBy('assigned_at')
                 ->orderBy('id')
@@ -1474,11 +1479,14 @@ class PostController extends Controller
             $prize = 0;
         }
 
+        // RollDice calls this on every roll (double-up rounds overwrite the previous prize),
+        // so we must not gate on try_flag here — the last save wins. The dashboard hides the
+        // play once try_flag is 1, which prevents re-playing after the modal closes.
         $prizeRow = PostRelayPrize::where('root_post_id', $request->root_post_id)
             ->where('user_id', Auth::id())
             ->first();
 
-        if ($prizeRow && (int) $prizeRow->try_flag === 0) {
+        if ($prizeRow) {
             $prizeRow->update([
                 'prize' => $prize,
                 'try_flag' => 1,
