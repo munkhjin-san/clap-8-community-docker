@@ -842,7 +842,13 @@ class PaidLeaveLedgerService
         $asOf = ($asOf ?: Carbon::today())->copy()->startOfDay();
 
         return $this->plannedLeavePeriodsForUser($user, null, $asOf, true)
-            ->filter(fn (array $period) => (bool) $period['planning_allowed'] && (float) $period['planned_remaining_days'] > 0)
+            ->filter(function (array $period) use ($asOf) {
+                $periodEnd = Carbon::parse($period['period_end'])->endOfDay();
+
+                return (bool) $period['planning_allowed']
+                    && $periodEnd->greaterThanOrEqualTo($asOf)
+                    && (float) $period['planned_remaining_days'] > 0;
+            })
             ->map(fn (array $period) => [
                 'shift_count' => $period['shift_count'],
                 'tempData' => $period['workTemp'],
