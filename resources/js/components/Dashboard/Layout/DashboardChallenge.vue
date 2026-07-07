@@ -134,15 +134,15 @@
                         </PanelData>
                         <PanelData v-else-if="isGlowdNinePlay(challenge)">
                             <p v-if="challenge.glowd_nine_source === 'rakuaward'" class="text-[12px] text-[gray]">
-                                あなたがチャージした楽アワードノミネートがトップ5に選ばれました！グラウドナインに挑戦できます。
+                                楽アワードノミネートチャージからグラウドナインを受け取りました
                             </p>
                             <p v-else class="text-[12px] text-[gray]">
-                                ナイスリレーが{{ NICE_RELAY_LIMIT }}人に到達しました！ナイスリレーからグラウドナインを受け取りました。
+                                ナイスリレーからグラウドナインを受け取りました!
                             </p>
                             <div class="mt-3 flex items-center justify-end gap-2 text-right">
                                 <button
                                     type="button"
-                                    class="flex items-center gap-1 rounded-full bg-[var(--primary-color)] text-white text-[12px] px-3 py-1 cursor-pointer"
+                                    class="flex items-center gap-1 rounded-full bg-[var(--bg3)] text-[var(--primary-color)] text-[12px] px-3 py-1 cursor-pointer"
                                     @click="openGlowdNine(challenge)"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true">
