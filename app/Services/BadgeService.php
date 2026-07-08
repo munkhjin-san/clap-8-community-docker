@@ -16,6 +16,7 @@ use App\Models\AssetRecord;
 use App\Models\customFieldDataRecord;
 use App\Models\CustomfieldRead;
 use App\Models\ProjectRecordReadState;
+use App\Models\ProjectKintoneContractUpdateNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -565,6 +566,37 @@ final class BadgeService
             'total' => (int) $counts->sum('unread_count'),
         ];
        
+    }
+
+    public function kintoneContractChanges(User $user): array
+    {
+        $records = ProjectKintoneContractUpdateNotification::query()
+            ->where('target_user_id', $user->id)
+            ->whereNull('checked_at')
+            ->whereNotNull('project_id')
+            ->whereNotNull('record_id')
+            ->selectRaw('project_id, record_id, COUNT(*) as count')
+            ->groupBy('project_id', 'record_id')
+            ->get();
+
+        $projectCounts = $records
+            ->groupBy('project_id')
+            ->map(fn ($rows, $projectId) => [
+                'project_id' => (int) $projectId,
+                'count' => (int) $rows->count(),
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'total' => (int) $records->count(),
+            'records' => $records->map(fn ($row) => [
+                'project_id' => (int) $row->project_id,
+                'record_id' => (int) $row->record_id,
+                'count' => (int) $row->count,
+            ])->values()->all(),
+            'projects' => $projectCounts,
+        ];
     }
 
     public function checkItemConfirm(Authenticatable $user): array

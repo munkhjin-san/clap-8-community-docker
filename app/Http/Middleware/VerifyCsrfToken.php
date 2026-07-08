@@ -15,5 +15,6 @@ class VerifyCsrfToken extends Middleware
         '/zoom3_event',
         '/zoom2_event',
         '/zoom1_event',
+        '/contract_updated',
     ];
 }

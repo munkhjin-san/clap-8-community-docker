@@ -50,6 +50,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\FinanceToolController;
 use App\Http\Controllers\FinanceChatController;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -62,6 +63,8 @@ use App\Models\User;
 */
 // Route::get('/incident_fill', [AutoJobController::class, 'incident_fill']);
 //for home page
+
+Route::match(['get', 'post'], '/contract_updated', [AutoJobController::class, 'kintoneContractUpdated']);
 Route::get('get_team_external', [ProjectController::class, 'get_team_external']);
 Route::get('get_projects_external', [ProjectController::class, 'get_projects_external']);
 Route::match(['get', 'post'],'/zoom3_event', [AutoJobController::class, 'zoom_event']);
@@ -683,6 +686,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_salary_issue_badge', [ProjectController::class, 'get_salary_issue_badge']);
 
         Route::get('/get_contracts', [ProjectController::class, 'get_contracts']);
+        Route::post('/kintone_contract_change/check', [ProjectController::class, 'check_kintone_contract_change']);
 
         Route::get('/project_actual_status_suggestions', [ProjectController::class, 'project_actual_status_suggestions']);
         Route::post('/get_resources_kintone', [ProjectController::class, 'get_resources_kintone']);

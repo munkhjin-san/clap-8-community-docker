@@ -56,6 +56,18 @@ interface State {
             project_id: number,
             count: number
         }[]
+    },
+    kintone_contract_changes: {
+        total: number,
+        records: {
+            project_id: number,
+            record_id: number,
+            count: number
+        }[],
+        projects: {
+            project_id: number,
+            count: number
+        }[]
     }
 }
 const BOARD_BADGE_CACHE_MS = 2000;
@@ -97,6 +109,11 @@ export const useBadgeStore = defineStore('badge', () => {
     const communityBadge = ref(false);
     const project_report = ref<{records: {project_record_id: number | null, unread_count: number, types: {type: string, unread_count: number}[]}[], total: number}>({records: [], total: 0});
     const check_item_confirm = ref<{total: number, records: {project_id: number, count: number}[]}>({total: 0, records: []});
+    const kintone_contract_changes = ref<{
+        total: number,
+        records: {project_id: number, record_id: number, count: number}[],
+        projects: {project_id: number, count: number}[]
+    }>({total: 0, records: [], projects: []});
     // Actions
     function setTaskBadge(payload: number[]) {
         task.value = payload;
@@ -227,6 +244,11 @@ export const useBadgeStore = defineStore('badge', () => {
         communityBadge.value = data.has_unread;
     }
 
+    async function checkKintoneContractChange(payload: { project_id: number, record_id: number }) {
+        const data = await axios.post('/kintone_contract_change/check', payload).then(response => response.data);
+        kintone_contract_changes.value = data;
+    }
+
     async function getbadgeSummary() {
         const data = await axios.get('/badge_summary').then(response => response.data);
         goal_issue_comment.value = data.goal_issue_comment;
@@ -244,6 +266,7 @@ export const useBadgeStore = defineStore('badge', () => {
         communityBadge.value = data.today_readable.has_unread;
         project_report.value = data.project_report;
         check_item_confirm.value = data.check_item_confirm;
+        kintone_contract_changes.value = data.kintone_contract_changes ?? { total: 0, records: [], projects: [] };
     }
 
     // Getters
@@ -296,7 +319,7 @@ export const useBadgeStore = defineStore('badge', () => {
     });
 
     const projectTotal = computed(() => {
-        return goalAndSalaryTotal.value + asset.value.length + check_item_confirm.value.total;
+        return goalAndSalaryTotal.value + asset.value.length + check_item_confirm.value.total + kintone_contract_changes.value.total;
     });
 
     const sumOfAll = computed(() => {
@@ -471,6 +494,21 @@ export const useBadgeStore = defineStore('badge', () => {
         })
         return map;
     })
+    const kintoneContractChangesByProject = computed(() => {
+        const map: {[project_id: number]: number} = {};
+        kintone_contract_changes.value.projects.forEach(record => {
+            map[record.project_id] = record.count;
+        });
+        return map;
+    });
+    const kintoneContractRecordIdsByProject = computed(() => {
+        const map: Record<number, Set<number>> = {};
+        kintone_contract_changes.value.records.forEach(record => {
+            map[record.project_id] ??= new Set<number>();
+            map[record.project_id].add(record.record_id);
+        });
+        return map;
+    });
     return {
         // State
         board,
@@ -490,6 +528,7 @@ export const useBadgeStore = defineStore('badge', () => {
         boardBadgeFetchedAt,
         boardBadgeRequest,
         communityBadge,
+        kintone_contract_changes,
         // Actions
         setTaskBadge,
         getGoalIssueCommentBadge,
@@ -512,6 +551,7 @@ export const useBadgeStore = defineStore('badge', () => {
         getbadgeSummary,
         clearProjectReportBadge,
         clearProjectConfirmBadge,
+        checkKintoneContractChange,
         // Getters
         activeUsersBoardBadge,
         totalBoardBadge,
@@ -535,5 +575,7 @@ export const useBadgeStore = defineStore('badge', () => {
         projectReportMap,
         projectReportMapByType,
         checkItemConfirmByFilter,
+        kintoneContractChangesByProject,
+        kintoneContractRecordIdsByProject,
     };
 })

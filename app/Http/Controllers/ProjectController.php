@@ -33,6 +33,7 @@ use App\Models\ProjectCheckitemCategory;
 use App\Models\ProjectCheckitemTemplate;
 use App\Models\ProjectCheckitems;
 use App\Models\ProjectRecordReadState;
+use App\Models\ProjectKintoneContractUpdateNotification;
 use App\Models\ProjectAssignRecord;
 use App\Services\Contracts\CachedContractExtractionService;
 use App\Services\MentionAndNotify;
@@ -6207,6 +6208,27 @@ class ProjectController extends Controller
         $data = $this->badgeService->checkItemConfirm($user);
 
         return $data;
+    }
+
+    public function check_kintone_contract_change(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'project_id' => 'required|integer|exists:project_records,id',
+            'record_id' => 'required|integer',
+        ]);
+
+        $user = $this->active_user();
+
+        ProjectKintoneContractUpdateNotification::query()
+            ->where('target_user_id', $user->id)
+            ->where('project_id', $validated['project_id'])
+            ->where('record_id', $validated['record_id'])
+            ->whereNull('checked_at')
+            ->update(['checked_at' => now()]);
+
+        $this->badgeService->forgetBadgeSummaryForUser($user);
+
+        return response()->json($this->badgeService->kintoneContractChanges($user));
     }
 
     public function confirm_assign_record(Request $request)

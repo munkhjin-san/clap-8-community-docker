@@ -70,13 +70,18 @@ use App\Models\IncidentPunishment;
 use App\Models\FileAttachment;
 use App\Models\AppComment;
 use App\Infrastructure\Kintone\KintoneClient;
+use App\Services\KintoneContractUpdateNotificationService;
 use Intervention\Image\Laravel\Facades\Image;
 class AutoJobController extends Controller
 
 {
     protected $sharedService;
     protected $gemini_url;
-    public function __construct(SharedService $sharedService, private KintoneClient $kintoneClient)
+    public function __construct(
+        SharedService $sharedService,
+        private KintoneClient $kintoneClient,
+        private KintoneContractUpdateNotificationService $kintoneContractUpdateNotificationService,
+    )
     {
         $this->sharedService = $sharedService;
         
@@ -225,6 +230,17 @@ class AutoJobController extends Controller
 
         // dd($data);
     }
+    public function kintoneContractUpdated(Request $request)
+    {
+        $payload = $request->all();
+
+        Log::info('Contract changed hook', ['request' => $payload]);
+
+        $this->kintoneContractUpdateNotificationService->processWebhook($payload);
+
+        return response('success', 200);
+    }
+
     public function zoom_event(Request $request){
         $data = $request->all();
         $path = $request->path();
