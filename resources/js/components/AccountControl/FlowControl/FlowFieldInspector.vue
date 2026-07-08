@@ -1,5 +1,67 @@
 <template>
     <div class="insp-inner">
+        <!-- single table-column editor (a column is selected) -->
+        <template v-if="columnMode">
+            <div class="insp-h">
+                <FlowFieldIcon :type="col0.input_type" :size="15" />
+                <span>列の設定</span>
+            </div>
+            <button class="col-back" @click="emit('update:columnKey', null)">← 列一覧へ戻る</button>
+            <div class="irow">
+                <label>列名</label>
+                <input type="text" v-model="col0.label" class="custom-a-input !box-border flex-1" placeholder="列名">
+            </div>
+            <div class="irow">
+                <label>種類</label>
+                <select v-model="col0.input_type" @change="onColTypeChange(col0)" class="custom-a-input !box-border flex-1">
+                    <option v-for="t in COLUMN_TYPES" :key="t.type" :value="t.type">{{ t.label }}</option>
+                </select>
+            </div>
+
+            <template v-if="colHasOptions(col0)">
+                <div class="sec" style="margin-top: 10px">選択肢</div>
+                <div v-for="(o, oi) in col0.options || []" :key="oi" class="flex items-center gap-[6px] mt-[5px]">
+                    <input type="text" :value="o" @input="setColOption(col0, oi, ($event.target as HTMLInputElement).value)" placeholder="選択肢" class="custom-a-input !box-border flex-1">
+                    <button class="sremove" @click="removeColOption(col0, oi)"><CloseIcon size="9" /></button>
+                </div>
+                <button class="flow-ghost-btn mt-[6px]" @click="addColOption(col0)">＋ 選択肢</button>
+            </template>
+
+            <template v-if="col0.input_type === 'formula'">
+                <div class="sec" style="margin-top: 10px">計算式</div>
+                <FlowFormulaEditor v-model="col0.formula" :fields="colFormulaVars(col0)" :result-type="col0.result_type || 'number'" />
+                <div class="irow" style="margin-top: 8px">
+                    <label>結果の種類</label>
+                    <select v-model="col0.result_type" class="custom-a-input !box-border flex-1">
+                        <option value="number">数値</option>
+                        <option value="text">文字</option>
+                        <option value="toggle">オン/オフ</option>
+                    </select>
+                </div>
+            </template>
+
+            <template v-else-if="col0.input_type === 'reference'">
+                <div class="sec" style="margin-top: 10px">参照先アプリ</div>
+                <select v-model.number="col0.target_definition_id" @change="onColRefTarget(col0)" class="custom-a-input !box-border w-full">
+                    <option :value="null">参照先アプリを選択</option>
+                    <option v-for="a in refApps" :key="a.id" :value="a.id">{{ a.name }}</option>
+                </select>
+                <select v-if="col0.target_definition_id" v-model="col0.label_field" class="custom-a-input !box-border w-full mt-[6px]">
+                    <option :value="null">レコード番号</option>
+                    <option v-for="f in colRefFields(col0.target_definition_id)" :key="f.key" :value="f.key">{{ f.label }}</option>
+                </select>
+            </template>
+
+            <div v-if="col0.input_type !== 'formula'" class="irow" style="margin-top: 10px">
+                <label>必須</label>
+                <span class="sw" :class="{ on: col0.required }" @click="col0.required = !col0.required"></span>
+            </div>
+
+            <div class="divider"></div>
+            <button class="col-del" :disabled="columns.length <= 1" @click="deleteSelectedColumn">この列を削除</button>
+        </template>
+
+        <template v-else>
         <div class="insp-h">
             <FlowFieldIcon :type="field.input_type" :size="15" />
             <span>{{ typeLabel(field.input_type) }}の設定</span>
@@ -220,52 +282,16 @@
 
         <template v-if="field.input_type === 'table'">
             <div class="divider"></div>
-            <div class="sec">列の設定</div>
-            <div class="tcols">
-                <div v-for="(col, ci) in columns" :key="col.key" class="tcol">
-                    <div class="tcol-h">
-                        <span class="tcol-n">列{{ ci + 1 }}</span>
-                        <button class="sremove" @click="removeColumn(ci)" :disabled="columns.length <= 1" title="列を削除"><CloseIcon size="9" /></button>
-                    </div>
-                    <input type="text" v-model="col.label" placeholder="列名" class="custom-a-input !box-border w-full">
-                    <select v-model="col.input_type" @change="onColTypeChange(col)" class="custom-a-input !box-border w-full mt-[6px]">
-                        <option v-for="t in COLUMN_TYPES" :key="t.type" :value="t.type">{{ t.label }}</option>
-                    </select>
-                    <div v-if="colHasOptions(col)" class="tcol-opts">
-                        <div v-for="(o, oi) in col.options || []" :key="oi" class="flex items-center gap-[6px] mt-[5px]">
-                            <input type="text" :value="o" @input="setColOption(col, oi, ($event.target as HTMLInputElement).value)" placeholder="選択肢" class="custom-a-input !box-border flex-1">
-                            <button class="sremove" @click="removeColOption(col, oi)"><CloseIcon size="9" /></button>
-                        </div>
-                        <button class="flow-ghost-btn mt-[6px]" @click="addColOption(col)">＋ 選択肢</button>
-                    </div>
-
-                    <div v-if="col.input_type === 'formula'" class="tcol-cfg">
-                        <FlowFormulaEditor v-model="col.formula" :fields="colFormulaVars(col)" :result-type="col.result_type || 'number'" />
-                        <select v-model="col.result_type" class="custom-a-input !box-border w-full mt-[6px]">
-                            <option value="number">数値</option>
-                            <option value="text">文字</option>
-                            <option value="toggle">オン/オフ</option>
-                        </select>
-                    </div>
-
-                    <div v-else-if="col.input_type === 'reference'" class="tcol-cfg">
-                        <select v-model.number="col.target_definition_id" @change="onColRefTarget(col)" class="custom-a-input !box-border w-full">
-                            <option :value="null">参照先アプリを選択</option>
-                            <option v-for="a in refApps" :key="a.id" :value="a.id">{{ a.name }}</option>
-                        </select>
-                        <select v-if="col.target_definition_id" v-model="col.label_field" class="custom-a-input !box-border w-full mt-[6px]">
-                            <option :value="null">レコード番号</option>
-                            <option v-for="f in colRefFields(col.target_definition_id)" :key="f.key" :value="f.key">{{ f.label }}</option>
-                        </select>
-                    </div>
-
-                    <div v-if="col.input_type !== 'formula'" class="tcol-req">
-                        <span class="sw" :class="{ on: col.required }" @click="col.required = !col.required"></span>
-                        <span>必須</span>
-                    </div>
-                </div>
+            <div class="sec">列</div>
+            <div class="col-list">
+                <button v-for="(col, ci) in columns" :key="col.key" class="col-item" @click="emit('update:columnKey', col.key)">
+                    <FlowFieldIcon :type="col.input_type" :size="13" />
+                    <span class="col-item-lbl">{{ col.label || '列' + (ci + 1) }}</span>
+                    <span class="col-item-type">{{ typeLabel(col.input_type) }}</span>
+                </button>
             </div>
             <button class="flow-ghost-btn mt-[8px]" @click="addColumn">＋ 列を追加</button>
+            <p class="def-hint">列名や表の列をクリックすると、その列の設定を編集できます。</p>
         </template>
 
         <template v-if="field.input_type === 'reference'">
@@ -287,6 +313,7 @@
             </div>
             <p v-if="v.target_definition_id" class="def-hint">レコードを選ぶと、そのレコードの「{{ refLabelName }}」が表示されます。</p>
         </template>
+        </template>
     </div>
 </template>
 
@@ -299,7 +326,8 @@ import FlowFieldIcon from './FlowFieldIcon.vue'
 import FlowFormulaEditor from './FlowFormulaEditor.vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 
-const props = defineProps<{ field: FlowField; fields?: FlowField[] }>()
+const props = defineProps<{ field: FlowField; fields?: FlowField[]; columnKey?: string | null }>()
+const emit = defineEmits<{ 'update:columnKey': [key: string | null] }>()
 const api = useApi()
 
 /* ---- reference field: target app + label field ---- */
@@ -408,9 +436,28 @@ const genColKey = () => {
     return `c${i}`
 }
 const addColumn = () => {
-    columns.value.push({ key: genColKey(), label: `列${columns.value.length + 1}`, input_type: 'short', options: null })
+    const key = genColKey()
+    columns.value.push({ key, label: `列${columns.value.length + 1}`, input_type: 'short', options: null })
+    emit('update:columnKey', key) // auto-select the new column for editing
 }
 const removeColumn = (ci: number) => { if (columns.value.length > 1) columns.value.splice(ci, 1) }
+
+// single-column editing: which column (if any) is selected
+const selectedColumn = computed<TableColumn | null>(() =>
+    props.field.input_type === 'table' && props.columnKey
+        ? columns.value.find((c) => c.key === props.columnKey) ?? null
+        : null
+)
+const columnMode = computed(() => !!selectedColumn.value)
+// always-non-null accessor for the column-mode template (falls back to a throwaway when nothing selected)
+const col0 = computed<TableColumn>(() => selectedColumn.value ?? ({ key: '', label: '', input_type: 'short', options: null } as TableColumn))
+const deleteSelectedColumn = () => {
+    const i = columns.value.findIndex((c) => c.key === props.columnKey)
+    if (i >= 0 && columns.value.length > 1) {
+        columns.value.splice(i, 1)
+        emit('update:columnKey', null)
+    }
+}
 // per-target field cache so multiple reference columns can point at different apps
 const colRefFieldsMap = ref<Record<number, { key: string; label: string; input_type: string }[]>>({})
 const loadColRefFields = async (id: number | null | undefined) => {
@@ -464,6 +511,14 @@ const removeColOption = (col: TableColumn, oi: number) => col.options?.splice(oi
 .sw.on::after { left: 18px; }
 .sremove { border: none; background: none; color: gray; cursor: pointer; padding: 4px; display: flex; }
 .tcol-cfg { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--calendarBorder); }
+.col-list { display: flex; flex-direction: column; gap: 6px; }
+.col-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 10px; border: 1px solid var(--calendarBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; font-size: 13px; }
+.col-item:hover { border-color: var(--primary-color); background: var(--bg3); }
+.col-item-lbl { flex: 1; }
+.col-item-type { font-size: 11px; color: gray; }
+.col-back { border: none; background: none; color: var(--primary-color); font-size: 12px; cursor: pointer; padding: 0; margin-bottom: 10px; text-align: left; }
+.col-del { border: 1px solid var(--formBorder); background: var(--background-color); color: #dc2626; border-radius: 6px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
+.col-del:disabled { opacity: 0.4; cursor: not-allowed; }
 .flow-ghost-btn { background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; width: fit-content; }
 .formula-area { width: 100%; min-height: 64px; font-family: ui-monospace, monospace; font-size: 13px; resize: vertical; }
 .def-checks { display: flex; flex-direction: column; gap: 7px; }

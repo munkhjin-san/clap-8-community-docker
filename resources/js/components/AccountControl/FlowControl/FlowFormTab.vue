@@ -44,7 +44,7 @@
                                 :class="{ sel: selectedUid === field.uid }"
                                 :style="{ width: field.width + 'px' }"
                                 draggable="true"
-                                @click="selectedUid = field.uid || null"
+                                @click="selectField(field.uid || null)"
                                 @dragstart="onFieldDragStart($event, field)"
                                 @dragend="clearDrag"
                                 @dragover.stop.prevent="onItemOver($event, row, field)"
@@ -68,12 +68,21 @@
                                     <div v-else-if="field.input_type === 'spacer'" class="prev-spacer" :style="{ height: (field.validation?.height || 24) + 'px' }"><span>スペース {{ field.width }}×{{ field.validation?.height || 24 }}</span></div>
                                     <div v-else-if="field.input_type === 'table'" class="prev-table">
                                         <div class="prev-thead">
-                                            <span v-for="(c, ci) in (field.validation?.columns || [])" :key="ci" class="prev-th">
+                                            <span
+                                                v-for="(c, ci) in (field.validation?.columns || [])"
+                                                :key="ci"
+                                                class="prev-th prev-th-click"
+                                                :class="{ 'prev-th-sel': selectedUid === field.uid && selectedColumnKey === c.key }"
+                                                @click.stop="selectColumn(field, c.key)"
+                                            >
                                                 <FlowFieldIcon :type="c.input_type" :size="11" />{{ c.label || '列' }}<i v-if="c.required" class="prev-th-req">*</i>
                                             </span>
-                                            <span v-if="!(field.validation?.columns || []).length" class="prev-th prev-th-empty">列が未設定</span>
+                                            <span class="prev-th prev-th-add" title="列を追加" @click.stop="addTableColumn(field)">＋</span>
                                         </div>
-                                        <div class="prev-trow"><span v-for="n in Math.max((field.validation?.columns || []).length, 1)" :key="n" class="prev-td"></span></div>
+                                        <div class="prev-trow">
+                                            <span v-for="(c, ci) in (field.validation?.columns || [])" :key="ci" class="prev-td"></span>
+                                            <span class="prev-td prev-td-add"></span>
+                                        </div>
                                     </div>
                                     <div v-else class="prev" :class="{ heading: field.input_type === 'heading', labeltext: field.input_type === 'label' }">{{ previewText(field) }}</div>
                                 </div>
@@ -84,7 +93,7 @@
                         <div class="row-tail"></div>
                     </div>
                     <div v-if="isNarrow && current && rowHasSelected(row)" class="inline-insp">
-                        <FlowFieldInspector :field="current" :fields="allFields" />
+                        <FlowFieldInspector :field="current" :fields="allFields" v-model:columnKey="selectedColumnKey" />
                     </div>
                 </template>
                 <div
@@ -97,7 +106,7 @@
         </div>
 
         <div v-if="!isNarrow" class="insp-col">
-            <FlowFieldInspector v-if="current" :field="current" :fields="allFields" />
+            <FlowFieldInspector v-if="current" :field="current" :fields="allFields" v-model:columnKey="selectedColumnKey" />
             <p v-else class="text-[12px] text-gray-400">項目を選択すると設定が表示されます。</p>
         </div>
     </div>
@@ -115,8 +124,25 @@ const props = defineProps<{ def: BuilderDefinition }>()
 
 const rows = ref<FlowField[][]>([])
 const selectedUid = ref<string | null>(null)
+const selectedColumnKey = ref<string | null>(null)
 let uidSeq = 0
 const nextUid = () => `fuid_${++uidSeq}`
+
+// select a field (clearing any column selection unless a column of it is explicitly chosen)
+const selectField = (uid: string | null) => { selectedUid.value = uid; selectedColumnKey.value = null }
+// select a specific column inside a table field
+const selectColumn = (field: FlowField, key: string) => { selectedUid.value = field.uid || null; selectedColumnKey.value = key }
+// add a column to a table field from the canvas and select it
+const addTableColumn = (field: FlowField) => {
+    if (!field.validation) field.validation = {}
+    if (!Array.isArray(field.validation.columns)) field.validation.columns = []
+    const used = new Set(field.validation.columns.map((c) => c.key))
+    let i = 1
+    while (used.has(`c${i}`)) i++
+    const key = `c${i}`
+    field.validation.columns.push({ key, label: `列${field.validation.columns.length + 1}`, input_type: 'short', options: null })
+    selectColumn(field, key)
+}
 
 const groups = ['入力', '選択', '高度', 'レイアウト', 'その他'] as const
 const typesByGroup = (group: string) =>
@@ -400,12 +426,18 @@ onUnmounted(() => {
 .prev-divider { border-top-width: 2px; border-top-color: var(--formBorder); margin: 14px 0; }
 .prev-table { border: 1px solid var(--calendarBorder); border-radius: 5px; overflow: hidden; }
 .prev-thead { display: flex; background: var(--bg3); }
-.prev-th { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px; font-size: 11px; color: gray; padding: 6px 8px; border-right: 1px solid var(--calendarBorder); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.prev-th { flex: 1; min-width: 0; box-sizing: border-box !important; display: flex; align-items: center; gap: 4px; font-size: 11px; color: gray; padding: 6px 8px; border-right: 1px solid var(--calendarBorder); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .prev-th:last-child { border-right: none; }
 .prev-th-empty { color: #b0b0b0; font-style: italic; }
 .prev-th-req { color: #e2574c; font-style: normal; margin-left: 1px; }
+.prev-th-click { cursor: pointer; }
+.prev-th-click:hover { background: var(--background-color); color: var(--primary-color); }
+.prev-th-sel { background: var(--background-color); color: var(--primary-color); box-shadow: inset 0 -2px 0 var(--primary-color); font-weight: 500; }
+.prev-th-add { flex: 0 0 26px; min-width: 0; padding: 6px 0; justify-content: center; cursor: pointer; color: var(--primary-color); font-weight: 600; }
+.prev-th-add:hover { background: var(--background-color); }
+.prev-td.prev-td-add { flex: 0 0 26px; }
 .prev-trow { display: flex; }
-.prev-td { flex: 1; height: 26px; border-right: 1px solid var(--calendarBorder); border-top: 1px solid var(--calendarBorder); }
+.prev-td { flex: 1; box-sizing: border-box !important; height: 26px; border-right: 1px solid var(--calendarBorder); border-top: 1px solid var(--calendarBorder); }
 .prev-td:last-child { border-right: none; }
 .tools { display: flex; flex-direction: row; gap: 5px; align-items: center; margin-left: auto; flex-shrink: 0; }
 .tools button { border: none; background: none; cursor: pointer; padding: 2px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
