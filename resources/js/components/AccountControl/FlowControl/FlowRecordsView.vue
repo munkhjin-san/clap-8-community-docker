@@ -304,7 +304,7 @@ onMounted(async () => {
 .rv-ctrl { height: 30px; padding: 0 10px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); font-size: 13px; cursor: pointer; }
 .rv-count { font-size: 12px; color: gray; white-space: nowrap; }
 
-.rv-scroll { max-height: calc(100vh - 178px); overflow: auto; border-top: 1px solid var(--calendarBorder); }
+.rv-scroll { max-height: calc(100vh - 182px); overflow: auto; border-top: 1px solid var(--calendarBorder); }
 .rv-pager { position: sticky; padding: 10px 0; bottom: 0; border-top: 1px solid var(--calendarBorder); background: var(--background-color) }
 .rv-table { width: 100%; border-collapse: collapse; }
 .rv-th { text-align: left; font-size: 12px; font-weight: 600; color: color-mix(in srgb, var(--app-accent, var(--primary-color)) 45%, var(--primary-color)); letter-spacing: .02em; padding: 12px 14px; white-space: nowrap; cursor: pointer; user-select: none; position: sticky; top: 0; background: color-mix(in srgb, var(--app-accent, var(--bg3)) 42%, var(--background-color)); border-bottom: 1px solid var(--calendarBorder); z-index: 1; }
