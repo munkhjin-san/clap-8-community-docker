@@ -14,6 +14,7 @@
                 :label="placeHolder"
                 :menu-props="{ scrollStrategy: 'close', maxWidth: selectorRef ? selectorRef.clientWidth : undefined }"
                 :multiple="multiple"
+                :disabled="disabled"
                 auto-select-first
                 autocomplete="off"
                 class="one-selector"
@@ -75,6 +76,7 @@ import 'styles/selector.css';
         label?: string
         reduce?: (option: any) => any
         closeOnSelect: boolean
+        disabled?: boolean
     }
 
     const props = withDefaults(defineProps<Props>(), {
@@ -88,6 +90,7 @@ import 'styles/selector.css';
         label: 'name',
         reduce: (option: any) => option?.id ?? option,
         closeOnSelect: false,
+        disabled: false,
     })
     const itemOptions = ref<ItemOption[]>([])
     const error = ref('')

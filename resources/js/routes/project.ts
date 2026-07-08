@@ -120,6 +120,11 @@ export const projectRoutes: RouteRecordRaw[] = [
                         component: () => import('@/components/Project/ProjectTabs/Legal.vue'),
                     },
                     {
+                        path: 'workflows',
+                        name: 'custom-apps',
+                        component: () => import('@/components/Project/ProjectTabs/CustomApps.vue'),
+                    },
+                    {
                         path: 'finance',
                         name: 'finance',
                         component: () => import('@/components/Project/ProjectTabs/Finance.vue'),
