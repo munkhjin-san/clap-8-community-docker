@@ -8,7 +8,6 @@
         class="footAreaContainer" 
         v-show="openedBoard"
     >
-        <div v-if="charLength >= 5000" style="position: absolute;right: 10px;top: -20px;font-size: 12px;color: tomato;">メッセージが5000文字を超えています。送信時に分割されます</div>
         <div @click="emit('unreadJumped')" v-if="unread.status" class="unread" style="position:absolute;top: -40px;bottom:auto;user-select:none;">
             <p class="unread-inner cursor-pointer">{{ `${unread.count} 件の新しいメッセージ` }}</p>
         </div>
@@ -115,7 +114,7 @@
                     @compositionupdate="composeUpdate"
                     id="typeArea" 
                     contenteditable="plaintext-only" 
-                    :class="['typeBoxArea',  'boardTypeArea', {maxLengthAlert: charLength >= 5000}, {hasText: true}]"
+                    :class="['typeBoxArea',  'boardTypeArea', {hasText: true}]"
                     >
                 </div>
                 <Transition name="modalFade">
