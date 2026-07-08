@@ -45,6 +45,7 @@ use App\Http\Controllers\PushController;
 use App\Http\Controllers\PublicHolidayController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IncidentController;
+use App\Http\Controllers\FlowController;
 use App\Http\Controllers\AppCommentController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\FinanceToolController;
@@ -194,6 +195,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         'file-preview',
         'help',
         'dashboard',
+        'apps',
     ])->where('any', '.*')->name('board');
 
     Route::get('/board_default_thumbnail/{name}/{size}/{color?}', [ContentController::class, 'board_default_thumbnail']);
@@ -958,6 +960,33 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/incident_assignee_complete', [IncidentController::class, 'completeIncidentAssigneeReport']);
         Route::post('/incident_report_assignment', [IncidentController::class, 'createIncidentReportAssignment']);
         Route::get('incident_related_mentionable_users', [IncidentController::class, 'incidentRelatedMentionableUsers']);
+
+        // 申請・承認フロー (approval flow)
+        Route::get('/flow_definitions', [FlowController::class, 'getFlowDefinitions']);
+        Route::post('/flow_app_pin', [FlowController::class, 'toggleAppPin']);
+        Route::get('/flow_portal_prefs', [FlowController::class, 'getPortalPrefs']);
+        Route::post('/flow_portal_prefs', [FlowController::class, 'savePortalPrefs']);
+        Route::get('/flow_definitions/{id}', [FlowController::class, 'getFlowDefinition']);
+        Route::post('/flow_definition_save', [FlowController::class, 'saveFlowDefinition']);
+        Route::post('/flow_definition_delete', [FlowController::class, 'deleteFlowDefinition']);
+        Route::post('/flow_kintone_preview', [FlowController::class, 'kintonePreview']);
+        Route::get('/flow_options', [FlowController::class, 'getFlowOptions']);
+        Route::get('/flow_dashboard', [FlowController::class, 'getFlowDashboard']);
+        // app runtime (records / views / actions / formula)
+        Route::get('/flow_app_records/{definition}', [FlowController::class, 'getAppRecords']);
+        Route::get('/flow_app_record/{id}', [FlowController::class, 'getAppRecord']);
+        Route::get('/flow_app_record_by_number/{definition}/{number}', [FlowController::class, 'getAppRecordByNumber']);
+        Route::get('/flow_reference_search/{definition}', [FlowController::class, 'referenceSearch']);
+        Route::get('/flow_definition_fields/{definition}', [FlowController::class, 'getDefinitionFields']);
+        Route::post('/flow_generate_icon', [FlowController::class, 'generateAppIcon']);
+        Route::post('/flow_app_record_create', [FlowController::class, 'storeAppRecord']);
+        Route::post('/flow_app_record_update', [FlowController::class, 'updateAppRecord']);
+        Route::post('/flow_app_record_delete', [FlowController::class, 'deleteAppRecord']);
+        Route::post('/flow_app_record_transition', [FlowController::class, 'transitionAppRecord']);
+        Route::post('/flow_formula_preview', [FlowController::class, 'previewFormula']);
+        Route::get('/flow_app_export/{definition}', [FlowController::class, 'exportRecords']);
+        Route::post('/flow_app_import', [FlowController::class, 'importRecords']);
+
         Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
 
         // Unified AI Chat — Goal + Finance + Timesheet (role-based)

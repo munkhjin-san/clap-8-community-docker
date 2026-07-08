@@ -1,0 +1,428 @@
+<template>
+    <div class="insp-inner">
+        <div class="insp-h">
+            <FlowFieldIcon :type="field.input_type" :size="15" />
+            <span>{{ typeLabel(field.input_type) }}の設定</span>
+        </div>
+
+        <div class="irow" v-if="field.input_type !== 'spacer' && field.input_type !== 'divider'" :class="{ 'items-start': field.input_type === 'label' }">
+            <label>{{ labelFieldName }}</label>
+            <textarea v-if="field.input_type === 'label'" v-model="field.label" rows="3" class="custom-a-input !box-border flex-1" placeholder="説明や注意書きを入力"></textarea>
+            <input v-else type="text" v-model="field.label" class="custom-a-input !box-border flex-1">
+        </div>
+        <div class="irow" v-if="!isLayout">
+            <label>フィールドキー</label>
+            <input type="text" v-model="field.key" class="custom-a-input !box-border flex-1">
+        </div>
+        <div class="irow" v-if="!isLayout">
+            <label>必須</label>
+            <span class="sw" :class="{ on: field.is_required }" @click="field.is_required = !field.is_required"></span>
+        </div>
+
+        <template v-if="field.input_type === 'spacer' || field.input_type === 'divider'">
+            <div class="irow">
+                <label>幅</label>
+                <div class="flex items-center gap-[6px]">
+                    <input type="number" min="140" v-model.number="field.width" class="custom-a-input !box-border !w-[110px]">
+                    <span class="text-[12px] text-gray-500">px</span>
+                </div>
+            </div>
+            <div class="irow" v-if="field.input_type === 'spacer'">
+                <label>高さ</label>
+                <div class="flex items-center gap-[6px]">
+                    <input type="number" min="1" v-model.number="v.height" class="custom-a-input !box-border !w-[110px]">
+                    <span class="text-[12px] text-gray-500">px</span>
+                </div>
+            </div>
+            <div class="irow" v-if="field.input_type === 'divider'">
+                <label>線の種類</label>
+                <select v-model="v.line_style" class="custom-a-input !box-border flex-1">
+                    <option value="solid">実線</option>
+                    <option value="dashed">破線</option>
+                    <option value="dotted">点線</option>
+                </select>
+            </div>
+        </template>
+
+        <template v-if="hasRules">
+            <div class="divider"></div>
+            <div class="sec">入力ルール</div>
+
+            <template v-if="field.input_type === 'short' || field.input_type === 'long'">
+                <div class="irow">
+                    <label>文字数</label>
+                    <div class="minmax">
+                        <input type="number" min="0" v-model.number="v.min_length" placeholder="最小" class="custom-a-input !box-border">
+                        <span class="tilde">〜</span>
+                        <input type="number" min="0" v-model.number="v.max_length" placeholder="最大" class="custom-a-input !box-border">
+                    </div>
+                </div>
+                <div class="irow" v-if="field.input_type === 'short'">
+                    <label>形式</label>
+                    <select v-model="v.format" class="custom-a-input !box-border flex-1">
+                        <option value="none">指定なし</option>
+                        <option value="email">メールアドレス</option>
+                        <option value="tel">電話番号</option>
+                        <option value="url">URL</option>
+                    </select>
+                </div>
+            </template>
+
+            <template v-else-if="field.input_type === 'number'">
+                <div class="irow">
+                    <label>値の範囲</label>
+                    <div class="minmax">
+                        <input type="number" v-model.number="v.min" placeholder="最小" class="custom-a-input !box-border">
+                        <span class="tilde">〜</span>
+                        <input type="number" v-model.number="v.max" placeholder="最大" class="custom-a-input !box-border">
+                    </div>
+                </div>
+                <div class="irow">
+                    <label>整数のみ</label>
+                    <span class="sw" :class="{ on: v.integer_only }" @click="v.integer_only = !v.integer_only"></span>
+                </div>
+            </template>
+
+            <template v-else-if="field.input_type === 'checkbox'">
+                <div class="irow">
+                    <label>選択数</label>
+                    <div class="minmax">
+                        <input type="number" min="0" v-model.number="v.min_select" placeholder="最小" class="custom-a-input !box-border">
+                        <span class="tilde">〜</span>
+                        <input type="number" min="0" v-model.number="v.max_select" placeholder="最大" class="custom-a-input !box-border">
+                    </div>
+                </div>
+            </template>
+
+            <template v-else-if="field.input_type === 'file'">
+                <div class="vcol">
+                    <label class="vlabel">受付形式</label>
+                    <div class="chips">
+                        <button v-for="a in fileAccepts" :key="a.value" class="achip" :class="{ on: (v.accept || []).includes(a.value) }" @click="toggleAccept(a.value)">{{ a.label }}</button>
+                    </div>
+                </div>
+                <div class="irow">
+                    <label>最大サイズ</label>
+                    <div class="flex items-center gap-[6px]">
+                        <input type="number" min="0" v-model.number="v.max_size_mb" placeholder="制限なし" class="custom-a-input !box-border !w-[100px]">
+                        <span class="text-[12px] text-gray-500">MB</span>
+                    </div>
+                </div>
+                <div class="irow">
+                    <label>複数可</label>
+                    <span class="sw" :class="{ on: v.allow_multiple }" @click="v.allow_multiple = !v.allow_multiple"></span>
+                </div>
+            </template>
+
+            <template v-else-if="field.input_type === 'user' || field.input_type === 'member'">
+                <div class="irow">
+                    <label>複数選択</label>
+                    <span class="sw" :class="{ on: v.multiple !== false }" @click="v.multiple = v.multiple === false"></span>
+                </div>
+            </template>
+
+            <template v-else-if="field.input_type === 'date'">
+                <div class="irow">
+                    <label>日付の範囲</label>
+                    <div class="minmax">
+                        <input type="date" v-model="v.min_date" class="custom-a-input !box-border">
+                        <span class="tilde">〜</span>
+                        <input type="date" v-model="v.max_date" class="custom-a-input !box-border">
+                    </div>
+                </div>
+            </template>
+
+            <template v-else-if="field.input_type === 'datetime'">
+                <div class="irow">
+                    <label>日時の範囲</label>
+                    <div class="minmax">
+                        <input type="datetime-local" v-model="v.min_date" class="custom-a-input !box-border">
+                        <span class="tilde">〜</span>
+                        <input type="datetime-local" v-model="v.max_date" class="custom-a-input !box-border">
+                    </div>
+                </div>
+            </template>
+
+            <template v-else-if="field.input_type === 'time'">
+                <div class="irow">
+                    <label>時刻の範囲</label>
+                    <div class="minmax">
+                        <input type="time" v-model="v.min_time" class="custom-a-input !box-border">
+                        <span class="tilde">〜</span>
+                        <input type="time" v-model="v.max_time" class="custom-a-input !box-border">
+                    </div>
+                </div>
+            </template>
+        </template>
+
+        <template v-if="hasOptions">
+            <div class="divider"></div>
+            <div class="sec">選択肢</div>
+            <div v-for="(opt, oi) in field.options || []" :key="oi" class="flex items-center gap-[6px] mt-[6px]">
+                <input type="text" :value="opt" @input="setOption(oi, ($event.target as HTMLInputElement).value)" class="custom-a-input !box-border flex-1">
+                <button class="sremove" @click="removeOption(oi)"><CloseIcon size="9" /></button>
+            </div>
+            <button class="flow-ghost-btn mt-[8px]" @click="addOption">＋ 選択肢を追加</button>
+        </template>
+
+        <template v-if="hasDefault">
+            <div class="divider"></div>
+            <div class="sec">初期値（新規作成時）</div>
+
+            <input v-if="field.input_type === 'short'" type="text" v-model="v.default" class="custom-a-input !box-border w-full" placeholder="初期テキスト">
+            <textarea v-else-if="field.input_type === 'long'" v-model="v.default" rows="2" class="custom-a-input !box-border w-full" placeholder="初期テキスト"></textarea>
+            <input v-else-if="field.input_type === 'number'" type="number" v-model.number="v.default" class="custom-a-input !box-border w-full" placeholder="初期値">
+
+            <div v-else-if="field.input_type === 'toggle'" class="irow" style="margin: 0">
+                <label>初期状態</label>
+                <span class="sw" :class="{ on: v.default }" @click="v.default = !v.default"></span>
+            </div>
+
+            <select v-else-if="field.input_type === 'select' || field.input_type === 'radio'" v-model="v.default" class="custom-a-input !box-border w-full">
+                <option :value="null">なし</option>
+                <option v-for="o in field.options || []" :key="o" :value="o">{{ o }}</option>
+            </select>
+
+            <div v-else-if="field.input_type === 'checkbox'" class="def-checks">
+                <label v-for="o in field.options || []" :key="o" class="fi-opt">
+                    <input type="checkbox" :checked="defaultArray.includes(o)" @change="toggleDefault(o)"> {{ o }}
+                </label>
+                <span v-if="!(field.options || []).length" class="text-[12px] text-gray-400">選択肢を先に追加してください。</span>
+            </div>
+
+            <template v-else-if="field.input_type === 'date' || field.input_type === 'datetime' || field.input_type === 'time'">
+                <div class="irow" style="margin: 0">
+                    <label>現在日時にする</label>
+                    <span class="sw" :class="{ on: v.default_now }" @click="v.default_now = !v.default_now"></span>
+                </div>
+                <p class="def-hint">オンにすると作成時の日時が自動で入ります。</p>
+            </template>
+
+            <div v-else-if="field.input_type === 'user' || field.input_type === 'member'" class="irow" style="margin: 0">
+                <label>作成者を初期値</label>
+                <span class="sw" :class="{ on: v.default_me }" @click="v.default_me = !v.default_me"></span>
+            </div>
+        </template>
+
+        <template v-if="field.input_type === 'formula'">
+            <div class="divider"></div>
+            <div class="sec">計算式</div>
+            <FlowFormulaEditor v-model="field.formula" :fields="referenceableFields" :result-type="field.result_type" />
+            <div class="irow" style="margin-top: 10px">
+                <label>結果の種類</label>
+                <select v-model="field.result_type" class="custom-a-input !box-border flex-1">
+                    <option value="number">数値</option>
+                    <option value="text">文字</option>
+                    <option value="toggle">オン/オフ</option>
+                </select>
+            </div>
+        </template>
+
+        <template v-if="field.input_type === 'table'">
+            <div class="divider"></div>
+            <div class="sec">列の設定</div>
+            <div class="tcols">
+                <div v-for="(col, ci) in columns" :key="col.key" class="tcol">
+                    <div class="tcol-h">
+                        <span class="tcol-n">列{{ ci + 1 }}</span>
+                        <button class="sremove" @click="removeColumn(ci)" :disabled="columns.length <= 1" title="列を削除"><CloseIcon size="9" /></button>
+                    </div>
+                    <input type="text" v-model="col.label" placeholder="列名" class="custom-a-input !box-border w-full">
+                    <select v-model="col.input_type" @change="onColTypeChange(col)" class="custom-a-input !box-border w-full mt-[6px]">
+                        <option v-for="t in COLUMN_TYPES" :key="t.type" :value="t.type">{{ t.label }}</option>
+                    </select>
+                    <div v-if="colHasOptions(col)" class="tcol-opts">
+                        <div v-for="(o, oi) in col.options || []" :key="oi" class="flex items-center gap-[6px] mt-[5px]">
+                            <input type="text" :value="o" @input="setColOption(col, oi, ($event.target as HTMLInputElement).value)" placeholder="選択肢" class="custom-a-input !box-border flex-1">
+                            <button class="sremove" @click="removeColOption(col, oi)"><CloseIcon size="9" /></button>
+                        </div>
+                        <button class="flow-ghost-btn mt-[6px]" @click="addColOption(col)">＋ 選択肢</button>
+                    </div>
+                    <div class="tcol-req">
+                        <span class="sw" :class="{ on: col.required }" @click="col.required = !col.required"></span>
+                        <span>必須</span>
+                    </div>
+                </div>
+            </div>
+            <button class="flow-ghost-btn mt-[8px]" @click="addColumn">＋ 列を追加</button>
+        </template>
+
+        <template v-if="field.input_type === 'reference'">
+            <div class="divider"></div>
+            <div class="sec">参照先アプリ</div>
+            <div class="irow">
+                <label>アプリ</label>
+                <select v-model.number="v.target_definition_id" @change="onRefTargetChange" class="custom-a-input !box-border flex-1">
+                    <option :value="null">選択してください</option>
+                    <option v-for="a in refApps" :key="a.id" :value="a.id">{{ a.name }}</option>
+                </select>
+            </div>
+            <div class="irow" v-if="v.target_definition_id">
+                <label>表示する項目</label>
+                <select v-model="v.label_field" class="custom-a-input !box-border flex-1">
+                    <option :value="null">レコード番号</option>
+                    <option v-for="f in refTargetFields" :key="f.key" :value="f.key">{{ f.label }}</option>
+                </select>
+            </div>
+            <p v-if="v.target_definition_id" class="def-hint">レコードを選ぶと、そのレコードの「{{ refLabelName }}」が表示されます。</p>
+        </template>
+    </div>
+</template>
+
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { FLOW_TYPE_LABEL, FLOW_FILE_ACCEPT, FLOW_FIELD_TYPES, isLayoutType } from '@/types/flow'
+import type { FlowField, FlowFieldValidation, TableColumn } from '@/types/flow'
+import { useApi } from '@/composables/api'
+import FlowFieldIcon from './FlowFieldIcon.vue'
+import FlowFormulaEditor from './FlowFormulaEditor.vue'
+import CloseIcon from '@/components/Form/CloseIcon.vue'
+
+const props = defineProps<{ field: FlowField; fields?: FlowField[] }>()
+const api = useApi()
+
+/* ---- reference field: target app + label field ---- */
+const refApps = ref<{ id: number; name: string }[]>([])
+const refTargetFields = ref<{ key: string; label: string; input_type: string }[]>([])
+const REF_LABEL_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'reference', 'file']
+const loadRefApps = async () => {
+    if (refApps.value.length) return
+    const data = await api.get('/flow_definitions')
+    refApps.value = (data ?? []).map((d: any) => ({ id: d.id, name: d.name }))
+}
+const loadRefFields = async (id: number | null | undefined) => {
+    refTargetFields.value = []
+    if (!id) return
+    const data = await api.get(`/flow_definition_fields/${id}`)
+    refTargetFields.value = (data?.fields ?? []).filter((f: any) => !REF_LABEL_SKIP.includes(f.input_type))
+}
+
+const fileAccepts = FLOW_FILE_ACCEPT
+const typeLabel = (t: string) => FLOW_TYPE_LABEL[t] ?? t
+const hasOptions = computed(() => ['select', 'radio', 'checkbox'].includes(props.field.input_type))
+const isLayout = computed(() => isLayoutType(props.field.input_type))
+const DEFAULT_TYPES = ['short', 'long', 'number', 'select', 'radio', 'checkbox', 'toggle', 'date', 'datetime', 'time', 'user', 'member']
+const hasDefault = computed(() => DEFAULT_TYPES.includes(props.field.input_type))
+const defaultArray = computed<any[]>(() => (Array.isArray(v.value.default) ? v.value.default : []))
+const toggleDefault = (o: string) => {
+    const next = defaultArray.value.slice()
+    const i = next.indexOf(o)
+    if (i >= 0) next.splice(i, 1)
+    else next.push(o)
+    v.value.default = next
+}
+const labelFieldName = computed(() =>
+    props.field.input_type === 'heading' ? '見出し文' : props.field.input_type === 'label' ? 'テキスト' : 'ラベル'
+)
+const RULE_TYPES = ['short', 'long', 'number', 'date', 'datetime', 'time', 'checkbox', 'file', 'user', 'member']
+const hasRules = computed(() => RULE_TYPES.includes(props.field.input_type))
+
+const referenceableFields = computed(() =>
+    (props.fields ?? []).filter((f) => f.key !== props.field.key && !isLayoutType(f.input_type) && f.input_type !== 'formula')
+)
+
+watch(() => props.field, (f) => {
+    if (!f) return
+    if (!f.validation) f.validation = {}
+    if (f.input_type === 'formula' && !f.result_type) f.result_type = 'number'
+    if (f.input_type === 'reference') {
+        loadRefApps()
+        loadRefFields(f.validation.target_definition_id ?? null)
+    }
+}, { immediate: true })
+const v = computed<FlowFieldValidation>(() => props.field.validation as FlowFieldValidation)
+
+const onRefTargetChange = () => {
+    v.value.label_field = null
+    loadRefFields(v.value.target_definition_id ?? null)
+}
+const refLabelName = computed(() => {
+    const k = v.value.label_field
+    if (!k) return 'レコード番号'
+    return refTargetFields.value.find((f) => f.key === k)?.label ?? k
+})
+
+const toggleAccept = (val: string) => {
+    if (!v.value.accept) v.value.accept = []
+    const i = v.value.accept.indexOf(val)
+    if (i >= 0) v.value.accept.splice(i, 1)
+    else v.value.accept.push(val)
+}
+
+const setOption = (oi: number, val: string) => { if (props.field.options) props.field.options[oi] = val }
+const addOption = () => {
+    if (!props.field.options) props.field.options = []
+    props.field.options.push(`選択肢${props.field.options.length + 1}`)
+}
+const removeOption = (oi: number) => props.field.options?.splice(oi, 1)
+
+/* ---- table columns ---- */
+const COLUMN_TYPES = FLOW_FIELD_TYPES.filter((t) => !isLayoutType(t.type) && !['formula', 'table', 'reference'].includes(t.type))
+const OPTION_TYPES = ['select', 'radio', 'checkbox']
+const colHasOptions = (col: TableColumn) => OPTION_TYPES.includes(col.input_type)
+const columns = computed<TableColumn[]>({
+    get: () => {
+        if (!Array.isArray(v.value.columns)) v.value.columns = []
+        return v.value.columns
+    },
+    set: (cols) => { v.value.columns = cols },
+})
+const genColKey = () => {
+    const used = new Set(columns.value.map((c) => c.key))
+    let i = 1
+    while (used.has(`c${i}`)) i++
+    return `c${i}`
+}
+const addColumn = () => {
+    columns.value.push({ key: genColKey(), label: `列${columns.value.length + 1}`, input_type: 'short', options: null })
+}
+const removeColumn = (ci: number) => { if (columns.value.length > 1) columns.value.splice(ci, 1) }
+const onColTypeChange = (col: TableColumn) => {
+    if (colHasOptions(col) && !(col.options && col.options.length)) col.options = ['選択肢1']
+}
+const setColOption = (col: TableColumn, oi: number, val: string) => { if (col.options) col.options[oi] = val }
+const addColOption = (col: TableColumn) => {
+    if (!col.options) col.options = []
+    col.options.push(`選択肢${col.options.length + 1}`)
+}
+const removeColOption = (col: TableColumn, oi: number) => col.options?.splice(oi, 1)
+</script>
+
+<style scoped>
+.insp-inner { display: flex; flex-direction: column; }
+.insp-h { font-size: 14px; font-weight: 500; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; color: var(--primary-color); }
+.irow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.irow label { font-size: 12px; color: gray; width: 86px; flex-shrink: 0; }
+.vcol { margin-bottom: 10px; }
+.vlabel { font-size: 12px; color: gray; display: block; margin-bottom: 6px; }
+.minmax { display: flex; align-items: center; gap: 6px; flex: 1; }
+.minmax input { width: 100%; min-width: 0; }
+.tilde { color: gray; font-size: 12px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.achip { font-size: 12px; padding: 5px 11px; border: 1px solid var(--calendarBorder); border-radius: 14px; background: var(--background-color); color: gray; cursor: pointer; }
+.achip.on { border-color: var(--primary-color); background: var(--bg3); color: var(--primary-color); }
+.sec { font-size: 12px; color: gray; margin: 0 0 8px; }
+.divider { height: 1px; background: var(--calendarBorder); margin: 14px 0; }
+.seg { display: inline-flex; border: 1px solid var(--calendarBorder); border-radius: 6px; overflow: hidden; }
+.seg button { border: none; background: var(--background-color); padding: 6px 10px; font-size: 12px; color: gray; cursor: pointer; border-right: 1px solid var(--calendarBorder); }
+.seg button:last-child { border-right: none; }
+.seg button.on { background: var(--bg3); color: var(--primary-color); font-weight: 500; }
+.sw { width: 38px; height: 22px; border-radius: 11px; background: var(--formBorder); position: relative; cursor: pointer; transition: background .12s; display: inline-block; }
+.sw.on { background: var(--primary-color); }
+.sw::after { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
+.sw.on::after { left: 18px; }
+.sremove { border: none; background: none; color: gray; cursor: pointer; padding: 4px; display: flex; }
+.flow-ghost-btn { background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; width: fit-content; }
+.formula-area { width: 100%; min-height: 64px; font-family: ui-monospace, monospace; font-size: 13px; resize: vertical; }
+.def-checks { display: flex; flex-direction: column; gap: 7px; }
+.def-checks .fi-opt { font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.def-hint { font-size: 11px; color: gray; margin-top: 6px; }
+.achip { user-select: none; }
+.tcols { display: flex; flex-direction: column; gap: 8px; }
+.tcol { border: 1px solid var(--calendarBorder); border-radius: 8px; padding: 10px; background: var(--background-color); }
+.tcol-h { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.tcol-n { font-size: 12px; color: gray; font-weight: 500; }
+.tcol-opts { margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--calendarBorder); }
+.tcol-req { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: gray; }
+.sremove:disabled { opacity: .35; cursor: default; }
+</style>
