@@ -1,7 +1,7 @@
 export type FlowInputType =
     | 'short' | 'long' | 'number' | 'date' | 'time' | 'datetime'
     | 'select' | 'radio' | 'checkbox' | 'toggle'
-    | 'user' | 'member' | 'formula' | 'file' | 'table' | 'reference'
+    | 'user' | 'member' | 'formula' | 'file' | 'table' | 'reference' | 'project'
     | 'heading' | 'label' | 'spacer' | 'divider'
 
 export type FlowRule = 'edit' | 'read' | 'hide'
@@ -315,6 +315,11 @@ export interface FlowOptionPosition {
     name: string
 }
 
+export interface FlowOptionProject {
+    id: number
+    name: string
+}
+
 export interface FlowDefinitionListItem {
     id: number
     name: string
@@ -389,6 +394,7 @@ export const FLOW_FIELD_TYPES: FlowTypeMeta[] = [
     { type: 'member', label: 'メンバー', icon: 'member', group: '高度', projectOnly: true },
     { type: 'formula', label: '計算', icon: 'formula', group: '高度' },
     { type: 'reference', label: 'ルックアップ', icon: 'reference', group: '高度' },
+    { type: 'project', label: 'プロジェクト', icon: 'project', group: '高度' },
     { type: 'file', label: 'ファイル', icon: 'file', group: 'その他' },
     { type: 'table', label: 'テーブル', icon: 'table', group: 'その他' },
     { type: 'heading', label: '見出し', icon: 'heading', group: 'レイアウト' },

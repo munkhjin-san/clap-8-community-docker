@@ -73,7 +73,7 @@
                                     <span v-else-if="c.ref === '$status'"><span v-if="rec.current_status" class="rv-statuscell">{{ rec.current_status }}</span></span>
                                     <span v-else class="rv-datecell">{{ sysDate(rec, c.ref) }} <span class="rv-time">{{ sysTime(rec, c.ref) }}</span></span>
                                 </template>
-                                <FlowFieldInput v-else :field="c.field!" :model-value="rec.values[c.field!.id!]" :users="users" readonly />
+                                <FlowFieldInput v-else :field="c.field!" :model-value="rec.values[c.field!.id!]" :users="users" :projects="projects" readonly />
                             </td>
                             <td class="rv-td rv-td-action"><span class="rv-detail">詳細</span></td>
                         </tr>
@@ -121,7 +121,7 @@ import FlowAppIcon from './FlowAppIcon.vue'
 import { useTheme } from '@/store/theme'
 import { flowColorValue } from '@/utils/flowColors'
 import { resolveColumns, applyFilters, applySort, systemColumnValue, type ResolvedColumn } from '@/utils/flowView'
-import type { FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowOptionUser, FlowViewApi, FlowRecordsResponse } from '@/types/flow'
+import type { FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowOptionUser, FlowOptionProject, FlowViewApi, FlowRecordsResponse } from '@/types/flow'
 import type { MenuList } from '@/interface/globalInterface'
 
 const api = useApi()
@@ -136,6 +136,7 @@ const appAccent = computed(() => flowColorValue(definition.value?.color_id, them
 const permissions = ref<FlowAppPermissionsDto | null>(null)
 const records = ref<FlowRecordDto[]>([])
 const users = ref<FlowOptionUser[]>([])
+const projects = ref<FlowOptionProject[]>([])
 const views = ref<FlowViewApi[]>([])
 const activeViewId = ref<number | null>(null)
 const search = ref('')
@@ -275,7 +276,7 @@ const back = () => {
 
 onMounted(async () => {
     const opts = await api.get('/flow_options')
-    if (opts) users.value = opts.users ?? []
+    if (opts) { users.value = opts.users ?? []; projects.value = opts.projects ?? [] }
     await load()
 })
 </script>

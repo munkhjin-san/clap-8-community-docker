@@ -612,6 +612,10 @@ class FlowController extends Controller
                 ->select('id', 'name')
                 ->orderBy('sort_flag')
                 ->get(),
+            'projects' => \App\Models\ProjectRecord::query()
+                ->select('id', 'name')
+                ->orderByDesc('id')
+                ->get(),
         ]);
     }
 

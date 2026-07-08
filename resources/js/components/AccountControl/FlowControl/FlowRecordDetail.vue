@@ -79,6 +79,7 @@
                             <FlowFieldInput
                                 :field="field"
                                 :users="users"
+                                :projects="projects"
                                 :readonly="isReadonly(field)"
                                 :preview="true"
                                 v-model="values[field.id!]"
@@ -176,7 +177,7 @@ import ChevronDouble from '@/components/Icons/ChevronDouble.vue'
 import AppCommentSection from '@/components/Global/AppCommentSection.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { isLayoutType } from '@/types/flow'
-import type { FlowField, FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowOptionUser } from '@/types/flow'
+import type { FlowField, FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowOptionUser, FlowOptionProject } from '@/types/flow'
 
 const api = useApi()
 const route = useRoute()
@@ -194,6 +195,7 @@ const permissions = ref<FlowAppPermissionsDto | null>(null)
 const record = ref<FlowRecordDto | null>(null)
 const can = reactive({ view: true, edit: true, delete: false })
 const users = ref<FlowOptionUser[]>([])
+const projects = ref<FlowOptionProject[]>([])
 const values = reactive<Record<string, any>>({})
 const errors = reactive<Record<string, string | null>>({})
 
@@ -301,7 +303,7 @@ const load = async () => {
     loading.value = true
     try {
         const opts = await api.get('/flow_options')
-        if (opts) users.value = opts.users ?? []
+        if (opts) { users.value = opts.users ?? []; projects.value = opts.projects ?? [] }
 
         if (recordId.value) {
             const data = await api.get(`/flow_app_record_by_number/${flowId.value}/${recordId.value}`)

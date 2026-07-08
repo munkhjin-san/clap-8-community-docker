@@ -16,7 +16,7 @@
                     <tbody>
                         <tr v-for="(row, ri) in tableRows" :key="ri">
                             <td v-for="col in tableColumns" :key="col.key">
-                                <FlowFieldInput :field="cellField(col)" :model-value="row[col.key]" :users="users" readonly />
+                                <FlowFieldInput :field="cellField(col)" :model-value="row[col.key]" :users="users" :projects="projects" readonly />
                             </td>
                         </tr>
                     </tbody>
@@ -68,6 +68,7 @@
         <template v-else-if="field.input_type === 'date' || field.input_type === 'datetime' || field.input_type === 'time'"><span class="fi-mono">{{ val }}</span></template>
         <template v-else-if="field.input_type === 'number'">{{ formatNumber(val) }}</template>
         <template v-else-if="field.input_type === 'formula'">{{ formatFormula(val) }}</template>
+        <template v-else-if="field.input_type === 'project'"><span class="fi-pill">{{ projectName(val) }}</span></template>
         <template v-else>{{ val }}</template>
     </span>
 
@@ -135,6 +136,7 @@
                                     :field="cellField(col)"
                                     :model-value="row[col.key]"
                                     :users="users"
+                                    :projects="projects"
                                     :readonly="col.input_type === 'formula'"
                                     @update:model-value="setCell(ri, col.key, $event)"
                                 />
@@ -186,6 +188,18 @@
                 </div>
             </div>
         </div>
+        <div v-else-if="field.input_type === 'project'" class="fi-project">
+            <ItemSelector
+                :multiple="false"
+                :options="(projects as any)"
+                :reduce="(o: any) => o.id"
+                label="name"
+                v-model="val"
+                :clearable="true"
+                :close-on-select="true"
+                place-holder="プロジェクトを選択"
+            />
+        </div>
         <input v-else type="text" v-model="val" class="fi-input">
     </template>
 </template>
@@ -197,15 +211,21 @@ import { useApi } from '@/composables/api'
 import { useFilePreview } from '@/store/filePreview'
 import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
 import MemberSelector from '@/components/Form/MemberSelector.vue'
-import type { FlowField, FlowOptionUser } from '@/types/flow'
+import ItemSelector from '@/components/Form/ItemSelector.vue'
+import type { FlowField, FlowOptionUser, FlowOptionProject } from '@/types/flow'
 
 const props = defineProps<{
     field: FlowField
     modelValue: any
     users?: FlowOptionUser[]
+    projects?: FlowOptionProject[]
     readonly?: boolean
     preview?: boolean
 }>()
+const projectName = (id: any) => {
+    if (id === null || id === undefined || id === '') return '—'
+    return props.projects?.find((p) => p.id === Number(id))?.name ?? `#${id}`
+}
 const emit = defineEmits<{ 'update:modelValue': [any] }>()
 defineOptions({ name: 'FlowFieldInput' }) // explicit name so table cells can recurse into this component
 
@@ -381,6 +401,10 @@ const formatFormula = (v: any) => {
 /* global main.css forces `box-sizing: unset !important` on *, so re-assert border-box here (class beats * even with !important) or width:100% + padding overflows the block */
 .fi-input { width: 100%; box-sizing: border-box !important; font-size: 13px; padding: 6px 9px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); }
 .fi-area { min-height: 64px; resize: vertical; }
+/* project picker: match the thin, rounded look of .fi-input (ItemSelector ships a bolder/square shell) */
+.fi-project { max-width: 100%; }
+.fi-project :deep(.item-selector-shell) { border: 1px solid var(--formBorder) !important; border-radius: 6px !important; box-sizing: border-box !important; overflow: hidden; }
+.fi-project :deep(.one-selector .v-field__input) { min-height: 34px; padding-top: 2px; padding-bottom: 2px; font-size: 13px; }
 .fi-multi { min-height: 80px; }
 .fi-opts { display: flex; flex-wrap: wrap; gap: 11px 18px; }
 .fi-opt { font-size: 13px; display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; line-height: 1.5; }

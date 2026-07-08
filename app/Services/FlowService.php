@@ -390,7 +390,7 @@ class FlowService
     public function columnForType(string $inputType): string
     {
         return match ($inputType) {
-            'number' => 'value_numeric',
+            'number', 'project' => 'value_numeric',
             'date' => 'value_date',
             default => 'value_text',
         };
@@ -522,7 +522,7 @@ class FlowService
     private function valueColumnFor(?string $type): string
     {
         return match ($type) {
-            'number' => 'value_numeric',
+            'number', 'project' => 'value_numeric',
             'date' => 'value_date',
             'datetime' => 'value_datetime',
             'toggle' => 'value_boolean',
@@ -739,6 +739,11 @@ class FlowService
                 $value->value_json = $ref;
                 $value->value_numeric = $ref['id'] ?? null;
                 break;
+            case 'project':
+                // single project id (multiple not supported)
+                $id = is_array($raw) ? ($raw['id'] ?? null) : $raw;
+                $value->value_numeric = ($id === null || $id === '') ? null : (int) $id;
+                break;
             default:
                 $value->value_text = $this->stringValue($raw);
                 break;
@@ -814,6 +819,7 @@ class FlowService
             'toggle' => (bool) $value->value_boolean,
             'checkbox', 'file', 'user', 'member', 'table' => $value->value_json ?: [],
             'reference' => $value->value_json ?: null,
+            'project' => $value->value_numeric === null ? null : (int) $value->value_numeric,
             default => $value->value_text,
         };
     }
