@@ -135,6 +135,7 @@
                                     :field="cellField(col)"
                                     :model-value="row[col.key]"
                                     :users="users"
+                                    :readonly="col.input_type === 'formula'"
                                     @update:model-value="setCell(ri, col.key, $event)"
                                 />
                             </td>
@@ -299,7 +300,17 @@ const tableRows = computed<any[]>(() => (Array.isArray(props.modelValue) ? props
 const cellFields = computed<Record<string, FlowField>>(() => {
     const m: Record<string, FlowField> = {}
     for (const c of tableColumns.value) {
-        m[c.key] = { key: c.key, label: c.label, input_type: c.input_type, options: c.options ?? null, validation: c.validation ?? {} } as FlowField
+        m[c.key] = {
+            key: c.key, label: c.label, input_type: c.input_type, options: c.options ?? null,
+            // reference columns keep target/label at the column root — surface them where the reference input reads them
+            validation: {
+                ...(c.validation ?? {}),
+                target_definition_id: c.target_definition_id ?? c.validation?.target_definition_id ?? null,
+                label_field: c.label_field ?? c.validation?.label_field ?? null,
+            },
+            formula: c.formula ?? null,
+            result_type: c.result_type ?? null,
+        } as FlowField
     }
     return m
 })

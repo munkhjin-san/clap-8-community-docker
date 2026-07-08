@@ -238,7 +238,28 @@
                         </div>
                         <button class="flow-ghost-btn mt-[6px]" @click="addColOption(col)">＋ 選択肢</button>
                     </div>
-                    <div class="tcol-req">
+
+                    <div v-if="col.input_type === 'formula'" class="tcol-cfg">
+                        <FlowFormulaEditor v-model="col.formula" :fields="colFormulaVars(col)" :result-type="col.result_type || 'number'" />
+                        <select v-model="col.result_type" class="custom-a-input !box-border w-full mt-[6px]">
+                            <option value="number">数値</option>
+                            <option value="text">文字</option>
+                            <option value="toggle">オン/オフ</option>
+                        </select>
+                    </div>
+
+                    <div v-else-if="col.input_type === 'reference'" class="tcol-cfg">
+                        <select v-model.number="col.target_definition_id" @change="onColRefTarget(col)" class="custom-a-input !box-border w-full">
+                            <option :value="null">参照先アプリを選択</option>
+                            <option v-for="a in refApps" :key="a.id" :value="a.id">{{ a.name }}</option>
+                        </select>
+                        <select v-if="col.target_definition_id" v-model="col.label_field" class="custom-a-input !box-border w-full mt-[6px]">
+                            <option :value="null">レコード番号</option>
+                            <option v-for="f in colRefFields(col.target_definition_id)" :key="f.key" :value="f.key">{{ f.label }}</option>
+                        </select>
+                    </div>
+
+                    <div v-if="col.input_type !== 'formula'" class="tcol-req">
                         <span class="sw" :class="{ on: col.required }" @click="col.required = !col.required"></span>
                         <span>必須</span>
                     </div>
@@ -329,6 +350,13 @@ watch(() => props.field, (f) => {
         loadRefApps()
         loadRefFields(f.validation.target_definition_id ?? null)
     }
+    if (f.input_type === 'table') {
+        const cols = Array.isArray(f.validation.columns) ? f.validation.columns : []
+        if (cols.some((c: any) => c.input_type === 'reference')) {
+            loadRefApps()
+            cols.forEach((c: any) => { if (c.input_type === 'reference') loadColRefFields(c.target_definition_id) })
+        }
+    }
 }, { immediate: true })
 const v = computed<FlowFieldValidation>(() => props.field.validation as FlowFieldValidation)
 
@@ -357,7 +385,13 @@ const addOption = () => {
 const removeOption = (oi: number) => props.field.options?.splice(oi, 1)
 
 /* ---- table columns ---- */
-const COLUMN_TYPES = FLOW_FIELD_TYPES.filter((t) => !isLayoutType(t.type) && !['formula', 'table', 'reference'].includes(t.type))
+// 'table' stays excluded (no nested tables). formula + reference are allowed as columns.
+const COLUMN_TYPES = FLOW_FIELD_TYPES.filter((t) => !isLayoutType(t.type) && t.type !== 'table')
+// Variables offered to a calc column's formula editor: sibling data columns + top-level data fields.
+const colFormulaVars = (col: TableColumn) => [
+    ...columns.value.filter((c) => c.key !== col.key && c.input_type !== 'formula' && !isLayoutType(c.input_type)),
+    ...((props.fields ?? []).filter((f) => !isLayoutType(f.input_type) && f.input_type !== 'formula' && f.input_type !== 'table')),
+] as any
 const OPTION_TYPES = ['select', 'radio', 'checkbox']
 const colHasOptions = (col: TableColumn) => OPTION_TYPES.includes(col.input_type)
 const columns = computed<TableColumn[]>({
@@ -377,8 +411,25 @@ const addColumn = () => {
     columns.value.push({ key: genColKey(), label: `列${columns.value.length + 1}`, input_type: 'short', options: null })
 }
 const removeColumn = (ci: number) => { if (columns.value.length > 1) columns.value.splice(ci, 1) }
+// per-target field cache so multiple reference columns can point at different apps
+const colRefFieldsMap = ref<Record<number, { key: string; label: string; input_type: string }[]>>({})
+const loadColRefFields = async (id: number | null | undefined) => {
+    if (!id || colRefFieldsMap.value[id]) return
+    const data = await api.get(`/flow_definition_fields/${id}`)
+    colRefFieldsMap.value[id] = (data?.fields ?? []).filter((f: any) => !REF_LABEL_SKIP.includes(f.input_type))
+}
+const colRefFields = (id: number | null | undefined) => (id ? colRefFieldsMap.value[id] || [] : [])
 const onColTypeChange = (col: TableColumn) => {
+    // drop config that belongs to a different type so switching type never leaves stale settings
+    if (col.input_type !== 'formula') { col.formula = null; col.result_type = null }
+    if (col.input_type !== 'reference') { col.target_definition_id = null; col.label_field = null }
     if (colHasOptions(col) && !(col.options && col.options.length)) col.options = ['選択肢1']
+    if (col.input_type === 'formula' && !col.result_type) col.result_type = 'number'
+    if (col.input_type === 'reference') { loadRefApps(); loadColRefFields(col.target_definition_id) }
+}
+const onColRefTarget = (col: TableColumn) => {
+    col.label_field = null
+    loadColRefFields(col.target_definition_id)
 }
 const setColOption = (col: TableColumn, oi: number, val: string) => { if (col.options) col.options[oi] = val }
 const addColOption = (col: TableColumn) => {
@@ -412,6 +463,7 @@ const removeColOption = (col: TableColumn, oi: number) => col.options?.splice(oi
 .sw::after { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
 .sw.on::after { left: 18px; }
 .sremove { border: none; background: none; color: gray; cursor: pointer; padding: 4px; display: flex; }
+.tcol-cfg { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--calendarBorder); }
 .flow-ghost-btn { background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; width: fit-content; }
 .formula-area { width: 100%; min-height: 64px; font-family: ui-monospace, monospace; font-size: 13px; resize: vertical; }
 .def-checks { display: flex; flex-direction: column; gap: 7px; }

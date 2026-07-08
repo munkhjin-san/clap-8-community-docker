@@ -838,7 +838,61 @@ class FlowService
             $out[(string) $field->id] = $this->castFormulaResult($result, $field->result_type ?? 'number');
         }
 
+        // Per-row calculated columns inside table fields. Variables resolve against the row's own
+        // cells first (by column key/label), then fall back to top-level field values.
+        $this->computeTableCalcColumns($fields, $out);
+
         return $out;
+    }
+
+    /** Fill in formula columns of each table field's rows (compute-on-read, like top-level formulas). */
+    private function computeTableCalcColumns($fields, array &$out): void
+    {
+        $topContext = $this->formulaContext($fields, $out);
+        $evaluator = app(FlowFormulaEvaluator::class);
+
+        foreach ($fields as $field) {
+            if ($field->input_type !== 'table') {
+                continue;
+            }
+            $validation = is_array($field->validation) ? $field->validation : [];
+            $columns = is_array($validation['columns'] ?? null) ? $validation['columns'] : [];
+            $calcCols = array_filter($columns, fn ($c) => ($c['input_type'] ?? '') === 'formula');
+            if (empty($calcCols)) {
+                continue;
+            }
+            $rows = $out[(string) $field->id] ?? [];
+            if (!is_array($rows)) {
+                continue;
+            }
+            foreach ($rows as $ri => $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $rowContext = $topContext;
+                foreach ($columns as $c) {
+                    $ck = $c['key'] ?? null;
+                    if (!$ck) {
+                        continue;
+                    }
+                    $cell = $row[$ck] ?? null;
+                    $rowContext[$ck] = $cell;
+                    if (!empty($c['label'])) {
+                        $rowContext[$c['label']] = $cell;
+                    }
+                }
+                foreach ($calcCols as $c) {
+                    $ck = $c['key'] ?? null;
+                    if (!$ck) {
+                        continue;
+                    }
+                    $result = $evaluator->evaluate($c['formula'] ?? '', $rowContext);
+                    $row[$ck] = $this->castFormulaResult($result, $c['result_type'] ?? 'number');
+                }
+                $rows[$ri] = $row;
+            }
+            $out[(string) $field->id] = $rows;
+        }
     }
 
     public function formulaContext($fields, array $values): array
@@ -903,6 +957,10 @@ class FlowService
                 if (!$key) {
                     continue;
                 }
+                // formula columns are derived on read, never persisted from input
+                if (($col['input_type'] ?? null) === 'formula') {
+                    continue;
+                }
                 $clean[$key] = $this->coerceCellValue($col['input_type'] ?? 'short', $row[$key] ?? null);
             }
             $out[] = $clean;
@@ -932,6 +990,7 @@ class FlowService
             'toggle' => $this->booleanValue($raw),
             'checkbox', 'file' => $this->arrayValue($raw),
             'user', 'member' => $this->userIdArrayValue($raw),
+            'reference' => $this->referenceValue($raw),
             default => ($raw === null || $raw === '') ? null : (is_scalar($raw) ? (string) $raw : $raw),
         };
     }

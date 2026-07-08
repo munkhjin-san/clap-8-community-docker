@@ -49,6 +49,12 @@ export interface TableColumn {
     validation?: FlowFieldValidation | null
     required?: boolean
     width?: number
+    /** formula column: the expression; variables are sibling column keys (+ top-level field keys). */
+    formula?: string | null
+    result_type?: 'number' | 'text' | 'toggle' | null
+    /** reference column: target app + label field (mirrors the top-level reference field config). */
+    target_definition_id?: number | null
+    label_field?: string | null
 }
 
 export interface FlowField {
