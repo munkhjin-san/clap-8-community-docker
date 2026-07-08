@@ -32,7 +32,8 @@
                     >
                         <template #title="{ expanded }">
                             <PanelTitle :expanded="expanded">
-                                <div class="overflow-hidden whitespace-nowrap text-ellipsis">{{ form.title }}</div>
+                                <div class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5"></div>
+                                {{ form.title }}
                             </PanelTitle>
                         </template>
                         <template #body>
