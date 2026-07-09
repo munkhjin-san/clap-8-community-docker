@@ -800,13 +800,10 @@ class PaidLeaveLedgerService
             ->whereNotIn('name', $hiddenNames)
             ->whereNotIn('position_id', $excludedPositions)
             ->with(['paidLeaveAccount.grants' => function ($query) {
-                $query->where(function ($inner) {
-                        $inner->where('planned_required_minutes', '>', 0)
-                            ->orWhere('grant_type', PaidLeaveGrant::TYPE_ANNUAL);
-                    })
+                $query->where('grant_type', PaidLeaveGrant::TYPE_ANNUAL)
                     ->orderBy('granted_at');
             }])
-            ->select('id', 'name', 'position_id', 'user_code', 'joined_date')
+            ->select('id', 'name', 'position_id', 'user_code', 'joined_date', 'work_time_day')
             ->orderBy('name')
             ->get()
             ->map(function (User $user) use ($policy, $year) {
@@ -1047,7 +1044,7 @@ class PaidLeaveLedgerService
                 'amount_minutes' => (int) $grant->amount_minutes,
                 'remaining_days' => $this->minutesToDays((int) $grant->remaining_minutes, $minutesPerDay),
                 'remaining_minutes' => (int) $grant->remaining_minutes,
-                'planned_required_days' => $this->plannedRequiredDaysForGrant($grant, $minutesPerDay),
+                'planned_required_days' => $this->plannedRequiredDaysForGrant($grant),
                 'source_system' => $grant->source_system,
                 'note' => $grant->note,
             ])->values(),
@@ -1126,29 +1123,6 @@ class PaidLeaveLedgerService
             ->get();
     }
 
-    private function plannedRequiredMinutesForGrant(PaidLeaveGrant $grant): int
-    {
-        if ($grant->grant_type === PaidLeaveGrant::TYPE_ANNUAL && (float) $grant->grant_days > 0) {
-            $minutesPerDay = (int) round(((int) $grant->amount_minutes) / max(1, (float) $grant->grant_days));
-
-            return $this->daysToMinutes(
-                $this->plannedRequiredDaysForGrantDays((float) $grant->grant_days),
-                max(1, $minutesPerDay)
-            );
-        }
-
-        $storedMinutes = (int) ($grant->planned_required_minutes ?? 0);
-        if ($storedMinutes > 0) {
-            return $storedMinutes;
-        }
-
-        if ($grant->grant_type === PaidLeaveGrant::TYPE_ANNUAL && (int) $grant->amount_minutes > 0) {
-            return (int) floor(((int) $grant->amount_minutes) / 2);
-        }
-
-        return 0;
-    }
-
     private function plannedRequiredMinutesForGrantDays(float $grantDays, int $minutesPerDay): int
     {
         $requiredDays = $this->plannedRequiredDaysForGrantDays($grantDays);
@@ -1156,22 +1130,9 @@ class PaidLeaveLedgerService
         return $requiredDays > 0 ? $this->daysToMinutes($requiredDays, $minutesPerDay) : 0;
     }
 
-    private function plannedRequiredDaysForGrant(PaidLeaveGrant $grant, int $minutesPerDay): float
+    private function plannedRequiredDaysForGrant(PaidLeaveGrant $grant): int
     {
-        if ($grant->grant_type === PaidLeaveGrant::TYPE_ANNUAL && (float) $grant->grant_days > 0) {
-            return $this->plannedRequiredDaysForGrantDays((float) $grant->grant_days);
-        }
-
-        $storedMinutes = (int) ($grant->planned_required_minutes ?? 0);
-        if ($storedMinutes > 0) {
-            return $this->minutesToDays($storedMinutes, $minutesPerDay);
-        }
-
-        if ((int) $grant->amount_minutes > 0) {
-            return $this->minutesToDays((int) floor(((int) $grant->amount_minutes) / 2), $minutesPerDay);
-        }
-
-        return 0;
+        return $this->plannedRequiredDaysForGrantDays((float) $grant->grant_days);
     }
 
     private function plannedRequiredDaysForGrantDays(float $grantDays): int
@@ -1229,12 +1190,8 @@ class PaidLeaveLedgerService
                 continue;
             }
 
-            $minutesPerDay = $this->minutesPerLeaveDayForUser($user, $policy);
-            $requiredMinutes = $this->daysToMinutes(
-                $this->plannedRequiredDaysForGrant($grant, $minutesPerDay),
-                $minutesPerDay
-            );
-            if ($requiredMinutes <= 0) {
+            $requiredDays = $this->plannedRequiredDaysForGrant($grant);
+            if ($requiredDays <= 0) {
                 continue;
             }
 
@@ -1258,7 +1215,7 @@ class PaidLeaveLedgerService
                 user: $user,
                 policy: $policy,
                 periodStart: $periodStart,
-                requiredMinutes: $requiredMinutes,
+                requiredDays: $requiredDays,
                 grantDays: (float) $grant->grant_days,
                 source: 'glowd',
                 asOf: $asOf,
@@ -1284,9 +1241,8 @@ class PaidLeaveLedgerService
                     continue;
                 }
 
-                $minutesPerDay = $this->minutesPerLeaveDayForAccount($account, $policy);
-                $requiredMinutes = $this->plannedRequiredMinutesForGrantDays((float) $grantDays, $minutesPerDay);
-                if ($requiredMinutes <= 0) {
+                $requiredDays = $this->plannedRequiredDaysForGrantDays((float) $grantDays);
+                if ($requiredDays <= 0) {
                     continue;
                 }
 
@@ -1305,7 +1261,7 @@ class PaidLeaveLedgerService
                     user: $user,
                     policy: $policy,
                     periodStart: $periodStart,
-                    requiredMinutes: $requiredMinutes,
+                    requiredDays: $requiredDays,
                     grantDays: (float) $grantDays,
                     source: 'expected',
                     asOf: $asOf,
@@ -1435,14 +1391,13 @@ class PaidLeaveLedgerService
             return null;
         }
 
-        $minutesPerDay = $this->minutesPerLeaveDayForUser($user, $policy);
         $requiredDays = (float) ($legacyTemp->planned_days ?? 0);
 
         return $this->plannedLeavePeriodPayload(
             user: $user,
             policy: $policy,
             periodStart: Carbon::parse($legacyTemp->date)->startOfDay(),
-            requiredMinutes: $this->daysToMinutes($requiredDays, $minutesPerDay),
+            requiredDays: $requiredDays,
             grantDays: $requiredDays * 2,
             source: 'legacy',
             asOf: $asOf,
@@ -1454,7 +1409,7 @@ class PaidLeaveLedgerService
         User $user,
         PaidLeavePolicy $policy,
         Carbon $periodStart,
-        int $requiredMinutes,
+        float $requiredDays,
         ?float $grantDays,
         string $source,
         Carbon $asOf,
@@ -1470,11 +1425,10 @@ class PaidLeaveLedgerService
         $minutesPerDay = $this->minutesPerLeaveDayForUser($user, $policy);
         $plannedYear = (int) $periodStart->year;
         $plannedShifts = $this->plannedShiftsForPeriod((int) $user->id, $shiftWindowStart, $shiftWindowEnd, $plannedYear);
-        $plannedMinutes = $plannedShifts->count() * $minutesPerDay;
         $planningAllowedFrom = $this->plannedLeavePlanningAllowedFrom($periodStart);
-        $plannedRequiredDays = $this->minutesToDays($requiredMinutes, $minutesPerDay);
-        $plannedDays = $this->minutesToDays($plannedMinutes, $minutesPerDay);
-        $plannedRemainingDays = $this->minutesToDays(max(0, $requiredMinutes - $plannedMinutes), $minutesPerDay);
+        $plannedRequiredDays = $requiredDays;
+        $plannedDays = (float) $plannedShifts->count();
+        $plannedRemainingDays = max(0, $plannedRequiredDays - $plannedDays);
         $periodId = $grant
             ? "grant:{$grant->id}"
             : ($legacyTemp ? "legacy:{$legacyTemp->id}" : "expected:{$user->id}:{$periodStart->toDateString()}");
@@ -1512,7 +1466,7 @@ class PaidLeaveLedgerService
             'planned_days' => $plannedDays,
             'planned_remaining_days' => $plannedRemainingDays,
             'shift_count' => $plannedShifts->count(),
-            'status' => $plannedMinutes >= $requiredMinutes ? 'ok' : 'short',
+            'status' => $plannedDays >= $plannedRequiredDays ? 'ok' : 'short',
             'shift_records' => $plannedShifts,
             'workTemp' => $workTemp,
         ];
