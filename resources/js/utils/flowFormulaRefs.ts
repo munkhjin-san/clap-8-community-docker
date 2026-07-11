@@ -72,7 +72,12 @@ export const renameInFormula = (
     const { bare = true, dotted = true } = opts
     const f = formula ?? ''
     const o = (oldName ?? '').trim()
-    if (!f || !o || o === (newName ?? '').trim()) return f
+    const n = (newName ?? '').trim()
+    if (!f || !o || o === n) return f
+    // A name with bracket/dot chars can't be written as a clean [ref] (dot would parse as
+    // table.column). Skip rather than emit a broken formula — such a field is unreferenceable
+    // anyway, and the editor will flag the now-stale reference.
+    if (/[[\].]/.test(n)) return f
     return f.replace(/\[([^\]]+)\]/g, (m, inner) => {
         const raw = String(inner).trim()
         const dot = raw.indexOf('.')

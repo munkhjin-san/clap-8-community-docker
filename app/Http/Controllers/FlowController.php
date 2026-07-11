@@ -550,13 +550,9 @@ class FlowController extends Controller
             if ($model) {
                 $model->fill($payload)->save();
             } else {
-                $definition->tools()->create($payload);
+                $model = $definition->tools()->create($payload);
             }
-            if ($model) {
-                $keptIds[] = $model->id;
-            } else {
-                $keptIds[] = $definition->tools()->latest('id')->value('id');
-            }
+            $keptIds[] = $model->id;
         }
         $definition->tools()->whereNotIn('id', $keptIds ?: [0])->delete();
     }
