@@ -30,6 +30,16 @@ class ZoomAccount extends Model
             && filled($this->client_secret);
     }
 
+    public function calendarOption(): array
+    {
+        return [
+            'label' => $this->label,
+            'value' => $this->slot,
+            'selected' => false,
+            'selectable' => $this->active,
+        ];
+    }
+
     public function adminPayload(): array
     {
         return [

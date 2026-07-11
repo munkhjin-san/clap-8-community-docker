@@ -31,6 +31,34 @@ class ZoomApiServiceTest extends TestCase
         $this->assertTrue($payload['webhook_secret_configured']);
     }
 
+    public function test_unconfigured_active_account_remains_selectable_in_calendar(): void
+    {
+        $account = new ZoomAccount([
+            'slot' => 1,
+            'label' => 'Zoom2',
+            'active' => true,
+        ]);
+
+        $this->assertFalse($account->isApiConfigured());
+        $this->assertSame([
+            'label' => 'Zoom2',
+            'value' => 1,
+            'selected' => false,
+            'selectable' => true,
+        ], $account->calendarOption());
+    }
+
+    public function test_inactive_account_remains_visible_but_not_selectable_in_calendar(): void
+    {
+        $account = new ZoomAccount([
+            'slot' => 2,
+            'label' => 'Zoom3',
+            'active' => false,
+        ]);
+
+        $this->assertFalse($account->calendarOption()['selectable']);
+    }
+
     public function test_access_token_is_requested_with_account_credentials_and_cached(): void
     {
         Http::fake([
