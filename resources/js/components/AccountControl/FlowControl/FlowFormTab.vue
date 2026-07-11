@@ -29,7 +29,7 @@
                 <span>フォーム本文</span>
                 <span class="text-[11px] text-gray-400">横にも並べられます · 右端をドラッグで幅調整</span>
             </div>
-            <div class="canvas" @dragover.prevent="onCanvasOver" @drop.prevent="commitDrop">
+            <div ref="canvasEl" class="canvas" @dragover.prevent="onCanvasOver" @drop.prevent="commitDrop">
                 <template v-for="(row, r) in rows" :key="r">
                     <div
                         class="rowsep"
@@ -92,9 +92,6 @@
                         <div class="ins-bar" v-if="isInsEnd(row)"></div>
                         <div class="row-tail"></div>
                     </div>
-                    <div v-if="isNarrow && current && rowHasSelected(row)" class="inline-insp">
-                        <FlowFieldInspector :field="current" :fields="allFields" v-model:columnKey="selectedColumnKey" />
-                    </div>
                 </template>
                 <div
                     class="rowsep last"
@@ -106,32 +103,51 @@
         </div>
 
         <div v-if="!isNarrow" class="insp-col">
-            <FlowFieldInspector v-if="current" :field="current" :fields="allFields" v-model:columnKey="selectedColumnKey" />
+            <FlowFieldInspector v-if="current" :field="current" :fields="allFields" :tools="def.tools" v-model:columnKey="selectedColumnKey" />
             <p v-else class="text-[12px] text-gray-400">項目を選択すると設定が表示されます。</p>
         </div>
+
+        <!-- mobile: field settings as a centred modal (tapping a field opens it) -->
+        <Modal v-if="isNarrow && current && mobileInspectorOpen" persist @close="closeMobileInspector">
+            <template #title>
+                <b class="ffm-modal-title"><FlowFieldIcon :type="current.input_type" :size="15" /> {{ typeLabel(current.input_type) }}の設定</b>
+            </template>
+            <template #content>
+                <FlowFieldInspector :field="current" :fields="allFields" :tools="def.tools" v-model:columnKey="selectedColumnKey" />
+                <div class="ffm-modal-foot">
+                    <button class="ffm-done" @click="closeMobileInspector">完了</button>
+                </div>
+            </template>
+        </Modal>
     </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { FLOW_FIELD_TYPES, FLOW_TYPE_LABEL, FLOW_FIELD_MIN_WIDTH, FLOW_FIELD_DEFAULT_WIDTH, isLayoutType } from '@/types/flow'
+import { FLOW_FIELD_TYPES, FLOW_TYPE_LABEL, FLOW_FIELD_MIN_WIDTH, defaultWidthFor, isLayoutType } from '@/types/flow'
 import type { BuilderDefinition, FlowField, FlowInputType } from '@/types/flow'
+import { referencingFormulas, referencedDeleteMessage, pdfToolsReferencingField } from '@/utils/flowFormulaRefs'
+import { useDialog } from '@/composables/dialog'
 import FlowFieldIcon from './FlowFieldIcon.vue'
 import FlowFieldInspector from './FlowFieldInspector.vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
+import Modal from '@/components/Global/Modal.vue'
 
 const props = defineProps<{ def: BuilderDefinition }>()
 
 const rows = ref<FlowField[][]>([])
+const canvasEl = ref<HTMLElement | null>(null)
 const selectedUid = ref<string | null>(null)
 const selectedColumnKey = ref<string | null>(null)
+const mobileInspectorOpen = ref(false) // narrow mode: field settings show as a centred modal
+const closeMobileInspector = () => { mobileInspectorOpen.value = false }
 let uidSeq = 0
 const nextUid = () => `fuid_${++uidSeq}`
 
 // select a field (clearing any column selection unless a column of it is explicitly chosen)
-const selectField = (uid: string | null) => { selectedUid.value = uid; selectedColumnKey.value = null }
+const selectField = (uid: string | null) => { selectedUid.value = uid; selectedColumnKey.value = null; if (isNarrow.value && uid) mobileInspectorOpen.value = true }
 // select a specific column inside a table field
-const selectColumn = (field: FlowField, key: string) => { selectedUid.value = field.uid || null; selectedColumnKey.value = key }
+const selectColumn = (field: FlowField, key: string) => { selectedUid.value = field.uid || null; selectedColumnKey.value = key; if (isNarrow.value) mobileInspectorOpen.value = true }
 // add a column to a table field from the canvas and select it
 const addTableColumn = (field: FlowField) => {
     if (!field.validation) field.validation = {}
@@ -152,7 +168,6 @@ const hasOptions = (t: string) => ['select', 'radio', 'checkbox'].includes(t)
 
 const current = computed<FlowField | null>(() => rows.value.flat().find((f) => f.uid === selectedUid.value) ?? null)
 const allFields = computed<FlowField[]>(() => rows.value.flat())
-const rowHasSelected = (row: FlowField[]) => row.some((f) => f.uid === selectedUid.value)
 
 const buildRows = () => {
     const map = new Map<number, FlowField[]>()
@@ -217,7 +232,7 @@ const makeField = (type: FlowInputType): FlowField => ({
     key: genKey(type),
     label: makeLabel(type),
     input_type: type,
-    width: type === 'table' ? 640 : FLOW_FIELD_DEFAULT_WIDTH,
+    width: defaultWidthFor(type),
     is_required: false,
     options: hasOptions(type) ? ['選択肢1', '選択肢2'] : null,
     validation: defaultValidation(type),
@@ -245,26 +260,64 @@ const previewText = (f: FlowField) => {
     return 'テキストを入力'
 }
 
+// place a new field on the last row if it fits the canvas width, otherwise start a new row
+const placeField = (field: FlowField) => {
+    const GAP = 14
+    const target = canvasEl.value?.clientWidth || 1000
+    const last = rows.value[rows.value.length - 1]
+    const fieldIsLayout = isLayoutType(field.input_type)
+    if (!fieldIsLayout && last && last.length && !last.some((f) => isLayoutType(f.input_type))) {
+        const used = last.reduce((s, f) => s + f.width + GAP, 0)
+        if (used + field.width <= target) { last.push(field); return }
+    }
+    rows.value.push([field])
+}
 const addByClick = (type: FlowInputType) => {
     const field = makeField(type)
-    rows.value.push([field])
+    placeField(field)
     sync()
     selectedUid.value = field.uid || null
 }
 const pickField = (type: FlowInputType) => {
     addByClick(type)
-    if (isNarrow.value) paletteOpen.value = false
+    if (isNarrow.value) { paletteOpen.value = false; mobileInspectorOpen.value = true }
 }
 const duplicate = (field: FlowField) => {
-    const copy: FlowField = { ...field, uid: nextUid(), id: undefined, key: genKey(field.input_type), options: field.options ? [...field.options] : null, validation: { ...(field.validation || {}) } }
+    // Deep-copy validation.columns (a shallow spread would share the array → editing the copy's
+    // columns mutates the original). Dedup the label so the copy doesn't hit the save-time
+    // uniqueness check; layout parts (見出し/ラベル) may keep their text.
+    const validation = { ...(field.validation || {}) }
+    if (Array.isArray(validation.columns)) {
+        validation.columns = validation.columns.map((c) => ({ ...c, options: c.options ? [...c.options] : c.options }))
+    }
+    const copy: FlowField = {
+        ...field,
+        uid: nextUid(),
+        id: undefined,
+        key: genKey(field.input_type),
+        label: isLayoutType(field.input_type) ? field.label : uniqueLabel(field.label),
+        options: field.options ? [...field.options] : null,
+        validation,
+    }
     for (const row of rows.value) {
         const i = row.indexOf(field)
         if (i >= 0) { row.splice(i + 1, 0, copy); break }
     }
     sync()
     selectedUid.value = copy.uid || null
+    if (isNarrow.value) mobileInspectorOpen.value = true
 }
-const remove = (field: FlowField) => {
+const dialog = useDialog()
+const remove = async (field: FlowField) => {
+    // Warn when another formula references this field — deleting would silently turn
+    // those results wrong (the dangling ref computes as 0). The user may still proceed.
+    const names = [field.key, field.label]
+    const prefixes = field.input_type === 'table' ? names : [] // a table delete also breaks [table.column] refs
+    const formulaHits = referencingFormulas(rows.value.flat(), names, prefixes, { fieldKey: field.key })
+    const pdfHits = pdfToolsReferencingField(props.def.tools, field.key)
+    if ((formulaHits.length || pdfHits.length)
+        && !(await dialog.ask(referencedDeleteMessage(field.label || field.key, formulaHits, pdfHits))).value) return
+
     removeFromRows(field)
     if (selectedUid.value === field.uid) selectedUid.value = rows.value.flat()[0]?.uid ?? null
     sync()
@@ -388,8 +441,9 @@ onUnmounted(() => {
 .palette { display: flex; flex-direction: column; position: sticky; top: 0; align-self: start; }
 .pal-toggle { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; font-size: 13px; font-weight: 500; cursor: pointer; }
 .pal-caret { color: gray; font-size: 11px; }
-.flow-form-tab.narrow .palette { position: static; align-self: stretch; border: 1px solid var(--calendarBorder); border-radius: 8px; background: var(--background-color); }
-.flow-form-tab.narrow .pal-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; padding: 0 12px 12px; max-height: 46vh; overflow-y: auto; }
+.flow-form-tab.narrow .palette { position: relative; align-self: stretch; border: 1px solid var(--calendarBorder); border-radius: 8px; background: var(--background-color); z-index: 30; }
+/* the expanded picker floats over the canvas instead of pushing the work bench down */
+.flow-form-tab.narrow .pal-groups { position: absolute; top: calc(100% + 4px); left: 0; right: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; padding: 12px; max-height: 60vh; overflow-y: auto; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,.22); }
 .flow-form-tab.narrow .pal-sec { grid-column: 1 / -1; margin: 8px 2px 0; }
 .flow-form-tab.narrow .pal-hint { grid-column: 1 / -1; }
 .flow-form-tab.narrow .chip { margin-bottom: 0; }
@@ -445,7 +499,9 @@ onUnmounted(() => {
 .fresize { position: absolute; top: 0; right: 0; width: 8px; height: 100%; cursor: ew-resize; border-radius: 0 6px 6px 0; }
 .field:hover .fresize, .field.sel .fresize { background: var(--primary-color); opacity: 0.25; }
 .fresize:hover { opacity: 0.5 !important; }
-.inline-insp { background: var(--background-color); border: 1px solid var(--primary-color); border-radius: 8px; padding: 14px; margin: 6px 0; }
 .drop { border: 1.5px dashed var(--formBorder); border-radius: 6px; padding: 30px; text-align: center; font-size: 12px; color: gray; }
 .insp-col { position: sticky; top: 0; align-self: start; max-height: calc(100vh - 150px); overflow: auto; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 12px; padding: 14px; }
+.ffm-modal-title { display: inline-flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 600; }
+.ffm-modal-foot { display: flex; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--calendarBorder); }
+.ffm-done { border: none; background: var(--primary-button, var(--primary-color)); color: #fff; border-radius: 7px; padding: 8px 24px; font-size: 13px; cursor: pointer; }
 </style>

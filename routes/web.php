@@ -986,6 +986,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/flow_app_record_create', [FlowController::class, 'storeAppRecord']);
         Route::post('/flow_app_record_update', [FlowController::class, 'updateAppRecord']);
         Route::post('/flow_app_record_delete', [FlowController::class, 'deleteAppRecord']);
+        Route::post('/flow_app_truncate/{id}', [FlowController::class, 'truncateAppRecords']);
+        Route::get('/flow_tool_pdf/{toolId}/{recordId}', [FlowController::class, 'renderToolPdf']);
+        Route::post('/flow_tool_pdf_preview', [FlowController::class, 'previewToolPdf']);
         Route::post('/flow_app_record_transition', [FlowController::class, 'transitionAppRecord']);
         Route::post('/flow_formula_preview', [FlowController::class, 'previewFormula']);
         Route::get('/flow_app_export/{definition}', [FlowController::class, 'exportRecords']);

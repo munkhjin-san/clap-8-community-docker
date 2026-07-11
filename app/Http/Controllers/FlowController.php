@@ -2,25 +2,26 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\FlowAppTool;
 use App\Models\FlowDefinition;
 use App\Models\FlowField;
 use App\Models\FlowRecord;
-use App\Models\FlowStatus;
-use App\Models\FlowView;
 use App\Models\positionRecord;
+use App\Models\ProjectRecord;
 use App\Models\User;
 use App\Services\FlowFormulaEvaluator;
 use App\Services\FlowService;
+use App\Services\KintoneImportService;
+use App\Services\PdfRenderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Mpdf\Output\Destination;
 
 class FlowController extends Controller
 {
-    public function __construct(private FlowService $flowService)
-    {
-    }
+    public function __construct(private FlowService $flowService) {}
 
     private function active_user()
     {
@@ -47,7 +48,7 @@ class FlowController extends Controller
 
         return FlowDefinition::query()
             ->when($projectId, fn ($q) => $q->where('project_record_id', $projectId))
-            ->when(!$projectId, fn ($q) => $q->whereNull('project_record_id'))
+            ->when(! $projectId, fn ($q) => $q->whereNull('project_record_id'))
             ->with(['creator', 'appPermissions'])
             ->withCount(['fields', 'statuses', 'records'])
             ->orderByDesc('created_at')
@@ -59,6 +60,7 @@ class FlowController extends Controller
                     fn ($p) => $p->subject_type === 'everyone' && $p->can_view
                 ));
                 $d->setAttribute('pinned', $pinned->has($d->id));
+
                 return $d->makeHidden('appPermissions');
             })
             ->values();
@@ -83,6 +85,7 @@ class FlowController extends Controller
                 ->where('flow_definition_id', $data['flow_definition_id'])
                 ->delete();
         }
+
         return response()->json(['ok' => true]);
     }
 
@@ -91,6 +94,7 @@ class FlowController extends Controller
     {
         $user = $this->active_user();
         $row = DB::table('flow_portal_prefs')->where('user_id', $user->id)->first();
+
         return response()->json([
             'density' => $row->density ?? 'normal',
             'sort' => $row->sort ?? 'created_desc',
@@ -108,6 +112,7 @@ class FlowController extends Controller
             ['user_id' => $user->id],
             ['density' => $data['density'] ?? 'normal', 'sort' => $data['sort'] ?? 'created_desc', 'updated_at' => now()],
         );
+
         return response()->json(['ok' => true]);
     }
 
@@ -116,12 +121,104 @@ class FlowController extends Controller
         $user = $this->active_user();
 
         $definition = FlowDefinition::query()
-            ->with(['fields', 'statuses.fieldRules', 'statusActions', 'appPermissions', 'recordPermissionSets', 'fieldPermissions', 'views'])
+            ->with(['fields', 'statuses.fieldRules', 'statusActions', 'appPermissions', 'recordPermissionSets', 'fieldPermissions', 'views', 'tools'])
             ->findOrFail($id);
 
         abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['manage'], 403);
 
+        // expose the current user's effective app permissions (builder uses this to show the
+        // bulk-truncate action only to those granted 一括処理).
+        $definition->setAttribute('my_permissions', $this->flowService->effectiveAppPermissions($user, $definition));
+
         return response()->json($definition);
+    }
+
+    /** Delete ALL records of an app and reset its numbering to 1. Gated by 一括処理 (bulk). */
+    public function truncateAppRecords($id)
+    {
+        $user = $this->active_user();
+        $definition = FlowDefinition::with('appPermissions')->findOrFail($id);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['bulk'], 403);
+
+        $count = DB::transaction(function () use ($definition) {
+            $ids = FlowRecord::withTrashed()->where('flow_definition_id', $definition->id)->pluck('id');
+            $n = $ids->count();
+            if ($ids->isNotEmpty()) {
+                DB::table('flow_record_values')->whereIn('flow_record_id', $ids)->delete();
+                DB::table('flow_record_assignees')->whereIn('flow_record_id', $ids)->delete();
+                DB::table('app_comments')
+                    ->whereIn('commentable_id', $ids)
+                    ->whereIn('commentable_type', [FlowRecord::class, 'flow_record'])
+                    ->delete();
+                // hard delete: soft-deleted rows would keep the (definition, record_number) unique slot
+                FlowRecord::withTrashed()->whereIn('id', $ids)->forceDelete();
+            }
+            // reset the per-app sequence so the next record is #1
+            DB::table('flow_definitions')->where('id', $definition->id)->update(['record_seq' => 0]);
+
+            return $n;
+        });
+
+        return response()->json(['ok' => true, 'deleted' => $count]);
+    }
+
+    /** Render a saved PDF tool for one record and stream it (download or inline). */
+    public function renderToolPdf(Request $request, $toolId, $recordId)
+    {
+        $user = $this->active_user();
+        $tool = FlowAppTool::findOrFail($toolId);
+        $definition = FlowDefinition::with(['fields', 'appPermissions', 'recordPermissionSets'])->findOrFail($tool->flow_definition_id);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['view'], 403);
+
+        $record = FlowRecord::with('values')->where('flow_definition_id', $definition->id)->findOrFail($recordId);
+        abort_unless($this->flowService->recordPermissions($user, $record, $definition)['view'], 403);
+
+        $mpdf = app(PdfRenderService::class)->render($definition, $record, $tool->config ?? []);
+        $name = $this->pdfFilename($tool, $definition, $record);
+        $inline = $request->boolean('inline');
+
+        return response($mpdf->Output($name, Destination::STRING_RETURN), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => ($inline ? 'inline' : 'attachment').'; filename="'.rawurlencode($name).'"',
+        ]);
+    }
+
+    /** Preview an unsaved template (builder designer) against a real record — inline PDF. */
+    public function previewToolPdf(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate([
+            'flow_definition_id' => 'required|integer',
+            'config' => 'required|array',
+            'record_id' => 'nullable|integer',
+        ]);
+        $definition = FlowDefinition::with(['fields', 'appPermissions', 'recordPermissionSets'])->findOrFail($data['flow_definition_id']);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['manage'], 403);
+
+        $record = FlowRecord::with('values')->where('flow_definition_id', $definition->id)
+            ->when(! empty($data['record_id']), fn ($q) => $q->whereKey($data['record_id']))
+            ->orderByDesc('id')->first();
+        abort_unless($record !== null, 422, 'プレビュー用のレコードがありません。まずレコードを1件作成してください。');
+
+        $mpdf = app(PdfRenderService::class)->render($definition, $record, $data['config']);
+
+        return response($mpdf->Output('preview.pdf', Destination::STRING_RETURN), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="preview.pdf"',
+        ]);
+    }
+
+    private function pdfFilename(FlowAppTool $tool, FlowDefinition $definition, FlowRecord $record): string
+    {
+        $pattern = $tool->config['filename'] ?? ($tool->name.'_{seq}');
+        $name = strtr($pattern, [
+            '{seq}' => (string) ($record->record_seq ?? $record->id),
+            '{id}' => (string) $record->id,
+            '{app}' => (string) $definition->name,
+        ]);
+        $name = preg_replace('/[\/\\\\:*?"<>|]/', '_', $name);
+
+        return ($name ?: 'document').'.pdf';
     }
 
     /**
@@ -144,7 +241,7 @@ class FlowController extends Controller
     }
 
     /** Preview a kintone app's config + form fields mapped to our ワークフロー schema (no writes). */
-    public function kintonePreview(Request $request, \App\Services\KintoneImportService $kintone)
+    public function kintonePreview(Request $request, KintoneImportService $kintone)
     {
         $this->active_user();
         $data = $request->validate(['app_id' => 'required|integer|min:1']);
@@ -153,6 +250,7 @@ class FlowController extends Controller
             return response()->json($kintone->preview($data['app_id']));
         } catch (\Throwable $e) {
             report($e);
+
             return response()->json(['message' => 'kintoneアプリの取得に失敗しました。アプリIDと接続設定をご確認ください。'], 422);
         }
     }
@@ -191,6 +289,8 @@ class FlowController extends Controller
             'statuses.*.key' => 'required|string|max:255',
             'statuses.*.name' => 'required|string|max:255',
             'statuses.*.is_initial' => 'boolean',
+            'statuses.*.ui_x' => 'nullable|integer',
+            'statuses.*.ui_y' => 'nullable|integer',
             'statuses.*.field_rules' => 'array',
             'statuses.*.field_rules.*.field_key' => 'required|string',
             'statuses.*.field_rules.*.rule' => 'required|in:edit,read,hide',
@@ -212,6 +312,7 @@ class FlowController extends Controller
             'app_permissions.*.can_manage' => 'boolean',
             'app_permissions.*.can_import' => 'boolean',
             'app_permissions.*.can_export' => 'boolean',
+            'app_permissions.*.can_bulk' => 'boolean',
             'app_permissions.*.sort_order' => 'integer',
             'record_permissions' => 'array',
             'record_permissions.*.match_mode' => 'nullable|in:all,any',
@@ -230,6 +331,12 @@ class FlowController extends Controller
             'views.*.columns' => 'nullable|array',
             'views.*.filters' => 'nullable|array',
             'views.*.sort' => 'nullable|array',
+            'tools' => 'array',
+            'tools.*.id' => 'nullable|integer',
+            'tools.*.tool_type' => 'required|string|max:50',
+            'tools.*.name' => 'required|string|max:255',
+            'tools.*.config' => 'nullable|array',
+            'tools.*.is_active' => 'boolean',
         ]);
 
         // Field keys are identifiers (referenced by formulas, status field-rules, view columns),
@@ -237,6 +344,7 @@ class FlowController extends Controller
         $keys = array_map(fn ($f) => $f['key'], $data['fields'] ?? []);
         if (count($keys) !== count(array_unique($keys))) {
             $dup = collect($keys)->duplicates()->first();
+
             return response()->json(['message' => "フィールドキー「{$dup}」が重複しています。キーはアプリ内で一意にしてください。"], 422);
         }
 
@@ -246,7 +354,7 @@ class FlowController extends Controller
         }
 
         $definition = DB::transaction(function () use ($data, $user) {
-            $isNew = !isset($data['id']);
+            $isNew = ! isset($data['id']);
             $definition = $isNew
                 ? new FlowDefinition(['created_by' => $user->id])
                 : FlowDefinition::findOrFail($data['id']);
@@ -285,6 +393,10 @@ class FlowController extends Controller
             }
             $this->ensureDefaultView($definition, $user);
 
+            if (array_key_exists('tools', $data)) {
+                $this->syncTools($definition, $data['tools']);
+            }
+
             return $definition;
         });
 
@@ -299,6 +411,7 @@ class FlowController extends Controller
             'subject_id' => null,
             'can_view' => true, 'can_add' => true, 'can_edit' => true, 'can_delete' => true,
             'can_manage' => true, 'can_import' => true, 'can_export' => true,
+            'can_bulk' => true,
             'sort_order' => 0,
         ]);
     }
@@ -310,13 +423,14 @@ class FlowController extends Controller
             $definition->appPermissions()->create([
                 'subject_type' => $r['subject_type'],
                 'subject_id' => $r['subject_id'] ?? null,
-                'can_view' => !empty($r['can_view']),
-                'can_add' => !empty($r['can_add']),
-                'can_edit' => !empty($r['can_edit']),
-                'can_delete' => !empty($r['can_delete']),
-                'can_manage' => !empty($r['can_manage']),
-                'can_import' => !empty($r['can_import']),
-                'can_export' => !empty($r['can_export']),
+                'can_view' => ! empty($r['can_view']),
+                'can_add' => ! empty($r['can_add']),
+                'can_edit' => ! empty($r['can_edit']),
+                'can_delete' => ! empty($r['can_delete']),
+                'can_manage' => ! empty($r['can_manage']),
+                'can_import' => ! empty($r['can_import']),
+                'can_export' => ! empty($r['can_export']),
+                'can_bulk' => ! empty($r['can_bulk']),
                 'sort_order' => $r['sort_order'] ?? $i,
             ]);
         }
@@ -332,6 +446,7 @@ class FlowController extends Controller
             'subject_id' => null,
             'can_view' => true, 'can_add' => true, 'can_edit' => true, 'can_delete' => true,
             'can_manage' => true, 'can_import' => true, 'can_export' => true,
+            'can_bulk' => true,
             'sort_order' => 0,
         ]);
     }
@@ -363,9 +478,9 @@ class FlowController extends Controller
                 $set->grants()->create([
                     'subject_type' => $g['subject_type'],
                     'subject_id' => $g['subject_id'] ?? null,
-                    'can_view' => !empty($g['can_view']),
-                    'can_edit' => !empty($g['can_edit']),
-                    'can_delete' => !empty($g['can_delete']),
+                    'can_view' => ! empty($g['can_view']),
+                    'can_edit' => ! empty($g['can_edit']),
+                    'can_delete' => ! empty($g['can_delete']),
                     'sort_order' => $gi,
                 ]);
             }
@@ -380,8 +495,8 @@ class FlowController extends Controller
                 'field_id' => $r['field_id'],
                 'subject_type' => $r['subject_type'],
                 'subject_id' => $r['subject_id'] ?? null,
-                'can_view' => !empty($r['can_view']),
-                'can_edit' => !empty($r['can_edit']),
+                'can_view' => ! empty($r['can_view']),
+                'can_edit' => ! empty($r['can_edit']),
                 'sort_order' => $i,
             ]);
         }
@@ -393,11 +508,11 @@ class FlowController extends Controller
         $keptIds = [];
         $hasDefault = false;
         foreach (array_values($views) as $v) {
-            $model = !empty($v['id'])
+            $model = ! empty($v['id'])
                 ? ($definition->views()->whereKey($v['id'])->first() ?? $definition->views()->make())
                 : $definition->views()->make();
 
-            $default = !empty($v['is_default']) && !$hasDefault;
+            $default = ! empty($v['is_default']) && ! $hasDefault;
             if ($default) {
                 $hasDefault = true;
             }
@@ -409,7 +524,7 @@ class FlowController extends Controller
                 'filters' => $v['filters'] ?? null,
                 'sort' => $v['sort'] ?? null,
             ]);
-            if (!$model->created_by) {
+            if (! $model->created_by) {
                 $model->created_by = $user->id;
             }
             $model->flow_definition_id = $definition->id;
@@ -417,6 +532,29 @@ class FlowController extends Controller
             $keptIds[] = $model->id;
         }
         $definition->views()->whereNotIn('id', $keptIds ?: [0])->delete();
+    }
+
+    /** Upsert the app's tools (PDF etc.); config is a free-form JSON blob per tool type. */
+    private function syncTools(FlowDefinition $definition, array $tools): void
+    {
+        $keptIds = [];
+        foreach (array_values($tools) as $i => $t) {
+            $payload = [
+                'tool_type' => $t['tool_type'] ?? 'pdf',
+                'name' => $t['name'] ?? 'ツール',
+                'config' => $t['config'] ?? [],
+                'is_active' => $t['is_active'] ?? true,
+                'sort_order' => $i,
+            ];
+            $model = ! empty($t['id']) ? $definition->tools()->whereKey($t['id'])->first() : null;
+            if ($model) {
+                $model->fill($payload)->save();
+            } else {
+                $model = $definition->tools()->create($payload);
+            }
+            $keptIds[] = $model->id;
+        }
+        $definition->tools()->whereNotIn('id', $keptIds ?: [0])->delete();
     }
 
     /** An app is never view-less: seed 「すべて」 (all columns) if empty, and guarantee one default. */
@@ -432,9 +570,10 @@ class FlowController extends Controller
                 'sort' => null,
                 'created_by' => $user->id ?? null,
             ]);
+
             return;
         }
-        if (!$definition->views()->where('is_default', true)->exists()) {
+        if (! $definition->views()->where('is_default', true)->exists()) {
             $definition->views()->orderBy('id')->first()?->update(['is_default' => true]);
         }
     }
@@ -462,14 +601,14 @@ class FlowController extends Controller
                 'result_type' => $field['result_type'] ?? null,
             ];
 
-            $model = !empty($field['id'])
+            $model = ! empty($field['id'])
                 ? tap($definition->fields()->whereKey($field['id'])->first())?->fill($payload)
                 : $definition->fields()->make($payload);
 
-            if (!$model) {
+            if (! $model) {
                 $model = $definition->fields()->make($payload);
             }
-            if (!$model->flow_definition_id) {
+            if (! $model->flow_definition_id) {
                 $model->flow_definition_id = $definition->id;
             }
             $model->save();
@@ -491,7 +630,7 @@ class FlowController extends Controller
         $hasInitial = false;
 
         foreach (array_values($statuses) as $index => $status) {
-            $initial = !empty($status['is_initial']) && !$hasInitial;
+            $initial = ! empty($status['is_initial']) && ! $hasInitial;
             if ($initial) {
                 $hasInitial = true;
             }
@@ -499,9 +638,11 @@ class FlowController extends Controller
                 'name' => $status['name'],
                 'order_number' => $index,
                 'is_initial' => $initial,
+                'ui_x' => $status['ui_x'] ?? null,
+                'ui_y' => $status['ui_y'] ?? null,
             ];
 
-            $model = !empty($status['id'])
+            $model = ! empty($status['id'])
                 ? $definition->statuses()->whereKey($status['id'])->first()
                 : null;
 
@@ -512,7 +653,7 @@ class FlowController extends Controller
             }
 
             $keptIds[] = $model->id;
-            if (!empty($status['key'])) {
+            if (! empty($status['key'])) {
                 $statusKeyToId[$status['key']] = $model->id;
             }
 
@@ -526,7 +667,7 @@ class FlowController extends Controller
         }
 
         // Guarantee exactly one initial status when any exist.
-        if (!$hasInitial && !empty($keptIds)) {
+        if (! $hasInitial && ! empty($keptIds)) {
             $definition->statuses()->whereKey($keptIds[0])->update(['is_initial' => true]);
         }
 
@@ -546,7 +687,7 @@ class FlowController extends Controller
         foreach (array_values($actions) as $i => $a) {
             $fromId = $statusKeyToId[$a['from_status_key']] ?? null;
             $toId = $statusKeyToId[$a['to_status_key']] ?? null;
-            if (!$fromId || !$toId) {
+            if (! $fromId || ! $toId) {
                 continue; // orphaned reference (status removed) → skip
             }
             $payload = [
@@ -559,7 +700,7 @@ class FlowController extends Controller
                 'eligible' => $a['eligible'] ?? [],
                 'sort_order' => $i,
             ];
-            $model = !empty($a['id']) ? $definition->statusActions()->whereKey($a['id'])->first() : null;
+            $model = ! empty($a['id']) ? $definition->statusActions()->whereKey($a['id'])->first() : null;
             if ($model) {
                 $model->fill($payload)->save();
             } else {
@@ -612,7 +753,7 @@ class FlowController extends Controller
                 ->select('id', 'name')
                 ->orderBy('sort_flag')
                 ->get(),
-            'projects' => \App\Models\ProjectRecord::query()
+            'projects' => ProjectRecord::query()
                 ->select('id', 'name')
                 ->orderByDesc('id')
                 ->get(),
@@ -641,7 +782,7 @@ class FlowController extends Controller
                 ->get();
             foreach ($records as $rec) {
                 $rec->setRelation('definition', $def);
-                if (!$this->flowService->recordPermissions($user, $rec, $def)['view']) {
+                if (! $this->flowService->recordPermissions($user, $rec, $def)['view']) {
                     continue;
                 }
                 if ($this->flowService->hasPendingAction($user, $rec)) {
@@ -668,7 +809,7 @@ class FlowController extends Controller
     public function getAppRecords(Request $request, $definitionId)
     {
         $user = $this->active_user();
-        $definition = FlowDefinition::with(['fields', 'statuses', 'appPermissions', 'recordPermissionSets'])->findOrFail($definitionId);
+        $definition = FlowDefinition::with(['fields', 'statuses', 'appPermissions', 'recordPermissionSets', 'tools' => fn ($q) => $q->where('is_active', true)])->findOrFail($definitionId);
         $app = $this->flowService->effectiveAppPermissions($user, $definition);
         abort_unless($app['view'], 403);
 
@@ -686,11 +827,13 @@ class FlowController extends Controller
         if ($definition->recordPermissionSets->isNotEmpty()) {
             $records = FlowRecord::where('flow_definition_id', $definition->id)
                 ->with($with)->orderByDesc('created_at')->get()
-                ->filter(fn ($r) => $this->flowService->recordPermissions($user, $r, $definition)['view'])
+                ->map(fn ($r) => ['rec' => $r, 'rp' => $this->flowService->recordPermissions($user, $r, $definition)])
+                ->filter(fn ($x) => $x['rp']['view'])
                 ->values();
+
             return response()->json($base + [
                 'mode' => 'client',
-                'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields))->values(),
+                'records' => $records->map(fn ($x) => $this->serializeRecord($x['rec'], $fields, $x['rp']))->values(),
                 'total' => $records->count(),
             ]);
         }
@@ -705,14 +848,38 @@ class FlowController extends Controller
             ? [['field' => $request->input('sort_field'), 'direction' => $request->input('sort_dir') === 'desc' ? 'desc' : 'asc']]
             : (is_array($view?->sort) ? $view->sort : []);
 
+        // Formula fields hold no stored value, so SQL can't filter/sort by them. When a view's
+        // filters or sort reference one, fall back to the client-compute path: return every visible
+        // record with its computed values and let the front-end filter/sort/paginate (mirrors the
+        // record-permission branch above). Keeps SQL pagination for the common no-formula case.
+        $isFormulaRef = function ($ref) use ($fields) {
+            return is_numeric($ref)
+                && optional($fields->firstWhere('id', (int) $ref))->input_type === 'formula';
+        };
+        $needsCompute = collect($filters)->contains(fn ($f) => $isFormulaRef($f['field'] ?? null))
+            || collect($sort)->contains(fn ($s) => $isFormulaRef($s['field'] ?? null));
+        if ($needsCompute) {
+            $records = FlowRecord::where('flow_records.flow_definition_id', $definition->id)
+                ->with($with)->orderByDesc('created_at')->get();
+            $can = ['edit' => $app['edit'], 'delete' => $app['delete']];
+
+            return response()->json($base + [
+                'mode' => 'client',
+                'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can))->values(),
+                'total' => $records->count(),
+            ]);
+        }
+
         $query = $this->flowService->recordListQuery($definition, $filters, (string) $request->input('search', ''));
         $total = (clone $query)->count();
         $this->flowService->applyRecordSort($query, $sort, $definition);
         $records = $query->with($with)->forPage($page, $perPage)->get();
 
+        $can = ['edit' => $app['edit'], 'delete' => $app['delete']];
+
         return response()->json($base + [
             'mode' => 'server',
-            'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields))->values(),
+            'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can))->values(),
             'total' => $total,
             'page' => $page,
             'per_page' => $perPage,
@@ -734,7 +901,7 @@ class FlowController extends Controller
         // Honor field-level permission on the label field (kintone won't surface a field the user can't view).
         if ($labelField) {
             $fp = $this->flowService->fieldPermissions($user, $definition);
-            if (!($fp[$labelField->id]['view'] ?? true)) {
+            if (! ($fp[$labelField->id]['view'] ?? true)) {
                 $labelField = null;
             }
         }
@@ -756,17 +923,18 @@ class FlowController extends Controller
                     ? implode(' / ', array_map(fn ($x) => is_scalar($x) ? (string) $x : '', $raw))
                     : (is_scalar($raw) ? (string) $raw : '');
             }
+
             return [
                 'id' => $r->id,
                 'number' => $r->record_number,
-                'label' => $label !== '' ? $label : ('#' . $r->record_number),
+                'label' => $label !== '' ? $label : ('#'.$r->record_number),
             ];
         });
 
         return response()->json(['records' => $out->values()]);
     }
 
-    private function serializeRecord(FlowRecord $record, $fields): array
+    private function serializeRecord(FlowRecord $record, $fields, ?array $can = null): array
     {
         return [
             'id' => $record->id,
@@ -780,17 +948,21 @@ class FlowController extends Controller
             'source_id' => $record->source_id,
             'created_at' => $record->created_at,
             'updated_at' => $record->updated_at,
+            // per-record eligibility for the row shortcut buttons
+            'can_edit' => (bool) ($can['edit'] ?? false),
+            'can_delete' => (bool) ($can['delete'] ?? false),
         ];
     }
 
     private const RECORD_DETAIL_WITH = [
-        'definition.fields', 'definition.statuses', 'definition.appPermissions', 'definition.recordPermissionSets', 'definition.statusActions',
+        'definition.fields', 'definition.statuses', 'definition.appPermissions', 'definition.recordPermissionSets', 'definition.statusActions', 'definition.tools',
         'currentStatus', 'values', 'createdByUser', 'logs.user',
     ];
 
     public function getAppRecord($id)
     {
         $record = FlowRecord::with(self::RECORD_DETAIL_WITH)->findOrFail($id);
+
         return $this->respondWithRecordDetail($record);
     }
 
@@ -801,6 +973,7 @@ class FlowController extends Controller
             ->where('flow_definition_id', $definitionId)
             ->where('record_number', $number)
             ->firstOrFail();
+
         return $this->respondWithRecordDetail($record);
     }
 
@@ -861,7 +1034,7 @@ class FlowController extends Controller
         $fp = $this->flowService->fieldPermissions($user, $definition, null);
         $allowed = [];
         foreach ($definition->fields as $f) {
-            if ($f->input_type === 'formula' || \App\Services\FlowService::isLayoutType($f->input_type)) {
+            if ($f->input_type === 'formula' || FlowService::isLayoutType($f->input_type)) {
                 continue;
             }
             $statusOk = $start ? ($this->flowService->ruleForField($start, $f->id) === 'edit') : true;
@@ -872,7 +1045,7 @@ class FlowController extends Controller
 
         $checkFields = $definition->fields->filter(fn ($f) => in_array((int) $f->id, $allowed, true));
         $errors = $this->flowService->validateValues($checkFields, $data['values'] ?? []);
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             return response()->json(['message' => '入力内容を確認してください。', 'errors' => $errors], 422);
         }
 
@@ -888,10 +1061,12 @@ class FlowController extends Controller
             ]);
             $this->flowService->syncFieldValues($record, $definition->fields, $data['values'] ?? [], $allowed);
             $this->flowService->logRecordCreated($record, $user);
+
             return $record;
         });
 
         $record->load(['values', 'currentStatus', 'createdByUser']);
+
         return response()->json($this->serializeRecord($record, $definition->fields));
     }
 
@@ -919,7 +1094,7 @@ class FlowController extends Controller
         }
         $checkFields = $def->fields->filter(fn ($f) => in_array((int) $f->id, $allowed, true));
         $errors = $this->flowService->validateValues($checkFields, $merged);
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             return response()->json(['message' => '入力内容を確認してください。', 'errors' => $errors], 422);
         }
 
@@ -932,7 +1107,7 @@ class FlowController extends Controller
         $new = $this->flowService->recordValues($record, $def->fields);
         $changes = [];
         foreach ($def->fields as $f) {
-            if ($f->input_type === 'formula' || \App\Services\FlowService::isLayoutType($f->input_type)) {
+            if ($f->input_type === 'formula' || FlowService::isLayoutType($f->input_type)) {
                 continue;
             }
             $o = $old[(string) $f->id] ?? null;
@@ -941,11 +1116,12 @@ class FlowController extends Controller
                 $changes[$f->key] = ['old' => $o, 'new' => $n];
             }
         }
-        if (!empty($changes)) {
+        if (! empty($changes)) {
             $record->logs()->create(['user_id' => $user->id, 'action' => 'updated', 'changes' => $changes]);
         }
 
         $record->load(['values', 'currentStatus', 'createdByUser']);
+
         return response()->json($this->serializeRecord($record, $def->fields));
     }
 
@@ -958,6 +1134,7 @@ class FlowController extends Controller
         abort_unless($this->flowService->recordPermissions($user, $record, $record->definition)['delete'], 403);
         $record->values()->delete();
         $record->delete();
+
         return response()->json(['deleted' => true]);
     }
 
@@ -980,6 +1157,7 @@ class FlowController extends Controller
         $this->flowService->applyStatusAction($user, $record, $action);
 
         $record->load(self::RECORD_DETAIL_WITH);
+
         return $this->respondWithRecordDetail($record);
     }
 
@@ -987,7 +1165,7 @@ class FlowController extends Controller
     private function sanitizeIconSvg(?string $svg): ?string
     {
         $svg = trim((string) $svg);
-        if ($svg === '' || !preg_match('/<svg[\s>]/i', $svg)) {
+        if ($svg === '' || ! preg_match('/<svg[\s>]/i', $svg)) {
             return null;
         }
         $svg = preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $svg);
@@ -997,6 +1175,7 @@ class FlowController extends Controller
         if (preg_match('/<svg\b.*<\/svg>/is', $svg, $m)) {
             $svg = $m[0];
         }
+
         return mb_strlen($svg) > 20000 ? null : $svg;
     }
 
@@ -1007,9 +1186,10 @@ class FlowController extends Controller
         if ($data === '') {
             return null;
         }
-        if (!preg_match('#^data:image/(?:png|webp|jpe?g|gif);base64,[A-Za-z0-9+/=\s]+$#', $data)) {
+        if (! preg_match('#^data:image/(?:png|webp|jpe?g|gif);base64,[A-Za-z0-9+/=\s]+$#', $data)) {
             return null;
         }
+
         return mb_strlen($data) > 400000 ? null : $data;
     }
 
@@ -1021,7 +1201,7 @@ class FlowController extends Controller
             'description' => 'nullable|string|max:2000',
         ]);
         $apiKey = config('services.openai.api_key');
-        abort_if(!$apiKey, 500, 'OpenAIが設定されていません。');
+        abort_if(! $apiKey, 500, 'OpenAIが設定されていません。');
 
         $client = \OpenAI::client($apiKey);
         $model = config('services.openai.icon_model', config('services.openai.chat_model', 'gpt-4.1-mini'));
@@ -1029,15 +1209,15 @@ class FlowController extends Controller
         $desc = trim((string) ($data['description'] ?? ''));
         $desc = trim(strip_tags($desc));
         $instruction = "あなたはアプリ用アイコンをデザインするアシスタントです。与えられたアプリを表す、シンプルで記号的なSVGアイコンを1つだけ生成してください。\n"
-            . "要件:\n"
-            . "- viewBox=\"0 0 24 24\"\n"
-            . "- 単純な図形1〜2個のみ（Feather / Tabler 風の線画アイコン）\n"
-            . "- 文字・テキストは含めない\n"
-            . "- 背景の四角形は入れない\n"
-            . "- 色は必ず currentColor を使う（fill=\"currentColor\" または stroke=\"currentColor\"）\n"
-            . "- stroke を使う場合は stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"、fill=\"none\"\n"
-            . "- 出力は <svg>...</svg> のコードのみ。説明・マークダウンは不要。";
-        $input = "アプリ名: {$data['name']}\n説明: " . ($desc !== '' ? $desc : '（なし）');
+            ."要件:\n"
+            ."- viewBox=\"0 0 24 24\"\n"
+            ."- 単純な図形1〜2個のみ（Feather / Tabler 風の線画アイコン）\n"
+            ."- 文字・テキストは含めない\n"
+            ."- 背景の四角形は入れない\n"
+            ."- 色は必ず currentColor を使う（fill=\"currentColor\" または stroke=\"currentColor\"）\n"
+            ."- stroke を使う場合は stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"、fill=\"none\"\n"
+            .'- 出力は <svg>...</svg> のコードのみ。説明・マークダウンは不要。';
+        $input = "アプリ名: {$data['name']}\n説明: ".($desc !== '' ? $desc : '（なし）');
 
         try {
             $response = $client->responses()->create([
@@ -1056,12 +1236,14 @@ class FlowController extends Controller
             $svg = $this->sanitizeIconSvg($text);
         } catch (\Throwable $e) {
             report($e);
-            return response()->json(['message' => 'アイコンの生成に失敗しました。' . $e->getMessage()], 502);
+
+            return response()->json(['message' => 'アイコンの生成に失敗しました。'.$e->getMessage()], 502);
         }
 
-        if (!$svg) {
+        if (! $svg) {
             return response()->json(['message' => 'アイコンを生成できませんでした。もう一度お試しください。'], 422);
         }
+
         return response()->json(['svg' => $svg]);
     }
 
@@ -1086,7 +1268,7 @@ class FlowController extends Controller
         if ($result['ok']) {
             $rt = $data['result_type'] ?? 'number';
             $raw = $result['value'];
-            if ($rt !== 'text' && is_string($raw) && !is_numeric($raw)) {
+            if ($rt !== 'text' && is_string($raw) && ! is_numeric($raw)) {
                 $suggested = 'text';
             } elseif ($rt !== 'toggle' && is_bool($raw)) {
                 $suggested = 'toggle';
@@ -1098,6 +1280,9 @@ class FlowController extends Controller
             'value' => $value,
             'suggested_type' => $suggested,
             'error' => $result['error'],
+            // references that don't resolve against the supplied sample values — the editor flags
+            // these (deleted fields / typos would otherwise silently compute as 0)
+            'missing_refs' => app(FlowFormulaEvaluator::class)->missingReferences($data['formula'], $data['values'] ?? []),
         ]);
     }
 
@@ -1111,7 +1296,7 @@ class FlowController extends Controller
         $definition = FlowDefinition::with(['fields', 'appPermissions', 'recordPermissionSets'])->findOrFail($definitionId);
         abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['export'], 403);
 
-        $fields = $definition->fields->filter(fn ($f) => !$f->hidden && !\App\Services\FlowService::isLayoutType($f->input_type))->values();
+        $fields = $definition->fields->filter(fn ($f) => ! $f->hidden && ! FlowService::isLayoutType($f->input_type))->values();
         $records = FlowRecord::where('flow_definition_id', $definition->id)
             ->with('values')
             ->orderByDesc('created_at')
@@ -1119,7 +1304,7 @@ class FlowController extends Controller
             ->filter(fn ($r) => $this->flowService->recordPermissions($user, $r, $definition)['view'])
             ->values();
 
-        $filename = (Str::slug($definition->name) ?: 'app') . '-' . now()->format('YmdHis') . '.csv';
+        $filename = (Str::slug($definition->name) ?: 'app').'-'.now()->format('YmdHis').'.csv';
 
         return response()->streamDownload(function () use ($records, $fields, $definition) {
             echo "\xEF\xBB\xBF";
@@ -1172,7 +1357,7 @@ class FlowController extends Controller
         $columns = $plan['columns'];
         abort_if(empty($columns), 422, '取り込む列を1つ以上マッピングしてください。');
         $hasNew = collect($columns)->contains(fn ($c) => $c['isNew']);
-        if ($hasNew && !$perms['manage']) {
+        if ($hasNew && ! $perms['manage']) {
             abort(403, '新規フィールドを作成するにはアプリの管理権限が必要です。');
         }
 
@@ -1193,10 +1378,13 @@ class FlowController extends Controller
             }
             $imported = 0;
             foreach ($parsed['rows'] as $i => $row) {
-                if ($invalidRows->has($i + 1)) continue;
+                if ($invalidRows->has($i + 1)) {
+                    continue;
+                }
                 $this->importOneRow($definition, $headerToField, $row, $user);
                 $imported++;
             }
+
             return ['imported' => $imported, 'skipped' => count($parsed['rows']) - $imported];
         });
 
@@ -1207,13 +1395,14 @@ class FlowController extends Controller
     private function csvAnalyze(FlowDefinition $definition, array $parsed): array
     {
         $fields = $definition->fields
-            ->filter(fn ($f) => !\App\Services\FlowService::isLayoutType($f->input_type) && $f->input_type !== 'formula')
+            ->filter(fn ($f) => ! FlowService::isLayoutType($f->input_type) && $f->input_type !== 'formula')
             ->values();
         $byLabel = $fields->keyBy(fn ($f) => mb_strtolower(trim($f->label)));
 
         $columns = collect($parsed['headers'])->map(function (string $header) use ($byLabel, $parsed) {
             $match = $byLabel->get(mb_strtolower(trim($header)));
             $inferred = $this->inferColumnType($parsed['rows'], $header);
+
             return [
                 'header' => $header,
                 'suggested' => $match ? (string) $match->id : '__skip__',
@@ -1243,9 +1432,14 @@ class FlowController extends Controller
         $out = [];
         foreach ($rows as $row) {
             $v = trim((string) ($row[$header] ?? ''));
-            if ($v !== '') $out[] = $v;
-            if ($limit !== null && count($out) >= $limit) break;
+            if ($v !== '') {
+                $out[] = $v;
+            }
+            if ($limit !== null && count($out) >= $limit) {
+                break;
+            }
         }
+
         return $out;
     }
 
@@ -1253,7 +1447,9 @@ class FlowController extends Controller
     private function inferColumnType(array $rows, string $header): array
     {
         $vals = $this->columnValues($rows, $header, 200);
-        if (!$vals) return ['type' => 'short', 'options' => []];
+        if (! $vals) {
+            return ['type' => 'short', 'options' => []];
+        }
 
         $all = fn (callable $fn) => count(array_filter($vals, $fn)) === count($vals);
 
@@ -1265,7 +1461,9 @@ class FlowController extends Controller
         // Number — but keep values with a significant leading zero (007, zip, phone) as text.
         $numeric = $all(fn ($v) => preg_match('/^-?\d+(\.\d+)?$/', str_replace(',', '', $v)) === 1);
         $leadingZero = count(array_filter($vals, fn ($v) => preg_match('/^0\d+/', str_replace(',', '', $v)) === 1)) > 0;
-        if ($numeric && !$leadingZero) return ['type' => 'number', 'options' => []];
+        if ($numeric && ! $leadingZero) {
+            return ['type' => 'number', 'options' => []];
+        }
 
         if ($all(fn ($v) => preg_match('#^\d{4}[-/]\d{1,2}[-/]\d{1,2}[ T]\d{1,2}:\d{2}#', $v) === 1)) {
             return ['type' => 'datetime', 'options' => []];
@@ -1285,7 +1483,9 @@ class FlowController extends Controller
 
         $longish = max(array_map('mb_strlen', $vals)) > 100
             || count(array_filter($vals, fn ($v) => str_contains($v, "\n"))) > 0;
-        if ($longish) return ['type' => 'long', 'options' => []];
+        if ($longish) {
+            return ['type' => 'long', 'options' => []];
+        }
 
         return ['type' => 'short', 'options' => []];
     }
@@ -1305,7 +1505,9 @@ class FlowController extends Controller
 
         foreach ($headers as $header) {
             $target = $mapping[$header] ?? '__skip__';
-            if ($target === '__skip__' || $target === '' || $target === null) continue;
+            if ($target === '__skip__' || $target === '' || $target === null) {
+                continue;
+            }
 
             if ($target === '__new__') {
                 $type = in_array($newTypes[$header] ?? 'short', self::IMPORT_NEW_TYPES, true) ? $newTypes[$header] : 'short';
@@ -1315,12 +1517,13 @@ class FlowController extends Controller
                 $field = new FlowField(['input_type' => $type, 'is_required' => false, 'options' => $options, 'validation' => []]);
                 $field->id = -(++$newIdx); // synthetic negative key (Eloquent int-casts id; must be distinct & not collide with real ids)
                 $columns[] = ['header' => $header, 'field' => $field, 'isNew' => true, 'type' => $type, 'options' => $options];
+
                 continue;
             }
 
             $field = $fieldsById->get((int) $target);
-            if (!$field
-                || \App\Services\FlowService::isLayoutType($field->input_type)
+            if (! $field
+                || FlowService::isLayoutType($field->input_type)
                 || $field->input_type === 'formula'
                 || in_array((int) $target, $usedFieldIds, true)) {
                 continue; // invalid / duplicate target → treat as skip
@@ -1348,16 +1551,22 @@ class FlowController extends Controller
             // validateValues doesn't check option membership — enforce it here for select/radio/checkbox.
             foreach ($columns as $c) {
                 $field = $c['field'];
-                if (isset($errors[(string) $field->id])) continue;
+                if (isset($errors[(string) $field->id])) {
+                    continue;
+                }
                 $val = $row[$c['header']] ?? null;
-                if ($val === null || $val === '') continue;
+                if ($val === null || $val === '') {
+                    continue;
+                }
                 $options = is_array($field->options) ? $field->options : [];
-                if (($field->input_type === 'select' || $field->input_type === 'radio') && $options && !in_array($val, $options, true)) {
+                if (($field->input_type === 'select' || $field->input_type === 'radio') && $options && ! in_array($val, $options, true)) {
                     $errors[(string) $field->id] = '選択肢にない値です。';
                 } elseif ($field->input_type === 'checkbox' && $options) {
                     $vals = array_filter(array_map('trim', explode(',', (string) $val)), fn ($v) => $v !== '');
                     $bad = array_diff($vals, $options);
-                    if ($bad) $errors[(string) $field->id] = '選択肢にない値です: ' . implode(', ', $bad);
+                    if ($bad) {
+                        $errors[(string) $field->id] = '選択肢にない値です: '.implode(', ', $bad);
+                    }
                 }
             }
 
@@ -1377,8 +1586,13 @@ class FlowController extends Controller
 
     private function csvValue($v): string
     {
-        if (is_array($v)) return implode(', ', array_map(fn ($x) => is_array($x) ? (string) ($x['name'] ?? '') : (string) $x, $v));
-        if (is_bool($v)) return $v ? 'true' : 'false';
+        if (is_array($v)) {
+            return implode(', ', array_map(fn ($x) => is_array($x) ? (string) ($x['name'] ?? '') : (string) $x, $v));
+        }
+        if (is_bool($v)) {
+            return $v ? 'true' : 'false';
+        }
+
         return $v === null ? '' : (string) $v;
     }
 
@@ -1393,28 +1607,36 @@ class FlowController extends Controller
         while (($line = fgetcsv($handle)) !== false) {
             $line = array_map(fn ($c) => $this->csvCell($c), $line);
             if ($headers === null) {
-                if ($this->isEmptyCsvRow($line)) continue;
+                if ($this->isEmptyCsvRow($line)) {
+                    continue;
+                }
                 $headers = $this->normalizeHeaders($line);
+
                 continue;
             }
-            if ($this->isEmptyCsvRow($line)) continue;
+            if ($this->isEmptyCsvRow($line)) {
+                continue;
+            }
             $line = array_pad(array_slice($line, 0, count($headers)), count($headers), null);
             $rows[] = array_combine($headers, $line);
             abort_if(count($rows) > 5000, 422, '一度に取り込めるCSVは5000行までです。');
         }
         fclose($handle);
-        abort_if(!$headers || count($headers) === 0, 422, 'CSVのヘッダー行が必要です。');
+        abort_if(! $headers || count($headers) === 0, 422, 'CSVのヘッダー行が必要です。');
 
         return ['headers' => $headers, 'rows' => $rows];
     }
 
     private function csvCell($value): ?string
     {
-        if ($value === null) return null;
+        if ($value === null) {
+            return null;
+        }
         $value = (string) $value;
         if (function_exists('mb_convert_encoding')) {
             $value = mb_convert_encoding($value, 'UTF-8', ['UTF-8', 'SJIS-win', 'SJIS', 'EUC-JP', 'ASCII']);
         }
+
         return trim(preg_replace('/^\xEF\xBB\xBF/', '', $value));
     }
 
@@ -1426,9 +1648,10 @@ class FlowController extends Controller
     private function normalizeHeaders(array $headers): array
     {
         $seen = [];
+
         return collect($headers)->map(function ($header, int $i) use (&$seen) {
             $label = trim((string) $header);
-            $label = preg_replace('/^\xEF\xBB\xBF/', '', $label) ?: 'Column ' . ($i + 1);
+            $label = preg_replace('/^\xEF\xBB\xBF/', '', $label) ?: 'Column '.($i + 1);
             $base = $label;
             $n = 2;
             while (in_array(mb_strtolower($label), $seen, true)) {
@@ -1436,6 +1659,7 @@ class FlowController extends Controller
                 $n++;
             }
             $seen[] = mb_strtolower($label);
+
             return $label;
         })->values()->all();
     }
@@ -1443,8 +1667,11 @@ class FlowController extends Controller
     /** Create one field for a CSV column the uploader chose to add, with the chosen type (+ options for choice types). */
     private function createImportField(FlowDefinition $definition, string $header, string $type = 'short', array $options = [])
     {
-        if (!in_array($type, self::IMPORT_NEW_TYPES, true)) $type = 'short';
+        if (! in_array($type, self::IMPORT_NEW_TYPES, true)) {
+            $type = 'short';
+        }
         $order = (int) $definition->fields()->max('order_number') + 1;
+
         return $definition->fields()->create([
             'key' => $this->uniqueFieldKey($definition, $header),
             'label' => $header !== '' ? $header : 'field',
@@ -1465,9 +1692,10 @@ class FlowController extends Controller
         $n = 2;
         $used = $definition->fields()->pluck('key')->map(fn ($k) => strtolower($k))->all();
         while (in_array(strtolower($key), $used, true)) {
-            $key = $base . '_' . $n;
+            $key = $base.'_'.$n;
             $n++;
         }
+
         return $key;
     }
 

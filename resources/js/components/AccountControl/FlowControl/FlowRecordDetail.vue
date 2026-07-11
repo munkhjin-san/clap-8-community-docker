@@ -47,6 +47,7 @@
             </div>
             <div class="rd-flow-tools">
                 <template v-if="mode === 'view'">
+                    <button v-for="t in pdfTools" :key="t.id" class="rd-tool" @click="downloadPdf(t)" :title="t.name"><Download size="13" />{{ t.name }}</button>
                     <button v-if="!isNew && can.delete" class="rd-tool danger" @click="remove"><Trash size="13" />削除</button>
                     <button v-if="can.edit" class="rd-tool primary" @click="mode = 'edit'"><Edit size="13" />編集</button>
                 </template>
@@ -174,10 +175,11 @@ import Edit from '@/components/Icons/Edit.vue'
 import Comment from '@/components/Icons/Comment.vue'
 import ChangeLog from '@/components/Icons/ChangeLog.vue'
 import ChevronDouble from '@/components/Icons/ChevronDouble.vue'
+import Download from '@/components/Icons/Download.vue'
 import AppCommentSection from '@/components/Global/AppCommentSection.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { isLayoutType } from '@/types/flow'
-import type { FlowField, FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowOptionUser, FlowOptionProject } from '@/types/flow'
+import type { FlowField, FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowOptionUser, FlowOptionProject, FlowAppTool } from '@/types/flow'
 
 const api = useApi()
 const route = useRoute()
@@ -249,6 +251,15 @@ const recordTitle = computed(() => (isNew.value ? '新規レコード' : `#${rec
 const showFlow = computed(() => !!definition.value?.use_status_flow && !isNew.value)
 // Show the status area only when the app uses the flow AND this record actually has a status.
 const showStatus = computed(() => showFlow.value && !!record.value?.current_status)
+
+// active PDF tools → download buttons (only for saved records)
+const pdfTools = computed<FlowAppTool[]>(() =>
+    isNew.value ? [] : (definition.value?.tools ?? []).filter((t) => t.tool_type === 'pdf' && t.is_active),
+)
+const downloadPdf = (tool: FlowAppTool) => {
+    if (!tool.id || !record.value?.id) return
+    window.open(`/flow_tool_pdf/${tool.id}/${record.value.id}`, '_blank')
+}
 
 const fieldLabelByKey = computed<Record<string, string>>(() => {
     const map: Record<string, string> = {}
@@ -324,7 +335,8 @@ const load = async () => {
             }
         }
         initValues()
-        mode.value = isNew.value ? 'edit' : 'view'
+        // ?edit=1 = quick-edit shortcut from the records table
+        mode.value = (isNew.value || (!!route.query.edit && can.edit)) ? 'edit' : 'view'
     } finally {
         loading.value = false
     }
@@ -429,8 +441,12 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-main { flex: 1; min-width: 0; overflow: auto; padding: 20px; }
 .rd-canvas { width: max-content; min-width: 100%; }
 .rd-row { display: flex; gap: 12px; margin-bottom: 12px; align-items: stretch; }
-.rd-block { flex: 0 0 auto; box-sizing: border-box; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 8px; padding: 15px; }
+.rd-block { flex: 0 0 auto; box-sizing: border-box !important; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 8px; padding: 15px; }
 .rd-heading-block { border: none; background: none; padding: 4px 0; }
+/* narrow screens: ignore builder-set pixel widths and stack fields full-width */
+.rd-screen.overlay .rd-canvas { width: 100%; }
+.rd-screen.overlay .rd-row { flex-direction: column; align-items: stretch; }
+.rd-screen.overlay .rd-block { width: 100% !important; }
 .rd-side { width: 340px; flex-shrink: 0; border-left: 1px solid var(--calendarBorder); background: var(--background-color); display: flex; min-height: 0; overflow: hidden; transition: width .25s ease; }
 .rd-side-inner { width: 340px; flex-shrink: 0; display: flex; flex-direction: column; min-height: 0; }
 .rd-side.collapsed { width: 0; border-left: none; }

@@ -218,7 +218,12 @@ const runPreview = async (formula: string) => {
     try {
         const res = await api.post('/flow_formula_preview', { formula, result_type: props.resultType ?? 'number', values }, { silent: true })
         preview.loading = false
-        if (res?.ok) {
+        if (res?.ok && res.missing_refs?.length) {
+            // References that don't resolve (deleted field or typo) — would silently compute as 0.
+            preview.ok = false
+            preview.error = `存在しない項目を参照しています: ${res.missing_refs.map((r: string) => `[${r}]`).join(' ')}`
+            preview.warn = null
+        } else if (res?.ok) {
             preview.ok = true; preview.error = null
             preview.display = res.value === null || res.value === '' ? '（空）' : String(res.value)
             preview.warn = res.suggested_type

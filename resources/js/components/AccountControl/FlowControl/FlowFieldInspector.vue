@@ -9,7 +9,8 @@
             <button class="col-back" @click="emit('update:columnKey', null)">← 列一覧へ戻る</button>
             <div class="irow">
                 <label>列名</label>
-                <input type="text" v-model="col0.label" class="custom-a-input !box-border flex-1" placeholder="列名">
+                <input type="text" v-model="col0.label" class="custom-a-input !box-border flex-1" placeholder="列名"
+                    @focus="renameFrom = col0.label" @change="commitColumnRename(col0)">
             </div>
             <div class="irow">
                 <label>種類</label>
@@ -70,11 +71,13 @@
         <div class="irow" v-if="field.input_type !== 'spacer' && field.input_type !== 'divider'" :class="{ 'items-start': field.input_type === 'label' }">
             <label>{{ labelFieldName }}</label>
             <textarea v-if="field.input_type === 'label'" v-model="field.label" rows="3" class="custom-a-input !box-border flex-1" placeholder="説明や注意書きを入力"></textarea>
-            <input v-else type="text" v-model="field.label" class="custom-a-input !box-border flex-1">
+            <input v-else type="text" v-model="field.label" class="custom-a-input !box-border flex-1"
+                @focus="renameFrom = field.label" @change="commitFieldRename(field.label)">
         </div>
         <div class="irow" v-if="!isLayout">
             <label>フィールドキー</label>
-            <input type="text" v-model="field.key" class="custom-a-input !box-border flex-1">
+            <input type="text" v-model="field.key" class="custom-a-input !box-border flex-1"
+                @focus="renameFrom = field.key" @change="commitFieldRename(field.key)">
         </div>
         <div class="irow" v-if="!isLayout">
             <label>必須</label>
@@ -320,15 +323,32 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { FLOW_TYPE_LABEL, FLOW_FILE_ACCEPT, FLOW_FIELD_TYPES, isLayoutType } from '@/types/flow'
-import type { FlowField, FlowFieldValidation, TableColumn } from '@/types/flow'
+import type { FlowField, FlowFieldValidation, TableColumn, FlowAppTool } from '@/types/flow'
+import { referencingFormulas, referencedDeleteMessage, renameFieldRefEverywhere, renameColumnRefInTable, pdfToolsReferencingColumn } from '@/utils/flowFormulaRefs'
 import { useApi } from '@/composables/api'
+import { useDialog } from '@/composables/dialog'
 import FlowFieldIcon from './FlowFieldIcon.vue'
 import FlowFormulaEditor from './FlowFormulaEditor.vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 
-const props = defineProps<{ field: FlowField; fields?: FlowField[]; columnKey?: string | null }>()
+const props = defineProps<{ field: FlowField; fields?: FlowField[]; tools?: FlowAppTool[]; columnKey?: string | null }>()
 const emit = defineEmits<{ 'update:columnKey': [key: string | null] }>()
 const api = useApi()
+const dialog = useDialog()
+
+// Renaming a field/column key or label would orphan formulas that reference the old name
+// (they'd silently compute 0). Capture the value on focus, remap referencing formulas on commit.
+const renameFrom = ref('')
+const commitFieldRename = (newName: string) => {
+    const from = renameFrom.value
+    renameFrom.value = ''
+    if (from && from !== newName) renameFieldRefEverywhere(props.fields ?? [], from, newName)
+}
+const commitColumnRename = (col: TableColumn) => {
+    const from = renameFrom.value
+    renameFrom.value = ''
+    if (from && from !== col.label) renameColumnRefInTable(props.field, from, col.label)
+}
 
 /* ---- reference field: target app + label field ---- */
 const refApps = ref<{ id: number; name: string }[]>([])
@@ -366,8 +386,9 @@ const labelFieldName = computed(() =>
 const RULE_TYPES = ['short', 'long', 'number', 'date', 'datetime', 'time', 'checkbox', 'file', 'user', 'member']
 const hasRules = computed(() => RULE_TYPES.includes(props.field.input_type))
 
+// Other formula fields ARE referenceable (chains compute multi-pass server-side) — only self and layout parts are excluded.
 const referenceableFields = computed(() =>
-    (props.fields ?? []).filter((f) => f.key !== props.field.key && !isLayoutType(f.input_type) && f.input_type !== 'formula')
+    (props.fields ?? []).filter((f) => f.key !== props.field.key && !isLayoutType(f.input_type))
 )
 
 watch(() => props.field, (f) => {
@@ -415,10 +436,12 @@ const removeOption = (oi: number) => props.field.options?.splice(oi, 1)
 /* ---- table columns ---- */
 // 'table' stays excluded (no nested tables). formula + reference are allowed as columns.
 const COLUMN_TYPES = FLOW_FIELD_TYPES.filter((t) => !isLayoutType(t.type) && t.type !== 'table')
-// Variables offered to a calc column's formula editor: sibling data columns + top-level data fields.
+// Variables offered to a calc column's formula editor: sibling columns + top-level fields.
+// Formula columns/fields are referenceable (intra-row chains + cross-level refs compute
+// multi-pass server-side); only the column itself, the owning table, and layout parts are excluded.
 const colFormulaVars = (col: TableColumn) => [
-    ...columns.value.filter((c) => c.key !== col.key && c.input_type !== 'formula' && !isLayoutType(c.input_type)),
-    ...((props.fields ?? []).filter((f) => !isLayoutType(f.input_type) && f.input_type !== 'formula' && f.input_type !== 'table')),
+    ...columns.value.filter((c) => c.key !== col.key && !isLayoutType(c.input_type)),
+    ...((props.fields ?? []).filter((f) => f.key !== props.field.key && !isLayoutType(f.input_type))),
 ] as any
 const OPTION_TYPES = ['select', 'radio', 'checkbox']
 const colHasOptions = (col: TableColumn) => OPTION_TYPES.includes(col.input_type)
@@ -440,7 +463,29 @@ const addColumn = () => {
     columns.value.push({ key, label: `列${columns.value.length + 1}`, input_type: 'short', options: null })
     emit('update:columnKey', key) // auto-select the new column for editing
 }
-const removeColumn = (ci: number) => { if (columns.value.length > 1) columns.value.splice(ci, 1) }
+// Warn when deleting a column that other formulas reference: sibling calc columns resolve it
+// bare ([列名]), top-level aggregates as [テーブル.列名]. Dangling refs compute as 0.
+const confirmColumnDelete = async (col: TableColumn): Promise<boolean> => {
+    const f = props.field
+    const exclude = { fieldKey: f.key, columnKey: col.key }
+    const hits = [
+        // bare refs only resolve within the same table's rows — scan just this table
+        ...referencingFormulas([f], [col.key, col.label], [], exclude),
+        // dotted refs can appear anywhere
+        ...referencingFormulas(props.fields ?? [f], [
+            `${f.key}.${col.key}`, `${f.key}.${col.label}`, `${f.label}.${col.key}`, `${f.label}.${col.label}`,
+        ], [], exclude),
+    ]
+    const formulaHits = [...new Set(hits)]
+    const pdfHits = pdfToolsReferencingColumn(props.tools, f.key, col.key)
+    return (!formulaHits.length && !pdfHits.length)
+        || (await dialog.ask(referencedDeleteMessage(col.label || col.key, formulaHits, pdfHits))).value === true
+}
+const removeColumn = async (ci: number) => {
+    if (columns.value.length <= 1) return
+    if (!(await confirmColumnDelete(columns.value[ci]))) return
+    columns.value.splice(ci, 1)
+}
 
 // single-column editing: which column (if any) is selected
 const selectedColumn = computed<TableColumn | null>(() =>
@@ -451,9 +496,10 @@ const selectedColumn = computed<TableColumn | null>(() =>
 const columnMode = computed(() => !!selectedColumn.value)
 // always-non-null accessor for the column-mode template (falls back to a throwaway when nothing selected)
 const col0 = computed<TableColumn>(() => selectedColumn.value ?? ({ key: '', label: '', input_type: 'short', options: null } as TableColumn))
-const deleteSelectedColumn = () => {
+const deleteSelectedColumn = async () => {
     const i = columns.value.findIndex((c) => c.key === props.columnKey)
     if (i >= 0 && columns.value.length > 1) {
+        if (!(await confirmColumnDelete(columns.value[i]))) return
         columns.value.splice(i, 1)
         emit('update:columnKey', null)
     }

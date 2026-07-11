@@ -198,7 +198,7 @@ const addGrant = (si: number) => {
 .perm-flags { display: flex; flex-wrap: wrap; gap: 12px; }
 .perm-flag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--primary-color); cursor: pointer; user-select: none; }
 .cbox { width: 20px; height: 20px; border: 1px solid var(--formBorder); border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-sizing: border-box !important; flex: none; }
-.cbox.on { background: var(--primary-color); border-color: var(--primary-color); fill: #fff; }
+.cbox.on { background: var(--primary-button, var(--primary-color)); border-color: var(--primary-button, var(--primary-color)); fill: #fff; }
 .rm { border: none; background: none; color: gray; cursor: pointer; padding: 3px; }
 .addbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .seg { display: inline-flex; border: 1px solid var(--calendarBorder); border-radius: 6px; overflow: hidden; }

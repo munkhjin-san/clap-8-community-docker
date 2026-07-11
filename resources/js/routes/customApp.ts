@@ -10,7 +10,9 @@ export const customAppRoutes: RouteRecordRaw[] = [
         component: () => import('@/components/AccountControl/FlowControl/FlowControl.vue'),
     },
     {
-        path: '/apps/builder/:flowId?',
+        // :flowId is digits-only so a tab-only URL for a NEW app (/apps/builder/form)
+        // can't be mistaken for an app id. :tab = general|form|status|view|tools|permission.
+        path: '/apps/builder/:flowId(\\d+)?/:tab?',
         name: 'flow-builder',
         meta: { title: 'アプリ' },
         component: () => import('@/components/AccountControl/FlowControl/FlowBuilder.vue'),
