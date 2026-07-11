@@ -415,11 +415,13 @@ const closePreview = () => { if (previewUrl.value) URL.revokeObjectURL(previewUr
 </script>
 
 <style scoped>
-.pd-overlay { position: fixed; inset: 0; z-index: 100000; background: var(--bg3); display: flex; flex-direction: column; }
+/* Teleported to <body>, i.e. outside the app's theme container, so it doesn't inherit the
+   themed text color and would fall back to black — set it explicitly for the whole overlay. */
+.pd-overlay { position: fixed; inset: 0; z-index: 100000; background: var(--bg3); color: var(--primary-color); display: flex; flex-direction: column; }
 .pd-top { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--background-color); border-bottom: 1px solid var(--calendarBorder); }
 .pd-back { border: none; background: none; color: gray; cursor: pointer; padding: 6px; display: flex; border-radius: 6px; }
 .pd-back:hover { background: var(--bg3); }
-.pd-name { font-size: 15px; font-weight: 600; border: 1px solid var(--formBorder); border-radius: 7px; padding: 6px 10px; background: var(--background-color); width: 280px; max-width: 40vw; box-sizing: border-box !important; }
+.pd-name { font-size: 15px; font-weight: 600; border: 1px solid var(--formBorder); border-radius: 7px; padding: 6px 10px; background: var(--background-color); color: var(--primary-color); width: 280px; max-width: 40vw; box-sizing: border-box !important; }
 .pd-name:focus { border-color: var(--primary-color); outline: none; }
 .pd-top-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .pd-orient { display: inline-flex; border: 1px solid var(--formBorder); border-radius: 7px; overflow: hidden; }
@@ -437,7 +439,8 @@ const closePreview = () => { if (previewUrl.value) URL.revokeObjectURL(previewUr
 .pd-hint { font-size: 10.5px; color: gray; line-height: 1.5; margin-top: 6px; }
 
 .pd-canvas-wrap { flex: 1; overflow: auto; display: flex; justify-content: center; padding: 24px; }
-.pd-page { position: relative; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,.15); flex-shrink: 0; align-self: flex-start; }
+/* Always-white paper: lock dark ink so page content stays readable regardless of app theme. */
+.pd-page { position: relative; background: #fff; color: #1a1a1a; box-shadow: 0 2px 16px rgba(0,0,0,.15); flex-shrink: 0; align-self: flex-start; }
 .pd-el { position: absolute; box-sizing: border-box; cursor: move; outline: 1px dashed transparent; }
 .pd-el:hover { outline-color: var(--formBorder); }
 /* elements sit on the always-white paper, so use the (dark in both themes) button ink,
@@ -459,7 +462,7 @@ const closePreview = () => { if (previewUrl.value) URL.revokeObjectURL(previewUr
 .pd-grid4 label, .pd-grid2 label, .pd-f, .pd-style label { display: flex; flex-direction: column; gap: 3px; font-size: 10.5px; color: gray; min-width: 0; }
 .pd-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
 .pd-f { margin-bottom: 10px; }
-.pd-insp input, .pd-insp select, .pd-insp textarea { border: 1px solid var(--formBorder); border-radius: 6px; padding: 6px 8px; font-size: 12.5px; background: var(--background-color); box-sizing: border-box !important; width: 100%; max-width: 100%; }
+.pd-insp input, .pd-insp select, .pd-insp textarea { border: 1px solid var(--formBorder); border-radius: 6px; padding: 6px 8px; font-size: 12.5px; background: var(--background-color); color: var(--primary-color); box-sizing: border-box !important; width: 100%; max-width: 100%; }
 .pd-insp input[type=color] { padding: 2px; height: 30px; }
 .pd-style { display: flex; align-items: flex-end; gap: 6px; margin-top: 6px; }
 .pd-style label { flex: 0 0 56px; }
