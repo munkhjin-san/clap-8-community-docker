@@ -133,8 +133,9 @@
                                         v-for="room in facilites.qualified_institution"
                                         :key="room.value"
                                         :value="room.value"
+                                        :disabled="!room.selectable"
                                     >
-                                        {{ room.label }}
+                                        {{ room.label }}{{ room.selectable ? '' : '（利用停止）' }}
                                     </option>
                                 </select>
                             </label>

@@ -19,6 +19,8 @@ use App\Http\Controllers\AdminAccountController;
 use App\Http\Controllers\AdminCostMasterController;
 use App\Http\Controllers\AdminPaidLeaveLedgerController;
 use App\Http\Controllers\AdminPaidLeavePolicyController;
+use App\Http\Controllers\AdminZoomAccountController;
+use App\Http\Controllers\AdminCalendarFacilityController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\WorkController;
 use App\Http\Controllers\CustomfieldController;
@@ -68,9 +70,10 @@ use Illuminate\Support\Facades\Log;
 Route::match(['get', 'post'], '/contract_updated', [AutoJobController::class, 'kintoneContractUpdated']);
 Route::get('get_team_external', [ProjectController::class, 'get_team_external']);
 Route::get('get_projects_external', [ProjectController::class, 'get_projects_external']);
-Route::match(['get', 'post'],'/zoom3_event', [AutoJobController::class, 'zoom_event']);
-Route::match(['get', 'post'],'/zoom2_event', [AutoJobController::class, 'zoom_event']);
-Route::match(['get', 'post'],'/zoom1_event', [AutoJobController::class, 'zoom_event']);
+Route::post('/zoom3_event', [AutoJobController::class, 'zoom_event']);
+Route::post('/zoom2_event', [AutoJobController::class, 'zoom_event']);
+Route::post('/zoom1_event', [AutoJobController::class, 'zoom_event']);
+Route::post('/zoom/{slot}/event', [AutoJobController::class, 'zoom_event'])->whereNumber('slot');
 
 Route::get("/departure_report", [AutoJobController::class, 'departure_report'])->name('departure_activate')->middleware('signed');;
 
@@ -305,6 +308,15 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/admin/paid-leave-ledger', [AdminPaidLeaveLedgerController::class, 'index']);
         Route::get('/admin/paid-leave-ledger/{account}', [AdminPaidLeaveLedgerController::class, 'show']);
         Route::post('/admin/paid-leave-ledger/{account}/adjustments', [AdminPaidLeaveLedgerController::class, 'storeAdjustment']);
+        Route::get('/admin/zoom-accounts', [AdminZoomAccountController::class, 'index']);
+        Route::post('/admin/zoom-accounts', [AdminZoomAccountController::class, 'store']);
+        Route::put('/admin/zoom-accounts/{zoomAccount}', [AdminZoomAccountController::class, 'update']);
+        Route::delete('/admin/zoom-accounts/{zoomAccount}', [AdminZoomAccountController::class, 'destroy']);
+        Route::post('/admin/zoom-accounts/{zoomAccount}/test', [AdminZoomAccountController::class, 'test']);
+        Route::get('/admin/calendar-facilities', [AdminCalendarFacilityController::class, 'index']);
+        Route::post('/admin/calendar-facilities', [AdminCalendarFacilityController::class, 'store']);
+        Route::put('/admin/calendar-facilities/{calendarFacility}', [AdminCalendarFacilityController::class, 'update']);
+        Route::delete('/admin/calendar-facilities/{calendarFacility}', [AdminCalendarFacilityController::class, 'destroy']);
         Route::get('/admin/cost-items', [AdminCostMasterController::class, 'index']);
         Route::get('/admin/cost-items/sync-status', [AdminCostMasterController::class, 'syncStatus']);
         Route::post('/admin/cost-items/sync/kintone', [AdminCostMasterController::class, 'syncKintone']);

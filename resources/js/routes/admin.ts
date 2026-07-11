@@ -182,6 +182,36 @@ export const adminRoutes: RouteRecordRaw[] = [
                 component: () => import('@/components/AccountControl/Office/AdminOffice.vue'),
             },
             {
+                path: 'facilities',
+                name: 'facilities-control',
+                meta: { head: '施設' },
+                redirect: { name: 'facility-rooms' },
+                component: () => import('@/components/AccountControl/ScheduleControl/ScheduleControl.vue'),
+                children: [
+                    {
+                        path: 'rooms',
+                        name: 'facility-rooms',
+                        component: () => import('@/components/AccountControl/ScheduleControl/CalendarFacilities.vue'),
+                        props: { type: 'room' },
+                    },
+                    {
+                        path: 'cars',
+                        name: 'facility-cars',
+                        component: () => import('@/components/AccountControl/ScheduleControl/CalendarFacilities.vue'),
+                        props: { type: 'car' },
+                    },
+                    {
+                        path: 'web-meetings',
+                        name: 'web-meetings',
+                        component: () => import('@/components/AccountControl/ScheduleControl/WebMeetings.vue'),
+                    },
+                ],
+            },
+            {
+                path: 'schedule/:pathMatch(.*)*',
+                redirect: { name: 'facility-rooms' },
+            },
+            {
                 path: 'employee-change-applications',
                 name: 'employee-change-applications',
                 meta: { head: '各種届出' },
