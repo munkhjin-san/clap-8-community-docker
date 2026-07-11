@@ -70,7 +70,7 @@ class FinanceToolController extends Controller
         $month = isset($args['month']) ? (int) $args['month'] : (int) $defaultPeriod->month;
 
         $period    = CarbonImmutable::create($year, $month, 1)->endOfMonth();
-        $threshold = (float) config('app.variance_threshold', env('VARIANCE_ALERT_THRESHOLD', 10));
+        $threshold = (float) config('app.variance_threshold', 10);
         $periodKey = $period->format('Y-m');
         $fiscalYear = $period->month >= 3 ? $period->year : $period->year - 1;
         $limit = max(1, min((int) ($args['limit'] ?? 10), 50));

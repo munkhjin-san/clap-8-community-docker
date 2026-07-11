@@ -25,7 +25,7 @@ class SendVarianceAlerts extends Command
     }
     public function handle()
     {
-        $threshold = (float) (config('app.variance_threshold', env('VARIANCE_ALERT_THRESHOLD', 10)));
+        $threshold = (float) config('app.variance_threshold', 10);
         $period = $this->resolvePeriod();
         $projects = ProjectRecord::query()
             ->select('id', 'name')

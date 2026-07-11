@@ -219,8 +219,8 @@ class ProjectController extends Controller
 
     public function update_projects() {
         $projects = ProjectRecord::get();
-        $user_name = env('KINTONE_USER_NAME');
-        $password = env('KINTONE_PASSWORD');
+        $user_name = config('app.kintone_user_name');
+        $password = config('app.kintone_password');
         $string = "{$user_name}:{$password}";
         $x_token = base64_encode($string);
         $headers = [

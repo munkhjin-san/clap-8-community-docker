@@ -604,8 +604,8 @@ class MemberController extends Controller
 
         
 
-        $user_name = env('KINTONE_USER_NAME');
-        $password = env('KINTONE_PASSWORD');
+        $user_name = config('app.kintone_user_name');
+        $password = config('app.kintone_password');
         $string = $user_name. ':'. $password;
         $x_token = base64_encode($string);
         $queryParams = [
@@ -722,8 +722,8 @@ class MemberController extends Controller
                 "text" => Auth::user()->name . $message . Carbon::now()->format('Y-m-d H:i:s')
             ]
         ];
-        $user_name = env('KINTONE_USER_NAME');
-        $password = env('KINTONE_PASSWORD');
+        $user_name = config('app.kintone_user_name');
+        $password = config('app.kintone_password');
         $string = $user_name. ':'. $password;
         $x_token = base64_encode($string);
         $headers = [
@@ -741,8 +741,8 @@ class MemberController extends Controller
         
         $queryString = http_build_query($queryParams);
         $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
-        $user_name = env('KINTONE_USER_NAME');
-        $password = env('KINTONE_PASSWORD');
+        $user_name = config('app.kintone_user_name');
+        $password = config('app.kintone_password');
         $string = $user_name. ':'. $password;
         $x_token = base64_encode($string);
         $headers = [
@@ -794,8 +794,8 @@ class MemberController extends Controller
         ]);
         $url = 'https://glowd-hldgs.cybozu.com/k/v1/record.json?app=928&id=' . $request->record_id;
         $record_id = $request->record_id;
-        $user_name = env('KINTONE_USER_NAME');
-        $password = env('KINTONE_PASSWORD');
+        $user_name = config('app.kintone_user_name');
+        $password = config('app.kintone_password');
         $string = $user_name. ':'. $password;
         $x_token = base64_encode($string);
         $headers = [
@@ -917,8 +917,8 @@ class MemberController extends Controller
         ];
         $queryString = http_build_query($queryParams);
         $url_app = 'https://glowd-hldgs.cybozu.com/k/v1/app/form/fields.json?' . $queryString;
-        $user_name = env('KINTONE_USER_NAME');
-        $password = env('KINTONE_PASSWORD');
+        $user_name = config('app.kintone_user_name');
+        $password = config('app.kintone_password');
         $string = $user_name. ':'. $password;
         $x_token = base64_encode($string);
         $headers = [
@@ -939,8 +939,8 @@ class MemberController extends Controller
 
         $queryString = http_build_query($queryParams);
         $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
-        $user_name = env('KINTONE_USER_NAME');
-        $password = env('KINTONE_PASSWORD');
+        $user_name = config('app.kintone_user_name');
+        $password = config('app.kintone_password');
         $string = $user_name. ':'. $password;
         $x_token = base64_encode($string);
         $headers = [
@@ -967,8 +967,8 @@ class MemberController extends Controller
         ];
         $queryString = http_build_query($queryParams);
         $url = 'https://glowd-hldgs.cybozu.com/k/v1/records.json?' . $queryString;
-        $user_name = env('KINTONE_USER_NAME');
-        $password = env('KINTONE_PASSWORD');
+        $user_name = config('app.kintone_user_name');
+        $password = config('app.kintone_password');
         $string = $user_name. ':'. $password;
         $x_token = base64_encode($string);
         $headers = [
