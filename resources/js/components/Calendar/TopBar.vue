@@ -106,11 +106,6 @@
                 id="calendarFacilitySelector"
                 class="calendarMemberSelector facility-filter-popover"
             >
-                <header class="facility-filter-popover__header">
-                    <p class="facility-filter-popover__title">施設フィルター</p>
-                    <p class="facility-filter-popover__description">表示する施設・設備を選択</p>
-                </header>
-
                 <div class="facility-filter-popover__body">
                     <section
                         v-for="(facilities, index) in facilitiesList"
@@ -143,9 +138,6 @@
                                 <MyCarIcon v-else class="facility-filter-group__car-icon" :size="12" />
                             </span>
                             <p>{{ facilityTitle(index) }}</p>
-                            <span class="facility-filter-group__count">
-                                {{ facilities.filter(facility => facility.selected).length }}/{{ facilities.length }}
-                            </span>
                         </div>
 
                         <div
@@ -444,34 +436,21 @@ import { User } from '@/interface/globalInterface'
     background: var(--background-color);
 }
 
-.facility-filter-popover__header {
-    padding: 14px 16px 12px;
-    border-bottom: 1px solid var(--calendarBorder);
-}
-
-.facility-filter-popover__title {
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.facility-filter-popover__description {
-    margin-top: 3px;
-    color: var(--sub-color);
-    font-size: 10px;
-}
-
 .facility-filter-popover__body {
     display: flex;
     max-height: min(64vh, 560px);
     overflow-y: auto;
     flex-direction: column;
-    gap: 10px;
-    padding: 12px;
+    padding: 8px 12px;
 }
 
 .facility-filter-group {
-    padding: 10px;
-    background: var(--bg3);
+    padding: 10px 2px 12px;
+    border-bottom: 1px solid var(--calendarBorder);
+}
+
+.facility-filter-group:last-child {
+    border-bottom: 0;
 }
 
 .facility-filter-group__heading {
@@ -479,7 +458,7 @@ import { User } from '@/interface/globalInterface'
     align-items: center;
     min-width: 0;
     gap: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 5px;
     font-size: 12px;
     font-weight: 600;
 }
@@ -508,17 +487,10 @@ import { User } from '@/interface/globalInterface'
     max-width: 100%;
 }
 
-.facility-filter-group__count {
-    margin-left: auto;
-    color: var(--sub-color);
-    font-size: 9px;
-    font-weight: 400;
-}
-
 .facility-filter-group__options {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px;
+    gap: 2px 8px;
 }
 
 .facility-filter-group__options--cars {
@@ -529,24 +501,23 @@ import { User } from '@/interface/globalInterface'
     display: flex;
     align-items: center;
     min-width: 0;
-    min-height: 34px;
+    min-height: 32px;
     gap: 7px;
-    padding: 6px 8px;
+    padding: 5px 7px;
     box-sizing: border-box !important;
     color: var(--primary-color);
     font-size: 11px;
-    border: 1px solid var(--calendarBorder);
-    background: var(--background-color);
+    border: 0;
+    background: transparent;
     cursor: pointer;
     transition: border-color 120ms ease, background-color 120ms ease;
 }
 
 .facility-filter-option:hover:not(.facility-filter-option--disabled) {
-    border-color: var(--primary-color);
+    background: var(--bg3);
 }
 
 .facility-filter-option--selected {
-    border-color: var(--primary-color);
     background: var(--bg3);
 }
 
