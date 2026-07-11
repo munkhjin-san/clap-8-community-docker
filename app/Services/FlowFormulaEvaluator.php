@@ -11,7 +11,9 @@ namespace App\Services;
 class FlowFormulaEvaluator
 {
     private array $tokens = [];
+
     private int $position = 0;
+
     private array $values = [];
 
     public function evaluate(?string $formula, array $values): mixed
@@ -76,7 +78,35 @@ class FlowFormulaEvaluator
         return array_values(array_unique($references));
     }
 
-    private function tokenize(string $formula): array
+    /**
+     * References in $formula that don't resolve against $known (context keys — field ids/keys/labels).
+     * A `table.column` ref counts as known when the table itself is known (column existence isn't
+     * derivable from context keys alone). Used by the builder to flag deleted/typo'd fields —
+     * at runtime these resolve to null and compute as 0 rather than erroring.
+     */
+    public function missingReferences(?string $formula, array $known): array
+    {
+        $missing = [];
+        foreach ($this->referencedIdentifiers($formula) as $ref) {
+            $base = str_contains($ref, '.') ? explode('.', $ref, 2)[0] : $ref;
+            if (! array_key_exists($ref, $known) && ! array_key_exists($base, $known)) {
+                $missing[] = $ref;
+            }
+        }
+
+        return $missing;
+    }
+
+    /** Function names this evaluator can execute (see callFunction). */
+    public function supportedFunctions(): array
+    {
+        return [
+            'IF', 'CONTAINS', 'AND', 'OR', 'NOT', 'SUM',
+            'ROUND', 'ROUNDUP', 'ROUNDDOWN', 'CEILING', 'FLOOR', 'ABS', 'MIN', 'MAX',
+        ];
+    }
+
+    public function tokenize(string $formula): array
     {
         $tokens = [];
         $offset = 0;
@@ -85,36 +115,42 @@ class FlowFormulaEvaluator
         while ($offset < $length) {
             if (preg_match('/\G\s+/u', $formula, $match, 0, $offset)) {
                 $offset += strlen($match[0]);
+
                 continue;
             }
 
             if (preg_match('/\G("(?:\\\\.|[^"])*"|\'(?:\\\\.|[^\'])*\')/u', $formula, $match, 0, $offset)) {
                 $tokens[] = ['type' => 'string', 'value' => stripcslashes(substr($match[0], 1, -1))];
                 $offset += strlen($match[0]);
+
                 continue;
             }
 
             if (preg_match('/\G\[([^\]]+)\]/u', $formula, $match, 0, $offset)) {
                 $tokens[] = ['type' => 'identifier', 'value' => trim($match[1])];
                 $offset += strlen($match[0]);
+
                 continue;
             }
 
             if (preg_match('/\G\d+(?:\.\d+)?/u', $formula, $match, 0, $offset)) {
                 $tokens[] = ['type' => 'number', 'value' => (float) $match[0]];
                 $offset += strlen($match[0]);
+
                 continue;
             }
 
             if (preg_match('/\G(>=|<=|!=|<>|==|=|>|<|\+|-|\*|\/|%|\(|\)|,)/u', $formula, $match, 0, $offset)) {
                 $tokens[] = ['type' => 'operator', 'value' => $match[0]];
                 $offset += strlen($match[0]);
+
                 continue;
             }
 
             if (preg_match('/\G[^\s(),+\-*\/%<>=!]+/u', $formula, $match, 0, $offset)) {
                 $tokens[] = ['type' => 'identifier', 'value' => trim($match[0])];
                 $offset += strlen($match[0]);
+
                 continue;
             }
 
@@ -191,14 +227,15 @@ class FlowFormulaEvaluator
     {
         if ($this->matchOperator(['('])) {
             $value = $this->parseComparison();
-            if (!$this->matchOperator([')'])) {
+            if (! $this->matchOperator([')'])) {
                 throw new \RuntimeException('閉じかっこ ) が不足しています。');
             }
+
             return $value;
         }
 
         $token = $this->advance();
-        if (!$token) {
+        if (! $token) {
             throw new \RuntimeException('式が途中で終わっています。');
         }
 
@@ -218,18 +255,19 @@ class FlowFormulaEvaluator
 
             if ($this->matchOperator(['('])) {
                 $args = [];
-                if (!$this->checkOperator(')')) {
+                if (! $this->checkOperator(')')) {
                     do {
                         $args[] = $this->parseComparison();
                     } while ($this->matchOperator([',']));
                 }
-                if (!$this->matchOperator([')'])) {
+                if (! $this->matchOperator([')'])) {
                     throw new \RuntimeException('関数の閉じかっこ ) が不足しています。');
                 }
+
                 return $this->callFunction($token['value'], $args);
             }
 
-            return $this->values[$token['value']] ?? null;
+            return $this->resolveIdentifier((string) $token['value']);
         }
 
         throw new \RuntimeException('式の形式を確認してください。');
@@ -244,18 +282,50 @@ class FlowFormulaEvaluator
             'CONTAINS' => str_contains($this->toText($args[0] ?? null), $this->toText($args[1] ?? null)),
             'AND' => collect($args)->every(fn ($arg) => $this->truthy($arg)),
             'OR' => collect($args)->contains(fn ($arg) => $this->truthy($arg)),
-            'NOT' => !$this->truthy($args[0] ?? null),
-            'SUM' => collect($args)->sum(fn ($arg) => $this->toNumber($arg)),
+            'NOT' => ! $this->truthy($args[0] ?? null),
+            // SUM/MIN/MAX flatten array args, so a subtable-column reference (which resolves
+            // to an array of that column's per-row values) aggregates like kintone's SUM(col).
+            'SUM' => collect($this->flattenNumbers($args))->sum(),
             'ROUND' => round($this->toNumber($args[0] ?? null), (int) ($args[1] ?? 0)),
             'ROUNDUP' => $this->roundUp($this->toNumber($args[0] ?? null), (int) ($args[1] ?? 0)),
             'ROUNDDOWN' => $this->roundDown($this->toNumber($args[0] ?? null), (int) ($args[1] ?? 0)),
             'CEILING' => $this->ceiling($this->toNumber($args[0] ?? null), $this->toNumber($args[1] ?? 1)),
             'FLOOR' => $this->floor($this->toNumber($args[0] ?? null), $this->toNumber($args[1] ?? 1)),
             'ABS' => abs($this->toNumber($args[0] ?? null)),
-            'MIN' => count($args) ? min(array_map(fn ($arg) => $this->toNumber($arg), $args)) : 0,
-            'MAX' => count($args) ? max(array_map(fn ($arg) => $this->toNumber($arg), $args)) : 0,
+            'MIN' => ($nums = $this->flattenNumbers($args)) ? min($nums) : 0,
+            'MAX' => ($nums = $this->flattenNumbers($args)) ? max($nums) : 0,
             default => throw new \RuntimeException("未対応の関数です: {$name}"),
         };
+    }
+
+    /** Flatten args (arrays = subtable columns) into a flat list of numbers. */
+    private function flattenNumbers(array $args): array
+    {
+        $out = [];
+        foreach ($args as $arg) {
+            foreach (is_array($arg) ? $arg : [$arg] as $v) {
+                $out[] = $this->toNumber($v);
+            }
+        }
+
+        return $out;
+    }
+
+    /** Resolve a bare field reference, or a `table.column` reference to that column's values. */
+    private function resolveIdentifier(string $name): mixed
+    {
+        if (array_key_exists($name, $this->values)) {
+            return $this->values[$name];
+        }
+        if (str_contains($name, '.')) {
+            [$table, $column] = explode('.', $name, 2);
+            $rows = $this->values[$table] ?? null;
+            if (is_array($rows)) {
+                return array_values(array_map(fn ($r) => is_array($r) ? ($r[$column] ?? null) : null, $rows));
+            }
+        }
+
+        return null;
     }
 
     private function compare(mixed $left, mixed $right, string $operator): bool
@@ -280,7 +350,7 @@ class FlowFormulaEvaluator
             return count($value) > 0;
         }
 
-        return !($value === null || $value === false || $value === '' || $value === 0 || $value === 0.0 || $value === '0');
+        return ! ($value === null || $value === false || $value === '' || $value === 0 || $value === 0.0 || $value === '0');
     }
 
     private function toNumber(mixed $value): float
@@ -341,11 +411,12 @@ class FlowFormulaEvaluator
 
     private function matchOperator(array $operators): bool
     {
-        if (!$this->checkOperator($operators)) {
+        if (! $this->checkOperator($operators)) {
             return false;
         }
 
         $this->position++;
+
         return true;
     }
 
@@ -353,6 +424,7 @@ class FlowFormulaEvaluator
     {
         $operators = (array) $operators;
         $token = $this->peek();
+
         return $token && $token['type'] === 'operator' && in_array($token['value'], $operators, true);
     }
 

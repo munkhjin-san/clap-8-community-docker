@@ -18,7 +18,7 @@
         </div>
 
         <div class="flow-tabs">
-            <div v-for="t in tabs" :key="t.key" class="flow-tab" :class="{ on: tab === t.key }" @click="tab = t.key">{{ t.label }}</div>
+            <div v-for="t in tabs" :key="t.key" class="flow-tab" :class="{ on: tab === t.key }" @click="setTab(t.key)">{{ t.label }}</div>
         </div>
 
         <div class="flow-builder-body">
@@ -87,11 +87,21 @@
                             </button>
                         </div>
                     </div>
+                    <div v-if="def.id && myPerms.bulk" class="fg-row fg-danger">
+                        <label class="fg-label">危険な操作</label>
+                        <div class="fg-danger-body">
+                            <button type="button" class="fg-truncate" :disabled="truncating" @click="truncateRecords">
+                                {{ truncating ? '削除中…' : '全レコードを削除' }}
+                            </button>
+                            <p class="fg-danger-hint">このアプリの全レコードを削除し、レコード番号を1にリセットします。元に戻せません。</p>
+                        </div>
+                    </div>
                 </div>
             </div>
             <FlowFormTab v-show="tab === 'form'" :def="def" />
             <FlowStatusTab v-show="tab === 'status'" :def="def" :users="users" :positions="positions" />
             <FlowViewTab v-show="tab === 'view'" :def="def" :users="users" />
+            <FlowToolsTab v-show="tab === 'tools'" :def="def" :users="users" />
             <FlowPermissionTab v-show="tab === 'permission'" :def="def" :users="users" :positions="positions" />
         </div>
 
@@ -101,25 +111,26 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, nextTick } from 'vue'
+import { onMounted, ref, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '@/composables/api'
 import FlowFormTab from './FlowFormTab.vue'
 import FlowStatusTab from './FlowStatusTab.vue'
 import FlowPermissionTab from './FlowPermissionTab.vue'
 import FlowViewTab from './FlowViewTab.vue'
+import FlowToolsTab from './FlowToolsTab.vue'
 import Back from '@/components/Icons/Back.vue'
 import FlowKintoneImportModal from './FlowKintoneImportModal.vue'
 import FlowAppIcon from './FlowAppIcon.vue'
 import FlowAppIconCropModal from './FlowAppIconCropModal.vue'
 import { useDialog } from '@/composables/dialog'
 import { useAuthUserStore } from '@/store/auth'
-import { isLayoutType } from '@/types/flow'
+import { isLayoutType, defaultWidthFor, emptyPdfTemplate } from '@/types/flow'
 import { FLOW_COLORS } from '@/utils/flowColors'
 import { useTheme } from '@/store/theme'
 import type {
     BuilderDefinition, BuilderStatus, BuilderView, FlowDefinitionApi, AppPermissionRow,
-    FlowOptionUser, FlowOptionPosition, FlowField,
+    FlowOptionUser, FlowOptionPosition, FlowField, FlowInputType,
 } from '@/types/flow'
 
 const api = useApi()
@@ -151,17 +162,32 @@ const generateIcon = async () => {
 
 const loading = ref(true)
 const saving = ref(false)
+const truncating = ref(false)
+const myPerms = ref<Record<string, boolean>>({})
 const nameError = ref(false)
 const nameInput = ref<HTMLInputElement | null>(null)
 const descInput = ref<HTMLTextAreaElement | null>(null)
 const sizeDesc = (el: HTMLTextAreaElement) => { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` }
 const autoGrow = (e: Event) => sizeDesc(e.target as HTMLTextAreaElement)
-const tab = ref<'general' | 'form' | 'status' | 'view' | 'permission'>('general')
+type BuilderTab = 'general' | 'form' | 'status' | 'view' | 'tools' | 'permission'
+const TAB_KEYS: BuilderTab[] = ['general', 'form', 'status', 'view', 'tools', 'permission']
+const tabFromRoute = (): BuilderTab => {
+    const t = route.params.tab as string | undefined
+    return TAB_KEYS.includes(t as BuilderTab) ? (t as BuilderTab) : 'general'
+}
+// each tab is its own route: /apps/builder/:flowId/:tab (general = no suffix)
+const tab = ref<BuilderTab>(tabFromRoute())
+const setTab = (key: BuilderTab) => {
+    tab.value = key
+    router.push({ name: 'flow-builder', params: { ...route.params, tab: key === 'general' ? undefined : key }, query: route.query })
+}
+watch(() => route.params.tab, () => { if (route.name === 'flow-builder') tab.value = tabFromRoute() })
 const tabs = [
     { key: 'general' as const, label: '基本情報' },
     { key: 'form' as const, label: 'フォーム' },
     { key: 'status' as const, label: 'フロー設定' },
     { key: 'view' as const, label: 'ビュー' },
+    { key: 'tools' as const, label: 'ツール' },
     { key: 'permission' as const, label: 'アクセス権' },
 ]
 const users = ref<FlowOptionUser[]>([])
@@ -170,7 +196,7 @@ const positions = ref<FlowOptionPosition[]>([])
 const creatorRow = (): AppPermissionRow => ({
     subject_type: 'creator', subject_id: null,
     can_view: true, can_add: true, can_edit: true, can_delete: true,
-    can_manage: true, can_import: true, can_export: true,
+    can_manage: true, can_import: true, can_export: true, can_bulk: true,
 })
 
 let statusKeySeq = 0
@@ -186,13 +212,14 @@ const newDefinition = (): BuilderDefinition => ({
     use_status_flow: false,
     fields: [],
     statuses: [
-        { key: newStatusKey(), name: '申請中', is_initial: true, rules: {}, actions: [] },
-        { key: newStatusKey(), name: '承認済', is_initial: false, rules: {}, actions: [] },
+        { key: newStatusKey(), name: '申請中', is_initial: true, ui_x: 60, ui_y: 80, rules: {}, actions: [] },
+        { key: newStatusKey(), name: '承認済', is_initial: false, ui_x: 360, ui_y: 80, rules: {}, actions: [] },
     ],
     appPermissions: [creatorRow()],
     recordPermissions: [],
     fieldPermissions: [],
     views: [defaultView()],
+    tools: [],
 })
 
 const defaultView = (): BuilderView => ({
@@ -214,11 +241,26 @@ const onKintoneImport = (preview: any) => {
         used.add(k)
         return k
     }
+    // kintone only requires unique field CODES, not labels — but our save validation forbids
+    // duplicate labels among data fields. Auto-suffix collisions so an imported app saves cleanly.
+    const usedLabels = new Set(
+        existing.filter((f) => !isLayoutType(f.input_type)).map((f) => (f.label ?? '').trim()).filter(Boolean),
+    )
+    const uniqueLabel = (label: string, inputType: string) => {
+        const base = (label ?? '').trim()
+        if (!base || isLayoutType(inputType as FlowInputType)) return label // layout parts hold display text, not identifiers
+        let l = base, n = 2
+        while (usedLabels.has(l)) l = `${base} (${n++})`
+        usedLabels.add(l)
+        return l
+    }
     let row = existing.reduce((m, f) => Math.max(m, f.layout_row ?? 0), -1) + 1
     let order = existing.length
     const optType = (t: string) => ['select', 'radio', 'checkbox'].includes(t)
+    const codeToKey: Record<string, string> = {}
     const added: FlowField[] = (preview.fields ?? []).filter((f: any) => f.supported).map((f: any) => {
         const isTable = f.mapped_type === 'table'
+        const isFormula = f.mapped_type === 'formula'
         const validation: any = {}
         if (isTable) {
             validation.columns = (f.columns ?? []).map((c: any, i: number) => ({
@@ -227,20 +269,60 @@ const onKintoneImport = (preview: any) => {
                 input_type: c.input_type,
                 options: optType(c.input_type) ? (c.options?.length ? [...c.options] : ['選択肢1']) : null,
                 required: !!c.required,
+                formula: c.input_type === 'formula' ? (c.formula ?? '') : undefined,
+                result_type: c.input_type === 'formula' ? (c.result_type ?? 'number') : undefined,
             }))
         }
+        const key = uniqueKey(f.code)
+        codeToKey[f.code] = key
         return {
-            key: uniqueKey(f.code),
-            label: f.label,
+            key,
+            label: uniqueLabel(f.label, f.mapped_type),
             input_type: f.mapped_type,
-            width: isTable ? 640 : 260,
+            width: defaultWidthFor(f.mapped_type),
             is_required: !!f.required,
             options: optType(f.mapped_type) ? (f.options?.length ? [...f.options] : ['選択肢1']) : null,
             validation,
-            layout_row: row++,
+            formula: isFormula ? (f.formula ?? '') : undefined,
+            result_type: isFormula ? (f.result_type ?? 'number') : undefined,
+            layout_row: 0, // assigned by the packing pass below
             order_number: order++,
         } as FlowField
     })
+    // if any field code got renamed for uniqueness, rewrite formula refs to the new keys.
+    // handles both [code] and subtable-aggregate [table.column] references.
+    if (Object.entries(codeToKey).some(([c, k]) => c !== k)) {
+        const remap = (formula: string) => formula.replace(/\[([^\]]+)\]/g, (_m, ref) => {
+            const dot = ref.indexOf('.')
+            if (dot > 0) {
+                const table = ref.slice(0, dot)
+                return `[${codeToKey[table] ?? table}${ref.slice(dot)}]`
+            }
+            return `[${codeToKey[ref] ?? ref}]`
+        })
+        for (const fld of added) {
+            if (fld.input_type === 'formula' && fld.formula) {
+                fld.formula = remap(fld.formula)
+            }
+            // subtable per-row calc columns (sibling keys are stable; top-level refs may have renamed)
+            for (const col of (fld.validation?.columns ?? []) as any[]) {
+                if (col.input_type === 'formula' && col.formula) col.formula = remap(col.formula)
+            }
+        }
+    }
+
+    // pack imported fields into rows by width instead of one-per-row (rough multi-column layout)
+    {
+        const TARGET = 1080, GAP = 14
+        let x = 0
+        for (const f of added) {
+            const w = isLayoutType(f.input_type) ? TARGET : f.width // layout blocks take their own row
+            if (x > 0 && x + w > TARGET) { row++; x = 0 }
+            f.layout_row = row
+            x += w + GAP
+            if (isLayoutType(f.input_type)) { row++; x = 0 } // and force a break after them
+        }
+    }
 
     // Status flow (structure only — kintone states → statuses, actions → transition buttons; assignees ignored).
     let statuses = def.value.statuses
@@ -273,7 +355,7 @@ const onKintoneImport = (preview: any) => {
         statuses,
         fields: [...existing, ...added],
     }
-    tab.value = 'form'
+    setTab('form')
     nextTick(() => { if (descInput.value) sizeDesc(descInput.value) })
     const flowNote = sf?.statuses?.length ? `・ステータスフロー（${sf.statuses.length}）` : ''
     dialog.toast(`${added.length}件の項目${flowNote}を取り込みました。保存前に内容をご確認ください。`)
@@ -315,6 +397,8 @@ const toBuilder = (api: FlowDefinitionApi): BuilderDefinition => {
                 key: statusKey(s.id),
                 name: s.name,
                 is_initial: !!s.is_initial,
+                ui_x: s.ui_x ?? null,
+                ui_y: s.ui_y ?? null,
                 rules,
                 actions,
             }
@@ -334,7 +418,17 @@ const toBuilder = (api: FlowDefinitionApi): BuilderDefinition => {
                 columns: v.columns ?? [], filters: v.filters ?? [], sort: v.sort ?? [],
             }))
             : [defaultView()],
+        tools: (api.tools ?? []).map((t: any) => ({
+            id: t.id, tool_type: t.tool_type, name: t.name, is_active: !!t.is_active,
+            config: t.config ?? emptyPdfTemplate(),
+        })),
     }
+}
+
+// A view ref survives pruning if it's a system column ($…) or points to a field still present.
+const liveRef = (ref: number | string | null | undefined): boolean => {
+    if (typeof ref === 'string' && ref.startsWith('$')) return true
+    return def.value.fields.some((f) => f.id != null && f.id === Number(ref))
 }
 
 const buildPayload = () => ({
@@ -352,6 +446,8 @@ const buildPayload = () => ({
         key: s.key,
         name: s.name,
         is_initial: s.is_initial,
+        ui_x: s.ui_x ?? null,
+        ui_y: s.ui_y ?? null,
         field_rules: Object.entries(s.rules).map(([field_key, rule]) => ({ field_key, rule })),
     })),
     status_actions: def.value.statuses.flatMap((s) =>
@@ -370,7 +466,14 @@ const buildPayload = () => ({
     field_permissions: def.value.fieldPermissions,
     views: def.value.views.map((v) => ({
         id: v.id, name: v.name, is_default: v.is_default,
-        columns: v.columns, filters: v.filters, sort: v.sort,
+        // Drop column/filter/sort refs to fields that no longer exist (e.g. deleted since the
+        // view was configured). System columns ($record_number 等) and live field ids are kept.
+        columns: (v.columns ?? []).filter(liveRef),
+        filters: (v.filters ?? []).filter((f) => liveRef(f.field)),
+        sort: (v.sort ?? []).filter((s) => liveRef(s.field)),
+    })),
+    tools: def.value.tools.map((t) => ({
+        id: t.id, tool_type: t.tool_type, name: t.name, is_active: t.is_active, config: t.config,
     })),
     project_record_id: def.value.project_record_id ?? null,
 })
@@ -399,13 +502,13 @@ const fieldError = (): string | null => {
 const save = async () => {
     if (!def.value.name.trim()) {
         nameError.value = true
-        tab.value = 'general'
+        setTab('general')
         nextTick(() => nameInput.value?.focus())
         return
     }
     const fErr = fieldError()
     if (fErr) {
-        tab.value = 'form'
+        setTab('form')
         dialog.toast(fErr)
         return
     }
@@ -414,10 +517,23 @@ const save = async () => {
         const data = await api.post('/flow_definition_save', buildPayload(), { toast: '保存しました。' })
         if (data) {
             def.value = toBuilder(data as FlowDefinitionApi)
-            back()
+            // land inside the app itself (both edit and newly created)
+            router.push({ name: 'flow-records', params: { flowId: (data as FlowDefinitionApi).id } })
         }
     } finally {
         saving.value = false
+    }
+}
+
+const truncateRecords = async () => {
+    if (!def.value.id) return
+    if (!window.confirm(`「${def.value.name}」の全レコードを削除し、レコード番号を1にリセットします。\nこの操作は元に戻せません。実行しますか？`)) return
+    truncating.value = true
+    try {
+        const res = await api.post(`/flow_app_truncate/${def.value.id}`, {}, { toast: '全レコードを削除しました。' })
+        if (res) dialog.toast(`${res.deleted ?? 0}件のレコードを削除しました。`)
+    } finally {
+        truncating.value = false
     }
 }
 
@@ -439,7 +555,7 @@ onMounted(async () => {
         const id = route.params.flowId
         if (id) {
             const data = await api.get(`/flow_definitions/${id}`)
-            if (data) def.value = toBuilder(data as FlowDefinitionApi)
+            if (data) { def.value = toBuilder(data as FlowDefinitionApi); myPerms.value = (data as any).my_permissions ?? {} }
         } else if (route.query.project) {
             def.value.project_record_id = Number(route.query.project)
         }
@@ -459,12 +575,18 @@ onMounted(async () => {
 .flow-general { display: flex; justify-content: center; }
 .fg-panel { width: 100%; max-width: 720px; box-sizing: border-box !important; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 10px; padding: 22px 24px; display: flex; flex-direction: column; gap: 20px; }
 .fg-row { display: flex; flex-direction: column; gap: 7px; }
+.fg-danger { margin-top: 8px; padding-top: 16px; border-top: 1px dashed var(--calendarBorder); }
+.fg-danger-body { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.fg-truncate { background: tomato; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.fg-truncate:hover { background: #e8482e; }
+.fg-truncate:disabled { opacity: 0.55; cursor: not-allowed; }
+.fg-danger-hint { font-size: 11.5px; color: gray; margin: 0; }
 .fg-label { font-size: 12px; color: gray; font-weight: 500; }
 .fg-required { color: #e24b4a; }
 .fg-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--primary-color); cursor: pointer; width: fit-content; }
 .fg-icon { display: flex; align-items: center; gap: 14px; }
 .fg-icon-btns { display: flex; flex-wrap: wrap; gap: 8px; }
-.fg-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.fg-swatches { display: grid; grid-template-columns: repeat(5, 28px); gap: 8px; width: fit-content; }
 .fg-swatch { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--calendarBorder); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--primary-color); box-sizing: border-box !important; transition: transform .1s, box-shadow .1s; padding: 0; }
 .fg-swatch:hover { transform: scale(1.08); }
 .fg-swatch.on { box-shadow: 0 0 0 2px var(--primary-color); }
@@ -477,11 +599,19 @@ onMounted(async () => {
 .flow-name-input:focus { outline: none; border-color: var(--primary-color); }
 .flow-name-input.error { border-color: #e24b4a; background: rgba(226, 75, 74, 0.06); }
 .name-error { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #e24b4a; padding-left: 3px; }
-.flow-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--calendarBorder); background: var(--background-color); padding: 0 16px; }
-.flow-tab { padding: 11px 16px; font-size: 14px; color: gray; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.flow-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--calendarBorder); background: var(--background-color); padding: 0 16px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.flow-tabs::-webkit-scrollbar { display: none; }
+.flow-tab { padding: 11px 16px; font-size: 14px; color: gray; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; flex-shrink: 0; }
 .flow-tab:hover { color: var(--primary-color); }
 .flow-tab.on { color: var(--primary-color); border-bottom-color: var(--primary-color); font-weight: 500; }
 .flow-builder-body { flex: 1; overflow: auto; padding: 18px; background: var(--bg3); }
+
+@media (max-width: 640px) {
+    .flow-tabs { padding: 0 10px; }
+    .flow-tab { padding: 10px 10px; font-size: 12px; }
+    /* clear the app's fixed bottom nav so the last content isn't hidden under it */
+    .flow-builder-body { padding: 14px 12px 84px; }
+}
 .flow-ghost-btn { background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 6px; padding: 7px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
 .flow-primary-btn { padding: 7px 18px; font-size: 13px; color: #fff; background: var(--primary-button, var(--primary-color)); border: none; border-radius: 6px; cursor: pointer; }
 .flow-primary-btn:disabled { opacity: 0.5; cursor: default; }

@@ -10,7 +10,10 @@ use App\Infrastructure\Kintone\KintoneClient;
  */
 class KintoneImportService
 {
-    public function __construct(private KintoneClient $kintone) {}
+    public function __construct(
+        private KintoneClient $kintone,
+        private KintoneFormulaConverter $formulaConverter,
+    ) {}
 
     /** kintone field type → our input_type. Types not listed are unsupported (skipped). */
     private const TYPE_MAP = [
@@ -46,6 +49,7 @@ class KintoneImportService
 
         $fields = [];
         $this->collectFields($properties, $fields);
+        $this->convertFormulas($fields);
 
         $supported = array_values(array_filter($fields, fn ($f) => $f['supported']));
         $skipped = array_values(array_filter($fields, fn ($f) => !$f['supported']));
@@ -144,9 +148,85 @@ class KintoneImportService
                 'supported' => $mapped !== null,
                 'required' => (bool) ($prop['required'] ?? false),
                 'options' => $this->mapOptions($prop),
-                'note' => $mapped === null ? $this->unsupportedReason($type) : ($type === 'CALC' ? '計算式は取り込めません（数値項目として作成）' : null),
+                'expression' => $type === 'CALC' ? ($prop['expression'] ?? null) : null,
+                'note' => $mapped === null ? $this->unsupportedReason($type) : null,
             ];
         }
+    }
+
+    /**
+     * Second pass: try to port each CALC field's kintone expression into our formula engine.
+     * Convertible → import as a `formula` field; otherwise it stays a plain number (with a reason).
+     * Runs after collectFields so a formula can reference any other imported field.
+     */
+    private function convertFormulas(array &$fields): void
+    {
+        $importable = [];
+        $columnOwner = []; // subtable inner-field code => owning table field code (kintone codes are app-unique)
+        foreach ($fields as $f) {
+            if (($f['mapped_type'] ?? null) !== null) {
+                $importable[$f['code']] = true;
+            }
+            if (($f['mapped_type'] ?? null) === 'table') {
+                foreach ($f['columns'] ?? [] as $c) {
+                    $columnOwner[$c['key']] = $f['code'];
+                }
+            }
+        }
+
+        foreach ($fields as &$f) {
+            if (($f['kintone_type'] ?? null) !== 'CALC') {
+                continue;
+            }
+            $res = $this->formulaConverter->convert($f['expression'] ?? null, $importable, $columnOwner);
+            if ($res['ok']) {
+                $f['mapped_type'] = 'formula';
+                $f['formula'] = $res['formula'];
+                $f['result_type'] = 'number';
+                $f['supported'] = true;
+                $f['formula_status'] = 'ok';
+                $f['note'] = '計算式を取り込みます';
+            } else {
+                $f['formula_status'] = 'fallback';
+                $f['formula_reason'] = $res['reason'];
+                $f['note'] = '計算式は数値項目として取込（' . $res['reason'] . '）';
+            }
+        }
+        unset($f);
+
+        // Subtable CALC columns → per-row formula columns. A subtable calc may reference its
+        // own row's sibling columns (bare) or top-level fields; both resolve as [code] at runtime.
+        foreach ($fields as &$f) {
+            if (($f['mapped_type'] ?? null) !== 'table' || empty($f['columns'])) {
+                continue;
+            }
+            $siblings = [];
+            foreach ($f['columns'] as $c) {
+                $siblings[$c['key']] = true;
+            }
+            $scope = $siblings + $importable;
+            $converted = 0;
+            foreach ($f['columns'] as &$c) {
+                $expr = $c['expression'] ?? null;
+                unset($c['expression']); // don't leak the raw kintone expression to the client
+                if (!$expr) {
+                    continue;
+                }
+                $res = $this->formulaConverter->convert($expr, $scope, []);
+                if ($res['ok']) {
+                    $c['input_type'] = 'formula';
+                    $c['formula'] = $res['formula'];
+                    $c['result_type'] = 'number';
+                    $converted++;
+                }
+                // else: column stays a plain number
+            }
+            unset($c);
+            if ($converted > 0) {
+                $f['note'] = trim(($f['note'] ? $f['note'] . ' / ' : '') . "計算列 {$converted} を取込");
+            }
+        }
+        unset($f);
     }
 
     /**
@@ -171,6 +251,7 @@ class KintoneImportService
                 'input_type' => $mapped,
                 'options' => $this->mapOptions($prop),
                 'required' => (bool) ($prop['required'] ?? false),
+                'expression' => $type === 'CALC' ? ($prop['expression'] ?? null) : null,
             ];
         }
         return $columns;

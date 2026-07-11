@@ -109,12 +109,12 @@ const NEW_TYPE_OPTIONS = [
     { value: 'short', label: '短文' }, { value: 'long', label: '長文' }, { value: 'number', label: '数値' },
     { value: 'date', label: '日付' }, { value: 'datetime', label: '日時' }, { value: 'time', label: '時刻' },
     { value: 'select', label: '選択' }, { value: 'radio', label: 'ラジオ' }, { value: 'checkbox', label: 'チェック' },
-    { value: 'toggle', label: 'トグル' },
+    { value: 'toggle', label: 'オン/オフ' },
 ]
 
 const TYPE_LABELS: Record<string, string> = {
     short: '短文', long: '長文', number: '数値', date: '日付', datetime: '日時', time: '時刻',
-    select: '選択', radio: 'ラジオ', checkbox: 'チェック', toggle: 'トグル', user: 'ユーザー', member: 'メンバー', file: 'ファイル',
+    select: '選択', radio: 'ラジオ', checkbox: 'チェック', toggle: 'オン/オフ', user: 'ユーザー', member: 'メンバー', file: 'ファイル',
 }
 const typeLabel = (t: string) => TYPE_LABELS[t] ?? t
 

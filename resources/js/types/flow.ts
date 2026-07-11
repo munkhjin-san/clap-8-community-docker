@@ -79,6 +79,32 @@ export interface FlowField {
 export const FLOW_FIELD_MIN_WIDTH = 140
 export const FLOW_FIELD_DEFAULT_WIDTH = 260
 
+// Per-type initial width — text needs room, pickers/toggles/dates stay compact.
+export const FLOW_FIELD_DEFAULT_WIDTHS: Partial<Record<FlowInputType, number>> = {
+    short: 340,
+    long: 560,
+    number: 180,
+    date: 190,
+    time: 160,
+    datetime: 230,
+    select: 260,
+    radio: 260,
+    checkbox: 320,
+    toggle: 160,
+    user: 300,
+    member: 300,
+    formula: 240,
+    reference: 320,
+    project: 280,
+    file: 380,
+    table: 640,
+    heading: 640,
+    label: 520,
+    divider: 640,
+    spacer: 200,
+}
+export const defaultWidthFor = (type: FlowInputType): number => FLOW_FIELD_DEFAULT_WIDTHS[type] ?? FLOW_FIELD_DEFAULT_WIDTH
+
 export const FLOW_FILE_ACCEPT: { value: string; label: string }[] = [
     { value: 'image', label: '画像' },
     { value: 'document', label: '文書' },
@@ -95,7 +121,7 @@ export interface FlowStatusFieldRule {
 
 /** Who may press an action button. */
 export interface ActionSubject {
-    subject_type: 'creator' | 'user' | 'position'
+    subject_type: 'creator' | 'user' | 'position' | 'creator_project_manager' | 'field_project_manager'
     subject_id?: number | null
 }
 
@@ -106,6 +132,8 @@ export interface FlowStatusApi {
     order_number?: number
     is_initial?: boolean
     is_locked?: 'start' | 'end' | null
+    ui_x?: number | null
+    ui_y?: number | null
     field_rules?: FlowStatusFieldRule[]
 }
 
@@ -137,6 +165,8 @@ export interface BuilderStatus {
     key: string
     name: string
     is_initial: boolean
+    ui_x?: number | null
+    ui_y?: number | null
     rules: Record<string, FlowRule>
     actions: BuilderStatusAction[]
 }
@@ -155,6 +185,7 @@ export interface AppPermissionRow {
     can_manage: boolean
     can_import: boolean
     can_export: boolean
+    can_bulk: boolean
     sort_order?: number
 }
 
@@ -263,6 +294,94 @@ export interface FlowShare {
     access_level: 'use' | 'view'
 }
 
+/* ---------------- Tools (ツール): app add-ons like PDF generation ---------------- */
+
+export type PdfElementType = 'text' | 'field' | 'today' | 'image' | 'box' | 'line' | 'table'
+
+export interface PdfElementStyle {
+    fontSize?: number
+    bold?: boolean
+    italic?: boolean
+    underline?: boolean
+    align?: 'left' | 'center' | 'right'
+    color?: string
+    lineHeight?: number
+    borderWidth?: number
+    borderColor?: string
+    fill?: string
+    radius?: number
+}
+
+export interface PdfValueFormat {
+    kind?: 'text' | 'number' | 'date'
+    decimals?: number
+    pattern?: string
+}
+
+export interface PdfTableColumn {
+    colKey: string        // source column key inside the bound table field
+    label: string
+    width?: number        // % of table width
+    align?: 'left' | 'center' | 'right'
+    format?: PdfValueFormat
+}
+
+/** One element on the A4 design canvas (px @96dpi, 794 x 1123). */
+export interface PdfElement {
+    id: string
+    type: PdfElementType
+    x: number
+    y: number
+    w: number
+    h: number
+    style?: PdfElementStyle
+    // text
+    text?: string
+    // field binding
+    fieldKey?: string
+    format?: PdfValueFormat
+    prefix?: string
+    suffix?: string
+    fallback?: string
+    // image
+    src?: string          // data-uri
+    fit?: 'contain' | 'cover'
+    // table (明細)
+    sourceFieldKey?: string
+    columns?: PdfTableColumn[]
+    amountColKey?: string
+    showSubtotal?: boolean
+    showTax?: boolean
+    showTotal?: boolean
+    tax?: { rate?: number }
+    currency?: string
+    fontSize?: number
+    borderColor?: string
+}
+
+export interface PdfTemplate {
+    paper: { orientation: 'portrait' | 'landscape' }
+    elements: PdfElement[]
+    filename?: string
+}
+
+export interface FlowAppTool {
+    id?: number
+    tool_type: 'pdf'
+    name: string
+    is_active: boolean
+    config: PdfTemplate
+}
+
+export const TOOL_META: Record<string, { label: string; icon: string }> = {
+    pdf: { label: 'PDF帳票', icon: 'file' },
+}
+
+export const emptyPdfTemplate = (): PdfTemplate => ({
+    paper: { orientation: 'portrait' },
+    elements: [],
+})
+
 export interface FlowDefinitionApi {
     id?: number
     name: string
@@ -281,6 +400,7 @@ export interface FlowDefinitionApi {
     record_permission_sets?: any[]
     field_permissions?: any[]
     views?: FlowViewApi[]
+    tools?: FlowAppTool[]
     project_record_id?: number | null
 }
 
@@ -299,6 +419,7 @@ export interface BuilderDefinition {
     recordPermissions: RecordPermSetRow[]
     fieldPermissions: FieldPermRow[]
     views: BuilderView[]
+    tools: FlowAppTool[]
     project_record_id?: number | null
 }
 
@@ -347,6 +468,7 @@ export interface FlowAppPermissionsDto {
     manage: boolean
     import: boolean
     export: boolean
+    bulk: boolean
 }
 
 export interface FlowRecordDto {
@@ -361,6 +483,8 @@ export interface FlowRecordDto {
     source_id?: string | null
     created_at?: string
     updated_at?: string
+    can_edit?: boolean
+    can_delete?: boolean
 }
 
 export interface FlowRecordsResponse {

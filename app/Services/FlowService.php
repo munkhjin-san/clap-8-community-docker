@@ -11,6 +11,7 @@ use App\Models\FlowStatus;
 use App\Models\FlowStatusAction;
 use App\Models\User;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -40,7 +41,7 @@ class FlowService
 
     public function canCreateRecord(User $user, FlowDefinition $definition): bool
     {
-        if (!$definition->is_active) {
+        if (! $definition->is_active) {
             return false;
         }
 
@@ -70,7 +71,7 @@ class FlowService
             ? $record->definition
             : $record->definition()->with('shares')->first();
 
-        if (!$definition) {
+        if (! $definition) {
             return false;
         }
 
@@ -135,7 +136,7 @@ class FlowService
 
     public function startStatus(FlowDefinition $definition): ?FlowStatus
     {
-        if (!$definition->use_status_flow) {
+        if (! $definition->use_status_flow) {
             return null;
         }
         $statuses = $this->orderedStatuses($definition);
@@ -150,13 +151,14 @@ class FlowService
      |---------------------------------------------------------------- */
 
     /** Action buttons available on the record's current status. */
-    public function statusActionsFor(FlowRecord $record): \Illuminate\Support\Collection
+    public function statusActionsFor(FlowRecord $record): Collection
     {
         $def = $record->definition;
-        if (!$def || !$def->use_status_flow || !$record->current_status_id) {
+        if (! $def || ! $def->use_status_flow || ! $record->current_status_id) {
             return collect();
         }
         $actions = $def->relationLoaded('statusActions') ? $def->statusActions : $def->statusActions()->get();
+
         return $actions->where('flow_status_id', $record->current_status_id)->values();
     }
 
@@ -174,6 +176,7 @@ class FlowService
         if (empty($action->eligible)) {
             return $this->recordPermissions($user, $record, $def)['edit'];
         }
+
         return $this->effectiveAppPermissions($user, $def)['manage'];
     }
 
@@ -185,6 +188,7 @@ class FlowService
                 return true;
             }
         }
+
         return false;
     }
 
@@ -251,9 +255,10 @@ class FlowService
             case 'user':
                 return $status->assignment_target_id ? [(int) $status->assignment_target_id] : [];
             case 'position':
-                if (!$status->assignment_target_id) {
+                if (! $status->assignment_target_id) {
                     return [];
                 }
+
                 return User::query()
                     ->where('position_id', $status->assignment_target_id)
                     ->where('retire', 0)
@@ -305,7 +310,7 @@ class FlowService
     public function advance(FlowRecord $record, User $user, ?string $comment = null): FlowStatus
     {
         $next = $this->nextStatus($record);
-        abort_if(!$next, 422, '次のステータスがありません。');
+        abort_if(! $next, 422, '次のステータスがありません。');
 
         DB::transaction(function () use ($record, $next, $user, $comment) {
             $from = $record->currentStatus;
@@ -322,7 +327,7 @@ class FlowService
     public function sendBack(FlowRecord $record, User $user, string $reason): FlowStatus
     {
         $previous = $this->previousStatus($record);
-        abort_if(!$previous, 422, '差し戻し先のステータスがありません。');
+        abort_if(! $previous, 422, '差し戻し先のステータスがありません。');
 
         DB::transaction(function () use ($record, $previous, $user, $reason) {
             $from = $record->currentStatus;
@@ -405,10 +410,10 @@ class FlowService
         foreach ($values as $fieldId => $value) {
             $fieldId = (int) $fieldId;
             $field = $byId->get($fieldId);
-            if (!$field) {
+            if (! $field) {
                 continue;
             }
-            if ($allowedFieldIds !== null && !in_array($fieldId, $allowedFieldIds, true)) {
+            if ($allowedFieldIds !== null && ! in_array($fieldId, $allowedFieldIds, true)) {
                 continue;
             }
 
@@ -453,7 +458,7 @@ class FlowService
 
         foreach ($values as $v) {
             $field = $byId->get($v->flow_field_id);
-            if (!$field) {
+            if (! $field) {
                 continue;
             }
             $out[$v->flow_field_id] = $v->{$this->columnForType($field->input_type)};
@@ -510,6 +515,7 @@ class FlowService
             $seq = (int) (FlowDefinition::whereKey($definition->id)->lockForUpdate()->value('record_seq') ?? 0);
             $next = $seq + 1;
             DB::table('flow_definitions')->where('id', $definition->id)->update(['record_seq' => $next]);
+
             return $next;
         });
     }
@@ -545,7 +551,7 @@ class FlowService
 
         $kw = trim($search);
         if ($kw !== '') {
-            $like = '%' . mb_strtolower($kw) . '%';
+            $like = '%'.mb_strtolower($kw).'%';
             $q->where(function ($w) use ($like) {
                 $w->whereRaw('CAST(record_number AS CHAR) LIKE ?', [$like])
                     ->orWhereHas('values', function ($vq) use ($like) {
@@ -570,6 +576,7 @@ class FlowService
                 $col = $ref === '$record_number' ? 'record_number' : ($ref === '$created_at' ? 'created_at' : 'updated_at');
                 $q->orderBy($col, $dir);
                 $applied = true;
+
                 continue;
             }
             if ($ref === '$status') {
@@ -578,13 +585,14 @@ class FlowService
                     ->orderBy('sort_status.order_number', $dir)
                     ->select('flow_records.*');
                 $applied = true;
+
                 continue;
             }
             $field = $fieldsById->get((int) $ref);
-            if (!$field) {
+            if (! $field) {
                 continue;
             }
-            $alias = 'sort_' . $i;
+            $alias = 'sort_'.$i;
             $col = $this->valueColumnFor($field->input_type);
             $q->leftJoin("flow_record_values as {$alias}", function ($j) use ($alias, $field) {
                 $j->on("{$alias}.flow_record_id", '=', 'flow_records.id')
@@ -593,7 +601,7 @@ class FlowService
             $q->select('flow_records.*');
             $applied = true;
         }
-        if (!$applied) {
+        if (! $applied) {
             $q->orderByDesc('created_at')->orderByDesc('id');
         }
     }
@@ -608,6 +616,7 @@ class FlowService
         if (in_array($ref, ['$record_number', '$created_at', '$updated_at'], true)) {
             $col = $ref === '$record_number' ? 'record_number' : ($ref === '$created_at' ? 'created_at' : 'updated_at');
             $this->applyScalarOp($q, $col, $op, $first);
+
             return;
         }
 
@@ -619,11 +628,12 @@ class FlowService
             } else {
                 $q->whereHas('currentStatus', fn ($s) => $this->applyScalarOp($s, 'name', $op, $first));
             }
+
             return;
         }
 
         $field = $fieldsById->get((int) $ref);
-        if (!$field) {
+        if (! $field) {
             return;
         }
         $col = $this->valueColumnFor($field->input_type);
@@ -637,7 +647,7 @@ class FlowService
             $q->whereHas('values', function ($v) use ($fid, $col, $vals) {
                 $v->where('flow_field_id', $fid)->where(function ($w) use ($col, $vals) {
                     foreach ($vals as $val) {
-                        $w->orWhere($col, 'like', '%"' . $val . '"%')->orWhere($col, $val);
+                        $w->orWhere($col, 'like', '%"'.$val.'"%')->orWhere($col, $val);
                     }
                 });
             });
@@ -650,8 +660,8 @@ class FlowService
     {
         return match ($op) {
             'not_equals' => $q->where(fn ($w) => $w->where($col, '!=', $first)->orWhereNull($col)),
-            'contains' => $q->where($col, 'like', '%' . $first . '%'),
-            'not_contains' => $q->where(fn ($w) => $w->where($col, 'not like', '%' . $first . '%')->orWhereNull($col)),
+            'contains' => $q->where($col, 'like', '%'.$first.'%'),
+            'not_contains' => $q->where(fn ($w) => $w->where($col, 'not like', '%'.$first.'%')->orWhereNull($col)),
             'gt' => $q->where($col, '>', $first),
             'gte' => $q->where($col, '>=', $first),
             'lt' => $q->where($col, '<', $first),
@@ -663,7 +673,7 @@ class FlowService
     public function createRecord(FlowDefinition $definition, User $user, array $values): FlowRecord
     {
         $start = $this->startStatus($definition);
-        abort_if(!$start, 422, 'このフローには開始ステータスがありません。');
+        abort_if(! $start, 422, 'このフローには開始ステータスがありません。');
 
         return DB::transaction(function () use ($definition, $user, $values, $start) {
             $record = FlowRecord::create([
@@ -764,7 +774,7 @@ class FlowService
         $keptIds = [];
 
         foreach ($incoming as $f) {
-            if (!is_array($f) || empty($f['id'])) {
+            if (! is_array($f) || empty($f['id'])) {
                 continue;
             }
             $id = (int) $f['id'];
@@ -795,7 +805,7 @@ class FlowService
 
         // Physically remove files that were dropped from the field.
         foreach ($old as $f) {
-            if (is_array($f) && !empty($f['id']) && !in_array((int) $f['id'], $keptIds, true)) {
+            if (is_array($f) && ! empty($f['id']) && ! in_array((int) $f['id'], $keptIds, true)) {
                 $ext = (string) ($f['extension'] ?? '');
                 $userId = (int) ($f['user_id'] ?? 0);
                 Storage::disk('local')->delete("{$dir}/{$f['id']}_{$userId}.{$ext}");
@@ -808,7 +818,7 @@ class FlowService
     public function readFieldValue(?FlowRecordValue $value, FlowField $field): mixed
     {
         $multi = in_array($field->input_type, ['checkbox', 'file', 'user', 'member', 'table'], true);
-        if (!$value) {
+        if (! $value) {
             return $multi ? [] : null;
         }
 
@@ -838,15 +848,31 @@ class FlowService
             $out[(string) $field->id] = $this->readFieldValue($stored->get($field->id), $field);
         }
 
-        foreach (collect($fields)->where('input_type', 'formula') as $field) {
-            $context = $this->formulaContext($fields, $out);
-            $result = app(FlowFormulaEvaluator::class)->evaluate($field->formula ?? '', $context);
-            $out[(string) $field->id] = $this->castFormulaResult($result, $field->result_type ?? 'number');
+        // Formulas span two levels that reference each other: per-row table calc columns
+        // (e.g. 金額 = 数量 * 単価) and top-level fields that aggregate them (e.g. 合計 = SUM([表.金額])),
+        // which in turn feed further top-level formulas (e.g. 比率 = 合計 / 売上 * 100). Compute the
+        // table columns first so aggregates can read them, then iterate the top-level formulas to a
+        // fixpoint. Acyclic dependencies converge within (#formulas + 1) passes; we stop early once
+        // nothing changes. computeTableCalcColumns re-runs each pass so a column that references a
+        // top-level formula also settles.
+        $formulaFields = collect($fields)->where('input_type', 'formula')->values();
+        $evaluator = app(FlowFormulaEvaluator::class);
+        $passes = max(1, $formulaFields->count() + 1);
+        for ($p = 0; $p < $passes; $p++) {
+            $this->computeTableCalcColumns($fields, $out);
+            $changed = false;
+            foreach ($formulaFields as $field) {
+                $context = $this->formulaContext($fields, $out);
+                $result = $this->castFormulaResult($evaluator->evaluate($field->formula ?? '', $context), $field->result_type ?? 'number');
+                if (($out[(string) $field->id] ?? null) !== $result) {
+                    $changed = true;
+                }
+                $out[(string) $field->id] = $result;
+            }
+            if (! $changed) {
+                break;
+            }
         }
-
-        // Per-row calculated columns inside table fields. Variables resolve against the row's own
-        // cells first (by column key/label), then fall back to top-level field values.
-        $this->computeTableCalcColumns($fields, $out);
 
         return $out;
     }
@@ -868,32 +894,48 @@ class FlowService
                 continue;
             }
             $rows = $out[(string) $field->id] ?? [];
-            if (!is_array($rows)) {
+            if (! is_array($rows)) {
                 continue;
             }
             foreach ($rows as $ri => $row) {
-                if (!is_array($row)) {
+                if (! is_array($row)) {
                     continue;
                 }
                 $rowContext = $topContext;
                 foreach ($columns as $c) {
                     $ck = $c['key'] ?? null;
-                    if (!$ck) {
+                    if (! $ck) {
                         continue;
                     }
                     $cell = $row[$ck] ?? null;
                     $rowContext[$ck] = $cell;
-                    if (!empty($c['label'])) {
+                    if (! empty($c['label'])) {
                         $rowContext[$c['label']] = $cell;
                     }
                 }
-                foreach ($calcCols as $c) {
-                    $ck = $c['key'] ?? null;
-                    if (!$ck) {
-                        continue;
+                // Multi-pass so a calc column can reference another calc column in the same row.
+                // Acyclic chains converge within (#calc columns) passes; stops early once stable.
+                $passes = max(1, count($calcCols));
+                for ($p = 0; $p < $passes; $p++) {
+                    $changed = false;
+                    foreach ($calcCols as $c) {
+                        $ck = $c['key'] ?? null;
+                        if (! $ck) {
+                            continue;
+                        }
+                        $val = $this->castFormulaResult($evaluator->evaluate($c['formula'] ?? '', $rowContext), $c['result_type'] ?? 'number');
+                        if (($rowContext[$ck] ?? null) !== $val) {
+                            $changed = true;
+                        }
+                        $rowContext[$ck] = $val;
+                        if (! empty($c['label'])) {
+                            $rowContext[$c['label']] = $val;
+                        }
+                        $row[$ck] = $val;
                     }
-                    $result = $evaluator->evaluate($c['formula'] ?? '', $rowContext);
-                    $row[$ck] = $this->castFormulaResult($result, $c['result_type'] ?? 'number');
+                    if (! $changed) {
+                        break;
+                    }
                 }
                 $rows[$ri] = $row;
             }
@@ -905,11 +947,18 @@ class FlowService
     {
         $context = [];
         foreach ($fields as $field) {
+            // Layout parts (見出し・ラベル等) carry display text, never values — and the builder
+            // allows them to share a data field's label, which would clobber that field's
+            // context entry with null. They can't be referenced, so skip them entirely.
+            if (self::isLayoutType($field->input_type)) {
+                continue;
+            }
             $v = $values[(string) $field->id] ?? null;
             $context[(string) $field->id] = $v;
             $context[$field->key] = $v;
             $context[$field->label] = $v;
         }
+
         return $context;
     }
 
@@ -929,10 +978,10 @@ class FlowService
 
         foreach ($values as $fieldId => $raw) {
             $field = $byId->get((int) $fieldId);
-            if (!$field || $field->input_type === 'formula' || self::isLayoutType($field->input_type)) {
+            if (! $field || $field->input_type === 'formula' || self::isLayoutType($field->input_type)) {
                 continue;
             }
-            if ($allowedFieldIds !== null && !in_array((int) $fieldId, $allowedFieldIds, true)) {
+            if ($allowedFieldIds !== null && ! in_array((int) $fieldId, $allowedFieldIds, true)) {
                 continue;
             }
             $this->saveFieldValue($record, $field, $raw);
@@ -954,13 +1003,13 @@ class FlowService
 
         $out = [];
         foreach ($rows as $row) {
-            if (!is_array($row)) {
+            if (! is_array($row)) {
                 continue;
             }
             $clean = [];
             foreach ($columns as $col) {
                 $key = $col['key'] ?? null;
-                if (!$key) {
+                if (! $key) {
                     continue;
                 }
                 // formula columns are derived on read, never persisted from input
@@ -978,9 +1027,10 @@ class FlowService
     /** Reference field: snapshot the picked target record as {id, number, label}. */
     private function referenceValue($raw): ?array
     {
-        if (!is_array($raw) || empty($raw['id'])) {
+        if (! is_array($raw) || empty($raw['id'])) {
             return null;
         }
+
         return [
             'id' => (int) $raw['id'],
             'number' => isset($raw['number']) ? (int) $raw['number'] : null,
@@ -1007,16 +1057,17 @@ class FlowService
             return null;
         }
         $n = preg_replace('/[^\d.\-]/', '', (string) $raw);
+
         return $n === '' ? null : (float) $n;
     }
 
     private function dateValue($raw): ?string
     {
-        if (!$raw) {
+        if (! $raw) {
             return null;
         }
         try {
-            return \Illuminate\Support\Carbon::parse($raw)->toDateString();
+            return Carbon::parse($raw)->toDateString();
         } catch (\Throwable) {
             return null;
         }
@@ -1024,11 +1075,11 @@ class FlowService
 
     private function dateTimeValue($raw): ?string
     {
-        if (!$raw) {
+        if (! $raw) {
             return null;
         }
         try {
-            return \Illuminate\Support\Carbon::parse($raw)->format('Y-m-d H:i:s');
+            return Carbon::parse($raw)->format('Y-m-d H:i:s');
         } catch (\Throwable) {
             return null;
         }
@@ -1047,6 +1098,7 @@ class FlowService
         if ($raw === null || $raw === '') {
             return [];
         }
+
         return [$raw];
     }
 
@@ -1063,6 +1115,7 @@ class FlowService
         if ($raw === null || $raw === '') {
             return null;
         }
+
         return is_array($raw) ? json_encode($raw, JSON_UNESCAPED_UNICODE) : (string) $raw;
     }
 
@@ -1084,6 +1137,7 @@ class FlowService
                 $errors[(string) $field->id] = $error;
             }
         }
+
         return $errors;
     }
 
@@ -1103,32 +1157,56 @@ class FlowService
             case 'short':
             case 'long':
                 $len = mb_strlen((string) $value);
-                if (($rules['min_length'] ?? null) !== null && $len < $rules['min_length']) return "{$rules['min_length']}文字以上で入力してください。";
-                if (($rules['max_length'] ?? null) !== null && $len > $rules['max_length']) return "{$rules['max_length']}文字以内で入力してください。";
-                if ($field->input_type === 'short' && !empty($rules['format']) && $rules['format'] !== 'none' && !$this->matchFormat($rules['format'], (string) $value)) {
+                if (($rules['min_length'] ?? null) !== null && $len < $rules['min_length']) {
+                    return "{$rules['min_length']}文字以上で入力してください。";
+                }
+                if (($rules['max_length'] ?? null) !== null && $len > $rules['max_length']) {
+                    return "{$rules['max_length']}文字以内で入力してください。";
+                }
+                if ($field->input_type === 'short' && ! empty($rules['format']) && $rules['format'] !== 'none' && ! $this->matchFormat($rules['format'], (string) $value)) {
                     return '形式が正しくありません。';
                 }
                 break;
             case 'number':
-                if (!is_numeric($value)) return '数値で入力してください。';
+                if (! is_numeric($value)) {
+                    return '数値で入力してください。';
+                }
                 $n = (float) $value;
-                if (!empty($rules['integer_only']) && floor($n) != $n) return '整数で入力してください。';
-                if (($rules['min'] ?? null) !== null && $n < $rules['min']) return "{$rules['min']}以上で入力してください。";
-                if (($rules['max'] ?? null) !== null && $n > $rules['max']) return "{$rules['max']}以下で入力してください。";
+                if (! empty($rules['integer_only']) && floor($n) != $n) {
+                    return '整数で入力してください。';
+                }
+                if (($rules['min'] ?? null) !== null && $n < $rules['min']) {
+                    return "{$rules['min']}以上で入力してください。";
+                }
+                if (($rules['max'] ?? null) !== null && $n > $rules['max']) {
+                    return "{$rules['max']}以下で入力してください。";
+                }
                 break;
             case 'checkbox':
                 $count = is_array($value) ? count($value) : 0;
-                if (($rules['min_select'] ?? null) !== null && $count < $rules['min_select']) return "{$rules['min_select']}個以上選択してください。";
-                if (($rules['max_select'] ?? null) !== null && $count > $rules['max_select']) return "{$rules['max_select']}個以内で選択してください。";
+                if (($rules['min_select'] ?? null) !== null && $count < $rules['min_select']) {
+                    return "{$rules['min_select']}個以上選択してください。";
+                }
+                if (($rules['max_select'] ?? null) !== null && $count > $rules['max_select']) {
+                    return "{$rules['max_select']}個以内で選択してください。";
+                }
                 break;
             case 'date':
             case 'datetime':
-                if (!empty($rules['min_date']) && $value < $rules['min_date']) return "{$rules['min_date']} 以降で入力してください。";
-                if (!empty($rules['max_date']) && $value > $rules['max_date']) return "{$rules['max_date']} 以前で入力してください。";
+                if (! empty($rules['min_date']) && $value < $rules['min_date']) {
+                    return "{$rules['min_date']} 以降で入力してください。";
+                }
+                if (! empty($rules['max_date']) && $value > $rules['max_date']) {
+                    return "{$rules['max_date']} 以前で入力してください。";
+                }
                 break;
             case 'time':
-                if (!empty($rules['min_time']) && $value < $rules['min_time']) return "{$rules['min_time']} 以降で入力してください。";
-                if (!empty($rules['max_time']) && $value > $rules['max_time']) return "{$rules['max_time']} 以前で入力してください。";
+                if (! empty($rules['min_time']) && $value < $rules['min_time']) {
+                    return "{$rules['min_time']} 以降で入力してください。";
+                }
+                if (! empty($rules['max_time']) && $value > $rules['max_time']) {
+                    return "{$rules['max_time']} 以前で入力してください。";
+                }
                 break;
             case 'table':
                 $columns = is_array($rules['columns'] ?? null) ? $rules['columns'] : [];
@@ -1136,7 +1214,7 @@ class FlowService
                 foreach ($rows as $i => $row) {
                     foreach ($columns as $col) {
                         $key = $col['key'] ?? null;
-                        if (!$key) {
+                        if (! $key) {
                             continue;
                         }
                         $colField = new FlowField([
@@ -1147,12 +1225,13 @@ class FlowService
                         ]);
                         $cellError = $this->validateOne($colField, is_array($row) ? ($row[$key] ?? null) : null);
                         if ($cellError) {
-                            return ($i + 1) . '行目「' . ($col['label'] ?? '') . '」：' . $cellError;
+                            return ($i + 1).'行目「'.($col['label'] ?? '').'」：'.$cellError;
                         }
                     }
                 }
                 break;
         }
+
         return null;
     }
 
@@ -1170,7 +1249,7 @@ class FlowService
      | Permission engine (kintone-style 3 levels)
      |================================================================ */
 
-    private const APP_PERMS = ['view', 'add', 'edit', 'delete', 'manage', 'import', 'export'];
+    private const APP_PERMS = ['view', 'add', 'edit', 'delete', 'manage', 'import', 'export', 'bulk'];
 
     public function isDirectorLevel(User $user): bool
     {
@@ -1196,7 +1275,46 @@ class FlowService
     private function isProjectDirector(int $projectId, User $user): bool
     {
         $director = DB::table('project_records')->where('id', $projectId)->value('director_id');
+
         return $director !== null && (int) $director === (int) $user->id;
+    }
+
+    /** project ids the given user is a MANAGER of (project_members.authority = 1). */
+    private function projectIdsManagedBy(int $userId): array
+    {
+        return DB::table('project_members')
+            ->where('user_id', $userId)->where('authority', 1)
+            ->pluck('project_id')->map(fn ($x) => (int) $x)->all();
+    }
+
+    /** 作成者のPM: $user manages a project that the record's creator also manages. */
+    private function isCreatorProjectManager(FlowRecord $record, User $user): bool
+    {
+        if (! $record->created_by) {
+            return false;
+        }
+        $creatorProjects = $this->projectIdsManagedBy((int) $record->created_by);
+        if (empty($creatorProjects)) {
+            return false;
+        }
+
+        return DB::table('project_members')
+            ->where('user_id', $user->id)->where('authority', 1)
+            ->whereIn('project_id', $creatorProjects)->exists();
+    }
+
+    /** 選択プロジェクトのPM: $user manages the project chosen in the given project-field on this record. */
+    private function isFieldProjectManager(FlowRecord $record, int $fieldId, User $user): bool
+    {
+        $record->loadMissing('values');
+        $projectId = (int) ($record->values->firstWhere('flow_field_id', $fieldId)?->value_numeric ?? 0);
+        if (! $projectId) {
+            return false;
+        }
+
+        return DB::table('project_members')
+            ->where('project_id', $projectId)->where('user_id', $user->id)->where('authority', 1)
+            ->exists();
     }
 
     /** Does a permission subject match the user, in the context of a definition (+ optional record for field-ref subjects)? */
@@ -1213,6 +1331,9 @@ class FlowService
             'project_manager' => $projectId !== null && $this->isProjectManager($projectId, $user),
             'project_director' => $projectId !== null && $this->isProjectDirector($projectId, $user),
             'field' => $record !== null && in_array((int) $user->id, $this->fieldUserIds($record, (int) $subjectId), true),
+            // project-scoped process (glowd): dynamic, resolved per record
+            'creator_project_manager' => $record !== null && $this->isCreatorProjectManager($record, $user),
+            'field_project_manager' => $record !== null && $this->isFieldProjectManager($record, (int) $subjectId, $user),
             default => false,
         };
     }
@@ -1222,6 +1343,7 @@ class FlowService
         $record->loadMissing('values');
         $value = $record->values->firstWhere('flow_field_id', $fieldId);
         $json = $value?->value_json ?? [];
+
         return is_array($json) ? array_map('intval', $json) : [];
     }
 
@@ -1234,21 +1356,18 @@ class FlowService
         foreach ($rows as $row) {
             if ($this->matchesSubject($row->subject_type, $row->subject_id, $user, $def)) {
                 foreach (self::APP_PERMS as $p) {
-                    $perms[$p] = (bool) $row->{'can_' . $p};
+                    $perms[$p] = (bool) $row->{'can_'.$p};
                 }
                 break;
             }
         }
 
-        // Safety: the app creator never loses control of their own app.
+        // Safety: the app creator never loses control of their own app (lockout guard).
+        // Note: this is per-app (the creator of THIS app), not a global role — app-level
+        // permission settings are otherwise the sole authority (no admin/role override).
         if ($def->created_by !== null && (int) $def->created_by === (int) $user->id) {
             $perms['view'] = true;
             $perms['manage'] = true;
-        }
-
-        // Safety: super-admins (system) always have full access (avoid org lockout).
-        if ($this->isSuperAdmin($user)) {
-            $perms = array_fill_keys(self::APP_PERMS, true);
         }
 
         return $perms;
@@ -1276,7 +1395,7 @@ class FlowService
                 break;
             }
         }
-        if (!$matched) {
+        if (! $matched) {
             return $base; // unmatched record → app-level fallback
         }
 
@@ -1303,7 +1422,8 @@ class FlowService
             return true;
         }
         $results = $conds->map(fn ($c) => $this->conditionMatches($c, $record, $fieldsById));
-        return $set->match_mode === 'any' ? $results->contains(true) : !$results->contains(false);
+
+        return $set->match_mode === 'any' ? $results->contains(true) : ! $results->contains(false);
     }
 
     private function conditionMatches($cond, FlowRecord $record, $fieldsById): bool
@@ -1321,7 +1441,7 @@ class FlowService
             case 'field':
             default:
                 $field = $fieldsById->get($cond->field_id);
-                if (!$field) {
+                if (! $field) {
                     return false;
                 }
                 $val = $this->readFieldValue($record->values->firstWhere('flow_field_id', $field->id), $field);
@@ -1349,8 +1469,9 @@ class FlowService
 
         foreach (($def->relationLoaded('fields') ? $def->fields : $def->fields()->get()) as $f) {
             $frows = $rows->get($f->id);
-            if (!$frows || $frows->isEmpty()) {
+            if (! $frows || $frows->isEmpty()) {
                 $out[$f->id] = ['view' => true, 'edit' => true];
+
                 continue;
             }
             $fp = ['view' => false, 'edit' => false];
@@ -1369,7 +1490,7 @@ class FlowService
     /** Field ids the user may edit on a record now: record.edit ∩ field-perm edit ∩ status-rule editable. */
     public function editableFieldIdsForRecord(User $user, FlowRecord $record, FlowDefinition $def): array
     {
-        if (!$this->recordPermissions($user, $record, $def)['edit']) {
+        if (! $this->recordPermissions($user, $record, $def)['edit']) {
             return [];
         }
         $fp = $this->fieldPermissions($user, $def, $record);
@@ -1386,6 +1507,7 @@ class FlowService
                 $ids[] = (int) $f->id;
             }
         }
+
         return $ids;
     }
 }

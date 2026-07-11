@@ -50,6 +50,7 @@
                             <option v-for="v in views" :key="v.id" :value="v.id">{{ v.name }}</option>
                         </select>
                         <span v-else-if="activeView" class="rv-viewname">{{ activeView.name }}</span>
+                        <button v-if="canBulk && selected.size" class="rv-bulkdel" @click="bulkDelete">選択削除 ({{ selected.size }})</button>
                         <span class="rv-count">{{ totalCount }}件</span>
                     </div>
                 </div>
@@ -59,6 +60,9 @@
                 <table class="rv-table">
                     <thead>
                         <tr>
+                            <th v-if="canBulk" class="rv-th rv-th-check" @click.stop>
+                                <input type="checkbox" :checked="allSelected" @change="toggleAll">
+                            </th>
                             <th v-for="c in columns" :key="c.key" class="rv-th" :class="{ num: isNumericCol(c) }" @click="toggleSort(c.ref)">
                                 <span class="rv-thlabel">{{ c.label }}<span v-if="String(sortRef) === String(c.ref)" class="rv-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></span>
                             </th>
@@ -67,6 +71,9 @@
                     </thead>
                     <tbody>
                         <tr v-for="rec in displayRecords" :key="rec.id" class="rv-row" @click="openRecord(rec)">
+                            <td v-if="canBulk" class="rv-td rv-td-check" @click.stop>
+                                <input type="checkbox" :checked="selected.has(rec.id)" :disabled="!rec.can_delete" @change="toggleSelect(rec.id)">
+                            </td>
                             <td v-for="c in columns" :key="c.key" class="rv-td" :class="{ num: isNumericCol(c) }">
                                 <template v-if="c.system">
                                     <span v-if="c.ref === '$record_number'" class="rv-idcell">{{ rec.record_number }}</span>
@@ -75,10 +82,20 @@
                                 </template>
                                 <FlowFieldInput v-else :field="c.field!" :model-value="rec.values[c.field!.id!]" :users="users" :projects="projects" readonly />
                             </td>
-                            <td class="rv-td rv-td-action"><span class="rv-detail">詳細</span></td>
+                            <td class="rv-td rv-td-action" @click.stop>
+                                <div class="rv-actions">
+                                    <button v-if="rec.can_edit" class="rv-actbtn" title="編集" @click="editRecord(rec)">
+                                        <Edit size="13" />
+                                    </button>
+                                    <button v-if="rec.can_delete" class="rv-actbtn rv-actbtn-del" title="削除" @click="deleteRecord(rec)">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                    </button>
+                                    <span v-if="!rec.can_edit && !rec.can_delete" class="rv-detail">詳細</span>
+                                </div>
+                            </td>
                         </tr>
                         <tr v-if="!displayRecords.length && !loading">
-                            <td :colspan="columns.length + 1" class="rv-empty">レコードがありません。</td>
+                            <td :colspan="columns.length + 1 + (canBulk ? 1 : 0)" class="rv-empty">レコードがありません。</td>
                         </tr>
                     </tbody>
                 </table>
@@ -268,6 +285,41 @@ const onImported = (n: number) => {
 
 const openNew = () => router.push({ name: 'flow-record-new', params: { flowId: flowId.value } })
 const openRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number } })
+// quick-edit shortcut: open the record already in edit mode
+const editRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number }, query: { edit: '1' } })
+
+/* ---- row shortcuts (edit / delete) + bulk delete (一括処理) ---- */
+const deleteRecord = async (rec: FlowRecordDto) => {
+    if (!window.confirm(`レコード #${rec.record_number} を削除します。よろしいですか？`)) return
+    const res = await api.post('/flow_app_record_delete', { id: rec.id }, { toast: '削除しました。' })
+    if (res) {
+        records.value = records.value.filter((r) => r.id !== rec.id)
+        total.value = Math.max(0, total.value - 1)
+        const s = new Set(selected.value); s.delete(rec.id); selected.value = s
+    }
+}
+
+const selected = ref<Set<number>>(new Set())
+const canBulk = computed(() => !!permissions.value?.bulk)
+const toggleSelect = (id: number) => { const s = new Set(selected.value); s.has(id) ? s.delete(id) : s.add(id); selected.value = s }
+const deletableRows = computed(() => displayRecords.value.filter((r) => r.can_delete))
+const allSelected = computed(() => deletableRows.value.length > 0 && deletableRows.value.every((r) => selected.value.has(r.id)))
+const toggleAll = () => {
+    const s = new Set(selected.value)
+    if (allSelected.value) deletableRows.value.forEach((r) => s.delete(r.id))
+    else deletableRows.value.forEach((r) => s.add(r.id))
+    selected.value = s
+}
+const bulkDelete = async () => {
+    const ids = [...selected.value]
+    if (!ids.length) return
+    if (!window.confirm(`選択した ${ids.length} 件を削除します。この操作は元に戻せません。`)) return
+    for (const id of ids) { await api.post('/flow_app_record_delete', { id }) }
+    records.value = records.value.filter((r) => !selected.value.has(r.id))
+    total.value = Math.max(0, total.value - ids.length)
+    selected.value = new Set()
+    dialog.toast(`${ids.length} 件を削除しました。`)
+}
 const back = () => {
     const pid = definition.value?.project_record_id
     if (pid) router.push({ name: 'custom-apps', params: { projectId: pid } })
@@ -314,14 +366,22 @@ onMounted(async () => {
 .rv-thlabel { display: inline-flex; align-items: center; gap: 3px; }
 .rv-th.num .rv-thlabel { flex-direction: row-reverse; }
 .rv-arrow { color: var(--primary-color); }
-.rv-th-action { width: 56px; cursor: default; }
+.rv-th-action { width: 72px; cursor: default; }
+.rv-th-check, .rv-td-check { width: 34px; text-align: center; cursor: default; }
+.rv-td-check input, .rv-th-check input { cursor: pointer; }
 .rv-row { cursor: pointer; }
 .rv-row:hover { background: color-mix(in srgb, var(--app-accent, var(--selected-background)) 13%, var(--background-color)); }
 .rv-td { font-size: 13.5px; padding: 13px 14px; border-bottom: 1px solid var(--calendarBorder); vertical-align: middle; white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
 .rv-td.num { text-align: right; font-variant-numeric: tabular-nums; }
-.rv-td-action { text-align: right; width: 56px; }
+.rv-td-action { text-align: right; width: 72px; }
 .rv-detail { font-size: 12px; color: gray; }
 .rv-row:hover .rv-detail { color: var(--primary-color); }
+.rv-actions { display: inline-flex; align-items: center; gap: 4px; justify-content: flex-end; }
+.rv-actbtn { border: 1px solid var(--calendarBorder); background: var(--background-color); color: gray; border-radius: 6px; padding: 4px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; line-height: 0; }
+.rv-actbtn:hover { color: var(--primary-color); border-color: var(--primary-color); background: var(--bg3); }
+.rv-actbtn-del:hover { color: tomato; border-color: tomato; }
+.rv-bulkdel { border: 1px solid tomato; color: tomato; background: var(--background-color); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; }
+.rv-bulkdel:hover { background: tomato; color: #fff; }
 .rv-idcell { font-size: 13px; color: gray; }
 .rv-statuscell { display: inline-block; font-size: 12px; font-weight: 600; color: color-mix(in srgb, var(--app-accent, var(--primary-color)) 45%, var(--primary-color)); background: color-mix(in srgb, var(--app-accent, var(--bg3)) 55%, var(--background-color)); padding: 3px 10px; border-radius: 12px; }
 .rv-datecell { font-size: 13px; color: gray; }

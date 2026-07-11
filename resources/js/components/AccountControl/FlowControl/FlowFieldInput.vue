@@ -69,7 +69,7 @@
         <template v-else-if="field.input_type === 'number'">{{ formatNumber(val) }}</template>
         <template v-else-if="field.input_type === 'formula'">{{ formatFormula(val) }}</template>
         <template v-else-if="field.input_type === 'project'"><span class="fi-pill">{{ projectName(val) }}</span></template>
-        <template v-else>{{ val }}</template>
+        <template v-else><span class="fi-text" :class="{ 'fi-text-full': preview }"><template v-for="(p, i) in linkify(val)" :key="i"><a v-if="p.href" :href="p.href" class="fi-link" target="_blank" rel="noopener noreferrer" @click.stop>{{ p.text }}</a><template v-else>{{ p.text }}</template></template></span></template>
     </span>
 
     <!-- editable -->
@@ -296,6 +296,33 @@ const toggleArray = (o: string) => {
 
 const userName = (id: number) => props.users?.find((u) => u.id === id)?.name ?? `#${id}`
 
+// split read-only text into plain runs + clickable URL/email links (preserving whitespace/newlines)
+// URL charset is RFC-3986-safe ASCII only, so a link stops at CJK / full-width punctuation (e.g. 「…docs。次へ」)
+const LINK_RE = /(https?:\/\/[A-Za-z0-9\-._~:/?#@!$&*+=%,;]+|www\.[A-Za-z0-9\-._~:/?#@!$&*+=%,;]+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g
+const LINK_TRAIL = /[)\]}>」』】》〉、。，．！？!?.,;:'"）]+$/
+const linkify = (raw: any): { text: string; href?: string }[] => {
+    const text = raw == null ? '' : String(raw)
+    if (!text) return [{ text: '' }]
+    const parts: { text: string; href?: string }[] = []
+    let last = 0
+    for (const m of text.matchAll(LINK_RE)) {
+        const start = m.index ?? 0
+        let tok = m[0]
+        const tm = tok.match(LINK_TRAIL) // don't let trailing punctuation into the link
+        const trail = tm ? tm[0] : ''
+        if (trail) tok = tok.slice(0, tok.length - trail.length)
+        if (!tok) continue
+        if (start > last) parts.push({ text: text.slice(last, start) })
+        const isEmail = tok.includes('@') && !/^https?:\/\//i.test(tok)
+        const href = isEmail ? `mailto:${tok}` : (/^www\./i.test(tok) ? `https://${tok}` : tok)
+        parts.push({ text: tok, href })
+        last = start + tok.length + trail.length
+        if (trail) parts.push({ text: trail })
+    }
+    if (last < text.length) parts.push({ text: text.slice(last) })
+    return parts.length ? parts : [{ text }]
+}
+
 // user/member field: flow stores ID arrays; MemberSelector wants full User objects (return-object). Bridge both ways.
 const userMultiple = computed(() => props.field.validation?.multiple !== false) // default = multiple (existing behavior)
 const usersById = computed<Record<number, FlowOptionUser>>(() => {
@@ -434,7 +461,9 @@ const formatFormula = (v: any) => {
 .fi-chip { display: inline-block; font-size: 11.5px; padding: 2px 8px; margin: 1px 3px 1px 0; border-radius: 4px; background: color-mix(in srgb, var(--app-accent, var(--bg3)) 50%, var(--background-color)); color: color-mix(in srgb, var(--app-accent, var(--primary-color)) 45%, var(--primary-color)); }
 .fi-pill { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 4px; font-size: 12px; font-weight: 500; background: color-mix(in srgb, var(--app-accent, var(--bg3)) 50%, var(--background-color)); color: color-mix(in srgb, var(--app-accent, var(--primary-color)) 45%, var(--primary-color)); }
 .fi-mono { font-size: 13px; }
-.fi-link { color: var(--primary-color); text-decoration: underline; }
+.fi-link { color: var(--primary-color); text-decoration: underline; overflow-wrap: anywhere; }
+/* full record-detail display preserves line breaks + comfortable spacing; table/list cells stay single-line */
+.fi-text-full { white-space: pre-wrap; overflow-wrap: break-word; line-height: 1.7; }
 .fi-files { display: flex; flex-direction: column; gap: 6px; }
 .fi-fileitem { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; vertical-align: middle; margin: 1px 6px 1px 0; }
 .fi-file-btn { border: none; background: none; padding: 0; cursor: pointer; color: var(--primary-color); }

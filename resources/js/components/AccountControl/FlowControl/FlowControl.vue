@@ -263,11 +263,11 @@ onMounted(() => {
 .fc-tile-band { position: relative; height: 56px; background: var(--app-accent); }
 .fc-tile-ico { position: absolute; left: 16px; bottom: -16px; }
 .fc-tile-menu { position: absolute; top: 6px; right: 6px; }
-.fc-tile-flags { position: absolute; top: 9px; left: 12px; display: flex; align-items: center; gap: 6px; }
+.fc-tile-flags { position: absolute; top: 9px; right: 38px; display: flex; align-items: center; gap: 6px; }
 .fc-tile-pin { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--background-color); color: color-mix(in srgb, var(--app-accent) 55%, var(--primary-color)); }
 .fc-tile-off { font-size: 10.5px; color: var(--primary-color); background: var(--background-color); border-radius: 10px; padding: 2px 8px; opacity: .9; }
 .fc-tile-body { padding: 24px 16px 15px; }
-.fc-tile-name { font-size: 14px; font-weight: 600; color: var(--primary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fc-tile-name { font-size: 14px; font-weight: 600; line-height: 1.5; color: var(--primary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fc-tile-desc { font-size: 12px; color: gray; margin-top: 6px; line-height: 1.5; height: 36px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .fc-tile-meta { display: flex; align-items: center; gap: 7px; font-size: 12px; color: gray; margin-top: 10px; }
 .fc-tile-vis { margin-left: auto; font-size: 11px; padding: 1px 8px; border: 1px solid var(--calendarBorder); border-radius: 10px; }

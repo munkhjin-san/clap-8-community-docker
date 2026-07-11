@@ -88,4 +88,11 @@ class FlowDefinition extends Model
         return $this->hasMany(FlowView::class, 'flow_definition_id', 'id')
             ->orderBy('id');
     }
+
+    public function tools()
+    {
+        return $this->hasMany(FlowAppTool::class, 'flow_definition_id', 'id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
 }

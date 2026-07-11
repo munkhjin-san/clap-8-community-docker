@@ -63,9 +63,12 @@
                                     <td>
                                         <template v-if="f.supported">
                                             <span class="ki-typechip">{{ typeLabel(f.mapped_type) }}</span>
+                                            <span v-if="f.formula_status === 'ok'" class="ki-fbadge ok" title="kintoneの計算式を取り込みます">計算式</span>
                                             <div v-if="f.columns?.length" class="ki-cols">
                                                 <span v-for="c in f.columns" :key="c.key" class="ki-col">{{ c.label }}<i>{{ typeLabel(c.input_type) }}</i></span>
                                             </div>
+                                            <code v-if="f.formula_status === 'ok' && f.formula" class="ki-formula">{{ f.formula }}</code>
+                                            <div v-else-if="f.kintone_type === 'CALC'" class="ki-formula-note">{{ f.note }}</div>
                                         </template>
                                         <span v-else class="ki-unsupported">{{ f.note || '未対応' }}</span>
                                     </td>
@@ -93,7 +96,7 @@ import { useApi } from '@/composables/api'
 import Modal from '@/components/Global/Modal.vue'
 
 interface PreviewColumn { key: string; label: string; input_type: string; options: string[]; required: boolean }
-interface PreviewField { code: string; label: string; kintone_type: string; mapped_type: string | null; supported: boolean; required: boolean; options: string[]; columns?: PreviewColumn[]; note: string | null }
+interface PreviewField { code: string; label: string; kintone_type: string; mapped_type: string | null; supported: boolean; required: boolean; options: string[]; columns?: PreviewColumn[]; note: string | null; formula?: string; formula_status?: 'ok' | 'fallback'; result_type?: string }
 interface StatusFlow { enable: boolean; statuses: { name: string; index: number; is_initial: boolean }[]; actions: { name: string; from: string; to: string }[] }
 interface Preview { app: { id: string; name: string; description: string | null }; fields: PreviewField[]; summary: { total: number; supported: number; skipped: number }; status_flow?: StatusFlow }
 
@@ -108,7 +111,7 @@ const error = ref('')
 
 const TYPE_LABELS: Record<string, string> = {
     short: '短文', long: '長文', number: '数値', date: '日付', datetime: '日時', time: '時刻',
-    select: '選択', radio: 'ラジオ', checkbox: 'チェック', toggle: 'トグル', user: 'ユーザー', member: 'メンバー',
+    select: '選択', radio: 'ラジオ', checkbox: 'チェック', toggle: 'オン/オフ', user: 'ユーザー', member: 'メンバー',
     file: 'ファイル', label: 'ラベル', table: 'テーブル',
 }
 const typeLabel = (t: string | null) => (t ? (TYPE_LABELS[t] ?? t) : '')
@@ -162,6 +165,10 @@ const fetchPreview = async () => {
 .ki-arrow { color: gray; text-align: center; width: 24px; }
 .ki-typechip { display: inline-block; font-size: 12px; font-weight: 500; background: var(--bg3); color: var(--primary-color); border-radius: 5px; padding: 2px 10px; }
 .ki-unsupported { font-size: 12px; color: #d97706; }
+.ki-fbadge { display: inline-block; font-size: 10.5px; padding: 1px 7px; border-radius: 9px; margin-left: 6px; }
+.ki-fbadge.ok { color: #0f7b4f; background: rgba(16, 185, 129, 0.14); }
+.ki-formula { display: block; margin-top: 4px; font-size: 11px; color: gray; font-family: ui-monospace, monospace; word-break: break-all; line-height: 1.5; }
+.ki-formula-note { margin-top: 3px; font-size: 11px; color: #d97706; }
 .ki-cols { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .ki-col { font-size: 11px; color: gray; background: var(--bg3); border-radius: 5px; padding: 1px 7px; }
 .ki-col i { font-style: normal; color: var(--primary-color); opacity: .7; margin-left: 5px; }

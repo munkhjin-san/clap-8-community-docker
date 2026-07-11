@@ -105,6 +105,7 @@ const PERMS = [
     { k: 'can_manage', l: '管理' },
     { k: 'can_import', l: '取込' },
     { k: 'can_export', l: '書出' },
+    { k: 'can_bulk', l: '一括処理' },
 ] as const
 
 const addType = ref<FlowSubjectType>('user')
@@ -116,7 +117,7 @@ const userPicks = ref<any[]>([])
 const positionPicks = ref<number[]>([])
 const addFlags = reactive({
     can_view: true, can_add: false, can_edit: false, can_delete: false,
-    can_manage: false, can_import: false, can_export: false,
+    can_manage: false, can_import: false, can_export: false, can_bulk: false,
 })
 const hasPicks = computed(() =>
     addType.value === 'user' ? userPicks.value.length > 0
@@ -159,7 +160,7 @@ const isShadowed = (i: number) => firstEveryoneIndex.value >= 0 && i > firstEver
 
 const emptyPerms = () => ({
     can_view: false, can_add: false, can_edit: false, can_delete: false,
-    can_manage: false, can_import: false, can_export: false,
+    can_manage: false, can_import: false, can_export: false, can_bulk: false,
 })
 
 const addRow = () => {
