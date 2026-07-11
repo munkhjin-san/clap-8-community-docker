@@ -198,7 +198,7 @@ const addRow = () => {
 .subj-tag.special { color: var(--primary-color); font-weight: 500; }
 .td-check { text-align: center; padding: 8px; border-bottom: 1px solid var(--calendarBorder); }
 .cbox { width: 20px; height: 20px; border: 1px solid var(--formBorder); border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-.cbox.on { background: var(--primary-color); border-color: var(--primary-color); fill: #fff; }
+.cbox.on { background: var(--primary-button, var(--primary-color)); border-color: var(--primary-button, var(--primary-color)); fill: #fff; }
 .td-actions { text-align: right; padding: 8px; border-bottom: 1px solid var(--calendarBorder); white-space: nowrap; }
 .td-actions button { border: none; background: none; color: gray; cursor: pointer; font-size: 12px; padding: 2px; }
 .td-actions button:disabled { opacity: 0.25; cursor: default; }

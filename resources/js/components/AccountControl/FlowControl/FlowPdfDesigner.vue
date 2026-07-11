@@ -426,7 +426,7 @@ const closePreview = () => { if (previewUrl.value) URL.revokeObjectURL(previewUr
 .pd-orient button { border: none; background: var(--background-color); padding: 7px 10px; cursor: pointer; color: gray; display: flex; align-items: center; }
 .pd-orient button.on { background: var(--bg3); color: var(--primary-color); }
 .pd-preview { border: 1px solid var(--primary-color); color: var(--primary-color); background: none; border-radius: 7px; padding: 7px 16px; font-size: 13px; cursor: pointer; }
-.pd-done { border: none; background: var(--primary-color); color: #fff; border-radius: 7px; padding: 8px 20px; font-size: 13px; cursor: pointer; }
+.pd-done { border: none; background: var(--primary-button, var(--primary-color)); color: #fff; border-radius: 7px; padding: 8px 20px; font-size: 13px; cursor: pointer; }
 
 .pd-body { flex: 1; display: flex; min-height: 0; }
 .pd-palette { width: 180px; flex-shrink: 0; border-right: 1px solid var(--calendarBorder); background: var(--background-color); padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
@@ -440,14 +440,16 @@ const closePreview = () => { if (previewUrl.value) URL.revokeObjectURL(previewUr
 .pd-page { position: relative; background: #fff; box-shadow: 0 2px 16px rgba(0,0,0,.15); flex-shrink: 0; align-self: flex-start; }
 .pd-el { position: absolute; box-sizing: border-box; cursor: move; outline: 1px dashed transparent; }
 .pd-el:hover { outline-color: var(--formBorder); }
-.pd-el.sel { outline: 1.5px solid var(--primary-color); }
+/* elements sit on the always-white paper, so use the (dark in both themes) button ink,
+   not --primary-color which goes near-white in dark mode and vanishes on the page. */
+.pd-el.sel { outline: 1.5px solid var(--primary-button, var(--primary-color)); }
 .pd-el-inner { width: 100%; height: 100%; overflow: hidden; line-height: 1.3; word-break: break-word; }
-.pd-el.t-field .pd-el-inner { color: var(--primary-color); }
+.pd-el.t-field .pd-el-inner { color: var(--primary-button, var(--primary-color)); }
 .pd-ph { color: #b0b6c0; font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; border: 1px dashed var(--formBorder); }
 .pd-mini { width: 100%; border-collapse: collapse; font-size: 8px; }
 .pd-mini th, .pd-mini td { border: 1px solid #d5d9e0; padding: 1px 3px; color: #6b7280; }
 .pd-mini th { background: #f0f2f5; }
-.pd-resize { position: absolute; right: -5px; bottom: -5px; width: 11px; height: 11px; background: var(--primary-color); border: 2px solid #fff; border-radius: 50%; cursor: nwse-resize; }
+.pd-resize { position: absolute; right: -5px; bottom: -5px; width: 11px; height: 11px; background: var(--primary-button, var(--primary-color)); border: 2px solid #fff; border-radius: 50%; cursor: nwse-resize; }
 
 .pd-insp { width: 280px; flex-shrink: 0; border-left: 1px solid var(--calendarBorder); background: var(--background-color); padding: 14px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box !important; }
 .pd-insp-h { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 12px; }
@@ -464,7 +466,7 @@ const closePreview = () => { if (previewUrl.value) URL.revokeObjectURL(previewUr
 .pd-style select { width: auto; flex: 1; min-width: 0; }
 .pd-style input[type=color] { flex: 0 0 40px; width: 40px; }
 .pd-tb { border: 1px solid var(--formBorder); background: var(--background-color); border-radius: 6px; width: 30px; height: 30px; font-weight: 700; cursor: pointer; }
-.pd-tb.on { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+.pd-tb.on { background: var(--primary-button, var(--primary-color)); color: #fff; border-color: var(--primary-button, var(--primary-color)); }
 .pd-warn { font-size: 11px; color: #e2574c; margin: 4px 0; }
 .pd-cols { margin: 6px 0 10px; }
 .pd-cols-h { font-size: 11px; color: gray; margin-bottom: 6px; }

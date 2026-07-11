@@ -236,7 +236,7 @@ watch(() => props.def.views.length, () => {
 .vt-add-cond { background: none; border: 1px dashed var(--formBorder); border-radius: 7px; padding: 7px 12px; font-size: 12px; color: var(--primary-color); cursor: pointer; }
 .vt-add-cond:disabled { opacity: 0.5; cursor: default; }
 .sw { width: 38px; height: 22px; border-radius: 11px; background: var(--formBorder); position: relative; cursor: pointer; transition: background .12s; display: inline-block; flex-shrink: 0; }
-.sw.on { background: var(--primary-color); }
+.sw.on { background: var(--primary-button, var(--primary-color)); }
 .sw::after { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
 .sw.on::after { left: 18px; }
 @media (max-width: 900px) { .flow-view-tab { grid-template-columns: 1fr; } .vt-cols { grid-template-columns: 1fr; } }

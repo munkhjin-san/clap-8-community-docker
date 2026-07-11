@@ -351,7 +351,7 @@ const deleteEditingAction = () => {
 .seg button.on { background: var(--bg3); color: var(--primary-color); font-weight: 500; }
 
 .sw { width: 36px; height: 20px; border-radius: 10px; background: var(--formBorder); position: relative; cursor: pointer; display: inline-block; flex-shrink: 0; transition: background .12s; }
-.sw.on { background: var(--primary-color); }
+.sw.on { background: var(--primary-button, var(--primary-color)); }
 .sw::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
 .sw.on::after { left: 18px; }
 </style>

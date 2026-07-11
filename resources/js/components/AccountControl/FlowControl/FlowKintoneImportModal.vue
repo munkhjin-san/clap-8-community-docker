@@ -151,7 +151,7 @@ const fetchPreview = async () => {
 .ki-flow-off { color: #d97706; }
 .ki-flow-states { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .ki-state { font-size: 12px; font-weight: 600; background: var(--bg3); color: var(--primary-color); border-radius: 12px; padding: 3px 12px; }
-.ki-state.init { background: var(--primary-color); color: #fff; }
+.ki-state.init { background: var(--primary-button, var(--primary-color)); color: #fff; }
 .ki-flow-sep { color: gray; }
 .ki-flow-acts { font-size: 12px; color: gray; margin-top: 8px; }
 .ki-table-scroll { flex: 1; overflow: auto; }

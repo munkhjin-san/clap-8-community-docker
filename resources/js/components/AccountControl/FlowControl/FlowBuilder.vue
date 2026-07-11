@@ -616,7 +616,7 @@ onMounted(async () => {
 .flow-primary-btn { padding: 7px 18px; font-size: 13px; color: #fff; background: var(--primary-button, var(--primary-color)); border: none; border-radius: 6px; cursor: pointer; }
 .flow-primary-btn:disabled { opacity: 0.5; cursor: default; }
 .sw { width: 36px; height: 20px; border-radius: 10px; background: var(--formBorder); position: relative; cursor: pointer; display: inline-block; transition: background .12s; }
-.sw.on { background: var(--primary-color); }
+.sw.on { background: var(--primary-button, var(--primary-color)); }
 .sw::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
 .sw.on::after { left: 18px; }
 </style>
