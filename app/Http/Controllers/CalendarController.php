@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\CalendarMeetingSummary;
+use App\Models\CalendarFacility;
 use App\Models\ProjectRecord;
+use App\Models\ZoomAccount;
+use App\Services\ZoomApiService;
 use Illuminate\Http\Request;
 use App\Models\CalendarRecord;
 use App\Models\CalendarGroup;
@@ -25,7 +28,10 @@ class CalendarController extends Controller
 {
 
     protected $googleController;
-    public function __construct(GoogleController $googleController) {
+    public function __construct(
+        GoogleController $googleController,
+        private readonly ZoomApiService $zoomApi,
+    ) {
         $this->googleController = $googleController;
     }
     private function active_user(){
@@ -36,44 +42,18 @@ class CalendarController extends Controller
             return Auth::user();
         }
     }
-    public function urlsafe_base64_encode($str){
-        return str_replace(array('+', '/', '='), array('-', '_', ''), base64_encode($str));
-    }
     private function zoom_account($index){
-        $account_information = [
-            [
-                'accountId' => 'NIv1ZAkIRdCnjX7uddQLAQ',
-                'clientId' => 'fwZ711P6R5C47R5pb4zugg',
-                'clientSecret' => 'VBsTEsuhP6RBGlhKQ2ceCRbpuQIxah7m',
-                'accountMail' => 'zoom1@glowd.co.jp',
-            ],
-            [
-                'accountId' => 'NIv1ZAkIRdCnjX7uddQLAQ',
-                'clientId' => 'ozsT8JcdQpKLhdbdVPMZzg',
-                'clientSecret' => 'LivCOTnVCmBohjE3SMJc2EqBnCHhQJTM',
-                'accountMail' => 'zoom2@glowd.co.jp',
-            ],
-            [
-                'accountId' => 'NIv1ZAkIRdCnjX7uddQLAQ',
-                'clientId' => '62FVOmH6SZu1rVpPxiZaFw',
-                'clientSecret' => '4ks6zEXcXCUq7YdiRNywjq8u9KBQ0PWR',
-                'accountMail' => 'zoom3@glowd.co.jp',
-            ]
+        $account = $this->zoomApi->accountForSlot((int) $index);
+
+        return [
+            'model' => $account,
+            'accountMail' => $account->host_email,
         ];
-        return $account_information[$index];
     }
     public function zoomToken($zoomValue){
-        
-        $account = $this->zoom_account($zoomValue);    
-        $baseUri = 'https://zoom.us/oauth/token';    
-        $token = $this->urlsafe_base64_encode($account['clientId'].':'.$account['clientSecret']);
-        $url = 'https://zoom.us/oauth/token?grant_type=account_credentials&account_id='.$account['accountId'];
-        $response = Http::withHeaders([
-            'Authorization' => 'Basic ' . $token,
-            'Content-type' => 'application/json'
-        ])->post($url);
-        $data = $response->json();
-        return $data['access_token'];
+        $account = $this->zoom_account($zoomValue);
+
+        return $this->zoomApi->accessToken($account['model']);
     }
     private function today_meetings($index, $token, $date){
         $account = $this->zoom_account($index); 
@@ -136,7 +116,7 @@ class CalendarController extends Controller
         $account = $this->zoom_account($params['zoom_id']); 
         $meetings_url = 'https://api.zoom.us/v2/meetings' . '/' . $params['meetingId'];
         $settings = array(
-            'use_pmi' => 'false',
+            'use_pmi' => false,
             'auto_start_meeting_summary' => $params['auto_start_meeting_summary'],
             'auto_start_ai_companion_questions' => false
         );
@@ -178,7 +158,7 @@ class CalendarController extends Controller
         $account = $this->zoom_account($params['zoom_id']); 
         $meetings_url = 'https://api.zoom.us/v2/users/' . $account['accountMail'] . '/meetings';
         $settings = array(
-            'use_pmi' => 'false',
+            'use_pmi' => false,
             'auto_start_meeting_summary' => $params['auto_start_meeting_summary'],
         );
         if($params['waiting_room']){
@@ -187,7 +167,7 @@ class CalendarController extends Controller
         }else{
             $settings['waiting_room'] = false;
             $settings['join_before_host'] = true;
-            $settings['jbh_time'] = '10';
+            $settings['jbh_time'] = 10;
         }
         $data_to_zoom_api = array(
             'topic' => $params['title'],
@@ -714,7 +694,7 @@ class CalendarController extends Controller
                     "type" => $request['repetition_type'] == 0 ? 2 : 3            
                     
                 ];
-                $z_index = (int) $request['facility']['zoom_value'] + 1; 
+                $zoom_account = $this->zoom_account((int) $request['facility']['zoom_value']);
                 if($has_prev_date && $has_prev_date['zoom_id'] && !$force_create){
                     $params['meetingId'] = $has_prev_date['zoom_id'];
                     $json_result = $this->update_zoom_meeting($params);
@@ -723,8 +703,8 @@ class CalendarController extends Controller
                         "zoom_url" => $has_prev_date['zoom_url'],
                         "zoom_id" => $has_prev_date['zoom_id'],
                         "zoom_pass" => $has_prev_date['zoom_pass'],
-                        "zoom_account" => 'zoom'.$z_index.'@glowd.co.jp',
-                        "zoom_account_pass" => 'Glowd0802'
+                        "zoom_account" => $zoom_account['accountMail'],
+                        "zoom_account_pass" => null
                     ];
                 }else{
                     $json_result = $this->create_zoom_meeting($params);
@@ -732,8 +712,8 @@ class CalendarController extends Controller
                         "zoom_url" => $json_result['join_url'],
                         "zoom_id" => $json_result['id'],
                         "zoom_pass" => $json_result['password'],
-                        "zoom_account" => 'zoom'.$z_index.'@glowd.co.jp',
-                        "zoom_account_pass" => 'Glowd0802'
+                        "zoom_account" => $zoom_account['accountMail'],
+                        "zoom_account_pass" => null
                     ];
                 }                
 
@@ -939,37 +919,36 @@ class CalendarController extends Controller
         return response()->json($list); 
     }
     private function avialable_items($type){
-        
+        $roomItems = CalendarFacility::query()
+            ->where('type', CalendarFacility::TYPE_ROOM)
+            ->orderBy('slot')
+            ->get()
+            ->map(fn (CalendarFacility $facility) => $facility->calendarOption())
+            ->all();
+        $carItems = CalendarFacility::query()
+            ->where('type', CalendarFacility::TYPE_CAR)
+            ->orderBy('slot')
+            ->get()
+            ->map(fn (CalendarFacility $facility) => $facility->calendarOption())
+            ->all();
+        $zoomItems = ZoomAccount::query()
+            ->where('active', true)
+            ->orderBy('slot')
+            ->get()
+            ->filter(fn (ZoomAccount $account) => $account->isApiConfigured())
+            ->map(fn (ZoomAccount $account) => [
+                'label' => $account->label,
+                'value' => $account->slot,
+                'selected' => false,
+                'selectable' => true,
+            ])
+            ->values()
+            ->all();
+
         $list = [
-            'qualified_institution' => [
-                [ 'label' =>  '本社会議室', 'value' =>  0, 'selected' => false, 'selectable' => true ],
-                [ 'label' =>  '本社休憩室', 'value' =>  1, 'selected' => false, 'selectable' => true ],
-                [ 'label' =>  '大阪会議室', 'value' =>  2, 'selected' => false, 'selectable' => true ],
-                [ 'label' =>  '東京会議室', 'value' =>  3, 'selected' => false, 'selectable' => true ],
-                [ 'label' =>  '仙台会議室', 'value' =>  4, 'selected' => false, 'selectable' => true ],
-                [ 'label' =>  '青森会議室', 'value' =>  5, 'selected' => false, 'selectable' => true ],
-                [ 'label' => 'フジメンビル', 'value' => 6, 'selected' => false, 'selectable' => true ],
-            ],
-            'zoom_value' => [
-                [ 'label' => 'Zoom1', 'value' => 0, 'selected' => false, 'selectable' => true ],
-                [ 'label' => 'Zoom2', 'value' => 1, 'selected' => false, 'selectable' => true ],
-                [ 'label' => 'Zoom3', 'value' => 2, 'selected' => false, 'selectable' => true ]
-            ],
-            'qualified_car' => [
-                [ 'label' => '福岡582く5617 ホンダライフ', 'value' => 0, 'selected' => false, 'selectable' => false ],
-                [ 'label' => '福岡582え8686 ダイハツミラ', 'value' => 1, 'selected' => false, 'selectable' => true ],
-                [ 'label' => '福岡580と5654 オッティ', 'value' => 2, 'selected' => false, 'selectable' => true ],
-                [ 'label' => '福岡480わ3206 クリッパー', 'value' => 3, 'selected' => false, 'selectable' => true ],
-                [ 'label' => '福岡480ね5019 バン', 'value' => 4, 'selected' => false, 'selectable' => true ],
-                [ 'label' => '福岡480ね5020 バン', 'value' => 5, 'selected' => false, 'selectable' => true ],
-                [ 'label' => '鹿児島582そ6650 ミライース', 'value' => 6, 'selected' => false, 'selectable' => true ],
-                [ 'label' => '福岡582ち7350', 'value' => 7, 'selected' => false, 'selectable' => true ],
-                [ 'label' => 'なにわ502の1116', 'value' => 8, 'selected' => false, 'selectable' => true ],
-                [ 'label' => '大阪581わ707（ﾚﾝﾀｶｰ）', 'value' => 9, 'selected' => false, 'selectable' => true ],
-                [ 'label' => '仙台580ひ6191', 'value' => 10, 'selected' => false, 'selectable' => true ],
-                [ 'label' => '福岡582そ1234', 'value' => 11, 'selected' => false, 'selectable' => true ],
-                [ 'label' => '鹿児島582そ8143', 'value' => 12, 'selected' => false, 'selectable' => true ],
-            ]
+            'qualified_institution' => $roomItems,
+            'zoom_value' => $zoomItems,
+            'qualified_car' => $carItems,
         ];
         if( $type == 'all' ){
             return $list;
@@ -982,10 +961,8 @@ class CalendarController extends Controller
 
         $list = $this->avialable_items($request->target);
         
-        $id_list = collect($list)->pluck('value')->toArray();
-        
         $items = [];
-        foreach($id_list as $id){
+        foreach($list as $facilityItem){
             $rec = [
                 "editId" => $request->editId,
                 "edit_repeat" => $request->edit_repeat,
@@ -994,14 +971,17 @@ class CalendarController extends Controller
                 "once_date" => $request->once_date,
                 "repetition_type" => $request->repeat,
                 "repeat_span" => $request->repeat_span,
-                "facility" => [$request->target => $id]
+                "facility" => [$request->target => $facilityItem['value']]
             ];
             $facility_check = $this->facility_validate($rec, false);
-            // $unavialable_items[] = $facility_check;
+            $isAvailable = !$facility_check && $facilityItem['selectable'];
             $item = [
-                "label" => !$facility_check && $list[$id]['selectable'] ? $list[$id]['label'] : $list[$id]['label'] . '（選択不可）' ,
-                "id" => (string) $list[$id]['value'],
-                "availablity" => !$facility_check && $list[$id]['selectable'] 
+                "label" => $facilityItem['label'],
+                "id" => (string) $facilityItem['value'],
+                "availablity" => $isAvailable,
+                "unavailable_reason" => $isAvailable
+                    ? null
+                    : ($facilityItem['selectable'] ? '予約済み' : '利用停止中'),
             ];
             $items[] = $item;
 
@@ -1177,15 +1157,6 @@ class CalendarController extends Controller
                 // return $json_result;
                 // return response()->json('hehe'); 
                 // return response()->json($json_result); 
-                // $z_index = (int) $request['facility']['zoom_value'] + 1; 
-
-                // $zoom_values = array(
-                //     "zoom_url" => $json_result['join_url'],
-                //     "zoom_id" => $json_result['id'],
-                //     "zoom_pass" => $json_result['password'],
-                //     "zoom_account" => 'zoom'.$z_index.'@glowd.co.jp',
-                //     "zoom_account_pass" => 'Glowd0802'
-                // );
             }else{
                 throw ValidationException::withMessages(['message' => '他のWEBミーティングにかぶっています。', "val" => $check_overlap]);
             }
@@ -1356,7 +1327,14 @@ class CalendarController extends Controller
         if(!$hasPrivilage){
             throw ValidationException::withMessages(['message' => '閲覧権限がありません。']);
         }
-        $summaries = $record->summaries()->with(['details', 'steps'])->orderBy('created_at', 'desc')->get();
+        $recordDate = Carbon::parse($record->date_start, config('app.timezone'));
+        $summaryDayStart = $recordDate->copy()->startOfDay()->utc();
+        $summaryDayEnd = $recordDate->copy()->endOfDay()->utc();
+        $summaries = $record->summaries()
+            ->whereBetween('calendar_meeting_summaries.created_at', [$summaryDayStart, $summaryDayEnd])
+            ->with(['details', 'steps'])
+            ->orderBy('created_at', 'desc')
+            ->get();
         return response()->json($summaries);
     }
 

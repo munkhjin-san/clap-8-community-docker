@@ -39,7 +39,6 @@ export interface CalendarRecord{
     zoom_url:string;
     zoom_value: number;
     zoom_account: string;
-    zoom_account_pass: string;
     zoom_id: string;
     zoom_pass: string;
     zoom_waiting_room: number;
@@ -128,6 +127,7 @@ export interface FacilityItem {
     label: string;
     value: number;
     selected: boolean;
+    selectable: boolean;
   }
 export interface FacilityData {
     qualified_car: FacilityItem[]
@@ -151,6 +151,7 @@ export interface Fac {
     label: string;
     value: number;
     selected: number
+    selectable: boolean
 }
 export interface FacList {
     qualified_institution: Fac[];
@@ -204,4 +205,3 @@ export interface ProjectSetting {
     name: string;
     color: string | null;
 }
-
