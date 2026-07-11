@@ -932,17 +932,9 @@ class CalendarController extends Controller
             ->map(fn (CalendarFacility $facility) => $facility->calendarOption())
             ->all();
         $zoomItems = ZoomAccount::query()
-            ->where('active', true)
             ->orderBy('slot')
             ->get()
-            ->filter(fn (ZoomAccount $account) => $account->isApiConfigured())
-            ->map(fn (ZoomAccount $account) => [
-                'label' => $account->label,
-                'value' => $account->slot,
-                'selected' => false,
-                'selectable' => true,
-            ])
-            ->values()
+            ->map(fn (ZoomAccount $account) => $account->calendarOption())
             ->all();
 
         $list = [
