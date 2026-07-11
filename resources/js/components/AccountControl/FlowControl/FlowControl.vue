@@ -30,9 +30,17 @@
             <!-- 全て: app tiles -->
             <template v-if="tab === 'all'">
                 <div v-if="!loading && definitions.length === 0" class="fc-empty">
-                    <div class="fc-empty-ico">＋</div>
+                    <div class="fc-empty-ico" aria-hidden="true">
+                        <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="3" y="3" width="7.5" height="7.5" rx="2" />
+                            <rect x="13.5" y="3" width="7.5" height="7.5" rx="2" opacity=".55" />
+                            <rect x="3" y="13.5" width="7.5" height="7.5" rx="2" opacity=".55" />
+                            <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2" opacity=".3" />
+                        </svg>
+                    </div>
                     <p class="fc-empty-t">まだアプリがありません</p>
-                    <p class="fc-empty-s">右下の＋から最初のアプリを作りましょう。</p>
+                    <p class="fc-empty-s">フォーム・一覧・ステータス管理・計算・PDF帳票までを備えたアプリを作成できます。</p>
+                    <button class="fc-empty-btn" @click="openBuilder()">＋ アプリを作成</button>
                 </div>
                 <template v-else>
                     <div class="fc-controls">
@@ -274,10 +282,12 @@ onMounted(() => {
 .fc-tile-count { color: var(--primary-color); font-weight: 500; }
 .fc-dot { color: var(--calendarBorder); }
 /* empty */
-.fc-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 60px; color: gray; }
-.fc-empty-ico { width: 56px; height: 56px; border-radius: 16px; background: var(--bg3); display: flex; align-items: center; justify-content: center; font-size: 28px; color: var(--primary-color); margin-bottom: 6px; }
-.fc-empty-t { font-size: 14px; font-weight: 600; color: var(--primary-color); }
-.fc-empty-s { font-size: 12.5px; color: gray; }
+.fc-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 72px; color: gray; }
+.fc-empty-ico { width: 60px; height: 60px; border-radius: 16px; background: var(--bg3); display: flex; align-items: center; justify-content: center; color: var(--primary-color); margin-bottom: 8px; }
+.fc-empty-t { font-size: 15px; font-weight: 600; color: var(--primary-color); }
+.fc-empty-s { font-size: 12.5px; color: gray; max-width: 320px; text-align: center; line-height: 1.6; }
+.fc-empty-btn { margin-top: 16px; display: inline-flex; align-items: center; gap: 6px; padding: 9px 20px; font-size: 13px; font-weight: 600; color: #fff; background: var(--primary-button, var(--primary-color)); border: none; border-radius: 8px; cursor: pointer; }
+.fc-empty-btn:hover { opacity: .9; }
 .fc-empty-line { font-size: 13px; color: gray; margin-top: 40px; text-align: center; }
 .fc-wait { display: flex; align-items: center; gap: 12px; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: border-color .12s; }
 .fc-wait:hover { border-color: var(--primary-color); }
