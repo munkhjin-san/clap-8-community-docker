@@ -13,7 +13,7 @@ class GoogleSheetsClient {
     $c->setApplicationName(config('app.name').' Google Sheets API');
     $c->setScopes([Sheets::SPREADSHEETS_READONLY]);
 
-    if (env('GOOGLE_SA_ENABLED', false)) {
+    if (config('google.sa_enabled')) {
       $c->useApplicationDefaultCredentials(); // needs GOOGLE_APPLICATION_CREDENTIALS
     } else {
       $path = storage_path(config('services.google.credentials_json'));;
