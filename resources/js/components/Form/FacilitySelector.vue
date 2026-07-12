@@ -166,6 +166,8 @@ const spinner = ref(false)
 const menuOpen = ref(false)
 const selectorRef = useTemplateRef<HTMLElement>('selectorRef')
 const api = useApi()
+const selectorInstance = Symbol(props.target)
+const selectorOpenEvent = 'calendar-facility-selector-open'
 let requestSerial = 0
 
 const selectedOption = computed(() => {
@@ -227,7 +229,15 @@ const getPossibleItems = async () => {
 
 const toggleMenu = () => {
     if (spinner.value || !validScheduleTime.value) return
-    menuOpen.value = !menuOpen.value
+
+    const willOpen = !menuOpen.value
+    if (willOpen) {
+        document.dispatchEvent(new CustomEvent(selectorOpenEvent, {
+            detail: selectorInstance,
+        }))
+    }
+
+    menuOpen.value = willOpen
     if (menuOpen.value) void getPossibleItems()
 }
 
@@ -257,10 +267,20 @@ const closeOnOutsideClick = (event: MouseEvent) => {
     }
 }
 
-onMounted(() => document.addEventListener('click', closeOnOutsideClick))
+const closeWhenAnotherSelectorOpens = (event: Event) => {
+    if (!(event instanceof CustomEvent) || event.detail !== selectorInstance) {
+        menuOpen.value = false
+    }
+}
+
+onMounted(() => {
+    document.addEventListener('click', closeOnOutsideClick)
+    document.addEventListener(selectorOpenEvent, closeWhenAnotherSelectorOpens)
+})
 onBeforeUnmount(() => {
     requestSerial += 1
     document.removeEventListener('click', closeOnOutsideClick)
+    document.removeEventListener(selectorOpenEvent, closeWhenAnotherSelectorOpens)
 })
 
 watch(
