@@ -82,7 +82,7 @@ export type DashboardOverdueGoalCardData = unknown[]
 export type DashboardChallengeData = Omit<Post, 'id'> & {
     id: number | string
     relay_id?: number
-    attention_type?: 'nice_follow_up' | 'progress_need' | 'update_need' | 'challenge_relay_received' | 'challenge_relay_returned' | 'nice_relay_glowd_nine'
+    attention_type?: 'nice_follow_up' | 'progress_need' | 'update_need' | 'challenge_relay_received' | 'challenge_relay_returned' | 'nice_relay_glowd_nine' | 'rakuaward_nominate'
     attention_checkpoint?: number
     attention_deadline?: string | null
     attention_is_overdue?: boolean

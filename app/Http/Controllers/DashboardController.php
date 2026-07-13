@@ -809,6 +809,7 @@ class DashboardController extends Controller
         $challengeRelays = $this->challengeRelayReminders($active_user->id, $now);
         $niceReminders = $this->niceFollowUpReminders($active_user->id, $now);
         $glowdNinePlays = $this->niceRelayGlowdNineReminders($active_user->id);
+        $rakuawardNominate = $this->rakuawardNominationReminder($active_user, $now);
         $challengesQuery = PostRecord::query()
             ->where('app_type', 2)
             ->whereHas('to_users', function ($q) use ($active_user) {
@@ -889,7 +890,7 @@ class DashboardController extends Controller
             ->sortBy('date_start')
             ->values();
 
-        return $challengeRelays->concat($niceReminders)->concat($glowdNinePlays)->concat($final)->values();
+        return $challengeRelays->concat($niceReminders)->concat($glowdNinePlays)->concat($rakuawardNominate)->concat($final)->values();
 
     }
     private function challengeRelayReminders(int $userId, Carbon $now)
@@ -1050,6 +1051,33 @@ class DashboardController extends Controller
                 'closed_by_user_id' => $closedByUserId,
                 'closed_at' => $closedAt,
             ]);
+    }
+    private function rakuawardNominationReminder($user, Carbon $now)
+    {
+        // Only PMs nominate, and only until the 20th of the month.
+        if ((int) ($user->position_id ?? 0) !== 6 || $now->day > 20) {
+            return collect();
+        }
+
+        // Already nominated this month? Nothing to remind.
+        $alreadyNominated = PostRecord::where('user_id', $user->id)
+            ->where('rakuaward', 1)
+            ->whereBetween('created_at', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
+            ->exists();
+
+        if ($alreadyNominated) {
+            return collect();
+        }
+
+        $deadline = $now->copy()->startOfMonth()->addDays(19)->endOfDay(); // the 20th, end of day
+
+        return collect([[
+            'id' => 'rakuaward-nominate-' . $now->format('Y-m'),
+            'attention_type' => 'rakuaward_nominate',
+            'attention_deadline' => $deadline->toIso8601String(),
+            // Pulse during the final stretch (15th - 20th).
+            'attention_is_overdue' => $now->day >= 15 && $now->day <= 20,
+        ]]);
     }
     private function niceRelayGlowdNineReminders(int $userId)
     {

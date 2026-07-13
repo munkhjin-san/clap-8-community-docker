@@ -13,8 +13,7 @@
             </span>
             <span class="py-1 px-4 bg-[var(--bg3)] ml-1" v-else>{{amountOfMoneyParser(possibleAmount)}}円</span>
         </div>
-        <p class="text-center text-[12px] text-[gray] my-3" v-if="isRakuaward">楽アワードノミネートのため、最大のチャージ額は500円までです</p>
-        <p class="text-center text-[12px] text-[gray] my-3" v-else-if="isMini">ミニチャレンジのため、最大のチャージ額は500円までです</p>
+        <p class="text-center text-[12px] text-[gray] my-3" v-if="isRakuaward || isMini">最大のチャージ額は500円までです</p>
         <div v-if="chargeQuickOptions.length" class="flex flex-wrap justify-center gap-3 mt-2" >
             <button
                 v-for="option in chargeQuickOptions"

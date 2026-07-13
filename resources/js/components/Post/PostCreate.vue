@@ -33,13 +33,11 @@
                     <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">楽アワードノミネート</p>
                 </div>
                 <div class="selectSwitchArea" style="display: flex;width: 100%;margin-top: 10px;">    
-                    <input v-model="rakuaward" :disabled="!isRakuAwardNominatable || !canNominateRakuAward" type="checkbox" id="donate">
-                    <label for="donate" style="min-width: 80px;" :class="['cursor-pointer', { 'rakuaward-switch-label-disabled': !isRakuAwardNominatable || !canNominateRakuAward }]"><span></span>
+                    <input v-model="rakuaward" :disabled="rakuawardLoading" @change="onRakuAwardChange" type="checkbox" id="rakuaward">
+                    <label for="rakuaward" style="min-width: 80px;" :class="['cursor-pointer']"><span></span>
                         <div class="switch-toggle"></div>
                     </label>
                 </div> 
-                <span v-if="!isRakuAwardNominatable" class="text-xs text-[gray]">20日を過ぎてしまったため、楽アワードノミネートすることはできません</span>
-                <span v-if="!canNominateRakuAward" class="text-xs text-[gray]">今月の楽アワードノミネート既に作成してます</span>
             </div> 
              <div class="si-box" v-if="app_type == 2">
                 <div class="switchLabel">
@@ -198,7 +196,7 @@
                 <LongInput
                     v-model="content"  
                     ref="contentRef"
-                    :placeHolder="`${appNameJp}内容を入力（必須）`"
+                    :placeHolder="rakuaward ? '推薦コメント' : `${appNameJp}内容を入力（必須）`"
                     name="contentRef"
                     rules="required|max:2000"
                 />  
@@ -638,7 +636,7 @@ import { useDashboardStore } from '@/store/dashboard'
             }
         }
     })
-    onMounted(() => {
+    onMounted(async() => {
         if(!props.editTarget && sharingData.active){
             if(app_type.value == 2){
                 content_rule.value = sharingData.text
@@ -648,7 +646,7 @@ import { useDashboardStore } from '@/store/dashboard'
         }
         costsFill()
         loadRefreshSummary()
-        checkRakuAwardNominatable()
+        await checkRakuAwardNominatable()
     })
     const checkRakuAwardNominatable = async() => {
         const data = await api.post('/check_rakuaward', null, {
@@ -724,9 +722,10 @@ import { useDashboardStore } from '@/store/dashboard'
         applyRelayChallengeDefaults()
     })
     watch(rakuaward, (isOn) => {
-        // A rakuaward nice starts a 1-to-1 relay, so only one recipient is allowed.
-        if (isOn && to_users.value.length > 1) {
-            to_users.value = to_users.value.slice(0, 1)
+        if (!isOn) return
+        // A Raku Award nomination only allows one recipient.
+        if (to_users.value.length > 1) {
+            to_users.value = [to_users.value[0]]
         }
     })
     watch(selectedChallengeMainCategory, () => {
@@ -735,6 +734,19 @@ import { useDashboardStore } from '@/store/dashboard'
     watch(selectedChallengeSubCategory, () => {
         challengeCategoryValidationError.value = false
     })
+    const onRakuAwardChange = () => {
+        if (!isRakuAwardNominatable.value) {
+            ping('20日を過ぎてしまったため、楽アワードノミネートすることはできません')
+            rakuaward.value = false
+            return
+        }
+
+        if (!canNominateRakuAward.value) {
+            ping('今月の楽アワードノミネート既に作成してます')
+            rakuaward.value = false
+            return
+        }
+    }
     const loadRefreshSummary = async() => {
 
         if(app_type.value != 6){
