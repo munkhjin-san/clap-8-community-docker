@@ -4,14 +4,14 @@
             <div class="topbar-left">
                 <MonthPickerNew v-model:year="year" v-model:month="month" left="0px" @setDate="onSetDate" />
                 <span class="granted-counter">選択済み: {{ grantedCount }} / {{ limit }}</span>
-                <button
+                <!-- <button
                     type="button"
                     class="refund-all-button"
                     :disabled="!refundableCount || refunding || saving"
                     @click="refundRest"
                 >
                     未選出を返金{{ refundableCount ? `（${refundableCount}件）` : '' }}
-                </button>
+                </button> -->
             </div>
             <p class="topbar-note">上位5名に選ばれなかったノミネートは、チャージした金額がメンバーへ返金されます。</p>
         </section>

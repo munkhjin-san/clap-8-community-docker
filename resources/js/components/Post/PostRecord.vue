@@ -11,9 +11,8 @@
                     </div>
                     <div title="このナイスは楽アワードノミネートナイスです" v-if="record.rakuaward"
                         class="rounded-full bg-[var(--bg3)] px-3 py-1 flex items-center gap-2">
-                        <img v-if="theme.dark" src="/images/raku_dark.webp" class="h-[23px]" />
-                        <img v-else src="/images/raku_light.webp" class="h-[23px]" />
-                        <p class="text-[12px] whitespace-nowrap">ノミネート</p>
+                        
+                        <p class="text-[12px] whitespace-nowrap">楽アワードノミネート</p>
                     </div>
                     <div v-html="title" class="post-title under500:hidden"></div>
                 </div>
