@@ -6,7 +6,6 @@
         :type="data.type"
         :can-resize="data.canResize"
         :can-fullscreen="data.canFullscreen"
-        :pulse="hasPulseReminder"
         @toggle="(el, title) => emit('toggle', el, data.type)"
         @resize="emit('resize', data.type)"
     >
@@ -152,6 +151,17 @@
                                 </button>
                             </div>
                         </PanelData>
+                        <PanelData v-else-if="isRakuawardNominate(challenge)">
+                            <p class="text-[12px]" :class="challenge.attention_is_overdue ? 'text-[tomato]' : 'text-[gray]'">
+                                今月の楽アワードノミネートがまだ作成されていません。20日までに作成してください。
+                            </p>
+                            <p v-if="challenge.attention_deadline" class="mt-1 text-[11px] text-[gray]">
+                                締切: {{ formatDeadline(challenge.attention_deadline) }}
+                            </p>
+                            <div class="mt-3 text-right">
+                                <router-link :to="{ name: 'post', query: { app_type: 0, create: '1' } }">作成</router-link>
+                            </div>
+                        </PanelData>
                         <PanelData v-else>
                             <p v-if="isUpdateNeed(challenge)" class="text-[12px] text-[tomato]">チャレンジ期間が終了しました。結果を入力してください。</p>
                             <p v-else-if="isProgressNeed(challenge)" class="text-[12px] text-[gray]">チャレンジが {{ challenge.attention_checkpoint }}% のチェックポイントを通過しました。進行状況の報告を提出してください。</p>
@@ -227,6 +237,7 @@ const NICE_RELAY_LIMIT = 9
 
 const isNiceReminder = (challenge: DashboardPostReminder) => challenge.attention_type === 'nice_follow_up'
 const isGlowdNinePlay = (challenge: DashboardPostReminder) => challenge.attention_type === 'nice_relay_glowd_nine'
+const isRakuawardNominate = (challenge: DashboardPostReminder) => challenge.attention_type === 'rakuaward_nominate'
 const isProgressNeed = (challenge: DashboardPostReminder) => challenge.attention_type === 'progress_need'
 const isUpdateNeed = (challenge: DashboardPostReminder) => challenge.attention_type === 'update_need'
 const isChallengeRelayReceived = (challenge: DashboardPostReminder) => challenge.attention_type === 'challenge_relay_received'
@@ -240,20 +251,18 @@ const isOverdue = (challenge: DashboardPostReminder) => {
     return diff < 0;
 }
 
-const hasPulseReminder = computed(() => {
-    return props.data.data.some(challenge => (isNiceReminder(challenge) || isChallengeRelayReceived(challenge)) && challenge.attention_is_overdue)
-})
-
 const challengeSections = computed(() => {
     const challengeRelays = props.data.data.filter(isChallengeRelay)
     const niceRelays = props.data.data.filter(isNiceReminder)
     const glowdNinePlays = props.data.data.filter(isGlowdNinePlay)
-    const progressAndResultNeeds = props.data.data.filter(challenge => !isChallengeRelay(challenge) && !isNiceReminder(challenge) && !isGlowdNinePlay(challenge))
+    const rakuawardNominates = props.data.data.filter(isRakuawardNominate)
+    const progressAndResultNeeds = props.data.data.filter(challenge => !isChallengeRelay(challenge) && !isNiceReminder(challenge) && !isGlowdNinePlay(challenge) && !isRakuawardNominate(challenge))
 
     return [
         { key: 'challenge-relay', title: 'チャレンジリレー', items: challengeRelays },
         { key: 'nice-relay', title: 'ナイスリレー', items: niceRelays },
         { key: 'glowd-nine', title: 'グラウドナイン', items: glowdNinePlays },
+        { key: 'raku-award', title: '楽アワードノミネート', items: rakuawardNominates },
         { key: 'progress-result', title: '進捗・結果報告依頼', items: progressAndResultNeeds },
     ].filter(section => section.items.length)
 })
@@ -284,6 +293,10 @@ const titleText = (challenge: DashboardPostReminder) => {
 
     if (isChallengeRelayReturned(challenge)) {
         return `${challenge.declined_by_user?.name ?? challenge.user?.name ?? 'メンバー'}さんがバトンをパスしました`
+    }
+
+    if (isRakuawardNominate(challenge)) {
+        return '楽アワードノミネートを作成'
     }
 
     return challenge.title
