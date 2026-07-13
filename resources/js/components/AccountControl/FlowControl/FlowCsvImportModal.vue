@@ -33,6 +33,7 @@
                                         <div class="ci-target">
                                             <select v-model="mapping[h]" class="custom-a-input !box-border ci-select">
                                                 <option v-for="f in fields" :key="f.id" :value="String(f.id)">{{ f.label }}（{{ typeLabel(f.input_type) }}）</option>
+                                                <option v-for="s in systemColumns" :key="s.key" :value="s.key">{{ s.label }}（システム）</option>
                                                 <option value="__new__">＋ 新規項目として作成</option>
                                                 <option value="__skip__">取り込まない</option>
                                             </select>
@@ -95,6 +96,7 @@ const busy = ref(false)
 const step = ref<'map' | 'result'>('map')
 const headers = ref<string[]>([])
 const fields = ref<ImportField[]>([])
+const systemColumns = ref<{ key: string; label: string }[]>([]) // e.g. 作成日時 / 更新日時 (map to preserve source timestamps)
 const sampleRows = ref<Record<string, any>[]>([])
 const rowCount = ref(0)
 const mapping = reactive<Record<string, string>>({})
@@ -148,6 +150,7 @@ const analyze = async () => {
         if (!data) return
         headers.value = data.headers ?? []
         fields.value = data.fields ?? []
+        systemColumns.value = data.system_columns ?? []
         sampleRows.value = data.sample_rows ?? []
         rowCount.value = data.row_count ?? 0
         ;(data.columns ?? []).forEach((c: any) => {

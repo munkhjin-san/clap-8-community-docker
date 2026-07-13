@@ -1309,13 +1309,15 @@ class FlowController extends Controller
         return response()->streamDownload(function () use ($records, $fields, $definition) {
             echo "\xEF\xBB\xBF";
             $out = fopen('php://output', 'w');
-            fputcsv($out, array_merge(['ID'], $fields->pluck('label')->all()));
+            fputcsv($out, array_merge(['ID'], $fields->pluck('label')->all(), ['作成日時', '更新日時']));
             foreach ($records as $rec) {
                 $vals = $this->flowService->recordValues($rec, $definition->fields);
                 $row = [$rec->id];
                 foreach ($fields as $f) {
                     $row[] = $this->csvValue($vals[(string) $f->id] ?? null);
                 }
+                $row[] = optional($rec->created_at)->format('Y-m-d H:i:s');
+                $row[] = optional($rec->updated_at)->format('Y-m-d H:i:s');
                 fputcsv($out, $row);
             }
             fclose($out);
@@ -1355,20 +1357,21 @@ class FlowController extends Controller
         $newTypes = json_decode($request->input('new_field_types', '{}'), true);
         $plan = $this->buildImportPlan($definition, $parsed['headers'], is_array($mapping) ? $mapping : [], is_array($newTypes) ? $newTypes : [], $parsed['rows']);
         $columns = $plan['columns'];
+        $system = $plan['system'] ?? [];
         abort_if(empty($columns), 422, '取り込む列を1つ以上マッピングしてください。');
         $hasNew = collect($columns)->contains(fn ($c) => $c['isNew']);
         if ($hasNew && ! $perms['manage']) {
             abort(403, '新規フィールドを作成するにはアプリの管理権限が必要です。');
         }
 
-        $validation = $this->validateImportRows($parsed['rows'], $columns);
+        $validation = $this->validateImportRows($parsed['rows'], $columns, $system);
 
         if ($phase === 'validate') {
             return response()->json($validation + ['sample_errors' => array_slice($validation['invalid'], 0, 50)]);
         }
 
         $invalidRows = collect($validation['invalid'])->pluck('row')->flip(); // 1-based row => idx
-        $result = DB::transaction(function () use ($definition, $parsed, $columns, $invalidRows, $user) {
+        $result = DB::transaction(function () use ($definition, $parsed, $columns, $system, $invalidRows, $user) {
             // Turn "__new__" columns into real fields, then map every column's header → its field.
             $headerToField = [];
             foreach ($columns as $c) {
@@ -1381,7 +1384,7 @@ class FlowController extends Controller
                 if ($invalidRows->has($i + 1)) {
                     continue;
                 }
-                $this->importOneRow($definition, $headerToField, $row, $user);
+                $this->importOneRow($definition, $headerToField, $row, $user, $system);
                 $imported++;
             }
 
@@ -1400,12 +1403,13 @@ class FlowController extends Controller
         $byLabel = $fields->keyBy(fn ($f) => mb_strtolower(trim($f->label)));
 
         $columns = collect($parsed['headers'])->map(function (string $header) use ($byLabel, $parsed) {
+            $sys = $this->suggestSystemColumn($header);
             $match = $byLabel->get(mb_strtolower(trim($header)));
             $inferred = $this->inferColumnType($parsed['rows'], $header);
 
             return [
                 'header' => $header,
-                'suggested' => $match ? (string) $match->id : '__skip__',
+                'suggested' => $sys ?? ($match ? (string) $match->id : '__skip__'),
                 'recommended_type' => $inferred['type'],           // used when the uploader chooses "＋新規"
                 'recommended_options' => $inferred['options'],
             ];
@@ -1420,7 +1424,27 @@ class FlowController extends Controller
                 'id' => $f->id, 'label' => $f->label, 'input_type' => $f->input_type,
                 'is_required' => (bool) $f->is_required, 'options' => $f->options ?? [],
             ])->values(),
+            // System columns the uploader may map onto (normally set automatically). Importing them
+            // preserves the source system's timestamps instead of stamping "now" on every row.
+            'system_columns' => [
+                ['key' => '__created_at__', 'label' => '作成日時'],
+                ['key' => '__updated_at__', 'label' => '更新日時'],
+            ],
         ];
+    }
+
+    /** Map a CSV header that looks like a timestamp column onto the matching system-column sentinel. */
+    private function suggestSystemColumn(string $header): ?string
+    {
+        $h = mb_strtolower(trim($header));
+        if (in_array($h, ['作成日時', '作成日', '登録日時', '登録日', 'created_at', 'created', 'create_at'], true)) {
+            return '__created_at__';
+        }
+        if (in_array($h, ['更新日時', '更新日', 'updated_at', 'updated', 'update_at', 'modified'], true)) {
+            return '__updated_at__';
+        }
+
+        return null;
     }
 
     /** Types a "＋新規" column can be created as (CSV-seedable only — excludes user/member/formula/file). */
@@ -1500,12 +1524,19 @@ class FlowController extends Controller
     {
         $fieldsById = $definition->fields->keyBy('id');
         $columns = [];
+        $system = [];   // slot ('created_at'|'updated_at') => CSV header
         $usedFieldIds = [];
         $newIdx = 0;
 
         foreach ($headers as $header) {
             $target = $mapping[$header] ?? '__skip__';
             if ($target === '__skip__' || $target === '' || $target === null) {
+                continue;
+            }
+
+            if ($target === '__created_at__' || $target === '__updated_at__') {
+                $slot = $target === '__created_at__' ? 'created_at' : 'updated_at';
+                $system[$slot] ??= $header; // first column mapped to a slot wins
                 continue;
             }
 
@@ -1532,11 +1563,11 @@ class FlowController extends Controller
             $usedFieldIds[] = (int) $target;
         }
 
-        return ['columns' => $columns];
+        return ['columns' => $columns, 'system' => $system];
     }
 
     /** Dry-run validate each row against the mapped columns (existing fields + typed new columns alike). */
-    private function validateImportRows(array $rows, array $columns): array
+    private function validateImportRows(array $rows, array $columns, array $system = []): array
     {
         $fields = collect($columns)->pluck('field');
         $invalid = [];
@@ -1570,18 +1601,41 @@ class FlowController extends Controller
                 }
             }
 
-            if ($errors) {
+            // System timestamp columns: a non-empty value must parse as a date/time.
+            $sysErrors = [];
+            foreach ($system as $header) {
+                $val = trim((string) ($row[$header] ?? ''));
+                if ($val !== '' && ! $this->parsableDateTime($val)) {
+                    $sysErrors[$header] = '日時として認識できません。';
+                }
+            }
+
+            if ($errors || $sysErrors) {
                 $byField = [];
                 foreach ($columns as $c) {
                     if (isset($errors[(string) $c['field']->id])) {
                         $byField[] = ['header' => $c['header'], 'message' => $errors[(string) $c['field']->id]];
                     }
                 }
+                foreach ($sysErrors as $header => $message) {
+                    $byField[] = ['header' => $header, 'message' => $message];
+                }
                 $invalid[] = ['row' => $i + 1, 'errors' => $byField];
             }
         }
 
         return ['total' => count($rows), 'valid_count' => count($rows) - count($invalid), 'invalid' => $invalid];
+    }
+
+    private function parsableDateTime(string $v): bool
+    {
+        try {
+            \Carbon\Carbon::parse($v);
+
+            return true;
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     private function csvValue($v): string
@@ -1700,7 +1754,7 @@ class FlowController extends Controller
     }
 
     /** Insert one record from a CSV row (initial status if the app uses the flow), writing the mapped cells. */
-    private function importOneRow(FlowDefinition $definition, array $headerToField, array $row, $user): void
+    private function importOneRow(FlowDefinition $definition, array $headerToField, array $row, $user, array $system = []): void
     {
         $start = $this->flowService->startStatus($definition);
         $record = FlowRecord::create([
@@ -1712,6 +1766,23 @@ class FlowController extends Controller
         ]);
         foreach ($headerToField as $header => $field) {
             $this->flowService->saveFieldValue($record, $field, $row[$header] ?? null);
+        }
+
+        // Imported created_at / updated_at: written last via a raw update so Eloquent's automatic
+        // timestamping (which would stamp "now") doesn't overwrite the source values.
+        $stamps = [];
+        foreach ($system as $slot => $header) {
+            $val = trim((string) ($row[$header] ?? ''));
+            if ($val === '') {
+                continue;
+            }
+            try {
+                $stamps[$slot] = \Carbon\Carbon::parse($val)->toDateTimeString();
+            } catch (\Throwable) {
+            }
+        }
+        if ($stamps) {
+            DB::table('flow_records')->where('id', $record->id)->update($stamps);
         }
     }
 }
