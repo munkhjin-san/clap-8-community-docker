@@ -82,6 +82,7 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
     const myGoals = ref<ProjectGoal[]>([])
     const unfinishedPreviousSpanGoals = ref<ProjectGoal[]>([])
     const pendingMembers = ref<UserWithGoals[]>([])
+    const returnedMembers = ref<UserWithGoals[]>([])
     const managersGoals = ref<UserWithGoals[]>([])
     const adminApprovalNeededGoalsWithSalaryIssue = ref<UserWithGoals[]>([])
     const mentorApprovalNeededGoalsWithSalaryIssue = ref<UserWithGoals[]>([])
@@ -145,6 +146,7 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
             evaluationData.value = data.evaluation ?? null
             totalScore.value = data.achievement_total ?? 0
             pendingMembers.value = data.members_goals ?? []
+            returnedMembers.value = data.returned_goals ?? []
             myGoals.value = data.my_goals ?? []
             managersGoals.value = data.managers_goals ?? []
             adminApprovalNeededGoalsWithSalaryIssue.value = data.admin_approval_needed_goals_with_salary_issue ?? []
@@ -293,6 +295,7 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         const attentionNeededMyGoals = myGoals.value.filter(goal => goal.status == 1 || goal.status == 8 || (goal.salary_issue && (goal.salary_issue.status == 1 || goal.salary_issue.status == 8)))
 
         return pendingMembers.value.length +
+        returnedMembers.value.length +
         managerNormalGoals.value.length +
         adminApprovalNeededGoalsWithSalaryIssue.value.length +
         mentorApprovalNeededGoalsWithSalaryIssue.value.length +
@@ -362,6 +365,7 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         myGoals,
         unfinishedPreviousSpanGoals,
         pendingMembers,
+        returnedMembers,
         managersGoals,
         adminApprovalNeededGoalsWithSalaryIssue,
         mentorApprovalNeededGoalsWithSalaryIssue,

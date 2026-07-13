@@ -6,6 +6,7 @@ use App\Ai\Agents\ProjectMemberAssignmentEvaluator;
 use App\Imports\YearlyPlanImport;
 use App\Models\AssetRecord;
 use App\Models\AssetRequest;
+// use App\Models\ActualResultDepartment;
 use App\Models\boardRecord;
 use App\Models\EvaluationRecord;
 use App\Models\ProjectCondition;
@@ -55,6 +56,7 @@ use App\Http\Controllers\BoardController;
 use App\Services\SharedService;
 use App\Services\VarianceService;
 use App\Services\BadgeService;
+// use App\Services\ActualResultPersistenceService;
 use App\Services\FinanceAnalysisService;
 use App\Services\ProjectPlanFormulaService;
 use App\Imports\EvaluationImport;
@@ -65,6 +67,7 @@ use App\Infrastructure\Sheets\GoogleSheetsClient;
 use Illuminate\Database\Eloquent\Collection;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\File; 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\Laravel\Facades\Image;
 use Google_Client;
@@ -80,6 +83,12 @@ class ProjectController extends Controller
     //
     protected $boardController;
     protected $sharedService;
+
+    private const KINTONE_DEPARTMENT_APP_ID = 26;
+    private const KINTONE_DEPARTMENT_CODE_FIELD = '文字列__1行__3';
+    private const KINTONE_DEPARTMENT_NAME_FIELD = '部門';
+    private const KINTONE_DEPARTMENT_PM_FIELD = 'プロジェクトマネージャー';
+    private const KINTONE_DEPARTMENT_DESCRIPTION_FIELD = '文字列__複数行_';
 
     
     private const SYSTEM_STATUS_LABELS = [
@@ -405,6 +414,8 @@ class ProjectController extends Controller
 
         $members_goals = [];
 
+        $returned_goals = [];
+
         $managers_goals = [];
 
         $mentor_approval_needed_goals_with_salary_issue = [];
@@ -471,6 +482,23 @@ class ProjectController extends Controller
                     $memberQuery->whereColumn('users.id', 'project_goals.user_id');
                 })
             ->select($approvalGoalColumns)->with(['statusLogs' => $resultSubmissionLogs])])->get();
+
+            $returned_goals = User::whereNot('id', $user->id)->where('position_id', 12)
+                ->whereHas('outcome_goals', function ($q) use ($user) {
+                $q->whereIn('status', [1, 8])
+                ->whereHas('project', function ($projectQuery) use ($user) {
+                    $projectQuery->whereHas('manager', function ($directorQuery) use ($user) {
+                        $directorQuery->where('users.id', $user->id);
+                    })->whereHas('members', function ($memberQuery) {
+                        $memberQuery->whereColumn('users.id', 'project_goals.user_id');
+                    });
+                });
+            })->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
+            ->with(['outcome_goals' => fn ($q) => $q->whereIn('status', [1, 8])
+                ->whereHas('project.members', function ($memberQuery) {
+                    $memberQuery->whereColumn('users.id', 'project_goals.user_id');
+                })
+            ->select($approvalGoalColumns)->with(['statusLogs' => $resultSubmissionLogs])])->get();
         }
         if($is_boss){
             
@@ -505,6 +533,7 @@ class ProjectController extends Controller
             'project_goals' => $project_goals,
             'evaluation' => $evalutaionRecord,
             'members_goals' => $members_goals,
+            'returned_goals' => $returned_goals,
             'my_goals' => $my_goals,
             'unfinished_previous_span_goals' => $unfinished_previous_span_goals->values()->all(),
             'managers_goals' => $managers_goals,
@@ -802,6 +831,9 @@ class ProjectController extends Controller
 
         $id = $request->id ?? null;
         $params = $request->params;
+        $existingProject = $id
+            ? ProjectRecord::query()->select('id', 'status')->find($id)
+            : null;
         
         $filteredParams = collect($params)->only([
             'name',
@@ -840,39 +872,18 @@ class ProjectController extends Controller
         $project->members()->sync($members);
         $project->manager()->syncWithPivotValues($manager, ['authority' => 1]);
 
-        $isNew = !$id;
+        $isNew = !$existingProject;
         $newStatus = $filteredParams['status'];
-        $oldStatus = $id ? $project->status : null;
+        $oldStatus = $existingProject?->status;
 
         $isFirstSubmit =
             ($isNew && $newStatus !== 'draft') ||
             (!$isNew && $oldStatus === 'draft' && $newStatus !== 'draft');
 
-        
+        $kintoneSync = null;
         if ($isFirstSubmit) {
-            $query = "order by レコード番号 desc limit 1";
-            $fields = ["文字列__1行__3"];
-            
-            $recs = $this->api->getRecords(26, $query, $fields);
-            
-            $rec = $recs[0] ?? null; 
-            if ($rec) {
-                $d_code = $rec['文字列__1行__3']['value'] ?? null;
-                if ($d_code) {
-                    $number = (int) filter_var($d_code, FILTER_SANITIZE_NUMBER_INT);
-                    $newNumber = $number + 1;
-                    $newDCode = 'D_' . str_pad($newNumber, 5, '0', STR_PAD_LEFT);
-                    $pm = $project->manager->first();
-                    $name = preg_replace('/\s+/u', '', $pm->name);
-                    $result = $this->api->postRecord(26, [
-                        '文字列__1行__3' => ['value' => $newDCode],
-                        '部門' => ['value' => $project->name],
-                        'プロジェクトマネージャー' => ['value' => $name],
-                        '文字列__複数行_' => ['value' => $project->description]
-                    ]);
-                }
-            }
-            
+            $project->loadMissing('manager');
+            $kintoneSync = $this->createKintoneDepartmentForProject($project);
         }
         
         $tasks = $request->tasks ?? [];
@@ -915,7 +926,7 @@ class ProjectController extends Controller
         }
 
         if (!is_array($contract)) {
-            return response()->json($project);
+            return $this->projectCreateResponse($project, $kintoneSync);
         }
 
         $overall   = $contract['overall_risk'] ?? 'unknown';
@@ -940,8 +951,145 @@ class ProjectController extends Controller
             'active'            => true,
         ]);
         
-        return response()->json($project);
+        return $this->projectCreateResponse($project, $kintoneSync);
     }
+
+    private function projectCreateResponse(ProjectRecord $project, ?array $kintoneSync = null): JsonResponse
+    {
+        return response()->json(array_merge($project->toArray(), [
+            'kintone_sync' => $kintoneSync,
+        ]));
+    }
+
+    private function createKintoneDepartmentForProject(ProjectRecord $project): array
+    {
+        $projectName = trim((string) $project->name);
+        if ($projectName === '') {
+            return [
+                'status' => 'skipped',
+                'reason' => 'missing_project_name',
+                'message' => 'GLOWD側のプロジェクトは保存されましたが、プロジェクト名が空のためKintoneへの作成はスキップしました。',
+            ];
+        }
+
+        try {
+            $existingRecord = $this->findKintoneDepartmentByName($projectName);
+            if ($existingRecord) {
+                return $this->kintoneDepartmentAlreadyExistsResponse($existingRecord);
+            }
+
+            $pm = $project->manager->first();
+            $pmName = $pm ? preg_replace('/\s+/u', '', $pm->name) : '';
+
+            return $this->postKintoneDepartmentRecord($project, $projectName, $pmName);
+        } catch (\Throwable $e) {
+            try {
+                $existingRecord = $this->findKintoneDepartmentByName($projectName);
+                if ($existingRecord) {
+                    return $this->kintoneDepartmentAlreadyExistsResponse($existingRecord);
+                }
+            } catch (\Throwable $lookupException) {
+                Log::warning('Kintone department lookup failed after project creation.', [
+                    'project_id' => $project->id,
+                    'project_name' => $projectName,
+                    'exception' => $lookupException,
+                ]);
+            }
+
+            Log::warning('Project was saved but Kintone department creation failed.', [
+                'project_id' => $project->id,
+                'project_name' => $projectName,
+                'exception' => $e,
+            ]);
+
+            return [
+                'status' => 'failed',
+                'reason' => 'kintone_create_failed',
+                'message' => 'GLOWD側のプロジェクトは保存されましたが、Kintoneへの作成に失敗しました。Kintone側を確認してください。',
+            ];
+        }
+    }
+
+    private function postKintoneDepartmentRecord(ProjectRecord $project, string $projectName, string $pmName): array
+    {
+        for ($attempt = 0; $attempt < 2; $attempt++) {
+            $newDCode = $this->nextKintoneDepartmentCode();
+
+            try {
+                $result = $this->api->postRecord(self::KINTONE_DEPARTMENT_APP_ID, [
+                    self::KINTONE_DEPARTMENT_CODE_FIELD => ['value' => $newDCode],
+                    self::KINTONE_DEPARTMENT_NAME_FIELD => ['value' => $projectName],
+                    self::KINTONE_DEPARTMENT_PM_FIELD => ['value' => $pmName],
+                    self::KINTONE_DEPARTMENT_DESCRIPTION_FIELD => ['value' => $project->description],
+                ]);
+
+                return [
+                    'status' => 'created',
+                    'record_id' => $result['id'] ?? null,
+                    'department_code' => $newDCode,
+                ];
+            } catch (\Throwable $postException) {
+                $existingRecord = $this->findKintoneDepartmentByName($projectName);
+                if ($existingRecord) {
+                    return $this->kintoneDepartmentAlreadyExistsResponse($existingRecord);
+                }
+
+                if ($attempt === 0) {
+                    continue;
+                }
+
+                throw $postException;
+            }
+        }
+
+        throw new \RuntimeException('Kintone department creation failed.');
+    }
+
+    private function findKintoneDepartmentByName(string $projectName): ?array
+    {
+        $escapedProjectName = $this->escapeKintoneQueryString($projectName);
+        $query = self::KINTONE_DEPARTMENT_NAME_FIELD . " = \"{$escapedProjectName}\" limit 1";
+        $fields = [
+            '$id',
+            self::KINTONE_DEPARTMENT_CODE_FIELD,
+            self::KINTONE_DEPARTMENT_NAME_FIELD,
+        ];
+
+        $records = $this->api->getRecords(self::KINTONE_DEPARTMENT_APP_ID, $query, $fields);
+
+        return $records[0] ?? null;
+    }
+
+    private function nextKintoneDepartmentCode(): string
+    {
+        $query = "order by レコード番号 desc limit 1";
+        $fields = [self::KINTONE_DEPARTMENT_CODE_FIELD];
+        $records = $this->api->getRecords(self::KINTONE_DEPARTMENT_APP_ID, $query, $fields);
+        $record = $records[0] ?? null;
+        $departmentCode = $record[self::KINTONE_DEPARTMENT_CODE_FIELD]['value'] ?? null;
+        $number = $departmentCode
+            ? (int) filter_var($departmentCode, FILTER_SANITIZE_NUMBER_INT)
+            : 0;
+
+        return 'D_' . str_pad($number + 1, 5, '0', STR_PAD_LEFT);
+    }
+
+    private function kintoneDepartmentAlreadyExistsResponse(array $record): array
+    {
+        return [
+            'status' => 'skipped',
+            'reason' => 'already_exists',
+            'record_id' => $record['$id']['value'] ?? null,
+            'department_code' => $record[self::KINTONE_DEPARTMENT_CODE_FIELD]['value'] ?? null,
+            'message' => 'Kintone側に同名のプロジェクトが既に存在するため、Kintoneへの作成はスキップしました。GLOWD側のプロジェクトは保存されています。',
+        ];
+    }
+
+    private function escapeKintoneQueryString(string $value): string
+    {
+        return str_replace(['\\', '"'], ['\\\\', '\\"'], $value);
+    }
+
     private function collectProjectSpecFileIds($specs): array
     {
         if (!is_array($specs)) {
@@ -3791,7 +3939,7 @@ class ProjectController extends Controller
             'includeForecastSettlement' => ['sometimes', 'boolean'],
         ]);
 
-        return response()->json($financeAnalysis->analyze($validated, $activeUser));
+            return response()->json($financeAnalysis->analyze($validated, $activeUser));
     }
     public function get_total_finance_badge(Request $request)
     {
@@ -4187,6 +4335,66 @@ class ProjectController extends Controller
             $count,
         );
     }
+
+    // public function actualResultDepartments(
+    //     Request $request,
+    //     ProjectRecord $project,
+    //     ActualResultPersistenceService $actualResults
+    // ) {
+    //     $this->ensureProjectAccess($project);
+
+    //     $data = $request->validate([
+    //         'start' => ['required', 'date_format:Y-m'],
+    //         'end' => ['required', 'date_format:Y-m'],
+    //     ]);
+
+    //     $start = Carbon::createFromFormat('Y-m-d', "{$data['start']}-01")->startOfMonth();
+    //     $end = Carbon::createFromFormat('Y-m-d', "{$data['end']}-01")->startOfMonth();
+
+    //     if ($end->lt($start)) {
+    //         [$start, $end] = [$end, $start];
+    //     }
+
+    //     $months = [];
+    //     $cursor = $start->copy();
+    //     while ($cursor->lte($end)) {
+    //         $months[$cursor->format('Y-m')] = null;
+    //         $cursor->addMonth();
+    //     }
+
+    //     $departments = ActualResultDepartment::query()
+    //         ->with('report')
+    //         ->where(function ($query) use ($project) {
+    //             $query->where('project_record_id', $project->id)
+    //                 ->orWhere(function ($fallback) use ($project) {
+    //                     $fallback->whereNull('project_record_id')
+    //                         ->where('department_name', $project->name);
+    //                 });
+    //         })
+    //         ->whereHas('report', function ($query) use ($start, $end) {
+    //             $query->whereBetween('target_month', [
+    //                 $start->toDateString(),
+    //                 $end->copy()->endOfMonth()->toDateString(),
+    //             ]);
+    //         })
+    //         ->get();
+
+    //     foreach ($departments as $department) {
+    //         $month = $department->report?->target_month?->format('Y-m');
+    //         if (! $month || ! array_key_exists($month, $months)) {
+    //             continue;
+    //         }
+
+    //         $payload = $actualResults->departmentPayload($department);
+    //         $payload['month'] = $month;
+    //         $months[$month] = $payload;
+    //     }
+
+    //     return response()->json([
+    //         'months' => $months,
+    //     ]);
+    // }
+
     public function get_comment_count_from_total(Request $req) {
         $data = $req->validate([
             'projectIds'   => ['sometimes', 'array'],
@@ -4281,6 +4489,7 @@ class ProjectController extends Controller
             if (!isset($projects[$projectId])) {
                 $projects[$projectId] = [
                     'project_id'    => $projectId,
+                    'project_name'  => null, // filled in below
                     'total_unread'  => 0,
                     'period_counts' => [],   // period => count
                 ];
@@ -4289,6 +4498,15 @@ class ProjectController extends Controller
             $projects[$projectId]['total_unread'] += $count;
             $projects[$projectId]['period_counts'][$period] = $count;
         }
+
+        // Attach project names so the frontend can label cross-project navigation.
+        $names = empty($projects)
+            ? collect()
+            : ProjectRecord::whereIn('id', array_keys($projects))->pluck('name', 'id');
+        foreach ($projects as $pid => &$project) {
+            $project['project_name'] = $names[$pid] ?? 'プロジェクト';
+        }
+        unset($project);
 
         $data = [
             'total_unread' => $totalUnread,

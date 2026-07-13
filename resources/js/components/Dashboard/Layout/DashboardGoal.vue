@@ -248,7 +248,7 @@ const emit = defineEmits<{
 }>()
 
 const goalsStore = useDashboardGoalsStore()
-const {totalOverallScore, loading, pendingMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals, requiredGoalData, unfinishedPreviousSpanGoals, pulseBadgeCount, normalBadgeCount } = storeToRefs(goalsStore)
+const {totalOverallScore, loading, pendingMembers, returnedMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals, requiredGoalData, unfinishedPreviousSpanGoals, pulseBadgeCount, normalBadgeCount } = storeToRefs(goalsStore)
 const { getGoals } = goalsStore
 
 const auth = useAuthUserStore()
@@ -286,6 +286,13 @@ const approvaNeeded = computed(() => {
             chip: 'PM',
             title: '承認依頼【メンバー】',
             users: pendingMembers.value
+        })
+    }
+    if(returnedMembers.value.length){
+        items.push({
+            chip: 'PM',
+            title: '差戻依頼【メンバー】',
+            users: returnedMembers.value
         })
     }
     if(managersGoals.value.length){
