@@ -49,7 +49,7 @@
                                 <template v-else-if="el.type === 'field'">〈{{ fieldLabel(el.fieldKey) }}〉</template>
                                 <template v-else-if="el.type === 'today'">{{ todayPreview(el) }}</template>
                                 <template v-else-if="el.type === 'image'">
-                                    <img v-if="el.src" :src="el.src" style="width:100%;height:100%;object-fit:contain;">
+                                    <img v-if="el.src" :src="el.src" draggable="false" style="width:100%;height:100%;object-fit:contain;pointer-events:none;-webkit-user-drag:none;">
                                     <span v-else class="pd-ph">画像</span>
                                 </template>
                                 <template v-else-if="el.type === 'table'">
@@ -300,6 +300,7 @@ const todayPreview = (el: PdfElement): string => {
 
 /* ---- drag / resize (canvas coords = screen / scale) ---- */
 const startDrag = (e: PointerEvent, el: PdfElement) => {
+    e.preventDefault() // stop the browser starting a text selection / native drag while dragging
     selectedId.value = el.id
     const sx = e.clientX, sy = e.clientY, ox = el.x, oy = el.y
     const move = (ev: PointerEvent) => {
@@ -311,6 +312,7 @@ const startDrag = (e: PointerEvent, el: PdfElement) => {
     window.addEventListener('pointerup', up)
 }
 const startResize = (e: PointerEvent, el: PdfElement) => {
+    e.preventDefault()
     const sx = e.clientX, sy = e.clientY, ow = el.w, oh = el.h
     const move = (ev: PointerEvent) => {
         el.w = Math.max(16, Math.round((ow + (ev.clientX - sx) / scale.value) / 4) * 4)
@@ -441,7 +443,7 @@ const closePreview = () => { if (previewUrl.value) URL.revokeObjectURL(previewUr
 .pd-canvas-wrap { flex: 1; overflow: auto; display: flex; justify-content: center; padding: 24px; }
 /* Always-white paper: lock dark ink so page content stays readable regardless of app theme. */
 .pd-page { position: relative; background: #fff; color: #1a1a1a; box-shadow: 0 2px 16px rgba(0,0,0,.15); flex-shrink: 0; align-self: flex-start; }
-.pd-el { position: absolute; box-sizing: border-box; cursor: move; outline: 1px dashed transparent; }
+.pd-el { position: absolute; box-sizing: border-box; cursor: move; outline: 1px dashed transparent; user-select: none; -webkit-user-select: none; }
 .pd-el:hover { outline-color: var(--formBorder); }
 /* elements sit on the always-white paper, so use the (dark in both themes) button ink,
    not --primary-color which goes near-white in dark mode and vanishes on the page. */
