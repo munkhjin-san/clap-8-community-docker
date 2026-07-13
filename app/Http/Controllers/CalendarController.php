@@ -1320,8 +1320,8 @@ class CalendarController extends Controller
             throw ValidationException::withMessages(['message' => '閲覧権限がありません。']);
         }
         $recordDate = Carbon::parse($record->date_start, config('app.timezone'));
-        $summaryDayStart = $recordDate->copy()->startOfDay()->utc();
-        $summaryDayEnd = $recordDate->copy()->endOfDay()->utc();
+        $summaryDayStart = $recordDate->copy()->startOfDay();
+        $summaryDayEnd = $recordDate->copy()->endOfDay();
         $summaries = $record->summaries()
             ->whereBetween('calendar_meeting_summaries.created_at', [$summaryDayStart, $summaryDayEnd])
             ->with(['details', 'steps'])
