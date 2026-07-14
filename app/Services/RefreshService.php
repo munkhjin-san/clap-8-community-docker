@@ -1449,6 +1449,7 @@ class RefreshService
                     [
                         'prize' => 0,
                         'try_flag' => 0,
+                        'source' => 'rakuaward',
                     ]
                 );
             });

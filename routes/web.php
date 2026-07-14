@@ -293,6 +293,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/work_group_delete', [AdminAccountController::class, 'workgroupDelete']);
         // Admin Panel Work
         Route::post('/get_admin_work', [AdminWorkController::class, 'get_admin_work']);
+        Route::get('/gasoline_rate', [AdminWorkController::class, 'gasoline_rate']);
+        Route::post('/gasoline_rate', [AdminWorkController::class, 'store_gasoline_rate']);
         Route::get('/work_audit_logs', [AdminWorkController::class, 'work_audit_logs']);
         Route::get('/work_audit_logs/{event}', [AdminWorkController::class, 'work_audit_log_detail']);
         // Admin clap statistics
@@ -411,6 +413,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
             Route::get('/users/{id}/history', [RefreshController::class, 'userHistory']);
             Route::get('/rakuaward', [RefreshController::class, 'indexRakuaward']);
             Route::post('/rakuaward/{id}/grant', [RefreshController::class, 'grantRakuaward']);
+            Route::post('/rakuaward/refund', [RefreshController::class, 'refundRakuaward']);
             Route::get('/management', [RefreshController::class, 'indexManagement']);
             Route::post('/management/grants', [RefreshController::class, 'storeManagementGrant']);
             Route::patch('/management/leave-review', [RefreshController::class, 'confirmLeaveReview']);
@@ -727,10 +730,15 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/projects/{project}/profit-plan/worksites', [ProjectProfitPlanController::class, 'worksites']);
         Route::post('/projects/{project}/profit-plan', [ProjectProfitPlanController::class, 'save']);
         Route::post('/projects/{project}/profit-plan/submit', [ProjectProfitPlanController::class, 'submit']);
+        Route::post('/projects/{project}/profit-plan/withdraw', [ProjectProfitPlanController::class, 'withdraw']);
         Route::post('/projects/{project}/profit-plan/confirm', [ProjectProfitPlanController::class, 'confirm']);
         Route::post('/projects/{project}/profit-plan/return', [ProjectProfitPlanController::class, 'returnForRevision']);
         Route::post('/projects/{project}/profit-plan/unlock', [ProjectProfitPlanController::class, 'unlock']);
         Route::post('/projects/{project}/profit-plan/monthly-revision', [ProjectProfitPlanController::class, 'monthlyRevision']);
+        Route::post('/projects/{project}/profit-plan/monthly-revision-batch', [ProjectProfitPlanController::class, 'monthlyRevisionBatch']);
+        Route::post('/projects/{project}/profit-plan/copy-from-previous', [ProjectProfitPlanController::class, 'copyFromPrevious']);
+        Route::get('/projects/{project}/profit-plan/available-members', [ProjectProfitPlanController::class, 'availableMembers']);
+        Route::get('/projects/{project}/profit-plan/partners', [ProjectProfitPlanController::class, 'partners']);
         Route::get('/projects/{project}/management-lists', [ProjectManagementController::class, 'index']);
         Route::post('/projects/{project}/management-lists', [ProjectManagementController::class, 'storeList']);
         Route::put('/projects/{project}/management-lists/{list}', [ProjectManagementController::class, 'updateList']);

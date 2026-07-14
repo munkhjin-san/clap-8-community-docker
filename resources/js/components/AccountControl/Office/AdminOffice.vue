@@ -12,9 +12,9 @@
         </Transition>
         <header class="admin-control-toolbar" aria-label="実績操作">
             <div class="admin-control-actions">
-                <button type="button" class="admin-button" :disabled="fetch == 0" @click="exportCsv">
+                <div class="admin-button" :disabled="fetch == 0" @click="exportCsv">
                     CSV出力
-                </button>
+                </div>
             </div>
         </header>
         <div v-if="list.length" class="office-list">

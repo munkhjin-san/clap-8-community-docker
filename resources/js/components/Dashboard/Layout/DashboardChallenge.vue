@@ -135,6 +135,9 @@
                             <p v-if="challenge.glowd_nine_source === 'rakuaward'" class="text-[12px] text-[gray]">
                                 楽アワードノミネートチャージからグラウドナインを受け取りました
                             </p>
+                            <p v-else-if="challenge.glowd_nine_source === 'challenge_award'" class="text-[12px] text-[gray]">
+                                応援したチャレンジが達成されました！グラウドナインに挑戦できます
+                            </p>
                             <p v-else class="text-[12px] text-[gray]">
                                 ナイスリレーからグラウドナインを受け取りました!
                             </p>

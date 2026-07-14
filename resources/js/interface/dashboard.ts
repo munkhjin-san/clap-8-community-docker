@@ -88,7 +88,7 @@ export type DashboardChallengeData = Omit<Post, 'id'> & {
     attention_is_overdue?: boolean
     attention_progress_percent?: number
     relay_root_post_id?: number
-    glowd_nine_source?: 'relay' | 'rakuaward'
+    glowd_nine_source?: 'relay' | 'rakuaward' | 'challenge_award'
     declined_by_user?: User | null
     source_post_id?: number
     source_post_title?: string | null

@@ -208,7 +208,7 @@
                                 </div>
                                 <div class="flex gap-4 items-center flex-wrap">
                                     <div class="relative w-fit">
-                                        <input type="number" style="padding: 0px 40px 0 10px;height: 38px;border: 1px solid var(--primary-color);color: var(--primary-color);max-width: 100px;" name="work-mileage" v-model="entry.detail_values.mileage.mileage" min="0" :disabled="isProjectEntryLocked(entry)" @change="getProjectMyCarData(entry)" @blur="getProjectMyCarData(entry)">
+                                        <input type="number" style="padding: 0px 40px 0 10px;height: 38px;border: 1px solid var(--primary-color);color: var(--primary-color);max-width: 100px;" name="work-mileage" v-model="entry.detail_values.mileage.mileage" min="0" :disabled="isProjectEntryLocked(entry)" @change="getProjectMyCarData(entry)">
                                         <span style="position: absolute; height: 100%; top: 0px; right: 5px; line-height: 38px;">km</span>
                                     </div>
                                 </div>
@@ -1530,11 +1530,11 @@ import Project from '../Icons/Project.vue';
         cost.ocr_run_id = null
         cost.ocr_applied_fields = []
     }
-    watch(car_mileage, (after) => {
-        if (after) {
-            getMyCarData()
-        }
-    })
+    // watch(car_mileage, (after) => {
+    //     if (after) {
+    //         getMyCarData()
+    //     }
+    // })
     watch(todayWorkGroup, (newWorkGroup) => {
         costs.forEach(cost => {
             if (!isMeaningfulCost(cost) && !cost.project_id) {
