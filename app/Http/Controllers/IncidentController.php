@@ -826,6 +826,7 @@ class IncidentController extends Controller
         $validated = $request->validate([
             'title' => ['sometimes', 'nullable', 'string'],
             'description' => ['required', 'string'],
+            'reported_by' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
             'caused_by' => ['sometimes', 'nullable', 'integer', 'exists:users,id'],
             'incident_category_id' => ['sometimes', 'nullable', 'integer', 'exists:incident_categories,id'],
             'incident_punishment_id' => ['sometimes', 'nullable', 'integer', 'exists:incident_punishments,id'],
@@ -862,8 +863,10 @@ class IncidentController extends Controller
         $fileIds = $validated['file_ids'] ?? [];
         $assignmentRequest = $validated['assignment_request'] ?? null;
         $assigneeIds = $validated['assignee_ids'] ?? null;
+        $reportedBy = $validated['reported_by'] ?? null;
         unset($validated['file_ids']);
         unset($validated['assignment_request'], $validated['assignee_ids']);
+        unset($validated['reported_by']);
 
         if (!$this->incidentService->canCreateIncidentRecord($activeUser) || $this->incidentService->hasDisallowedIncidentFields($activeUser, array_keys($validated))) {
             abort(403);
@@ -873,10 +876,10 @@ class IncidentController extends Controller
             abort(403);
         }
 
-        $createdIncident = DB::transaction(function () use ($validated, $fileIds, $assignmentRequest, $assigneeIds, $activeUser) {
+        $createdIncident = DB::transaction(function () use ($validated, $fileIds, $assignmentRequest, $assigneeIds, $reportedBy, $activeUser) {
             $incident = Incident::create([
                 ...$validated,
-                'reported_by' => $activeUser->id,
+                'reported_by' => $reportedBy ?? $activeUser->id,
                 'status' => $validated['status'] ?? '処分未決定',
             ]);
 

@@ -7,41 +7,43 @@
         </Transition>
 
         <div class="rv-card">
-            <div class="rv-head">
-                <div class="rv-r1">
-                    <Back class="rv-back" :size="14" @click="back" />
-                    <FlowAppIcon
-                        v-if="definition"
-                        class="rv-appicon"
-                        :icon-svg="definition.icon_svg"
-                        :icon-image="definition.icon_image"
-                        :color-id="definition.color_id"
-                        :name="definition.name"
-                        :seed="definition.id"
-                        :size="30"
-                        round
-                    />
-                    <span class="rv-title" :title="definition?.name">{{ definition?.name }}</span>
-                    <div class="rv-actions">
-                        <button v-if="canManage" class="rv-actbtn" title="アプリを編集" @click="editApp">
-                            <Edit :size="14" /><span class="rv-actlabel">編集</span>
-                        </button>
-                        <ItemMenu v-if="canExport || canImport" :items="csvItems" title="CSV入出力">
-                            <template #default="{ show, active }">
-                                <div class="rv-actbtn" :class="{ active }" @click.stop="show">
-                                    <span class="rv-csv-inner">
-                                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
-                                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" stroke="var(--primary-color)" stroke-width="1.5" stroke-linejoin="round" />
-                                            <path d="M13 2v7h7" stroke="var(--primary-color)" stroke-width="1.5" stroke-linejoin="round" />
-                                        </svg>
-                                        <span class="rv-actlabel">CSV</span>
-                                    </span>
-                                </div>
-                            </template>
-                        </ItemMenu>
-                    </div>
-                    <input ref="importInput" type="file" accept=".csv" class="hidden" @change="importCsv">
+            <!-- app title bar stays pinned at the top -->
+            <div class="rv-r1">
+                <Back class="rv-back" :size="14" @click="back" />
+                <FlowAppIcon
+                    v-if="definition"
+                    class="rv-appicon"
+                    :icon-svg="definition.icon_svg"
+                    :icon-image="definition.icon_image"
+                    :color-id="definition.color_id"
+                    :name="definition.name"
+                    :seed="definition.id"
+                    :size="30"
+                />
+                <span class="rv-title" :title="definition?.name">{{ definition?.name }}</span>
+                <div class="rv-actions">
+                    <button v-if="canManage" class="rv-actbtn" title="アプリを編集" @click="editApp">
+                        <Edit :size="14" /><span class="rv-actlabel">編集</span>
+                    </button>
+                    <ItemMenu v-if="canExport || canImport" :items="csvItems" title="CSV入出力">
+                        <template #default="{ show, active }">
+                            <div class="rv-actbtn" :class="{ active }" @click.stop="show">
+                                <span class="rv-csv-inner">
+                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+                                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" stroke="var(--primary-color)" stroke-width="1.5" stroke-linejoin="round" />
+                                        <path d="M13 2v7h7" stroke="var(--primary-color)" stroke-width="1.5" stroke-linejoin="round" />
+                                    </svg>
+                                    <span class="rv-actlabel">CSV</span>
+                                </span>
+                            </div>
+                        </template>
+                    </ItemMenu>
                 </div>
+                <input ref="importInput" type="file" accept=".csv" class="hidden" @change="importCsv">
+            </div>
+
+            <!-- one scroll area: search + description scroll away, the table header stays sticky at top -->
+            <div v-if="definition" id="rvScroll" class="rv-scroll">
                 <div class="rv-r2">
                     <div class="rv-searchwrap">
                         <PostSearchBar className="newChatMemberSearch" :customPlaceHolder="searchPlaceholder" @searchStart="onSearch" />
@@ -55,9 +57,9 @@
                         <span class="rv-count">{{ totalCount }}件</span>
                     </div>
                 </div>
-            </div>
 
-            <div v-if="definition" id="rvScroll" class="rv-scroll">
+                <div v-if="definition.description" class="rv-desc" v-html="definition.description"></div>
+
                 <table class="rv-table">
                     <thead>
                         <tr>
@@ -334,11 +336,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.rv-screen {background: var(--background-color); color: var(--primary-color); width: 100%; height: 100%; position: relative; }
-.rv-card { background: var(--background-color); }
+.rv-screen {background: var(--background-color); color: var(--primary-color); width: 100%; height: 100%; position: relative; display: flex; flex-direction: column; }
+.rv-card { background: var(--background-color); flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
-.rv-head { background: var(--background-color); }
-.rv-r1 { display: flex; align-items: center; background: var(--bg3); gap: 10px; min-height: 56px; padding: 0 16px; border-bottom: 1px solid var(--calendarBorder); }
+.rv-r1 { flex: none; display: flex; align-items: center; background: var(--bg3); gap: 10px; min-height: 56px; padding: 0 16px; border-bottom: 1px solid var(--calendarBorder); }
 .rv-back { flex: none; cursor: pointer; fill: var(--primary-color); padding: 4px; }
 .rv-appicon { flex: none; }
 .rv-searchwrap { flex: 0 1 480px; min-width: 0; display: flex; align-items: center; }
@@ -350,15 +351,20 @@ onMounted(async () => {
 .rv-csv :deep(.boardMenuContainer:hover) { background: var(--bg3); border-color: var(--primary-color); }
 .rv-csv :deep(.boardMenuContainer.active) { background: var(--bg3); border-color: var(--primary-color); }
 .rv-csv-inner { display: flex; align-items: center; gap: 6px; }
-.rv-r2 { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 16px; }
+.rv-r2 { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 16px; position: sticky; left: 0; background: var(--background-color); }
 .rv-title { flex: 1 1 auto; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;line-height: 1.5; }
 .rv-viewinfo { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
 .rv-viewname { font-size: 13px; color: var(--primary-color); }
 .rv-ctrl { height: 30px; padding: 0 10px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); font-size: 13px; cursor: pointer; }
 .rv-count { font-size: 12px; color: gray; white-space: nowrap; }
 
-.rv-scroll { max-height: calc(100vh - 182px); overflow: auto; border-top: 1px solid var(--calendarBorder); }
-.rv-pager { position: sticky; padding: 10px 0; bottom: 0; border-top: 1px solid var(--calendarBorder); background: var(--background-color) }
+.rv-desc { padding: 12px 16px; font-size: 13px; line-height: 1.6; color: var(--primary-color); border-top: 1px solid var(--calendarBorder); position: sticky; left: 0; background: var(--background-color); }
+.rv-desc :deep(img) { max-width: 100%; height: auto; }
+.rv-desc :deep(a) { color: var(--primary-button, var(--primary-color)); text-decoration: underline; }
+.rv-desc :deep(p) { margin: 0 0 6px; }
+.rv-desc :deep(p:last-child) { margin-bottom: 0; }
+.rv-scroll { flex: 1; min-height: 0; overflow: auto; }
+.rv-pager { flex: none; padding: 10px 0; border-top: 1px solid var(--calendarBorder); background: var(--background-color) }
 .rv-table { width: 100%; border-collapse: collapse; }
 .rv-th { text-align: left; font-size: 12px; font-weight: normal; color: gray; letter-spacing: .02em; padding: 12px 14px; white-space: nowrap; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--bg3); border-bottom: 1px solid var(--calendarBorder); z-index: 1; }
 .rv-th:hover { color: var(--primary-color); }
