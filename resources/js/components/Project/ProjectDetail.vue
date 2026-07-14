@@ -134,6 +134,7 @@ import { useRoute, useRouter } from 'vue-router';
         { name: '業務マニュアル', path: 'operation'},
         { name: '契約書', path: 'contracts'},
         { name: '法務レビュー', path: 'legal'},
+        // { name: 'アプリ', path: 'apps'},
         { name: '派遣', path: 'dispatch'},
         { name: '予算・実績', path: 'finance'},
         { name: 'ガントチャート', path: 'task-calendar'},
