@@ -13,7 +13,15 @@
             />   
             <div class="admin-work-header">
                 <!-- <div class="admin-button" @click="myCarCsv">マイカーCSV出力</div> -->
+                <div class="gas-rate-display">
+                    <span class="gas-rate-label">ガソリン単価</span>
+                    <span class="gas-rate-value">{{ gasoline_rate ? `${formatRate(gasoline_rate.rate)}円/L` : '未設定' }}</span>
+                    <button class="gas-rate-edit" title="ガソリン単価を編集" @click="openGasModal">
+                        <Edit :size="13" color="var(--primary-color)" />
+                    </button>
+                </div>
                 <div class="admin-button" @click="departmentCSV">部門CSV出力</div>
+                
                 <div class="admin-button" @click="exportCSV">勤怠CSV出力</div>
                 <div class="admin-button" @click="expenseCSV">経費CSV出力</div>
                 <div class="admin-button" @click="vehicleCSV">車両CSV出力</div>
@@ -98,6 +106,59 @@
             </table>
         </div>
     </div>
+    <Modal v-if="showGasModal" size="medium" @close="showGasModal = false">
+        <template #title>
+            <h2 class="gas-modal-title">ガソリン単価（全社共通）</h2>
+        </template>
+        <template #content>
+            <div class="gas-modal-body">
+                <p class="gas-modal-hint">
+                    新しい単価を追加すると、適用開始日以降のマイカー走行距離の計算に使用されます。<br>
+                    マイカーガソリン代 =（走行距離 ÷ 実燃費）× ガソリン単価（円/L）。
+                </p>
+                <div class="gas-add-form">
+                    <label class="gas-field">
+                        <span>金額（円/L）</span>
+                        <input type="number" min="0" step="0.01" v-model="newRate" placeholder="例: 175">
+                    </label>
+                    <label class="gas-field">
+                        <span>適用開始日</span>
+                        <input type="date" v-model="newEffectiveFrom">
+                    </label>
+                    <button class="admin-button gas-add-btn" :disabled="gasSaving" @click="addGasolineRate">追加</button>
+                </div>
+                <div class="gas-history-wrapper">
+                    <table class="gas-history-table">
+                        <thead>
+                            <tr>
+                                <td>適用開始日</td>
+                                <td>金額</td>
+                                <td>変更者</td>
+                                <td>登録日時</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-if="!gasoline_history.length">
+                                <td colspan="4" class="gas-empty">履歴はまだありません。</td>
+                            </tr>
+                            <tr
+                                v-for="row in gasoline_history"
+                                :key="row.id"
+                            >
+                                <td>
+                                    {{ formatDate(row.effective_from) }}
+                                    <span v-if="isCurrentRate(row)" class="gas-current-badge">現在</span>
+                                </td>
+                                <td>{{ formatRate(row.rate) }}円/L</td>
+                                <td>{{ row.creator?.name ?? '—' }}</td>
+                                <td>{{ formatDateTime(row.created_at) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </template>
+    </Modal>
 </template>
 <script setup>
 import { computed, onMounted, ref } from 'vue';
@@ -108,6 +169,8 @@ import WeatherIcon from '@/components/Global/WeatherIcon.vue';
 import { vehicleAsOptions } from '@/utils/workApi';
 import { DateTime } from 'luxon';
 import MonthPickerNew from '@/components/Global/MonthPickerNew.vue';
+import Modal from '@/components/Global/Modal.vue';
+import Edit from '@/components/Icons/Edit.vue';
 import { useDialog } from '@/composables/dialog';
 import { useApi } from '@/composables/api';
     const keywords = ref('')
@@ -129,6 +192,12 @@ import { useApi } from '@/composables/api';
     const api = useApi()
     const fetch = ref(0)
     const my_car_usage = ref([])
+    const gasoline_rate = ref(null)
+    const gasoline_history = ref([])
+    const showGasModal = ref(false)
+    const newRate = ref('')
+    const newEffectiveFrom = ref(DateTime.now().toFormat('yyyy-MM-dd'))
+    const gasSaving = ref(false)
     const costOptions = [
         {label: '交通費', value: 1},
         {label:'通信費', value: 2},
@@ -142,7 +211,55 @@ import { useApi } from '@/composables/api';
     onMounted(async() => {
         await getData()
         fetch.value ++
+        getGasolineRate()
     })
+    const getGasolineRate = async () => {
+        const data = await api.get('/gasoline_rate')
+        if (!data) return
+        gasoline_rate.value = data.current ?? null
+        gasoline_history.value = data.history ?? []
+    }
+    const openGasModal = () => {
+        newRate.value = ''
+        newEffectiveFrom.value = DateTime.now().toFormat('yyyy-MM-dd')
+        showGasModal.value = true
+    }
+    const addGasolineRate = async () => {
+        if (newRate.value === '' || Number(newRate.value) < 0 || isNaN(Number(newRate.value))) {
+            ping('金額を正しく入力してください。')
+            return
+        }
+        if (!newEffectiveFrom.value) {
+            ping('適用開始日を入力してください。')
+            return
+        }
+        gasSaving.value = true
+        const data = await api.post('/gasoline_rate', {
+            rate: Number(newRate.value),
+            effective_from: newEffectiveFrom.value,
+        }, { toast: 'ガソリン単価を追加しました。' })
+        gasSaving.value = false
+        if (!data) return
+        gasoline_rate.value = data.current ?? null
+        gasoline_history.value = data.history ?? []
+        newRate.value = ''
+    }
+    const isCurrentRate = (row) => {
+        return gasoline_rate.value && row.id === gasoline_rate.value.id
+    }
+    const formatRate = (value) => {
+        const num = Number(value)
+        if (isNaN(num)) return value
+        return Number.isInteger(num) ? String(num) : num.toString()
+    }
+    const formatDate = (value) => {
+        if (!value) return ''
+        return DateTime.fromISO(value).toFormat('yyyy/MM/dd')
+    }
+    const formatDateTime = (value) => {
+        if (!value) return ''
+        return DateTime.fromISO(value).toFormat('yyyy/MM/dd HH:mm')
+    }
     const filteredUsers = computed(() => {
         let result = users.value.filter(user1 => {
             return Object.values(user1).some(val => 
@@ -540,13 +657,11 @@ import { useApi } from '@/composables/api';
         border-right: 1px solid rgb(102, 102, 102);
     }
 
-    table td:first-child {
+    .admin-work-table td:first-child {
         border-left: 1px solid rgb(102, 102, 102);
 
     }
-    thead td:first-child{
-        border-left: 1px solid rgb(102, 102, 102);
-    }
+    
     .work-prevmonth{
         width: 40px;
         height: 40px;
@@ -570,5 +685,115 @@ import { useApi } from '@/composables/api';
         position: sticky;
         left: 0;
     }
-    
+
+    .gas-rate-display {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 12px;
+        font-size: 13px;
+        color: var(--primary-color);
+        white-space: nowrap;
+    }
+    .gas-rate-label {
+        opacity: 0.75;
+    }
+    .gas-rate-value {
+        font-weight: 700;
+    }
+    .gas-rate-edit {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        cursor: pointer;
+        background: transparent;
+    }
+    .gas-rate-edit:hover {
+        background: var(--bg2);
+    }
+
+    .gas-modal-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+    .gas-modal-body {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    .gas-modal-hint {
+        font-size: 12px;
+        opacity: 0.7;
+    }
+    .gas-add-form {
+        display: flex;
+        align-items: flex-end;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+    .gas-field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 12px;
+        color: var(--primary-color);
+    }
+    .gas-field input {
+        height: 38px;
+        padding: 0 10px;
+        border: 1px solid var(--primary-color);
+        border-radius: 6px;
+        color: var(--primary-color);
+        background: transparent;
+        min-width: 150px;
+    }
+    .gas-add-btn {
+        height: 38px;
+        margin: inherit;
+    }
+    .gas-add-btn:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+    .gas-history-wrapper {
+        max-height: 45vh;
+        overflow: auto;
+    }
+    .gas-history-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 13px;
+    }
+    .gas-history-table thead td {
+        position: sticky;
+        top: 0;
+        background: #363636;
+        color: #fff;
+        padding: 8px 10px;
+        text-align: left;
+        white-space: nowrap;
+    }
+    .gas-history-table tbody td {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--bg2);
+    }
+    .gas-current-badge {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-size: 11px;
+        background: var(--primary-color);
+        color: var(--background-color);
+    }
+    .gas-empty {
+        text-align: center;
+        opacity: 0.6;
+    }
+
 </style>

@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Models\GasolineRate;
 use App\Models\ProjectRecord;
 use App\Models\timecardBreakRecord;
 use App\Models\timecardIncentive;
@@ -4880,29 +4881,36 @@ class WorkController extends Controller
         ]);
         $user_code = $data['user_code'];
         $mileage = $data['mileage'];
-        
+
+        // ガソリン単価は全社共通（管理画面 AdminWork で設定・履歴管理）。
+        $unitPrice = GasolineRate::currentRate();
+        if ($unitPrice === null) {
+            throw ValidationException::withMessages(['message' => 'ガソリン単価が設定されていません。管理者に設定を依頼してください。']);
+        }
+
+        // 実燃費はKintone(777)から取得。実燃費が存在する場合のみマイカーガソリン代を計算できる。
         $query = "従業員番号 = \"{$user_code}\" and 実燃費 != 0 order by 作成日時 desc limit 1";
-        $fields = ["従業員番号", "氏名", "ガソリン単価", "実燃費", "作成日時"];
-        
+        $fields = ["従業員番号", "氏名", "実燃費", "作成日時"];
         $responseData = $this->kintone->getRecords(777, $query, $fields);
-        $mileage_data = [];
-        $gas_price_per_km = 0;
-        if(!empty($responseData)) {
-            $record = $responseData[0];
-            $gas_full_price = ($mileage / $record['実燃費']['value']) * $record['ガソリン単価']['value'];
-            $mileage_data = [
-                'gas_unit_price'=>$record['ガソリン単価']['value'], 
-                'gas_consumption'=>$record['実燃費']['value'],
-                'gas_full_price'=>ceil($gas_full_price / 10) * 10,
-                'status'=>'success'
-            ];
-            
-        } else {
+        if (empty($responseData)) {
             throw ValidationException::withMessages(['message' => '関連するレコードが見つかりません。']);
         }
+
+        $consumption = (float) ($responseData[0]['実燃費']['value'] ?? 0);
+        if ($consumption <= 0) {
+            throw ValidationException::withMessages(['message' => '関連するレコードが見つかりません。']);
+        }
+
+        $gas_full_price = ($mileage / $consumption) * $unitPrice;
+        $mileage_data = [
+            'gas_unit_price' => $unitPrice,
+            'gas_consumption' => $consumption,
+            'gas_full_price' => (int) (ceil($gas_full_price / 10) * 10),
+            'what' => $gas_full_price,
+            'status' => 'success',
+        ];
+
         return response()->json($mileage_data);
-        
-        
     }
     
     public function get_remaining_days(Request $request) {

@@ -1085,6 +1085,10 @@ class PostController extends Controller
                 $this->upsertChallengeRelay($record, (int) $request->challenge_relay_to_user_id);
             }
 
+            if ((int) $record->app_type === 2 && $status === 1) {
+                $this->awardChallengeSupportersGlowdNine($record);
+            }
+
             return $record;
         });
 
@@ -1437,11 +1441,44 @@ class PostController extends Controller
                 [
                     'prize' => 0,
                     'try_flag' => 0,
+                    'source' => 'relay',
                 ]
             );
         });
 
         $this->badgeService->invalidateBadgeSummaryCache();
+    }
+    private function awardChallengeSupportersGlowdNine(PostRecord $challenge): void
+    {
+        // When a challenge is achieved, everyone who charged it earns a GlowdNine play.
+        $chargerIds = DB::table('post_awards')
+            ->where('record_id', $challenge->id)
+            ->distinct()
+            ->pluck('user_id');
+
+        $awarded = false;
+        foreach ($chargerIds as $userId) {
+            if (in_array((int) $userId, PostRelay::EXCLUDED_USER_IDS, true)) {
+                continue;
+            }
+
+            PostRelayPrize::firstOrCreate(
+                [
+                    'root_post_id' => (int) $challenge->id,
+                    'user_id' => (int) $userId,
+                ],
+                [
+                    'prize' => 0,
+                    'try_flag' => 0,
+                    'source' => 'challenge_award',
+                ]
+            );
+            $awarded = true;
+        }
+
+        if ($awarded) {
+            $this->badgeService->invalidateBadgeSummaryCache();
+        }
     }
     private function chainPosterIds(PostRecord $post, string $relayType): array
     {

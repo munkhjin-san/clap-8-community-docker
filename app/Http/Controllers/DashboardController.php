@@ -1098,7 +1098,8 @@ class DashboardController extends Controller
 
                 $post['attention_type'] = 'nice_relay_glowd_nine';
                 $post['relay_root_post_id'] = (int) $prize->root_post_id;
-                $post['glowd_nine_source'] = $post->rakuaward ? 'rakuaward' : 'relay';
+                // Prefer the recorded source; fall back for rows created before the column existed.
+                $post['glowd_nine_source'] = $prize->source ?: ($post->rakuaward ? 'rakuaward' : 'relay');
 
                 return $post;
             })
