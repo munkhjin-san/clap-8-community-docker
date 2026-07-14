@@ -187,7 +187,7 @@ const setViewMode = (m: ViewMode) => {
 
 const menuItems = (def: FlowDefinitionListItem): MenuList[] => [
     { title: def.pinned ? 'ピン留めを外す' : 'ピン留め', action: () => togglePin(def) },
-    { title: '編集', action: () => openBuilder(def.id) },
+    { title: '設定', action: () => openBuilder(def.id) },
     { title: '削除', action: () => removeDefinition(def.id) },
 ]
 

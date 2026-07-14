@@ -483,9 +483,9 @@ const formatFormula = (v: any) => {
 .fi-labeltext { font-size: 13px; color: var(--primary-color); white-space: pre-wrap; line-height: 1.6; }
 .fi-spacer { width: 100%; }
 .fi-divider { width: 100%; border: none; border-top-width: 1.5px; border-top-color: var(--formBorder); margin: 6px 0; }
-.sw { width: 38px; height: 22px; border-radius: 11px; background: var(--formBorder); position: relative; cursor: pointer; display: inline-block; transition: background .12s; }
-.sw.on { background: var(--primary-color); }
-.sw::after { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
+.sw { width: 36px; height: 20px; border-radius: 10px; background: var(--formBorder); position: relative; cursor: pointer; display: inline-block; flex-shrink: 0; transition: background .12s; }
+.sw.on { background: var(--primary-button, var(--primary-color)); }
+.sw::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
 .sw.on::after { left: 18px; }
 /* table field */
 .fi-tbl-scroll { overflow-x: auto; border: 1px solid var(--calendarBorder); border-radius: 6px; }

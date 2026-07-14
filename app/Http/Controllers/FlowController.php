@@ -289,6 +289,7 @@ class FlowController extends Controller
             'statuses.*.key' => 'required|string|max:255',
             'statuses.*.name' => 'required|string|max:255',
             'statuses.*.is_initial' => 'boolean',
+            'statuses.*.color' => 'nullable|string|max:32',
             'statuses.*.ui_x' => 'nullable|integer',
             'statuses.*.ui_y' => 'nullable|integer',
             'statuses.*.field_rules' => 'array',
@@ -638,6 +639,7 @@ class FlowController extends Controller
                 'name' => $status['name'],
                 'order_number' => $index,
                 'is_initial' => $initial,
+                'color' => $status['color'] ?? null,
                 'ui_x' => $status['ui_x'] ?? null,
                 'ui_y' => $status['ui_y'] ?? null,
             ];

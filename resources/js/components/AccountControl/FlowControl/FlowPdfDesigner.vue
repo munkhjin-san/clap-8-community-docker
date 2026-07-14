@@ -463,7 +463,7 @@ const closePreview = () => { if (previewUrl.value) URL.revokeObjectURL(previewUr
 /* elements sit on the always-white paper, so use the (dark in both themes) button ink,
    not --primary-color which goes near-white in dark mode and vanishes on the page. */
 .pd-el.sel { outline: 1.5px solid var(--primary-button, var(--primary-color)); }
-.pd-el-inner { width: 100%; height: 100%; overflow: hidden; line-height: 1.3; word-break: break-word; }
+.pd-el-inner { width: 100%; height: 100%; overflow: hidden; line-height: 1.3; word-break: break-word; white-space: pre-wrap; }
 .pd-el.t-field .pd-el-inner { color: var(--primary-button, var(--primary-color)); }
 .pd-ph { color: #b0b6c0; font-size: 11px; display: flex; align-items: center; justify-content: center; height: 100%; border: 1px dashed var(--formBorder); }
 .pd-mini { width: 100%; border-collapse: collapse; font-size: 8px; }

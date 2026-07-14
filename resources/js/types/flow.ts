@@ -132,6 +132,7 @@ export interface FlowStatusApi {
     order_number?: number
     is_initial?: boolean
     is_locked?: 'start' | 'end' | null
+    color?: string | null
     ui_x?: number | null
     ui_y?: number | null
     field_rules?: FlowStatusFieldRule[]
@@ -165,6 +166,7 @@ export interface BuilderStatus {
     key: string
     name: string
     is_initial: boolean
+    color?: string | null
     ui_x?: number | null
     ui_y?: number | null
     rules: Record<string, FlowRule>

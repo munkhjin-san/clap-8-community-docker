@@ -69,7 +69,7 @@ const openDesigner = (i: number) => { editingIndex.value = i }
 .tt-add { align-self: flex-start; border: 1px dashed var(--formBorder); background: none; border-radius: 8px; padding: 9px 18px; font-size: 13px; color: var(--primary-color); cursor: pointer; }
 .tt-add:hover { background: var(--bg3); }
 .sw { width: 36px; height: 20px; border-radius: 10px; background: var(--formBorder); position: relative; cursor: pointer; display: inline-block; flex-shrink: 0; transition: background .12s; }
-.sw.on { background: var(--primary-color); }
+.sw.on { background: var(--primary-button, var(--primary-color)); }
 .sw::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
 .sw.on::after { left: 18px; }
 </style>

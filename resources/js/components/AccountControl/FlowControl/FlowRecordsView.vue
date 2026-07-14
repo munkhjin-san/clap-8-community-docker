@@ -22,8 +22,8 @@
                 />
                 <span class="rv-title" :title="definition?.name">{{ definition?.name }}</span>
                 <div class="rv-actions">
-                    <button v-if="canManage" class="rv-actbtn" title="アプリを編集" @click="editApp">
-                        <Edit :size="14" /><span class="rv-actlabel">編集</span>
+                    <button v-if="canManage" class="rv-actbtn" title="アプリ設定" @click="editApp">
+                        <Gear :size="14" /><span class="rv-actlabel">設定</span>
                     </button>
                     <ItemMenu v-if="canExport || canImport" :items="csvItems" title="CSV入出力">
                         <template #default="{ show, active }">
@@ -80,7 +80,7 @@
                             <td v-for="c in columns" :key="c.key" class="rv-td" :class="{ num: isNumericCol(c) }">
                                 <template v-if="c.system">
                                     <span v-if="c.ref === '$record_number'" class="rv-idcell">{{ rec.record_number }}</span>
-                                    <span v-else-if="c.ref === '$status'"><span v-if="rec.current_status" class="rv-statuscell">{{ rec.current_status }}</span></span>
+                                    <span v-else-if="c.ref === '$status'"><span v-if="rec.current_status" class="rv-statuscell" :style="statusStyle(rec)">{{ rec.current_status }}</span></span>
                                     <span v-else class="rv-datecell">{{ sysDate(rec, c.ref) }} <span class="rv-time">{{ sysTime(rec, c.ref) }}</span></span>
                                 </template>
                                 <FlowFieldInput v-else :field="c.field!" :model-value="rec.values[c.field!.id!]" :users="users" :projects="projects" readonly />
@@ -132,12 +132,14 @@ import FlowFieldInput from './FlowFieldInput.vue'
 import FlowCsvImportModal from './FlowCsvImportModal.vue'
 import Back from '@/components/Icons/Back.vue'
 import Edit from '@/components/Icons/Edit.vue'
+import Gear from '@/components/Icons/Gear.vue'
 import PostSearchBar from '@/components/Post/PostSearchBar.vue'
 import PostSearchPager from '@/components/Post/PostSearchPager.vue'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import FloatButton from '@/components/Global/FloatButton.vue'
 import AddIcon from '@/components/Form/AddIcon.vue'
 import FlowAppIcon from './FlowAppIcon.vue'
+import { readableTextColor } from '@/utils/flowColor'
 import { pageTitleOverride } from '@/composables/pageTitle'
 import { resolveColumns, applyFilters, applySort, systemColumnValue, type ResolvedColumn } from '@/utils/flowView'
 import type { FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowOptionUser, FlowOptionProject, FlowViewApi, FlowRecordsResponse } from '@/types/flow'
@@ -166,6 +168,17 @@ const importInput = ref<HTMLInputElement | null>(null)
 const flowId = computed(() => route.params.flowId)
 const activeView = computed<FlowViewApi | null>(() => views.value.find((v) => v.id === activeViewId.value) ?? views.value[0] ?? null)
 const columns = computed(() => resolveColumns(activeView.value, definition.value?.fields ?? [], !!definition.value?.use_status_flow))
+
+// per-status pill color (free-picked in the builder); null → neutral --bg3 via CSS
+const statusColorById = computed<Record<number, string | null>>(() => {
+    const map: Record<number, string | null> = {}
+    for (const s of definition.value?.statuses ?? []) if (s.id != null) map[s.id] = s.color ?? null
+    return map
+})
+const statusStyle = (rec: FlowRecordDto) => {
+    const c = rec.current_status_id != null ? statusColorById.value[rec.current_status_id] : null
+    return c ? { background: c, color: readableTextColor(c) } : {}
+}
 
 const isNumericCol = (c: ResolvedColumn) => !c.system && (c.field?.input_type === 'number' || c.field?.input_type === 'formula')
 
@@ -344,7 +357,7 @@ onMounted(async () => {
 .rv-appicon { flex: none; }
 .rv-searchwrap { flex: 0 1 480px; min-width: 0; display: flex; align-items: center; }
 .rv-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
-.rv-actbtn { display: flex; align-items: center; gap: 6px; height: 20px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; transition: background .12s, border-color .12s; }
+.rv-actbtn { display: flex; align-items: center; gap: 6px; height: 20px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; transition: background .12s, border-color .12s; fill: var(--primary-color); }
 .rv-actbtn:hover { background: var(--bg3); border-color: var(--primary-color); }
 .rv-actlabel { font-size: 13px; color: var(--primary-color); white-space: nowrap; }
 .rv-csv :deep(.boardMenuContainer) { display: flex; align-items: center; height: 30px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; transition: background .12s, border-color .12s; }

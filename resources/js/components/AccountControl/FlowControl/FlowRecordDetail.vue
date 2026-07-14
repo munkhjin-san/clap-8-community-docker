@@ -24,12 +24,16 @@
                     <div class="rd-title truncate">{{ recordTitle }}</div>
                 </div>
             </div>
+            <!-- app settings: top-right of the title bar; hidden while editing a record -->
+            <button v-if="mode === 'view' && permissions?.manage" class="rd-settings" title="アプリ設定" @click="editApp">
+                <Gear :size="15" /><span class="rd-settings-label">設定</span>
+            </button>
         </div>
 
         <div class="rd-flow">
             <div class="rd-flow-status">
                 <template v-if="showStatus">
-                    <span class="rd-flow-cur">{{ record?.current_status }}</span>
+                    <span class="rd-flow-cur" :style="currentStatusStyle">{{ record?.current_status }}</span>
                     <!-- status transitions are hidden while editing — you can't move status mid-edit -->
                     <template v-if="statusActions.length && mode === 'view'">
                         <span class="rd-flow-sep">→</span>
@@ -38,7 +42,7 @@
                             :key="a.id"
                             class="rd-act"
                             :class="{ off: !a.can }"
-                            :style="a.can ? { background: a.color || 'var(--primary-button)', borderColor: a.color || 'var(--primary-button)', color: readableTextColor(a.color) } : {}"
+                            :style="actionStyle(a)"
                             :disabled="!a.can || transitioning"
                             :title="a.can ? `${a.to_status ?? ''}へ移動` : 'あなたはこのアクションを実行できません'"
                             @click="transition(a)"
@@ -165,6 +169,8 @@ import { useResponsive } from '@/store/responsive'
 import { validateFlowField } from '@/utils/flowValidation'
 import { resolveFieldDefault } from '@/utils/flowDefaults'
 import { readableTextColor } from '@/utils/flowColor'
+import { flowColorValue } from '@/utils/flowColors'
+import { useTheme } from '@/store/theme'
 import { pageTitleOverride } from '@/composables/pageTitle'
 import { useAuthUserStore } from '@/store/auth'
 import FlowFieldInput from './FlowFieldInput.vue'
@@ -172,6 +178,7 @@ import Back from '@/components/Icons/Back.vue'
 import FlowAppIcon from './FlowAppIcon.vue'
 import Trash from '@/components/Icons/Trash.vue'
 import Edit from '@/components/Icons/Edit.vue'
+import Gear from '@/components/Icons/Gear.vue'
 import Comment from '@/components/Icons/Comment.vue'
 import ChangeLog from '@/components/Icons/ChangeLog.vue'
 import ChevronDouble from '@/components/Icons/ChevronDouble.vue'
@@ -195,6 +202,25 @@ const definition = ref<FlowDefinitionApi | null>(null)
 watch(() => definition.value?.name, (name) => { if (name) pageTitleOverride.value = name })
 const permissions = ref<FlowAppPermissionsDto | null>(null)
 const record = ref<FlowRecordDto | null>(null)
+const theme = useTheme()
+// the app's theme accent (default for status buttons + fallback for status pills)
+const appAccent = computed(() => flowColorValue(definition.value?.color_id, theme.dark, definition.value?.id ?? 0))
+const statusColorById = computed<Record<number, string | null>>(() => {
+    const map: Record<number, string | null> = {}
+    for (const s of definition.value?.statuses ?? []) if (s.id != null) map[s.id] = s.color ?? null
+    return map
+})
+// current-status pill: its own color, else neutral grey
+const currentStatusStyle = computed(() => {
+    const c = record.value?.current_status_id != null ? statusColorById.value[record.value.current_status_id] : null
+    return c ? { background: c, color: readableTextColor(c), borderColor: c } : {}
+})
+// action button: its own color, else inherit the app theme accent; auto-contrast text
+const actionStyle = (a: { can: boolean; color?: string | null }) => {
+    if (!a.can) return {}
+    const c = a.color || appAccent.value
+    return { background: c, borderColor: c, color: readableTextColor(c) }
+}
 const can = reactive({ view: true, edit: true, delete: false })
 const users = ref<FlowOptionUser[]>([])
 const projects = ref<FlowOptionProject[]>([])
@@ -402,6 +428,7 @@ const transition = async (a: StatusActionDto) => {
 }
 
 const back = () => router.push({ name: 'flow-records', params: { flowId: flowId.value } })
+const editApp = () => router.push({ name: 'flow-builder', params: { flowId: flowId.value } })
 
 load()
 // Reload when navigating between records without unmounting (e.g. following a reference link
@@ -415,6 +442,9 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-screen { display: flex; flex-direction: column; align-items: stretch; color: var(--primary-color); }
 .rd-screen.overlay { position: fixed; inset: 0; z-index: 30; background: var(--bg3); }
 .rd-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--calendarBorder); background: var(--background-color); }
+.rd-settings { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); fill: var(--primary-color); cursor: pointer; transition: background .12s, border-color .12s; }
+.rd-settings:hover { background: var(--bg3); border-color: var(--primary-color); }
+.rd-settings-label { font-size: 13px; color: var(--primary-color); white-space: nowrap; }
 .rd-ghost { display: inline-flex; align-items: center; gap: 4px; background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 6px; padding: 7px 12px; font-size: 13px; cursor: pointer; fill: var(--primary-color); color: var(--primary-color); }
 .rd-ghost.danger { color: #e2574c; border-color: rgba(226, 87, 76, 0.4); }
 .rd-ghost:disabled { opacity: 0.5; cursor: default; }
@@ -440,7 +470,7 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-body { flex: 1; display: flex; min-height: 0; overflow: hidden; position: relative; }
 .rd-main { flex: 1; min-width: 0; overflow: auto; padding: 20px; }
 .rd-canvas { width: max-content; min-width: 100%; }
-.rd-row { display: flex; gap: 12px; margin-bottom: 12px; align-items: stretch; }
+.rd-row { display: flex; gap: 20px; margin-bottom: 20px; align-items: stretch; }
 .rd-block { flex: 0 0 auto; box-sizing: border-box !important; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 8px; padding: 15px; }
 .rd-heading-block { border: none; background: none; padding: 4px 0; }
 /* narrow screens: ignore builder-set pixel widths and stack fields full-width */

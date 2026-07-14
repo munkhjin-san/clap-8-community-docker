@@ -287,11 +287,28 @@
             <div class="divider"></div>
             <div class="sec">列</div>
             <div class="col-list">
-                <button v-for="(col, ci) in columns" :key="col.key" class="col-item" @click="emit('update:columnKey', col.key)">
+                <div
+                    v-for="(col, ci) in columns"
+                    :key="col.key"
+                    class="col-item"
+                    :class="{ dragging: colDragIndex === ci, dropto: colOverIndex === ci && colDragIndex !== null }"
+                    role="button"
+                    draggable="true"
+                    @dragstart="onColDragStart(ci, $event)"
+                    @dragover="onColDragOver(ci, $event)"
+                    @drop="onColDrop(ci, $event)"
+                    @dragend="onColDragEnd"
+                    @click="emit('update:columnKey', col.key)"
+                >
+                    <span class="col-grip" title="ドラッグで並べ替え" aria-hidden="true">⋮⋮</span>
                     <FlowFieldIcon :type="col.input_type" :size="13" />
                     <span class="col-item-lbl">{{ col.label || '列' + (ci + 1) }}</span>
                     <span class="col-item-type">{{ typeLabel(col.input_type) }}</span>
-                </button>
+                    <span class="col-move" @click.stop>
+                        <button type="button" class="col-arrow" :disabled="ci === 0" title="上へ" @click="moveColumn(ci, -1)">▲</button>
+                        <button type="button" class="col-arrow" :disabled="ci === columns.length - 1" title="下へ" @click="moveColumn(ci, 1)">▼</button>
+                    </span>
+                </div>
             </div>
             <button class="flow-ghost-btn mt-[8px]" @click="addColumn">＋ 列を追加</button>
             <p class="def-hint">列名や表の列をクリックすると、その列の設定を編集できます。</p>
@@ -463,6 +480,40 @@ const addColumn = () => {
     columns.value.push({ key, label: `列${columns.value.length + 1}`, input_type: 'short', options: null })
     emit('update:columnKey', key) // auto-select the new column for editing
 }
+
+/* ---- column reorder: up/down arrows + drag (scoped to this list) ---- */
+const moveColumn = (ci: number, dir: -1 | 1) => {
+    const to = ci + dir
+    if (to < 0 || to >= columns.value.length) return
+    const [col] = columns.value.splice(ci, 1)
+    columns.value.splice(to, 0, col)
+}
+const colDragIndex = ref<number | null>(null)
+const colOverIndex = ref<number | null>(null)
+const onColDragStart = (ci: number, e: DragEvent) => {
+    colDragIndex.value = ci
+    e.stopPropagation() // keep this drag inside the column list (never reaches the form canvas)
+    if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/flow-col', String(ci)) }
+}
+const onColDragOver = (ci: number, e: DragEvent) => {
+    if (colDragIndex.value === null) return // ignore drags that didn't start in this list
+    e.preventDefault()
+    e.stopPropagation()
+    colOverIndex.value = ci
+}
+const onColDrop = (ci: number, e: DragEvent) => {
+    if (colDragIndex.value === null) return
+    e.preventDefault()
+    e.stopPropagation()
+    const from = colDragIndex.value
+    if (from !== ci) {
+        const [col] = columns.value.splice(from, 1)
+        columns.value.splice(ci, 0, col)
+    }
+    colDragIndex.value = null
+    colOverIndex.value = null
+}
+const onColDragEnd = () => { colDragIndex.value = null; colOverIndex.value = null }
 // Warn when deleting a column that other formulas reference: sibling calc columns resolve it
 // bare ([列名]), top-level aggregates as [テーブル.列名]. Dangling refs compute as 0.
 const confirmColumnDelete = async (col: TableColumn): Promise<boolean> => {
@@ -551,17 +602,24 @@ const removeColOption = (col: TableColumn, oi: number) => col.options?.splice(oi
 .seg button { border: none; background: var(--background-color); padding: 6px 10px; font-size: 12px; color: gray; cursor: pointer; border-right: 1px solid var(--calendarBorder); }
 .seg button:last-child { border-right: none; }
 .seg button.on { background: var(--bg3); color: var(--primary-color); font-weight: 500; }
-.sw { width: 38px; height: 22px; border-radius: 11px; background: var(--formBorder); position: relative; cursor: pointer; transition: background .12s; display: inline-block; }
-.sw.on { background: var(--primary-color); }
-.sw::after { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
+.sw { width: 36px; height: 20px; border-radius: 10px; background: var(--formBorder); position: relative; cursor: pointer; display: inline-block; flex-shrink: 0; transition: background .12s; }
+.sw.on { background: var(--primary-button, var(--primary-color)); }
+.sw::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
 .sw.on::after { left: 18px; }
 .sremove { border: none; background: none; color: gray; cursor: pointer; padding: 4px; display: flex; }
 .tcol-cfg { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--calendarBorder); }
 .col-list { display: flex; flex-direction: column; gap: 6px; }
-.col-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 10px; border: 1px solid var(--calendarBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; font-size: 13px; }
+.col-item { box-sizing: border-box !important; display: flex; align-items: center; gap: 8px; width: 100%; max-width: 100%; text-align: left; padding: 8px 10px; border: 1px solid var(--calendarBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; font-size: 13px; }
 .col-item:hover { border-color: var(--primary-color); background: var(--bg3); }
-.col-item-lbl { flex: 1; }
-.col-item-type { font-size: 11px; color: gray; }
+.col-item.dragging { opacity: 0.5; }
+.col-item.dropto { border-color: var(--primary-color); box-shadow: 0 0 0 1px var(--primary-color); }
+.col-item-lbl { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-item-type { font-size: 11px; color: gray; flex: none; }
+.col-grip { color: gray; cursor: grab; flex: none; font-size: 11px; letter-spacing: -2px; user-select: none; }
+.col-move { display: inline-flex; flex-direction: column; gap: 1px; flex: none; }
+.col-arrow { border: none; background: none; color: gray; cursor: pointer; font-size: 8px; line-height: 1; padding: 1px 2px; }
+.col-arrow:hover:not(:disabled) { color: var(--primary-color); }
+.col-arrow:disabled { opacity: 0.3; cursor: default; }
 .col-back { border: none; background: none; color: var(--primary-color); font-size: 12px; cursor: pointer; padding: 0; margin-bottom: 10px; text-align: left; }
 .col-del { border: 1px solid var(--formBorder); background: var(--background-color); color: #dc2626; border-radius: 6px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
 .col-del:disabled { opacity: 0.4; cursor: not-allowed; }

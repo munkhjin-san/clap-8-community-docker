@@ -260,9 +260,10 @@ const previewText = (f: FlowField) => {
     return 'テキストを入力'
 }
 
-// place a new field on the last row if it fits the canvas width, otherwise start a new row
+// place a new field on the last row if it fits the canvas width, otherwise start a new row.
+// GAP must match the .frow visual gap (and the record view's .rd-row gap) so "fits" is accurate.
 const placeField = (field: FlowField) => {
-    const GAP = 14
+    const GAP = 20
     const target = canvasEl.value?.clientWidth || 1000
     const last = rows.value[rows.value.length - 1]
     const fieldIsLayout = isLayoutType(field.input_type)
@@ -460,7 +461,7 @@ onUnmounted(() => {
 .rowsep { height: 14px; border-radius: 4px; transition: background .1s; }
 .rowsep.over { background: var(--primary-color); opacity: 0.5; }
 .rowsep.last { min-height: 34px; }
-.frow { display: flex; gap: 14px; align-items: stretch; width: max-content; min-width: 100%; min-height: 66px; }
+.frow { display: flex; gap: 20px; align-items: stretch; width: max-content; min-width: 100%; min-height: 66px; }
 .row-tail { flex: 1; min-width: 24px; }
 .ins-bar { width: 3px; background: var(--primary-color); border-radius: 2px; align-self: stretch; flex-shrink: 0; }
 .field { position: relative; flex: 0 0 auto; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 8px; padding: 12px 18px 13px 8px; display: flex; gap: 6px; cursor: grab; }

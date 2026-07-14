@@ -1,7 +1,13 @@
 <template>
     <div class="act" :class="{ embedded }">
         <div class="act-top">
-            <input type="color" v-model="action.color" class="act-color" title="ボタンの色">
+            <!-- empty color → the button inherits the app theme color; the swatch just hints -->
+            <span class="act-color-wrap" :class="{ theme: !action.color }" :title="action.color ? 'ボタンの色' : 'アプリのテーマ色（クリックで個別指定）'">
+                <input type="color" class="act-color" :value="action.color || '#3b6df5'"
+                    @input="action.color = ($event.target as HTMLInputElement).value">
+                <button v-if="action.color" type="button" class="act-color-clear" title="テーマ色に戻す"
+                    @click.stop="action.color = ''">×</button>
+            </span>
             <input type="text" v-model="action.label" placeholder="ボタン名（例：承認）" class="custom-a-input !box-border act-name">
             <select v-model="action.to_status_key" class="custom-a-input !box-border act-to" title="移動先ステータス">
                 <option :value="null" disabled>移動先…</option>
@@ -161,6 +167,11 @@ watch(members, (list) => {
 .act.embedded .act-elig { margin-top: 14px; }
 /* top row: color + name + 移動先, inline & wrappable */
 .act-top { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-right: 22px; }
+.act-color-wrap { position: relative; display: inline-flex; flex-shrink: 0; }
+/* "inherit theme" state: dim the swatch so it doesn't read as a chosen color */
+.act-color-wrap.theme .act-color { opacity: .35; }
+.act-color-clear { position: absolute; top: -6px; right: -6px; width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--formBorder); background: var(--background-color); color: gray; font-size: 10px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+.act-color-clear:hover { color: var(--primary-color); border-color: var(--primary-color); }
 .act-color { width: 24px; height: 24px; padding: 0; border: 1px solid var(--formBorder); border-radius: 6px; background: none; cursor: pointer; flex-shrink: 0; overflow: hidden; }
 .act-color::-webkit-color-swatch-wrapper { padding: 0; }
 .act-color::-webkit-color-swatch { border: none; border-radius: 5px; }

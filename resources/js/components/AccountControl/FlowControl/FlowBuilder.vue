@@ -394,6 +394,7 @@ const toBuilder = (api: FlowDefinitionApi): BuilderDefinition => {
                 key: statusKey(s.id),
                 name: s.name,
                 is_initial: !!s.is_initial,
+                color: s.color ?? null,
                 ui_x: s.ui_x ?? null,
                 ui_y: s.ui_y ?? null,
                 rules,
@@ -443,6 +444,7 @@ const buildPayload = () => ({
         key: s.key,
         name: s.name,
         is_initial: s.is_initial,
+        color: s.color ?? null,
         ui_x: s.ui_x ?? null,
         ui_y: s.ui_y ?? null,
         field_rules: Object.entries(s.rules).map(([field_key, rule]) => ({ field_key, rule })),
@@ -535,6 +537,12 @@ const truncateRecords = async () => {
 }
 
 const back = () => {
+    // return to wherever settings was opened from (app list / records / a record)
+    if (window.history.state?.back) {
+        router.back()
+        return
+    }
+    // no in-app history (e.g. opened via a direct link) → sensible default
     if (def.value.project_record_id) {
         router.push({ name: 'custom-apps', params: { projectId: def.value.project_record_id } })
     } else {

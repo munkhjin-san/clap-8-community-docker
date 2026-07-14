@@ -69,7 +69,16 @@
                 <div class="insp-grid">
                     <div class="ifld">
                         <label>ステータス名</label>
-                        <input type="text" v-model="editingStatus.name" class="custom-a-input !box-border">
+                        <div class="st-name-row">
+                            <!-- color swatch sits in front of the name input, same as the action-button color -->
+                            <span class="st-color-wrap" :class="{ theme: !editingStatus.color }" :title="editingStatus.color ? 'ステータスの色' : 'テーブル表示色（未設定はグレー）'">
+                                <input type="color" class="st-color-input" :value="editingStatus.color || '#cccccc'"
+                                    @input="editingStatus.color = ($event.target as HTMLInputElement).value">
+                                <button v-if="editingStatus.color" type="button" class="st-color-clear" title="色を解除"
+                                    @click.stop="editingStatus.color = null">×</button>
+                            </span>
+                            <input type="text" v-model="editingStatus.name" class="custom-a-input !box-border">
+                        </div>
                     </div>
                     <div class="ifld">
                         <label>初期ステータス <small>新規レコードはここから開始</small></label>
@@ -273,7 +282,8 @@ const otherStatuses = (st: BuilderStatus) =>
 
 const addActionTo = (st: BuilderStatus) => {
     const target = otherStatuses(st)[0]?.key ?? null
-    st.actions.push({ name: '', label: '新しいボタン', color: '#3b6df5', to_status_key: target, eligible: [] })
+    // empty color → the button inherits the app's theme color (see FlowRecordDetail .rd-act)
+    st.actions.push({ name: '', label: '新しいボタン', color: '', to_status_key: target, eligible: [] })
 }
 
 const editingAction = ref<BuilderStatusAction | null>(null)
@@ -327,13 +337,27 @@ const deleteEditingAction = () => {
 /* ---- modal content (shared Global/Modal.vue shell) ---- */
 .sf-modal-title { font-size: 15px; font-weight: 600; }
 .modal-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--calendarBorder); }
-.modal-foot .done { margin-left: auto; border: none; background: var(--primary-color); color: #fff; border-radius: 7px; padding: 8px 22px; font-size: 13px; cursor: pointer; }
+.modal-foot .done { margin-left: auto; border: none; background: var(--primary-button, var(--primary-color)); color: #fff; border-radius: 7px; padding: 8px 22px; font-size: 13px; cursor: pointer; }
+.modal-foot .done:hover { opacity: 0.88; }
 .modal-foot .del { border: 1px solid tomato; color: tomato; background: none; border-radius: 7px; padding: 7px 14px; font-size: 12px; cursor: pointer; }
 .modal-foot .del:disabled { opacity: .4; cursor: default; }
 
 /* status name / initial — two columns, label above input */
 .insp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-bottom: 4px; align-items: start; }
 .ifld { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.st-name-row { display: flex; align-items: center; gap: 8px; }
+.st-name-row .custom-a-input { flex: 1; min-width: 0; }
+.st-color-wrap { position: relative; display: inline-flex; width: fit-content; flex: none; }
+/* "unset" state: dim the swatch so it doesn't read as a chosen color */
+.st-color-wrap.theme .st-color-input { opacity: .35; }
+/* width forced: a container rule (.ifld input) otherwise stretches it full-width */
+.st-color-input { width: 24px !important; height: 24px; padding: 0; border: 1px solid var(--formBorder); border-radius: 6px; background: none; cursor: pointer; overflow: hidden; }
+/* let the color fill the whole swatch (native inputs inset it by default) — matches .act-color */
+.st-color-input::-webkit-color-swatch-wrapper { padding: 0; }
+.st-color-input::-webkit-color-swatch { border: none; border-radius: 5px; }
+.st-color-input::-moz-color-swatch { border: none; border-radius: 5px; }
+.st-color-clear { position: absolute; top: -6px; right: -6px; width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--formBorder); background: var(--background-color); color: gray; font-size: 10px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+.st-color-clear:hover { color: var(--primary-color); border-color: var(--primary-color); }
 .ifld > label { font-size: 11px; color: gray; }
 .ifld > label small { color: #b0b6c0; margin-left: 4px; font-size: 10.5px; }
 .ifld input { width: 100%; }
