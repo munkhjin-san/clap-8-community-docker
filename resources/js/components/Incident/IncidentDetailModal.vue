@@ -130,10 +130,21 @@
                                     <strong v-else>-</strong>
                                 </template>
                             </div>
-                            <div v-if="canEditManagerFields" class="flex flex-col gap-3">
-                                <span>報告者</span>
-                                <UserPanel v-if="localIncident.reported_by_user" :user="localIncident.reported_by_user" with-name size="25" disable-instant/>
-                                <strong v-else>-</strong>
+                            <div v-if="isCreateMode || canEditManagerFields" class="flex flex-col gap-3">
+                                <span v-if="!isCreateMode">報告者</span>
+                                <MemberSelector
+                                    v-if="isCreateMode"
+                                    v-model="selectedReportedByUser"
+                                    :multiple="false"
+                                    :close-on-select="true"
+                                    :options="userOptions"
+                                    place-holder="報告者を選択"
+                                    class="bg-[var(--background-color)]"
+                                />
+                                <template v-else>
+                                    <UserPanel v-if="localIncident.reported_by_user" :user="localIncident.reported_by_user" with-name size="25" disable-instant/>
+                                    <strong v-else>-</strong>
+                                </template>
                             </div>
                             <div v-if="canUseField('project_record_id')">
                                 <span v-if="!editMode">プロジェクト</span>
@@ -726,6 +737,7 @@ const historyLoading = ref(false)
 const localIncident = ref<Incident>({ ...(props.incident ?? createBlankIncident()) })
 const mutableParams = ref<Partial<Incident>>({ ...(props.incident ?? createBlankIncident()) })
 const selectedCausedByUser = ref<User | null>(props.incident?.caused_by_user ?? null)
+const selectedReportedByUser = ref<User | null>(props.incident?.reported_by_user ?? auth.activeUser ?? null)
 const occurredDateRef = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
 const reportedDateRef = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
 const descriptionRef = ref<{ validate: () => Promise<{ valid: boolean }> } | null>(null)
@@ -1066,6 +1078,11 @@ const buildPayload = () => {
             }
         }
 
+        const nextReportedBy = selectedReportedByUser.value?.id ?? null
+        if (nextReportedBy) {
+            ;(payload as Partial<Incident> & { reported_by: number }).reported_by = nextReportedBy
+        }
+
         if (canSubmitField('files')) {
             const nextFileIds = uploadedFiles.value.map(file => file.id).sort((a, b) => a - b)
             if (nextFileIds.length) {
@@ -1117,10 +1134,12 @@ const hasChanges = computed(() => isCreateMode.value || Object.keys(buildPayload
 
 const userOptions = computed(() => {
     const users = [...incidentOptions.value.users]
-    const currentUser = localIncident.value.caused_by_user
+    const extraUsers = [localIncident.value.caused_by_user, selectedReportedByUser.value]
 
-    if (currentUser && !users.some(user => user.id === currentUser.id)) {
-        users.push(currentUser)
+    for (const extra of extraUsers) {
+        if (extra && !users.some(user => user.id === extra.id)) {
+            users.push(extra)
+        }
     }
 
     return users
@@ -1161,6 +1180,7 @@ watch(
         localIncident.value = { ...nextIncident }
         mutableParams.value = { ...nextIncident }
         selectedCausedByUser.value = nextIncident.caused_by_user ?? null
+        selectedReportedByUser.value = nextIncident.reported_by_user ?? auth.activeUser ?? null
         uploadedFiles.value = [...(nextIncident.files ?? [])]
         nextAssigneeUsers.value = []
         nextAssignmentRequest.value = null
