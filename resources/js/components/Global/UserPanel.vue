@@ -1,6 +1,7 @@
 <template>
     <div class="flex items-center text-[13px] w-fit" :title="user.name!" @click="push">
         <v-img
+            v-if="user.icon_path"
             :src="thumbnailUrl(size ? Number(size) : 30)"
             :srcset="generateSrcset"
             aspect-ratio="1"
@@ -18,6 +19,7 @@
             </svg>
         </template>
         </v-img>
+        <UserDefaultIcon v-else :name="user.name" :bg="forceColor || user.icon_bg || '000000'" :size="computedSize" />
         <div>
             <div v-if="withName" class="ml-[10px]">{{ user.name }}</div>
             <slot name="details"></slot>
@@ -25,10 +27,11 @@
     </div>
 </template>
 <script setup lang="ts">
-import { computed, inject } from 'vue';    
+import { computed, inject } from 'vue';
 import { TaskUser, User } from '@/interface/globalInterface'
 import { useTheme } from '@/store/theme';
 import { Collaborator } from '@/interface/contactInterface';
+import UserDefaultIcon from '@/components/Global/UserDefaultIcon.vue';
     const props = defineProps<{
         user: User 
         imgClass?: string
@@ -47,11 +50,10 @@ import { Collaborator } from '@/interface/contactInterface';
             pushInstantUser(event, props.user)
         }        
     }    
-    const thumbnailUrl = (size:number) => {    
+    const thumbnailUrl = (size:number) => {
+        // Only uploaded icons go through the server now; defaults render as SVG.
         const color = props.user.icon_bg || '000000'
-        return props.user.icon_path ? 
-        `/user_icon_thumbnail/${props.user.icon_path}/${size}/${color}` : 
-        `/user_default_thumbnail/${props.user.name?.charAt(0).toUpperCase()}/${size}/${color}`
+        return `/user_icon_thumbnail/${props.user.icon_path}/${size}/${color}`
     }
     const generateSrcset = computed(() => {
         const set = computedSize.value

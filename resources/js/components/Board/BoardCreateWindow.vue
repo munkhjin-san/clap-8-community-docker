@@ -71,7 +71,7 @@
                     <div class="si-box">
                         <div v-if="iconType == 0" style="width: fit-content;padding: 15px;margin: auto;">
                             <div id="boardIconPreview" class="iconPreview">
-                                <img v-if="iconText" draggable="false" loading="lazy" class="iconPreviewInner" :src="defaultIcon">
+                                <BoardDefaultIcon v-if="iconText" :text="iconText" :bg="iconBg" :size="45" class="iconPreviewInner" />
 
                                 <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30" class="boardNormalIcon">
                                     <circle cx="15" cy="15" r="15" :fill="iconBg"/>
@@ -97,6 +97,7 @@ import { computed, inject, ref, useTemplateRef, watch } from 'vue';
 import { useAuthUserStore } from '@/store/auth';
 import ColorPicker from '../Global/ColorPicker.vue';
 import Cropper from '../Global/Cropper.vue';
+import BoardDefaultIcon from './Mixed/BoardDefaultIcon.vue';
 import { useApi } from '@/composables/api';
 import { useDialog } from '@/composables/dialog';
 import { User } from '@/interface/globalInterface';
@@ -128,12 +129,6 @@ import Modal from '../Global/Modal.vue';
         if (newValue !== iconText.value) {
             iconText.value = newValue
         }
-    })
-    const defaultIcon = computed(() => {
-        const color = encodeURIComponent(iconBg.value);
-        const noSpace = iconText.value?.replace(/[\s　]/g, '');   
-        const basePath = '/board_default_thumbnail'
-        return `${basePath}/${noSpace}/45/${color}`; 
     })
     const cropComplete = async() => {
         if(loader.value) return

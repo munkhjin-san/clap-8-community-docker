@@ -204,7 +204,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         'apps',
     ])->where('any', '.*')->name('board');
 
-    Route::get('/board_default_thumbnail/{name}/{size}/{color?}', [ContentController::class, 'board_default_thumbnail']);
     Route::get('/board_icon_thumbnail/{path}/{size?}/{color?}', [ContentController::class, 'board_icon_thumbnail']);
 
     Route::get('/shared_thumbnail/{board_id}/{path}', [ContentController::class, 'sharedThumbnail']);

@@ -178,70 +178,6 @@ class ContentController extends Controller
         ]);
     }
     /**
-     * Calculate appropriate text color based on background luminance
-     */
-    private function getTextColor(string $hexColor): string
-    {
-        // Validate hex color
-        if (!preg_match('/^#?[0-9A-Fa-f]{6}$/', $hexColor)) {
-            return '#FFFFFF';
-        }
-        
-        $hex = ltrim($hexColor, '#');
-        
-        // Extract RGB values
-        $r = hexdec(substr($hex, 0, 2));
-        $g = hexdec(substr($hex, 2, 2));
-        $b = hexdec(substr($hex, 4, 2));
-        
-        // Calculate relative luminance (W3C formula)
-        $luminance = (0.2126 * $r + 0.7152 * $g + 0.0722 * $b) / 255;
-        
-        // Return black for light backgrounds, white for dark
-        return $luminance > 0.5 ? '#000000' : '#FFFFFF';
-    }
-
-    /**
-     * Determine font path based on character set
-     */
-    private function getFontPath(string $text): string
-    {
-        $isCyrillic = preg_match('/[А-Яа-яЁёөү]/u', $text);
-        
-        return $isCyrillic 
-            ? 'fonts/NotoSans-Bold.ttf' 
-            : 'fonts/Noto_Sans_CJK-Bold.otf';
-    }
-
-    /**
-     * Get text layout configuration based on text length
-     */
-    private function getTextLayout(string $text, int $length): array
-    {
-        $layouts = [
-            1 => [['y' => 100, 'size' => 100, 'text' => mb_substr($text, 0, 1, 'UTF-8')]],
-            2 => [['y' => 100, 'size' => 80, 'text' => mb_substr($text, 0, 2, 'UTF-8')]],
-            3 => [['y' => 100, 'size' => 60, 'text' => mb_substr($text, 0, 3, 'UTF-8')]],
-            4 => [
-                ['y' => 70, 'size' => 60, 'text' => mb_substr($text, 0, 2, 'UTF-8')],
-                ['y' => 130, 'size' => 60, 'text' => mb_substr($text, 2, 2, 'UTF-8')]
-            ],
-            5 => [
-                ['y' => 75, 'size' => 50, 'text' => mb_substr($text, 0, 3, 'UTF-8')],
-                ['y' => 135, 'size' => 50, 'text' => mb_substr($text, 3, 2, 'UTF-8')]
-            ],
-        ];
-        
-        // Default layout for 6+ characters
-        $defaultLayout = [
-            ['y' => 70, 'size' => 50, 'text' => mb_substr($text, 0, 3, 'UTF-8')],
-            ['y' => 130, 'size' => 50, 'text' => mb_substr($text, 3, 3, 'UTF-8')]
-        ];
-        
-        return $layouts[$length] ?? $defaultLayout;
-    }
-
-    /**
      * Create image response with proper headers
      */
     private function imageResponse(string $imageData): \Illuminate\Http\Response
@@ -251,53 +187,7 @@ class ContentController extends Controller
             'Cache-Control' => 'public, max-age=31536000, immutable',
         ]);
     }
-    public function board_default_thumbnail($name, $size, $color)
-    {
-        $cacheKey = 'chat_image_' . md5($name . $color . $size);
-        
-        // Return cached image if exists
-        if ($cachedImage = Cache::get($cacheKey)) {
-            return $this->imageResponse($cachedImage);
-        }
-
-        // Prepare data
-        $boardnameNoSpace = preg_replace('/\s+/', '', $name);
-        $textColor = $this->getTextColor($color);
-        $length = mb_strlen($boardnameNoSpace);
-        
-        // Use the configured ImageManager from container
-        $img = Image::create(200, 200)->fill($color);
-        
-        // Determine font based on characters
-        $firstChars = mb_substr($boardnameNoSpace, 0, 3, 'UTF-8');
-        $fontPath = $this->getFontPath($firstChars);
-        
-        // Get text layout configuration
-        $textLayout = $this->getTextLayout($boardnameNoSpace, $length);
-        
-        // Draw text on image
-        foreach ($textLayout as $textConfig) {
-            $img->text(
-                $textConfig['text'],
-                100,
-                $textConfig['y'],
-                function ($font) use ($fontPath, $textColor, $textConfig) {
-                    $font->filename(resource_path($fontPath));
-                    $font->size($textConfig['size']);
-                    $font->color($textColor);
-                    $font->align('center');
-                    $font->valign('middle');
-                }
-            );
-        }
-        
-        // Encode to WebP and cache
-        $imageData = (string) $img->toWebp();
-        Cache::put($cacheKey, $imageData, now()->addMonth());
-        
-        return $this->imageResponse($imageData);
-    }
-    public function board_icon_thumbnail($path, $size = 45, $color = 'light'){ 
+    public function board_icon_thumbnail($path, $size = 45, $color = 'light'){
 
 
         $cacheKey = 'chat_image_custom' . md5($path . $size);
