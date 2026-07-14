@@ -14,10 +14,8 @@
             :y="measured ? baseline : 100"
             text-anchor="middle"
             :dominant-baseline="measured ? 'auto' : 'central'"
-            font-size="130"
             fill="#ffffff"
-            :font-family="fontFamily"
-            font-weight="600"
+            :style="{ fontSize: '130px', fontWeight: 600, fontFamily }"
         >{{ glyph }}</text>
     </svg>
 </template>

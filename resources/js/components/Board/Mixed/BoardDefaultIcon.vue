@@ -15,10 +15,8 @@
             :y="measured ? (baselines[i] ?? run.y) : run.y"
             text-anchor="middle"
             :dominant-baseline="measured ? 'auto' : 'central'"
-            :font-size="run.size"
             :fill="textColor"
-            :font-family="fontFamily"
-            font-weight="400"
+            :style="{ fontSize: `${run.size}px`, fontWeight: 400, fontFamily }"
         >{{ run.text }}</text>
     </svg>
 </template>
