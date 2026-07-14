@@ -19,7 +19,6 @@
                     :seed="definition.id"
                     :size="28"
                     round
-                    bordered
                 />
                 <div class="min-w-0">
                     <div v-if="definition" class="rd-appname truncate">{{ definition.name }}</div>

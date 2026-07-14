@@ -60,7 +60,7 @@
                     <div class="fg-row">
                         <label class="fg-label">アイコン</label>
                         <div class="fg-icon">
-                            <FlowAppIcon :icon-svg="def.icon_svg" :icon-image="def.icon_image" :color-id="def.color_id" :name="def.name" :size="60" round bordered />
+                            <FlowAppIcon :icon-svg="def.icon_svg" :icon-image="def.icon_image" :color-id="def.color_id" :name="def.name" :size="60" round />
                             <div class="fg-icon-btns">
                                 <button type="button" class="flow-ghost-btn" @click="iconCropOpen = true">画像をアップロード</button>
                                 <button type="button" class="flow-ghost-btn" :disabled="iconGenLoading || !def.name.trim()" @click="generateIcon">

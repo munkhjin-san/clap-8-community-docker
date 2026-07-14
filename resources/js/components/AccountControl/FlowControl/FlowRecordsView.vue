@@ -20,7 +20,6 @@
                         :seed="definition.id"
                         :size="30"
                         round
-                        bordered
                     />
                     <span class="rv-title" :title="definition?.name">{{ definition?.name }}</span>
                     <div class="rv-actions">
