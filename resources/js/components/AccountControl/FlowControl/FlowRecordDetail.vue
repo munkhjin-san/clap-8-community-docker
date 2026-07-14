@@ -52,7 +52,7 @@
             </div>
             <div class="rd-flow-tools">
                 <template v-if="mode === 'view'">
-                    <button v-for="t in pdfTools" :key="t.id" class="rd-tool" @click="downloadPdf(t)" :title="t.name"><Download size="13" />{{ t.name }}</button>
+                    <button v-for="t in pdfTools" :key="t.id" class="rd-tool" @click="downloadPdf(t)" :title="t.name"><FileIcon ext="unknown" class="rd-tool-file" />{{ t.name }}</button>
                     <button v-if="!isNew && can.delete" class="rd-tool danger" @click="remove"><Trash size="13" />削除</button>
                     <button v-if="can.edit" class="rd-tool primary" @click="mode = 'edit'"><Edit size="13" />編集</button>
                 </template>
@@ -182,7 +182,7 @@ import Gear from '@/components/Icons/Gear.vue'
 import Comment from '@/components/Icons/Comment.vue'
 import ChangeLog from '@/components/Icons/ChangeLog.vue'
 import ChevronDouble from '@/components/Icons/ChevronDouble.vue'
-import Download from '@/components/Icons/Download.vue'
+import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
 import AppCommentSection from '@/components/Global/AppCommentSection.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { isLayoutType } from '@/types/flow'
@@ -457,13 +457,17 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-flow-status { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .rd-flow-tools { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .rd-tool { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--formBorder); background: var(--background-color); color: var(--primary-color); cursor: pointer; }
+/* PDF tool icon: neutral (common) file glyph, sized to the button row */
+.rd-tool-file :deep(.file-icon-01-mobile) { width: auto; min-width: 0; height: 15px; }
+.rd-tool-file { display: inline-flex; }
 .rd-tool.danger { color: #e2574c; border-color: rgba(226, 87, 76, 0.4); }
 .rd-tool.primary { color: #fff; background: var(--primary-button, var(--primary-color)); border-color: transparent; }
 .rd-tool:disabled { opacity: 0.5; cursor: default; }
-.rd-tool :deep(svg) { fill: currentColor; }
-.rd-flow-cur { font-size: 12px; font-weight: 600; color: var(--primary-color); background: var(--bg3); padding: 4px 12px; border-radius: 14px; }
+/* only the direct icon svgs (編集/削除) follow the text color; the nested FileIcon keeps its own PDF red */
+.rd-tool > :deep(svg) { fill: currentColor; }
+.rd-flow-cur { font-size: 12px; color: var(--primary-color); background: var(--bg3); padding: 4px 12px; border-radius: 14px; white-space: nowrap; flex-shrink: 0; }
 .rd-flow-sep { color: gray; font-size: 13px; }
-.rd-act { padding: 6px 16px; font-size: 13px; font-weight: 600; color: #fff; border: 1px solid transparent; border-radius: 7px; cursor: pointer; transition: opacity .12s; }
+.rd-act { padding: 2px 10px; font-size: 12px; color: #fff; border: 1px solid transparent; border-radius: 5px; cursor: pointer; transition: opacity .12s; }
 .rd-act:hover { opacity: 0.88; }
 .rd-act.off { background: var(--bg3); color: gray; border-color: var(--formBorder); cursor: not-allowed; }
 .rd-act:disabled { cursor: not-allowed; }
@@ -477,6 +481,10 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-screen.overlay .rd-canvas { width: 100%; }
 .rd-screen.overlay .rd-row { flex-direction: column; align-items: stretch; }
 .rd-screen.overlay .rd-block { width: 100% !important; }
+/* mobile: status row and action/tool buttons stack onto their own lines instead of being crushed */
+.rd-screen.overlay .rd-flow { flex-wrap: wrap; }
+.rd-screen.overlay .rd-flow-status { width: 100%; }
+.rd-screen.overlay .rd-flow-tools { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
 .rd-side { width: 340px; flex-shrink: 0; border-left: 1px solid var(--calendarBorder); background: var(--background-color); display: flex; min-height: 0; overflow: hidden; transition: width .25s ease; }
 .rd-side-inner { width: 340px; flex-shrink: 0; display: flex; flex-direction: column; min-height: 0; }
 .rd-side.collapsed { width: 0; border-left: none; }
