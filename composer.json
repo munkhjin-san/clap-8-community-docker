@@ -22,6 +22,7 @@
         "league/csv": "^9.15",
         "maatwebsite/excel": "^3.1",
         "minishlink/web-push": "^10.0",
+        "mpdf/mpdf": "^8.3",
         "openai-php/client": "^0.17.1",
         "predis/predis": "^3.3",
         "smalot/pdfparser": "2.12"
