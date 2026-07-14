@@ -60,7 +60,7 @@
                     <div class="fg-row">
                         <label class="fg-label">アイコン</label>
                         <div class="fg-icon">
-                            <FlowAppIcon :icon-svg="def.icon_svg" :icon-image="def.icon_image" :color-id="def.color_id" :name="def.name" :size="60" />
+                            <FlowAppIcon :icon-svg="def.icon_svg" :icon-image="def.icon_image" :color-id="def.color_id" :name="def.name" :size="60" round bordered />
                             <div class="fg-icon-btns">
                                 <button type="button" class="flow-ghost-btn" @click="iconCropOpen = true">画像をアップロード</button>
                                 <button type="button" class="flow-ghost-btn" :disabled="iconGenLoading || !def.name.trim()" @click="generateIcon">
@@ -124,6 +124,7 @@ import FlowKintoneImportModal from './FlowKintoneImportModal.vue'
 import FlowAppIcon from './FlowAppIcon.vue'
 import FlowAppIconCropModal from './FlowAppIconCropModal.vue'
 import { useDialog } from '@/composables/dialog'
+import { pageTitleOverride } from '@/composables/pageTitle'
 import { useAuthUserStore } from '@/store/auth'
 import { isLayoutType, defaultWidthFor, emptyPdfTemplate } from '@/types/flow'
 import { FLOW_COLORS } from '@/utils/flowColors'
@@ -227,6 +228,8 @@ const defaultView = (): BuilderView => ({
 })
 
 const def = ref<BuilderDefinition>(newDefinition())
+// show the edited app's name in the browser tab title
+watch(() => def.value?.name, (name) => { if (name) pageTitleOverride.value = name })
 
 // kintone import (admin/PM only, create screen): append the mapped fields into the current form to review + save.
 const onKintoneImport = (preview: any) => {
@@ -594,7 +597,7 @@ onMounted(async () => {
 .flow-desc-input { width: 100%; font-size: 13px; color: var(--primary-color); background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 7px; padding: 8px 10px; resize: none; overflow: hidden; line-height: 1.6; min-height: 38px; transition: border-color .15s; box-sizing: border-box !important; }
 .flow-desc-input::placeholder { color: gray; }
 .flow-desc-input:focus { outline: none; border-color: var(--primary-color); }
-.flow-name-input { width: 100%; font-size: 14px; font-weight: 500; color: var(--primary-color); background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 7px; padding: 8px 10px; transition: border-color .15s; box-sizing: border-box !important; }
+.flow-name-input { width: 100%; font-size: 14px; color: var(--primary-color); background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 7px; padding: 8px 10px; transition: border-color .15s; box-sizing: border-box !important; }
 .flow-name-input::placeholder { color: gray; font-weight: 400; }
 .flow-name-input:focus { outline: none; border-color: var(--primary-color); }
 .flow-name-input.error { border-color: #e24b4a; background: rgba(226, 75, 74, 0.06); }

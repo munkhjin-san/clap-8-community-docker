@@ -1351,27 +1351,34 @@ class FlowController extends Controller
             return response()->json($this->csvAnalyze($definition, $parsed));
         }
 
-        // validate + commit need the uploader's mapping: { "<header>": "<fieldId>" | "__new__" | "__skip__" }
-        // plus per-"__new__"-column chosen types: { "<header>": "number" | "date" | ... }
+        // validate + commit need the uploader's mapping: { "<header>": "<fieldId>" | "__new__" | "__table__" | "__skip__" }
+        // plus per-"__new__"/"__table__"-column chosen types, and (for a sub-table) the new Table field's name.
         $mapping = json_decode($request->input('mapping', '{}'), true);
         $newTypes = json_decode($request->input('new_field_types', '{}'), true);
-        $plan = $this->buildImportPlan($definition, $parsed['headers'], is_array($mapping) ? $mapping : [], is_array($newTypes) ? $newTypes : [], $parsed['rows']);
+        $tableName = (string) $request->input('table_name', '');
+        $tableTarget = (string) $request->input('table_target', '__new__');  // existing Table field id, or '__new__'
+        $plan = $this->buildImportPlan($definition, $parsed['headers'], is_array($mapping) ? $mapping : [], is_array($newTypes) ? $newTypes : [], $parsed['rows'], $tableName, $tableTarget);
         $columns = $plan['columns'];
         $system = $plan['system'] ?? [];
-        abort_if(empty($columns), 422, '取り込む列を1つ以上マッピングしてください。');
-        $hasNew = collect($columns)->contains(fn ($c) => $c['isNew']);
+        $table = $plan['table'] ?? null;
+        abort_if(empty($columns) && ! $table, 422, '取り込む列を1つ以上マッピングしてください。');
+        // A schema change (new field, new Table field, or new sub-columns on an existing Table) needs manage.
+        $tableChangesSchema = $table && ($table['existingFieldId'] === null || ! empty($table['newSubColumns']));
+        $hasNew = collect($columns)->contains(fn ($c) => $c['isNew']) || $tableChangesSchema;
         if ($hasNew && ! $perms['manage']) {
             abort(403, '新規フィールドを作成するにはアプリの管理権限が必要です。');
         }
 
-        $validation = $this->validateImportRows($parsed['rows'], $columns, $system);
+        // Validation runs once per record (the group's first row); record-level values repeat across a
+        // group, so validating the representative row is sufficient. Totals count records, not CSV lines.
+        $validation = $this->validateImportRows($parsed['rows'], $columns, $system, $parsed['groups']);
 
         if ($phase === 'validate') {
             return response()->json($validation + ['sample_errors' => array_slice($validation['invalid'], 0, 50)]);
         }
 
-        $invalidRows = collect($validation['invalid'])->pluck('row')->flip(); // 1-based row => idx
-        $result = DB::transaction(function () use ($definition, $parsed, $columns, $system, $invalidRows, $user) {
+        $invalidRows = collect($validation['invalid'])->pluck('row')->flip(); // 1-based representative row => idx
+        $result = DB::transaction(function () use ($definition, $parsed, $columns, $system, $table, $invalidRows, $user) {
             // Turn "__new__" columns into real fields, then map every column's header → its field.
             $headerToField = [];
             foreach ($columns as $c) {
@@ -1379,16 +1386,29 @@ class FlowController extends Controller
                     ? $this->createImportField($definition, $c['header'], $c['type'], $c['options'])
                     : $c['field'];
             }
+            // Resolve the sub-table's Table field: reuse the chosen existing field (appending any
+            // sub-columns it lacks) or create a new one. subColumns map CSV header → the field's column key.
+            $tablePlan = null;
+            if ($table) {
+                $tablePlan = [
+                    'field' => $table['existingFieldId']
+                        ? $this->useExistingTableField($definition, $table['existingFieldId'], $table['newSubColumns'])
+                        : $this->createImportTableField($definition, $table['label'], $table['subColumns']),
+                    'subColumns' => $table['subColumns'],
+                ];
+            }
+
             $imported = 0;
-            foreach ($parsed['rows'] as $i => $row) {
-                if ($invalidRows->has($i + 1)) {
+            foreach ($parsed['groups'] as $group) {
+                if ($invalidRows->has($group[0] + 1)) {   // representative row invalid → skip the whole record
                     continue;
                 }
-                $this->importOneRow($definition, $headerToField, $row, $user, $system);
+                $groupRows = array_map(fn ($i) => $parsed['rows'][$i], $group);
+                $this->importOneGroup($definition, $headerToField, $groupRows, $user, $system, $tablePlan);
                 $imported++;
             }
 
-            return ['imported' => $imported, 'skipped' => count($parsed['rows']) - $imported];
+            return ['imported' => $imported, 'skipped' => count($parsed['groups']) - $imported];
         });
 
         return response()->json($result + ['invalid' => array_slice($validation['invalid'], 0, 50)]);
@@ -1402,15 +1422,22 @@ class FlowController extends Controller
             ->values();
         $byLabel = $fields->keyBy(fn ($f) => mb_strtolower(trim($f->label)));
 
-        $columns = collect($parsed['headers'])->map(function (string $header) use ($byLabel, $parsed) {
+        // Columns that belong to a kintone sub-table (auto-import into one Table field by default).
+        $tableHeaders = $this->detectSubtableColumns($parsed['headers'], $parsed['rows'], $parsed['groups']);
+        $tableSet = array_flip($tableHeaders);
+        $existingTables = $this->existingTableFields($definition);
+
+        $columns = collect($parsed['headers'])->map(function (string $header) use ($byLabel, $parsed, $tableSet) {
             $sys = $this->suggestSystemColumn($header);
             $match = $byLabel->get(mb_strtolower(trim($header)));
             $inferred = $this->inferColumnType($parsed['rows'], $header);
+            $inTable = isset($tableSet[$header]);
 
             return [
                 'header' => $header,
-                'suggested' => $sys ?? ($match ? (string) $match->id : '__skip__'),
-                'recommended_type' => $inferred['type'],           // used when the uploader chooses "＋新規"
+                'in_table' => $inTable,
+                'suggested' => $inTable ? '__table__' : ($sys ?? ($match ? (string) $match->id : '__skip__')),
+                'recommended_type' => $inferred['type'],           // used when the uploader chooses "＋新規" or table sub-column
                 'recommended_options' => $inferred['options'],
             ];
         })->values();
@@ -1419,7 +1446,16 @@ class FlowController extends Controller
             'headers' => $parsed['headers'],
             'columns' => $columns,
             'sample_rows' => array_slice($parsed['rows'], 0, 5),
-            'row_count' => count($parsed['rows']),
+            'row_count' => count($parsed['groups']),               // records (grouped), not physical CSV lines
+            'physical_rows' => count($parsed['rows']),
+            'subtable' => [
+                'present' => ! empty($tableHeaders),
+                'columns' => $tableHeaders,
+                'suggested_name' => 'テーブル',
+                // Existing Table fields the sub-table can be imported into (reuse over creating a duplicate).
+                'existing_tables' => $existingTables,
+                'suggested_target' => $this->suggestTableTarget($tableHeaders, $existingTables),
+            ],
             'fields' => $fields->map(fn ($f) => [
                 'id' => $f->id, 'label' => $f->label, 'input_type' => $f->input_type,
                 'is_required' => (bool) $f->is_required, 'options' => $f->options ?? [],
@@ -1431,6 +1467,66 @@ class FlowController extends Controller
                 ['key' => '__updated_at__', 'label' => '更新日時'],
             ],
         ];
+    }
+
+    /**
+     * Detect a kintone sub-table's columns from the grouped rows. The tell: within a record's group
+     * (multiple physical rows), sub-table columns vary while record-level columns repeat identically.
+     * kintone lays a table's columns out as one contiguous trailing block, so we take everything from
+     * the first varying column to the end of the row. Returns [] when there is no sub-table.
+     */
+    private function detectSubtableColumns(array $headers, array $rows, array $groups): array
+    {
+        $firstVarying = null;
+        foreach ($headers as $idx => $header) {
+            foreach ($groups as $g) {
+                if (count($g) < 2) {
+                    continue;
+                }
+                $vals = array_map(fn ($i) => (string) ($rows[$i][$header] ?? ''), $g);
+                if (count(array_unique($vals)) > 1) {
+                    $firstVarying = $firstVarying === null ? $idx : min($firstVarying, $idx);
+                    break;
+                }
+            }
+        }
+        if ($firstVarying === null) {
+            return [];   // no column varies within any record → no sub-table (or every record is single-row)
+        }
+
+        return array_slice($headers, $firstVarying);
+    }
+
+    /** The app's Table fields, with their sub-columns, as import targets for a sub-table. */
+    private function existingTableFields(FlowDefinition $definition): array
+    {
+        return $definition->fields
+            ->where('input_type', 'table')
+            ->map(fn ($f) => [
+                'id' => $f->id,
+                'label' => $f->label,
+                'columns' => collect(is_array($f->validation['columns'] ?? null) ? $f->validation['columns'] : [])
+                    ->map(fn ($c) => ['key' => $c['key'] ?? '', 'label' => $c['label'] ?? '', 'input_type' => $c['input_type'] ?? 'short'])
+                    ->values()->all(),
+            ])->values()->all();
+    }
+
+    /** Pick the existing Table field whose columns best match the CSV sub-table (by label); else "__new__". */
+    private function suggestTableTarget(array $tableHeaders, array $existingTables): string
+    {
+        $wanted = array_map(fn ($h) => mb_strtolower(trim($h)), $tableHeaders);
+        $best = null;
+        $bestScore = 0;
+        foreach ($existingTables as $t) {
+            $labels = array_map(fn ($c) => mb_strtolower(trim($c['label'])), $t['columns']);
+            $score = count(array_filter($wanted, fn ($h) => in_array($h, $labels, true)));
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $best = $t['id'];
+            }
+        }
+
+        return $bestScore > 0 ? (string) $best : '__new__';
     }
 
     /** Map a CSV header that looks like a timestamp column onto the matching system-column sentinel. */
@@ -1520,13 +1616,15 @@ class FlowController extends Controller
      * (typed per $newTypes, with select/radio/checkbox options derived from the column's data).
      * The transient field is enough for validation; commit turns it into a real field.
      */
-    private function buildImportPlan(FlowDefinition $definition, array $headers, array $mapping, array $newTypes, array $rows): array
+    private function buildImportPlan(FlowDefinition $definition, array $headers, array $mapping, array $newTypes, array $rows, string $tableName = '', string $tableTarget = '__new__'): array
     {
         $fieldsById = $definition->fields->keyBy('id');
         $columns = [];
         $system = [];   // slot ('created_at'|'updated_at') => CSV header
         $usedFieldIds = [];
         $newIdx = 0;
+        $tableSubRaw = [];   // raw sub-table columns (header/type/options); resolved to keys after the loop
+        $seenTableHeaders = [];
 
         foreach ($headers as $header) {
             $target = $mapping[$header] ?? '__skip__';
@@ -1540,8 +1638,23 @@ class FlowController extends Controller
                 continue;
             }
 
+            // Sub-table column: folds into a single Table field (existing or new), one line per group row.
+            if ($target === '__table__') {
+                if (in_array($header, $seenTableHeaders, true)) {
+                    continue;
+                }
+                $seenTableHeaders[] = $header;
+                $type = $this->resolveNewFieldType($newTypes[$header] ?? null);
+                $options = in_array($type, ['select', 'radio', 'checkbox'], true)
+                    ? array_values(array_unique($this->columnValues($rows, $header)))
+                    : [];
+                $tableSubRaw[] = ['header' => $header, 'input_type' => $type, 'options' => $options];
+
+                continue;
+            }
+
             if ($target === '__new__') {
-                $type = in_array($newTypes[$header] ?? 'short', self::IMPORT_NEW_TYPES, true) ? $newTypes[$header] : 'short';
+                $type = $this->resolveNewFieldType($newTypes[$header] ?? null);
                 $options = in_array($type, ['select', 'radio', 'checkbox'], true)
                     ? array_values(array_unique($this->columnValues($rows, $header)))
                     : [];
@@ -1563,16 +1676,94 @@ class FlowController extends Controller
             $usedFieldIds[] = (int) $target;
         }
 
-        return ['columns' => $columns, 'system' => $system];
+        return ['columns' => $columns, 'system' => $system, 'table' => $this->resolveTablePlan($definition, $tableSubRaw, $tableName, $tableTarget)];
     }
 
-    /** Dry-run validate each row against the mapped columns (existing fields + typed new columns alike). */
-    private function validateImportRows(array $rows, array $columns, array $system = []): array
+    /**
+     * Resolve the sub-table columns against the chosen target: an existing Table field (reuse — match
+     * sub-columns by label, append any the target lacks) or a brand-new Table field. Returns null when
+     * there are no sub-table columns. `subColumns` carries CSV-header → target-column-key for value assembly.
+     */
+    private function resolveTablePlan(FlowDefinition $definition, array $tableSubRaw, string $tableName, string $tableTarget): ?array
+    {
+        if (! $tableSubRaw) {
+            return null;
+        }
+
+        $existing = ctype_digit($tableTarget)
+            ? $definition->fields->first(fn ($f) => (string) $f->id === $tableTarget && $f->input_type === 'table')
+            : null;
+
+        if ($existing) {
+            $existingCols = is_array($existing->validation['columns'] ?? null) ? $existing->validation['columns'] : [];
+            $byLabel = collect($existingCols)->keyBy(fn ($c) => mb_strtolower(trim($c['label'] ?? '')));
+            $usedKeys = collect($existingCols)->pluck('key')->filter()->all();
+            $subColumns = [];
+            $newSubColumns = [];   // CSV sub-columns the target lacks → appended to its schema on commit
+            foreach ($tableSubRaw as $sc) {
+                $match = $byLabel->get(mb_strtolower(trim($sc['header'])));
+                if ($match) {
+                    $subColumns[] = ['header' => $sc['header'], 'key' => $match['key']];
+                } else {
+                    $key = $this->uniqueSubColumnKey($sc['header'], $usedKeys);
+                    $usedKeys[] = $key;
+                    $col = ['header' => $sc['header'], 'key' => $key, 'input_type' => $sc['input_type'], 'options' => $sc['options']];
+                    $subColumns[] = ['header' => $sc['header'], 'key' => $key];
+                    $newSubColumns[] = $col;
+                }
+            }
+
+            return ['existingFieldId' => $existing->id, 'label' => $existing->label, 'subColumns' => $subColumns, 'newSubColumns' => $newSubColumns];
+        }
+
+        // Brand-new Table field: every sub-table column becomes a fresh sub-column.
+        $usedKeys = [];
+        $subColumns = [];
+        foreach ($tableSubRaw as $sc) {
+            $key = $this->uniqueSubColumnKey($sc['header'], $usedKeys);
+            $usedKeys[] = $key;
+            $subColumns[] = ['header' => $sc['header'], 'key' => $key, 'input_type' => $sc['input_type'], 'options' => $sc['options']];
+        }
+        $label = trim($tableName) !== '' ? trim($tableName) : 'テーブル';
+
+        return ['existingFieldId' => null, 'label' => $label, 'subColumns' => $subColumns, 'newSubColumns' => []];
+    }
+
+    /** A CSV-seedable field type, falling back to short text when unset/invalid. */
+    private function resolveNewFieldType(?string $type): string
+    {
+        return in_array($type, self::IMPORT_NEW_TYPES, true) ? $type : 'short';
+    }
+
+    /** A stable, unique sub-column key for a Table field, derived from the CSV header. */
+    private function uniqueSubColumnKey(string $header, array $used): string
+    {
+        $base = Str::slug($header, '_') ?: 'col';
+        $key = $base;
+        $n = 2;
+        while (in_array($key, $used, true)) {
+            $key = $base.'_'.$n;
+            $n++;
+        }
+
+        return $key;
+    }
+
+    /**
+     * Dry-run validate each record against the mapped columns (existing fields + typed new columns alike).
+     * When rows are grouped (kintone sub-table), only the group's representative (first) row is validated —
+     * record-level values repeat across the group, and sub-table columns aren't record-level fields.
+     */
+    private function validateImportRows(array $rows, array $columns, array $system = [], ?array $groups = null): array
     {
         $fields = collect($columns)->pluck('field');
         $invalid = [];
 
-        foreach ($rows as $i => $row) {
+        // Representative row index per record; default = every row is its own record.
+        $repIndexes = $groups !== null ? array_map(fn ($g) => $g[0], $groups) : array_keys($rows);
+
+        foreach ($repIndexes as $i) {
+            $row = $rows[$i];
             $valuesById = [];
             foreach ($columns as $c) {
                 $valuesById[$c['field']->id] = $row[$c['header']] ?? null;
@@ -1624,7 +1815,9 @@ class FlowController extends Controller
             }
         }
 
-        return ['total' => count($rows), 'valid_count' => count($rows) - count($invalid), 'invalid' => $invalid];
+        $total = count($repIndexes);
+
+        return ['total' => $total, 'valid_count' => $total - count($invalid), 'invalid' => $invalid];
     }
 
     private function parsableDateTime(string $v): bool
@@ -1657,12 +1850,18 @@ class FlowController extends Controller
         abort_unless($handle, 422, 'CSVファイルを読み込めませんでした。');
 
         $headers = null;
+        $hasFlag = false;   // kintone table exports put a "New record flag" column first
         $rows = [];
+        $flags = [];        // per physical row: the flag cell ('*' = new record, '' = continuation sub-table row)
         while (($line = fgetcsv($handle)) !== false) {
             $line = array_map(fn ($c) => $this->csvCell($c), $line);
             if ($headers === null) {
                 if ($this->isEmptyCsvRow($line)) {
                     continue;
+                }
+                $hasFlag = $this->isNewRecordFlagHeader($line[0] ?? '');
+                if ($hasFlag) {
+                    $line = array_slice($line, 1);
                 }
                 $headers = $this->normalizeHeaders($line);
 
@@ -1671,14 +1870,37 @@ class FlowController extends Controller
             if ($this->isEmptyCsvRow($line)) {
                 continue;
             }
+            $flag = '';
+            if ($hasFlag) {
+                $flag = trim((string) ($line[0] ?? ''));
+                $line = array_slice($line, 1);
+            }
             $line = array_pad(array_slice($line, 0, count($headers)), count($headers), null);
             $rows[] = array_combine($headers, $line);
+            $flags[] = $flag;
             abort_if(count($rows) > 5000, 422, '一度に取り込めるCSVは5000行までです。');
         }
         fclose($handle);
         abort_if(! $headers || count($headers) === 0, 422, 'CSVのヘッダー行が必要です。');
 
-        return ['headers' => $headers, 'rows' => $rows];
+        // Group physical rows into records. With a flag column, '*' (non-empty) starts a record and
+        // blank-flag rows are additional sub-table lines of the same record. Without it, 1 row = 1 record.
+        $groups = [];
+        foreach ($rows as $i => $_) {
+            if (! $hasFlag || trim((string) $flags[$i]) !== '' || empty($groups)) {
+                $groups[] = [$i];
+            } else {
+                $groups[count($groups) - 1][] = $i;
+            }
+        }
+
+        return ['headers' => $headers, 'rows' => $rows, 'groups' => $groups, 'has_flag' => $hasFlag];
+    }
+
+    /** kintone prefixes a table-bearing CSV export with this exact column. */
+    private function isNewRecordFlagHeader(?string $header): bool
+    {
+        return in_array(mb_strtolower(trim((string) $header)), ['new record flag', 'new_record_flag'], true);
     }
 
     private function csvCell($value): ?string
@@ -1739,6 +1961,61 @@ class FlowController extends Controller
         ]);
     }
 
+    /** Create the Table field for an imported kintone sub-table, with one sub-column per CSV column. */
+    private function createImportTableField(FlowDefinition $definition, string $label, array $subColumns): FlowField
+    {
+        $order = (int) $definition->fields()->max('order_number') + 1;
+        $cols = array_map(function (array $sc) {
+            $type = $this->resolveNewFieldType($sc['input_type'] ?? null);
+
+            return [
+                'key' => $sc['key'],
+                'label' => $sc['header'] !== '' ? $sc['header'] : $sc['key'],
+                'input_type' => $type,
+                'options' => in_array($type, ['select', 'radio', 'checkbox'], true) && ! empty($sc['options']) ? array_values($sc['options']) : null,
+                'width' => 200,
+            ];
+        }, $subColumns);
+
+        return $definition->fields()->create([
+            'key' => $this->uniqueFieldKey($definition, $label ?: 'table'),
+            'label' => $label !== '' ? $label : 'テーブル',
+            'input_type' => 'table',
+            'options' => null,
+            'validation' => ['columns' => $cols],
+            'is_required' => false,
+            'hidden' => false,
+            'order_number' => $order,
+            'layout_row' => $order,
+            'width' => 260,
+        ]);
+    }
+
+    /** Reuse an existing Table field, appending any sub-columns the CSV had that it lacks. */
+    private function useExistingTableField(FlowDefinition $definition, int $fieldId, array $newSubColumns): FlowField
+    {
+        $field = $definition->fields->first(fn ($f) => $f->id === $fieldId) ?? FlowField::findOrFail($fieldId);
+        if ($newSubColumns) {
+            $cols = is_array($field->validation['columns'] ?? null) ? $field->validation['columns'] : [];
+            foreach ($newSubColumns as $sc) {
+                $type = $this->resolveNewFieldType($sc['input_type'] ?? null);
+                $cols[] = [
+                    'key' => $sc['key'],
+                    'label' => $sc['header'] !== '' ? $sc['header'] : $sc['key'],
+                    'input_type' => $type,
+                    'options' => in_array($type, ['select', 'radio', 'checkbox'], true) && ! empty($sc['options']) ? array_values($sc['options']) : null,
+                    'width' => 200,
+                ];
+            }
+            $validation = is_array($field->validation) ? $field->validation : [];
+            $validation['columns'] = $cols;
+            $field->validation = $validation;
+            $field->save();
+        }
+
+        return $field;
+    }
+
     private function uniqueFieldKey(FlowDefinition $definition, string $label): string
     {
         $base = Str::slug($label, '_') ?: 'field';
@@ -1754,8 +2031,14 @@ class FlowController extends Controller
     }
 
     /** Insert one record from a CSV row (initial status if the app uses the flow), writing the mapped cells. */
-    private function importOneRow(FlowDefinition $definition, array $headerToField, array $row, $user, array $system = []): void
+    /**
+     * Insert one record from a group of CSV rows. Record-level cells (and system timestamps) come from
+     * the group's first row; when a sub-table is configured, every row in the group contributes one
+     * line to the Table field. A single-row group (no sub-table) behaves exactly like one record.
+     */
+    private function importOneGroup(FlowDefinition $definition, array $headerToField, array $groupRows, $user, array $system = [], ?array $tablePlan = null): void
     {
+        $rep = $groupRows[0];
         $start = $this->flowService->startStatus($definition);
         $record = FlowRecord::create([
             'flow_definition_id' => $definition->id,
@@ -1765,14 +2048,34 @@ class FlowController extends Controller
             'updated_by' => $user->id,
         ]);
         foreach ($headerToField as $header => $field) {
-            $this->flowService->saveFieldValue($record, $field, $row[$header] ?? null);
+            $this->flowService->saveFieldValue($record, $field, $rep[$header] ?? null);
+        }
+
+        // Sub-table: one line per group row, keyed by sub-column. Fully-empty lines are dropped.
+        if ($tablePlan) {
+            $tableRows = [];
+            foreach ($groupRows as $r) {
+                $cells = [];
+                $empty = true;
+                foreach ($tablePlan['subColumns'] as $sc) {
+                    $v = $r[$sc['header']] ?? null;
+                    $cells[$sc['key']] = $v;
+                    if (trim((string) $v) !== '') {
+                        $empty = false;
+                    }
+                }
+                if (! $empty) {
+                    $tableRows[] = $cells;
+                }
+            }
+            $this->flowService->saveFieldValue($record, $tablePlan['field'], $tableRows);
         }
 
         // Imported created_at / updated_at: written last via a raw update so Eloquent's automatic
         // timestamping (which would stamp "now") doesn't overwrite the source values.
         $stamps = [];
         foreach ($system as $slot => $header) {
-            $val = trim((string) ($row[$header] ?? ''));
+            $val = trim((string) ($rep[$header] ?? ''));
             if ($val === '') {
                 continue;
             }

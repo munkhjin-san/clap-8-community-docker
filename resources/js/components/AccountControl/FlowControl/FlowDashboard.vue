@@ -67,7 +67,7 @@ onMounted(async () => {
 .fd-head { display: flex; align-items: center; gap: 10px; padding: 0 6px; }
 .fd-back { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; fill: var(--primary-color); }
 .fd-back:hover { background: var(--bg3); }
-.fd-title { font-size: 17px; font-weight: 700; }
+.fd-title { font-size: 17px; }
 .fd-count { font-size: 12px; color: gray; }
 .fd-body { flex: 1; overflow: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
 .fd-empty { font-size: 13px; color: gray; text-align: center; margin-top: 40px; }

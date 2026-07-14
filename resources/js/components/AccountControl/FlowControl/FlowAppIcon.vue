@@ -19,7 +19,9 @@ const props = withDefaults(defineProps<{
     seed?: number
     size?: number
     onBand?: boolean
-}>(), { size: 44, onBand: false })
+    bordered?: boolean
+    round?: boolean
+}>(), { size: 44, onBand: false, bordered: false, round: false })
 
 const theme = useTheme()
 const initial = computed(() => (props.name?.trim()?.[0] ?? '?'))
@@ -28,7 +30,7 @@ const boxStyle = computed(() => {
     const base: Record<string, string> = {
         width: `${props.size}px`,
         height: `${props.size}px`,
-        borderRadius: `${Math.round(props.size * 0.24)}px`,
+        borderRadius: props.round ? '50%' : `${Math.round(props.size * 0.24)}px`,
     }
     if (props.onBand) {
         // sits on a colored band → surface square with the symbol in a deep tint of the accent
@@ -36,8 +38,10 @@ const boxStyle = computed(() => {
         base.border = '1px solid var(--calendarBorder)'
         base.color = `color-mix(in srgb, ${accentHex.value} 45%, var(--primary-color))`
     } else {
+        // the app's own color is the background; a darker tint of it forms the border (req: color BG + border)
         base.background = props.iconImage ? 'var(--bg3)' : accentHex.value
         base.color = 'var(--primary-color)'
+        if (props.bordered) base.border = `1px solid color-mix(in srgb, ${accentHex.value} 55%, var(--primary-color))`
     }
     return base
 })
@@ -48,5 +52,5 @@ const boxStyle = computed(() => {
 .fai-img { width: 100%; height: 100%; object-fit: cover; }
 .fai-svg { display: flex; align-items: center; justify-content: center; width: 60%; height: 60%; opacity: .8; }
 .fai-svg :deep(svg) { width: 100% !important; height: 100% !important; }
-.fai-initial { font-weight: 700; line-height: 1; }
+.fai-initial { font-weight: 500; line-height: 1; }
 </style>

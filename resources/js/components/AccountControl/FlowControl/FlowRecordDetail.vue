@@ -1,5 +1,5 @@
 <template>
-    <div class="admin-window rd-screen" :class="{ overlay: isNarrow }" :style="{ '--app-accent': appAccent }">
+    <div class="admin-window rd-screen" :class="{ overlay: isNarrow }">
         <Transition name="modalFade">
             <div v-if="loading" class="control-loader">
                 <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
@@ -18,6 +18,8 @@
                     :name="definition.name"
                     :seed="definition.id"
                     :size="28"
+                    round
+                    bordered
                 />
                 <div class="min-w-0">
                     <div v-if="definition" class="rd-appname truncate">{{ definition.name }}</div>
@@ -30,7 +32,8 @@
             <div class="rd-flow-status">
                 <template v-if="showStatus">
                     <span class="rd-flow-cur">{{ record?.current_status }}</span>
-                    <template v-if="statusActions.length">
+                    <!-- status transitions are hidden while editing — you can't move status mid-edit -->
+                    <template v-if="statusActions.length && mode === 'view'">
                         <span class="rd-flow-sep">→</span>
                         <button
                             v-for="a in statusActions"
@@ -164,12 +167,11 @@ import { useResponsive } from '@/store/responsive'
 import { validateFlowField } from '@/utils/flowValidation'
 import { resolveFieldDefault } from '@/utils/flowDefaults'
 import { readableTextColor } from '@/utils/flowColor'
+import { pageTitleOverride } from '@/composables/pageTitle'
 import { useAuthUserStore } from '@/store/auth'
 import FlowFieldInput from './FlowFieldInput.vue'
 import Back from '@/components/Icons/Back.vue'
 import FlowAppIcon from './FlowAppIcon.vue'
-import { useTheme } from '@/store/theme'
-import { flowColorValue } from '@/utils/flowColors'
 import Trash from '@/components/Icons/Trash.vue'
 import Edit from '@/components/Icons/Edit.vue'
 import Comment from '@/components/Icons/Comment.vue'
@@ -191,8 +193,8 @@ const loading = ref(true)
 const saving = ref(false)
 const mode = ref<'view' | 'edit'>('view')
 const definition = ref<FlowDefinitionApi | null>(null)
-const theme = useTheme()
-const appAccent = computed(() => flowColorValue(definition.value?.color_id, theme.dark, definition.value?.id ?? 0))
+// keep the app's name in the browser tab title while viewing/editing a record
+watch(() => definition.value?.name, (name) => { if (name) pageTitleOverride.value = name })
 const permissions = ref<FlowAppPermissionsDto | null>(null)
 const record = ref<FlowRecordDto | null>(null)
 const can = reactive({ view: true, edit: true, delete: false })
@@ -420,7 +422,7 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-ghost:disabled { opacity: 0.5; cursor: default; }
 .rd-primary { padding: 7px 18px; font-size: 13px; color: #fff; background: var(--primary-button, var(--primary-color)); border: none; border-radius: 6px; cursor: pointer; }
 .rd-primary:disabled { opacity: 0.5; cursor: default; }
-.rd-appname { font-size: 14px; font-weight: 600; color: var(--primary-color); line-height: 1.2; }
+.rd-appname { font-size: 14px; color: var(--primary-color); line-height: 1.2; }
 .rd-title { font-size: 12px; font-weight: 500; color: gray; }
 .rd-status { font-size: 11px; color: var(--primary-color); background: var(--bg3); padding: 2px 8px; border-radius: 10px; display: inline-block; margin-top: 4px; }
 .rd-flow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 16px; border-bottom: 1px solid var(--calendarBorder); background: var(--background-color); }

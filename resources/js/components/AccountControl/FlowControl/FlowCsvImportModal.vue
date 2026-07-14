@@ -7,7 +7,7 @@
                 <template v-if="step === 'map'">
                     <div class="ci-lead-row">
                         <p class="ci-lead">
-                            CSVの各列を項目に割り当ててください。<span class="ci-muted">（{{ rowCount }}行）</span>
+                            CSVの各列を項目に割り当ててください。<span class="ci-muted">（{{ rowCount }}件{{ subtablePresent ? ` / ${physicalRows}行` : '' }}）</span>
                         </p>
                         <div class="ci-bulk">
                             <span class="ci-bulk-label">一括:</span>
@@ -15,6 +15,28 @@
                             <button class="ci-chip" type="button" @click="setAllTarget('__skip__')">すべて取り込まない</button>
                             <button class="ci-chip" type="button" @click="resetSuggested">自動判定に戻す</button>
                         </div>
+                    </div>
+                    <div v-if="subtablePresent" class="ci-subtable">
+                        <div class="ci-subtable-head">
+                            <span class="ci-subtable-badge">テーブル検出</span>
+                            <span class="ci-subtable-text">
+                                サブテーブルを含むCSVです。1レコードが複数行にまたがるデータを {{ tableColumnCount }} 列のテーブル項目としてまとめて取り込みます。
+                            </span>
+                        </div>
+                        <label class="ci-subtable-name">
+                            取り込み先テーブル
+                            <select v-model="tableTarget" class="custom-a-input !box-border">
+                                <option v-for="t in existingTables" :key="t.id" :value="String(t.id)">{{ t.label }}（既存 / {{ t.columns.length }}列）</option>
+                                <option value="__new__">＋ 新規テーブル項目を作成</option>
+                            </select>
+                        </label>
+                        <label v-if="tableTarget === '__new__'" class="ci-subtable-name">
+                            テーブル項目名
+                            <input v-model="tableName" class="custom-a-input !box-border" type="text" placeholder="テーブル" maxlength="255">
+                        </label>
+                        <p v-else class="ci-subtable-reuse">
+                            既存テーブル「{{ selectedTable?.label }}」に取り込みます。一致する列 {{ tableMatchCount }} / {{ tableColumnCount }}<span v-if="tableColumnCount - tableMatchCount > 0">（残り {{ tableColumnCount - tableMatchCount }} 列は新しい列として追加）</span>。
+                        </p>
                     </div>
                     <div class="ci-table-scroll">
                         <table class="ci-table">
@@ -35,9 +57,10 @@
                                                 <option v-for="f in fields" :key="f.id" :value="String(f.id)">{{ f.label }}（{{ typeLabel(f.input_type) }}）</option>
                                                 <option v-for="s in systemColumns" :key="s.key" :value="s.key">{{ s.label }}（システム）</option>
                                                 <option value="__new__">＋ 新規項目として作成</option>
+                                                <option v-if="subtablePresent" value="__table__">サブテーブルの列</option>
                                                 <option value="__skip__">取り込まない</option>
                                             </select>
-                                            <select v-if="mapping[h] === '__new__'" v-model="newTypes[h]" class="custom-a-input !box-border ci-typesel" title="新規項目のタイプ（推奨を自動判定）">
+                                            <select v-if="mapping[h] === '__new__' || mapping[h] === '__table__'" v-model="newTypes[h]" class="custom-a-input !box-border ci-typesel" title="項目のタイプ（推奨を自動判定）">
                                                 <option v-for="t in NEW_TYPE_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
                                             </select>
                                         </div>
@@ -98,7 +121,13 @@ const headers = ref<string[]>([])
 const fields = ref<ImportField[]>([])
 const systemColumns = ref<{ key: string; label: string }[]>([]) // e.g. 作成日時 / 更新日時 (map to preserve source timestamps)
 const sampleRows = ref<Record<string, any>[]>([])
-const rowCount = ref(0)
+const rowCount = ref(0)              // records (grouped)
+const physicalRows = ref(0)          // raw CSV lines (differs from rowCount when a sub-table is present)
+const subtablePresent = ref(false)   // CSV carries a kintone sub-table (multi-row-per-record)
+const tableName = ref('テーブル')    // label for a NEW Table field
+const tableTarget = ref('__new__')   // existing Table field id (string) to reuse, or '__new__'
+interface ExistingTable { id: number; label: string; columns: { key: string; label: string; input_type: string }[] }
+const existingTables = ref<ExistingTable[]>([])
 const mapping = reactive<Record<string, string>>({})
 const suggested = reactive<Record<string, string>>({}) // analyze-time auto suggestion, for "自動判定に戻す"
 const newTypes = reactive<Record<string, string>>({}) // per "__new__" column: chosen field type (default = inferred recommendation)
@@ -128,6 +157,8 @@ const form = (phase: string) => {
     if (phase !== 'analyze') {
         fd.append('mapping', JSON.stringify(mapping))
         fd.append('new_field_types', JSON.stringify(newTypes))
+        fd.append('table_name', tableName.value)
+        fd.append('table_target', tableTarget.value)
     }
     return fd
 }
@@ -138,6 +169,16 @@ const sampleFor = (h: string) => {
 }
 
 const hasMapping = computed(() => Object.values(mapping).some((v) => v !== '__skip__'))
+const tableColumnCount = computed(() => Object.values(mapping).filter((v) => v === '__table__').length)
+const tableHeaders = computed(() => Object.keys(mapping).filter((h) => mapping[h] === '__table__'))
+const selectedTable = computed(() => existingTables.value.find((t) => String(t.id) === tableTarget.value) ?? null)
+// When reusing an existing Table, how many CSV sub-columns match its columns by label (rest are added).
+const tableMatchCount = computed(() => {
+    const t = selectedTable.value
+    if (!t) return 0
+    const labels = new Set(t.columns.map((c) => c.label.trim().toLowerCase()))
+    return tableHeaders.value.filter((h) => labels.has(h.trim().toLowerCase())).length
+})
 const dupWarning = computed(() => {
     const used = Object.values(mapping).filter((v) => v !== '__skip__' && v !== '__new__')
     return new Set(used).size !== used.length
@@ -153,6 +194,11 @@ const analyze = async () => {
         systemColumns.value = data.system_columns ?? []
         sampleRows.value = data.sample_rows ?? []
         rowCount.value = data.row_count ?? 0
+        physicalRows.value = data.physical_rows ?? data.row_count ?? 0
+        subtablePresent.value = !!data.subtable?.present
+        if (data.subtable?.suggested_name) tableName.value = data.subtable.suggested_name
+        existingTables.value = data.subtable?.existing_tables ?? []
+        tableTarget.value = data.subtable?.suggested_target ?? '__new__'
         ;(data.columns ?? []).forEach((c: any) => {
             mapping[c.header] = c.suggested
             suggested[c.header] = c.suggested
@@ -201,6 +247,13 @@ onMounted(analyze)
 .ci-bulk-label { font-size: 12px; color: gray; }
 .ci-chip { font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--formBorder); background: var(--background-color); color: var(--primary-color); cursor: pointer; }
 .ci-chip:hover { background: var(--bg3); border-color: var(--primary-color); }
+.ci-subtable { border: 1px solid var(--calendarBorder); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; background: var(--bg3); display: flex; flex-direction: column; gap: 8px; }
+.ci-subtable-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ci-subtable-badge { font-size: 11px; color: var(--background-color); background: var(--primary-button, var(--primary-color)); padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
+.ci-subtable-text { font-size: 12px; color: var(--primary-color); }
+.ci-subtable-name { display: flex; align-items: center; gap: 8px; font-size: 12px; color: gray; }
+.ci-subtable-name input, .ci-subtable-name select { flex: 0 1 260px; }
+.ci-subtable-reuse { font-size: 12px; color: gray; }
 .ci-table-scroll { flex: 1; overflow: auto; border: 1px solid var(--calendarBorder); border-radius: 8px; }
 .ci-table { width: 100%; border-collapse: collapse; }
 .ci-col-h { position: sticky; top: 0; background: var(--bg3); text-align: left; font-size: 11px; color: gray; padding: 8px 12px; font-weight: 600; }

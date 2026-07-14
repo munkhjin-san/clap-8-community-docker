@@ -1,5 +1,5 @@
 <template>
-    <div class="admin-window rv-screen" :style="{ '--app-accent': appAccent }">
+    <div class="admin-window rv-screen">
         <Transition name="modalFade">
             <div v-if="loading" class="control-loader">
                 <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
@@ -19,6 +19,8 @@
                         :name="definition.name"
                         :seed="definition.id"
                         :size="30"
+                        round
+                        bordered
                     />
                     <span class="rv-title" :title="definition?.name">{{ definition?.name }}</span>
                     <div class="rv-actions">
@@ -135,8 +137,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
 import FloatButton from '@/components/Global/FloatButton.vue'
 import AddIcon from '@/components/Form/AddIcon.vue'
 import FlowAppIcon from './FlowAppIcon.vue'
-import { useTheme } from '@/store/theme'
-import { flowColorValue } from '@/utils/flowColors'
+import { pageTitleOverride } from '@/composables/pageTitle'
 import { resolveColumns, applyFilters, applySort, systemColumnValue, type ResolvedColumn } from '@/utils/flowView'
 import type { FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowOptionUser, FlowOptionProject, FlowViewApi, FlowRecordsResponse } from '@/types/flow'
 import type { MenuList } from '@/interface/globalInterface'
@@ -148,8 +149,8 @@ const router = useRouter()
 
 const loading = ref(true)
 const definition = ref<FlowDefinitionApi | null>(null)
-const theme = useTheme()
-const appAccent = computed(() => flowColorValue(definition.value?.color_id, theme.dark, definition.value?.id ?? 0))
+// reflect the opened app's name in the browser tab title
+watch(() => definition.value?.name, (name) => { if (name) pageTitleOverride.value = name })
 const permissions = ref<FlowAppPermissionsDto | null>(null)
 const records = ref<FlowRecordDto[]>([])
 const users = ref<FlowOptionUser[]>([])
@@ -343,7 +344,7 @@ onMounted(async () => {
 .rv-appicon { flex: none; }
 .rv-searchwrap { flex: 0 1 480px; min-width: 0; display: flex; align-items: center; }
 .rv-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
-.rv-actbtn { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; transition: background .12s, border-color .12s; }
+.rv-actbtn { display: flex; align-items: center; gap: 6px; height: 20px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; transition: background .12s, border-color .12s; }
 .rv-actbtn:hover { background: var(--bg3); border-color: var(--primary-color); }
 .rv-actlabel { font-size: 13px; color: var(--primary-color); white-space: nowrap; }
 .rv-csv :deep(.boardMenuContainer) { display: flex; align-items: center; height: 30px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; transition: background .12s, border-color .12s; }
@@ -351,7 +352,7 @@ onMounted(async () => {
 .rv-csv :deep(.boardMenuContainer.active) { background: var(--bg3); border-color: var(--primary-color); }
 .rv-csv-inner { display: flex; align-items: center; gap: 6px; }
 .rv-r2 { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 16px; }
-.rv-title { flex: 1 1 auto; font-size: 17px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;line-height: 1.5; }
+.rv-title { flex: 1 1 auto; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;line-height: 1.5; }
 .rv-viewinfo { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
 .rv-viewname { font-size: 13px; color: var(--primary-color); }
 .rv-ctrl { height: 30px; padding: 0 10px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); font-size: 13px; cursor: pointer; }
@@ -360,7 +361,7 @@ onMounted(async () => {
 .rv-scroll { max-height: calc(100vh - 182px); overflow: auto; border-top: 1px solid var(--calendarBorder); }
 .rv-pager { position: sticky; padding: 10px 0; bottom: 0; border-top: 1px solid var(--calendarBorder); background: var(--background-color) }
 .rv-table { width: 100%; border-collapse: collapse; }
-.rv-th { text-align: left; font-size: 12px; font-weight: 600; color: color-mix(in srgb, var(--app-accent, var(--primary-color)) 45%, var(--primary-color)); letter-spacing: .02em; padding: 12px 14px; white-space: nowrap; cursor: pointer; user-select: none; position: sticky; top: 0; background: color-mix(in srgb, var(--app-accent, var(--bg3)) 42%, var(--background-color)); border-bottom: 1px solid var(--calendarBorder); z-index: 1; }
+.rv-th { text-align: left; font-size: 12px; font-weight: normal; color: gray; letter-spacing: .02em; padding: 12px 14px; white-space: nowrap; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--bg3); border-bottom: 1px solid var(--calendarBorder); z-index: 1; }
 .rv-th:hover { color: var(--primary-color); }
 .rv-th.num { text-align: right; }
 .rv-thlabel { display: inline-flex; align-items: center; gap: 3px; }
@@ -370,20 +371,20 @@ onMounted(async () => {
 .rv-th-check, .rv-td-check { width: 34px; text-align: center; cursor: default; }
 .rv-td-check input, .rv-th-check input { cursor: pointer; }
 .rv-row { cursor: pointer; }
-.rv-row:hover { background: color-mix(in srgb, var(--app-accent, var(--selected-background)) 13%, var(--background-color)); }
+.rv-row:hover { background: var(--selected-background); }
 .rv-td { font-size: 13.5px; padding: 13px 14px; border-bottom: 1px solid var(--calendarBorder); vertical-align: middle; white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
 .rv-td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .rv-td-action { text-align: right; width: 72px; }
 .rv-detail { font-size: 12px; color: gray; }
 .rv-row:hover .rv-detail { color: var(--primary-color); }
 .rv-actions { display: inline-flex; align-items: center; gap: 4px; justify-content: flex-end; }
-.rv-actbtn { border: 1px solid var(--calendarBorder); background: var(--background-color); color: gray; border-radius: 6px; padding: 4px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; line-height: 0; }
+.rv-actbtn { border: 1px solid var(--calendarBorder); background: var(--background-color); color: gray; border-radius: 6px; padding: 4px 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; line-height: 0; }
 .rv-actbtn:hover { color: var(--primary-color); border-color: var(--primary-color); background: var(--bg3); }
 .rv-actbtn-del:hover { color: tomato; border-color: tomato; }
 .rv-bulkdel { border: 1px solid tomato; color: tomato; background: var(--background-color); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; white-space: nowrap; }
 .rv-bulkdel:hover { background: tomato; color: #fff; }
 .rv-idcell { font-size: 13px; color: gray; }
-.rv-statuscell { display: inline-block; font-size: 12px; font-weight: 600; color: color-mix(in srgb, var(--app-accent, var(--primary-color)) 45%, var(--primary-color)); background: color-mix(in srgb, var(--app-accent, var(--bg3)) 55%, var(--background-color)); padding: 3px 10px; border-radius: 12px; }
+.rv-statuscell { display: inline-block; font-size: 12px; color: var(--primary-color); background: var(--bg3); padding: 3px 10px; border-radius: 12px; }
 .rv-datecell { font-size: 13px; color: gray; }
 .rv-time { opacity: .6; }
 .rv-empty { text-align: center; color: gray; font-size: 13px; padding: 40px; }

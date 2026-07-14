@@ -144,7 +144,7 @@
                             <div class="pd-cols">
                                 <div class="pd-cols-h">表示する列</div>
                                 <div v-for="(c, ci) in (sel.columns || [])" :key="ci" class="pd-col-row">
-                                    <select v-model="c.colKey" class="pd-col-src">
+                                    <select :value="c.colKey" @change="onColSourceChange(c, ($event.target as HTMLSelectElement).value)" class="pd-col-src">
                                         <option v-for="sc in sourceColumns" :key="sc.key" :value="sc.key">{{ sc.label || sc.key }}</option>
                                     </select>
                                     <input v-model="c.label" class="pd-col-lbl" placeholder="見出し">
@@ -385,6 +385,21 @@ const addColumn = () => {
     const next = sourceColumns.value.find((c: any) => !used.has(c.key)) ?? sourceColumns.value[0]
     if (!next) return
     sel.value.columns = [...(sel.value.columns || []), { colKey: next.key, label: next.label || next.key, align: 'left', width: undefined as any }]
+}
+
+// Display name of a source column key.
+const colSourceName = (key?: string): string => {
+    const sc = sourceColumns.value.find((c: any) => c.key === key)
+    return sc ? (sc.label || sc.key) : ''
+}
+// Picking a different source column auto-fills the heading with that column's name — unless the
+// user has typed a custom heading (then it's left alone).
+const onColSourceChange = (col: any, newKey: string) => {
+    const prevName = colSourceName(col.colKey)
+    col.colKey = newKey
+    if (!col.label || col.label === prevName) {
+        col.label = colSourceName(newKey)
+    }
 }
 
 const onImageUpload = (e: Event) => {
