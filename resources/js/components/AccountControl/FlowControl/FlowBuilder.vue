@@ -589,7 +589,7 @@ onMounted(async () => {
 .fg-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--primary-color); cursor: pointer; width: fit-content; }
 .fg-icon { display: flex; align-items: center; gap: 14px; }
 .fg-icon-btns { display: flex; flex-wrap: wrap; gap: 8px; }
-.fg-swatches { display: grid; grid-template-columns: repeat(5, 28px); gap: 8px; width: fit-content; }
+.fg-swatches { display: grid; grid-template-columns: repeat(4, 28px); gap: 8px; width: fit-content; }
 .fg-swatch { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--calendarBorder); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; color: var(--primary-color); box-sizing: border-box !important; transition: transform .1s, box-shadow .1s; padding: 0; }
 .fg-swatch:hover { transform: scale(1.08); }
 .fg-swatch.on { box-shadow: 0 0 0 2px var(--primary-color); }
