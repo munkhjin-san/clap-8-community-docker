@@ -787,6 +787,9 @@ class PostController extends Controller
 
         $record->awards()->attach($user->id, ['award_bet' => $chargeBet, 'created_at' => now(), 'updated_at' => now()]);
         $user->update(['award_charge' => $user->award_charge - $chargeBet]);
+        if ($request->emote) {
+            $this->sendEmote($record->id, $request->emote);
+        }
         $this->badgeService->invalidateBadgeSummaryCache();
         return response()->json();
 
@@ -996,19 +999,27 @@ class PostController extends Controller
             'reaction' => 'required|string',
         ]);
 
-        $activeUser = Auth::user();
-        $post = PostRecord::with('emotedUsers')->findOrFail($request->id);
-        $existingEmote = $post->emotedUsers()->where('user_id', $activeUser->id)->first();
-
-        if ($existingEmote && $existingEmote->pivot->emote_name == $request->reaction) {
-            $post->emotedUsers()->detach($activeUser->id);
-        } else if ($existingEmote) {
-            $post->emotedUsers()->updateExistingPivot($activeUser->id, ['emote_name' => $request->reaction]);
-        } else {
-            $post->emotedUsers()->attach($activeUser->id, ['emote_name' => $request->reaction]);
-        }
+        $post = $this->sendEmote( 
+            $request->id,
+            $request->reaction
+        );
 
         return response()->json($this->post_refresh($post));
+    }
+    private function sendEmote(int $id, string $reaction)
+    {
+        $activeUser = Auth::user();
+        $post = PostRecord::with('emotedUsers')->findOrFail($id);
+        $existingEmote = $post->emotedUsers()->where('user_id', $activeUser->id)->first();
+
+        if ($existingEmote && $existingEmote->pivot->emote_name == $reaction) {
+            $post->emotedUsers()->detach($activeUser->id);
+        } else if ($existingEmote) {
+            $post->emotedUsers()->updateExistingPivot($activeUser->id, ['emote_name' => $reaction]);
+        } else {
+            $post->emotedUsers()->attach($activeUser->id, ['emote_name' => $reaction]);
+        }
+        return $post;
     }
     private function containsOnlyEmojis($text)
     {
