@@ -38,8 +38,7 @@ const props = withDefaults(defineProps<{
     name?: string
     seed?: number
     size?: number
-    round?: boolean
-}>(), { size: 44, round: false })
+}>(), { size: 44 })
 
 const theme = useTheme()
 const initial = computed(() => (props.name?.trim()?.[0] ?? '?'))
@@ -48,7 +47,8 @@ const accentHex = computed(() => flowColorValue(props.colorId, theme.dark, props
 const boxStyle = computed(() => ({
     width: `${props.size}px`,
     height: `${props.size}px`,
-    borderRadius: props.round ? '50%' : `${Math.round(props.size * 0.24)}px`,
+    // full square app icon — no rounded corners
+    borderRadius: '0',
     // the app's own color is the background (no border ring); an uploaded image sits on a neutral surface
     background: props.iconImage ? 'var(--bg3)' : accentHex.value,
 }))

@@ -41,14 +41,10 @@
                     </div>
                     <div class="fg-row">
                         <label class="fg-label">説明</label>
-                        <textarea
-                            ref="descInput"
-                            v-model="def.description"
-                            placeholder="このアプリの用途や運用ルールを入力（任意）"
-                            class="flow-desc-input"
-                            rows="1"
-                            @input="autoGrow"
-                        ></textarea>
+                        <div class="flow-desc-editor">
+                            <!-- keyed on the app id so it re-inits with the loaded description after fetch -->
+                            <RichEditor :key="def.id ?? 'new'" :initilaValue="def.description || ''" @content-updated="def.description = $event" />
+                        </div>
                     </div>
                     <div class="fg-row">
                         <label class="fg-label">状態</label>
@@ -60,7 +56,7 @@
                     <div class="fg-row">
                         <label class="fg-label">アイコン</label>
                         <div class="fg-icon">
-                            <FlowAppIcon :icon-svg="def.icon_svg" :icon-image="def.icon_image" :color-id="def.color_id" :name="def.name" :size="60" round />
+                            <FlowAppIcon :icon-svg="def.icon_svg" :icon-image="def.icon_image" :color-id="def.color_id" :name="def.name" :size="60" />
                             <div class="fg-icon-btns">
                                 <button type="button" class="flow-ghost-btn" @click="iconCropOpen = true">画像をアップロード</button>
                                 <button type="button" class="flow-ghost-btn" :disabled="iconGenLoading || !def.name.trim()" @click="generateIcon">
@@ -123,6 +119,7 @@ import Back from '@/components/Icons/Back.vue'
 import FlowKintoneImportModal from './FlowKintoneImportModal.vue'
 import FlowAppIcon from './FlowAppIcon.vue'
 import FlowAppIconCropModal from './FlowAppIconCropModal.vue'
+import RichEditor from '@/components/Global/RichEditor.vue'
 import { useDialog } from '@/composables/dialog'
 import { pageTitleOverride } from '@/composables/pageTitle'
 import { useAuthUserStore } from '@/store/auth'
@@ -167,9 +164,6 @@ const truncating = ref(false)
 const myPerms = ref<Record<string, boolean>>({})
 const nameError = ref(false)
 const nameInput = ref<HTMLInputElement | null>(null)
-const descInput = ref<HTMLTextAreaElement | null>(null)
-const sizeDesc = (el: HTMLTextAreaElement) => { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` }
-const autoGrow = (e: Event) => sizeDesc(e.target as HTMLTextAreaElement)
 type BuilderTab = 'general' | 'form' | 'status' | 'view' | 'tools' | 'permission'
 const TAB_KEYS: BuilderTab[] = ['general', 'form', 'status', 'view', 'tools', 'permission']
 const tabFromRoute = (): BuilderTab => {
@@ -206,7 +200,8 @@ const newStatusKey = () => `s_new_${Date.now()}_${statusKeySeq++}`
 const newDefinition = (): BuilderDefinition => ({
     name: '',
     description: '',
-    color_id: null,
+    // default a new app to a color from the palette (so the icon is on-brand + a swatch is pre-selected)
+    color_id: FLOW_COLORS[Math.floor(Math.random() * FLOW_COLORS.length)].id,
     icon_svg: null,
     icon_image: null,
     is_active: true,
@@ -359,7 +354,6 @@ const onKintoneImport = (preview: any) => {
         fields: [...existing, ...added],
     }
     setTab('form')
-    nextTick(() => { if (descInput.value) sizeDesc(descInput.value) })
     const flowNote = sf?.statuses?.length ? `・ステータスフロー（${sf.statuses.length}）` : ''
     dialog.toast(`${added.length}件の項目${flowNote}を取り込みました。保存前に内容をご確認ください。`)
 }
@@ -564,8 +558,6 @@ onMounted(async () => {
         }
     } finally {
         loading.value = false
-        await nextTick()
-        if (descInput.value) sizeDesc(descInput.value)
     }
 })
 </script>
@@ -594,9 +586,9 @@ onMounted(async () => {
 .fg-swatch:hover { transform: scale(1.08); }
 .fg-swatch.on { box-shadow: 0 0 0 2px var(--primary-color); }
 .name-wrap { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-.flow-desc-input { width: 100%; font-size: 13px; color: var(--primary-color); background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 7px; padding: 8px 10px; resize: none; overflow: hidden; line-height: 1.6; min-height: 38px; transition: border-color .15s; box-sizing: border-box !important; }
-.flow-desc-input::placeholder { color: gray; }
-.flow-desc-input:focus { outline: none; border-color: var(--primary-color); }
+.flow-desc-editor { width: 100%; }
+.flow-desc-editor :deep(.editor-root) { border-radius: 7px; }
+.flow-desc-editor :deep(.tiptap) { min-height: 120px; }
 .flow-name-input { width: 100%; font-size: 14px; color: var(--primary-color); background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 7px; padding: 8px 10px; transition: border-color .15s; box-sizing: border-box !important; }
 .flow-name-input::placeholder { color: gray; font-weight: 400; }
 .flow-name-input:focus { outline: none; border-color: var(--primary-color); }
