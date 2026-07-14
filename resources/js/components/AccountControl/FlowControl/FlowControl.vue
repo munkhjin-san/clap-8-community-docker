@@ -284,7 +284,8 @@ onMounted(() => {
 .post-search-wrap { flex: 1; min-width: 0; max-width: 520px; }
 /* toggle: pinned right with breathing room, height matched to the search input.
    box-sizing is globally content-box here, so 29px content + 2px border = 31px, matching the input */
-.fc-viewtoggle { display: inline-flex; flex-shrink: 0; height: 29px; margin-left: auto; margin-right: 16px; border: 1px solid var(--formBorder); }
+/* margin-right matches the tab bar / body padding (20px) so it lines up with the sort control below */
+.fc-viewtoggle { display: inline-flex; flex-shrink: 0; height: 29px; margin-left: auto; margin-right: 20px; border: 1px solid var(--formBorder); }
 .fc-vt-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 100%; border: none; background: var(--background-color); cursor: pointer; padding: 0; }
 .fc-vt-btn + .fc-vt-btn { border-left: 1px solid var(--formBorder); }
 .fc-vt-btn :deep(svg) { fill: gray; }
