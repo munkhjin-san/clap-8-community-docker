@@ -151,8 +151,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
+import { useFlowOptionsStore } from '@/store/flowOptions'
 import FlowFieldInput from './FlowFieldInput.vue'
 import FlowCsvImportModal from './FlowCsvImportModal.vue'
 import FlowRecordFilterModal from './FlowRecordFilterModal.vue'
@@ -170,7 +172,7 @@ import FlowAppIcon from './FlowAppIcon.vue'
 import { readableTextColor } from '@/utils/flowColor'
 import { pageTitleOverride } from '@/composables/pageTitle'
 import { resolveColumns, applyFilters, applyAdhocFilter, applySort, systemColumnValue, type ResolvedColumn } from '@/utils/flowView'
-import type { FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowOptionUser, FlowOptionProject, FlowViewApi, FlowRecordsResponse, FlowAdhocFilter } from '@/types/flow'
+import type { FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowViewApi, FlowRecordsResponse, FlowAdhocFilter } from '@/types/flow'
 import type { MenuList } from '@/interface/globalInterface'
 
 const api = useApi()
@@ -184,8 +186,8 @@ const definition = ref<FlowDefinitionApi | null>(null)
 watch(() => definition.value?.name, (name) => { if (name) pageTitleOverride.value = name })
 const permissions = ref<FlowAppPermissionsDto | null>(null)
 const records = ref<FlowRecordDto[]>([])
-const users = ref<FlowOptionUser[]>([])
-const projects = ref<FlowOptionProject[]>([])
+const flowOptionsStore = useFlowOptionsStore()
+const { users, projects } = storeToRefs(flowOptionsStore)
 const views = ref<FlowViewApi[]>([])
 const activeViewId = ref<number | null>(null)
 const search = ref('')
@@ -393,8 +395,7 @@ const back = () => {
 }
 
 onMounted(async () => {
-    const opts = await api.get('/flow_options')
-    if (opts) { users.value = opts.users ?? []; projects.value = opts.projects ?? [] }
+    await flowOptionsStore.load()
     await load()
 })
 </script>

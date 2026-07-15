@@ -167,7 +167,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useApi } from '@/composables/api'
+import { useFlowOptionsStore } from '@/store/flowOptions'
 import { useResponsive } from '@/store/responsive'
 import { validateFlowField } from '@/utils/flowValidation'
 import { resolveFieldDefault } from '@/utils/flowDefaults'
@@ -190,7 +192,7 @@ import AppCommentSection from '@/components/Global/AppCommentSection.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import { isLayoutType } from '@/types/flow'
-import type { FlowField, FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowOptionUser, FlowOptionProject, FlowAppTool } from '@/types/flow'
+import type { FlowField, FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowAppTool } from '@/types/flow'
 import type { MenuList } from '@/interface/globalInterface'
 
 const api = useApi()
@@ -227,8 +229,8 @@ const actionStyle = (a: { can: boolean; color?: string | null }) => {
     return { background: c, borderColor: c, color: readableTextColor(c) }
 }
 const can = reactive({ view: true, edit: true, delete: false })
-const users = ref<FlowOptionUser[]>([])
-const projects = ref<FlowOptionProject[]>([])
+const flowOptionsStore = useFlowOptionsStore()
+const { users, projects } = storeToRefs(flowOptionsStore)
 const values = reactive<Record<string, any>>({})
 const errors = reactive<Record<string, string | null>>({})
 
@@ -354,8 +356,7 @@ const initValues = () => {
 const load = async () => {
     loading.value = true
     try {
-        const opts = await api.get('/flow_options')
-        if (opts) { users.value = opts.users ?? []; projects.value = opts.projects ?? [] }
+        await flowOptionsStore.load()
 
         if (recordId.value) {
             const data = await api.get(`/flow_app_record_by_number/${flowId.value}/${recordId.value}`)

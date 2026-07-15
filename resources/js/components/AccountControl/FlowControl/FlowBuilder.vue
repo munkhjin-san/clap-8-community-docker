@@ -110,7 +110,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useApi } from '@/composables/api'
+import { useFlowOptionsStore } from '@/store/flowOptions'
 import FlowFormTab from './FlowFormTab.vue'
 import FlowStatusTab from './FlowStatusTab.vue'
 import FlowPermissionTab from './FlowPermissionTab.vue'
@@ -130,7 +132,7 @@ import { FLOW_COLORS } from '@/utils/flowColors'
 import { useTheme } from '@/store/theme'
 import type {
     BuilderDefinition, BuilderStatus, BuilderView, FlowDefinitionApi, AppPermissionRow,
-    FlowOptionUser, FlowOptionPosition, FlowField, FlowInputType,
+    FlowField, FlowInputType,
 } from '@/types/flow'
 
 const api = useApi()
@@ -194,8 +196,8 @@ const tabs = computed(() => [
     { key: 'permission' as const, label: 'アクセス権' },
     ...(def.value.id ? [{ key: 'audit' as const, label: '監査ログ' }] : []),
 ])
-const users = ref<FlowOptionUser[]>([])
-const positions = ref<FlowOptionPosition[]>([])
+const flowOptionsStore = useFlowOptionsStore()
+const { users, positions } = storeToRefs(flowOptionsStore)
 
 const creatorRow = (): AppPermissionRow => ({
     subject_type: 'creator', subject_id: null,
@@ -561,11 +563,7 @@ const back = () => {
 
 onMounted(async () => {
     try {
-        const opts = await api.get('/flow_options')
-        if (opts) {
-            users.value = opts.users ?? []
-            positions.value = opts.positions ?? []
-        }
+        await flowOptionsStore.load()
         const id = route.params.flowId
         if (id) {
             const data = await api.get(`/flow_definitions/${id}`)
