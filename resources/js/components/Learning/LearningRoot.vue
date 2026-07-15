@@ -1,5 +1,18 @@
 <template>
-    <div class="post-root learning !bg-[var(--bg3)]">
+    <!-- Temporary maintenance screen during the big update rollout — everyone except admins. -->
+    <div v-if="!auth.isAdmin" class="learning-maintenance">
+        <div class="learning-maintenance__box">
+            <svg class="learning-maintenance__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2-2 2.5-2.5z"/>
+            </svg>
+            <p class="learning-maintenance__title">ただいまメンテナンス中です</p>
+            <p class="learning-maintenance__text">
+                アップデート対応のため、職能研修は一時的にご利用いただけません。<br>
+                準備が整い次第、再開いたします。ご不便をおかけしますが、今しばらくお待ちください。
+            </p>
+        </div>
+    </div>
+    <div v-else class="post-root learning !bg-[var(--bg3)]">
         <div>
             <router-view v-slot="{ Component }">
                 <transition name="lessonShift">
@@ -48,17 +61,21 @@ import { useResponsive } from '@/store/responsive'
 import { useLearningApi } from '@/composables/learningApi'
 import type { LearningTheme, LearningThemeCategory } from '@/types/learning'
 import { isEnabled } from '@/utils/learningProgress'
+import { useAuthUserStore } from '@/store/auth'
 import LearningThemeGrid from './shared/LearningThemeGrid.vue'
 
 const route = useRoute()
 const router = useRouter()
 const responsive = useResponsive()
+const auth = useAuthUserStore()
 
 const themeRecords = ref<LearningTheme[]>([])
 const categories = ref<LearningThemeCategory[]>([])
 const learningApi = useLearningApi()
 
 onMounted(() => {
+    // Skip data fetches while the maintenance screen is showing for non-admins.
+    if (!auth.isAdmin) return
     getThemes()
     getCategories()
 })
@@ -127,6 +144,38 @@ provide('providedMaterial', themeRecords)
 </script>
 
 <style>
+.learning-maintenance{
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg3);
+    padding: 40px 20px;
+    box-sizing: border-box;
+}
+.learning-maintenance__box{
+    max-width: 460px;
+    text-align: center;
+    color: var(--primary-color);
+    background: var(--background-color);
+    border: 1px solid var(--calendarBorder);
+    padding: 40px 32px;
+}
+.learning-maintenance__icon{
+    color: var(--third-color);
+    margin-bottom: 16px;
+}
+.learning-maintenance__title{
+    font-size: 15px;
+    margin-bottom: 12px;
+}
+.learning-maintenance__text{
+    font-size: 13px;
+    line-height: 1.9;
+    color: var(--third-color);
+}
+
 .routeposition{
     position:absolute;
     left: 0;
