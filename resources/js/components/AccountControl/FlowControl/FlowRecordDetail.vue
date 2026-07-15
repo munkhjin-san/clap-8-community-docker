@@ -24,10 +24,12 @@
                     <div class="rd-title truncate">{{ recordTitle }}</div>
                 </div>
             </div>
-            <!-- app settings: top-right of the title bar; hidden while editing a record -->
-            <button v-if="mode === 'view' && permissions?.manage" class="rd-settings" title="アプリ設定" @click="editApp">
-                <Gear :size="15" /><span class="rd-settings-label">設定</span>
+            <!-- app settings: top-right of the title bar; hidden while editing a record and on mobile
+                 (mobile consolidates it, along with the PDF/削除/編集 tools, into the ⋮ menu below) -->
+            <button v-if="mode === 'view' && permissions?.manage && !isNarrow" class="rd-settings" title="アプリ設定" @click="editApp">
+                <Gear :size="15" /><span class="rd-settings-label">アプリ設定</span>
             </button>
+            <ItemMenu v-if="mode === 'view' && isNarrow && mobileMenuItems.length" class="rd-mobile-menu" :items="mobileMenuItems" title="メニュー" />
         </div>
 
         <div class="rd-flow">
@@ -51,12 +53,13 @@
                 </template>
             </div>
             <div class="rd-flow-tools">
-                <template v-if="mode === 'view'">
+                <!-- desktop only: on mobile these consolidate into the ⋮ menu in the title bar -->
+                <template v-if="mode === 'view' && !isNarrow">
                     <button v-for="t in pdfTools" :key="t.id" class="rd-tool" @click="downloadPdf(t)" :title="t.name"><FileIcon ext="unknown" class="rd-tool-file" />{{ t.name }}</button>
                     <button v-if="!isNew && can.delete" class="rd-tool danger" @click="remove"><Trash size="13" />削除</button>
                     <button v-if="can.edit" class="rd-tool primary" @click="mode = 'edit'"><Edit size="13" />編集</button>
                 </template>
-                <template v-else>
+                <template v-else-if="mode === 'edit'">
                     <button class="rd-tool" @click="cancelEdit">キャンセル</button>
                     <button class="rd-tool primary" :disabled="saving" @click="save">保存</button>
                 </template>
@@ -78,7 +81,7 @@
                             <FlowFieldInput :field="field" :model-value="null" />
                         </template>
                         <template v-else>
-                            <label class="rd-label">
+                            <label class="rd-label truncate" :title="field.label">
                                 {{ field.label }}
                                 <span v-if="field.is_required" class="rd-req">*</span>
                             </label>
@@ -185,8 +188,10 @@ import ChevronDouble from '@/components/Icons/ChevronDouble.vue'
 import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
 import AppCommentSection from '@/components/Global/AppCommentSection.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
+import ItemMenu from '@/components/Global/ItemMenu.vue'
 import { isLayoutType } from '@/types/flow'
 import type { FlowField, FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowOptionUser, FlowOptionProject, FlowAppTool } from '@/types/flow'
+import type { MenuList } from '@/interface/globalInterface'
 
 const api = useApi()
 const route = useRoute()
@@ -286,6 +291,16 @@ const downloadPdf = (tool: FlowAppTool) => {
     if (!tool.id || !record.value?.id) return
     window.open(`/flow_tool_pdf/${tool.id}/${record.value.id}`, '_blank')
 }
+
+// mobile: the PDF/削除/編集 buttons + アプリ設定 consolidate into one ⋮ menu (desktop keeps separate buttons)
+const mobileMenuItems = computed<MenuList[]>(() => {
+    const items: MenuList[] = []
+    pdfTools.value.forEach((t) => items.push({ title: t.name, action: () => downloadPdf(t) }))
+    if (!isNew.value && can.delete) items.push({ title: '削除', action: () => remove() })
+    if (can.edit) items.push({ title: '編集', action: () => { mode.value = 'edit' } })
+    if (permissions.value?.manage) items.push({ title: 'アプリ設定', action: () => editApp() })
+    return items
+})
 
 const fieldLabelByKey = computed<Record<string, string>>(() => {
     const map: Record<string, string> = {}
@@ -442,9 +457,10 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-screen { display: flex; flex-direction: column; align-items: stretch; color: var(--primary-color); }
 .rd-screen.overlay { position: fixed; inset: 0; z-index: 30; background: var(--bg3); }
 .rd-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--calendarBorder); background: var(--background-color); }
-.rd-settings { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); fill: var(--primary-color); cursor: pointer; transition: background .12s, border-color .12s; }
+.rd-settings { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); fill: var(--primary-color); cursor: pointer; transition: background .12s, border-color .12s; }
 .rd-settings:hover { background: var(--bg3); border-color: var(--primary-color); }
 .rd-settings-label { font-size: 13px; color: var(--primary-color); white-space: nowrap; }
+.rd-mobile-menu { flex: none; }
 .rd-ghost { display: inline-flex; align-items: center; gap: 4px; background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 6px; padding: 7px 12px; font-size: 13px; cursor: pointer; fill: var(--primary-color); color: var(--primary-color); }
 .rd-ghost.danger { color: #e2574c; border-color: rgba(226, 87, 76, 0.4); }
 .rd-ghost:disabled { opacity: 0.5; cursor: default; }
@@ -453,7 +469,7 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-appname { font-size: 14px; color: var(--primary-color); line-height: 1.2; }
 .rd-title { font-size: 12px; font-weight: 500; color: gray; }
 .rd-status { font-size: 11px; color: var(--primary-color); background: var(--bg3); padding: 2px 8px; border-radius: 10px; display: inline-block; margin-top: 4px; }
-.rd-flow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 16px; border-bottom: 1px solid var(--calendarBorder); background: var(--background-color); }
+.rd-flow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px; border-bottom: 1px solid var(--calendarBorder); background: var(--background-color); }
 .rd-flow-status { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; min-width: 0; }
 .rd-flow-tools { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .rd-tool { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--formBorder); background: var(--background-color); color: var(--primary-color); cursor: pointer; }
@@ -475,7 +491,7 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-main { flex: 1; min-width: 0; overflow: auto; padding: 20px; }
 .rd-canvas { width: max-content; min-width: 100%; }
 .rd-row { display: flex; gap: 20px; margin-bottom: 20px; align-items: stretch; }
-.rd-block { flex: 0 0 auto; box-sizing: border-box !important; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 8px; padding: 15px; }
+.rd-block { flex: 0 0 auto; box-sizing: border-box !important; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 5px; padding: 15px; }
 .rd-heading-block { border: none; background: none; padding: 4px 0; }
 /* narrow screens: ignore builder-set pixel widths and stack fields full-width */
 .rd-screen.overlay .rd-canvas { width: 100%; }
