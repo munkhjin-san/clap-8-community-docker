@@ -279,19 +279,25 @@ class PdfRenderService
         $headBg = $this->safeColor($headStyle['fill'] ?? '#f0f2f5', '#f0f2f5');
         $borderColor = $this->safeColor($table['borderColor'] ?? '#c9cfd8', '#c9cfd8');
         $cellPt = round($this->safeNum($table['fontSize'] ?? 11, 11) * 0.75, 1);
+        $showHeader = ($table['showHeader'] ?? true) !== false;
+        $showBorder = ($table['showBorder'] ?? true) !== false;
+        $cellBorder = $showBorder ? "1px solid {$borderColor}" : 'none';
 
         $wrap = "margin-left:{$x}mm; width:{$w}mm;";
         $html = "<div style=\"{$wrap}\">";
         $html .= "<table class=\"detail\" style=\"width:100%; border-collapse:collapse; font-size:{$cellPt}pt;\">";
 
-        // header row (repeats on page break)
-        $html .= '<thead><tr>';
-        foreach ($columns as $c) {
-            $cw = isset($c['width']) && $c['width'] ? 'width:'.(float) $c['width'].'%;' : '';
-            $al = $this->safeAlign($c['align'] ?? 'left');
-            $html .= "<th style=\"{$cw} text-align:{$al}; background:{$headBg}; border:1px solid {$borderColor}; padding:4px 6px; font-weight:700;\">".e((string) ($c['label'] ?? '')).'</th>';
+        // header row (repeats on page break) — omitted entirely when showHeader is off
+        if ($showHeader) {
+            $html .= '<thead><tr>';
+            foreach ($columns as $c) {
+                $cw = isset($c['width']) && $c['width'] ? 'width:'.(float) $c['width'].'%;' : '';
+                $al = $this->safeAlign($c['align'] ?? 'left');
+                $html .= "<th style=\"{$cw} text-align:{$al}; background:{$headBg}; border:{$cellBorder}; padding:4px 6px; font-weight:700;\">".e((string) ($c['label'] ?? '')).'</th>';
+            }
+            $html .= '</tr></thead>';
         }
-        $html .= '</tr></thead><tbody>';
+        $html .= '<tbody>';
 
         // body rows
         $subtotal = 0.0;
@@ -301,7 +307,7 @@ class PdfRenderService
                 $al = $this->safeAlign($c['align'] ?? 'left');
                 $raw = is_array($row) ? ($row[$c['colKey'] ?? ''] ?? null) : null;
                 $txt = e($this->formatScalar($raw, $c['format'] ?? null, $c));
-                $html .= "<td style=\"text-align:{$al}; border:1px solid {$borderColor}; padding:4px 6px;\">{$txt}</td>";
+                $html .= "<td style=\"text-align:{$al}; border:{$cellBorder}; padding:4px 6px;\">{$txt}</td>";
             }
             $html .= '</tr>';
             if ($amountKey !== null && is_array($row) && is_numeric($row[$amountKey] ?? null)) {

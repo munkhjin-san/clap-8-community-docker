@@ -48,13 +48,20 @@
                     <div class="rv-searchwrap">
                         <PostSearchBar className="newChatMemberSearch" :customPlaceHolder="searchPlaceholder" @searchStart="onSearch" />
                     </div>
+                    <button
+                        class="rv-filterbtn"
+                        :title="hasAdhocFilter ? `フィルター（${adhocFilter.conditions.length}件の条件）` : 'フィルター'"
+                        @click="filterModalOpen = true"
+                    >
+                        <Filter size="14" :filtered="hasAdhocFilter" />
+                    </button>
                     <div class="rv-viewinfo">
                         <select v-if="views.length > 1" v-model="activeViewId" class="rv-ctrl" @change="onViewChange">
                             <option v-for="v in views" :key="v.id" :value="v.id">{{ v.name }}</option>
                         </select>
-                        <span v-else-if="activeView" class="rv-viewname">{{ activeView.name }}</span>
+                        <!-- <span v-else-if="activeView" class="rv-viewname">{{ activeView.name }}</span> -->
                         <button v-if="canBulk && selected.size" class="rv-bulkdel" @click="bulkDelete">選択削除 ({{ selected.size }})</button>
-                        <span class="rv-count">{{ totalCount }}件</span>
+                        <!-- <span class="rv-count">{{ totalCount }}件</span> -->
                     </div>
                 </div>
 
@@ -120,19 +127,40 @@
             @close="closeImport"
             @imported="onImported"
         />
+
+        <FlowRecordFilterModal
+            v-if="filterModalOpen && definition"
+            :fields="definition.fields"
+            :users="users"
+            :has-status="!!definition.use_status_flow"
+            :status-names="statusNames"
+            :model-value="adhocFilter"
+            @apply="onApplyFilter"
+            @close="filterModalOpen = false"
+        />
+
+        <FlowCsvExportModal
+            v-if="exportModalOpen && definition"
+            :fields="definition.fields"
+            :build-url="buildExportUrl"
+            @close="exportModalOpen = false"
+        />
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 import FlowFieldInput from './FlowFieldInput.vue'
 import FlowCsvImportModal from './FlowCsvImportModal.vue'
+import FlowRecordFilterModal from './FlowRecordFilterModal.vue'
+import FlowCsvExportModal from './FlowCsvExportModal.vue'
 import Back from '@/components/Icons/Back.vue'
 import Edit from '@/components/Icons/Edit.vue'
 import Gear from '@/components/Icons/Gear.vue'
+import Filter from '@/components/Icons/Filter.vue'
 import PostSearchBar from '@/components/Post/PostSearchBar.vue'
 import PostSearchPager from '@/components/Post/PostSearchPager.vue'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
@@ -141,8 +169,8 @@ import AddIcon from '@/components/Form/AddIcon.vue'
 import FlowAppIcon from './FlowAppIcon.vue'
 import { readableTextColor } from '@/utils/flowColor'
 import { pageTitleOverride } from '@/composables/pageTitle'
-import { resolveColumns, applyFilters, applySort, systemColumnValue, type ResolvedColumn } from '@/utils/flowView'
-import type { FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowOptionUser, FlowOptionProject, FlowViewApi, FlowRecordsResponse } from '@/types/flow'
+import { resolveColumns, applyFilters, applyAdhocFilter, applySort, systemColumnValue, type ResolvedColumn } from '@/utils/flowView'
+import type { FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowOptionUser, FlowOptionProject, FlowViewApi, FlowRecordsResponse, FlowAdhocFilter } from '@/types/flow'
 import type { MenuList } from '@/interface/globalInterface'
 
 const api = useApi()
@@ -164,6 +192,19 @@ const search = ref('')
 const sortRef = ref<number | string | null>(null)
 const sortDir = ref<'asc' | 'desc'>('asc')
 const importInput = ref<HTMLInputElement | null>(null)
+
+// ad-hoc filter (from the search bar's ⚲ icon) — session-only, not saved to the view
+const adhocFilter = reactive<FlowAdhocFilter>({ logic: 'and', conditions: [] })
+const hasAdhocFilter = computed(() => adhocFilter.conditions.length > 0)
+const filterModalOpen = ref(false)
+const statusNames = computed(() => (definition.value?.statuses ?? []).map((s) => s.name).filter(Boolean))
+const onApplyFilter = (f: FlowAdhocFilter) => {
+    adhocFilter.logic = f.logic
+    adhocFilter.conditions = f.conditions
+    filterModalOpen.value = false
+    page.value = 1
+    refetch()
+}
 
 const flowId = computed(() => route.params.flowId)
 const activeView = computed<FlowViewApi | null>(() => views.value.find((v) => v.id === activeViewId.value) ?? views.value[0] ?? null)
@@ -190,7 +231,7 @@ const canManage = computed(() => !!permissions.value?.manage)
 const editApp = () => router.push({ name: 'flow-builder', params: { flowId: flowId.value } })
 const csvItems = computed<MenuList[]>(() => {
     const items: MenuList[] = []
-    if (canExport.value) items.push({ title: 'CSV出力', action: exportCsv })
+    if (canExport.value) items.push({ title: 'CSV出力', action: () => { exportModalOpen.value = true } })
     if (canImport.value) items.push({ title: 'CSV取込', action: () => importInput.value?.click() })
     return items
 })
@@ -213,6 +254,7 @@ const page = ref(1)
 // Client mode only (apps with record-level perms return the full visible set): filter+search+sort locally.
 const filteredClient = computed(() => {
     let list = applyFilters(records.value, activeView.value?.filters)
+    list = applyAdhocFilter(list, adhocFilter)
     const kw = search.value.trim().toLowerCase()
     if (kw) {
         list = list.filter((r) =>
@@ -239,6 +281,7 @@ const load = async () => {
         if (activeViewId.value) params.set('view_id', String(activeViewId.value))
         if (search.value.trim()) params.set('search', search.value.trim())
         if (sortRef.value !== null) { params.set('sort_field', String(sortRef.value)); params.set('sort_dir', sortDir.value) }
+        if (hasAdhocFilter.value) params.set('filters', JSON.stringify(adhocFilter))
         const data = await api.get(`/flow_app_records/${flowId.value}?${params.toString()}`) as (FlowRecordsResponse & { mode?: string; total?: number }) | null
         if (data) {
             definition.value = data.definition
@@ -283,7 +326,15 @@ const toggleSort = (ref: number | string) => {
     refetch()
 }
 
-const exportCsv = () => { if (definition.value) window.location.href = `/flow_app_export/${definition.value.id}` }
+const exportModalOpen = ref(false)
+const buildExportUrl = (opts: { encoding: 'utf8' | 'sjis'; scope: 'all' | 'table'; tableFieldId: number | null }) => {
+    const params = new URLSearchParams({ encoding: opts.encoding, scope: opts.scope })
+    if (activeViewId.value) params.set('view_id', String(activeViewId.value))
+    if (sortRef.value !== null) { params.set('sort_field', String(sortRef.value)); params.set('sort_dir', sortDir.value) }
+    if (hasAdhocFilter.value) params.set('filters', JSON.stringify(adhocFilter))
+    if (opts.scope === 'table' && opts.tableFieldId) params.set('table_field_id', String(opts.tableFieldId))
+    return `/flow_app_export/${definition.value!.id}?${params.toString()}`
+}
 const importFile = ref<File | null>(null)
 const importCsv = (e: Event) => {
     const input = e.target as HTMLInputElement
@@ -356,6 +407,9 @@ onMounted(async () => {
 .rv-back { flex: none; cursor: pointer; fill: var(--primary-color); padding: 4px; }
 .rv-appicon { flex: none; }
 .rv-searchwrap { flex: 0 1 480px; min-width: 0; display: flex; align-items: center; }
+
+.rv-filterbtn {box-sizing: border-box !important; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); cursor: pointer; }
+.rv-filterbtn:hover { background: var(--bg3); border-color: var(--primary-color); }
 .rv-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
 .rv-actbtn { display: flex; align-items: center; gap: 6px; height: 20px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; transition: background .12s, border-color .12s; fill: var(--primary-color); }
 .rv-actbtn:hover { background: var(--bg3); border-color: var(--primary-color); }
@@ -368,9 +422,22 @@ onMounted(async () => {
 .rv-title { flex: 1 1 auto; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;line-height: 1.5; }
 .rv-viewinfo { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
 .rv-viewname { font-size: 13px; color: var(--primary-color); }
-.rv-ctrl { height: 30px; padding: 0 10px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); font-size: 13px; cursor: pointer; }
 .rv-count { font-size: 12px; color: gray; white-space: nowrap; }
-
+.rv-ctrl {
+    height: 30px;
+    padding: 0 5px;
+    border: 1px solid var(--formBorder);
+    border-radius: 6px;
+    background: var(--background-color);
+    color: var(--primary-color);
+    font-size: 13px;
+    cursor: pointer;
+    max-width: 160px;
+    padding-right: 20px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 .rv-desc { padding: 12px 16px; font-size: 13px; line-height: 1.6; color: var(--primary-color); border-top: 1px solid var(--calendarBorder); position: sticky; left: 0; background: var(--background-color); }
 .rv-desc :deep(img) { max-width: 100%; height: auto; }
 .rv-desc :deep(a) { color: var(--primary-button, var(--primary-color)); text-decoration: underline; }
@@ -422,4 +489,14 @@ onMounted(async () => {
 .rv-datecell { font-size: 13px; color: gray; }
 .rv-time { opacity: .6; }
 .rv-empty { text-align: center; color: gray; font-size: 13px; padding: 40px; }
+
+@media (min-width: 959px) {
+    .rv-searchwrap { max-width: 280px; }
+}
+@media screen and (max-width: 959px) {
+    
+    .rv-ctrl {
+        max-width: 90px;
+    }
+}
 </style>

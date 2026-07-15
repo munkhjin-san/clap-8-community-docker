@@ -271,6 +271,12 @@ export interface FlowViewSort {
     field: number | string
     direction: 'asc' | 'desc'
 }
+/** Ad-hoc (session-only) record-list filter opened via the search bar's filter icon. Unlike a
+ *  saved view's filters (always AND), the user picks a single AND/OR across all conditions. */
+export interface FlowAdhocFilter {
+    logic: 'and' | 'or'
+    conditions: FlowViewFilter[]
+}
 export interface FlowViewApi {
     id?: number
     name: string
@@ -359,6 +365,8 @@ export interface PdfElement {
     currency?: string
     fontSize?: number
     borderColor?: string
+    showHeader?: boolean   // 見出し行の表示（既定 true）
+    showBorder?: boolean   // 罫線の表示（既定 true）
 }
 
 export interface PdfTemplate {
@@ -436,6 +444,19 @@ export interface FlowOptionUser {
 export interface FlowOptionPosition {
     id: number
     name: string
+}
+
+export type FlowAuditAction = 'record_view' | 'csv_export' | 'settings_change' | 'file_download'
+
+/** App-level audit trail entry (「監査ログ」builder tab) — distinct from a record's own 変更履歴. */
+export interface FlowAuditLogEntry {
+    id: number
+    user: FlowOptionUser | null
+    action: FlowAuditAction
+    record: { id: number; record_number: number } | null
+    /** Shape depends on `action` — see FlowController::logAudit() call sites for each event's fields. */
+    meta: Record<string, any> | null
+    created_at: string
 }
 
 export interface FlowOptionProject {

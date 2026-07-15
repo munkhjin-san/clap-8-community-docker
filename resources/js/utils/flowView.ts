@@ -3,7 +3,7 @@ import {
     FLOW_SYS_RECORD_NUMBER, FLOW_SYS_STATUS, FLOW_SYS_CREATED_AT, FLOW_SYS_UPDATED_AT,
 } from '@/types/flow'
 import type {
-    FlowField, FlowRecordDto, FlowViewApi, FlowViewFilter, FlowViewSort, FlowViewOperator,
+    FlowField, FlowRecordDto, FlowViewApi, FlowViewFilter, FlowViewSort, FlowViewOperator, FlowAdhocFilter,
 } from '@/types/flow'
 
 export interface ResolvedColumn {
@@ -94,6 +94,15 @@ export const matchesFilter = (rec: FlowRecordDto, f: FlowViewFilter): boolean =>
 
 export const applyFilters = (records: FlowRecordDto[], filters?: FlowViewFilter[] | null): FlowRecordDto[] =>
     !filters?.length ? records : records.filter((r) => filters.every((f) => matchesFilter(r, f)))
+
+/** Ad-hoc filter (from the search bar's ⚲ icon): same per-condition semantics as a view's filters,
+ *  but the conditions combine via a single chosen AND/OR rather than always-AND. */
+export const applyAdhocFilter = (records: FlowRecordDto[], filter?: FlowAdhocFilter | null): FlowRecordDto[] => {
+    if (!filter?.conditions.length) return records
+    return filter.logic === 'or'
+        ? records.filter((r) => filter.conditions.some((f) => matchesFilter(r, f)))
+        : records.filter((r) => filter.conditions.every((f) => matchesFilter(r, f)))
+}
 
 const compare = (a: any, b: any): number => {
     const an = numeric(a), bn = numeric(b)

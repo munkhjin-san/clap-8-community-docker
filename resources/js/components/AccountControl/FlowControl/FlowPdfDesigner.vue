@@ -53,8 +53,8 @@
                                     <span v-else class="pd-ph">画像</span>
                                 </template>
                                 <template v-else-if="el.type === 'table'">
-                                    <table class="pd-mini">
-                                        <thead><tr><th v-for="(c, ci) in (el.columns || [])" :key="ci">{{ c.label || '列' }}</th><th v-if="!(el.columns || []).length">明細列</th></tr></thead>
+                                    <table class="pd-mini" :class="{ 'pd-mini-noborder': el.showBorder === false }">
+                                        <thead v-if="el.showHeader !== false"><tr><th v-for="(c, ci) in (el.columns || [])" :key="ci">{{ c.label || '列' }}</th><th v-if="!(el.columns || []).length">明細列</th></tr></thead>
                                         <tbody><tr v-for="r in 2" :key="r"><td v-for="(c, ci) in (el.columns || [])" :key="ci">—</td><td v-if="!(el.columns || []).length">—</td></tr></tbody>
                                     </table>
                                 </template>
@@ -153,6 +153,10 @@
                                     <button class="pd-col-del" @click="sel.columns!.splice(ci, 1)"><CloseIcon size="8" /></button>
                                 </div>
                                 <button class="pd-col-add" :disabled="!sourceColumns.length" @click="addColumn">＋ 列を追加</button>
+                            </div>
+                            <div class="pd-toggles">
+                                <label class="pd-ck"><input type="checkbox" v-model="showHeaderModel"> 見出し行を表示</label>
+                                <label class="pd-ck"><input type="checkbox" v-model="showBorderModel"> 罫線を表示</label>
                             </div>
                             <label class="pd-f">合計に使う金額列
                                 <select v-model="sel.amountColKey">
@@ -259,7 +263,7 @@ const addElement = (type: PdfElementType) => {
             sourceFieldKey: srcKey,
             columns: columnsFromSource(srcKey), amountColKey: guessAmountCol(srcKey),
             showSubtotal: true, showTax: true, showTotal: true, tax: { rate: 0.1 }, currency: '¥',
-            borderColor: '#c9cfd8', fontSize: 11,
+            borderColor: '#c9cfd8', fontSize: 11, showHeader: true, showBorder: true,
         })
     }
     elements.value.push(base)
@@ -352,6 +356,15 @@ const styleProp = (key: string, def: any) => computed({
     get: () => (sel.value?.style as any)?.[key] ?? def,
     set: (v) => { if (sel.value) { sel.value.style = { ...(sel.value.style || {}), [key]: v } } },
 })
+// direct (non-style) element property with a default — needed so a table saved before showHeader/
+// showBorder existed still reads as "on" (matches the render service's ?? true fallback) instead of
+// the checkbox showing unchecked for old data that has never actually hidden them.
+const elProp = (key: 'showHeader' | 'showBorder', def: boolean) => computed({
+    get: () => (sel.value as any)?.[key] ?? def,
+    set: (v) => { if (sel.value) (sel.value as any)[key] = v },
+})
+const showHeaderModel = elProp('showHeader', true)
+const showBorderModel = elProp('showBorder', true)
 const fontSize = styleProp('fontSize', 13)
 const align = styleProp('align', 'left')
 const color = styleProp('color', '#111827')
@@ -469,6 +482,7 @@ const closePreview = () => { if (previewUrl.value) URL.revokeObjectURL(previewUr
 .pd-mini { width: 100%; border-collapse: collapse; font-size: 8px; }
 .pd-mini th, .pd-mini td { border: 1px solid #d5d9e0; padding: 1px 3px; color: #6b7280; }
 .pd-mini th { background: #f0f2f5; }
+.pd-mini-noborder th, .pd-mini-noborder td { border: none; }
 .pd-resize { position: absolute; right: -5px; bottom: -5px; width: 11px; height: 11px; background: var(--primary-button, var(--primary-color)); border: 2px solid #fff; border-radius: 50%; cursor: nwse-resize; }
 
 .pd-insp { width: 280px; flex-shrink: 0; border-left: 1px solid var(--calendarBorder); background: var(--background-color); padding: 14px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box !important; }

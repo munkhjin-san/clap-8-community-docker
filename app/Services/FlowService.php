@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\FlowAuditLog;
 use App\Models\FlowDefinition;
 use App\Models\FlowField;
 use App\Models\FlowRecord;
@@ -9,6 +10,7 @@ use App\Models\FlowRecordAssignee;
 use App\Models\FlowRecordValue;
 use App\Models\FlowStatus;
 use App\Models\FlowStatusAction;
+use App\Models\FlowView;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -209,6 +211,22 @@ class FlowService
     public function logRecordCreated(FlowRecord $record, User $user): void
     {
         $record->logs()->create(['user_id' => $user->id, 'action' => 'created']);
+    }
+
+    /**
+     * App-level audit trail (「監査ログ」builder tab) — distinct from the per-record 変更履歴
+     * (UpdateLog/$record->logs()) above. Covers record views, CSV exports, settings changes, and
+     * file downloads; never record field edits (those stay in the per-record change log).
+     */
+    public function logAudit(FlowDefinition $definition, ?User $user, string $action, ?FlowRecord $record = null, array $meta = []): void
+    {
+        FlowAuditLog::create([
+            'flow_definition_id' => $definition->id,
+            'user_id' => $user?->id,
+            'flow_record_id' => $record?->id,
+            'action' => $action,
+            'meta' => $meta,
+        ]);
     }
 
     /** Execute a button: move to its target status and log the change. */
@@ -525,6 +543,62 @@ class FlowService
      | offset pagination. (Mirrors utils/flowView.ts, but in SQL.)
      |---------------------------------------------------------------- */
 
+    /**
+     * Resolve a view's column list (or "all" when the view has none) into ordered descriptors —
+     * mirrors resolveColumns()/allColumnRefs() in utils/flowView.ts, used for CSV export since that
+     * has no client-rendered table to read columns from.
+     */
+    public function resolveExportColumns(FlowDefinition $definition, ?FlowView $view, bool $hasStatus): array
+    {
+        $fields = ($definition->relationLoaded('fields') ? $definition->fields : $definition->fields()->get())
+            ->filter(fn ($f) => ! self::isLayoutType($f->input_type))
+            ->values();
+        $fieldsById = $fields->keyBy('id');
+
+        $refs = is_array($view?->columns) && $view->columns
+            ? $view->columns
+            : $this->allExportColumnRefs($fields, $hasStatus);
+
+        $sysLabels = [
+            '$record_number' => 'ID',
+            '$status' => 'ステータス',
+            '$created_at' => '作成日時',
+            '$updated_at' => '更新日時',
+        ];
+
+        $out = [];
+        foreach ($refs as $ref) {
+            if (is_string($ref) && str_starts_with($ref, '$')) {
+                if ($ref === '$status' && ! $hasStatus) {
+                    continue;
+                }
+                if (isset($sysLabels[$ref])) {
+                    $out[] = ['ref' => $ref, 'system' => true, 'label' => $sysLabels[$ref], 'field' => null];
+                }
+
+                continue;
+            }
+            $field = $fieldsById->get((int) $ref);
+            if ($field) {
+                $out[] = ['ref' => $field->id, 'system' => false, 'label' => $field->label, 'field' => $field];
+            }
+        }
+
+        return $out;
+    }
+
+    /** Default (null-columns) view = ID (+ ステータス) + all non-layout fields + 作成日時 + 更新日時. */
+    private function allExportColumnRefs($fields, bool $hasStatus): array
+    {
+        return [
+            '$record_number',
+            ...($hasStatus ? ['$status'] : []),
+            ...$fields->pluck('id')->all(),
+            '$created_at',
+            '$updated_at',
+        ];
+    }
+
     private function valueColumnFor(?string $type): string
     {
         return match ($type) {
@@ -537,8 +611,13 @@ class FlowService
         };
     }
 
-    /** Base query: definition scope + view filters + keyword search (no ordering). */
-    public function recordListQuery(FlowDefinition $definition, array $filters, string $search)
+    /**
+     * Base query: definition scope + view filters + ad-hoc filter + keyword search (no ordering).
+     * $adhocFilter (optional): ['logic' => 'and'|'or', 'conditions' => [same shape as $filters]] —
+     * the search bar's quick filter. Unlike the view's own filters (always AND), its conditions
+     * combine via the chosen logic, applied as one extra AND-ed group alongside everything else.
+     */
+    public function recordListQuery(FlowDefinition $definition, array $filters, string $search, ?array $adhocFilter = null)
     {
         $fieldsById = ($definition->relationLoaded('fields') ? $definition->fields : $definition->fields()->get())->keyBy('id');
         // Qualify the column — a sort on the $status column left-joins flow_statuses,
@@ -547,6 +626,9 @@ class FlowService
 
         foreach ($filters as $f) {
             $this->applyFilterToQuery($q, $f, $fieldsById);
+        }
+        if ($adhocFilter) {
+            $this->applyAdhocFilterToQuery($q, $adhocFilter, $fieldsById);
         }
 
         $kw = trim($search);
@@ -604,6 +686,28 @@ class FlowService
         if (! $applied) {
             $q->orderByDesc('created_at')->orderByDesc('id');
         }
+    }
+
+    /**
+     * Ad-hoc filter (search bar's quick filter): its conditions combine via a single chosen
+     * AND/OR, applied as one grouped clause so it AND-composes cleanly with the view's own
+     * (always-AND) filters and the keyword search built elsewhere in recordListQuery().
+     */
+    private function applyAdhocFilterToQuery($q, array $adhoc, $fieldsById): void
+    {
+        $conditions = is_array($adhoc['conditions'] ?? null) ? $adhoc['conditions'] : [];
+        if (! $conditions) {
+            return;
+        }
+        $isOr = ($adhoc['logic'] ?? 'and') === 'or';
+        $q->where(function ($outer) use ($conditions, $fieldsById, $isOr) {
+            foreach (array_values($conditions) as $i => $f) {
+                $method = ($isOr && $i > 0) ? 'orWhere' : 'where';
+                $outer->$method(function ($sub) use ($f, $fieldsById) {
+                    $this->applyFilterToQuery($sub, $f, $fieldsById);
+                });
+            }
+        });
     }
 
     private function applyFilterToQuery($q, array $f, $fieldsById): void

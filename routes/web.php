@@ -1039,6 +1039,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/flow_formula_preview', [FlowController::class, 'previewFormula']);
         Route::get('/flow_app_export/{definition}', [FlowController::class, 'exportRecords']);
         Route::post('/flow_app_import', [FlowController::class, 'importRecords']);
+        Route::get('/flow_audit_logs/{definition}', [FlowController::class, 'getFlowAuditLogs']);
+        Route::get('/flow_audit_log/{logId}/download', [FlowController::class, 'downloadAuditExport']);
+        Route::post('/flow_file_download_log', [FlowController::class, 'logFileDownload']);
 
         Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
 

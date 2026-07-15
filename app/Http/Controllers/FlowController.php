@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\FlowAppTool;
+use App\Models\FlowAuditLog;
 use App\Models\FlowDefinition;
 use App\Models\FlowField;
 use App\Models\FlowRecord;
@@ -16,6 +17,7 @@ use App\Services\PdfRenderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Mpdf\Output\Destination;
 
@@ -360,6 +362,11 @@ class FlowController extends Controller
                 ? new FlowDefinition(['created_by' => $user->id])
                 : FlowDefinition::findOrFail($data['id']);
 
+            // Snapshot before any sync* call mutates it — the audit diff below compares this against
+            // the same snapshot shape taken again once everything's saved. Skipped on create: there's
+            // nothing to diff a brand-new app against.
+            $before = $isNew ? null : $this->snapshotDefinitionForAudit($definition);
+
             $definition->fill([
                 'name' => $data['name'],
                 'description' => $data['description'] ?? null,
@@ -396,6 +403,13 @@ class FlowController extends Controller
 
             if (array_key_exists('tools', $data)) {
                 $this->syncTools($definition, $data['tools']);
+            }
+
+            if (! $isNew) {
+                $diff = $this->diffDefinitionSnapshots($before, $this->snapshotDefinitionForAudit($definition));
+                if ($diff) {
+                    $this->flowService->logAudit($definition, $user, 'settings_change', null, ['diff' => $diff]);
+                }
             }
 
             return $definition;
@@ -729,6 +743,123 @@ class FlowController extends Controller
         }
     }
 
+    /**
+     * Snapshot every builder-editable concern of an app, for diffing before vs. after a
+     * saveFlowDefinition() save (audit log's "settings_change" event). Always queries fresh from the
+     * DB rather than relying on possibly-stale relation loads, since it's called both before and
+     * after the sync* calls mutate the same $definition instance within one transaction.
+     */
+    private function snapshotDefinitionForAudit(FlowDefinition $definition): array
+    {
+        return [
+            'general' => $definition->only(['name', 'description', 'color_id', 'is_active', 'use_status_flow', 'project_record_id']) + [
+                'has_icon_svg' => (bool) $definition->icon_svg,
+                'has_icon_image' => (bool) $definition->icon_image,
+            ],
+            'fields' => $definition->fields()->get([
+                'id', 'key', 'label', 'input_type', 'options', 'is_required', 'hidden',
+                'order_number', 'layout_row', 'width', 'depends_on', 'validation', 'formula', 'result_type',
+            ])->toArray(),
+            'statuses' => $definition->statuses()->get(['id', 'name', 'order_number', 'is_initial', 'color'])->toArray(),
+            'status_actions' => $definition->statusActions()->get(['id', 'flow_status_id', 'to_status_id', 'name', 'label', 'color', 'eligible', 'sort_order'])->toArray(),
+            'app_permissions' => $definition->appPermissions()->get([
+                'id', 'subject_type', 'subject_id', 'can_view', 'can_add', 'can_edit', 'can_delete',
+                'can_manage', 'can_import', 'can_export', 'can_bulk', 'sort_order',
+            ])->toArray(),
+            'field_permissions' => $definition->fieldPermissions()->get(['id', 'field_id', 'subject_type', 'subject_id', 'can_view', 'can_edit', 'sort_order'])->toArray(),
+            // Nested conditions/grants aren't worth a fine-grained diff (rare to change, hard to
+            // summarize usefully) — a changed/unchanged flag on the whole structure is enough.
+            'record_permissions' => $definition->recordPermissionSets()->with('conditions', 'grants')->get()->toArray(),
+            'views' => $definition->views()->get(['id', 'name', 'is_default', 'columns', 'filters', 'sort'])->toArray(),
+            'tools' => $definition->tools()->get(['id', 'tool_type', 'name', 'config', 'is_active', 'sort_order'])->toArray(),
+        ];
+    }
+
+    /** Per-concern diff between two snapshotDefinitionForAudit() results; empty array = no changes. */
+    private function diffDefinitionSnapshots(array $before, array $after): array
+    {
+        $diff = [];
+
+        $generalDiff = [];
+        foreach ($after['general'] as $k => $v) {
+            $old = $before['general'][$k] ?? null;
+            if ($old != $v) {
+                $generalDiff[$k] = ['old' => $old, 'new' => $v];
+            }
+        }
+        if ($generalDiff) {
+            $diff['general'] = $generalDiff;
+        }
+
+        $byId = fn ($fields) => fn ($b, $a) => $this->diffRowsByKey($b, $a, fn ($r) => $r['id'], $fields);
+        $byIdentity = fn ($idFields, $fields) => fn ($b, $a) => $this->diffRowsByKey(
+            $b, $a, fn ($r) => implode('|', array_map(fn ($f) => (string) ($r[$f] ?? ''), $idFields)), $fields
+        );
+
+        $concerns = [
+            'fields' => $byId(['key', 'label', 'input_type', 'options', 'is_required', 'hidden', 'order_number', 'layout_row', 'width', 'depends_on', 'validation', 'formula', 'result_type']),
+            'statuses' => $byId(['name', 'order_number', 'is_initial', 'color']),
+            'status_actions' => $byId(['flow_status_id', 'to_status_id', 'name', 'label', 'color', 'eligible', 'sort_order']),
+            'app_permissions' => $byIdentity(['subject_type', 'subject_id'], ['can_view', 'can_add', 'can_edit', 'can_delete', 'can_manage', 'can_import', 'can_export', 'can_bulk', 'sort_order']),
+            'field_permissions' => $byIdentity(['field_id', 'subject_type', 'subject_id'], ['can_view', 'can_edit', 'sort_order']),
+            'views' => $byId(['name', 'is_default', 'columns', 'filters', 'sort']),
+            'tools' => $byId(['tool_type', 'name', 'config', 'is_active']),
+        ];
+        foreach ($concerns as $key => $fn) {
+            $d = $fn($before[$key], $after[$key]);
+            if ($d) {
+                $diff[$key] = $d;
+            }
+        }
+
+        if (json_encode($before['record_permissions']) !== json_encode($after['record_permissions'])) {
+            $diff['record_permissions'] = ['changed' => true];
+        }
+
+        return $diff;
+    }
+
+    /** Generic added/removed/changed diff over two row-array snapshots, matched by an arbitrary key. */
+    private function diffRowsByKey(array $before, array $after, callable $keyFn, array $fields): array
+    {
+        $beforeByKey = collect($before)->keyBy($keyFn);
+        $afterByKey = collect($after)->keyBy($keyFn);
+        $addedKeys = $afterByKey->keys()->diff($beforeByKey->keys());
+        $removedKeys = $beforeByKey->keys()->diff($afterByKey->keys());
+
+        $changed = [];
+        foreach ($afterByKey as $key => $row) {
+            if (! $beforeByKey->has($key)) {
+                continue;
+            }
+            $old = $beforeByKey[$key];
+            $fieldDiff = [];
+            foreach ($fields as $f) {
+                $ov = $old[$f] ?? null;
+                $nv = $row[$f] ?? null;
+                if ($ov != $nv) {
+                    $fieldDiff[$f] = ['old' => $ov, 'new' => $nv];
+                }
+            }
+            if ($fieldDiff) {
+                $changed[(string) $key] = $fieldDiff;
+            }
+        }
+
+        $result = [];
+        if ($addedKeys->isNotEmpty()) {
+            $result['added'] = $afterByKey->only($addedKeys)->values()->all();
+        }
+        if ($removedKeys->isNotEmpty()) {
+            $result['removed'] = $beforeByKey->only($removedKeys)->values()->all();
+        }
+        if ($changed) {
+            $result['changed'] = $changed;
+        }
+
+        return $result;
+    }
+
     public function deleteFlowDefinition(Request $request)
     {
         $user = $this->active_user();
@@ -849,17 +980,21 @@ class FlowController extends Controller
         $sort = $request->filled('sort_field')
             ? [['field' => $request->input('sort_field'), 'direction' => $request->input('sort_dir') === 'desc' ? 'desc' : 'asc']]
             : (is_array($view?->sort) ? $view->sort : []);
+        // ad-hoc filter from the search bar's quick-filter icon (session-only, not saved to the view)
+        $adhocFilter = $this->decodeAdhocFilter($request);
 
         // Formula fields hold no stored value, so SQL can't filter/sort by them. When a view's
-        // filters or sort reference one, fall back to the client-compute path: return every visible
-        // record with its computed values and let the front-end filter/sort/paginate (mirrors the
-        // record-permission branch above). Keeps SQL pagination for the common no-formula case.
+        // filters or sort (or the ad-hoc filter) reference one, fall back to the client-compute path:
+        // return every visible record with its computed values and let the front-end filter/sort/
+        // paginate (mirrors the record-permission branch above). Keeps SQL pagination for the common
+        // no-formula case.
         $isFormulaRef = function ($ref) use ($fields) {
             return is_numeric($ref)
                 && optional($fields->firstWhere('id', (int) $ref))->input_type === 'formula';
         };
         $needsCompute = collect($filters)->contains(fn ($f) => $isFormulaRef($f['field'] ?? null))
-            || collect($sort)->contains(fn ($s) => $isFormulaRef($s['field'] ?? null));
+            || collect($sort)->contains(fn ($s) => $isFormulaRef($s['field'] ?? null))
+            || collect($adhocFilter['conditions'] ?? [])->contains(fn ($f) => $isFormulaRef($f['field'] ?? null));
         if ($needsCompute) {
             $records = FlowRecord::where('flow_records.flow_definition_id', $definition->id)
                 ->with($with)->orderByDesc('created_at')->get();
@@ -872,7 +1007,7 @@ class FlowController extends Controller
             ]);
         }
 
-        $query = $this->flowService->recordListQuery($definition, $filters, (string) $request->input('search', ''));
+        $query = $this->flowService->recordListQuery($definition, $filters, (string) $request->input('search', ''), $adhocFilter);
         $total = (clone $query)->count();
         $this->flowService->applyRecordSort($query, $sort, $definition);
         $records = $query->with($with)->forPage($page, $perPage)->get();
@@ -886,6 +1021,126 @@ class FlowController extends Controller
             'page' => $page,
             'per_page' => $perPage,
         ]);
+    }
+
+    /**
+     * Decode + lightly sanitize the `filters` query param (the search bar's ad-hoc quick filter):
+     * {"logic": "and"|"or", "conditions": [{"field", "operator", "values"}, ...]}. Malformed input
+     * (or no conditions) yields null — the caller then just skips ad-hoc filtering. Field/operator
+     * values aren't otherwise validated here since applyFilterToQuery()/applyScalarOp() already treat
+     * unknown fields/operators as no-ops or safe defaults.
+     */
+    private function decodeAdhocFilter(Request $request): ?array
+    {
+        $raw = $request->input('filters');
+        if (! $raw) {
+            return null;
+        }
+        $decoded = json_decode((string) $raw, true);
+        if (! is_array($decoded) || ! is_array($decoded['conditions'] ?? null)) {
+            return null;
+        }
+        $conditions = [];
+        foreach ($decoded['conditions'] as $c) {
+            if (! is_array($c) || ! array_key_exists('field', $c) || ! isset($c['operator'])) {
+                continue;
+            }
+            $conditions[] = [
+                'field' => $c['field'],
+                'operator' => (string) $c['operator'],
+                'values' => is_array($c['values'] ?? null) ? array_values($c['values']) : [],
+            ];
+        }
+        if (! $conditions) {
+            return null;
+        }
+
+        return ['logic' => ($decoded['logic'] ?? 'and') === 'or' ? 'or' : 'and', 'conditions' => $conditions];
+    }
+
+    /**
+     * App-level audit log (「監査ログ」builder tab) — manage-only. Distinct from a record's own
+     * 変更履歴 (UpdateLog): this tracks who opened/exported/downloaded what and when, plus settings
+     * changes, never individual field edits.
+     */
+    public function getFlowAuditLogs(Request $request, $definitionId)
+    {
+        $user = $this->active_user();
+        $definition = FlowDefinition::findOrFail($definitionId);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['manage'], 403);
+
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = min(100, max(10, (int) $request->input('per_page', 30)));
+
+        $query = FlowAuditLog::where('flow_definition_id', $definition->id)
+            ->with(['user', 'record'])
+            ->orderByDesc('id');
+
+        $action = (string) $request->input('action', '');
+        if ($action !== '') {
+            $query->where('action', $action);
+        }
+
+        $total = (clone $query)->count();
+        $logs = $query->forPage($page, $perPage)->get();
+
+        return response()->json([
+            'logs' => $logs->map(fn ($l) => [
+                'id' => $l->id,
+                'user' => $l->user,
+                'action' => $l->action,
+                'record' => $l->record ? ['id' => $l->record->id, 'record_number' => $l->record->record_number] : null,
+                'meta' => $l->meta,
+                'created_at' => $l->created_at,
+            ]),
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage,
+        ]);
+    }
+
+    /** Re-download the archived copy of a past CSV export (manage-only), from a 'csv_export' log row. */
+    public function downloadAuditExport($logId)
+    {
+        $user = $this->active_user();
+        $log = FlowAuditLog::with('definition')->findOrFail($logId);
+        abort_unless($log->action === 'csv_export', 404);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $log->definition)['manage'], 403);
+
+        $path = $log->meta['stored_path'] ?? null;
+        abort_unless($path && Storage::disk('local')->exists($path), 404);
+
+        return response()->download(storage_path('app/'.$path), $log->meta['filename'] ?? 'export.csv');
+    }
+
+    /**
+     * Best-effort self-report of a Flow file-field download (mirrors DriveController's own
+     * writeDownloadLogs precedent: the frontend reports the event after it fires the download,
+     * rather than gating the shared /cdn/ file route itself). The record id is recoverable straight
+     * from the stored path (flow_record_files/{record_id}/...), so no extra props need threading
+     * through FlowFieldInput → FilePreview just to identify which record a download belongs to.
+     */
+    public function logFileDownload(Request $request)
+    {
+        $data = $request->validate([
+            'url' => 'required|string',
+            'name' => 'required|string',
+        ]);
+
+        if (! preg_match('#^/cdn/flow_record_files/(\d+)/#', $data['url'], $m)) {
+            return response()->noContent();
+        }
+
+        $record = FlowRecord::with('definition')->find((int) $m[1]);
+        if (! $record) {
+            return response()->noContent();
+        }
+
+        $this->flowService->logAudit($record->definition, $this->active_user(), 'file_download', $record, [
+            'file_name' => $data['name'],
+        ]);
+
+        return response()->noContent();
     }
 
     /**
@@ -965,7 +1220,7 @@ class FlowController extends Controller
     {
         $record = FlowRecord::with(self::RECORD_DETAIL_WITH)->findOrFail($id);
 
-        return $this->respondWithRecordDetail($record);
+        return $this->respondWithRecordDetail($record, logView: true);
     }
 
     /** Addressed by (app, per-app record number) — matches the /custom-apps/records/{app}/edit/{number} URL. */
@@ -976,15 +1231,24 @@ class FlowController extends Controller
             ->where('record_number', $number)
             ->firstOrFail();
 
-        return $this->respondWithRecordDetail($record);
+        return $this->respondWithRecordDetail($record, logView: true);
     }
 
-    private function respondWithRecordDetail(FlowRecord $record)
+    /**
+     * $logView is only true from the two GET-by-id/number entry points above — the record-detail
+     * response is also reused by write actions (e.g. status transitions) to hand back the fresh
+     * record, and those aren't "opens" for audit purposes.
+     */
+    private function respondWithRecordDetail(FlowRecord $record, bool $logView = false)
     {
         $user = $this->active_user();
         $def = $record->definition;
         $recordPerms = $this->flowService->recordPermissions($user, $record, $def);
         abort_unless($recordPerms['view'], 403);
+
+        if ($logView) {
+            $this->flowService->logAudit($def, $user, 'record_view', $record, ['record_number' => $record->record_number]);
+        }
 
         $statusNames = $def->statuses->pluck('name', 'id');
         $actions = $this->flowService->statusActionsFor($record)->map(fn ($a) => [
@@ -1292,38 +1556,223 @@ class FlowController extends Controller
      | CSV export / import
      |================================================================ */
 
-    public function exportRecords($definitionId)
+    /**
+     * CSV export. Options:
+     *  - encoding: 'utf8' (default, BOM'd for Excel) | 'sjis' (Shift-JIS/CP932, no BOM)
+     *  - scope: 'all' (default — the view's columns, table field included as a kintone-style
+     *    multi-row block if present) | 'table' (only one chosen Table field's rows, merged across
+     *    every record in range, with a leading ID + New-record-flag column for traceability)
+     *  - table_field_id: required when scope=table
+     *
+     * Export range (fields/filter/sort) follows the currently open view, UNLESS the caller passes
+     * an ad-hoc filter and/or a column sort — those override the view's own filter/sort respectively
+     * (they don't compose with it, unlike the live records view). Fields always come from the view.
+     */
+    public function exportRecords(Request $request, $definitionId)
     {
         $user = $this->active_user();
         $definition = FlowDefinition::with(['fields', 'appPermissions', 'recordPermissionSets'])->findOrFail($definitionId);
         abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['export'], 403);
 
-        $fields = $definition->fields->filter(fn ($f) => ! $f->hidden && ! FlowService::isLayoutType($f->input_type))->values();
-        $records = FlowRecord::where('flow_definition_id', $definition->id)
-            ->with('values')
-            ->orderByDesc('created_at')
-            ->get()
-            ->filter(fn ($r) => $this->flowService->recordPermissions($user, $r, $definition)['view'])
-            ->values();
+        $hasStatus = (bool) $definition->use_status_flow;
+        $views = $definition->views()->get();
+        $view = $views->firstWhere('id', (int) $request->input('view_id'))
+            ?? $views->firstWhere('is_default', true) ?? $views->first();
 
-        $filename = (Str::slug($definition->name) ?: 'app').'-'.now()->format('YmdHis').'.csv';
+        $adhocFilter = $this->decodeAdhocFilter($request);
+        $overrideSort = $request->filled('sort_field')
+            ? [['field' => $request->input('sort_field'), 'direction' => $request->input('sort_dir') === 'desc' ? 'desc' : 'asc']]
+            : [];
+        $sort = $overrideSort ?: (is_array($view?->sort) ? $view->sort : []);
+        // an ad-hoc filter fully replaces the view's own filter for export (not AND-composed, unlike
+        // the live records view — see the class doc above)
+        $filtersForQuery = $adhocFilter ? [] : (is_array($view?->filters) ? $view->filters : []);
 
-        return response()->streamDownload(function () use ($records, $fields, $definition) {
-            echo "\xEF\xBB\xBF";
-            $out = fopen('php://output', 'w');
-            fputcsv($out, array_merge(['ID'], $fields->pluck('label')->all(), ['作成日時', '更新日時']));
-            foreach ($records as $rec) {
-                $vals = $this->flowService->recordValues($rec, $definition->fields);
-                $row = [$rec->id];
-                foreach ($fields as $f) {
-                    $row[] = $this->csvValue($vals[(string) $f->id] ?? null);
-                }
-                $row[] = optional($rec->created_at)->format('Y-m-d H:i:s');
-                $row[] = optional($rec->updated_at)->format('Y-m-d H:i:s');
-                fputcsv($out, $row);
+        $query = $this->flowService->recordListQuery($definition, $filtersForQuery, '', $adhocFilter);
+        $this->flowService->applyRecordSort($query, $sort, $definition);
+        $records = $query->with(['values', 'currentStatus:id,name'])->get();
+
+        if ($definition->recordPermissionSets->isNotEmpty()) {
+            $records = $records->filter(fn ($r) => $this->flowService->recordPermissions($user, $r, $definition)['view'])->values();
+        }
+
+        $scope = $request->input('scope') === 'table' ? 'table' : 'all';
+        $encoding = $request->input('encoding') === 'sjis' ? 'sjis' : 'utf8';
+
+        if ($scope === 'table') {
+            $tableField = $definition->fields->firstWhere('id', (int) $request->input('table_field_id'));
+            abort_if(! $tableField || $tableField->input_type !== 'table', 422, 'テーブル項目を選択してください。');
+            [$headers, $rows] = $this->buildTableOnlyExportRows($definition, $tableField, $records);
+        } else {
+            $columns = $this->flowService->resolveExportColumns($definition, $view, $hasStatus);
+            [$headers, $rows] = $this->buildAllFieldsExportRows($definition, $columns, $records);
+        }
+
+        // Str::slug() strips non-ASCII entirely (Japanese app names would come out as "app"), so
+        // sanitize just the filesystem-illegal characters instead of transliterating.
+        $safeName = trim(preg_replace('/[\\\\\/:*?"<>|]+/u', '_', $definition->name)) ?: 'app';
+        $filename = "{$safeName}-".now()->format('YmdHis').'.csv';
+
+        // Build the CSV up front (rather than streaming row-by-row) so the exact bytes served to the
+        // browser can also be archived for the audit log — "csv export -> what was exported" needs a
+        // real copy on disk, not just a metadata summary of the request.
+        $content = $this->buildCsvString($headers, $rows, $encoding);
+
+        $storedPath = "flow_audit_exports/{$definition->id}/".now()->format('Ymd_His')."_u{$user->id}.csv";
+        Storage::disk('local')->put($storedPath, $content);
+
+        $this->flowService->logAudit($definition, $user, 'csv_export', null, [
+            'filename' => $filename,
+            'encoding' => $encoding,
+            'scope' => $scope,
+            'table_field_id' => $scope === 'table' ? (int) $request->input('table_field_id') : null,
+            'row_count' => count($rows),
+            'stored_path' => $storedPath,
+        ]);
+
+        return response()->streamDownload(function () use ($content) {
+            echo $content;
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset='.($encoding === 'sjis' ? 'Shift_JIS' : 'UTF-8'),
+        ]);
+    }
+
+    /** Renders headers+rows to a CSV string in the given encoding (BOM'd for utf8, CP932 for sjis). */
+    private function buildCsvString(array $headers, array $rows, string $encoding): string
+    {
+        $out = fopen('php://temp', 'r+');
+        if ($encoding === 'utf8') {
+            fwrite($out, "\xEF\xBB\xBF"); // BOM so Excel opens UTF-8 CSVs correctly
+        }
+        // CP932's double-byte trail bytes (0x40-0x7E, 0x80-0xFC) never collide with the ASCII
+        // delimiter/enclosure bytes fputcsv scans for (, " \r \n), so converting per-cell before
+        // fputcsv is safe — no risk of a Japanese character's trailing byte being mistaken for a
+        // comma/quote and corrupting the row structure.
+        $convert = fn ($v) => $encoding === 'sjis' ? mb_convert_encoding((string) $v, 'SJIS-win', 'UTF-8') : $v;
+        fputcsv($out, array_map($convert, $headers));
+        foreach ($rows as $row) {
+            fputcsv($out, array_map($convert, $row));
+        }
+        rewind($out);
+        $content = stream_get_contents($out);
+        fclose($out);
+
+        return $content;
+    }
+
+    /**
+     * "All fields" export: the view's own columns, in order. When those columns include a Table
+     * field, its rows expand into a kintone-style multi-row block per record — a leading "New record
+     * flag" column marks the first physical row of each record ('*') vs. continuations (blank), and
+     * the record's own (non-table) column values only appear on that first row, exactly mirroring
+     * kintone's own table-export layout (and what FlowController::parseCsv's importer expects back).
+     * Only the FIRST table-type column drives this; any further table columns (rare — most apps have
+     * at most one) fall back to a flattened single-cell join via csvValue().
+     */
+    private function buildAllFieldsExportRows(FlowDefinition $definition, array $columns, $records): array
+    {
+        $tableColIndex = null;
+        foreach ($columns as $i => $c) {
+            if (! $c['system'] && $c['field']->input_type === 'table') {
+                $tableColIndex = $i;
+                break;
             }
-            fclose($out);
-        }, $filename, ['Content-Type' => 'text/csv; charset=UTF-8']);
+        }
+
+        $tableColumn = null;
+        $scalarColumns = $columns;
+        if ($tableColIndex !== null) {
+            $tableColumn = $columns[$tableColIndex]['field'];
+            unset($scalarColumns[$tableColIndex]);
+            $scalarColumns = array_values($scalarColumns);
+        }
+
+        $subCols = $tableColumn && is_array($tableColumn->validation['columns'] ?? null) ? $tableColumn->validation['columns'] : [];
+
+        $headers = array_merge(
+            $tableColumn ? ['New record flag'] : [],
+            array_map(fn ($c) => $c['label'], $scalarColumns),
+            array_map(fn ($c) => (string) ($c['label'] ?? $c['key'] ?? ''), $subCols),
+        );
+
+        $rows = [];
+        foreach ($records as $rec) {
+            $vals = $this->flowService->recordValues($rec, $definition->fields);
+            $scalarValues = array_map(fn ($c) => $this->exportScalarValue($rec, $c, $vals), $scalarColumns);
+
+            if (! $tableColumn) {
+                $rows[] = $scalarValues;
+
+                continue;
+            }
+
+            $tableRows = $vals[(string) $tableColumn->id] ?? [];
+            if (! is_array($tableRows) || ! count($tableRows)) {
+                $tableRows = [[]]; // still emit the record's own row even when its table is empty
+            }
+            foreach (array_values($tableRows) as $ri => $row) {
+                $flag = $ri === 0 ? '*' : '';
+                $rowScalars = $ri === 0 ? $scalarValues : array_fill(0, count($scalarValues), '');
+                $rowTableVals = array_map(
+                    fn ($c) => $this->csvValue(is_array($row) ? ($row[$c['key'] ?? ''] ?? null) : null),
+                    $subCols,
+                );
+                $rows[] = array_merge([$flag], $rowScalars, $rowTableVals);
+            }
+        }
+
+        return [$headers, $rows];
+    }
+
+    /** One resolved export column's formatted value for a record (system sentinel or a real field). */
+    private function exportScalarValue(FlowRecord $rec, array $col, array $vals): string
+    {
+        if ($col['system']) {
+            return match ($col['ref']) {
+                '$record_number' => (string) $rec->record_number,
+                '$status' => (string) ($rec->currentStatus->name ?? ''),
+                '$created_at' => (string) (optional($rec->created_at)->format('Y-m-d H:i:s') ?? ''),
+                '$updated_at' => (string) (optional($rec->updated_at)->format('Y-m-d H:i:s') ?? ''),
+                default => '',
+            };
+        }
+
+        return $this->csvValue($vals[(string) $col['field']->id] ?? null);
+    }
+
+    /**
+     * "Only tables" export: just one chosen Table field's rows, merged across every record in range.
+     * Same kintone-style New-record-flag convention as the all-fields path, with a leading ID
+     * (record number) column for traceability — blank on continuation rows, like any other scalar
+     * column would be. A record whose table is empty contributes no rows at all.
+     */
+    private function buildTableOnlyExportRows(FlowDefinition $definition, FlowField $tableField, $records): array
+    {
+        $subCols = is_array($tableField->validation['columns'] ?? null) ? $tableField->validation['columns'] : [];
+        $headers = array_merge(
+            ['New record flag', 'ID'],
+            array_map(fn ($c) => (string) ($c['label'] ?? $c['key'] ?? ''), $subCols),
+        );
+
+        $rows = [];
+        foreach ($records as $rec) {
+            $vals = $this->flowService->recordValues($rec, $definition->fields);
+            $tableRows = $vals[(string) $tableField->id] ?? [];
+            if (! is_array($tableRows) || ! count($tableRows)) {
+                continue; // nothing to contribute
+            }
+            foreach (array_values($tableRows) as $ri => $row) {
+                $flag = $ri === 0 ? '*' : '';
+                $id = $ri === 0 ? (string) $rec->record_number : '';
+                $rowVals = array_map(
+                    fn ($c) => $this->csvValue(is_array($row) ? ($row[$c['key'] ?? ''] ?? null) : null),
+                    $subCols,
+                );
+                $rows[] = array_merge([$flag, $id], $rowVals);
+            }
+        }
+
+        return [$headers, $rows];
     }
 
     /**

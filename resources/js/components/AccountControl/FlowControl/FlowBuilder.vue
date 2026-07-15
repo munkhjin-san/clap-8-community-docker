@@ -99,6 +99,7 @@
             <FlowViewTab v-show="tab === 'view'" :def="def" :users="users" />
             <FlowToolsTab v-show="tab === 'tools'" :def="def" :users="users" />
             <FlowPermissionTab v-show="tab === 'permission'" :def="def" :users="users" :positions="positions" />
+            <FlowAuditLogTab v-if="def.id && auditOpened" v-show="tab === 'audit'" :def="def" />
         </div>
 
         <FlowKintoneImportModal v-if="kintoneOpen" @close="kintoneOpen = false" @import="onKintoneImport" />
@@ -107,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, nextTick, watch } from 'vue'
+import { computed, onMounted, ref, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '@/composables/api'
 import FlowFormTab from './FlowFormTab.vue'
@@ -115,6 +116,7 @@ import FlowStatusTab from './FlowStatusTab.vue'
 import FlowPermissionTab from './FlowPermissionTab.vue'
 import FlowViewTab from './FlowViewTab.vue'
 import FlowToolsTab from './FlowToolsTab.vue'
+import FlowAuditLogTab from './FlowAuditLogTab.vue'
 import Back from '@/components/Icons/Back.vue'
 import FlowKintoneImportModal from './FlowKintoneImportModal.vue'
 import FlowAppIcon from './FlowAppIcon.vue'
@@ -164,8 +166,8 @@ const truncating = ref(false)
 const myPerms = ref<Record<string, boolean>>({})
 const nameError = ref(false)
 const nameInput = ref<HTMLInputElement | null>(null)
-type BuilderTab = 'general' | 'form' | 'status' | 'view' | 'tools' | 'permission'
-const TAB_KEYS: BuilderTab[] = ['general', 'form', 'status', 'view', 'tools', 'permission']
+type BuilderTab = 'general' | 'form' | 'status' | 'view' | 'tools' | 'permission' | 'audit'
+const TAB_KEYS: BuilderTab[] = ['general', 'form', 'status', 'view', 'tools', 'permission', 'audit']
 const tabFromRoute = (): BuilderTab => {
     const t = route.params.tab as string | undefined
     return TAB_KEYS.includes(t as BuilderTab) ? (t as BuilderTab) : 'general'
@@ -177,14 +179,21 @@ const setTab = (key: BuilderTab) => {
     router.push({ name: 'flow-builder', params: { ...route.params, tab: key === 'general' ? undefined : key }, query: route.query })
 }
 watch(() => route.params.tab, () => { if (route.name === 'flow-builder') tab.value = tabFromRoute() })
-const tabs = [
+// lazy-mount the audit tab: it fetches from the server (unlike the other tabs, which just edit the
+// already-loaded `def`), so don't fire that request until the user actually opens it. Sticky once
+// true so switching away and back doesn't re-fetch/re-mount.
+const auditOpened = ref(tab.value === 'audit')
+watch(tab, (t) => { if (t === 'audit') auditOpened.value = true })
+// 監査ログ only makes sense once the app exists (it has nothing to show, and no id to query by, beforehand).
+const tabs = computed(() => [
     { key: 'general' as const, label: '基本情報' },
     { key: 'form' as const, label: 'フォーム' },
     { key: 'status' as const, label: 'フロー設定' },
     { key: 'view' as const, label: 'ビュー' },
     { key: 'tools' as const, label: 'ツール' },
     { key: 'permission' as const, label: 'アクセス権' },
-]
+    ...(def.value.id ? [{ key: 'audit' as const, label: '監査ログ' }] : []),
+])
 const users = ref<FlowOptionUser[]>([])
 const positions = ref<FlowOptionPosition[]>([])
 
