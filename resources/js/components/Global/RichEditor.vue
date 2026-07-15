@@ -70,7 +70,7 @@
                     <div v-if="filePickerView" class="file-picker-overlay" @click.stop="filePickerView = false">  
                         <div class="file-picker-modal" @click.stop>
                             <div class="file-picker-header">
-                                <p>ファイルを選択</p>
+                                <p>{{ filePickerTitle }}</p>
                                 <CloseIcon size="13" class="cursor-pointer" @click.stop="filePickerView = false" />
                             </div>
                             
@@ -106,8 +106,17 @@
                                     <div v-if="activeFile" class="preview-content">
                                         <h4>プレビュー</h4>
                                         <div class="preview-media">
-                                            <img v-if="fileExtension(activeFile) == 'webp'" :src="`/${activeFile.path}`" alt="Preview" />
-                                            <video v-else :src="`/${activeFile.path}`" controls></video>
+                                            <img v-if="activeFileType === 'image'" :src="`/${activeFile.path}`" alt="Preview" />
+                                            <video v-else-if="activeFileType === 'video'" :src="`/${activeFile.path}`" controls></video>
+                                            <object
+                                                v-else
+                                                :data="`/${activeFile.path}`"
+                                                type="application/pdf"
+                                                width="100%"
+                                                height="100%"
+                                            >
+                                                <p>PDFプレビューを表示できません。</p>
+                                            </object>
                                         </div>
                                         <p class="preview-filename">{{ getFileName(activeFile) }}</p>
                                     </div>
@@ -126,7 +135,16 @@
                             />
                             
                             <div class="file-picker-actions">
-                                <input @click.stop @change.stop="uploadImage" ref="filePicker" type="file" style="display: none;" name="videoPicker" id="videoPicker"/>
+                                <input
+                                    @click.stop
+                                    @change.stop="uploadImage"
+                                    ref="filePicker"
+                                    type="file"
+                                    style="display: none;"
+                                    name="lessonFilePicker"
+                                    :id="`lessonFilePicker-${activeFileType}`"
+                                    :accept="filePickerAccept"
+                                />
                                 <button class="action-button" @click.stop="uploadStart">アップロード</button>
                                 <button v-if="activeFile" class="action-button" @click.stop="applyFile()">適用</button>
                                 <button v-if="activeFile" class="action-button danger" @click.stop="deleteFile()">削除</button>
@@ -137,7 +155,25 @@
                 </Teleport>
             </div>
 
-            <button @click.stop="viewFilePicker" :class="['toolbar-button']">
+            <button
+                title="画像を追加"
+                @click.stop="viewFilePicker('image')"
+                :class="['toolbar-button', {'command-active': filePickerView && activeFileType === 'image'}]"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21 19V5H3V19H21ZM21 3C22.1046 3 23 3.89543 23 5V19C23 20.1046 22.1046 21 21 21H3C1.89543 21 1 20.1046 1 19V5C1 3.89543 1.89543 3 3 3H21ZM8.5 11.5L11 14.51L14.5 10L19 16H5L8.5 11.5ZM8 10C6.89543 10 6 9.10457 6 8C6 6.89543 6.89543 6 8 6C9.10457 6 10 6.89543 10 8C10 9.10457 9.10457 10 8 10Z"></path></svg>
+            </button>
+            <button
+                title="動画を追加"
+                @click.stop="viewFilePicker('video')"
+                :class="['toolbar-button', {'command-active': filePickerView && activeFileType === 'video'}]"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17 10.5V6C17 5.44772 16.5523 5 16 5H4C3.44772 5 3 5.44772 3 6V18C3 18.5523 3.44772 19 4 19H16C16.5523 19 17 18.5523 17 18V13.5L21 17.5V6.5L17 10.5ZM15 17H5V7H15V17ZM7 9H13V11H7V9Z"></path></svg>
+            </button>
+            <button
+                title="PDFを追加"
+                @click.stop="viewFilePicker('pdf')"
+                :class="['toolbar-button', {'command-active': filePickerView && activeFileType === 'pdf'}]"
+            >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 8L9.00319 2H19.9978C20.5513 2 21 2.45531 21 2.9918V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5501 3 20.9932V8ZM10 4V9H5V20H19V4H10Z"></path></svg>
             </button>
         </div>
@@ -186,13 +222,14 @@ interface FileItem {
     name: string
     last_modified: number
 }
+type LessonFileType = 'image' | 'video' | 'pdf'
 
 const colorPickerView = ref<number| null>(null)
 const fileList = ref<FileItem[]>([])
 const activeFile = ref<FileItem | null>(null)
 const filePicker = ref<HTMLInputElement| null>(null)
 const uploading = ref(false)
-const fileFetchCount = ref(0)
+const activeFileType = ref<LessonFileType>('image')
 const currentPage = ref(1)
 const totalPages = ref(1)
 const perPage = ref(10)
@@ -250,11 +287,31 @@ const selectColor = (color: string) => {
     colorPickerView.value = null
 }
 const getFileList = async() => {
-    const response = await api.get(`/get_lesson_files?page=${currentPage.value}&per_page=${perPage.value}`)
+    const response = await api.get(`/get_lesson_files?page=${currentPage.value}&per_page=${perPage.value}&type=${activeFileType.value}`)
     fileList.value = response.data
     totalPages.value = response.last_page
     currentPage.value = response.current_page
 }
+
+const filePickerTitle = computed(() => {
+    const labels: Record<LessonFileType, string> = {
+        image: '画像を選択',
+        video: '動画を選択',
+        pdf: 'PDFを選択',
+    }
+
+    return labels[activeFileType.value]
+})
+
+const filePickerAccept = computed(() => {
+    const accept: Record<LessonFileType, string> = {
+        image: 'image/*',
+        video: 'video/*',
+        pdf: 'application/pdf',
+    }
+
+    return accept[activeFileType.value]
+})
 
 const getFileName = (file: FileItem) => {
     return file.path.replace('lesson_files/', '')
@@ -294,7 +351,7 @@ const setLink = () => {
 }
 const fileExtension = (file: FileItem | null) => {
     if (!file) return ''
-    return file.path.split('.').pop() || ''
+    return (file.path.split('.').pop() || '').toLowerCase()
 }
 const uploadingProgress = ref(0)
 const filePickerView = ref(false)
@@ -305,7 +362,7 @@ const uploadImage = async(event:Event) => {
         const formData = new FormData()                   
       
         formData.append('file', files[0])
-        formData.append('type', target.id)
+        formData.append('type', activeFileType.value)
     
         await api.post('/upload_lesson_file', formData , {
             loadingRef: uploading,
@@ -317,10 +374,12 @@ const uploadImage = async(event:Event) => {
 }   
 const applyFile = () => {
     if (!activeFile.value) return
-    if(fileExtension(activeFile.value) == 'webp'){
+    if(activeFileType.value === 'image'){
         editor.value?.chain().focus().setImage({ src: `/${activeFile.value.path}` }).run()
-    }else{
+    }else if (activeFileType.value === 'video'){
         editor.value?.chain().insertContentAt(editor.value.state.selection.anchor, `[[learning_video src="/${activeFile.value.path}" learning_video]]`).focus().run()
+    } else {
+        editor.value?.chain().insertContentAt(editor.value.state.selection.anchor, `[[learning_pdf src="/${activeFile.value.path}" learning_pdf]]`).focus().run()
     }
     filePickerView.value = false
     activeFile.value = null
@@ -332,13 +391,15 @@ const deleteFile = async() => {
     getFileList()
     activeFile.value = null  
 }
-const viewFilePicker = () => {
-    filePickerView.value = !filePickerView.value
-    if(filePickerView.value && fileFetchCount.value == 0){
+const viewFilePicker = (type: LessonFileType) => {
+    const shouldOpen = !filePickerView.value || activeFileType.value !== type
+
+    activeFileType.value = type
+    filePickerView.value = shouldOpen
+    activeFile.value = null
+
+    if(filePickerView.value){
         currentPage.value = 1
-        getFileList()
-        fileFetchCount.value++
-    } else if(filePickerView.value) {
         getFileList()
     }
 }
@@ -515,6 +576,12 @@ const viewFilePicker = () => {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
+}
+
+.preview-media object {
+    border: 0;
+    min-height: 260px;
+    width: 100%;
 }
 
 .preview-filename {

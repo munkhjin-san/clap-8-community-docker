@@ -24,7 +24,6 @@ import LoaderButton from './LoaderButton.vue';
 import { useDialog } from '@/composables/dialog';
 import { useApi } from '@/composables/api';
 import { useSSE } from '@/composables/sse';
-import { s } from 'vue-router/dist/router-CWoNjPRp.mjs';
 const props = defineProps<{
     sourceText?: string,
     assistandId?: number,
@@ -32,7 +31,7 @@ const props = defineProps<{
     confirmText: string,
     answer?: boolean,
     configKey?: string,
-    promptId?: string
+    lessonThemeId?: number | string | string[] | null
 }>()
 const reviewResultRaw = ref(props.sourceText ? props.sourceText : '')
 const loading = ref(false)
@@ -76,10 +75,15 @@ const openAiReview = async() => {
         stop();
         reviewResultRaw.value = ''
         loading.value = true
-        if(props.promptId){
-            start('/stream_prompt', { request_id: id, prompt_id: props.promptId })
-        }else if(props.configKey){
-            start( `/stream_prompt`, { request_id: id, config_key: props.configKey } )
+        if(props.configKey){
+            const params: Record<string, string | number | boolean> = {
+                request_id: id,
+                config_key: props.configKey,
+            }
+            if (props.lessonThemeId) {
+                params.lesson_theme_id = Array.isArray(props.lessonThemeId) ? props.lessonThemeId[0] : props.lessonThemeId
+            }
+            start('/stream_prompt', params)
         }
         
     }catch(e){

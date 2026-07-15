@@ -5,6 +5,8 @@ use App\Models\positionRecord;
 use App\Models\User;
 use App\Models\SalaryIssue;
 use App\Models\ProjectGoal;
+use App\Services\SalaryIssue\SalaryIssueEligibilityService;
+use App\Services\SalaryIssue\SalaryIssueThemeSuggestionService;
 use App\Models\customFieldDataRecord;
 use App\Models\CustomfieldRead;
 use Illuminate\Http\Request;
@@ -492,7 +494,7 @@ class MemberController extends Controller
         $record = SalaryIssue::where('id', $request->id)->where('user_id', Auth::id())->delete();
         return response()->json($record);
     }
-    public function save_kadai_template(Request $request){
+    public function save_kadai_template(Request $request, SalaryIssueEligibilityService $eligibility){
         $request->validate([
             'goal_id' => 'required',
             'theme' => 'required',
@@ -513,15 +515,20 @@ class MemberController extends Controller
             if($other_goals_with_salary_issue){
                 throw ValidationException::withMessages(['message' => 'このテーマで既に昇給課題が作られています。']);
             }
+
+            // Prev-half score allowance (360/480 -> 0/1/2) + grade-axis eligibility.
+            $eligibility->assertCanCreate($goal, $theme);
+
             $record = new SalaryIssue;
-            
+
         }
-        
+
         $record->user_id = $request->user_id;
         $record->mentor_id = $request->mentor_id;
         $record->project_goal_id = $request->goal_id;
         $record->title = $request->title;
         $record->theme = $request->theme;
+        $record->lesson_theme_id = $eligibility->resolveThemeId($theme);
         $record->date = $request->date;
         $record->content = $request->issue_content;
         $record->review = $request->review;
@@ -544,6 +551,25 @@ class MemberController extends Controller
         }
         $record->actions()->whereNotIn('id',  $new_actions)->delete();
         return response()->json($record);
+    }
+    public function get_salary_issue_eligibility(Request $request, SalaryIssueEligibilityService $eligibility){
+        $request->validate([
+            'goal_id' => 'required',
+        ]);
+        $goal = ProjectGoal::findOrFail($request->goal_id);
+
+        return response()->json(
+            $eligibility->summary((int) $goal->user_id, (int) $goal->year, (string) $goal->which_half)
+        );
+    }
+    public function suggest_salary_issue_theme(Request $request, SalaryIssueThemeSuggestionService $suggester){
+        $request->validate([
+            'goal_id' => 'required',
+            'candidates' => 'required|array|min:1',
+        ]);
+        $goal = ProjectGoal::findOrFail($request->goal_id);
+
+        return response()->json($suggester->suggest($goal, $request->candidates));
     }
     public function get_kadai_themes(){
         $list = $this->kadai_themes(null);

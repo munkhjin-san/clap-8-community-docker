@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\GenerateLunchChallenge;
+use App\Models\LessonThemeAiConfig;
 use App\Models\User;
 use App\Services\ChallengeSuggestionService;
 use App\Services\Contracts\CachedContractExtractionService;
@@ -210,28 +211,40 @@ TXT
         abort_if(!$package['input'], 400, '入力テキストが見つかりません。');
 
         Arr::forget($query, 'request_id');
+        $lessonThemeId = $query['lesson_theme_id'] ?? null;
+        Arr::forget($query, 'lesson_theme_id');
 
         foreach($query as $key => $value){
             if($key === 'config_key'){
-                $configKey = $value;
-                $configKey = "services.openai.prompts." . $configKey;
+                if ($lessonThemeId) {
+                    $themeConfig = LessonThemeAiConfig::query()
+                        ->where('lesson_theme_id', $lessonThemeId)
+                        ->where('config_key', $value)
+                        ->first();
+
+                    abort_if(!$themeConfig, 400, '無効なconfig_keyです。');
+
+                    $settings = is_array($themeConfig->settings) ? $themeConfig->settings : [];
+                    $package = array_merge($settings, [
+                        'input' => $package['input'],
+                        'model' => $themeConfig->model ?: config('services.openai.chat_model', 'gpt-4.1-mini'),
+                        'instructions' => $themeConfig->instructions ?? '',
+                    ]);
+
+                    continue;
+                }
+
+                $configKey = "services.openai.prompts." . $value;
                 $promptId = config($configKey);
                 abort_if(!$promptId, 400, '無効なconfig_keyです。');
 
                 $package['prompt']['id'] = $promptId;
-            } else if($key === 'prompt_id'){
-                $promptId = $value;
-                abort_if(!$promptId, 400, '無効なprompt_idです。');
-
-                $package['prompt']['id'] = $promptId;
-                Arr::forget($query, 'prompt_id');
-            }
-            else {                
+            } else {
                 $package['prompt']['variables'][$key] = $value;
             }
         }
         
-        if(empty($package['prompt']['variables'])){
+        if(isset($package['prompt']['variables']) && empty($package['prompt']['variables'])){
             Arr::forget($package['prompt'], 'variables');
         }
         $apiKey = config('services.openai.api_key');
