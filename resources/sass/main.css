@@ -176,7 +176,7 @@ a:active,
 a:hover {
   color: var(--link-color);
   text-decoration: underline;
-  font-weight: 600;
+  /* font-weight: 600; */
 }
 
 code,
