@@ -516,6 +516,7 @@ export function useGoalConstants() {
             challenges: 'challenges',
             assets: 'assets',
             incidents: 'incidents',
+            incidentAlerts: 'incidentAlerts',
             schedules: 'schedules',
             timesheet: 'timesheet',
             notices: 'notices',

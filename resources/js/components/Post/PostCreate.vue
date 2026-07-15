@@ -33,7 +33,7 @@
                     <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">楽アワードノミネート</p>
                 </div>
                 <div class="selectSwitchArea" style="display: flex;width: 100%;margin-top: 10px;">    
-                    <input v-model="rakuaward" :disabled="rakuawardLoading" @change="onRakuAwardChange" type="checkbox" id="rakuaward">
+                    <input v-model="rakuaward" :disabled="rakuawardLoading || editTarget?.rakuaward" @change="onRakuAwardChange" type="checkbox" id="rakuaward">
                     <label for="rakuaward" style="min-width: 80px;" :class="['cursor-pointer']"><span></span>
                         <div class="switch-toggle"></div>
                     </label>
@@ -455,7 +455,7 @@ import { useDashboardStore } from '@/store/dashboard'
     const selectedNpo = ref(props.editTarget && props.editTarget.donation_target ? props.editTarget.donation_target : null)
     const chargeable = ref(true)
     const donatable = ref(false)
-    const rakuaward = ref(false)
+    const rakuaward = ref(props.editTarget?.rakuaward ? true : false)
     const canNominateRakuAward = ref(true)
     const rakuawardLoading = ref(false)
     const mini = ref(props.editTarget?.mini ?? false)

@@ -976,6 +976,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/incident_advice_stream', [IncidentController::class, 'streamIncidentAdvice']);
         Route::post('/incident_advice', [IncidentController::class, 'createIncidentAdvice']);
         Route::delete('/incident_advice', [IncidentController::class, 'deleteIncidentAdvice']);
+        Route::post('/incident_candidate_decision', [IncidentController::class, 'decideIncidentCandidate']);
         Route::post('/incident_record_create', [IncidentController::class, 'createIncidentRecord']);
         Route::post('/incident_record_update', [IncidentController::class, 'updateIncidentRecord']);
         Route::post('/incident_record_delete', [IncidentController::class, 'deleteIncidentRecord']);

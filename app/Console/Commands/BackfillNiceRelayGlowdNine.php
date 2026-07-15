@@ -62,7 +62,7 @@ class BackfillNiceRelayGlowdNine extends Command
             $participantIds->each(function ($userId) use ($rootId, &$created) {
                 $prize = PostRelayPrize::firstOrCreate(
                     ['root_post_id' => (int) $rootId, 'user_id' => (int) $userId],
-                    ['prize' => 0, 'try_flag' => 0],
+                    ['prize' => 0, 'try_flag' => 0, 'source' => 'relay'],
                 );
 
                 if ($prize->wasRecentlyCreated) {

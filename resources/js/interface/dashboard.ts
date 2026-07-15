@@ -125,6 +125,53 @@ export type DashboardIncidentCardData = {
     emergency_contacts: EmergencyContactRecord[]
 }
 
+export type IncidentCandidateSource = 'daily_report_streak' | 'outcome_goal_submission' | 'outcome_goal_pm_approval'
+
+export type IncidentCandidateContext = {
+    // daily_report_streak
+    missed_dates?: string[]
+    missed_count?: number
+    shift_record_ids?: number[]
+    occurrence_ids?: number[]
+    project_ids?: number[]
+    manager_names?: string[]
+    // outcome goal (submission / pm_approval)
+    project_goal_id?: number
+    goal_title?: string
+    goal_owner_id?: number
+    goal_owner_name?: string
+    end_date?: string | null
+    pm_id?: number
+    pm_name?: string
+    pm_names?: string[]
+    submitted_at?: string | null
+    incident_type?: string
+}
+
+export type IncidentCandidate = {
+    id: number
+    source_type: IncidentCandidateSource
+    subject_user_id: number
+    project_record_id: number | null
+    audience: 'pm' | 'director'
+    context: IncidentCandidateContext | null
+    status: 'pending' | 'incident_created' | 'dismissed'
+    decision_reason: string | null
+    decided_by: number | null
+    decided_at: string | null
+    resulting_incident_id: number | null
+    created_at: string
+    updated_at: string
+    subject: (Pick<User, 'id' | 'name'> & {
+        icon_path?: string | null
+        icon_bg?: string | null
+        position_id?: number | null
+    }) | null
+    project: { id: number; name: string } | null
+}
+
+export type DashboardIncidentAlertCardData = IncidentCandidate[]
+
 export type DashboardScheduleCardData = {
     temp_schedules: CalendarRecord[]
     this_week_schedules: CalendarRecord[]
@@ -201,6 +248,7 @@ export type DashboardCollectionData = {
     pendingEvaluations: EvaluationRecord[]
     assets: DashboardAssetCardData
     incidents: DashboardIncidentCardData
+    incidentAlerts: DashboardIncidentAlertCardData
     overdueGoals: DashboardOverdueGoalCardData
     challenges: DashboardChallengeCardData
     forms: DashboardSurveyCardData
@@ -232,6 +280,7 @@ export const DASHBOARD_COLLECTION_KEYS = [
     'pendingEvaluations',
     'assets',
     'incidents',
+    'incidentAlerts',
     'overdueGoals',
     'challenges',
     'forms',
@@ -263,6 +312,8 @@ export const createDashboardIncidentCardData = (): DashboardIncidentCardData => 
     emergency_contacts: [],
 })
 
+export const createDashboardIncidentAlertCardData = (): DashboardIncidentAlertCardData => []
+
 export const createDashboardScheduleCardData = (): DashboardScheduleCardData => ({
     temp_schedules: [],
     this_week_schedules: [],
@@ -293,6 +344,7 @@ export const createDashboardCollectionData = (): DashboardCollectionData => ({
     pendingEvaluations: [],
     assets: createDashboardAssetCardData(),
     incidents: createDashboardIncidentCardData(),
+    incidentAlerts: createDashboardIncidentAlertCardData(),
     overdueGoals: [],
     challenges: [],
     forms: [],
@@ -312,4 +364,4 @@ export const createDashboardCollectionData = (): DashboardCollectionData => ({
     systemUpdates: [],
 })
 
-export type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard | DashboardAssetCard | DashboardIncidentCard | DashboardScheduleCard | DashboardPersonnelEvaluationCard | DashboardTimesheetCard | DashboardNoticeCard | DashboardProjectCard 
+export type DashboardCard = DashboardMessageCard | DashboardTaskCard | DashboardSurveyCard | DashboardOverdueGoalCard | DashboardChallengeCard | DashboardAssetCard | DashboardIncidentCard | DashboardScheduleCard | DashboardPersonnelEvaluationCard | DashboardTimesheetCard | DashboardNoticeCard | DashboardProjectCard

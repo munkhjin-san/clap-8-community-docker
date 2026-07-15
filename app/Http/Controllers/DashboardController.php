@@ -33,6 +33,7 @@ use App\Models\attendanceRecord;
 use App\Models\NoticeRecord;
 use App\Models\EmergencyContact;
 use App\Models\Incident;
+use App\Models\IncidentCandidate;
 use App\Models\IncidentAdvice;
 use App\Models\IncidentAssignee;
 use App\Models\IncidentCategory;
@@ -1359,6 +1360,48 @@ class DashboardController extends Controller
             'emergency_contacts' => $emergencyContacts,
             'attention' => $query->orderByDesc('created_at')->get(),
         ];
+    }
+
+    /**
+     * Pending incident candidates (daily-report streaks / overdue outcome goals)
+     * that the active user is responsible for reviewing, scoped by role:
+     *  - PM (position_id == 6): pm-audience candidates for projects they manage.
+     *  - Director/executive (position_id < 6) or admin: director-audience candidates.
+     * Regular staff never see this card.
+     */
+    private function incidentAlerts() {
+        $activeUser = $this->active_user();
+
+        $isPM = $activeUser->position_id == 6;
+        $isBoss = $activeUser->position_id && $activeUser->position_id < 6;
+        $isAdmin = in_array($activeUser->id, self::TIMESHEET_ADMIN_IDS, true);
+
+        if (!$isPM && !$isBoss && !$isAdmin) {
+            return [];
+        }
+
+        $query = IncidentCandidate::query()
+            ->where('status', IncidentCandidate::STATUS_PENDING)
+            ->with([
+                'subject:id,name,icon_path,icon_bg,position_id',
+                'project:id,name',
+            ])
+            ->orderByDesc('created_at');
+
+        if ($isBoss || $isAdmin) {
+            $query->where('audience', IncidentCandidate::AUDIENCE_DIRECTOR);
+        } else {
+            $managedProjectIds = ProjectRecord::query()
+                ->whereHas('manager', function ($managerQuery) use ($activeUser) {
+                    $managerQuery->where('users.id', $activeUser->id);
+                })
+                ->pluck('id');
+
+            $query->where('audience', IncidentCandidate::AUDIENCE_PM)
+                ->whereIn('project_record_id', $managedProjectIds);
+        }
+
+        return $query->get();
     }
 
     public function systemUpdates() {

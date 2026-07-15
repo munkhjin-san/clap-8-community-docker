@@ -33,6 +33,13 @@
                     </div>
                 </div>
                 <div v-if="!fullscreen" class="m-5">
+                    <div v-if="goalCandidates.length" class="mb-4">
+                        <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis flex items-center gap-2">
+                            <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 py-0.5">要対応</span>
+                            成果目標アラート
+                        </p>
+                        <IncidentAlertList :candidates="goalCandidates" :col="Number(data.col.split('-')[2] ?? 1)" />
+                    </div>
                     <div v-for="item in approvaNeeded" class="mb-4">
                         <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis flex items-center gap-2">
                             <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 py-0.5">{{ item.chip }}</span>
@@ -230,6 +237,8 @@ import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import { useRoute } from 'vue-router';
 import type { DashboardOverdueGoalCard } from '@/interface/dashboard';
+import { useDashboardStore } from '@/store/dashboard';
+import IncidentAlertList from './IncidentAlertList.vue';
 type OutcomeGoalGroup = {
     year: number;
     which_half: string;
@@ -252,6 +261,12 @@ const {totalOverallScore, loading, pendingMembers, returnedMembers, myGoals, man
 const { getGoals } = goalsStore
 
 const auth = useAuthUserStore()
+const dashboardStore = useDashboardStore()
+const goalCandidates = computed(() =>
+    (dashboardStore.collection.incidentAlerts ?? []).filter(
+        (candidate) => candidate.source_type === 'outcome_goal_submission' || candidate.source_type === 'outcome_goal_pm_approval'
+    )
+)
 const selectedUser = ref<User | null>(auth.user)
 const route = useRoute()
 const targetDates = detailedDateOptions()
@@ -338,7 +353,7 @@ const overWeekCount = computed(() => {
     }
     return count
 })
-const goalActionCount = computed(() => pulseBadgeCount.value + normalBadgeCount.value)
+const goalActionCount = computed(() => pulseBadgeCount.value + normalBadgeCount.value + goalCandidates.value.length)
 const goalIsOverWeek = (goal: ProjectGoal) => {
     return goalsStore.isGoalOverWeek(goal)
 }

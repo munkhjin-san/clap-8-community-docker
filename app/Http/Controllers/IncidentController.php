@@ -9,11 +9,13 @@ use App\Models\FileRecord;
 use App\Models\Incident;
 use App\Models\IncidentAdvice;
 use App\Models\IncidentAssignee;
+use App\Models\IncidentCandidate;
 use App\Models\IncidentCategory;
 use App\Models\IncidentPunishment;
 use App\Models\IncidentReport;
 use App\Models\IncidentStatus;
 use App\Models\ProjectRecord;
+use App\Models\TimecardMissingOccurrence;
 use App\Models\User;
 use App\Models\UserReadHistory;
 use App\Services\IncidentService;
@@ -817,6 +819,104 @@ class IncidentController extends Controller
                     .str($comment->content ?? '')->limit(300);
             })->join("\n"),
         ])->join("\n");
+    }
+
+    /**
+     * Record a reviewer's decision on a dashboard incident candidate:
+     *  - create_incident: link the formal incident created from the candidate.
+     *  - dismiss: mark "not an incident" with a mandatory reason.
+     * Either way the decision is stamped and appended to the candidate's update log.
+     */
+    public function decideIncidentCandidate(Request $request)
+    {
+        $activeUser = $this->active_user();
+
+        $validated = $request->validate([
+            'candidate_id' => ['required', 'integer', 'exists:incident_candidates,id'],
+            'decision' => ['required', 'string', 'in:create_incident,dismiss'],
+            'reason' => ['required_if:decision,dismiss', 'nullable', 'string', 'max:2000'],
+            'resulting_incident_id' => ['required_if:decision,create_incident', 'nullable', 'integer', 'exists:incidents,id'],
+        ]);
+
+        $candidate = IncidentCandidate::findOrFail($validated['candidate_id']);
+
+        if (!$this->canDecideIncidentCandidate($activeUser, $candidate)) {
+            abort(403);
+        }
+
+        if ($candidate->status !== IncidentCandidate::STATUS_PENDING) {
+            return response()->json(['message' => 'この項目はすでに処理済みです。'], 422);
+        }
+
+        $now = Carbon::now();
+        $decision = $validated['decision'];
+
+        DB::transaction(function () use ($candidate, $decision, $validated, $activeUser, $now) {
+            if ($decision === 'dismiss') {
+                $candidate->update([
+                    'status' => IncidentCandidate::STATUS_DISMISSED,
+                    'decision_reason' => $validated['reason'],
+                    'decided_by' => $activeUser->id,
+                    'decided_at' => $now,
+                ]);
+
+                $candidate->logs()->create([
+                    'user_id' => $activeUser->id,
+                    'action' => 'dismissed',
+                    'note' => $validated['reason'],
+                ]);
+            } else {
+                $candidate->update([
+                    'status' => IncidentCandidate::STATUS_INCIDENT_CREATED,
+                    'resulting_incident_id' => $validated['resulting_incident_id'],
+                    'decided_by' => $activeUser->id,
+                    'decided_at' => $now,
+                ]);
+
+                $candidate->logs()->create([
+                    'user_id' => $activeUser->id,
+                    'action' => 'incident_created',
+                    'changes' => ['resulting_incident_id' => $validated['resulting_incident_id']],
+                ]);
+            }
+
+            // Resolve the underlying missed-report rows once a streak candidate is decided.
+            if ($candidate->source_type === IncidentCandidate::SOURCE_DAILY_REPORT_STREAK) {
+                $occurrenceIds = $candidate->context['occurrence_ids'] ?? [];
+
+                if (!empty($occurrenceIds)) {
+                    TimecardMissingOccurrence::whereIn('id', $occurrenceIds)
+                        ->whereNull('resolved_at')
+                        ->update(['resolved_at' => $now]);
+                }
+            }
+        });
+
+        return response()->json([
+            'ok' => true,
+            'candidate' => $candidate->fresh(['subject', 'project', 'decidedBy']),
+        ]);
+    }
+
+    private function canDecideIncidentCandidate(User $user, IncidentCandidate $candidate): bool
+    {
+        // Directors/executives and admins oversee everything.
+        if ($this->incidentService->canManageIncidentAdministration($user)) {
+            return true;
+        }
+
+        // PMs may only decide pm-audience candidates for projects they manage.
+        if ($candidate->audience !== IncidentCandidate::AUDIENCE_PM) {
+            return false;
+        }
+
+        if ($user->position_id != 6 || !$candidate->project_record_id) {
+            return false;
+        }
+
+        return ProjectRecord::where('id', $candidate->project_record_id)
+            ->whereHas('manager', fn ($managerQuery) => $managerQuery->where('users.id', $user->id))
+            ->exists();
     }
 
     public function createIncidentRecord(Request $request)

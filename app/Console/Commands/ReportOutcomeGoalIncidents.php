@@ -2,8 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Models\IncidentCandidate;
 use App\Models\ProjectGoal;
 use App\Models\ProjectGoalIncidentReport;
+use App\Models\User;
 use App\Services\ReportService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -45,6 +47,8 @@ class ReportOutcomeGoalIncidents extends Command
         $this->markIncidentsSent($userSubmissionGoals, self::TYPE_USER_SUBMISSION, $now, $messageRecordId);
         $this->markIncidentsSent($pmApprovalGoals, self::TYPE_PM_APPROVAL, $now, $messageRecordId);
 
+        $this->upsertGoalCandidates($userSubmissionGoals, $pmApprovalGoals);
+
         $this->info(sprintf(
             'Reported %d outcome goal incident(s).',
             $userSubmissionGoals->count() + $pmApprovalGoals->count()
@@ -76,7 +80,7 @@ class ReportOutcomeGoalIncidents extends Command
             ->whereNotIn('id', $reportedGoalIds)
             ->whereHas('user', fn ($q) => $q->where('retire', 0)->where('partner_flag', 0))
             ->with([
-                'user:id,name',
+                'user:id,name,position_id',
                 'project:id,name',
             ])
             ->get();
@@ -161,6 +165,86 @@ class ReportOutcomeGoalIncidents extends Command
 
         ご確認のうえ、対応をお願いいたします。
         EOT;
+    }
+
+    private function upsertGoalCandidates(Collection $userSubmissionGoals, Collection $pmApprovalGoals): void
+    {
+        foreach ($userSubmissionGoals as $goal) {
+            $owner = $goal->user;
+
+            if (!$owner) {
+                continue;
+            }
+
+            IncidentCandidate::firstOrCreate(
+                [
+                    'source_type' => IncidentCandidate::SOURCE_GOAL_SUBMISSION,
+                    'subject_user_id' => $owner->id,
+                    'dedup_key' => (string) $goal->id,
+                ],
+                [
+                    'project_record_id' => $goal->project?->id,
+                    'audience' => $this->audienceForSubject($owner),
+                    'status' => IncidentCandidate::STATUS_PENDING,
+                    'context' => [
+                        'project_goal_id' => $goal->id,
+                        'goal_title' => $this->goalTitle($goal),
+                        'goal_owner_id' => $owner->id,
+                        'goal_owner_name' => $this->cleanText($owner->name, '不明'),
+                        'end_date' => $goal->end_date ? (string) $goal->end_date : null,
+                        'incident_type' => self::TYPE_USER_SUBMISSION,
+                    ],
+                ]
+            );
+        }
+
+        foreach ($pmApprovalGoals as $goal) {
+            $pm = $this->pmManagers($goal)->first();
+
+            if (!$pm) {
+                continue;
+            }
+
+            $submittedAt = $this->resultSubmittedAt($goal);
+
+            IncidentCandidate::firstOrCreate(
+                [
+                    'source_type' => IncidentCandidate::SOURCE_GOAL_PM_APPROVAL,
+                    'subject_user_id' => $pm->id,
+                    'dedup_key' => (string) $goal->id,
+                ],
+                [
+                    'project_record_id' => $goal->project?->id,
+                    'audience' => IncidentCandidate::AUDIENCE_DIRECTOR,
+                    'status' => IncidentCandidate::STATUS_PENDING,
+                    'context' => [
+                        'project_goal_id' => $goal->id,
+                        'goal_title' => $this->goalTitle($goal),
+                        'goal_owner_id' => $goal->user_id,
+                        'goal_owner_name' => $this->cleanText($goal->user?->name, '不明'),
+                        'pm_id' => $pm->id,
+                        'pm_name' => $this->cleanText($pm->name),
+                        'pm_names' => $this->pmManagers($goal)
+                            ->pluck('name')
+                            ->map(fn ($name) => $this->cleanText($name))
+                            ->values()
+                            ->all(),
+                        'submitted_at' => $submittedAt?->toDateString(),
+                        'incident_type' => self::TYPE_PM_APPROVAL,
+                    ],
+                ]
+            );
+        }
+    }
+
+    private function audienceForSubject(?User $user): string
+    {
+        $positionId = $user?->position_id;
+
+        // position_id <= 6 means PM (==6) or executive (<6): escalate to directors.
+        return ($positionId !== null && (int) $positionId <= 6)
+            ? IncidentCandidate::AUDIENCE_DIRECTOR
+            : IncidentCandidate::AUDIENCE_PM;
     }
 
     private function markIncidentsSent(Collection $goals, string $incidentType, Carbon $sentAt, ?int $messageRecordId): void
