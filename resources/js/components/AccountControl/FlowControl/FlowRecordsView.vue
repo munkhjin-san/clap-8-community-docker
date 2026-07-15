@@ -23,7 +23,7 @@
                 <span class="rv-title" :title="definition?.name">{{ definition?.name }}</span>
                 <div class="rv-actions">
                     <button v-if="canManage" class="rv-actbtn" title="アプリ設定" @click="editApp">
-                        <Gear :size="14" /><span class="rv-actlabel">設定</span>
+                        <Gear :size="14" /><span class="rv-actlabel">アプリ設定</span>
                     </button>
                     <ItemMenu v-if="canExport || canImport" :items="csvItems" title="CSV入出力">
                         <template #default="{ show, active }">
