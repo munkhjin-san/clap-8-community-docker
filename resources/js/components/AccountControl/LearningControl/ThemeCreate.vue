@@ -44,18 +44,6 @@
                         :close-on-select="false"
                     />
                 </div>
-                <div v-if="portfolio" class="si-box">
-                    <ItemSelector
-                        v-model="previousVersion"
-                        place-holder="前バージョン"
-                        :options="previousVersionOptions"
-                        label="previous_version_label"
-                        :multiple="false"
-                        :clearable="true"
-                        :close-on-select="true"
-                    />
-                    <p class="form-helper theme-create__helper">このテーマの前バージョンにあたるポートフォリオテーマを選択できます。</p>
-                </div>
                 <div class="si-box">
                     <div class="switchLabel">
                         <p class="form-lbl theme-create__switch-label">アクティブ</p>
@@ -137,12 +125,10 @@ const case_study = ref(props.editTarget?.has_case_study === 1 ? true : false);
 const forms = ref<ThemeFormOption[]>([])
 const positions = ref<ThemePositionOption[]>([])
 const categoryOptions = ref<LearningThemeCategory[]>([])
-const themeOptions = ref<LearningTheme[]>([])
 const selectedForm = ref<number | null>(props.editTarget?.custom_form_id ?? null)
 const selectedPositions = ref<number[]>([])
 const selectedMembers = ref<User[]>(props.editTarget?.access_members ?? [])
 const selectedCategories = ref<number[]>(props.editTarget?.categories?.map(category => category.id) ?? [])
-const previousVersion = ref<number | null>(props.editTarget?.previous_version ?? null)
 const api = useApi()
 const learningApi = useLearningApi()
 const { toast, ping } = useDialog()
@@ -156,16 +142,6 @@ const members = computed(() => {
         }
     })
     return list
-})
-const previousVersionOptions = computed(() => {
-    return themeOptions.value
-        .filter(themeRecord => {
-            return themeRecord.id !== props.editTarget?.id && isThemePortfolio(themeRecord)
-        })
-        .map(themeRecord => ({
-            ...themeRecord,
-            previous_version_label: `${themeRecord.title ?? '無題のテーマ'}${isThemeArchived(themeRecord) ? '（アーカイブ）' : ''}`,
-        }))
 })
 const initialPortfolioGuidance = computed(() => {
     return props.editTarget && props.editTarget.guidance ? props.editTarget.guidance : ''
@@ -203,7 +179,6 @@ watch(portfolio, (value) => {
         errors.portfolioGuidance = ''
         errors.episodeGuidance = ''
         errors.titleGuidance = ''
-        previousVersion.value = null
     }
 })
 watch(selectedPositions, (val) => {
@@ -235,12 +210,6 @@ const handleTitleGuidanceUpdate = (html: string) => {
 const sanitizeHtml = (html: string) => {
     if(!html) return ''
     return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, '').trim()
-}
-const isThemePortfolio = (themeRecord: LearningTheme) => {
-    return themeRecord.portfolio === true || themeRecord.portfolio === 1
-}
-const isThemeArchived = (themeRecord: LearningTheme) => {
-    return themeRecord.archive === true || themeRecord.archive === 1
 }
 const resetErrors = () => {
     errors.title = ''
@@ -299,7 +268,6 @@ const create = async() => {
                 title_guidance: portfolio.value ? titleGuidanceContent.value : '',
                 portfolio: portfolio.value,
                 has_case_study: case_study.value,
-                previous_version: portfolio.value ? previousVersion.value : null,
                 custom_form_id: selectedForm.value,
             },
             access_members: selectedMembers.value.map((member) => member.id),
@@ -325,14 +293,10 @@ const getPositions = async() => {
 const getCategories = async() => {
     categoryOptions.value = await learningApi.getThemeCategories()
 }
-const getThemeOptions = async() => {
-    themeOptions.value = await learningApi.getAdminThemes()
-}
 onMounted(() => {
     getForms()
     getPositions()
     getCategories()
-    getThemeOptions()
 })
 </script>
 

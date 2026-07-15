@@ -18,9 +18,6 @@
                     <div class="learning-theme-grid__meta">
                         <span>タイプ：{{ structureLabel(theme) }}</span>
                     </div>
-                    <div v-if="theme.previous_version" class="learning-theme-grid__meta">
-                        <span>前バージョン：あり</span>
-                    </div>
                     <div class="learning-theme-grid__meta">
                         <span>アーカイブ：{{ theme.archive ? 'ON' : 'OFF' }}</span>
                     </div>

@@ -86,12 +86,17 @@ const activeId = computed(() => {
         : null
     return param ? parseInt(param) : null
 })
+// Global default category (admin-set) pre-selected on first load.
+const defaultCategoryId = computed(() => categories.value.find(category => isEnabled(category.is_default))?.id ?? null)
 const selectedCategoryId = computed(() => {
     const queryValue = Array.isArray(route.query.category) ? route.query.category[0] : route.query.category
-    if (!queryValue || queryValue === 'all') return null
-
-    const categoryId = Number(queryValue)
-    return categories.value.some(category => category.id === categoryId) ? categoryId : null
+    // Explicit "すべて" clears the filter; no param falls back to the default category.
+    if (queryValue === 'all') return null
+    if (queryValue) {
+        const categoryId = Number(queryValue)
+        return categories.value.some(category => category.id === categoryId) ? categoryId : defaultCategoryId.value
+    }
+    return defaultCategoryId.value
 })
 const topicList = computed(() => {
     if (!selectedCategoryId.value) {
@@ -107,11 +112,8 @@ const selectedTopic = computed(() => {
 })
 const selectCategory = (categoryId: number | null) => {
     const query = { ...route.query }
-    if (categoryId) {
-        query.category = String(categoryId)
-    } else {
-        delete query.category
-    }
+    // "すべて" is explicit (=all) so it isn't re-defaulted back to the default category.
+    query.category = categoryId ? String(categoryId) : 'all'
 
     router.push({ path: route.path, query })
 }

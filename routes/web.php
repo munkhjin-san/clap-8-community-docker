@@ -627,6 +627,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/lesson_theme_category', [LessonController::class, 'save_lesson_category']);
         Route::delete('/lesson_theme_category', [LessonController::class, 'delete_lesson_category']);
         Route::put('/lesson_theme_categories/reorder', [LessonController::class, 'reorder_lesson_categories']);
+        Route::put('/lesson_theme_category/{category}/default', [LessonController::class, 'set_default_lesson_category']);
         Route::get('/get_portfolios_list', [LessonController::class, 'get_portfolios_list']);
         Route::delete('/admin/learning/portfolio/{portfolio}', [LessonController::class, 'delete_admin_portfolio']);
         Route::get('/get_previous_experience', [LessonController::class, 'get_previous_experience']);

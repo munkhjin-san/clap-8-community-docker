@@ -1,23 +1,21 @@
 <template>
     <div class="learning-category-control">
         <div class="learning-category-control__form">
-            <ShortInput
+            <input
                 v-model="draftName"
-                place-holder="カテゴリー名"
-                custom-class="full"
                 type="text"
+                class="learning-category-control__input"
+                placeholder="カテゴリー名"
+                @keyup.enter="saveDraft"
+            />
+            <LoaderButton
+                :content="editingId ? '更新' : '追加'"
+                @triggered="saveDraft"
             />
             <button
-                class="admin-button learning-category-control__save"
-                type="button"
-                @click="saveDraft"
-            >
-                {{ editingId ? '更新' : '追加' }}
-            </button>
-            <button
                 v-if="editingId"
-                class="commentEditButton learning-category-control__cancel"
                 type="button"
+                class="learning-category-control__cancel"
                 @click="resetDraft"
             >
                 キャンセル
@@ -32,6 +30,15 @@
             >
                 <div class="learning-category-control__name">{{ category.name }}</div>
                 <div class="learning-category-control__actions">
+                    <button
+                        type="button"
+                        class="lcc-default-btn"
+                        :class="{ 'lcc-default-btn--on': category.is_default }"
+                        @click="toggleDefault(category)"
+                    >
+                        <span class="lcc-default-dot" :class="{ 'lcc-default-dot--on': category.is_default }"></span>
+                        デフォルト
+                    </button>
                     <button @click="move(index, -1)" class="w-6 h-6 border border-solid border-1 border-[var(--formBorder)] rounded flex items-center justify-center">
                         <Back class="w-2 h-2 rotate-90" />
                     </button>
@@ -55,7 +62,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import ShortInput from '@/components/Form/ShortInput.vue'
+import LoaderButton from '@/components/Global/LoaderButton.vue'
 import { useLearningApi } from '@/composables/learningApi'
 import type { LearningTheme, LearningThemeCategory } from '@/types/learning'
 import Back from '@/components/Icons/Back.vue';
@@ -109,6 +116,10 @@ const remove = async(id: number) => {
     await loadCategories()
 }
 
+const toggleDefault = async(category: LearningThemeCategory) => {
+    categories.value = await learningApi.setDefaultThemeCategory(category.id)
+}
+
 const move = async(index: number, direction: -1 | 1) => {
     const nextIndex = index + direction
     if (nextIndex < 0 || nextIndex >= categories.value.length) return
@@ -144,9 +155,30 @@ const persistOrder = async() => {
     grid-template-columns: minmax(220px, 1fr) auto auto;
 }
 
-.learning-category-control__save,
+.learning-category-control__input{
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    font-size: 13px;
+    border: 1px solid var(--calendarBorder);
+    background: var(--background-color);
+    color: var(--primary-color);
+}
+.learning-category-control__input::placeholder{
+    color: var(--third-color);
+}
+
 .learning-category-control__cancel{
     width: fit-content;
+    font-size: 13px;
+    padding: 8px 14px;
+    border: 1px solid var(--calendarBorder);
+    background: transparent;
+    color: var(--primary-color);
+    cursor: pointer;
+}
+.learning-category-control__cancel:hover{
+    background: var(--bg3);
 }
 
 .learning-category-control__list{
@@ -181,6 +213,31 @@ const persistOrder = async() => {
 .learning-category-control__empty{
     color: var(--light-color);
     padding: 20px 0;
+}
+
+.lcc-default-btn{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 4px 12px;
+    border: 1px solid var(--calendarBorder);
+    background: transparent;
+    color: var(--third-color);
+    cursor: pointer;
+}
+.lcc-default-btn--on{
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+.lcc-default-dot{
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--check-inactive);
+}
+.lcc-default-dot--on{
+    background: #2e9e4f;
 }
 
 @media screen and (max-width: 700px) {

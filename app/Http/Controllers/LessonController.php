@@ -431,6 +431,18 @@ class LessonController extends Controller
 
         return $this->get_lesson_categories();
     }
+
+    // One global default category (pre-selected on the learner's first load). Toggling
+    // the current default clears it; otherwise it becomes the sole default.
+    public function set_default_lesson_category(Request $request, LessonThemeCategory $category){
+        $makeDefault = ! $category->is_default;
+        LessonThemeCategory::query()->update(['is_default' => false]);
+        if ($makeDefault) {
+            $category->update(['is_default' => true]);
+        }
+
+        return $this->get_lesson_categories();
+    }
     public function lesson_add_record(Request $request){
         $id = $request->id ?? null;
         $params = $request->params;

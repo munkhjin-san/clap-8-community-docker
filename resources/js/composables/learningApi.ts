@@ -171,6 +171,12 @@ export function useLearningApi() {
         })
     }
 
+    const setDefaultThemeCategory = async(id: number) => {
+        return await api.put(`/lesson_theme_category/${id}/default`, {}, {
+            toast: 'デフォルトカテゴリーを更新しました。',
+        }) as LearningThemeCategory[]
+    }
+
     const reorderThemeCategories = async(ids: number[]) => {
         return await api.put('/lesson_theme_categories/reorder', {
             ids,
@@ -402,6 +408,7 @@ export function useLearningApi() {
         getThemeCategories,
         saveThemeCategory,
         deleteThemeCategory,
+        setDefaultThemeCategory,
         reorderThemeCategories,
         getThemeMaterials,
         getLessonView,
