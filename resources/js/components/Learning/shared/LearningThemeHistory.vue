@@ -61,7 +61,7 @@
                 <div v-if="mode" class="lh-overlay" @mousedown="closeModal">
                     <div class="lh-modal" @mousedown.stop>
                         <div class="lh-modal__head">
-                            <span>{{ mode === 'challenge' ? `挑戦する成果目標を選択（${spanLabel}）` : '学習方法を選択' }}</span>
+                            <span>{{ mode === 'challenge' ? `成果目標を選択（${spanLabel}）` : '学習方法を選択' }}</span>
                             <button type="button" class="lh-modal__close" @click="closeModal">✕</button>
                         </div>
 
@@ -78,19 +78,29 @@
                         <div v-else class="lh-modal__body">
                             <template v-if="challengeOptions">
                                 <p v-if="!challengeOptions.eligible" class="lh__notice">{{ challengeOptions.reason }}</p>
-                                <template v-else>
-                                    <p v-if="!challengeOptions.goals.length" class="lh__notice">
-                                        今期の成果目標がありません。先に成果目標を作成してください。
-                                    </p>
-                                    <ul v-else class="lh__goals">
-                                        <li v-for="goal in challengeOptions.goals" :key="goal.goal_id" class="lh__goal">
-                                            <span class="lh__goal-title">{{ goal.title || '（無題の目標）' }}</span>
-                                            <button type="button" class="lh__btn lh__btn--primary lh__btn--sm" :disabled="busy" @click="submitChallenge(goal.goal_id)">
-                                                この目標で挑戦
-                                            </button>
-                                        </li>
-                                    </ul>
-                                </template>
+                                <p v-if="!challengeOptions.goals.length" class="lh__notice">
+                                    今期の成果目標がありません。先に成果目標を作成してください。
+                                </p>
+                                <ul v-else class="lh__goals">
+                                    <li
+                                        v-for="goal in challengeOptions.goals"
+                                        :key="goal.goal_id"
+                                        class="lh__goal"
+                                        :class="{ 'lh__goal--disabled': !goal.selectable }"
+                                    >
+                                        <span class="lh__goal-title">{{ goal.title || '（無題の目標）' }}</span>
+                                        <button
+                                            v-if="goal.selectable"
+                                            type="button"
+                                            class="lh__btn lh__btn--primary lh__btn--sm"
+                                            :disabled="busy"
+                                            @click="submitChallenge(goal.goal_id)"
+                                        >
+                                            選択する
+                                        </button>
+                                        <span v-else-if="goal.reason" class="lh__goal-reason">{{ goal.reason }}</span>
+                                    </li>
+                                </ul>
                             </template>
                             <p v-else class="lh__notice">読み込み中…</p>
                             <div class="lh-modal__foot">
@@ -372,8 +382,6 @@ defineExpose({ reload: load })
     justify-content: space-between;
     gap: 10px;
     padding: 12px 16px;
-    font-size: 13px;
-    font-weight: 700;
     background: var(--bg3);
     border-bottom: 1px solid var(--formBorder);
 }
@@ -400,7 +408,10 @@ defineExpose({ reload: load })
     background: var(--background-color);
     border: solid thin var(--formBorder);
 }
-.lh__goal-title { flex: 1; min-width: 140px; word-break: break-word; }
+.lh__goal-title { flex: 1; min-width: 140px; word-break: break-word; line-height: 1.5; font-size: 13px; }
+.lh__goal--disabled { background: var(--bg3); }
+.lh__goal--disabled .lh__goal-title { color: var(--third-color); }
+.lh__goal-reason { font-size: 11px; line-height: 1.5; color: var(--third-color); text-align: right; max-width: 190px; }
 
 .lh__btn {
     box-sizing: border-box;

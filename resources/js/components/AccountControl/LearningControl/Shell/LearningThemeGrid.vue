@@ -5,11 +5,12 @@
                 v-for="theme in themes"
                 :key="theme.id"
                 class="theme-item learning-theme-grid__item"
+                @click="emit('open-theme', theme)"
             >
                 <button
                     type="button"
                     class="learning-theme-grid__main"
-                    @click="emit('open-theme', theme)"
+                    
                 >
                     <div class="learning-theme-grid__theme-title">{{ theme.title }}</div>
                     <div class="learning-theme-grid__meta">

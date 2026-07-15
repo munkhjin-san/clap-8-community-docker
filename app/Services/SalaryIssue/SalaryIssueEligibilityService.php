@@ -212,9 +212,35 @@ class SalaryIssueEligibilityService
         return $this->spanChallengeReason((int) $goal->user_id, (int) $goal->year, (string) $goal->which_half, $theme);
     }
 
+    /**
+     * Goal-specific reason this goal cannot back a challenge (independent of the
+     * theme/span verdict): already tied to a salary issue, or too short a period.
+     * Null = the goal itself is fine. Pass a preloaded salaryIssue existence flag
+     * to avoid an extra query when iterating.
+     */
+    public function goalChallengeReason(ProjectGoal $goal, ?bool $hasSalaryIssue = null): ?string
+    {
+        $taken = $hasSalaryIssue ?? $goal->salaryIssue()->exists();
+        if ($taken) {
+            return 'この成果目標には既に昇給課題が設定されています。';
+        }
+
+        if (! $goal->start_date || ! $goal->end_date) {
+            return '期間が設定されていない成果目標は選択できません。';
+        }
+
+        $start = \Carbon\Carbon::parse($goal->start_date);
+        $end = \Carbon\Carbon::parse($goal->end_date);
+        if ($end->lt($start->copy()->addMonths(3))) {
+            return '期間が3ヶ月以上の成果目標のみ選択できます。';
+        }
+
+        return null;
+    }
+
     public function assertCanChallengeTheme(ProjectGoal $goal, LessonTheme $theme): void
     {
-        $reason = $this->themeChallengeReason($goal, $theme);
+        $reason = $this->themeChallengeReason($goal, $theme) ?? $this->goalChallengeReason($goal);
         if ($reason) {
             throw ValidationException::withMessages(['message' => $reason]);
         }
@@ -228,30 +254,41 @@ class SalaryIssueEligibilityService
     public function themeChallengeOptions(LessonTheme $theme, int $userId): array
     {
         $span = $this->currentSpan();
-        $reason = $this->spanChallengeReason($userId, $span['year'], $span['which_half'], $theme);
+        // Span/theme-level verdict (allowance, grade-axis, upper limit, theme overlap).
+        $spanReason = $this->spanChallengeReason($userId, $span['year'], $span['which_half'], $theme);
 
-        $goals = [];
-        if ($reason === null) {
-            $goals = ProjectGoal::where('user_id', $userId)
-                ->where('year', $span['year'])
-                ->where('which_half', $span['which_half'])
-                ->orderByDesc('id')
-                ->get(['id', 'title', 'outcome_goal', 'start_date', 'end_date'])
-                ->map(fn (ProjectGoal $goal) => [
+        // Always load ALL current-span goals; annotate each with selectability + reason
+        // instead of filtering them out, so the learner sees why a goal is unavailable.
+        $goals = ProjectGoal::where('user_id', $userId)
+            ->where('year', $span['year'])
+            ->where('which_half', $span['which_half'])
+            ->withExists('salaryIssue as has_salary_issue')
+            ->orderByDesc('id')
+            ->get(['id', 'title', 'outcome_goal', 'start_date', 'end_date'])
+            ->map(function (ProjectGoal $goal) use ($spanReason) {
+                // The span-level block is surfaced once at the top; per-goal reason
+                // only carries goal-specific problems (already used / too short).
+                $goalReason = $spanReason === null
+                    ? $this->goalChallengeReason($goal, (bool) $goal->has_salary_issue)
+                    : null;
+
+                return [
                     'goal_id' => $goal->id,
                     'title' => $goal->title ?: $goal->outcome_goal,
                     'start_date' => $goal->start_date,
                     'end_date' => $goal->end_date,
-                ])
-                ->values()
-                ->all();
-        }
+                    'selectable' => $spanReason === null && $goalReason === null,
+                    'reason' => $goalReason,
+                ];
+            })
+            ->values()
+            ->all();
 
         return [
             'theme_axis' => $theme->axis,
             'salary_target' => (int) ($theme->salary_issue_target ?? 0) === 1,
-            'eligible' => $reason === null,
-            'reason' => $reason,
+            'eligible' => $spanReason === null,
+            'reason' => $spanReason,
             'span' => $span,
             'goals' => $goals,
         ];

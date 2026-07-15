@@ -347,6 +347,8 @@ export interface LearningChallengeGoalOption {
     title: string | null
     start_date: string | null
     end_date: string | null
+    selectable: boolean
+    reason: string | null
 }
 
 export interface LearningThemeChallengeOptions {
