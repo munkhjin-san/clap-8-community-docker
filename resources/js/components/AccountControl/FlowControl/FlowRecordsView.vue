@@ -64,7 +64,7 @@
                     <thead>
                         <tr>
                             <th v-if="canBulk" class="rv-th rv-th-check" @click.stop>
-                                <input type="checkbox" :checked="allSelected" @change="toggleAll">
+                                <input type="checkbox" class="rv-check" :checked="allSelected" @change="toggleAll">
                             </th>
                             <th v-for="c in columns" :key="c.key" class="rv-th" :class="{ num: isNumericCol(c) }" @click="toggleSort(c.ref)">
                                 <span class="rv-thlabel">{{ c.label }}<span v-if="String(sortRef) === String(c.ref)" class="rv-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></span>
@@ -75,7 +75,7 @@
                     <tbody>
                         <tr v-for="rec in displayRecords" :key="rec.id" class="rv-row" @click="openRecord(rec)">
                             <td v-if="canBulk" class="rv-td rv-td-check" @click.stop>
-                                <input type="checkbox" :checked="selected.has(rec.id)" :disabled="!rec.can_delete" @change="toggleSelect(rec.id)">
+                                <input type="checkbox" class="rv-check" :checked="selected.has(rec.id)" :disabled="!rec.can_delete" @change="toggleSelect(rec.id)">
                             </td>
                             <td v-for="c in columns" :key="c.key" class="rv-td" :class="{ num: isNumericCol(c) }">
                                 <template v-if="c.system">
@@ -387,7 +387,23 @@ onMounted(async () => {
 .rv-arrow { color: var(--primary-color); }
 .rv-th-action { width: 72px; cursor: default; }
 .rv-th-check, .rv-td-check { width: 34px; text-align: center; cursor: default; }
-.rv-td-check input, .rv-th-check input { cursor: pointer; }
+/* custom checkbox (native styling is cheap) — matches the pattern used for checkbox-type fields */
+.rv-check {
+    appearance: none; -webkit-appearance: none;
+    box-sizing: border-box !important;
+    width: 16px; height: 16px; margin: 0; flex-shrink: 0;
+    border: 1.5px solid var(--formBorder); border-radius: 4px; background: var(--background-color);
+    position: relative; cursor: pointer; vertical-align: middle;
+    transition: background .12s, border-color .12s, box-shadow .12s;
+}
+.rv-check:hover:not(:checked):not(:disabled) { border-color: var(--primary-color); }
+.rv-check:checked { background: var(--primary-button, var(--primary-color)); border-color: var(--primary-button, var(--primary-color)); }
+.rv-check:checked::after {
+    content: ""; position: absolute; left: 4px; top: 1px;
+    width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.rv-check:disabled { opacity: 0.45; cursor: not-allowed; }
+.rv-check:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 25%, transparent); }
 .rv-row { cursor: pointer; }
 .rv-row:hover { background: var(--selected-background); }
 .rv-td { font-size: 13.5px; padding: 13px 14px; border-bottom: 1px solid var(--calendarBorder); vertical-align: middle; white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }

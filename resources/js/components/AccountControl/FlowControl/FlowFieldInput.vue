@@ -440,7 +440,7 @@ const formatFormula = (v: any) => {
     appearance: none; -webkit-appearance: none;
     box-sizing: border-box !important;
     width: 18px; height: 18px; margin: 1px 0 0; flex-shrink: 0;
-    border: 1.5px solid var(--formBorder); background: var(--background-color);
+    border: 1px solid var(--formBorder); background: var(--background-color);
     position: relative; cursor: pointer; transition: background .12s, border-color .12s, box-shadow .12s;
 }
 .fi-opt input[type="checkbox"] { border-radius: 5px; }
@@ -451,8 +451,10 @@ const formatFormula = (v: any) => {
     content: ""; position: absolute; left: 5px; top: 2px;
     width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
 }
+/* centered via transform (not inset+margin:auto), so it stays exact regardless of the
+   fractional border/box math — inset-based centering could round to an off-pixel dot */
 .fi-opt input[type="radio"]:checked::after {
-    content: ""; position: absolute; inset: 0; margin: auto;
+    content: ""; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
     width: 7px; height: 7px; border-radius: 50%; background: #fff;
 }
 .fi-opt input:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 25%, transparent); }
