@@ -31,6 +31,11 @@ export const adminRoutes: RouteRecordRaw[] = [
                 component: () => import('@/components/AccountControl/LearningControl/LearningControl.vue'),
                 children: [
                     {
+                        path: 'categories',
+                        name: 'learning-categories',
+                        component: () => import('@/components/AccountControl/LearningControl/LearningCategoryControl.vue'),
+                    },
+                    {
                         path: ':themeId',
                         name: 'themeContainer',
                         component: () => import('@/components/AccountControl/LearningControl/ThemeContainer.vue'),

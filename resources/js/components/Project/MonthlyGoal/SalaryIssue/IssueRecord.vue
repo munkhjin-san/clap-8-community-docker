@@ -1,5 +1,7 @@
 <template>
-    <div class="flex flex-col gap-[30px] relative" v-if="issue">
+    <!-- Path-3 (salary challenge from learning): portfolio review/approval flow. -->
+    <SalaryIssuePortfolioReview v-if="issue && issue.portfolio" :issue="issue" :goal="goal" @refresh="refresh"/>
+    <div v-else-if="issue" class="flex flex-col gap-[30px] relative">
         <IssueStatus :issue="issue" :goal="goal"/>
         <div 
             v-if="auth.isAdmin" 
@@ -144,6 +146,7 @@ import LoaderButton from '@/components/Global/LoaderButton.vue';
 import Files from '@/components/Global/Files.vue';
 import Report from './Report.vue';
 import IssueStatus from './IssueStatus.vue';
+import SalaryIssuePortfolioReview from './SalaryIssuePortfolioReview.vue';
 const passingData = {
     path: '/project_goal_comment_create',
     title: '進捗報告・メッセージ',

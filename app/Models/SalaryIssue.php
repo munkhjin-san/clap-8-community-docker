@@ -23,6 +23,12 @@ class SalaryIssue extends Model
     public function project_goal(){
         return $this->belongsTo(ProjectGoal::class, 'project_goal_id', 'id');
     }
+    public function lessonTheme(){
+        return $this->belongsTo(LessonTheme::class, 'lesson_theme_id', 'id');
+    }
+    public function portfolio(){
+        return $this->hasOne(LessonPortfolio::class, 'salary_issue_id', 'id');
+    }
     public function actions(){
         return $this->hasMany(SalaryIssueAction::class, 'salary_issue_id', 'id');
     }

@@ -452,6 +452,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_kadai_list', [MemberController::class, 'get_kadai_list']);
         Route::post('/update_kadai', [MemberController::class, 'update_kadai']);
         Route::post('/save_kadai_template', [MemberController::class, 'save_kadai_template']);
+        Route::post('/get_salary_issue_eligibility', [MemberController::class, 'get_salary_issue_eligibility']);
+        Route::post('/suggest_salary_issue_theme', [MemberController::class, 'suggest_salary_issue_theme']);
         Route::post('/get_kadai_template', [MemberController::class, 'get_kadai_template']);
         Route::post('/check_kadai_record', [MemberController::class, 'check_kadai_record']);
         Route::post('/delete_kadai_template', [MemberController::class, 'delete_kadai_template']);
@@ -608,8 +610,26 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_completed_lesson_themes', [LessonController::class, 'get_completed_lesson_themes']);
 
         Route::post('/create_learning_theme', [LessonController::class, 'create_learning_theme']);
+        Route::get('/lesson_theme/{theme}/material_versions', [LessonController::class, 'get_material_versions']);
+        Route::post('/lesson_theme/{theme}/material_versions', [LessonController::class, 'create_material_version']);
+        Route::put('/lesson_theme/{theme}/material_versions/{version}/default', [LessonController::class, 'set_default_material_version']);
+        Route::delete('/lesson_theme/{theme}/material_versions/{version}', [LessonController::class, 'delete_material_version']);
+        Route::get('/lesson_theme/{theme}/learner_state', [LessonController::class, 'get_learner_theme_state']);
+        Route::post('/lesson_theme/{theme}/start_attempt', [LessonController::class, 'start_learning_attempt']);
+        Route::delete('/lesson_theme/{theme}/attempt/{portfolio}', [LessonController::class, 'delete_learning_attempt']);
+        Route::get('/lesson_theme/{theme}/challenge_options', [LessonController::class, 'get_theme_challenge_options']);
+        Route::post('/lesson_theme/{theme}/challenge', [LessonController::class, 'create_theme_challenge']);
         Route::delete('/delete_learning_theme', [LessonController::class, 'delete_learning_theme']);
+        Route::post('/lesson_theme/{theme}/ai_config', [LessonController::class, 'save_lesson_theme_ai_config']);
+        Route::get('/lesson_theme/{theme}/personal_materials/portfolio_recurring_trainee/stream', [LessonController::class, 'stream_personal_material']);
+        Route::post('/lesson_theme/{theme}/personal_materials/portfolio_recurring_trainee/feedback', [LessonController::class, 'save_personal_material_feedback']);
+        Route::get('/lesson_theme_categories', [LessonController::class, 'get_lesson_categories']);
+        Route::post('/lesson_theme_category', [LessonController::class, 'save_lesson_category']);
+        Route::delete('/lesson_theme_category', [LessonController::class, 'delete_lesson_category']);
+        Route::put('/lesson_theme_categories/reorder', [LessonController::class, 'reorder_lesson_categories']);
         Route::get('/get_portfolios_list', [LessonController::class, 'get_portfolios_list']);
+        Route::delete('/admin/learning/portfolio/{portfolio}', [LessonController::class, 'delete_admin_portfolio']);
+        Route::get('/get_previous_experience', [LessonController::class, 'get_previous_experience']);
 
         Route::post('/upload_lesson_file', [LessonController::class, 'upload_lesson_file']);
         Route::get('/get_support_account', function () {
@@ -661,6 +681,10 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::delete('/delete_project_goal', [ProjectController::class, 'delete_project_goal']);
         Route::put('/approve_salary_issue', [ProjectController::class, 'approve_salary_issue']);
         Route::post('/get_salary_issues', [ProjectController::class, 'get_salary_issues']);
+        Route::post('/salary_issue/{salaryIssue}/generate_study_material', [ProjectController::class, 'generate_salary_issue_study_material']);
+        Route::get('/salary_issue/{salaryIssue}/learning', [ProjectController::class, 'get_salary_issue_learning']);
+        Route::post('/salary_issue/{salaryIssue}/learning/understanding', [ProjectController::class, 'save_salary_issue_understanding']);
+        Route::post('/salary_issue/{salaryIssue}/learning/portfolio', [ProjectController::class, 'save_salary_issue_portfolio']);
         Route::delete('/delete_project', [ProjectController::class, 'delete_project']);
         Route::put('/approve_outcome_goal', [ProjectController::class, 'approve_outcome_goal']);
         Route::put('/update_issue_report', [ProjectController::class, 'update_issue_report']);
@@ -940,6 +964,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/stream_prompt', [OpenAiController::class, 'stream_prompt']);
         Route::post('/review_document', [OpenAiController::class, 'review_document']);
         Route::post('/summarize_contract_comparison', [OpenAiController::class, 'summarize_contract_comparison']);
+        Route::get('/openai/models', [OpenAiController::class, 'models']);
         Route::post('/suggest_challenge', [OpenAiController::class, 'suggest_challenge']);
         Route::get('/lunch_challenge_popup', [OpenAiController::class, 'lunch_challenge_popup']);
         Route::post('/chatkit/session', [OpenAiController::class, 'session']);

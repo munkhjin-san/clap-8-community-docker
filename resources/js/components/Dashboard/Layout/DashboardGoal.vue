@@ -257,7 +257,7 @@ const emit = defineEmits<{
 }>()
 
 const goalsStore = useDashboardGoalsStore()
-const {totalOverallScore, loading, pendingMembers, returnedMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals, requiredGoalData, unfinishedPreviousSpanGoals, pulseBadgeCount, normalBadgeCount } = storeToRefs(goalsStore)
+const {totalOverallScore, loading, pendingMembers, returnedMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, mentorPortfolioApprovalNeeded, adminPortfolioApprovalNeeded, adminApprovalNeededGoals, requiredGoalData, unfinishedPreviousSpanGoals, pulseBadgeCount, normalBadgeCount } = storeToRefs(goalsStore)
 const { getGoals } = goalsStore
 
 const auth = useAuthUserStore()
@@ -286,7 +286,6 @@ onMounted(() => {
     if(auth.id){
         selectedUser.value = auth.user
     }
-    console.log('yyy')
     // getGoals(selectedUser.value?.id ?? 0 ,year, span)
 })
 
@@ -324,11 +323,25 @@ const approvaNeeded = computed(() => {
             users: mentorApprovalNeededGoalsWithSalaryIssue.value
         })
     }
+    if(mentorPortfolioApprovalNeeded.value.length){
+        items.push({
+            chip: 'メンター',
+            title: 'ポートフォリオ承認依頼【昇給課題】',
+            users: mentorPortfolioApprovalNeeded.value
+        })
+    }
     if(adminApprovalNeededGoalsWithSalaryIssue.value.length){
         items.push({
             chip: '人事',
             title: '承認依頼【昇給課題】',
-            users: adminApprovalNeededGoalsWithSalaryIssue.value    
+            users: adminApprovalNeededGoalsWithSalaryIssue.value
+        })
+    }
+    if(adminPortfolioApprovalNeeded.value.length){
+        items.push({
+            chip: '人事',
+            title: 'ポートフォリオ承認依頼【昇給課題】',
+            users: adminPortfolioApprovalNeeded.value
         })
     }
     if(adminApprovalNeededGoals.value.length){

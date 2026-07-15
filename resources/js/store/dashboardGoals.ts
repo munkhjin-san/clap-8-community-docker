@@ -86,6 +86,9 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
     const managersGoals = ref<UserWithGoals[]>([])
     const adminApprovalNeededGoalsWithSalaryIssue = ref<UserWithGoals[]>([])
     const mentorApprovalNeededGoalsWithSalaryIssue = ref<UserWithGoals[]>([])
+    // Path-3 portfolio approval flow (昇給課題として学習する)
+    const mentorPortfolioApprovalNeeded = ref<UserWithGoals[]>([])
+    const adminPortfolioApprovalNeeded = ref<UserWithGoals[]>([])
     const adminApprovalNeededGoals = ref<UserWithGoals[]>([])
     const evaluationData = ref<Evaluation | null>(null)
     const requiredGoalData = ref<GoalRequiredData | null>(null)
@@ -119,7 +122,10 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         '結果を差戻中（本人対応中）', // 8
         '結果を人事に申請中（人事対応中）', // 9
         '昇給達成（完了）', // 10
-        '未達成（完了）' // 11
+        '未達成（完了）', // 11
+        'ポートフォリオをメンターに申請中（メンター対応中）', // 12 (path3)
+        'ポートフォリオを差戻中（本人対応中）', // 13 (path3)
+        'ポートフォリオを人事に申請中（人事対応中）' // 14 (path3)
     ]
 
     const pointByGeneralPosition: Record<string, { kpi: number; kgi: number }> = {
@@ -151,6 +157,8 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
             managersGoals.value = data.managers_goals ?? []
             adminApprovalNeededGoalsWithSalaryIssue.value = data.admin_approval_needed_goals_with_salary_issue ?? []
             mentorApprovalNeededGoalsWithSalaryIssue.value = data.mentor_approval_needed_goals_with_salary_issue ?? []
+            mentorPortfolioApprovalNeeded.value = data.mentor_portfolio_approval_needed ?? []
+            adminPortfolioApprovalNeeded.value = data.admin_portfolio_approval_needed ?? []
             adminApprovalNeededGoals.value = data.admin_approval_needed_goals ?? []
             unfinishedPreviousSpanGoals.value = data.unfinished_previous_span_goals ?? []
             requiredGoalData.value = data.goal_required_data ?? null
@@ -299,8 +307,10 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         managerNormalGoals.value.length +
         adminApprovalNeededGoalsWithSalaryIssue.value.length +
         mentorApprovalNeededGoalsWithSalaryIssue.value.length +
+        mentorPortfolioApprovalNeeded.value.length +
+        adminPortfolioApprovalNeeded.value.length +
         adminApprovalNeededGoals.value.length +
-        attentionNeededMyGoals.length + 
+        attentionNeededMyGoals.length +
         commentCount.value
         
     })
@@ -369,6 +379,8 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         managersGoals,
         adminApprovalNeededGoalsWithSalaryIssue,
         mentorApprovalNeededGoalsWithSalaryIssue,
+        mentorPortfolioApprovalNeeded,
+        adminPortfolioApprovalNeeded,
         adminApprovalNeededGoals,
         evaluationData,
         requiredGoalData,

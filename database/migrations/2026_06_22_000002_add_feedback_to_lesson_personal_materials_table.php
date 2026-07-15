@@ -1,0 +1,24 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('lesson_personal_materials', function (Blueprint $table) {
+            $table->boolean('understand')->nullable()->after('content');
+            $table->longText('important_point')->nullable()->after('understand');
+            $table->timestamp('completed_at')->nullable()->after('important_point');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('lesson_personal_materials', function (Blueprint $table) {
+            $table->dropColumn(['understand', 'important_point', 'completed_at']);
+        });
+    }
+};

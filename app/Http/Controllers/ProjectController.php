@@ -422,6 +422,12 @@ class ProjectController extends Controller
 
         $admin_approval_needed_goals_with_salary_issue = [];
 
+        // Path-3 (昇給課題として学習する) portfolio approval flow — kept separate from the
+        // legacy 課題/結果 flow above. Status 12 = awaiting mentor, 14 = awaiting HR/admin.
+        $mentor_portfolio_approval_needed = [];
+
+        $admin_portfolio_approval_needed = [];
+
         $admin_approval_needed_goals = [];
 
         $goal_required_data = $this->requiredGoalData($year, $which_half);
@@ -439,8 +445,26 @@ class ProjectController extends Controller
                 })->select($approvalGoalColumns)->with(['statusLogs' => $resultSubmissionLogs]);
             }])
             ->whereHas('outcome_goals', function ($q) use ($user) {
-                $q->whereHas('salaryIssue', function ($q) use ($user){                
+                $q->whereHas('salaryIssue', function ($q) use ($user){
                     $q->whereIn('status', [2, 7])->whereHas('evaluation', function ($subQuery) use ($user) {
+                        $subQuery->where('mentor_id', $user->id);
+                    });
+                });
+            })->get();
+
+            // Path-3: portfolios applied to the mentor (status 12).
+            $mentor_portfolio_approval_needed = User::whereNot('id', $user->id)
+            ->select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
+            ->with(['outcome_goals' => function ($q) use ($user, $approvalGoalColumns, $resultSubmissionLogs) {
+                $q->whereHas('salaryIssue', function ($q) use ($user){
+                    $q->where('status', 12)->whereHas('evaluation', function ($subQuery) use ($user) {
+                        $subQuery->where('mentor_id', $user->id);
+                    });
+                })->select($approvalGoalColumns)->with(['statusLogs' => $resultSubmissionLogs]);
+            }])
+            ->whereHas('outcome_goals', function ($q) use ($user) {
+                $q->whereHas('salaryIssue', function ($q) use ($user){
+                    $q->where('status', 12)->whereHas('evaluation', function ($subQuery) use ($user) {
                         $subQuery->where('mentor_id', $user->id);
                     });
                 });
@@ -463,6 +487,19 @@ class ProjectController extends Controller
             ->with(['outcome_goals' => fn ($q) => $q->whereIn('status', [3, 4])->select($approvalGoalColumns)->with(['statusLogs' => $resultSubmissionLogs])])
             ->whereHas('outcome_goals', function ($q) use ($user) {
                 $q->whereIn('status', [3, 4]);
+            })->get();
+
+            // Path-3: portfolios applied to HR/admin (status 14).
+            $admin_portfolio_approval_needed = User::select('id', 'name', 'icon_path', 'icon_bg', 'position_id')
+            ->with(['outcome_goals' => function ($q) use ($approvalGoalColumns, $resultSubmissionLogs) {
+                $q->whereHas('salaryIssue', function ($q) {
+                    $q->where('status', 14);
+                })->select($approvalGoalColumns)->with(['statusLogs' => $resultSubmissionLogs]);
+            }])
+            ->whereHas('outcome_goals', function ($q) {
+                $q->whereHas('salaryIssue', function ($q) {
+                    $q->where('status', 14);
+                });
             })->get();
         }
 
@@ -539,6 +576,8 @@ class ProjectController extends Controller
             'managers_goals' => $managers_goals,
             'mentor_approval_needed_goals_with_salary_issue' => $mentor_approval_needed_goals_with_salary_issue,
             'admin_approval_needed_goals_with_salary_issue' => $admin_approval_needed_goals_with_salary_issue,
+            'mentor_portfolio_approval_needed' => $mentor_portfolio_approval_needed,
+            'admin_portfolio_approval_needed' => $admin_portfolio_approval_needed,
             'admin_approval_needed_goals' => $admin_approval_needed_goals,
             'goal_required_data' => $goal_required_data,
         ];
@@ -562,9 +601,10 @@ class ProjectController extends Controller
             ])
             ->withCount(['goal_notifications' => fn($q) => $q->where('target_user_id', $self_id)])
             ->with(['salaryIssue' => fn ($q) => $q->with([
-                    'files', 
-                    'actions', 
-                    'reports', 
+                    'files',
+                    'actions',
+                    'reports',
+                    'portfolio',
                     'statusLogs' => fn ($q) => $q->with('user')
                     ])->withCount(['issue_notifications' => fn($q) => $q->where('target_user_id', $self_id)
                 ])
@@ -1967,6 +2007,46 @@ class ProjectController extends Controller
                                     ->with(['actions'])
                                     ->get();
         return response()->json($salary_issues);
+    }
+
+    public function generate_salary_issue_study_material(Request $request, SalaryIssue $salaryIssue, \App\Services\SalaryIssue\SalaryIssueLearningService $learning) {
+        abort_unless((int) $salaryIssue->user_id === (int) Auth::id(), 403);
+
+        return response()->json($learning->generateStudyMaterial($salaryIssue));
+    }
+
+    public function get_salary_issue_learning(Request $request, SalaryIssue $salaryIssue, \App\Services\SalaryIssue\SalaryIssueLearningService $learning) {
+        abort_unless((int) $salaryIssue->user_id === (int) Auth::id(), 403);
+
+        return response()->json($learning->state($salaryIssue));
+    }
+
+    public function save_salary_issue_understanding(Request $request, SalaryIssue $salaryIssue, \App\Services\SalaryIssue\SalaryIssueLearningService $learning) {
+        abort_unless((int) $salaryIssue->user_id === (int) Auth::id(), 403);
+        $data = $request->validate([
+            'understand' => 'required|boolean',
+            'important_point' => 'nullable|string',
+        ]);
+        if ($data['understand'] && blank($data['important_point'] ?? null)) {
+            throw ValidationException::withMessages(['important_point' => '特に重要だと理解した点を入力してください。']);
+        }
+        $learning->saveUnderstanding($salaryIssue, (bool) $data['understand'], $data['important_point'] ?? null);
+
+        return response()->json($learning->state($salaryIssue));
+    }
+
+    public function save_salary_issue_portfolio(Request $request, SalaryIssue $salaryIssue, \App\Services\SalaryIssue\SalaryIssueLearningService $learning) {
+        abort_unless((int) $salaryIssue->user_id === (int) Auth::id(), 403);
+        $data = $request->validate([
+            'public_title' => 'nullable|string|max:250',
+            'public_content' => 'required|string',
+            'noticed' => 'nullable|string',
+            'discussion_topic' => 'nullable|string',
+            'submit' => 'required|boolean',
+        ]);
+        $learning->savePortfolio($salaryIssue, $data, (bool) $data['submit']);
+
+        return response()->json($learning->state($salaryIssue));
     }
 
     public function delete_project(Request $request) {

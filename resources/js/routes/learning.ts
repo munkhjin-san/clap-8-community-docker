@@ -1,5 +1,4 @@
 import type { RouteRecordRaw } from 'vue-router'
-import axios from 'axios'
 import { useAuthUserStore } from '@/store/auth'
 
 export const learningRoutes: RouteRecordRaw[] = [
@@ -30,13 +29,7 @@ export const learningRoutes: RouteRecordRaw[] = [
                             const permitted = [608, 610, 799, 800, 829]
                             const userId = auth?.activeUser?.id
 
-                            if (typeof userId === 'number' && permitted.includes(userId)) {
-                                axios.get(`/get_portfolios_list?theme_id=${to.params.lessonThemeId}`).then((response) => {
-                                    to.meta.list = response.data
-                                    next()
-                                })
-                                return
-                            }
+                            if (typeof userId === 'number' && permitted.includes(userId)) return next()
 
                             next({ name: 'learning' })
                         },
@@ -50,29 +43,19 @@ export const learningRoutes: RouteRecordRaw[] = [
                         component: () => import('@/components/Learning/BasicKnowledge/BasicContainer.vue'),
                         children: [
                             {
+                                path: 'personal-material/more',
+                                name: 'personal_material_more',
+                                component: () => import('@/components/Learning/BasicKnowledge/SectionMoreDetailed.vue'),
+                            },
+                            {
                                 path: ':materialId',
                                 name: 'material',
                                 component: () => import('@/components/Learning/BasicKnowledge/Section.vue'),
-                                beforeEnter: (to, from, next) => {
-                                    void from
-                                    axios.get('/get_material', { params: { id: to.params.materialId } }).then((response) => {
-                                        to.meta.material = response.data
-                                        next()
-                                    })
-                                },
                                 children: [
                                     {
                                         path: 'more',
                                         name: 'more',
                                         component: () => import('@/components/Learning/BasicKnowledge/SectionMoreDetailed.vue'),
-                                        beforeEnter: (to, from, next) => {
-                                            void to
-                                            void from
-                                            axios.get('/get_support_account').then((response) => {
-                                                to.meta.support_user_id = response.data
-                                                next()
-                                            })
-                                        },
                                     },
                                 ],
                             },

@@ -1,5 +1,5 @@
 import { User } from "./globalInterface";
-export interface Theme {
+export interface LessonTheme {
     active: number;
     id: number;
     guidance: string;
@@ -8,6 +8,8 @@ export interface Theme {
     discussion_date: Date | string;
     materials: LessonMaterial[];
 }
+
+export type Theme = LessonTheme;
 export interface Portfolio {
     id: number;
     content: string;
@@ -25,7 +27,7 @@ export interface Portfolio {
     user: User
     updated_at: string;
     claps: Clap[];
-    lesson_theme: Theme
+    lesson_theme: LessonTheme
 }
 export interface LessonSection {
     id: number;
@@ -38,13 +40,36 @@ export interface LessonSection {
 }
 export interface LessonMaterial {
     id: number;
-    title: string;
+    lesson_theme_id: number | null;
+    assistant_id: string | null;
+    prompt_id: string | null;
     priority: number;
-    lesson_theme_id: number;
-    user_id: number;
-    content: string;
-    content_detailed: string;
-    has_feedback: string;
+    user_id: number | null;
+    updated_by: number | null;
+    title: string | null;
+    content: string | null;
+    content_detailed: string | null;
+    has_feedback: number;
+    has_question: number | null;
+    has_understand: number;
+    material_type: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+    deleted_at: string | null;
+    answer?: LessonAnswer | null;
+    answers?: LessonAnswer[];
+}
+export interface LessonAnswer {
+    id: number;
+    material_id: number | null;
+    user_id: number | null;
+    answer: string | null;
+    ai_review: string | null;
+    cant_understand: string | null;
+    reason_dnt_und: string | null;
+    status: number | null;
+    created_at: string | null;
+    updated_at: string | null;
 }
 interface LessonForm {
     answer1: string;

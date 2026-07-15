@@ -15,8 +15,10 @@
     </div>
 </div>
 </template>
-<script setup>
-const emit = defineEmits(['close'])
+<script setup lang="ts">
+const emit = defineEmits<{
+    close: []
+}>()
 const text = `<h3>研修プログラムについて</h3>
 この研修プログラムは、社会活動で必要とされる9つの職能を学ぶことを目的としています。以下に、プログラムの流れについて詳しく説明します。
 
