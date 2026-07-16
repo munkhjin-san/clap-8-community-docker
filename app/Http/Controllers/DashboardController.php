@@ -983,7 +983,6 @@ class DashboardController extends Controller
 
         $receivedNicePosts = PostRecord::query()
             ->where('app_type', 0)
-            ->where('rakuaward', 0)
             ->where('user_id', '!=', $userId)
             ->where('created_at', '>=', $niceReminderStartDate)
             ->whereHas('to_users', function ($q) use ($userId) {
@@ -1062,7 +1061,7 @@ class DashboardController extends Controller
 
         // Already nominated this month? Nothing to remind.
         $alreadyNominated = PostRecord::where('user_id', $user->id)
-            ->where('rakuaward', 1)
+            ->where('app_type', 7)
             ->whereBetween('created_at', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
             ->exists();
 
@@ -1100,7 +1099,7 @@ class DashboardController extends Controller
                 $post['attention_type'] = 'nice_relay_glowd_nine';
                 $post['relay_root_post_id'] = (int) $prize->root_post_id;
                 // Prefer the recorded source; fall back for rows created before the column existed.
-                $post['glowd_nine_source'] = $prize->source ?: ($post->rakuaward ? 'rakuaward' : 'relay');
+                $post['glowd_nine_source'] = $prize->source ?: ((int) $post->app_type === 7 ? 'rakuaward' : 'relay');
 
                 return $post;
             })
