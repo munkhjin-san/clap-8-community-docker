@@ -370,6 +370,22 @@ const onKintoneImport = (preview: any) => {
     dialog.toast(`${added.length}件の項目${flowNote}を取り込みました。保存前に内容をご確認ください。`)
 }
 
+// A field with no validation is stored server-side as an empty JSON array (PHP serializes an empty
+// array as `[]`, not `{}`), so the API hands it back as a JS array. Binding `v-model="v.default"` in
+// the inspector then sets `.default` as an expando property on that array — which JSON.stringify
+// silently drops on save. Coerce to a real object on load so builder edits always persist. Nested
+// table-column validation has the same hazard, so normalize those too.
+const normalizeValidation = (val: any): Record<string, any> => {
+    const obj = val && typeof val === 'object' && !Array.isArray(val) ? { ...val } : {}
+    if (Array.isArray(obj.columns)) {
+        obj.columns = obj.columns.map((c: any) => ({
+            ...c,
+            validation: c?.validation && typeof c.validation === 'object' && !Array.isArray(c.validation) ? c.validation : {},
+        }))
+    }
+    return obj
+}
+
 const toBuilder = (api: FlowDefinitionApi): BuilderDefinition => {
     const idToKey: Record<number, string> = {}
     api.fields.forEach((f) => { if (f.id) idToKey[f.id] = f.key })
@@ -384,7 +400,7 @@ const toBuilder = (api: FlowDefinitionApi): BuilderDefinition => {
         icon_image: api.icon_image ?? null,
         is_active: api.is_active ?? true,
         use_status_flow: !!api.use_status_flow,
-        fields: api.fields.map((f) => ({ ...f, width: f.width ?? 260, options: f.options ?? null, validation: f.validation ?? {} })),
+        fields: api.fields.map((f) => ({ ...f, width: f.width ?? 260, options: f.options ?? null, validation: normalizeValidation(f.validation) })),
         statuses: api.statuses.map((s): BuilderStatus => {
             const rules: Record<string, any> = {}
             ;(s.field_rules || []).forEach((r) => {

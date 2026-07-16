@@ -411,7 +411,9 @@ const referenceableFields = computed(() =>
 
 watch(() => props.field, (f) => {
     if (!f) return
-    if (!f.validation) f.validation = {}
+    // guard against validation arriving as an empty array (PHP serializes empty validation as `[]`);
+    // setting props on an array is lost by JSON.stringify on save — see normalizeValidation in FlowBuilder
+    if (!f.validation || Array.isArray(f.validation)) f.validation = {}
     if (f.input_type === 'formula' && !f.result_type) f.result_type = 'number'
     if (f.input_type === 'reference') {
         loadRefApps()
