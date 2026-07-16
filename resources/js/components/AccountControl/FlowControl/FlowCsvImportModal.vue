@@ -53,13 +53,7 @@
                                     <td class="ci-sample">{{ sampleFor(h) }}</td>
                                     <td>
                                         <div class="ci-target">
-                                            <select v-model="mapping[h]" class="custom-a-input !box-border ci-select">
-                                                <option v-for="f in fields" :key="f.id" :value="String(f.id)">{{ f.label }}（{{ typeLabel(f.input_type) }}）</option>
-                                                <option v-for="s in systemColumns" :key="s.key" :value="s.key">{{ s.label }}（システム）</option>
-                                                <option value="__new__">＋ 新規項目として作成</option>
-                                                <option v-if="subtablePresent" value="__table__">サブテーブルの列</option>
-                                                <option value="__skip__">取り込まない</option>
-                                            </select>
+                                            <FlowSearchSelect class="ci-select" :model-value="mapping[h] || null" :options="mappingOptions" :clearable="false" placeholder="項目を選択" @update:model-value="(val) => mapping[h] = String(val)" />
                                             <select v-if="mapping[h] === '__new__' || mapping[h] === '__table__'" v-model="newTypes[h]" class="custom-a-input !box-border ci-typesel" title="項目のタイプ（推奨を自動判定）">
                                                 <option v-for="t in NEW_TYPE_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
                                             </select>
@@ -107,6 +101,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useApi } from '@/composables/api'
 import Modal from '@/components/Global/Modal.vue'
+import FlowSearchSelect from './FlowSearchSelect.vue'
 
 interface ImportField { id: number; label: string; input_type: string; is_required: boolean; options: string[] }
 interface InvalidRow { row: number; errors: { header: string; message: string }[] }
@@ -148,6 +143,16 @@ const TYPE_LABELS: Record<string, string> = {
     select: '選択', radio: 'ラジオ', checkbox: 'チェック', toggle: 'オン/オフ', user: 'ユーザー', member: 'メンバー', file: 'ファイル',
 }
 const typeLabel = (t: string) => TYPE_LABELS[t] ?? t
+// combined options for the searchable per-column mapping picker (app fields + system cols + actions)
+const mappingOptions = computed(() => {
+    const opts: { value: string; label: string }[] = []
+    for (const f of fields.value) opts.push({ value: String(f.id), label: `${f.label}（${typeLabel(f.input_type)}）` })
+    for (const s of systemColumns.value) opts.push({ value: s.key, label: `${s.label}（システム）` })
+    opts.push({ value: '__new__', label: '＋ 新規項目として作成' })
+    if (subtablePresent.value) opts.push({ value: '__table__', label: 'サブテーブルの列' })
+    opts.push({ value: '__skip__', label: '取り込まない' })
+    return opts
+})
 
 const form = (phase: string) => {
     const fd = new FormData()

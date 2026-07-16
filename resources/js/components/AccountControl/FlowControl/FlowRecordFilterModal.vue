@@ -12,9 +12,7 @@
 
             <div v-if="!local.conditions.length" class="rf-empty">条件を追加してください。</div>
             <div v-for="(f, fi) in local.conditions" :key="fi" class="rf-cond">
-                <select :value="String(f.field)" @change="onFieldChange(f, $event)" class="custom-a-input !box-border rf-cond-field">
-                    <option v-for="ref in filterableRefs" :key="String(ref)" :value="String(ref)">{{ refLabel(ref) }}</option>
-                </select>
+                <FlowSearchSelect class="rf-cond-field" :model-value="f.field" :options="refOptions" :clearable="false" @update:model-value="(val) => onFieldChange(f, val as number | string)" />
                 <select v-model="f.operator" class="custom-a-input !box-border rf-cond-op">
                     <option v-for="op in operatorsFor(f.field)" :key="op" :value="op">{{ opLabel(op) }}</option>
                 </select>
@@ -44,6 +42,7 @@ import {
 import type { FlowField, FlowOptionUser, FlowViewOperator, FlowAdhocFilter } from '@/types/flow'
 import { operatorsForType } from '@/utils/flowView'
 import Modal from '@/components/Global/Modal.vue'
+import FlowSearchSelect from './FlowSearchSelect.vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import FilterValue from './FlowViewFilterValue.vue'
 
@@ -78,12 +77,9 @@ const refType = (ref: number | string): string | undefined =>
 const opLabel = (op: FlowViewOperator) => FLOW_VIEW_OPERATOR_LABEL[op]
 const operatorsFor = (ref: number | string) => operatorsForType(refType(ref))
 const needsValue = (op: FlowViewOperator) => op !== 'is_empty' && op !== 'not_empty'
-const castRef = (e: Event): number | string => {
-    const v = (e.target as HTMLSelectElement).value
-    return isSystemColumn(v) ? v : Number(v)
-}
-const onFieldChange = (f: { field: number | string; operator: FlowViewOperator; values: any[] }, e: Event) => {
-    f.field = castRef(e)
+const refOptions = computed(() => filterableRefs.value.map((r) => ({ value: r, label: refLabel(r) })))
+const onFieldChange = (f: { field: number | string; operator: FlowViewOperator; values: any[] }, val: number | string) => {
+    f.field = val
     const ops = operatorsFor(f.field)
     if (!ops.includes(f.operator)) f.operator = ops[0]
     f.values = []

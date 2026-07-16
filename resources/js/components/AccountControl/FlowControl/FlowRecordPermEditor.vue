@@ -22,10 +22,15 @@
                     <option value="status">ステータス</option>
                     <option value="field">フィールド</option>
                 </select>
-                <select v-if="c.source === 'field'" v-model="c.field_id" class="custom-a-input !box-border" @change="c.values = []">
-                    <option :value="null" disabled>項目</option>
-                    <option v-for="f in conditionFields" :key="f.id" :value="f.id">{{ f.label }}</option>
-                </select>
+                <FlowSearchSelect
+                    v-if="c.source === 'field'"
+                    class="cond-fieldsel"
+                    :model-value="c.field_id ?? null"
+                    :options="condFieldOptions"
+                    :clearable="false"
+                    placeholder="項目"
+                    @update:model-value="(val) => { c.field_id = val == null ? null : Number(val); c.values = [] }"
+                />
                 <select v-model="c.operator" class="custom-a-input !box-border cond-op">
                     <option value="includes_any">いずれかを含む</option>
                     <option value="includes_all">すべて含む</option>
@@ -104,12 +109,14 @@ import { computed, reactive } from 'vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import MemberSelector from '@/components/Form/MemberSelector.vue'
 import ItemSelector from '@/components/Form/ItemSelector.vue'
+import FlowSearchSelect from './FlowSearchSelect.vue'
 import { subjectLabelFor } from '@/utils/flowSubject'
 import type { BuilderDefinition, RecordPermConditionRow, RecordPermGrantRow, FlowOptionUser, FlowOptionPosition } from '@/types/flow'
 
 const props = defineProps<{ def: BuilderDefinition; users: FlowOptionUser[]; positions: FlowOptionPosition[] }>()
 
 const conditionFields = computed(() => props.def.fields.filter((f) => f.input_type !== 'heading' && f.input_type !== 'formula'))
+const condFieldOptions = computed(() => conditionFields.value.filter((f) => f.id != null).map((f) => ({ value: f.id as number, label: f.label })))
 const userFields = computed(() => props.def.fields.filter((f) => f.input_type === 'user' || f.input_type === 'member'))
 
 const PERMS = [
@@ -192,6 +199,7 @@ const addGrant = (si: number) => {
 .sub-sec { font-size: 12px; color: gray; margin-bottom: 6px; }
 .cond-row, .grant-row { display: flex; align-items: center; gap: 6px; padding: 5px 0; flex-wrap: wrap; }
 .cond-src { width: 110px; }
+.cond-fieldsel { flex: 1; min-width: 140px; }
 .cond-op { width: 130px; }
 .cond-val { min-width: 160px; min-height: 34px; flex: 1; }
 .subj { font-size: 13px; flex: 1; min-width: 100px; }

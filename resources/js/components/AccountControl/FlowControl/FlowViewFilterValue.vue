@@ -5,25 +5,19 @@
             <input type="checkbox" :checked="arr.includes(o)" @change="toggle(o)"> {{ o }}
         </label>
     </div>
-    <select v-else-if="options.length" v-model="single" class="custom-a-input !box-border w-full">
-        <option value="">--</option>
-        <option v-for="o in options" :key="o" :value="o">{{ o }}</option>
-    </select>
+    <FlowSearchSelect v-else-if="options.length" :model-value="single || null" :options="optionChoices" placeholder="選択" @update:model-value="(val) => single = val" />
 
     <!-- user / member -->
     <select v-else-if="isUser && multiMode" multiple v-model="arrModel" class="custom-a-input !box-border w-full fv-userlist">
         <option v-for="u in users || []" :key="u.id" :value="u.id">{{ u.name }}</option>
     </select>
-    <select v-else-if="isUser" v-model="singleNum" class="custom-a-input !box-border w-full">
-        <option :value="''">--</option>
-        <option v-for="u in users || []" :key="u.id" :value="u.id">{{ u.name }}</option>
-    </select>
+    <FlowSearchSelect v-else-if="isUser" :model-value="singleNum || null" :options="userOptions" placeholder="ユーザーを選択" @update:model-value="(val) => singleNum = val" />
 
     <!-- typed inputs -->
     <input v-else-if="type === 'number' || type === '$number'" type="number" v-model="single" class="custom-a-input !box-border w-full">
-    <input v-else-if="type === 'date'" type="date" v-model="single" class="custom-a-input !box-border w-full">
-    <input v-else-if="type === 'datetime' || type === '$datetime'" type="datetime-local" v-model="single" class="custom-a-input !box-border w-full">
-    <input v-else-if="type === 'time'" type="time" v-model="single" class="custom-a-input !box-border w-full">
+    <input v-else-if="type === 'date'" type="date" v-model="single" class="custom-a-input !box-border w-full" :style="{ colorScheme: nativeScheme }">
+    <input v-else-if="type === 'datetime' || type === '$datetime'" type="datetime-local" v-model="single" class="custom-a-input !box-border w-full" :style="{ colorScheme: nativeScheme }">
+    <input v-else-if="type === 'time'" type="time" v-model="single" class="custom-a-input !box-border w-full" :style="{ colorScheme: nativeScheme }">
     <select v-else-if="type === 'toggle'" v-model="single" class="custom-a-input !box-border w-full">
         <option value="true">オン</option>
         <option value="false">オフ</option>
@@ -35,6 +29,8 @@
 import { computed } from 'vue'
 import { isSystemColumn, FLOW_SYS_STATUS } from '@/types/flow'
 import type { FlowField, FlowOptionUser, FlowViewOperator } from '@/types/flow'
+import FlowSearchSelect from './FlowSearchSelect.vue'
+import { useTheme } from '@/store/theme'
 
 const props = defineProps<{
     fieldRef: number | string
@@ -45,6 +41,9 @@ const props = defineProps<{
     modelValue: any[]
 }>()
 const emit = defineEmits<{ 'update:modelValue': [any[]] }>()
+const theme = useTheme()
+// native date/time pickers render their icon per `color-scheme`; follow the app theme (dark-mode visibility)
+const nativeScheme = computed(() => (theme.dark ? 'dark' : 'light'))
 
 const field = computed(() => (isSystemColumn(props.fieldRef) ? null : props.fields.find((f) => f.id === Number(props.fieldRef)) ?? null))
 const type = computed<string>(() => {
@@ -58,6 +57,8 @@ const options = computed<string[]>(() => {
     return ['select', 'radio', 'checkbox'].includes(type.value) ? (field.value?.options ?? []) : []
 })
 const isUser = computed(() => type.value === 'user' || type.value === 'member')
+const userOptions = computed(() => (props.users || []).map((u) => ({ value: u.id, label: u.name })))
+const optionChoices = computed(() => options.value.map((o) => ({ value: o, label: o })))
 const multiMode = computed(() => props.operator === 'includes_any')
 
 const single = computed({

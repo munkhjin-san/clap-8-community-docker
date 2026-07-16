@@ -83,9 +83,7 @@
 
                         <template v-else-if="sel.type === 'field'">
                             <label class="pd-f">項目
-                                <select v-model="sel.fieldKey">
-                                    <option v-for="f in valueFields" :key="f.key" :value="f.key">{{ f.label }}</option>
-                                </select>
+                                <FlowSearchSelect :model-value="sel.fieldKey ?? null" :options="valueFieldOptions" :clearable="false" placeholder="項目を選択" @update:model-value="(val) => sel!.fieldKey = String(val)" />
                             </label>
                             <label class="pd-f">表示形式
                                 <select v-model="fmtKind">
@@ -136,17 +134,13 @@
 
                         <template v-else-if="sel.type === 'table'">
                             <label class="pd-f">明細の元データ（テーブル項目）
-                                <select v-model="sel.sourceFieldKey" @change="onTableSourceChange">
-                                    <option v-for="f in tableFields" :key="f.key" :value="f.key">{{ f.label }}</option>
-                                </select>
+                                <FlowSearchSelect :model-value="sel.sourceFieldKey ?? null" :options="tableFieldOptions" :clearable="false" placeholder="テーブル項目を選択" @update:model-value="(val) => { sel!.sourceFieldKey = String(val); onTableSourceChange() }" />
                             </label>
                             <p v-if="!tableFields.length" class="pd-warn">フォームに「テーブル」項目がありません。先に追加してください。</p>
                             <div class="pd-cols">
                                 <div class="pd-cols-h">表示する列</div>
                                 <div v-for="(c, ci) in (sel.columns || [])" :key="ci" class="pd-col-row">
-                                    <select :value="c.colKey" @change="onColSourceChange(c, ($event.target as HTMLSelectElement).value)" class="pd-col-src">
-                                        <option v-for="sc in sourceColumns" :key="sc.key" :value="sc.key">{{ sc.label || sc.key }}</option>
-                                    </select>
+                                    <FlowSearchSelect class="pd-col-src" :model-value="c.colKey ?? null" :options="sourceColumnOptions" :clearable="false" placeholder="列" @update:model-value="(val) => onColSourceChange(c, String(val))" />
                                     <input v-model="c.label" class="pd-col-lbl" placeholder="見出し">
                                     <select v-model="c.align" class="pd-col-al"><option value="left">左</option><option value="center">中</option><option value="right">右</option></select>
                                     <input type="number" v-model.number="c.width" class="pd-col-w" placeholder="%">
@@ -159,10 +153,7 @@
                                 <label class="pd-ck"><input type="checkbox" v-model="showBorderModel"> 罫線を表示</label>
                             </div>
                             <label class="pd-f">合計に使う金額列
-                                <select v-model="sel.amountColKey">
-                                    <option :value="undefined">（なし）</option>
-                                    <option v-for="sc in sourceColumns" :key="sc.key" :value="sc.key">{{ sc.label || sc.key }}</option>
-                                </select>
+                                <FlowSearchSelect :model-value="sel.amountColKey ?? null" :options="sourceColumnOptions" placeholder="（なし）" @update:model-value="(val) => sel!.amountColKey = val == null ? undefined : String(val)" />
                             </label>
                             <div class="pd-toggles">
                                 <label class="pd-ck"><input type="checkbox" v-model="sel.showSubtotal"> 小計</label>
@@ -210,6 +201,7 @@ import { computed, ref } from 'vue'
 import type { BuilderDefinition, FlowAppTool, PdfElement, PdfElementType } from '@/types/flow'
 import { isLayoutType } from '@/types/flow'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
+import FlowSearchSelect from './FlowSearchSelect.vue'
 import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 
@@ -233,6 +225,11 @@ const sourceColumns = computed(() => {
     const f = props.def.fields.find((x) => x.key === sel.value?.sourceFieldKey)
     return (f?.validation?.columns as any[]) ?? []
 })
+
+// option lists for the searchable field pickers
+const valueFieldOptions = computed(() => valueFields.value.map((f) => ({ value: f.key, label: f.label })))
+const tableFieldOptions = computed(() => tableFields.value.map((f) => ({ value: f.key, label: f.label })))
+const sourceColumnOptions = computed(() => sourceColumns.value.map((sc: any) => ({ value: sc.key, label: sc.label || sc.key })))
 
 const palette: { type: PdfElementType; label: string; icon: string }[] = [
     { type: 'text', label: '静的テキスト', icon: 'T' },

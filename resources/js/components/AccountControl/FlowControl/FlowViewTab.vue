@@ -61,9 +61,7 @@
             <div class="vt-divider"></div>
             <div class="vt-sec">フィルター（すべての条件に一致）</div>
             <div v-for="(f, fi) in current.filters" :key="fi" class="vt-cond">
-                <select :value="String(f.field)" @change="onFilterField(f, $event)" class="custom-a-input !box-border vt-cond-field">
-                    <option v-for="ref in filterableRefs" :key="String(ref)" :value="String(ref)">{{ refLabel(ref) }}</option>
-                </select>
+                <FlowSearchSelect class="vt-cond-field" :model-value="f.field" :options="refOptions" :clearable="false" @update:model-value="(val) => onFilterField(f, val as number | string)" />
                 <select v-model="f.operator" class="custom-a-input !box-border vt-cond-op">
                     <option v-for="op in operatorsFor(f.field)" :key="op" :value="op">{{ opLabel(op) }}</option>
                 </select>
@@ -77,9 +75,7 @@
             <div class="vt-divider"></div>
             <div class="vt-sec">並び替え</div>
             <div v-for="(s, si) in current.sort" :key="si" class="vt-cond">
-                <select :value="String(s.field)" @change="s.field = castRef($event)" class="custom-a-input !box-border vt-cond-field">
-                    <option v-for="ref in filterableRefs" :key="String(ref)" :value="String(ref)">{{ refLabel(ref) }}</option>
-                </select>
+                <FlowSearchSelect class="vt-cond-field" :model-value="s.field" :options="refOptions" :clearable="false" @update:model-value="(val) => s.field = val as number | string" />
                 <select v-model="s.direction" class="custom-a-input !box-border vt-cond-op">
                     <option value="asc">昇順</option>
                     <option value="desc">降順</option>
@@ -101,6 +97,7 @@ import type { BuilderDefinition, BuilderView, FlowViewOperator, FlowOptionUser }
 import { operatorsForType, allColumnRefs } from '@/utils/flowView'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import FilterValue from './FlowViewFilterValue.vue'
+import FlowSearchSelect from './FlowSearchSelect.vue'
 
 const props = defineProps<{ def: BuilderDefinition; users?: FlowOptionUser[] }>()
 
@@ -136,10 +133,8 @@ const refType = (ref: number | string): string | undefined =>
 const opLabel = (op: FlowViewOperator) => FLOW_VIEW_OPERATOR_LABEL[op]
 const operatorsFor = (ref: number | string) => operatorsForType(refType(ref))
 const needsValue = (op: FlowViewOperator) => op !== 'is_empty' && op !== 'not_empty'
-const castRef = (e: Event): number | string => {
-    const v = (e.target as HTMLSelectElement).value
-    return isSystemColumn(v) ? v : Number(v)
-}
+// field/system-column options for the searchable field pickers (native ref values: id number or $key)
+const refOptions = computed(() => filterableRefs.value.map((r) => ({ value: r, label: refLabel(r) })))
 
 /* ---- column ops (materialise "all" to explicit before mutating) ---- */
 const ensureExplicit = () => {
@@ -158,8 +153,8 @@ const moveColumn = (ci: number, dir: number) => {
 }
 
 /* ---- filters / sort ---- */
-const onFilterField = (f: { field: number | string; operator: FlowViewOperator; values: any[] }, e: Event) => {
-    f.field = castRef(e)
+const onFilterField = (f: { field: number | string; operator: FlowViewOperator; values: any[] }, val: number | string) => {
+    f.field = val
     const ops = operatorsFor(f.field)
     if (!ops.includes(f.operator)) f.operator = ops[0]
     f.values = []
