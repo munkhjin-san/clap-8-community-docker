@@ -77,7 +77,7 @@
     position: absolute;
     right: 0;
     top: 50px;
-    z-index: 6;
+    z-index: 16;
     background: var(--bg3);
     box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
 }
