@@ -31,7 +31,7 @@ class BackfillNiceRelayGlowdNine extends Command
 
         foreach ($sourcePostIds as $sourcePostId) {
             $post = PostRecord::with('user')->find($sourcePostId);
-            if (! $post || (int) $post->app_type !== 0 || $post->rakuaward) {
+            if (! $post || (int) $post->app_type !== 0) {
                 continue;
             }
 

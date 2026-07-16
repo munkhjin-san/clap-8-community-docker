@@ -70,7 +70,8 @@ export interface Post{
     grantable: boolean;
     emoted_users: EmoteUser[];
     mini?: boolean;
-    rakuaward: boolean;
+    rakuaward_granted_at?: string | null;
+    rakuaward_refunded_at?: string | null;
     post_relays?: PostRelay[];
     accepted_post_relay?: PostRelay | null;
     relay_chain?: RelayChainNode[];

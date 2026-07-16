@@ -60,8 +60,7 @@ class PostRefundService
         return DB::transaction(function () use ($postId) {
             $post = PostRecord::query()
                 ->where('id', $postId)
-                ->where('app_type', 0)
-                ->where('rakuaward', 1)
+                ->where('app_type', 7)
                 ->lockForUpdate()
                 ->first();
 

@@ -653,6 +653,21 @@ class PostController extends Controller
                     ->firstOrFail();
                 $this->validateRelayChallengePlayers($request);
             }
+            if ($request->app_type == 7) {
+                $check = $this->check_rakuaward();
+                
+                if ($check) {
+                    throw ValidationException::withMessages([
+                        'rakuaward' => '今月の楽アワードノミネート既に作成してます',
+                    ]);
+                }
+                $todayDay = Carbon::now()->day;
+                if ($todayDay > 20) {
+                    throw ValidationException::withMessages([
+                        'rakuaward' => '20日を過ぎてしまったため、楽アワードノミネートすることはできません',
+                    ]);
+                }
+            }
             $record->user_id = Auth::id();
             $record->title = $request->title;
             if($request->app_type == 2){
@@ -672,14 +687,12 @@ class PostController extends Controller
                 $record->content = $request->post_content;
                 $record->challenge_main_category = null;
                 $record->challenge_sub_category = null;
-                // A rakuaward nice is chargeable (like a mini challenge); a plain nice is not.
-                $record->chargeable = (int) $request->app_type === 0 ? (bool) $request->rakuaward : false;
+                $record->chargeable = (int) $request->app_type === 7 ? true : false;
             }
             // if($request->app_type == 5 ){
             //     $record->donation_target = $request->donation_target;
             // }        
-            $record->rakuaward = $request->rakuaward;
-            $record->referrer = $request->referrer; 
+            $record->referrer = $request->referrer;
             $record->app_type = $request->app_type;    
             $record->refresh_amount = $request->refresh_amount;     
             if($request->edit_id){
@@ -694,11 +707,11 @@ class PostController extends Controller
             $user = Auth::user();
             $user->user_last_record()->firstOrCreate()->touch();
             $this->badgeService->invalidateBadgeSummaryCache();
-            if($request->app_type == 2 || $request->app_type == 0){
+            if($request->app_type == 2 || $request->app_type == 0 || $request->app_type == 7){
                 $record->to_users()->sync($request->to_users);
                 // A rakuaward nice is a standalone chargeable nomination, not part of the
                 // nice-relay / GlowdNine system, so skip all relay handling for it.
-                if ((int) $request->app_type === 0 && !$request->edit_id && !$request->boolean('rakuaward')) {
+                if ((int) $request->app_type === 0 && !$request->edit_id) {
                     $this->completePendingNiceRelaysForUser($record);
                     $this->createNiceRelaysForPost($record, $request->to_users ?? []);
                     $this->maybeAwardRelayGlowdNine($record, PostRelay::TYPE_NICE);
@@ -736,13 +749,13 @@ class PostController extends Controller
             ]);
         }
     }
-    public function check_rakuaward(Request $request){
+    private function check_rakuaward(){
         $activeUser = Auth::user();
-        $record = PostRecord::where('user_id', $activeUser->id)->where('rakuaward', 1)->where('created_at', '>=', Carbon::now()->startOfMonth())->where('created_at', '<=', Carbon::now()->endOfMonth())->first();
+        $record = PostRecord::where('user_id', $activeUser->id)->where('app_type', 7)->where('created_at', '>=', Carbon::now()->startOfMonth())->where('created_at', '<=', Carbon::now()->endOfMonth())->first();
         if ($record) {
-            return response()->json(false);
+            return true;
         }
-        return response()->json(true);
+        return false;
     }
     public function challenge_charge_to(Request $request){
 
@@ -755,7 +768,7 @@ class PostController extends Controller
         $chargeBet = (int) $request->charge_bet;
         $user = Auth::user();
 
-        $isRakuawardNice = (int) $record->app_type === 0 && (bool) $record->rakuaward;
+        $isRakuawardNice = (int) $record->app_type === 7;
         $isChallenge = (int) $record->app_type === 2;
 
         if (!$isRakuawardNice && !$isChallenge) {

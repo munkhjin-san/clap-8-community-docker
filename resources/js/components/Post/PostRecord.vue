@@ -9,11 +9,6 @@
                         <img src="/images/minisuke.webp" class="h-[23px]" />
                         <p class="text-[12px] whitespace-nowrap">ミニ</p>
                     </div>
-                    <div title="このナイスは楽アワードノミネートナイスです" v-if="record.rakuaward"
-                        class="rounded-full bg-[var(--bg3)] px-3 py-1 flex items-center gap-2">
-                        
-                        <p class="text-[12px] whitespace-nowrap">楽アワードノミネート</p>
-                    </div>
                     <div v-html="title" class="post-title under500:hidden"></div>
                 </div>
                 <div class="flex flex-wrap-reverse items-center justify-end">
@@ -27,6 +22,10 @@
                             <Back class="rotate-[270deg]" size="10" />
                         </span>
                     </div>
+                    <div v-if="record.app_type == 7"
+                        class="whitespace-nowrap text-[12px] pl-4 pr-3 py-1 rounded-full bg-[var(--bg3)] mr-2">
+                        {{ status }}
+                    </div>
                     <ItemMenu v-if="isOwner || auth.id === 516" :items="postMenu" />
                 </div>
             </div>
@@ -39,9 +38,9 @@
                             <UserPanel :user="record.user" :disableInstant="true" imgClass="userNormalIcon" size="30" />
                             <p class="userName">{{ record.user ? record.user.name : '' }}</p>
                         </RouterLink>
-                        <div v-if="record.app_type == 2 || record.app_type == 0" class="relative">
+                        <div v-if="record.app_type == 2 || record.app_type == 0 || record.app_type == 7" class="relative">
                             <div class="flex items-center">
-                                <svg v-if="record.app_type == 0" version="1.1" xmlns="http://www.w3.org/2000/svg"
+                                <svg v-if="record.app_type == 0 || record.app_type == 7" version="1.1" xmlns="http://www.w3.org/2000/svg"
                                     class="nice-arrow mr-4" viewBox="0 0 47 32">
                                     <path
                                         d="M46.75 13.96c-1.286-1.149-2.572-2.298-3.869-3.435-1.292-1.144-2.595-2.274-3.895-3.409-1.297-1.138-2.607-2.261-3.913-3.389-1.31-1.122-2.629-2.24-3.956-3.343-0.652-0.542-1.621-0.512-2.238 0.105-0.64 0.645-0.61 1.699 0.020 2.357 1.179 1.236 2.371 2.458 3.567 3.674 1.214 1.227 2.426 2.455 3.65 3.669 0.888 0.887 1.777 1.775 2.667 2.659 0.221 0.219 0.064 0.59-0.244 0.587-1.406-0.018-2.813-0.030-4.221-0.038-3.599-0.027-7.198-0.002-10.796 0.011l-5.399 0.034-5.399 0.064c-3.599 0.052-7.198 0.11-10.796 0.221-1.068 0.035-1.94 0.916-1.928 2.010 0.012 1.076 0.914 1.934 1.99 1.966 3.578 0.107 7.156 0.165 10.734 0.219l5.399 0.064 5.399 0.034c3.598 0.012 7.197 0.035 10.796 0.011 1.397-0.009 2.793-0.021 4.19-0.038 0.308-0.003 0.465 0.369 0.244 0.587-0.887 0.875-1.771 1.755-2.659 2.633-1.227 1.213-2.44 2.44-3.659 3.662l-1.815 1.844-1.806 1.858c-0.646 0.67-0.66 1.766 0.043 2.444 0.643 0.622 1.669 0.614 2.35 0.037l1.935-1.635 1.966-1.684c1.301-1.132 2.609-2.258 3.904-3.398s2.597-2.274 3.884-3.422c1.292-1.141 3.235-2.764 4.046-3.634 0.808-0.872 0.777-2.458-0.19-3.322z">
@@ -200,7 +199,7 @@
                         </button>
                     </div> -->
                 </div>
-                <div v-if="(record.app_type == 2 && record.status_flag == 0) || (record.app_type == 0 && record.rakuaward)"
+                <div v-if="(record.app_type == 2 && record.status_flag == 0) || (record.app_type == 7)"
                     class="text-[12px] flex-wrap justify-center flex w-fit mx-auto text-[gray] items-center gap-2 whitespace-nowrap">
                     <p>チャージ受付期間：</p>
                     <PostDate :record="record" class="!m-0" which="charge_period" />
@@ -208,14 +207,14 @@
                 <div class="flex flex-col justify-center items-center gap-2 mb-6 mx-auto w-full"
                     v-if="challengeButtonView">
                     <button @click="emit('setChargeTarget', record)" v-if="challengeButtonSwitch" id="chargeAddButton"
-                        class="chargeFormeAddButton cursor-pointer">{{ isChargeableNice ? 'チャージする' : 'チャレンジにチャージする' }}</button>
+                        class="chargeFormeAddButton cursor-pointer">{{ props.record.app_type == 7 ? 'チャージする' : 'チャレンジにチャージする' }}</button>
                     <button v-else class="chargeFormeAddButton" disabled>{{ canNotCharge }}</button>
                 </div>
                 <div v-if="record.app_type == 5">
                     <button id="glowlympicButton" class="chargeFormeAddButton cursor-pointer">参加期間は終了しました</button>
                 </div>
             </div>
-            <div class="post-footer mb-1 text-sm justify-end" v-if="record.app_type == 2 || isChargeableNice">
+            <div class="post-footer mb-1 text-sm justify-end" v-if="record.app_type == 2 || record.app_type == 7">
                 <div>現在のチャージ総額 {{ totalChargeAmmount }}円</div>
             </div>
             <div class="post-footer">
@@ -223,7 +222,7 @@
                     <div class="post-footer-wrap" v-if="record.app_type == 2 && record.grantable && totalExpenses > 0">
                         <div class="text-[14px]">経費合計: {{ amountOfMoneyParser(totalExpenses) }}円</div>
                     </div>
-                    <div v-if="record.app_type == 2 || isChargeableNice" class="post-footer-wrap">
+                    <div v-if="record.app_type == 2 || record.app_type == 7" class="post-footer-wrap">
                         <div class="text-[14px] cursor-pointer" @click="viewSupporters" v-if="supporters.length">サポーター
                             {{ supporters.length }}人</div>
                     </div>
@@ -567,9 +566,12 @@ const isMultipleUsers = computed(() => {
     return responsive.mobile && props.record && props.record.to_users && props.record.to_users.length > 1
 })
 // A rakuaward nice is chargeable like a mini challenge: max 500, window = created_at -> end of month.
-const isChargeableNice = computed(() => props.record.app_type == 0 && !!props.record.rakuaward)
 const niceChargeEnd = computed(() => DateTime.fromISO(props.record.created_at).endOf('month'))
 const status = computed(() => {
+    if (props.record.app_type === 7) {
+        if (props.record.rakuaward_granted_at) return 'MVP'
+        return DateTime.now() <= niceChargeEnd.value ? 'チャージ受付中' : 'ノミネート'
+    }
     if (props.record.app_type !== 2) return;
     const statusMap = {
         0: DateTime.now() <= customParser(props.record.date_end) ? 'チャージ受付中' : '結果待ち',
@@ -592,13 +594,13 @@ const hasProgressReportBadge = computed(() => {
     return badge.post.progress_report_ids?.includes(props.record.id) ?? false
 })
 const supporters = computed(() => {
-    if (props.record.app_type == 2 || isChargeableNice.value) {
+    if (props.record.app_type == 2 || props.record.app_type == 7) {
         return props.record.awards
     }
     return []
 })
 const totalChargeAmmount = computed(() => {
-    if (props.record.app_type == 2 || isChargeableNice.value) {
+    if (props.record.app_type == 2 || props.record.app_type == 7) {
         const amounts = props.record.awards.map(ob => {
             return ob.pivot ? ob.pivot.award_bet : 0
         })
@@ -610,7 +612,7 @@ const totalChargeAmmount = computed(() => {
 const challengeButtonSwitch = computed(() => {
     const charged_user = props.record.awards.some(obj => obj.id == auth.id);
     if (charged_user) return false
-    if (isChargeableNice.value) {
+    if (props.record.app_type == 7) {
         return DateTime.now() <= niceChargeEnd.value
     }
     if (DateTime.fromISO(props.record.created_at) <= DateTime.now().minus({ days: 14 })) return false
@@ -619,7 +621,7 @@ const challengeButtonSwitch = computed(() => {
 const canNotCharge = computed(() => {
     const charged_user = props.record.awards.find(obj => obj.id == auth.id);
     if (charged_user) return '既にチャージしています'
-    if (isChargeableNice.value) {
+    if (props.record.app_type == 7) {
         return DateTime.now() > niceChargeEnd.value ? 'チャージ期間終了しました' : ''
     }
     if (DateTime.fromISO(props.record.created_at) <= DateTime.now().minus({ days: 14 })) {
@@ -637,7 +639,7 @@ const challengeButtonView = computed(() => {
     if (props.record.app_type == 2) {
         return !props.record.to_users.some(obj => obj.id == auth.id)
     }
-    if (isChargeableNice.value) {
+    if (props.record.app_type == 7) {
         const isRecipient = props.record.to_users.some(obj => obj.id == auth.id)
         const isAuthor = props.record.user_id == auth.id
         return !isRecipient && !isAuthor

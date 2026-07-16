@@ -1287,8 +1287,7 @@ class RefreshService
         $periodEnd = (clone $periodStart)->endOfMonth();
 
         $posts = PostRecord::query()
-            ->where('app_type', 0)
-            ->where('rakuaward', 1)
+            ->where('app_type', 7)
             ->whereBetween('created_at', [$periodStart, $periodEnd])
             ->with([
                 'user:id,name,icon_path,icon_bg',
@@ -1339,8 +1338,7 @@ class RefreshService
         $periodEnd = (clone $periodStart)->endOfMonth();
 
         $postIds = PostRecord::query()
-            ->where('app_type', 0)
-            ->where('rakuaward', 1)
+            ->where('app_type', 7)
             ->whereBetween('created_at', [$periodStart, $periodEnd])
             ->whereNull('rakuaward_granted_at')
             ->whereNull('rakuaward_refunded_at')
@@ -1371,8 +1369,7 @@ class RefreshService
         return DB::transaction(function () use ($postId, $actorId) {
             $post = PostRecord::query()
                 ->where('id', $postId)
-                ->where('app_type', 0)
-                ->where('rakuaward', 1)
+                ->where('app_type', 7)
                 ->with(['to_users:id,name', 'awards'])
                 ->lockForUpdate()
                 ->firstOrFail();
@@ -1383,8 +1380,7 @@ class RefreshService
 
             $period = Carbon::parse($post->created_at);
             $grantedThisMonth = PostRecord::query()
-                ->where('app_type', 0)
-                ->where('rakuaward', 1)
+                ->where('app_type', 7)
                 ->whereNotNull('rakuaward_granted_at')
                 ->whereYear('created_at', $period->year)
                 ->whereMonth('created_at', $period->month)

@@ -27,18 +27,11 @@
                     <PostIcon which="6" size="20"/>
                     リフレッシュ
                 </div>
-            </div>
-            <div class="si-box" v-if="app_type == 0 && auth.user.position_id === 6">
-                <div class="switchLabel">
-                    <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">楽アワードノミネート</p>
+                <div v-if="auth.user.position_id === 6" @click="app_type = 7" :class="['pt-selector', { ptSelected: app_type == 7}]">
+                    <PostIcon which="7" size="20"/>
+                    ノミネート
                 </div>
-                <div class="selectSwitchArea" style="display: flex;width: 100%;margin-top: 10px;">    
-                    <input v-model="rakuaward" :disabled="rakuawardLoading || editTarget?.rakuaward" @change="onRakuAwardChange" type="checkbox" id="rakuaward">
-                    <label for="rakuaward" style="min-width: 80px;" :class="['cursor-pointer']"><span></span>
-                        <div class="switch-toggle"></div>
-                    </label>
-                </div> 
-            </div> 
+            </div>
              <div class="si-box" v-if="app_type == 2">
                 <div class="switchLabel">
                     <p class="form-lbl" style="white-space: nowrap;font-size: 14px;">NPO団体に寄付する</p>
@@ -157,13 +150,13 @@
             </div>
                     
             
-            <div class="si-box" v-if="app_type == 0">
+            <div class="si-box" v-if="app_type == 0 || app_type == 7">
                 <MemberSelector
-                    :placeHolder="rakuaward ? '宛先選択（1名）（必須）' : '宛先選択（必須）'"
+                    :placeHolder="app_type == 7 ? '宛先選択（1名）（必須）' : '宛先選択（必須）'"
                     rules="required"
                     name="recordUsers"
                     :multiple="true"
-                    :limit="rakuaward ? 1 : undefined"
+                    :limit="app_type == 7 ? 1 : undefined"
                     ref="recordUsers"
                     :path="possiblePath"
                     :closeOnSelect="false"
@@ -196,7 +189,7 @@
                 <LongInput
                     v-model="content"  
                     ref="contentRef"
-                    :placeHolder="rakuaward ? '推薦コメント' : `${appNameJp}内容を入力（必須）`"
+                    :placeHolder="app_type == 7 ? '推薦コメント' : `${appNameJp}内容を入力（必須）`"
                     name="contentRef"
                     rules="required|max:2000"
                 />  
@@ -455,9 +448,6 @@ import { useDashboardStore } from '@/store/dashboard'
     const selectedNpo = ref(props.editTarget && props.editTarget.donation_target ? props.editTarget.donation_target : null)
     const chargeable = ref(true)
     const donatable = ref(false)
-    const rakuaward = ref(props.editTarget?.rakuaward ? true : false)
-    const canNominateRakuAward = ref(true)
-    const rakuawardLoading = ref(false)
     const mini = ref(props.editTarget?.mini ?? false)
     const npoList = donationTargets
     const api = useApi()
@@ -492,10 +482,6 @@ import { useDashboardStore } from '@/store/dashboard'
     const isMiniLocked = computed(() => Boolean(props.popup) || isRelayChallengeCreate.value)
     const refreshPlaceholder = computed(() => {
         return app_type.value == 6 ? 'リフレッシュ写真（必須）（公開）' : 'ファイル'
-    })
-    const isRakuAwardNominatable = computed(() => {
-        const todayDay = DateTime.now().day
-        return todayDay <= 20
     })
     const activeChallengeCategory = computed(() => {
         return challengeCategories.find(category => category.label == selectedChallengeMainCategory.value) ?? null
@@ -646,15 +632,8 @@ import { useDashboardStore } from '@/store/dashboard'
         }
         costsFill()
         loadRefreshSummary()
-        await checkRakuAwardNominatable()
     })
-    const checkRakuAwardNominatable = async() => {
-        const data = await api.post('/check_rakuaward', null, {
-            loadingRef: rakuawardLoading,
-            silent: true
-        })
-        canNominateRakuAward.value = data
-    }
+    
     watch(donatable, async(newVal) => {
         if (newVal) {
             const result = await ask('必要経費以外のチャージ総額はNPOに寄付します。よろしいでしょうか?')
@@ -721,32 +700,13 @@ import { useDashboardStore } from '@/store/dashboard'
     watch(isRelayChallengeCreate, () => {
         applyRelayChallengeDefaults()
     })
-    watch(rakuaward, (isOn) => {
-        if (!isOn) return
-        // A Raku Award nomination only allows one recipient.
-        if (to_users.value.length > 1) {
-            to_users.value = [to_users.value[0]]
-        }
-    })
+    
     watch(selectedChallengeMainCategory, () => {
         challengeCategoryValidationError.value = false
     })
     watch(selectedChallengeSubCategory, () => {
         challengeCategoryValidationError.value = false
     })
-    const onRakuAwardChange = () => {
-        if (!isRakuAwardNominatable.value) {
-            ping('20日を過ぎてしまったため、楽アワードノミネートすることはできません')
-            rakuaward.value = false
-            return
-        }
-
-        if (!canNominateRakuAward.value) {
-            ping('今月の楽アワードノミネート既に作成してます')
-            rakuaward.value = false
-            return
-        }
-    }
     const loadRefreshSummary = async() => {
 
         if(app_type.value != 6){
@@ -858,7 +818,6 @@ import { useDashboardStore } from '@/store/dashboard'
             grants: costs,
             mini: mini.value,
             challenge_relay_id: app_type.value == 2 ? challengeRelayId.value : null,
-            rakuaward: rakuaward.value,
         }
 
         const data = await api.post('/post_add_record', params, {
