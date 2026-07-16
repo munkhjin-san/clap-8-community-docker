@@ -173,13 +173,17 @@ type BuilderTab = 'general' | 'form' | 'status' | 'view' | 'tools' | 'permission
 const TAB_KEYS: BuilderTab[] = ['general', 'form', 'status', 'view', 'tools', 'permission', 'audit']
 const tabFromRoute = (): BuilderTab => {
     const t = route.params.tab as string | undefined
-    return TAB_KEYS.includes(t as BuilderTab) ? (t as BuilderTab) : 'general'
+    if (TAB_KEYS.includes(t as BuilderTab)) return t as BuilderTab
+    // no explicit tab: editing an existing app opens on フォーム; creating opens on 基本情報
+    return route.params.flowId ? 'form' : 'general'
 }
-// each tab is its own route: /apps/builder/:flowId/:tab (general = no suffix)
+// each tab is its own route: /apps/builder/:flowId/:tab (general = no suffix). Tab switches use
+// replace (not push) so the whole builder stays a single history entry — "back" then returns to
+// wherever settings was opened from, not tab-by-tab.
 const tab = ref<BuilderTab>(tabFromRoute())
 const setTab = (key: BuilderTab) => {
     tab.value = key
-    router.push({ name: 'flow-builder', params: { ...route.params, tab: key === 'general' ? undefined : key }, query: route.query })
+    router.replace({ name: 'flow-builder', params: { ...route.params, tab: key === 'general' ? undefined : key }, query: route.query })
 }
 watch(() => route.params.tab, () => { if (route.name === 'flow-builder') tab.value = tabFromRoute() })
 // lazy-mount the audit tab: it fetches from the server (unlike the other tabs, which just edit the
