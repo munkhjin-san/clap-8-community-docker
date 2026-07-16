@@ -6636,17 +6636,6 @@ input:autofill {
   left: 55px !important;
 }
 
-.routeposition {
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  width: 100%;
-  z-index: 6;
-  background: var(--background-color);
-  color: var(--primary-color);
-}
-
 .project-wrapper {
   margin: 0 20px;
   height: calc(100% - 60px);

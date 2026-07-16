@@ -55,7 +55,7 @@
 
             <div v-if="col0.input_type !== 'formula'" class="irow" style="margin-top: 10px">
                 <label>必須</label>
-                <span class="sw" :class="{ on: col0.required }" @click="col0.required = !col0.required"></span>
+                <span class="flow-sw" :class="{ on: col0.required }" @click="col0.required = !col0.required"></span>
             </div>
 
             <div class="divider"></div>
@@ -81,7 +81,7 @@
         </div>
         <div class="irow" v-if="!isLayout">
             <label>必須</label>
-            <span class="sw" :class="{ on: field.is_required }" @click="field.is_required = !field.is_required"></span>
+            <span class="flow-sw" :class="{ on: field.is_required }" @click="field.is_required = !field.is_required"></span>
         </div>
 
         <template v-if="field.input_type === 'spacer' || field.input_type === 'divider'">
@@ -144,7 +144,7 @@
                 </div>
                 <div class="irow">
                     <label>整数のみ</label>
-                    <span class="sw" :class="{ on: v.integer_only }" @click="v.integer_only = !v.integer_only"></span>
+                    <span class="flow-sw" :class="{ on: v.integer_only }" @click="v.integer_only = !v.integer_only"></span>
                 </div>
             </template>
 
@@ -175,14 +175,14 @@
                 </div>
                 <div class="irow">
                     <label>複数可</label>
-                    <span class="sw" :class="{ on: v.allow_multiple }" @click="v.allow_multiple = !v.allow_multiple"></span>
+                    <span class="flow-sw" :class="{ on: v.allow_multiple }" @click="v.allow_multiple = !v.allow_multiple"></span>
                 </div>
             </template>
 
             <template v-else-if="field.input_type === 'user' || field.input_type === 'member'">
                 <div class="irow">
                     <label>複数選択</label>
-                    <span class="sw" :class="{ on: v.multiple !== false }" @click="v.multiple = v.multiple === false"></span>
+                    <span class="flow-sw" :class="{ on: v.multiple !== false }" @click="v.multiple = v.multiple === false"></span>
                 </div>
             </template>
 
@@ -240,7 +240,7 @@
 
             <div v-else-if="field.input_type === 'toggle'" class="irow" style="margin: 0">
                 <label>初期状態</label>
-                <span class="sw" :class="{ on: v.default }" @click="v.default = !v.default"></span>
+                <span class="flow-sw" :class="{ on: v.default }" @click="v.default = !v.default"></span>
             </div>
 
             <select v-else-if="field.input_type === 'select' || field.input_type === 'radio'" v-model="v.default" class="custom-a-input !box-border w-full">
@@ -258,14 +258,14 @@
             <template v-else-if="field.input_type === 'date' || field.input_type === 'datetime' || field.input_type === 'time'">
                 <div class="irow" style="margin: 0">
                     <label>現在日時にする</label>
-                    <span class="sw" :class="{ on: v.default_now }" @click="v.default_now = !v.default_now"></span>
+                    <span class="flow-sw" :class="{ on: v.default_now }" @click="v.default_now = !v.default_now"></span>
                 </div>
                 <p class="def-hint">オンにすると作成時の日時が自動で入ります。</p>
             </template>
 
             <div v-else-if="field.input_type === 'user' || field.input_type === 'member'" class="irow" style="margin: 0">
                 <label>作成者を初期値</label>
-                <span class="sw" :class="{ on: v.default_me }" @click="v.default_me = !v.default_me"></span>
+                <span class="flow-sw" :class="{ on: v.default_me }" @click="v.default_me = !v.default_me"></span>
             </div>
         </template>
 
@@ -338,6 +338,7 @@
 </template>
 
 <script setup lang="ts">
+import 'styles/flow-shared.css'
 import { computed, ref, watch } from 'vue'
 import { FLOW_TYPE_LABEL, FLOW_FILE_ACCEPT, FLOW_FIELD_TYPES, isLayoutType } from '@/types/flow'
 import type { FlowField, FlowFieldValidation, TableColumn, FlowAppTool } from '@/types/flow'
@@ -598,14 +599,6 @@ const removeColOption = (col: TableColumn, oi: number) => col.options?.splice(oi
 .achip.on { border-color: var(--primary-color); background: var(--bg3); color: var(--primary-color); }
 .sec { font-size: 12px; color: gray; margin: 0 0 8px; }
 .divider { height: 1px; background: var(--calendarBorder); margin: 14px 0; }
-.seg { display: inline-flex; border: 1px solid var(--calendarBorder); border-radius: 6px; overflow: hidden; }
-.seg button { border: none; background: var(--background-color); padding: 6px 10px; font-size: 12px; color: gray; cursor: pointer; border-right: 1px solid var(--calendarBorder); }
-.seg button:last-child { border-right: none; }
-.seg button.on { background: var(--bg3); color: var(--primary-color); font-weight: 500; }
-.sw { width: 36px; height: 20px; border-radius: 10px; background: var(--formBorder); position: relative; cursor: pointer; display: inline-block; flex-shrink: 0; transition: background .12s; }
-.sw.on { background: var(--primary-button, var(--primary-color)); }
-.sw::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
-.sw.on::after { left: 18px; }
 .sremove { border: none; background: none; color: gray; cursor: pointer; padding: 4px; display: flex; }
 .tcol-cfg { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--calendarBorder); }
 .col-list { display: flex; flex-direction: column; gap: 6px; }
@@ -623,7 +616,7 @@ const removeColOption = (col: TableColumn, oi: number) => col.options?.splice(oi
 .col-back { border: none; background: none; color: var(--primary-color); font-size: 12px; cursor: pointer; padding: 0; margin-bottom: 10px; text-align: left; }
 .col-del { border: 1px solid var(--formBorder); background: var(--background-color); color: #dc2626; border-radius: 6px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
 .col-del:disabled { opacity: 0.4; cursor: not-allowed; }
-.flow-ghost-btn { background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; width: fit-content; }
+.flow-ghost-btn { width: fit-content; }
 .formula-area { width: 100%; min-height: 64px; font-family: ui-monospace, monospace; font-size: 13px; resize: vertical; }
 .def-checks { display: flex; flex-direction: column; gap: 7px; }
 .def-checks .fi-opt { font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }

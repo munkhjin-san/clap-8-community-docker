@@ -9,10 +9,10 @@
         <div class="flow-builder-bar">
             <div class="flex items-center gap-[10px] min-w-0 flex-wrap">
                 <div class="flow-back" @click="back"><Back size="14" /></div>
-                <button v-if="!def.id && auth.hasPrivilage" class="flow-ghost-btn" @click="kintoneOpen = true">kintoneから取込</button>
+                <button v-if="!def.id && auth.hasPrivilage" class="flow-ghost-btn flow-ghost-btn-lg" @click="kintoneOpen = true">kintoneから取込</button>
             </div>
             <div class="flex items-center gap-[8px]">
-                <button class="flow-ghost-btn" @click="back">キャンセル</button>
+                <button class="flow-ghost-btn flow-ghost-btn-lg" @click="back">キャンセル</button>
                 <button class="flow-primary-btn" :disabled="saving" @click="save">保存</button>
             </div>
         </div>
@@ -49,7 +49,7 @@
                     <div class="fg-row">
                         <label class="fg-label">状態</label>
                         <label class="fg-toggle">
-                            <span class="sw" :class="{ on: def.is_active }" @click="def.is_active = !def.is_active"></span>
+                            <span class="flow-sw" :class="{ on: def.is_active }" @click="def.is_active = !def.is_active"></span>
                             <span>{{ def.is_active ? '有効' : '停止中' }}</span>
                         </label>
                     </div>
@@ -58,11 +58,11 @@
                         <div class="fg-icon">
                             <FlowAppIcon :icon-svg="def.icon_svg" :icon-image="def.icon_image" :color-id="def.color_id" :name="def.name" :size="60" />
                             <div class="fg-icon-btns">
-                                <button type="button" class="flow-ghost-btn" @click="iconCropOpen = true">画像をアップロード</button>
-                                <button type="button" class="flow-ghost-btn" :disabled="iconGenLoading || !def.name.trim()" @click="generateIcon">
+                                <button type="button" class="flow-ghost-btn flow-ghost-btn-lg" @click="iconCropOpen = true">画像をアップロード</button>
+                                <button type="button" class="flow-ghost-btn flow-ghost-btn-lg" :disabled="iconGenLoading || !def.name.trim()" @click="generateIcon">
                                     {{ iconGenLoading ? '生成中…' : '✨ AIで生成' }}
                                 </button>
-                                <button v-if="def.icon_svg || def.icon_image" type="button" class="flow-ghost-btn" @click="clearIcon">削除</button>
+                                <button v-if="def.icon_svg || def.icon_image" type="button" class="flow-ghost-btn flow-ghost-btn-lg" @click="clearIcon">削除</button>
                             </div>
                         </div>
                     </div>
@@ -108,6 +108,7 @@
 </template>
 
 <script setup lang="ts">
+import 'styles/flow-shared.css'
 import { computed, onMounted, ref, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
@@ -622,11 +623,7 @@ onMounted(async () => {
     /* clear the app's fixed bottom nav so the last content isn't hidden under it */
     .flow-builder-body { padding: 14px 12px 84px; }
 }
-.flow-ghost-btn { background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 6px; padding: 7px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.flow-ghost-btn-lg { white-space: nowrap; }
 .flow-primary-btn { padding: 7px 18px; font-size: 13px; color: #fff; background: var(--primary-button, var(--primary-color)); border: none; border-radius: 6px; cursor: pointer; }
 .flow-primary-btn:disabled { opacity: 0.5; cursor: default; }
-.sw { width: 36px; height: 20px; border-radius: 10px; background: var(--formBorder); position: relative; cursor: pointer; display: inline-block; transition: background .12s; }
-.sw.on { background: var(--primary-button, var(--primary-color)); }
-.sw::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
-.sw.on::after { left: 18px; }
 </style>

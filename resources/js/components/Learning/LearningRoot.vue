@@ -184,7 +184,7 @@ provide('providedMaterial', themeRecords)
     top: 0;
     height: 100%;
     width: 100%;
-    z-index: 6;
+    z-index: 8;
     background: var(--background-color);
     color:var(--primary-color);
 }

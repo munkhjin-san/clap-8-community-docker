@@ -7,7 +7,7 @@
         <div v-for="(set, si) in def.recordPermissions" :key="si" class="flow-card">
             <div class="set-head">
                 <span class="font-medium text-[13px]">セット {{ si + 1 }}</span>
-                <div class="seg ml-auto" title="複数条件のとき、すべての条件を満たす(AND)か、いずれかを満たす(OR)か">
+                <div class="flow-seg ml-auto" title="複数条件のとき、すべての条件を満たす(AND)か、いずれかを満たす(OR)か">
                     <button :class="{ on: set.match_mode === 'all' }" @click="set.match_mode = 'all'">AND</button>
                     <button :class="{ on: set.match_mode === 'any' }" @click="set.match_mode = 'any'">OR</button>
                 </div>
@@ -46,8 +46,8 @@
             <div class="sub-sec mt-[12px]">権限を付与する対象</div>
             <div v-for="(g, gi) in set.grants" :key="gi" class="grant-row">
                 <span class="subj">{{ grantLabel(g) }}</span>
-                <span v-for="p in PERMS" :key="p.k" class="perm-flag" @click="(g as any)[p.k] = !(g as any)[p.k]">
-                    <span class="cbox" :class="{ on: (g as any)[p.k] }">
+                <span v-for="p in PERMS" :key="p.k" class="flow-perm-flag" @click="(g as any)[p.k] = !(g as any)[p.k]">
+                    <span class="flow-cbox" :class="{ on: (g as any)[p.k] }">
                         <svg v-if="(g as any)[p.k]" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5,12 10,17 19,7"></polyline></svg>
                     </span>{{ p.l }}
                 </span>
@@ -55,13 +55,13 @@
             </div>
             <div class="add-panel">
                 <div class="addbar">
-                    <div class="seg">
+                    <div class="flow-seg">
                         <button :class="{ on: gType(si) === 'user' }" @click="grantType[si] = 'user'">ユーザー</button>
                         <button :class="{ on: gType(si) === 'position' }" @click="grantType[si] = 'position'">役職</button>
                         <button :class="{ on: gType(si) === 'everyone' }" @click="grantType[si] = 'everyone'">全員</button>
                         <button :class="{ on: gType(si) === 'field' }" @click="grantType[si] = 'field'">項目の担当</button>
                     </div>
-                    <div class="seg" v-if="def.project_record_id">
+                    <div class="flow-seg" v-if="def.project_record_id">
                         <button :class="{ on: gType(si) === 'project_member' }" @click="grantType[si] = 'project_member'">メンバー</button>
                         <button :class="{ on: gType(si) === 'project_manager' }" @click="grantType[si] = 'project_manager'">PM</button>
                         <button :class="{ on: gType(si) === 'project_director' }" @click="grantType[si] = 'project_director'">ディレクター</button>
@@ -82,9 +82,9 @@
                 </div>
 
                 <div class="flags-row mt-[8px]">
-                    <div class="perm-flags">
-                        <span v-for="p in PERMS" :key="p.k" class="perm-flag" @click="(flagsFor(si) as any)[p.k] = !(flagsFor(si) as any)[p.k]">
-                            <span class="cbox" :class="{ on: (flagsFor(si) as any)[p.k] }">
+                    <div class="flow-perm-flags">
+                        <span v-for="p in PERMS" :key="p.k" class="flow-perm-flag" @click="(flagsFor(si) as any)[p.k] = !(flagsFor(si) as any)[p.k]">
+                            <span class="flow-cbox" :class="{ on: (flagsFor(si) as any)[p.k] }">
                                 <svg v-if="(flagsFor(si) as any)[p.k]" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5,12 10,17 19,7"></polyline></svg>
                             </span>{{ p.l }}
                         </span>
@@ -99,6 +99,7 @@
 </template>
 
 <script setup lang="ts">
+import 'styles/flow-shared.css'
 import { computed, reactive } from 'vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import MemberSelector from '@/components/Form/MemberSelector.vue'
@@ -187,7 +188,6 @@ const addGrant = (si: number) => {
 </script>
 
 <style scoped>
-.flow-card { background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 10px; padding: 14px; }
 .set-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .sub-sec { font-size: 12px; color: gray; margin-bottom: 6px; }
 .cond-row, .grant-row { display: flex; align-items: center; gap: 6px; padding: 5px 0; flex-wrap: wrap; }
@@ -195,18 +195,8 @@ const addGrant = (si: number) => {
 .cond-op { width: 130px; }
 .cond-val { min-width: 160px; min-height: 34px; flex: 1; }
 .subj { font-size: 13px; flex: 1; min-width: 100px; }
-.perm-flags { display: flex; flex-wrap: wrap; gap: 12px; }
-.perm-flag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--primary-color); cursor: pointer; user-select: none; }
-.cbox { width: 20px; height: 20px; border: 1px solid var(--formBorder); border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-sizing: border-box !important; flex: none; }
-.cbox.on { background: var(--primary-button, var(--primary-color)); border-color: var(--primary-button, var(--primary-color)); fill: #fff; }
 .rm { border: none; background: none; color: gray; cursor: pointer; padding: 3px; }
 .addbar { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-.seg { display: inline-flex; border: 1px solid var(--calendarBorder); border-radius: 6px; overflow: hidden; }
-.seg button { border: none; background: var(--background-color); padding: 5px 9px; font-size: 12px; color: gray; cursor: pointer; border-right: 1px solid var(--calendarBorder); }
-.seg button:last-child { border-right: none; }
-.seg button.on { background: var(--bg3); color: var(--primary-color); font-weight: 500; }
-.flow-ghost-btn { background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
-.flow-ghost-btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .ml-auto { margin-left: auto; }
 .w-fit { width: fit-content; }
 

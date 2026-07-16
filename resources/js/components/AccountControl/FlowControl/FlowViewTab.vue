@@ -25,7 +25,7 @@
             </div>
             <div class="vt-row">
                 <label>既定のビュー</label>
-                <span class="sw" :class="{ on: current.is_default }" @click="makeDefault(selected)"></span>
+                <span class="flow-sw flow-sw-lg" :class="{ on: current.is_default }" @click="makeDefault(selected)"></span>
                 <span class="vt-hint">全員に最初に表示されます。</span>
             </div>
 
@@ -92,6 +92,7 @@
 </template>
 
 <script setup lang="ts">
+import 'styles/flow-shared.css'
 import { computed, ref, watch } from 'vue'
 import {
     isLayoutType, isSystemColumn, flowSystemColumns, flowSystemColumnLabel, FLOW_SYS_STATUS, FLOW_VIEW_OPERATOR_LABEL,
@@ -235,9 +236,5 @@ watch(() => props.def.views.length, () => {
 .vt-cond-val { flex: 1; min-width: 160px; }
 .vt-add-cond { background: none; border: 1px dashed var(--formBorder); border-radius: 7px; padding: 7px 12px; font-size: 12px; color: var(--primary-color); cursor: pointer; }
 .vt-add-cond:disabled { opacity: 0.5; cursor: default; }
-.sw { width: 38px; height: 22px; border-radius: 11px; background: var(--formBorder); position: relative; cursor: pointer; transition: background .12s; display: inline-block; flex-shrink: 0; }
-.sw.on { background: var(--primary-button, var(--primary-color)); }
-.sw::after { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
-.sw.on::after { left: 18px; }
 @media (max-width: 900px) { .flow-view-tab { grid-template-columns: 1fr; } .vt-cols { grid-template-columns: 1fr; } }
 </style>

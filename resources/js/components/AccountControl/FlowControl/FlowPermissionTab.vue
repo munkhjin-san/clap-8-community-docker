@@ -26,7 +26,7 @@
                                 <span v-if="isShadowed(i)" class="perm-shadow-note" title="上の「全員」ルールが先に一致するため、この行は適用されません。">無効</span>
                             </td>
                             <td v-for="p in PERMS" :key="p.k" class="td-check">
-                                <span class="cbox" :class="{ on: (row as any)[p.k] }" @click="(row as any)[p.k] = !(row as any)[p.k]">
+                                <span class="flow-cbox" :class="{ on: (row as any)[p.k] }" @click="(row as any)[p.k] = !(row as any)[p.k]">
                                     <svg v-if="(row as any)[p.k]" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5,12 10,17 19,7"></polyline></svg>
                                 </span>
                             </td>
@@ -42,12 +42,12 @@
 
             <div class="perm-add mt-[14px]">
                 <div class="flex items-center gap-[8px] flex-wrap">
-                    <div class="seg">
+                    <div class="flow-seg">
                         <button :class="{ on: addType === 'user' }" @click="addType = 'user'">ユーザー</button>
                         <button :class="{ on: addType === 'position' }" @click="addType = 'position'">役職</button>
                         <button :class="{ on: addType === 'everyone' }" @click="addType = 'everyone'">全員</button>
                     </div>
-                    <div class="seg" v-if="def.project_record_id">
+                    <div class="flow-seg" v-if="def.project_record_id">
                         <button :class="{ on: addType === 'project_member' }" @click="addType = 'project_member'">メンバー</button>
                         <button :class="{ on: addType === 'project_manager' }" @click="addType = 'project_manager'">PM</button>
                         <button :class="{ on: addType === 'project_director' }" @click="addType = 'project_director'">ディレクター</button>
@@ -58,14 +58,14 @@
                     <ItemSelector v-else :multiple="true" :options="positions" v-model="positionPicks" label="name" :clearable="true" :close-on-select="false" place-holder="役職を検索（複数選択可）" />
                 </div>
                 <div class="flex items-center gap-[12px] mt-[10px] flex-wrap">
-                    <div class="perm-flags">
-                        <span v-for="p in PERMS" :key="p.k" class="perm-flag" @click="addFlags[p.k] = !addFlags[p.k]">
-                            <span class="cbox" :class="{ on: addFlags[p.k] }">
+                    <div class="flow-perm-flags">
+                        <span v-for="p in PERMS" :key="p.k" class="flow-perm-flag" @click="addFlags[p.k] = !addFlags[p.k]">
+                            <span class="flow-cbox" :class="{ on: addFlags[p.k] }">
                                 <svg v-if="addFlags[p.k]" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5,12 10,17 19,7"></polyline></svg>
                             </span>{{ p.l }}
                         </span>
                     </div>
-                    <button class="flow-ghost-btn" :disabled="!hasPicks" @click="addRow">＋ 追加</button>
+                    <button class="flow-ghost-btn flow-ghost-btn-lg" :disabled="!hasPicks" @click="addRow">＋ 追加</button>
                 </div>
             </div>
         </div>
@@ -76,6 +76,7 @@
 </template>
 
 <script setup lang="ts">
+import 'styles/flow-shared.css'
 import { ref, reactive, computed, watch } from 'vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import MemberSelector from '@/components/Form/MemberSelector.vue'
@@ -186,7 +187,7 @@ const addRow = () => {
 .ptabs { display: flex; gap: 2px; margin-bottom: 14px; border-bottom: 1px solid var(--calendarBorder); }
 .ptab { padding: 8px 14px; font-size: 13px; color: gray; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .ptab.on { color: var(--primary-color); border-bottom-color: var(--primary-color); font-weight: 500; }
-.flow-card { background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 12px; padding: 16px 18px; }
+.flow-card { border-radius: 12px; padding: 16px 18px; }
 .flow-card-h { font-size: 14px; font-weight: 500; margin-bottom: 4px; }
 .perm-scroll { overflow-x: auto; }
 .perm-table { border-collapse: collapse; width: 100%; min-width: 620px; }
@@ -197,24 +198,14 @@ const addRow = () => {
 .subj-tag { font-size: 13px; }
 .subj-tag.special { color: var(--primary-color); font-weight: 500; }
 .td-check { text-align: center; padding: 8px; border-bottom: 1px solid var(--calendarBorder); }
-.cbox { width: 20px; height: 20px; border: 1px solid var(--formBorder); border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-.cbox.on { background: var(--primary-button, var(--primary-color)); border-color: var(--primary-button, var(--primary-color)); fill: #fff; }
 .td-actions { text-align: right; padding: 8px; border-bottom: 1px solid var(--calendarBorder); white-space: nowrap; }
 .td-actions button { border: none; background: none; color: gray; cursor: pointer; font-size: 12px; padding: 2px; }
 .td-actions button:disabled { opacity: 0.25; cursor: default; }
 .perm-add { padding: 12px; border-radius: 8px; background: var(--bg3); }
 .perm-picker { width: 100%; max-width: 520px; }
-.perm-flags { display: flex; flex-wrap: wrap; gap: 12px; }
-.perm-flag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--primary-color); cursor: pointer; user-select: none; }
 .perm-row-shadowed .subj-tag, .perm-row-shadowed .td-check { opacity: 0.4; }
 .perm-shadow-note { margin-left: 8px; font-size: 10.5px; font-weight: 600; color: #d97706; background: rgba(217, 119, 6, 0.12); border-radius: 8px; padding: 1px 7px; }
 /* ItemSelector has no compact variant — match the thin, rounded inline-input look (like MemberSelector compact) */
 .perm-picker :deep(.item-selector-shell) { border: 1px solid var(--formBorder); border-radius: 6px; }
 .perm-picker :deep(.one-selector .v-field__input) { min-height: 38px; padding-top: 2px; padding-bottom: 2px; }
-.seg { display: inline-flex; border: 1px solid var(--calendarBorder); border-radius: 6px; overflow: hidden; }
-.seg button { border: none; background: var(--background-color); padding: 6px 11px; font-size: 12px; color: gray; cursor: pointer; border-right: 1px solid var(--calendarBorder); }
-.seg button:last-child { border-right: none; }
-.seg button.on { background: var(--bg3); color: var(--primary-color); font-weight: 500; }
-.flow-ghost-btn { background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 6px; padding: 7px 14px; font-size: 13px; cursor: pointer; }
-.flow-ghost-btn:disabled { opacity: 0.4; cursor: default; }
 </style>

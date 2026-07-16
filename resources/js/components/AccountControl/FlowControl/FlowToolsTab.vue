@@ -12,7 +12,7 @@
                     <div class="tt-name">{{ tool.name }}</div>
                     <div class="tt-meta">PDF帳票 · {{ (tool.config.elements || []).length }} 要素</div>
                 </div>
-                <span class="sw sm" :class="{ on: tool.is_active }" @click="tool.is_active = !tool.is_active" title="有効/無効"></span>
+                <span class="flow-sw" :class="{ on: tool.is_active }" @click="tool.is_active = !tool.is_active" title="有効/無効"></span>
                 <button class="tt-btn" @click="openDesigner(i)">デザイン</button>
                 <button class="tt-del" @click="def.tools.splice(i, 1)" title="削除"><CloseIcon size="10" /></button>
             </div>
@@ -31,6 +31,7 @@
 </template>
 
 <script setup lang="ts">
+import 'styles/flow-shared.css'
 import { ref } from 'vue'
 import type { BuilderDefinition, FlowOptionUser } from '@/types/flow'
 import { emptyPdfTemplate } from '@/types/flow'
@@ -68,8 +69,4 @@ const openDesigner = (i: number) => { editingIndex.value = i }
 .tt-empty { font-size: 12px; color: gray; padding: 20px; text-align: center; border: 1.5px dashed var(--formBorder); border-radius: 10px; }
 .tt-add { align-self: flex-start; border: 1px dashed var(--formBorder); background: none; border-radius: 8px; padding: 9px 18px; font-size: 13px; color: var(--primary-color); cursor: pointer; }
 .tt-add:hover { background: var(--bg3); }
-.sw { width: 36px; height: 20px; border-radius: 10px; background: var(--formBorder); position: relative; cursor: pointer; display: inline-block; flex-shrink: 0; transition: background .12s; }
-.sw.on { background: var(--primary-button, var(--primary-color)); }
-.sw::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
-.sw.on::after { left: 18px; }
 </style>

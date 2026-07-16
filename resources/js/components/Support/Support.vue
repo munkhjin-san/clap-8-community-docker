@@ -143,7 +143,8 @@ import SupportMailIcon from '../Icons/SupportMailIcon.vue';
 import SupportInboxIcon from '../Icons/SupportInboxIcon.vue';
 import SupportPhoneIcon from '../Icons/SupportPhoneIcon.vue';
 import SupportAiIcon from '../Icons/SupportAiIcon.vue';
-import SupportSystemUpdateIcon from '../Icons/SupportSystemUpdateIcon.vue';
+import SupportSystemUpdateIcon from '../Icons/SupportSystemUpdateIcon.vue'
+import SupportHelpIcon from '../Icons/SupportHelpIcon.vue'
 
     const route = useRoute()
     const router = useRouter()
@@ -186,6 +187,11 @@ import SupportSystemUpdateIcon from '../Icons/SupportSystemUpdateIcon.vue';
             icon: SupportFaqIcon,
         },
         {
+            name: 'help',
+            label: 'ヘルプ・使い方',
+            icon: SupportHelpIcon,
+        },
+        {
             name: 'regulations',
             label: '就業規則及び各種の規定',
             icon: SupportRegulationIcon,
@@ -216,6 +222,7 @@ import SupportSystemUpdateIcon from '../Icons/SupportSystemUpdateIcon.vue';
     const itemDescriptions = {
         emergency_contact: '緊急連絡やインシデント報告を送信できます。',
         faq: '操作や手続きでよくある質問を検索できます。',
+        help: '各機能の使い方やチュートリアルを確認できます。',
         regulations: '就業規則、会社ルール、各種規定を確認できます。',
         email_consult: '文章で残したい相談や確認事項を送信できます。',
         email_inbox: '管理者向けのメール相談受付状況を確認できます。',

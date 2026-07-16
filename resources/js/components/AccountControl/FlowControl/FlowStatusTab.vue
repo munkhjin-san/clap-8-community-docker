@@ -1,7 +1,7 @@
 <template>
     <div class="flow-status-tab">
         <div class="sf-toggle">
-            <span class="sw" :class="{ on: def.use_status_flow }" @click="def.use_status_flow = !def.use_status_flow"></span>
+            <span class="flow-sw" :class="{ on: def.use_status_flow }" @click="def.use_status_flow = !def.use_status_flow"></span>
             <div>
                 <b>ステータス機能を使う</b>
                 <p>レコードにステータスと、状態を変えるアクションボタンを追加します。オフの場合は通常のデータ一覧として動作します。</p>
@@ -82,7 +82,7 @@
                     </div>
                     <div class="ifld">
                         <label>初期ステータス <small>新規レコードはここから開始</small></label>
-                        <span class="sw sm" :class="{ on: editingStatus.is_initial }" @click="setInitial(editingStatus)"></span>
+                        <span class="flow-sw" :class="{ on: editingStatus.is_initial }" @click="setInitial(editingStatus)"></span>
                     </div>
                 </div>
 
@@ -106,7 +106,7 @@
                 <p v-if="valueFields.length === 0" class="hint">先に「フォーム」タブで項目を追加してください。</p>
                 <div v-for="f in valueFields" :key="f.key" class="perm">
                     <span class="text-[13px]">{{ f.label }}</span>
-                    <div class="seg">
+                    <div class="flow-seg">
                         <button v-for="r in rules" :key="r.value" :class="{ on: ruleOf(editingStatus, f.key) === r.value }" @click="setRule(editingStatus, f.key, r.value)">{{ r.label }}</button>
                     </div>
                 </div>
@@ -141,6 +141,7 @@
 </template>
 
 <script setup lang="ts">
+import 'styles/flow-shared.css'
 import { computed, ref, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { isLayoutType } from '@/types/flow'
 import type { BuilderDefinition, BuilderStatus, BuilderStatusAction, FlowRule, FlowOptionUser, FlowOptionPosition } from '@/types/flow'
@@ -369,13 +370,5 @@ const deleteEditingAction = () => {
 .add-act:hover { background: var(--bg3); }
 .perm { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--calendarBorder); }
 .perm:last-child { border-bottom: none; }
-.seg { display: inline-flex; border: 1px solid var(--calendarBorder); border-radius: 6px; overflow: hidden; }
-.seg button { border: none; background: var(--background-color); padding: 5px 10px; font-size: 12px; color: gray; cursor: pointer; border-right: 1px solid var(--calendarBorder); }
-.seg button:last-child { border-right: none; }
-.seg button.on { background: var(--bg3); color: var(--primary-color); font-weight: 500; }
 
-.sw { width: 36px; height: 20px; border-radius: 10px; background: var(--formBorder); position: relative; cursor: pointer; display: inline-block; flex-shrink: 0; transition: background .12s; }
-.sw.on { background: var(--primary-button, var(--primary-color)); }
-.sw::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
-.sw.on::after { left: 18px; }
 </style>

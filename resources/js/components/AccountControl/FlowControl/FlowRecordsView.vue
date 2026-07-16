@@ -53,7 +53,7 @@
                         :title="hasAdhocFilter ? `フィルター（${adhocFilter.conditions.length}件の条件）` : 'フィルター'"
                         @click="filterModalOpen = true"
                     >
-                        <Filter size="14" :filtered="hasAdhocFilter" />
+                        <Filter size="14" :filtered="hasAdhocFilter" fill="var(--primary-color)"/>
                     </button>
                     <div class="rv-viewinfo">
                         <select v-if="views.length > 1" v-model="activeViewId" class="rv-ctrl" @change="onViewChange">
@@ -409,7 +409,7 @@ onMounted(async () => {
 .rv-appicon { flex: none; }
 .rv-searchwrap { flex: 0 1 480px; min-width: 0; display: flex; align-items: center; }
 
-.rv-filterbtn {box-sizing: border-box !important; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); cursor: pointer; }
+.rv-filterbtn {color: var(--primary-color); box-sizing: border-box !important; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); cursor: pointer; }
 .rv-filterbtn:hover { background: var(--bg3); border-color: var(--primary-color); }
 .rv-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
 .rv-actbtn { display: flex; align-items: center; gap: 6px; height: 20px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; transition: background .12s, border-color .12s; fill: var(--primary-color); }
