@@ -501,7 +501,7 @@ onUnmounted(() => {
 .field:hover .fresize, .field.sel .fresize { background: var(--primary-color); opacity: 0.25; }
 .fresize:hover { opacity: 0.5 !important; }
 .drop { border: 1.5px dashed var(--formBorder); border-radius: 6px; padding: 30px; text-align: center; font-size: 12px; color: gray; }
-.insp-col { position: sticky; top: 0; align-self: start; max-height: calc(100vh - 150px); overflow: auto; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 12px; padding: 14px; }
+.insp-col { position: sticky; top: 0; align-self: start; height: calc(100vh - 165px); overflow: auto; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 12px; padding: 14px; }
 .ffm-modal-title { display: inline-flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 600; }
 .ffm-modal-foot { display: flex; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--calendarBorder); }
 .ffm-done { border: none; background: var(--primary-button, var(--primary-color)); color: #fff; border-radius: 7px; padding: 8px 24px; font-size: 13px; cursor: pointer; }
