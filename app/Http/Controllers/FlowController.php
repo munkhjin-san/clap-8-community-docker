@@ -237,7 +237,7 @@ class FlowController extends Controller
             'id' => $definition->id,
             'name' => $definition->name,
             'fields' => $definition->fields
-                ->map(fn ($f) => ['key' => $f->key, 'label' => $f->label, 'input_type' => $f->input_type])
+                ->map(fn ($f) => ['key' => $f->key, 'label' => $f->label, 'input_type' => $f->input_type, 'result_type' => $f->result_type])
                 ->values(),
         ]);
     }
@@ -1189,6 +1189,45 @@ class FlowController extends Controller
         });
 
         return response()->json(['records' => $out->values()]);
+    }
+
+    /**
+     * A picked lookup record's field values, keyed by field key — used by the lookup field's
+     * kintone-style field copy when a record is picked. `fields` is a comma-separated list of the
+     * source field keys the mappings need. Respects the source app's view permission, per-record
+     * permissions, and field-level view permissions (a hidden field yields no value).
+     */
+    public function lookupRecord(Request $request, $definitionId, $recordId)
+    {
+        $user = $this->active_user();
+        $definition = FlowDefinition::with(['fields', 'appPermissions', 'recordPermissionSets', 'fieldPermissions'])->findOrFail($definitionId);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['view'], 403);
+
+        $record = FlowRecord::where('flow_definition_id', $definition->id)->where('id', $recordId)->firstOrFail();
+        if ($definition->recordPermissionSets->isNotEmpty()) {
+            abort_unless($this->flowService->recordPermissions($user, $record, $definition)['view'], 403);
+        }
+
+        $wantKeys = array_values(array_filter(array_map('trim', explode(',', (string) $request->input('fields', '')))));
+        if (! $wantKeys) {
+            return response()->json(['values' => (object) []]);
+        }
+
+        $fields = $definition->fields;
+        $vals = $this->flowService->recordValues($record, $fields); // keyed by field id
+        $fp = $this->flowService->fieldPermissions($user, $definition);
+        $byKey = $fields->keyBy('key');
+
+        $out = [];
+        foreach ($wantKeys as $key) {
+            $f = $byKey->get($key);
+            if (! $f || ! ($fp[$f->id]['view'] ?? true)) {
+                continue;
+            }
+            $out[$key] = $vals[(string) $f->id] ?? null;
+        }
+
+        return response()->json(['values' => $out]);
     }
 
     private function serializeRecord(FlowRecord $record, $fields, ?array $can = null): array

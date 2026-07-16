@@ -77,9 +77,9 @@
         <input v-if="field.input_type === 'short'" type="text" v-model="val" class="fi-input" :placeholder="field.label">
         <textarea v-else-if="field.input_type === 'long'" v-model="val" class="fi-input fi-area"></textarea>
         <input v-else-if="field.input_type === 'number'" type="number" v-model.number="val" class="fi-input">
-        <input v-else-if="field.input_type === 'date'" type="date" v-model="val" class="fi-input">
-        <input v-else-if="field.input_type === 'datetime'" type="datetime-local" v-model="val" class="fi-input">
-        <input v-else-if="field.input_type === 'time'" type="time" v-model="val" class="fi-input">
+        <input v-else-if="field.input_type === 'date'" type="date" v-model="val" class="fi-input" :style="{ colorScheme: nativeScheme }">
+        <input v-else-if="field.input_type === 'datetime'" type="datetime-local" v-model="val" class="fi-input" :style="{ colorScheme: nativeScheme }">
+        <input v-else-if="field.input_type === 'time'" type="time" v-model="val" class="fi-input" :style="{ colorScheme: nativeScheme }">
         <select v-else-if="field.input_type === 'select'" v-model="val" class="fi-input">
             <option :value="null">—</option>
             <option v-for="o in field.options || []" :key="o" :value="o">{{ o }}</option>
@@ -160,30 +160,34 @@
             </div>
             <div v-else class="fi-ref-search">
                 <input
+                    ref="refInputEl"
                     type="text"
-                    v-model="refQuery"
+                    :value="refQuery"
                     class="fi-input"
                     :placeholder="refPlaceholder"
                     :disabled="!refTargetId"
                     @focus="openRef"
                     @input="onRefInput"
+                    @keydown="onRefKeydown"
                     @blur="closeRef"
                 >
-                <div v-if="refOpen" class="fi-ref-menu">
-                    <div v-if="refLoading" class="fi-ref-empty">検索中…</div>
+                <div v-if="refOpen" ref="refMenuEl" class="fi-ref-menu" :class="[placement, { 'fi-ref-menu-loading': refLoading }]" @mousedown.prevent>
+                    <!-- only show the loading state on the FIRST search; keep prior results visible while refreshing -->
+                    <div v-if="refLoading && !refResults.length" class="fi-ref-empty">検索中…</div>
                     <template v-else>
                         <button
-                            v-for="c in refResults"
+                            v-for="(c, i) in refResults"
                             :key="c.id"
                             type="button"
                             class="fi-ref-opt"
-                            @mousedown.prevent
+                            :class="{ hl: i === refHighlighted }"
                             @click="pickRef(c)"
+                            @mousemove="refHighlighted = i"
                         >
                             <span class="fi-ref-opt-label">{{ c.label }}</span>
                             <span class="fi-ref-opt-no">#{{ c.number }}</span>
                         </button>
-                        <div v-if="!refResults.length" class="fi-ref-empty">該当するレコードがありません</div>
+                        <div v-if="!refResults.length && !refLoading" class="fi-ref-empty">該当するレコードがありません</div>
                     </template>
                 </div>
             </div>
@@ -205,11 +209,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import 'styles/flow-shared.css'
 import { useApi } from '@/composables/api'
+import { useFloatingMenu } from '@/composables/floatingMenu'
 import { useFilePreview } from '@/store/filePreview'
+import { useTheme } from '@/store/theme'
 import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
 import MemberSelector from '@/components/Form/MemberSelector.vue'
 import ItemSelector from '@/components/Form/ItemSelector.vue'
@@ -227,11 +233,18 @@ const projectName = (id: any) => {
     if (id === null || id === undefined || id === '') return '—'
     return props.projects?.find((p) => p.id === Number(id))?.name ?? `#${id}`
 }
-const emit = defineEmits<{ 'update:modelValue': [any] }>()
+const emit = defineEmits<{
+    'update:modelValue': [any]
+    // lookup field copy: the parent applies source[from] → this app's `to` field. Empty source = clear.
+    'lookup': [{ mappings: { from: string; to: string }[]; source: Record<string, any> }]
+}>()
 defineOptions({ name: 'FlowFieldInput' }) // explicit name so table cells can recurse into this component
 
 const api = useApi()
 const filePreview = useFilePreview()
+const theme = useTheme()
+// native date/time pickers render their icon per `color-scheme`; follow the app theme so it's visible in dark mode
+const nativeScheme = computed(() => (theme.dark ? 'dark' : 'light'))
 const uploading = ref(false)
 
 // Split filename so the extension always stays visible while the base truncates ("app-2026….csv").
@@ -385,9 +398,15 @@ const setCell = (ri: number, key: string, value: any) => {
 /* ---- reference field: single-record picker (snapshot {id, number, label}) ---- */
 const refTargetId = computed(() => props.field.validation?.target_definition_id ?? null)
 const refLabelField = computed(() => props.field.validation?.label_field ?? '')
+const refMappings = computed(() => (props.field.validation?.field_mappings ?? []).filter((m: any) => m?.from && m?.to))
 const refSelected = computed<any>(() => (props.modelValue && props.modelValue.id ? props.modelValue : null))
 const refQuery = ref('')
 const refOpen = ref(false)
+const refInputEl = ref<HTMLInputElement | null>(null)
+const refMenuEl = ref<HTMLElement | null>(null)
+const refHighlighted = ref(0)
+// menu is position:absolute inside the field; this just decides open above vs. below
+const { placement } = useFloatingMenu(refOpen, refInputEl)
 const refLoading = ref(false)
 const refResults = ref<any[]>([])
 let refTimer: ReturnType<typeof setTimeout> | null = null
@@ -400,15 +419,56 @@ const searchRef = async () => {
         const lf = encodeURIComponent(refLabelField.value || '')
         const data = await api.get(`/flow_reference_search/${refTargetId.value}?q=${q}&label_field=${lf}`)
         refResults.value = data?.records ?? []
+        refHighlighted.value = 0
     } finally {
         refLoading.value = false
     }
 }
 const openRef = () => { if (!refTargetId.value) return; refOpen.value = true; searchRef() }
-const onRefInput = () => { refOpen.value = true; if (refTimer) clearTimeout(refTimer); refTimer = setTimeout(searchRef, 250) }
+// read the live DOM value (not v-model) so search fires while an IME composition is still in progress
+const onRefInput = (e: Event) => {
+    refQuery.value = (e.target as HTMLInputElement).value
+    refOpen.value = true
+    if (refTimer) clearTimeout(refTimer)
+    refTimer = setTimeout(searchRef, 250)
+}
+const onRefKeydown = (e: KeyboardEvent) => {
+    if (e.isComposing || e.keyCode === 229) return // don't hijack Enter/arrows while an IME is composing
+    if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        if (!refOpen.value) { openRef(); return }
+        refHighlighted.value = Math.min(refResults.value.length - 1, refHighlighted.value + 1)
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        refHighlighted.value = Math.max(0, refHighlighted.value - 1)
+    } else if (e.key === 'Enter') {
+        const c = refResults.value[refHighlighted.value]
+        if (refOpen.value && c) { e.preventDefault(); pickRef(c) }
+    } else if (e.key === 'Escape') {
+        refOpen.value = false
+        return
+    }
+    nextTick(() => refMenuEl.value?.querySelectorAll<HTMLElement>('.fi-ref-opt')[refHighlighted.value]?.scrollIntoView({ block: 'nearest' }))
+}
 const closeRef = () => { setTimeout(() => { refOpen.value = false }, 120) }
-const pickRef = (c: any) => { emit('update:modelValue', { id: c.id, number: c.number, label: c.label }); refQuery.value = ''; refOpen.value = false }
-const clearRef = () => emit('update:modelValue', null)
+const pickRef = async (c: any) => {
+    emit('update:modelValue', { id: c.id, number: c.number, label: c.label })
+    refQuery.value = ''
+    refOpen.value = false
+    // kintone-style field copy: pull the picked record's mapped source values, let the parent fill fields
+    if (!props.readonly && refMappings.value.length && refTargetId.value && c.id) {
+        try {
+            const keys = encodeURIComponent(refMappings.value.map((m: any) => m.from).join(','))
+            const data = await api.get(`/flow_lookup_record/${refTargetId.value}/${c.id}?fields=${keys}`)
+            emit('lookup', { mappings: refMappings.value, source: data?.values ?? {} })
+        } catch { /* copy is best-effort; the link itself is already set */ }
+    }
+}
+const clearRef = () => {
+    emit('update:modelValue', null)
+    // clearing the lookup clears the fields it auto-filled (empty source = clear)
+    if (!props.readonly && refMappings.value.length) emit('lookup', { mappings: refMappings.value, source: {} })
+}
 const router = useRouter()
 const openRefRecord = () => {
     const sel = refSelected.value
@@ -507,13 +567,19 @@ const formatFormula = (v: any) => {
 /* reference field picker */
 .fi-ref { position: relative; }
 .fi-ref-search { position: relative; }
-.fi-ref-menu { position: absolute; z-index: 30; top: calc(100% + 4px); left: 0; right: 0; max-height: 260px; overflow-y: auto; overflow-x: hidden; background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.12); padding: 4px; box-sizing: border-box !important; }
+/* absolute within .fi-ref-search; useFloatingMenu toggles .top/.bottom for the flip */
+.fi-ref-menu { position: absolute; left: 0; right: 0; z-index: 50; max-height: 260px; overflow-y: auto; overflow-x: hidden; background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.12); padding: 4px; box-sizing: border-box !important; }
+.fi-ref-menu.bottom { top: calc(100% + 4px); }
+.fi-ref-menu.top { bottom: calc(100% + 4px); }
+/* refreshing results: dim in place rather than collapsing to a loading message */
+.fi-ref-menu-loading { opacity: .55; transition: opacity .12s; }
 .fi-ref-opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; box-sizing: border-box !important; text-align: left; border: none; background: none; padding: 7px 9px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--primary-color); }
-.fi-ref-opt:hover { background: var(--bg3); }
+.fi-ref-opt.hl { background: var(--bg3); }
 .fi-ref-opt-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .fi-ref-opt-no { flex-shrink: 0; font-size: 11px; color: gray; }
 .fi-ref-empty { padding: 9px; font-size: 12px; color: gray; text-align: center; }
-.fi-ref-chip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 5px 6px 5px 11px; border: 1px solid var(--formBorder); border-radius: 7px; background: var(--bg3); }
+/* match .fi-input's box (33px, border-box, 6px radius) so switching input<->chip doesn't change height */
+.fi-ref-chip { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; box-sizing: border-box !important; min-height: 33px; padding: 4px 6px 4px 11px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--bg3); }
 .fi-ref-label { font-size: 13px; color: var(--primary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .fi-ref-clear { border: none; background: none; color: gray; cursor: pointer; font-size: 15px; line-height: 1; padding: 0 4px; flex-shrink: 0; }
 .fi-ref-clear:hover { color: #e2574c; }

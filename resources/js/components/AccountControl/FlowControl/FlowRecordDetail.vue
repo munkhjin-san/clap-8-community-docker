@@ -85,15 +85,18 @@
                                 {{ field.label }}
                                 <span v-if="field.is_required" class="rd-req">*</span>
                             </label>
-                            <FlowFieldInput
-                                :field="field"
-                                :users="users"
-                                :projects="projects"
-                                :readonly="isReadonly(field)"
-                                :preview="true"
-                                v-model="values[field.id!]"
-                                @update:model-value="errors[field.id!] = null"
-                            />
+                            <div :class="{ 'rd-disabled': mode === 'edit' && field.validation?.disabled }" :title="mode === 'edit' && field.validation?.disabled ? '入力できません（自動入力のみ）' : undefined">
+                                <FlowFieldInput
+                                    :field="field"
+                                    :users="users"
+                                    :projects="projects"
+                                    :readonly="isReadonly(field)"
+                                    :preview="true"
+                                    v-model="values[field.id!]"
+                                    @update:model-value="errors[field.id!] = null"
+                                    @lookup="onLookup"
+                                />
+                            </div>
                             <div v-if="errors[field.id!]" class="rd-err">{{ errors[field.id!] }}</div>
                         </template>
                     </div>
@@ -278,7 +281,7 @@ const fieldRows = computed<FlowField[][]>(() => {
         .map((k) => map.get(k)!.slice().sort((a, b) => (a.order_number ?? 0) - (b.order_number ?? 0)))
 })
 
-const isReadonly = (f: FlowField) => mode.value === 'view' || f.input_type === 'formula'
+const isReadonly = (f: FlowField) => mode.value === 'view' || f.input_type === 'formula' || !!f.validation?.disabled
 
 const recordTitle = computed(() => (isNew.value ? '新規レコード' : `#${record.value?.record_number ?? recordId.value ?? ''}`))
 const showFlow = computed(() => !!definition.value?.use_status_flow && !isNew.value)
@@ -345,6 +348,20 @@ const emptyValue = (f: FlowField) => {
     if (f.input_type === 'number' || f.input_type === 'reference') return null
     return ''
 }
+// Lookup field copy (kintone-style): the reference field emits its picked record's values keyed by
+// source field key; fill each mapped destination field here. Empty `source` (lookup cleared) blanks
+// them. Formula/layout destinations are skipped defensively (they can't take a copied value).
+const onLookup = (payload: { mappings: { from: string; to: string }[]; source: Record<string, any> }) => {
+    const fields = definition.value?.fields ?? []
+    const cleared = Object.keys(payload.source).length === 0
+    for (const m of payload.mappings) {
+        const dest = fields.find((f) => f.key === m.to)
+        if (!dest?.id || dest.input_type === 'formula' || isLayoutType(dest.input_type)) continue
+        values[dest.id] = cleared ? emptyValue(dest) : (payload.source[m.from] ?? emptyValue(dest))
+        errors[dest.id] = null
+    }
+}
+
 const initValues = () => {
     (definition.value?.fields ?? []).forEach((f) => {
         values[f.id!] = isNew.value
@@ -379,6 +396,10 @@ const load = async () => {
         initValues()
         // ?edit=1 = quick-edit shortcut from the records table
         mode.value = (isNew.value || (!!route.query.edit && can.edit)) ? 'edit' : 'view'
+    } catch {
+        // record missing / no access (api.ts already showed the error dialog) — don't strand the
+        // user on an empty screen; send them back to the app portal. (cancels return null, not throw)
+        router.push({ name: 'flow-control' })
     } finally {
         loading.value = false
     }
@@ -394,7 +415,8 @@ const cancelEdit = () => {
 const save = async () => {
     let ok = true
     for (const f of visibleFields.value) {
-        if (f.input_type === 'formula' || isLayoutType(f.input_type)) continue
+        // disabled fields can't be edited by the user, so don't block save on their validation
+        if (f.input_type === 'formula' || isLayoutType(f.input_type) || f.validation?.disabled) continue
         const err = validateFlowField(f, values[f.id!])
         errors[f.id!] = err
         if (err) ok = false
@@ -524,9 +546,14 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-side.mobile .rd-side-inner { width: 100%; }
 .rd-side.mobile .rd-tabs { padding-right: 60px; background: var(--background-color); }
 .rd-side.mobile .rd-side-content { max-height: 58vh; }
-.rd-label { display: block; font-size: 13px; color: gray; margin-bottom: 15px; }
+/* --sub-color = theme-aware muted text (light #666 / dark #b0b3b8): readable in dark without the
+   near-white glare of --primary-color, and not the too-dim fixed gray. */
+.rd-label { display: block; font-size: 13px; color: var(--sub-color); margin-bottom: 15px; }
 .rd-req { color: #e2574c; }
 .rd-err { font-size: 11px; color: #e2574c; margin-top: 3px; }
+/* disabled field (edit mode): muted + not-allowed cursor so it reads as locked; inner ignores pointer events */
+.rd-disabled { cursor: not-allowed; opacity: 0.6; }
+.rd-disabled > * { pointer-events: none; }
 .rd-sec { font-size: 12px; color: gray; margin-bottom: 10px; }
 .rd-log { background: var(--bg3); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
 .rd-log-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }

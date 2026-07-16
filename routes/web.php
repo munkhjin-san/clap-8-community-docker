@@ -1027,6 +1027,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/flow_app_record/{id}', [FlowController::class, 'getAppRecord']);
         Route::get('/flow_app_record_by_number/{definition}/{number}', [FlowController::class, 'getAppRecordByNumber']);
         Route::get('/flow_reference_search/{definition}', [FlowController::class, 'referenceSearch']);
+        Route::get('/flow_lookup_record/{definition}/{record}', [FlowController::class, 'lookupRecord']);
         Route::get('/flow_definition_fields/{definition}', [FlowController::class, 'getDefinitionFields']);
         Route::post('/flow_generate_icon', [FlowController::class, 'generateAppIcon']);
         Route::post('/flow_app_record_create', [FlowController::class, 'storeAppRecord']);

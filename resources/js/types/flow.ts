@@ -26,6 +26,9 @@ export interface FlowFieldValidation {
     max_time?: string | null
     height?: number | null
     line_style?: 'solid' | 'dashed' | 'dotted'
+    /** Shown in the form but not user-editable (lookup auto-fill still populates it). Mutually
+     *  exclusive with is_required — a required field nobody can fill would block submission. */
+    disabled?: boolean
     /** Default value applied on record create. */
     default?: any
     /** date/datetime/time: seed with the current timestamp on create. */
@@ -38,6 +41,21 @@ export interface FlowFieldValidation {
     target_definition_id?: number | null
     /** reference: which field key of the target app to show as the label (falls back to record number). */
     label_field?: string | null
+    /**
+     * reference (lookup): kintone-style field copy. When a record is picked, each mapping copies the
+     * source record's `from` field (a field key in the target app) into this app's `to` field (a field
+     * key here). Snapshot at pick time (later source edits are ignored); cleared when the lookup is
+     * cleared; the copied fields stay editable. Because destinations are real fields, the copied
+     * values are searchable / exportable / columnable / filterable. Top-level reference fields only.
+     */
+    field_mappings?: FlowLookupMapping[]
+}
+
+export interface FlowLookupMapping {
+    /** field key in the target (source) app */
+    from: string
+    /** field key in this app to populate */
+    to: string
 }
 
 /** A column inside a `table` field — same shape as a field, nested in the parent's validation. */

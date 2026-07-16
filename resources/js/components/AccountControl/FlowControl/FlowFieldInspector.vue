@@ -43,14 +43,22 @@
 
             <template v-else-if="col0.input_type === 'reference'">
                 <div class="sec" style="margin-top: 10px">参照先アプリ</div>
-                <select v-model.number="col0.target_definition_id" @change="onColRefTarget(col0)" class="custom-a-input !box-border w-full">
-                    <option :value="null">参照先アプリを選択</option>
-                    <option v-for="a in refApps" :key="a.id" :value="a.id">{{ a.name }}</option>
-                </select>
-                <select v-if="col0.target_definition_id" v-model="col0.label_field" class="custom-a-input !box-border w-full mt-[6px]">
-                    <option :value="null">レコード番号</option>
-                    <option v-for="f in colRefFields(col0.target_definition_id)" :key="f.key" :value="f.key">{{ f.label }}</option>
-                </select>
+                <FlowSearchSelect
+                    class="w-full"
+                    :model-value="col0.target_definition_id ?? null"
+                    :options="refAppOptions"
+                    placeholder="参照先アプリを選択"
+                    @update:model-value="(val) => onColRefAppChange(col0, val)"
+                />
+                <FlowSearchSelect
+                    v-if="col0.target_definition_id"
+                    class="w-full mt-[6px]"
+                    :model-value="col0.label_field ?? ''"
+                    :options="colLabelFieldOptions(col0.target_definition_id)"
+                    :clearable="false"
+                    placeholder="レコード番号"
+                    @update:model-value="(val) => col0.label_field = val ? String(val) : null"
+                />
             </template>
 
             <div v-if="col0.input_type !== 'formula'" class="irow" style="margin-top: 10px">
@@ -81,8 +89,13 @@
         </div>
         <div class="irow" v-if="!isLayout">
             <label>必須</label>
-            <span class="flow-sw" :class="{ on: field.is_required }" @click="field.is_required = !field.is_required"></span>
+            <span class="flow-sw" :class="{ on: field.is_required }" @click="setRequired(!field.is_required)"></span>
         </div>
+        <div class="irow" v-if="!isLayout && field.input_type !== 'formula'">
+            <label>無効化</label>
+            <span class="flow-sw" :class="{ on: v.disabled }" @click="setDisabled(!v.disabled)"></span>
+        </div>
+        <p v-if="v.disabled && !isLayout && field.input_type !== 'formula'" class="def-hint">フォームに表示されますが入力できません。ルックアップの自動入力は反映されます。</p>
 
         <template v-if="field.input_type === 'spacer' || field.input_type === 'divider'">
             <div class="irow">
@@ -190,9 +203,9 @@
                 <div class="irow">
                     <label>日付の範囲</label>
                     <div class="minmax">
-                        <input type="date" v-model="v.min_date" class="custom-a-input !box-border">
+                        <input type="date" v-model="v.min_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
                         <span class="tilde">〜</span>
-                        <input type="date" v-model="v.max_date" class="custom-a-input !box-border">
+                        <input type="date" v-model="v.max_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
                     </div>
                 </div>
             </template>
@@ -201,9 +214,9 @@
                 <div class="irow">
                     <label>日時の範囲</label>
                     <div class="minmax">
-                        <input type="datetime-local" v-model="v.min_date" class="custom-a-input !box-border">
+                        <input type="datetime-local" v-model="v.min_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
                         <span class="tilde">〜</span>
-                        <input type="datetime-local" v-model="v.max_date" class="custom-a-input !box-border">
+                        <input type="datetime-local" v-model="v.max_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
                     </div>
                 </div>
             </template>
@@ -212,9 +225,9 @@
                 <div class="irow">
                     <label>時刻の範囲</label>
                     <div class="minmax">
-                        <input type="time" v-model="v.min_time" class="custom-a-input !box-border">
+                        <input type="time" v-model="v.min_time" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
                         <span class="tilde">〜</span>
-                        <input type="time" v-model="v.max_time" class="custom-a-input !box-border">
+                        <input type="time" v-model="v.max_time" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
                     </div>
                 </div>
             </template>
@@ -319,19 +332,52 @@
             <div class="sec">参照先アプリ</div>
             <div class="irow">
                 <label>アプリ</label>
-                <select v-model.number="v.target_definition_id" @change="onRefTargetChange" class="custom-a-input !box-border flex-1">
-                    <option :value="null">選択してください</option>
-                    <option v-for="a in refApps" :key="a.id" :value="a.id">{{ a.name }}</option>
-                </select>
+                <FlowSearchSelect
+                    class="flex-1"
+                    :model-value="v.target_definition_id ?? null"
+                    :options="refAppOptions"
+                    placeholder="アプリを選択"
+                    @update:model-value="onRefAppChange"
+                />
             </div>
             <div class="irow" v-if="v.target_definition_id">
                 <label>表示する項目</label>
-                <select v-model="v.label_field" class="custom-a-input !box-border flex-1">
-                    <option :value="null">レコード番号</option>
-                    <option v-for="f in refTargetFields" :key="f.key" :value="f.key">{{ f.label }}</option>
-                </select>
+                <FlowSearchSelect
+                    class="flex-1"
+                    :model-value="v.label_field ?? ''"
+                    :options="labelFieldOptions"
+                    :clearable="false"
+                    placeholder="レコード番号"
+                    @update:model-value="(val) => v.label_field = val ? String(val) : null"
+                />
             </div>
             <p v-if="v.target_definition_id" class="def-hint">レコードを選ぶと、そのレコードの「{{ refLabelName }}」が表示されます。</p>
+
+            <template v-if="v.target_definition_id && refTargetFields.length">
+                <div class="divider"></div>
+                <div class="sec">フィールドのコピー（自動入力）</div>
+                <div v-for="(m, mi) in (v.field_mappings || [])" :key="mi" class="map-row">
+                    <FlowSearchSelect
+                        class="map-sel"
+                        :model-value="m.from || null"
+                        :options="refFieldOptions"
+                        :clearable="false"
+                        placeholder="参照先の項目"
+                        @update:model-value="(val) => { m.from = String(val ?? ''); onMappingFromChange(m) }"
+                    />
+                    <span class="map-arrow">→</span>
+                    <FlowSearchSelect
+                        class="map-sel"
+                        :model-value="m.to || null"
+                        :options="destOptionsFor(m.from)"
+                        :clearable="false"
+                        placeholder="このアプリの項目"
+                        @update:model-value="(val) => m.to = String(val ?? '')"
+                    />
+                    <button class="map-del" @click="removeMapping(mi)" title="削除"><CloseIcon size="9" /></button>
+                </div>
+                <button class="flow-ghost-btn mt-[20px]" :disabled="!mappingDestFields.length" @click="addMapping">＋ コピーを追加</button>
+            </template>
         </template>
         </template>
     </div>
@@ -348,8 +394,13 @@ import { useDialog } from '@/composables/dialog'
 import FlowFieldIcon from './FlowFieldIcon.vue'
 import FlowFormulaEditor from './FlowFormulaEditor.vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
+import FlowSearchSelect from './FlowSearchSelect.vue'
+import { useTheme } from '@/store/theme'
 
 const props = defineProps<{ field: FlowField; fields?: FlowField[]; tools?: FlowAppTool[]; columnKey?: string | null }>()
+const theme = useTheme()
+// native date/time pickers render their icon per `color-scheme`; follow the app theme (dark-mode visibility)
+const nativeScheme = computed(() => (theme.dark ? 'dark' : 'light'))
 const emit = defineEmits<{ 'update:columnKey': [key: string | null] }>()
 const api = useApi()
 const dialog = useDialog()
@@ -370,7 +421,7 @@ const commitColumnRename = (col: TableColumn) => {
 
 /* ---- reference field: target app + label field ---- */
 const refApps = ref<{ id: number; name: string }[]>([])
-const refTargetFields = ref<{ key: string; label: string; input_type: string }[]>([])
+const refTargetFields = ref<{ key: string; label: string; input_type: string; result_type?: string | null }[]>([])
 const REF_LABEL_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'reference', 'file']
 const loadRefApps = async () => {
     if (refApps.value.length) return
@@ -418,6 +469,7 @@ watch(() => props.field, (f) => {
     if (f.input_type === 'reference') {
         loadRefApps()
         loadRefFields(f.validation.target_definition_id ?? null)
+        if (!Array.isArray(f.validation.field_mappings)) f.validation.field_mappings = []
     }
     if (f.input_type === 'table') {
         const cols = Array.isArray(f.validation.columns) ? f.validation.columns : []
@@ -429,15 +481,73 @@ watch(() => props.field, (f) => {
 }, { immediate: true })
 const v = computed<FlowFieldValidation>(() => props.field.validation as FlowFieldValidation)
 
+// 必須 and 無効化 are mutually exclusive: a required field a user can't fill would block submission.
+const setRequired = (val: boolean) => {
+    props.field.is_required = val
+    if (val) v.value.disabled = false
+}
+const setDisabled = (val: boolean) => {
+    v.value.disabled = val
+    if (val) props.field.is_required = false
+}
+
 const onRefTargetChange = () => {
     v.value.label_field = null
+    v.value.field_mappings = [] // previous mappings referenced the old app's fields
     loadRefFields(v.value.target_definition_id ?? null)
 }
+const onRefAppChange = (val: string | number | null) => {
+    v.value.target_definition_id = val === null || val === '' ? null : Number(val)
+    onRefTargetChange()
+}
+// option lists for the searchable selectors (app / label field / mapping fields)
+const refAppOptions = computed(() => refApps.value.map((a) => ({ value: a.id, label: a.name })))
+const refFieldOptions = computed(() => refTargetFields.value.map((f) => ({ value: f.key, label: f.label })))
+const labelFieldOptions = computed(() => [{ value: '', label: 'レコード番号' }, ...refFieldOptions.value])
+const destOptionsFor = (fromKey: string) => destFieldsFor(fromKey).map((f) => ({ value: f.key, label: f.label }))
 const refLabelName = computed(() => {
     const k = v.value.label_field
     if (!k) return 'レコード番号'
     return refTargetFields.value.find((f) => f.key === k)?.label ?? k
 })
+
+// Destination fields for lookup field-copy: writable fields in THIS app (exclude self, layout,
+// formula (computed), and container/reference/file types that can't take a copied scalar/value).
+const MAP_DEST_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'file', 'formula', 'reference']
+const mappingDestFields = computed(() =>
+    (props.fields ?? []).filter((f) => f.key !== props.field.key && !MAP_DEST_SKIP.includes(f.input_type))
+)
+const addMapping = () => {
+    if (!Array.isArray(v.value.field_mappings)) v.value.field_mappings = []
+    v.value.field_mappings.push({ from: '', to: '' })
+}
+const removeMapping = (i: number) => { v.value.field_mappings?.splice(i, 1) }
+
+// Field-copy type compatibility (strict same-type, plus any scalar → text). A field's comparable
+// "value type": short/long collapse to 'text', a formula resolves to its result_type, everything else
+// is its own input_type. So date→date, number→number, formula(number)→number, and any scalar into a
+// text field are allowed; arrays/booleans (checkbox/user/member/toggle) must match exactly.
+const SCALAR_TO_TEXT = ['text', 'number', 'date', 'datetime', 'time', 'select', 'radio']
+const valueTypeOf = (f: { input_type: string; result_type?: string | null }): string => {
+    if (f.input_type === 'formula') return f.result_type || 'number'
+    if (f.input_type === 'short' || f.input_type === 'long') return 'text'
+    return f.input_type
+}
+const destAllowedForSource = (src: { input_type: string; result_type?: string | null }, dest: { input_type: string }): boolean => {
+    const s = valueTypeOf(src)
+    const d = valueTypeOf(dest)
+    return d === s || (d === 'text' && SCALAR_TO_TEXT.includes(s))
+}
+// Destinations valid for a chosen source field (empty source → show all until one is picked).
+const destFieldsFor = (fromKey: string) => {
+    const src = fromKey ? refTargetFields.value.find((x) => x.key === fromKey) : null
+    if (!src) return mappingDestFields.value
+    return mappingDestFields.value.filter((d) => destAllowedForSource(src, d))
+}
+// Changing the source may invalidate the current destination — drop it if no longer compatible.
+const onMappingFromChange = (m: { from: string; to: string }) => {
+    if (m.to && !destFieldsFor(m.from).some((d) => d.key === m.to)) m.to = ''
+}
 
 const toggleAccept = (val: string) => {
     if (!v.value.accept) v.value.accept = []
@@ -578,6 +688,12 @@ const onColRefTarget = (col: TableColumn) => {
     col.label_field = null
     loadColRefFields(col.target_definition_id)
 }
+const onColRefAppChange = (col: TableColumn, val: string | number | null) => {
+    col.target_definition_id = val === null || val === '' ? null : Number(val)
+    onColRefTarget(col)
+}
+const colLabelFieldOptions = (id: number | null | undefined) =>
+    [{ value: '', label: 'レコード番号' }, ...colRefFields(id).map((f) => ({ value: f.key, label: f.label }))]
 const setColOption = (col: TableColumn, oi: number, val: string) => { if (col.options) col.options[oi] = val }
 const addColOption = (col: TableColumn) => {
     if (!col.options) col.options = []
@@ -623,6 +739,11 @@ const removeColOption = (col: TableColumn, oi: number) => col.options?.splice(oi
 .def-checks { display: flex; flex-direction: column; gap: 7px; }
 .def-checks .fi-opt { font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .def-hint { font-size: 11px; color: gray; margin-top: 6px; }
+.map-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.map-sel { flex: 1; min-width: 0; }
+.map-arrow { color: gray; flex: none; font-size: 12px; }
+.map-del { border: none; background: none; color: gray; cursor: pointer; padding: 4px; display: flex; flex: none; }
+.map-del:hover { color: tomato; }
 .achip { user-select: none; }
 .tcols { display: flex; flex-direction: column; gap: 8px; }
 .tcol { border: 1px solid var(--calendarBorder); border-radius: 8px; padding: 10px; background: var(--background-color); }
