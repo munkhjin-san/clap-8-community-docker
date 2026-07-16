@@ -1,9 +1,6 @@
 <template>
     <div class="flow-audit-tab">
-        <div class="al-intro">
-            <b>監査ログ</b>
-            <p>このアプリで「誰が・いつ・何をしたか」を記録します。レコードの項目変更は各レコードの変更履歴に記録されるため、ここには含まれません。</p>
-        </div>
+        
 
         <div class="al-toolbar">
             <select v-model="actionFilter" class="custom-a-input !box-border al-filter" @change="reload">
