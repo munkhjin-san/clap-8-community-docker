@@ -32,7 +32,8 @@
                         <PanelTitle :expanded="expanded">
                             <div class="flex gap-2 items-center">
                                 <div v-if="challenge.attention_is_overdue" class="mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
-                                <Nice v-if="isNiceReminder(challenge) || isGlowdNinePlay(challenge) || isRakuawardNominate(challenge)" size="16"/>
+                                <Nice v-if="isNiceReminder(challenge) || isGlowdNinePlay(challenge)" size="16"/>
+                                <Award v-else-if="isRakuawardNominate(challenge)" size="16"/>
                                 <Challenge v-else size="16"/>
                                 <div class="text-wrap">
                                     
@@ -162,7 +163,7 @@
                                 締切: {{ formatDeadline(challenge.attention_deadline) }}
                             </p>
                             <div class="mt-3 text-right">
-                                <router-link :to="{ name: 'post', query: { app_type: 0, create: '1' } }">作成</router-link>
+                                <router-link :to="{ name: 'post', query: { app_type: 7, create: '1' } }">作成</router-link>
                             </div>
                         </PanelData>
                         <PanelData v-else>
@@ -208,6 +209,7 @@ import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import Nice from '@/components/Icons/Nice.vue';
 import Challenge from '@/components/Icons/Challenge.vue';
 import RollDice from '@/components/Global/RollDice.vue';
+import Award from '@/components/Icons/Award.vue';
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import { useApi } from '@/composables/api';
 import { useDashboardStore } from '@/store/dashboard';
