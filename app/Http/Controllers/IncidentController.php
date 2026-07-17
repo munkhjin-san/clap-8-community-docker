@@ -902,7 +902,7 @@ class IncidentController extends Controller
             return false;
         }
 
-        if ($user->position_id != 6 || !$candidate->project_record_id) {
+        if (!$user->isPM() || !$candidate->project_record_id) {
             return false;
         }
 

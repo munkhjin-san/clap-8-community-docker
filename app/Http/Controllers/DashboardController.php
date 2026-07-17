@@ -1370,11 +1370,11 @@ class DashboardController extends Controller
      * Regular staff never see this card.
      */
     private function incidentAlerts() {
-        $activeUser = $this->active_user();
+        $activeUser = Auth::user();
 
-        $isPM = $activeUser->position_id == 6;
-        $isBoss = $activeUser->position_id && $activeUser->position_id < 6;
-        $isAdmin = in_array($activeUser->id, self::TIMESHEET_ADMIN_IDS, true);
+        $isPM = $activeUser->isPM();
+        $isBoss = $activeUser->isBoss();
+        $isAdmin = $activeUser->isAdmin();
 
         if (!$isPM && !$isBoss && !$isAdmin) {
             return [];

@@ -876,7 +876,10 @@ class FlowController extends Controller
         $this->active_user();
 
         return response()->json([
+            // User picker: confined to the active community (User is not community-
+            // scoped by trait, so the picker would otherwise span all communities).
             'users' => User::query()
+                ->inActiveCommunity()
                 ->where('retire', 0)
                 ->select('id', 'name', 'position_id', 'icon_path', 'icon_bg')
                 ->orderBy('name')
@@ -886,6 +889,8 @@ class FlowController extends Controller
                 ->select('id', 'name')
                 ->orderBy('sort_flag')
                 ->get(),
+            // Project picker: ProjectRecord uses BelongsToCommunity, so this query
+            // auto-scopes to the active community via the global scope.
             'projects' => ProjectRecord::query()
                 ->select('id', 'name')
                 ->orderByDesc('id')

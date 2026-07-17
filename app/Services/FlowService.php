@@ -37,8 +37,7 @@ class FlowService
     /** Admins, 上長 (position_id < 6) and PM (position_id == 6) can build & manage flows. */
     public function canManageFlows(User $user): bool
     {
-        return ($user->position_id && $user->position_id <= 6)
-            || in_array($user->id, self::ADMIN_USER_IDS, true);
+        return $user->isBoss() || $user->isPM() || $user->isAdmin();
     }
 
     public function canCreateRecord(User $user, FlowDefinition $definition): bool
@@ -1357,13 +1356,12 @@ class FlowService
 
     public function isDirectorLevel(User $user): bool
     {
-        return in_array($user->id, self::ADMIN_USER_IDS, true)
-            || ($user->position_id !== null && $user->position_id < 6);
+        return $user->isAdmin() || $user->isBoss();
     }
 
     private function isSuperAdmin(User $user): bool
     {
-        return in_array($user->id, self::ADMIN_USER_IDS, true);
+        return $user->isAdmin();
     }
 
     private function isProjectMember(int $projectId, User $user): bool

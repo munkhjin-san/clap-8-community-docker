@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCommunity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -10,6 +11,9 @@ class FlowDefinition extends Model
 {
     use HasFactory;
     use SoftDeletes;
+    // Flow apps (アプリ) are an aggregate root — each belongs to one community.
+    // Records/fields/statuses/assignees/shares isolate transitively via their app.
+    use BelongsToCommunity;
 
     protected $guarded = [];
 
