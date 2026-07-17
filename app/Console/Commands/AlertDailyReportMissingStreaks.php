@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\IncidentCandidate;
 use App\Models\TimecardMissingOccurrence;
 use App\Models\User;
 use App\Services\ReportService;
@@ -32,6 +33,8 @@ class AlertDailyReportMissingStreaks extends Command
             return self::SUCCESS;
         }
 
+        $this->upsertStreakCandidates($alertGroups);
+
         $message = $this->buildBoardMessage($alertGroups);
         $reportService->sendRawMessage(self::OVERRIDE_USER_ID, self::BOARD_ID, $message);
         $this->markPmAlertsSent($alertGroups, $now);
@@ -52,7 +55,7 @@ class AlertDailyReportMissingStreaks extends Command
 
         return TimecardMissingOccurrence::query()
             ->with([
-                'user:id,name',
+                'user:id,name,position_id',
                 'shiftRecord:id,department_id,shift_day',
             ])
             ->whereNull('pm_alerted_at')
@@ -133,6 +136,68 @@ class AlertDailyReportMissingStreaks extends Command
 
 {$lines}
 EOT);
+    }
+
+    private function upsertStreakCandidates(Collection $alertGroups): void
+    {
+        foreach ($alertGroups as $group) {
+            $user = $group['user'];
+
+            if (!$user) {
+                continue;
+            }
+
+            $occurrences = $group['occurrences'];
+
+            // Latest missed day drives the scope project and the dedup key.
+            $ordered = $occurrences
+                ->sortBy(fn (TimecardMissingOccurrence $occurrence) => $this->dateString($occurrence->report_date))
+                ->values();
+            $latest = $ordered->last();
+
+            $projectId = optional($latest?->shiftRecord)->department_id;
+
+            $projectIds = $occurrences
+                ->pluck('shiftRecord.department_id')
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            IncidentCandidate::firstOrCreate(
+                [
+                    'source_type' => IncidentCandidate::SOURCE_DAILY_REPORT_STREAK,
+                    'subject_user_id' => $user->id,
+                    'dedup_key' => $this->dateString($latest?->report_date),
+                ],
+                [
+                    'project_record_id' => $projectId,
+                    'audience' => $this->audienceForSubject($user),
+                    'status' => IncidentCandidate::STATUS_PENDING,
+                    'context' => [
+                        'missed_dates' => $ordered
+                            ->map(fn (TimecardMissingOccurrence $occurrence) => $this->dateString($occurrence->report_date))
+                            ->all(),
+                        'missed_count' => $occurrences->count(),
+                        'shift_record_ids' => $occurrences->pluck('shift_record_id')->filter()->values()->all(),
+                        'occurrence_ids' => $occurrences->pluck('id')->values()->all(),
+                        'project_ids' => $projectIds,
+                        'manager_names' => $group['managers']->pluck('name')->filter()->values()->all(),
+                    ],
+                ]
+            );
+        }
+    }
+
+    private function audienceForSubject(?User $user): string
+    {
+        $positionId = $user?->position_id;
+
+        // position_id <= 6 means the subject is a PM (==6) or an executive (<6),
+        // so the alert escalates to directors instead of a PM.
+        return ($positionId !== null && (int) $positionId <= 6)
+            ? IncidentCandidate::AUDIENCE_DIRECTOR
+            : IncidentCandidate::AUDIENCE_PM;
     }
 
     private function markPmAlertsSent(Collection $alertGroups, Carbon $now): void

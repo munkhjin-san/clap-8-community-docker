@@ -75,7 +75,7 @@ import { useRoute, useRouter } from 'vue-router';
     const badge = useBadgeStore()
     const initialLoader = ref(false)
     const auth = useAuthUserStore()
-    const { selectedProject, memberData, projectReportBadge, checkItemConfirmBadge } = useProject() 
+    const { selectedProject, memberData, projectReportBadge, checkItemConfirmBadge, kintoneContractBadge } = useProject() 
     const userId = computed(() => auth.activeUser?.id ?? auth.id ?? null);
     type Tab = { name: string; path: string };
     type BadgeVariant = "confirm" | "comment";
@@ -109,6 +109,9 @@ import { useRoute, useRouter } from 'vue-router';
         finance: [
             { key: "finance-comment", title: "コメントバッジ", variant: "comment", value: financeCommentBadge.value },
         ],
+        contracts: [
+            { key: "contracts-confirm", title: "契約書更新", variant: "confirm", value: kintoneContractBadge.value },
+        ],
     }));
 
     const badgesForTab = (path: string) => badgesByTab.value[path] ?? [];
@@ -131,6 +134,7 @@ import { useRoute, useRouter } from 'vue-router';
         { name: '業務マニュアル', path: 'operation'},
         { name: '契約書', path: 'contracts'},
         { name: '法務レビュー', path: 'legal'},
+        // { name: 'アプリ', path: 'apps'},
         { name: '派遣', path: 'dispatch'},
         { name: '予算・実績', path: 'finance'},
         { name: 'ガントチャート', path: 'task-calendar'},

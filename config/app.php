@@ -33,6 +33,8 @@ return [
     'kintone_user_name' => env('KINTONE_USER_NAME'),
     'kintone_password' => env('KINTONE_PASSWORD'),
     'kintone_base_url' => env('KINTONE_BASE_URL'),
+    'kintone_plans_app_id' => env('KINTONE_PLANS_APP_ID', 1068),
+    'variance_threshold' => env('VARIANCE_ALERT_THRESHOLD', 10),
     'gemini_api_key' => env('GEMINI_API_KEY'),
     'openai_api_key' => env('OPENAI_API_KEY'),
 
@@ -173,50 +175,9 @@ return [
     |
     */
 
-    'providers' => [
-
-        /*
-         * Laravel Framework Service Providers...
-         */
-        Illuminate\Auth\AuthServiceProvider::class,
-        Illuminate\Broadcasting\BroadcastServiceProvider::class,
-        Illuminate\Bus\BusServiceProvider::class,
-        Illuminate\Cache\CacheServiceProvider::class,
-        Illuminate\Foundation\Providers\ConsoleSupportServiceProvider::class,
-        Illuminate\Cookie\CookieServiceProvider::class,
-        Illuminate\Database\DatabaseServiceProvider::class,
-        Illuminate\Encryption\EncryptionServiceProvider::class,
-        Illuminate\Filesystem\FilesystemServiceProvider::class,
-        Illuminate\Foundation\Providers\FoundationServiceProvider::class,
-        Illuminate\Hashing\HashServiceProvider::class,
-        Illuminate\Mail\MailServiceProvider::class,
-        Illuminate\Notifications\NotificationServiceProvider::class,
-        Illuminate\Pagination\PaginationServiceProvider::class,
-        Illuminate\Pipeline\PipelineServiceProvider::class,
-        Illuminate\Queue\QueueServiceProvider::class,
-        Illuminate\Redis\RedisServiceProvider::class,
-        Illuminate\Auth\Passwords\PasswordResetServiceProvider::class,
-        Illuminate\Session\SessionServiceProvider::class,
-        Illuminate\Translation\TranslationServiceProvider::class,
-        Illuminate\Validation\ValidationServiceProvider::class,
-        Illuminate\View\ViewServiceProvider::class,
-        // Intervention\Image\ImageServiceProvider::class,
-        /*
-         * Package Service Providers...
-         */
-
-        /*
-         * Application Service Providers...
-         */
-        App\Providers\AppServiceProvider::class,
-        App\Providers\AuthServiceProvider::class,
-        // App\Providers\BroadcastServiceProvider::class,
-        App\Providers\EventServiceProvider::class,
-        App\Providers\FortifyServiceProvider::class,
-        App\Providers\RouteServiceProvider::class,
-        Maatwebsite\Excel\ExcelServiceProvider::class,
-
-    ],
+    // Framework service providers are registered automatically by the application.
+    // Application providers live in bootstrap/providers.php; packages are
+    // registered via composer auto-discovery.
 
     /*
     |--------------------------------------------------------------------------

@@ -2138,7 +2138,7 @@ const hasVehicle = computed(() => {
 .project-chip-open-row {
     overflow: visible !important;
     position: relative;
-    z-index: 35;
+    z-index: 15;
 }
 
 .project-chip-open-row .mobile-project-segment-card-cell,

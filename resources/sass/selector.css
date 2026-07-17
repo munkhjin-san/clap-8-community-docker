@@ -16,7 +16,7 @@
     margin-top: 1px;
 }
 .v-chip {
-    background: var(--bg3) !important;
+    background: var(--secondary-background) !important;
     border-radius: 0 !important;
 
 }

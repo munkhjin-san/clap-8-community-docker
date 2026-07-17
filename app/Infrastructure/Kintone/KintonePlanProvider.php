@@ -19,7 +19,7 @@ class KintonePlanProvider implements PlanProvider
     {
         // If you want ALL departments for that month, drop 部門 filter from $query.
         $endOfMonth = $period->endOfMonth()->format('Y-m-d');
-        $appId  = env('KINTONE_PLANS_APP_ID', 1068);
+        $appId  = config('app.kintone_plans_app_id');
         $fields = ['部門','日付','売上高合計','内部売上高合計','販売管理費合計','間接費配賦', '利益'];
 
         $out = [];

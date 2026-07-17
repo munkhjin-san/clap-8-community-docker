@@ -36,6 +36,11 @@ export const adminRoutes: RouteRecordRaw[] = [
                 component: () => import('@/components/AccountControl/LearningControl/LearningControl.vue'),
                 children: [
                     {
+                        path: 'categories',
+                        name: 'learning-categories',
+                        component: () => import('@/components/AccountControl/LearningControl/LearningCategoryControl.vue'),
+                    },
+                    {
                         path: ':themeId',
                         name: 'themeContainer',
                         component: () => import('@/components/AccountControl/LearningControl/ThemeContainer.vue'),
@@ -178,6 +183,11 @@ export const adminRoutes: RouteRecordRaw[] = [
                         name: 'applications',
                         component: () => import('@/components/AccountControl/RefreshControl/RefreshApplications.vue'),
                     },
+                    {
+                        path: 'rakuaward',
+                        name: 'rakuaward',
+                        component: () => import('@/components/AccountControl/RefreshControl/RakuawardControl.vue'),
+                    },
                 ],
             },
             {
@@ -185,6 +195,36 @@ export const adminRoutes: RouteRecordRaw[] = [
                 name: 'admin-offices',
                 meta: { head: '営業所管理' },
                 component: () => import('@/components/AccountControl/Office/AdminOffice.vue'),
+            },
+            {
+                path: 'facilities',
+                name: 'facilities-control',
+                meta: { head: '施設' },
+                redirect: { name: 'facility-rooms' },
+                component: () => import('@/components/AccountControl/ScheduleControl/ScheduleControl.vue'),
+                children: [
+                    {
+                        path: 'rooms',
+                        name: 'facility-rooms',
+                        component: () => import('@/components/AccountControl/ScheduleControl/CalendarFacilities.vue'),
+                        props: { type: 'room' },
+                    },
+                    {
+                        path: 'cars',
+                        name: 'facility-cars',
+                        component: () => import('@/components/AccountControl/ScheduleControl/CalendarFacilities.vue'),
+                        props: { type: 'car' },
+                    },
+                    {
+                        path: 'web-meetings',
+                        name: 'web-meetings',
+                        component: () => import('@/components/AccountControl/ScheduleControl/WebMeetings.vue'),
+                    },
+                ],
+            },
+            {
+                path: 'schedule/:pathMatch(.*)*',
+                redirect: { name: 'facility-rooms' },
             },
             {
                 path: 'employee-change-applications',

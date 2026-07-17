@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useBoardList } from '@/composables/board'
 import { useModal } from '@/composables/modal'
+import { pageTitleOverride } from '@/composables/pageTitle'
 import { routes } from '@/routes'
 import { useFilePreview } from '@/store/filePreview'
 import { useKeyboardStore } from '@/store/keyboardStore'
@@ -56,6 +57,9 @@ router.beforeEach((to, from) => {
 })
 
 router.afterEach((to, from) => {
+    // clear any dynamic tab-title override; the destination view sets its own if it wants one
+    pageTitleOverride.value = null
+
     const responsive = useResponsive()
     const sideMenuView = useSideMenuView()
 

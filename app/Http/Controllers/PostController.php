@@ -15,6 +15,7 @@ use App\Models\ClapRecord;
 use App\Models\SearchHistoryRecord;
 use App\Models\CommentRecord;
 use App\Models\PostRelay;
+use App\Models\PostRelayPrize;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\Comment;
 use Illuminate\Support\Facades\File; 
@@ -330,7 +331,16 @@ class PostController extends Controller
         }
 
         $users = $relays
-            ->filter(fn (PostRelay $relay) => (int) $relay->status === PostRelay::STATUS_PENDING)
+            ->filter(function (PostRelay $relay) {
+                if ((int) $relay->status === PostRelay::STATUS_PENDING) {
+                    return true;
+                }
+
+                // Terminal completion: the final person completed the chain without
+                // continuing it (their own post starts a fresh relay). Still show them.
+                return (int) $relay->status === PostRelay::STATUS_COMPLETED
+                    && is_null($relay->accepted_post_id);
+            })
             ->map(fn (PostRelay $relay) => $relay->toUser ?? $sourcePost->to_users->firstWhere('id', $relay->to_user_id))
             ->filter()
             ->values()
@@ -388,6 +398,35 @@ class PostController extends Controller
         }
 
         return $current;
+    }
+    private function niceChainPostCount(?PostRecord $post): int
+    {
+        if (!$post) {
+            return 0;
+        }
+
+        $count = 0;
+        $currentId = (int) $post->id;
+        $visited = [];
+
+        while ($currentId && !in_array($currentId, $visited, true)) {
+            $visited[] = $currentId;
+            $count++;
+
+            $incomingRelay = PostRelay::where('relay_type', PostRelay::TYPE_NICE)
+                ->where('accepted_post_id', $currentId)
+                ->orderBy('assigned_at')
+                ->orderBy('id')
+                ->first();
+
+            if (!$incomingRelay) {
+                break;
+            }
+
+            $currentId = (int) $incomingRelay->source_post_id;
+        }
+
+        return $count;
     }
     private function pushRelayChainGroup(array &$groups, array $users, ?string $connector = null): void
     {
@@ -614,6 +653,21 @@ class PostController extends Controller
                     ->firstOrFail();
                 $this->validateRelayChallengePlayers($request);
             }
+            if ($request->app_type == 7) {
+                $check = $this->check_rakuaward();
+                
+                if ($check) {
+                    throw ValidationException::withMessages([
+                        'rakuaward' => '今月の楽アワードノミネート既に作成してます',
+                    ]);
+                }
+                $todayDay = Carbon::now()->day;
+                if ($todayDay > 20) {
+                    throw ValidationException::withMessages([
+                        'rakuaward' => '20日を過ぎてしまったため、楽アワードノミネートすることはできません',
+                    ]);
+                }
+            }
             $record->user_id = Auth::id();
             $record->title = $request->title;
             if($request->app_type == 2){
@@ -633,11 +687,12 @@ class PostController extends Controller
                 $record->content = $request->post_content;
                 $record->challenge_main_category = null;
                 $record->challenge_sub_category = null;
-            }    
+                $record->chargeable = (int) $request->app_type === 7 ? true : false;
+            }
             // if($request->app_type == 5 ){
             //     $record->donation_target = $request->donation_target;
             // }        
-            $record->referrer = $request->referrer; 
+            $record->referrer = $request->referrer;
             $record->app_type = $request->app_type;    
             $record->refresh_amount = $request->refresh_amount;     
             if($request->edit_id){
@@ -652,13 +707,16 @@ class PostController extends Controller
             $user = Auth::user();
             $user->user_last_record()->firstOrCreate()->touch();
             $this->badgeService->invalidateBadgeSummaryCache();
-            if($request->app_type == 2 || $request->app_type == 0){
+            if($request->app_type == 2 || $request->app_type == 0 || $request->app_type == 7){
                 $record->to_users()->sync($request->to_users);
+                // A rakuaward nice is a standalone chargeable nomination, not part of the
+                // nice-relay / GlowdNine system, so skip all relay handling for it.
                 if ((int) $request->app_type === 0 && !$request->edit_id) {
                     $this->completePendingNiceRelaysForUser($record);
                     $this->createNiceRelaysForPost($record, $request->to_users ?? []);
+                    $this->maybeAwardRelayGlowdNine($record, PostRelay::TYPE_NICE);
                 }
-            }           
+            }
             if ($request->grantable) {
                 $record->grants()->createMany($request->grants);
             } 
@@ -691,20 +749,62 @@ class PostController extends Controller
             ]);
         }
     }
+    private function check_rakuaward(){
+        $activeUser = Auth::user();
+        $record = PostRecord::where('user_id', $activeUser->id)->where('app_type', 7)->where('created_at', '>=', Carbon::now()->startOfMonth())->where('created_at', '<=', Carbon::now()->endOfMonth())->first();
+        if ($record) {
+            return true;
+        }
+        return false;
+    }
     public function challenge_charge_to(Request $request){
 
-
         $request->validate([
-            'charge_bet' => 'required',
-            'record_id' => 'required'
+            'charge_bet' => 'required|integer',
+            'record_id' => 'required|integer|exists:post_records,id',
         ]);
 
-
         $record = PostRecord::findOrFail($request->record_id);
-        $record->awards()->attach(Auth::id(), ['award_bet' => $request->charge_bet, 'created_at' => now(), 'updated_at' => now()]);
-        Auth::user()->update(['award_charge' => Auth::user()->award_charge - $request->charge_bet]);
+        $chargeBet = (int) $request->charge_bet;
+        $user = Auth::user();
+
+        $isRakuawardNice = (int) $record->app_type === 7;
+        $isChallenge = (int) $record->app_type === 2;
+
+        if (!$isRakuawardNice && !$isChallenge) {
+            throw ValidationException::withMessages(['record_id' => 'この投稿にはチャージできません。']);
+        }
+
+        // Rakuaward nice: enforce the 500 cap and the created_at -> end-of-month window server-side.
+        if ($isRakuawardNice) {
+            if (! is_null($record->rakuaward_granted_at) || ! is_null($record->rakuaward_refunded_at)) {
+                throw ValidationException::withMessages(['charge_bet' => 'この楽アワードのチャージは締め切られました。']);
+            }
+
+            if (Carbon::now()->gt(Carbon::parse($record->created_at)->endOfMonth())) {
+                throw ValidationException::withMessages(['charge_bet' => 'チャージ期間が終了しました。']);
+            }
+
+            if ($chargeBet < 100 || $chargeBet > 500 || $chargeBet % 100 !== 0) {
+                throw ValidationException::withMessages(['charge_bet' => 'チャージ額は100円単位で最大500円までです。']);
+            }
+
+            if ($record->awards()->where('users.id', $user->id)->exists()) {
+                throw ValidationException::withMessages(['charge_bet' => '既にチャージしています。']);
+            }
+
+            if ((int) $user->award_charge < $chargeBet) {
+                throw ValidationException::withMessages(['charge_bet' => 'チャージ可能額が不足しています。']);
+            }
+        }
+
+        $record->awards()->attach($user->id, ['award_bet' => $chargeBet, 'created_at' => now(), 'updated_at' => now()]);
+        $user->update(['award_charge' => $user->award_charge - $chargeBet]);
+        if ($request->emote) {
+            $this->sendEmote($record->id, $request->emote);
+        }
         $this->badgeService->invalidateBadgeSummaryCache();
-        return response()->json();        
+        return response()->json();
 
     }
     public function get_post_comments(Request $request){
@@ -912,19 +1012,27 @@ class PostController extends Controller
             'reaction' => 'required|string',
         ]);
 
-        $activeUser = Auth::user();
-        $post = PostRecord::with('emotedUsers')->findOrFail($request->id);
-        $existingEmote = $post->emotedUsers()->where('user_id', $activeUser->id)->first();
-
-        if ($existingEmote && $existingEmote->pivot->emote_name == $request->reaction) {
-            $post->emotedUsers()->detach($activeUser->id);
-        } else if ($existingEmote) {
-            $post->emotedUsers()->updateExistingPivot($activeUser->id, ['emote_name' => $request->reaction]);
-        } else {
-            $post->emotedUsers()->attach($activeUser->id, ['emote_name' => $request->reaction]);
-        }
+        $post = $this->sendEmote( 
+            $request->id,
+            $request->reaction
+        );
 
         return response()->json($this->post_refresh($post));
+    }
+    private function sendEmote(int $id, string $reaction)
+    {
+        $activeUser = Auth::user();
+        $post = PostRecord::with('emotedUsers')->findOrFail($id);
+        $existingEmote = $post->emotedUsers()->where('user_id', $activeUser->id)->first();
+
+        if ($existingEmote && $existingEmote->pivot->emote_name == $reaction) {
+            $post->emotedUsers()->detach($activeUser->id);
+        } else if ($existingEmote) {
+            $post->emotedUsers()->updateExistingPivot($activeUser->id, ['emote_name' => $reaction]);
+        } else {
+            $post->emotedUsers()->attach($activeUser->id, ['emote_name' => $reaction]);
+        }
+        return $post;
     }
     private function containsOnlyEmojis($text)
     {
@@ -1001,6 +1109,10 @@ class PostController extends Controller
                 $this->upsertChallengeRelay($record, (int) $request->challenge_relay_to_user_id);
             }
 
+            if ((int) $record->app_type === 2 && $status === 1) {
+                $this->awardChallengeSupportersGlowdNine($record);
+            }
+
             return $record;
         });
 
@@ -1051,18 +1163,20 @@ class PostController extends Controller
 
         if ($openRelay) {
             $openRelay->update($values);
-            return;
+        } else {
+            PostRelay::updateOrCreate(
+                [
+                    'relay_type' => PostRelay::TYPE_CHALLENGE,
+                    'source_post_id' => $record->id,
+                    'from_user_id' => Auth::id(),
+                    'to_user_id' => $toUserId,
+                ],
+                $values
+            );
         }
 
-        PostRelay::updateOrCreate(
-            [
-                'relay_type' => PostRelay::TYPE_CHALLENGE,
-                'source_post_id' => $record->id,
-                'from_user_id' => Auth::id(),
-                'to_user_id' => $toUserId,
-            ],
-            $values
-        );
+        // Passing this baton may complete a 9-person challenge relay -> award GlowdNine.
+        $this->maybeAwardRelayGlowdNine($record, PostRelay::TYPE_CHALLENGE);
     }
     private function closePendingChallengeRelaysForUser(PostRecord $record): void
     {
@@ -1094,6 +1208,9 @@ class PostController extends Controller
             'closed_by_user_id' => Auth::id(),
             'closed_at' => Carbon::now(),
         ]);
+
+        // Continuing the chain may bring it to 9 participants -> award GlowdNine.
+        $this->maybeAwardRelayGlowdNine($record, PostRelay::TYPE_CHALLENGE);
     }
     private function validateRelayChallengePlayers(Request $request): void
     {
@@ -1286,9 +1403,14 @@ class PostController extends Controller
             ->get();
 
         foreach ($relays as $relay) {
+            // If accepting this relay makes the user the final participant, the chain is
+            // complete. Complete it terminally (no accepted_post_id) so the new post is not
+            // chained on and instead starts a fresh relay.
+            $isChainComplete = $this->niceChainPostCount($relay->sourcePost) + 1 >= PostRelay::NICE_RELAY_LIMIT;
+
             $relay->update([
                 'status' => PostRelay::STATUS_COMPLETED,
-                'accepted_post_id' => $post->id,
+                'accepted_post_id' => $isChainComplete ? null : $post->id,
                 'closed_by_user_id' => Auth::id(),
                 'closed_at' => $closedAt,
             ]);
@@ -1307,6 +1429,137 @@ class PostController extends Controller
                 'closed_by_user_id' => $closedByUserId,
                 'closed_at' => $closedAt,
             ]);
+    }
+    private function maybeAwardRelayGlowdNine(PostRecord $post, string $relayType): void
+    {
+        // Participants who have already posted in this chain (root -> this post).
+        $posterIds = $this->chainPosterIds($post, $relayType);
+
+        // The people this newest post hands the baton to (the next participants).
+        $pendingRecipientIds = PostRelay::where('relay_type', $relayType)
+            ->where('source_post_id', $post->id)
+            ->where('status', PostRelay::STATUS_PENDING)
+            ->whereNotIn('to_user_id', PostRelay::EXCLUDED_USER_IDS)
+            ->pluck('to_user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $participantIds = collect($posterIds)
+            ->merge($pendingRecipientIds)
+            ->unique()
+            ->values();
+
+        if ($participantIds->count() < PostRelay::NICE_RELAY_LIMIT) {
+            return;
+        }
+
+        $rootPost = $this->relayRootPost($post, $relayType);
+
+        // Every participant gets one GlowdNine play for this completed relay chain.
+        $participantIds->each(function ($userId) use ($rootPost) {
+            PostRelayPrize::firstOrCreate(
+                [
+                    'root_post_id' => (int) $rootPost->id,
+                    'user_id' => (int) $userId,
+                ],
+                [
+                    'prize' => 0,
+                    'try_flag' => 0,
+                    'source' => 'relay',
+                ]
+            );
+        });
+
+        $this->badgeService->invalidateBadgeSummaryCache();
+    }
+    private function awardChallengeSupportersGlowdNine(PostRecord $challenge): void
+    {
+        // When a challenge is achieved, everyone who charged it earns a GlowdNine play.
+        $chargerIds = DB::table('post_awards')
+            ->where('record_id', $challenge->id)
+            ->distinct()
+            ->pluck('user_id');
+
+        $awarded = false;
+        foreach ($chargerIds as $userId) {
+            if (in_array((int) $userId, PostRelay::EXCLUDED_USER_IDS, true)) {
+                continue;
+            }
+
+            PostRelayPrize::firstOrCreate(
+                [
+                    'root_post_id' => (int) $challenge->id,
+                    'user_id' => (int) $userId,
+                ],
+                [
+                    'prize' => 0,
+                    'try_flag' => 0,
+                    'source' => 'challenge_award',
+                ]
+            );
+            $awarded = true;
+        }
+
+        if ($awarded) {
+            $this->badgeService->invalidateBadgeSummaryCache();
+        }
+    }
+    private function chainPosterIds(PostRecord $post, string $relayType): array
+    {
+        $ids = [];
+        $visited = [];
+        $current = $post->loadMissing('user');
+
+        while ($current && !in_array((int) $current->id, $visited, true)) {
+            $visited[] = (int) $current->id;
+
+            if ($current->user && !in_array((int) $current->user->id, PostRelay::EXCLUDED_USER_IDS, true)) {
+                $ids[] = (int) $current->user->id;
+            }
+
+            $incomingRelay = PostRelay::where('relay_type', $relayType)
+                ->where('accepted_post_id', $current->id)
+                ->orderBy('assigned_at')
+                ->orderBy('id')
+                ->first();
+
+            if (!$incomingRelay || !$incomingRelay->source_post_id) {
+                break;
+            }
+
+            $current = PostRecord::with('user')->find($incomingRelay->source_post_id);
+        }
+
+        return array_values(array_unique($ids));
+    }
+    public function save_relay_prize(Request $request)
+    {
+        $request->validate([
+            'root_post_id' => 'required|integer|exists:post_records,id',
+        ]);
+
+        $params = $request->input('params', []);
+        $prize = (int) ($params['prize'] ?? 0);
+        if (!in_array($prize, PostRelay::GLOWD_NINE_PRIZES, true)) {
+            $prize = 0;
+        }
+
+        // RollDice calls this on every roll (double-up rounds overwrite the previous prize),
+        // so we must not gate on try_flag here — the last save wins. The dashboard hides the
+        // play once try_flag is 1, which prevents re-playing after the modal closes.
+        $prizeRow = PostRelayPrize::where('root_post_id', $request->root_post_id)
+            ->where('user_id', Auth::id())
+            ->first();
+
+        if ($prizeRow) {
+            $prizeRow->update([
+                'prize' => $prize,
+                'try_flag' => 1,
+            ]);
+            $this->badgeService->invalidateBadgeSummaryCache();
+        }
+
+        return response()->json(['message' => 'データが保存されました。']);
     }
     public function post_get_all_possible_users(Request $request){
         $other_users = User::where('retire', 0)->where('deleted_flag', 0)->inActiveCommunity()->select('id', 'name', 'icon_path', 'icon_bg', 'icon_bg')->get();

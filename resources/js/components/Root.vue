@@ -83,6 +83,7 @@ import SideMenu from './Global/SideMenu.vue';
 import Footer from './Header/Footer.vue';
 import { computed, onBeforeMount, onMounted, onUnmounted, provide, ref, watch, useTemplateRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { pageTitleOverride } from '@/composables/pageTitle';
 import Dialog from './Global/Dialog.vue';
 import LunchChallengePopup from './Global/LunchChallengePopup.vue';
 import OverRide from './Header/OverRide.vue'
@@ -287,8 +288,8 @@ import { storeToRefs } from 'pinia';
             setAlert()
         }
     }
-    const docTitle = computed(() => {       
-        const name = route.meta && route.meta.title ? route.meta.title : 'GLOWD'
+    const docTitle = computed(() => {
+        const name = pageTitleOverride.value || (route.meta && route.meta.title ? route.meta.title : 'GLOWD')
         const total = badge.sumOfAll
         const badgeCount = total && total > 0 ?  `【${total}】` : ''
         const space = badgeCount ? ' ' : ''

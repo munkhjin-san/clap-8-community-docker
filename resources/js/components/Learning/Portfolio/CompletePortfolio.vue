@@ -1,6 +1,6 @@
 <template>
     <div class="section-wrapper">
-        <div v-if="selectedTopic && selectedTopic.active == 1"  class="section-inner">  
+        <div v-if="selectedTopic && isEnabled(selectedTopic.active)"  class="section-inner">
     
             <!-- <div v-if="selectedTopic && selectedTopic.guidance" v-html="selectedTopic?.guidance"></div> -->
             
@@ -51,12 +51,11 @@
                 <p v-else>{{ portfolio?.public_content }}</p>
             </div>
             <OpenAiReview 
-                v-if="selectedTopic && portfolio" 
-                assistand-id="asst_NnPHXCXimhJ09GNZwOfg107Y" 
-                config-key="lesson_portfolio_review"
-                
-                :soure-text="portfolio?.ai_review_final" 
-                :message="portfolioContent || portfolio?.public_content"
+                v-if="selectedTopic && portfolio && hasAfterDiscussionReview"
+                :config-key="afterDiscussionConfig?.config_key"
+                :lesson-theme-id="selectedTopic.id"
+                :source-text="portfolio?.ai_review_final ?? undefined"
+                :message="portfolioContent || portfolio?.public_content || ''"
                 confirm-text="ポジティブ・ネガティブフィードバックから得た発見と成長がポートフォリオに反映されている。"
                 ref="reviewElFinal"
             />
@@ -71,42 +70,61 @@
         </div>
     </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router';
 import LongInput from '../../Form/LongInput.vue';
 import ShortInput from '../../Form/ShortInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue';
-import { ref, onBeforeMount, inject } from 'vue'
+import { computed, ref, onBeforeMount, inject, watch, type Ref } from 'vue'
 import OpenAiReview from '../../Global/OpenAiReview.vue'
-import { useApi } from '@/composables/api';
+import { useLearningApi } from '@/composables/learningApi';
 import { useDialog } from '@/composables/dialog';
-    const props = defineProps(['selectedTopic', 'available'])
-    const portfolio = inject('portfolio')
-    const portfolioContent = ref(portfolio ? portfolio.public_content : '')
-    const portfolioBody = ref(null)
-    const portfolioTitle = ref(null)
+import { LESSON_PORTFOLIO_STATUS } from '@/config/learning';
+import { isEnabled } from '@/utils/learningProgress';
+import type { LearningPortfolio, LearningTheme } from '@/types/learning';
+
+    const PORTFOLIO_AFTER_DISCUSSION_CONFIG_KEY = 'portfolio_after_discussion'
+    const props = defineProps<{
+        selectedTopic?: LearningTheme | null
+        available?: boolean
+        editTarget?: boolean
+    }>()
+    const portfolio = inject<Ref<LearningPortfolio | null>>('portfolio')
+    const portfolioContent = ref('')
+    const portfolioBody = ref<any>(null)
+    const portfolioTitle = ref<any>(null)
     const processing = ref(false)
     const router = useRouter()
     const processing_save = ref(false)
-    const portfolio_title = ref(portfolio ? portfolio.public_title : '')
+    const portfolio_title = ref('')
     const route = useRoute()
-    const reviewElFinal = ref(null)
-    const api = useApi()
-    const { ask, toast } = useDialog()
+    const reviewElFinal = ref<any>(null)
+    const learningApi = useLearningApi()
+    const { ask, ping, toast } = useDialog()
+    const afterDiscussionConfig = computed(() => {
+        return props.selectedTopic?.ai_configs?.find(config => config.config_key === PORTFOLIO_AFTER_DISCUSSION_CONFIG_KEY) ?? null
+    })
+    const hasAfterDiscussionReview = computed(() => Boolean(afterDiscussionConfig.value))
+    watch(portfolio ?? ref(null), (record) => {
+        portfolioContent.value = record?.public_content ?? ''
+        portfolio_title.value = record?.public_title ?? ''
+    }, { immediate: true })
     onBeforeMount(() => {
         setTimeout(() => {
-            if(props.selectedTopic?.lesson_portfolio?.status < 2 || !props.selectedTopic.lesson_portfolio){
+            if(!props.selectedTopic?.lesson_portfolio || Number(props.selectedTopic.lesson_portfolio.status ?? 0) < LESSON_PORTFOLIO_STATUS.DISCUSSION_COMPLETED){
                 backToast()
             }
         }, 500)
         
     })
-    const savePortfolio = async(status) => {
-        let portfolioStatus = 2
+    const savePortfolio = async(status: 'save' | 'next') => {
+        if (!portfolio?.value) return
+
+        let portfolioStatus: number = LESSON_PORTFOLIO_STATUS.DISCUSSION_COMPLETED
         if(status == 'next'){
             
             processing.value = true
-            // portfolioStatus = 3
+            portfolioStatus = LESSON_PORTFOLIO_STATUS.FINAL_COMPLETED
         }else{
             processing_save.value = true
         }
@@ -114,15 +132,15 @@ import { useDialog } from '@/composables/dialog';
             theme_id: route.params.lessonThemeId,
             params: {
                 portfolio_title: portfolio.value.portfolio_title,
-                content: portfolio.value.content,                
+                content: portfolio.value.content,
                 public_title: portfolio_title.value,
                 public_content: portfolioContent.value,
                 status: portfolioStatus,
-                ai_review_final: reviewElFinal.value?.reviewResultRaw,
+                ai_review_final: reviewElFinal.value?.reviewResultRaw ?? portfolio.value.ai_review_final,
             }  
 
         }
-        await api.post('/save_lesson_portfolio', params)
+        await learningApi.savePortfolio(params)
         if(status == 'next'){
 
         }else{
@@ -134,7 +152,11 @@ import { useDialog } from '@/composables/dialog';
     const nextStage = async() => {
         const result = await portfolioBody.value.validate()
         const title_result = await portfolioTitle.value.validate()
-        const valid = await reviewElFinal.value?.validate()
+        if(hasAfterDiscussionReview.value && !reviewElFinal.value?.reviewResultRaw){
+            ping('ポートフォリオを完了する前、AI分析してください。')
+            return
+        }
+        const valid = hasAfterDiscussionReview.value ? await reviewElFinal.value?.validate() : true
         if(result.valid && title_result.valid && valid){
             const answer = await ask('ポートフォリオを完了にしますか。\n完了後は編集ができません。')
                                       

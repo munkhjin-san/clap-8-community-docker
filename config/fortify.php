@@ -77,7 +77,7 @@ return [
     |
     */
 
-    'home' => \App\Providers\RouteServiceProvider::BOARD,
+    'home' => '/', // was RouteServiceProvider::BOARD; that provider was removed in main's Laravel-skeleton modernization (routing folded into bootstrap/app.php)
 
     /*
     |--------------------------------------------------------------------------

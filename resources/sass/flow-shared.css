@@ -1,0 +1,33 @@
+/* Shared building blocks for the Flow (custom app) builder + permission editors — previously
+   redeclared per-component; centralized here since they were byte-identical (or near-identical
+   copy-paste drift) across FlowBuilder/FlowFieldInput/FlowFieldInspector/FlowStatusTab/FlowToolsTab/
+   FlowViewTab/FlowPermissionTab/FlowFieldPermEditor/FlowRecordPermEditor. */
+
+/* Toggle switch */
+.flow-sw { width: 36px; height: 20px; border-radius: 10px; background: var(--formBorder); position: relative; cursor: pointer; display: inline-block; flex-shrink: 0; transition: background .12s; }
+.flow-sw.on { background: var(--primary-button, var(--primary-color)); }
+.flow-sw::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
+.flow-sw.on::after { left: 18px; }
+/* larger variant (FlowViewTab) */
+.flow-sw-lg { width: 38px; height: 22px; border-radius: 11px; }
+.flow-sw-lg::after { width: 18px; height: 18px; }
+.flow-sw-lg.on::after { left: 18px; }
+
+/* Segmented control (button group) */
+.flow-seg { display: inline-flex; border: 1px solid var(--calendarBorder); border-radius: 6px; overflow: hidden; }
+.flow-seg button { border: none; background: var(--background-color); padding: 6px 10px; font-size: 12px; color: gray; cursor: pointer; border-right: 1px solid var(--calendarBorder); }
+.flow-seg button:last-child { border-right: none; }
+.flow-seg button.on { background: var(--bg3); color: var(--primary-color); font-weight: 500; }
+
+/* Ghost (outline) button */
+.flow-ghost-btn { color: var(--primary-color); background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+.flow-ghost-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+/* larger variant (FlowBuilder top bar, FlowPermissionTab) */
+.flow-ghost-btn-lg { padding: 7px 14px; font-size: 13px; color: var(--primary-color);}
+
+/* Permission editor card + flag checkboxes (FlowFieldPermEditor / FlowRecordPermEditor / FlowPermissionTab) */
+.flow-card { background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 10px; padding: 14px; }
+.flow-perm-flags { display: flex; flex-wrap: wrap; gap: 12px; }
+.flow-perm-flag { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--primary-color); cursor: pointer; user-select: none; }
+.flow-cbox { width: 20px; height: 20px; border: 1px solid var(--formBorder); border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-sizing: border-box !important; flex: none; }
+.flow-cbox.on { background: var(--primary-button, var(--primary-color)); border-color: var(--primary-button, var(--primary-color)); fill: #fff; }

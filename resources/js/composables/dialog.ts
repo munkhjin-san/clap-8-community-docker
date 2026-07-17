@@ -8,6 +8,8 @@ type InputOptions = {
   submitText?: string
   required?: boolean
   selectBaseName?: boolean
+  multiline?: boolean
+  maxLength?: number
   validate?: (v: string) => string | null
 };
 const askData = ref<string|null>(null);

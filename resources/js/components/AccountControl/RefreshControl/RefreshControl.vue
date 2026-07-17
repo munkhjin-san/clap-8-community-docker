@@ -14,6 +14,10 @@ const tabs = [
         label: '付与管理',
         name: 'management',
     },
+    {
+        label: '楽アワード',
+        name: 'rakuaward',
+    },
 ];
 
 const activeTab = computed(() => route.name as string);

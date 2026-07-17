@@ -1,6 +1,6 @@
 <template>
-    <section class="app-comment-section">
-        <div class="app-comment-header">
+    <section class="app-comment-section" :class="{ 'is-panel': variant === 'panel' }">
+        <div v-if="variant !== 'panel'" class="app-comment-header">
             <h3>{{ title }}</h3>
             <span>{{ comments.length }}件</span>
         </div>
@@ -147,8 +147,10 @@ const props = withDefaults(defineProps<{
     commentableId: number;
     title?: string;
     users?: User[];
+    variant?: 'default' | 'panel';
 }>(), {
     title: 'コメント',
+    variant: 'default',
 })
 
 const emit = defineEmits<{
@@ -514,6 +516,66 @@ const scrollToBottom = async (behavior: ScrollBehavior = 'smooth') => {
 
 .app-comment-send-area{
     cursor: pointer;
+}
+
+/* ---- compact "panel" variant (custom-app right side) ---- */
+.app-comment-section.is-panel{
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border-top: none;
+    padding-top: 0;
+
+    .app-comment-list{
+        flex: 1;
+        max-height: none;
+        background: var(--background-color);
+        padding: 0 0 10px;
+    }
+
+    .app-comment-item{
+        background: var(--bg3);
+        margin-bottom: 14px;
+        max-width: 90%;
+        padding: 10px 12px;
+        border-radius: 5px;
+    }
+
+    .app-comment-meta{ gap: 10px; }
+
+    .app-comment-body{
+        font-size: 12.5px;
+        line-height: 1.6;
+        margin-top: 8px;
+    }
+
+    .app-comment-compose{ flex-shrink: 0; }
+
+    .app-comment-type-container{
+        margin: 0;
+        width: 100%;
+        padding: 0;
+    }
+
+    .typeAreaOuter{
+        width: calc(100% - 52px);
+        border-radius: 5px;
+        padding: 4px 0 4px 10px;
+    }
+
+    .app-comment-editor{
+        min-height: 40px;
+        max-height: 120px;
+    }
+
+    .sendAreaBox{
+        width: 26px;
+        height: auto;
+        right: 4px;
+        bottom: 7px;
+    }
+
+    .app-comment-send-area :deep(svg){ width: 24px; }
 }
 
 </style>

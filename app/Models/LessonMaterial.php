@@ -25,6 +25,25 @@ class LessonMaterial extends Model
     public function theme() {
         return $this->belongsTo(LessonTheme::class, 'lesson_theme_id');
     }
+    public function version() {
+        return $this->belongsTo(LessonMaterialVersion::class, 'lesson_material_version_id');
+    }
+
+    // Active content = not retired. Retired materials are kept for history
+    // (lesson_answers / lesson_sections reference material_id) but hidden
+    // from new/first-time learners.
+    public function scopeActive($query)
+    {
+        return $query->whereNull('retired_at');
+    }
+    public function scopeRetired($query)
+    {
+        return $query->whereNotNull('retired_at');
+    }
+
+    protected $casts = [
+        'retired_at' => 'datetime',
+    ];
     protected $fillable = [
         'lesson_theme_id',
         'user_id',
@@ -37,6 +56,8 @@ class LessonMaterial extends Model
         'has_question',
         'has_understand',
         'prompt_id',
-        'material_type'
+        'material_type',
+        'retired_at',
+        'lesson_material_version_id',
     ];
 }

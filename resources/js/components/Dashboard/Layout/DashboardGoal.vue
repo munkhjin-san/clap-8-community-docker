@@ -33,6 +33,13 @@
                     </div>
                 </div>
                 <div v-if="!fullscreen" class="m-5">
+                    <div v-if="goalCandidates.length" class="mb-4">
+                        <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis flex items-center gap-2">
+                            <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 py-0.5">要対応</span>
+                            成果目標アラート
+                        </p>
+                        <IncidentAlertList :candidates="goalCandidates" :col="Number(data.col.split('-')[2] ?? 1)" />
+                    </div>
                     <div v-for="item in approvaNeeded" class="mb-4">
                         <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis flex items-center gap-2">
                             <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 py-0.5">{{ item.chip }}</span>
@@ -230,6 +237,8 @@ import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import { useRoute } from 'vue-router';
 import type { DashboardOverdueGoalCard } from '@/interface/dashboard';
+import { useDashboardStore } from '@/store/dashboard';
+import IncidentAlertList from './IncidentAlertList.vue';
 type OutcomeGoalGroup = {
     year: number;
     which_half: string;
@@ -248,10 +257,16 @@ const emit = defineEmits<{
 }>()
 
 const goalsStore = useDashboardGoalsStore()
-const {totalOverallScore, loading, pendingMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoals, requiredGoalData, unfinishedPreviousSpanGoals, pulseBadgeCount, normalBadgeCount } = storeToRefs(goalsStore)
+const {totalOverallScore, loading, pendingMembers, returnedMembers, myGoals, managersGoals, mentorApprovalNeededGoalsWithSalaryIssue, adminApprovalNeededGoalsWithSalaryIssue, mentorPortfolioApprovalNeeded, adminPortfolioApprovalNeeded, adminApprovalNeededGoals, requiredGoalData, unfinishedPreviousSpanGoals, pulseBadgeCount, normalBadgeCount } = storeToRefs(goalsStore)
 const { getGoals } = goalsStore
 
 const auth = useAuthUserStore()
+const dashboardStore = useDashboardStore()
+const goalCandidates = computed(() =>
+    (dashboardStore.collection.incidentAlerts ?? []).filter(
+        (candidate) => candidate.source_type === 'outcome_goal_submission' || candidate.source_type === 'outcome_goal_pm_approval'
+    )
+)
 const selectedUser = ref<User | null>(auth.user)
 const route = useRoute()
 const targetDates = detailedDateOptions()
@@ -271,7 +286,6 @@ onMounted(() => {
     if(auth.id){
         selectedUser.value = auth.user
     }
-    console.log('yyy')
     // getGoals(selectedUser.value?.id ?? 0 ,year, span)
 })
 
@@ -288,6 +302,13 @@ const approvaNeeded = computed(() => {
             users: pendingMembers.value
         })
     }
+    if(returnedMembers.value.length){
+        items.push({
+            chip: 'PM',
+            title: '差戻依頼【メンバー】',
+            users: returnedMembers.value
+        })
+    }
     if(managersGoals.value.length){
         items.push({
             chip: '役員',
@@ -302,11 +323,25 @@ const approvaNeeded = computed(() => {
             users: mentorApprovalNeededGoalsWithSalaryIssue.value
         })
     }
+    if(mentorPortfolioApprovalNeeded.value.length){
+        items.push({
+            chip: 'メンター',
+            title: 'ポートフォリオ承認依頼【昇給課題】',
+            users: mentorPortfolioApprovalNeeded.value
+        })
+    }
     if(adminApprovalNeededGoalsWithSalaryIssue.value.length){
         items.push({
             chip: '人事',
             title: '承認依頼【昇給課題】',
-            users: adminApprovalNeededGoalsWithSalaryIssue.value    
+            users: adminApprovalNeededGoalsWithSalaryIssue.value
+        })
+    }
+    if(adminPortfolioApprovalNeeded.value.length){
+        items.push({
+            chip: '人事',
+            title: 'ポートフォリオ承認依頼【昇給課題】',
+            users: adminPortfolioApprovalNeeded.value
         })
     }
     if(adminApprovalNeededGoals.value.length){
@@ -331,7 +366,7 @@ const overWeekCount = computed(() => {
     }
     return count
 })
-const goalActionCount = computed(() => pulseBadgeCount.value + normalBadgeCount.value)
+const goalActionCount = computed(() => pulseBadgeCount.value + normalBadgeCount.value + goalCandidates.value.length)
 const goalIsOverWeek = (goal: ProjectGoal) => {
     return goalsStore.isGoalOverWeek(goal)
 }

@@ -154,6 +154,30 @@ export function useProject() {
     const checkItemConfirmBadge = computed(() => {
         return badge.checkItemConfirmByFilter[Number(route.params.projectId)] ?? 0
     })
+    const kintoneContractBadge = computed(() => {
+        return badge.kintoneContractChangesByProject[Number(route.params.projectId)] ?? 0
+    })
+    const kintoneContractRecordIds = computed(() => {
+        return badge.kintoneContractRecordIdsByProject[Number(route.params.projectId)] ?? new Set<number>()
+    })
+    const hasUnreadKintoneContract = (recordId: number) => {
+        return kintoneContractRecordIds.value.has(Number(recordId))
+    }
+    const checkKintoneContractChange = async (recordId: number) => {
+        const projectId = Number(route.params.projectId)
+        if (!projectId || !hasUnreadKintoneContract(recordId)) {
+            return
+        }
+
+        await badge.checkKintoneContractChange({
+            project_id: projectId,
+            record_id: Number(recordId),
+        })
+
+        window.setTimeout(() => {
+            badge.getbadgeSummary()
+        }, 3000)
+    }
     return {
         projectList,
         getProjects,
@@ -168,6 +192,10 @@ export function useProject() {
         updateProject,
         projectReportBadge,
         checkItemConfirmBadge,
+        kintoneContractBadge,
+        kintoneContractRecordIds,
+        hasUnreadKintoneContract,
+        checkKintoneContractChange,
         projectReportCheckBadge,
         readProjectMessage
     };

@@ -298,6 +298,10 @@ import type { MenuList } from '@/interface/globalInterface';
 
             URL.revokeObjectURL(url);
         })
+        if (source.value === 'flow') {
+            await api.post('/flow_file_download_log', { url: currentFile.value.file_path, name: currentFile.value.name })
+            return
+        }
         if (source.value !== 'storage') return
         const payload = {
             id: currentFile.value.id,

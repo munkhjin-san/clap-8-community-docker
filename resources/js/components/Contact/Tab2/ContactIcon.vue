@@ -1,6 +1,7 @@
 <template>
     <div class="flex items-center text-[13px] w-fit" :title="contact.name!">
         <v-img
+            v-if="contact.icon_path"
             :src="thumbnailUrl(size ? Number(size) : 30)"
             :srcset="generateSrcset"
             aspect-ratio="1"
@@ -12,6 +13,7 @@
             rounded="circle"
             :title="contact.name"
         ></v-img>
+        <UserDefaultIcon v-else :name="contact.name" :bg="'000000'" :size="computedSize" />
         <div>
             <div v-if="withName" class="ml-[10px]">{{ contact.name }}</div>
             <slot name="details"></slot>
@@ -19,9 +21,10 @@
     </div>
 </template>
 <script setup lang="ts">
-import { computed } from 'vue';    
+import { computed } from 'vue';
 import { useTheme } from '@/store/theme';
 import { ContactRecord } from '@/interface/contactInterface';
+import UserDefaultIcon from '@/components/Global/UserDefaultIcon.vue';
     const props = defineProps<{
         contact: ContactRecord
         size?: string
@@ -30,10 +33,9 @@ import { ContactRecord } from '@/interface/contactInterface';
     }>()
     const theme = useTheme()
   
-    const thumbnailUrl = (size:number) => {    
-        return props.contact.icon_path ? 
-        `/contact_icon_thumbnail/${props.contact.icon_path}/${size}/000000` : 
-        `/user_default_thumbnail/${props.contact.name?.charAt(0).toUpperCase()}/${size}/000000`
+    const thumbnailUrl = (size:number) => {
+        // Only uploaded icons go through the server now; defaults render as SVG.
+        return `/contact_icon_thumbnail/${props.contact.icon_path}/${size}/000000`
     }
     const generateSrcset = computed(() => {
         const set = computedSize.value

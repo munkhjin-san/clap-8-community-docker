@@ -12,6 +12,7 @@
             :chosenGoal="chosenGoal"
             :getIssues="getIssues"
             :possibleThemes="completedLessonThemes"
+            :eligibility="eligibility"
             @next="next"
             @selectThemeConfirm="selectThemeConfirm"
         />
@@ -35,7 +36,7 @@ import { useAuthUserStore } from '@/store/auth';
 import { useApi } from '@/composables/api';
 import Step3 from './Step3.vue';
 import Step2 from './Step2.vue';
-import { ProjectGoal, SalaryIssue } from '@/interface/projectInterface';
+import { ProjectGoal, SalaryIssue, SalaryIssueEligibility } from '@/interface/projectInterface';
 import { useDashboardGoalsStore, issueThemes } from '@/store/dashboardGoals';
 import { storeToRefs } from 'pinia';
 const emit = defineEmits<{
@@ -73,6 +74,7 @@ const next = (val: number) => {
 }
 
 const completedLessonThemes = ref<string[]>([])
+const eligibility = ref<SalaryIssueEligibility | null>(null)
 
 const selectThemeConfirm = (level: string, theme: string) => {
     selectedTheme.value = getIssues(level, theme)[0]
@@ -87,6 +89,9 @@ onMounted(async() => {
         step.value = 1
     }
     completedLessonThemes.value = await api.get('/get_completed_lesson_themes')
+    if(props.chosenGoal?.id){
+        eligibility.value = await api.post('/get_salary_issue_eligibility', { goal_id: props.chosenGoal.id })
+    }
 })
 const editIssue = (issue: SalaryIssue) => {
 

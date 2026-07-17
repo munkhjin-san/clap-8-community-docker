@@ -1,6 +1,6 @@
 <template>
     <div class="flex flex-col gap-5">
-      <label :for="questionId" class="mb-4" style="font-size: 16px; font-weight: 600;">{{ question }}</label>
+      <label :for="String(questionId)" class="mb-4" style="font-size: 16px; font-weight: 600;">{{ question }}</label>
       
       <div v-for="(answer, index) in answers" :key="index" class="flex gap-2.5 align-center">
         <input 
@@ -12,28 +12,38 @@
           >
         <label :for="`${questionId}-${index + 1}`">{{ answer }}</label>
       </div>
-      <span v-if="!selectedAnswer && showError" class="form-error" style="font-size: 11px; color: tomato;">
+      <span v-if="selectedAnswer === null && showError" class="form-error" style="font-size: 11px; color: tomato;">
         {{ radioError }}
       </span>
 
     </div>
 </template>
   
-  <script setup>
+  <script setup lang="ts">
     import { ref, watch } from 'vue';
-    const props = defineProps(['questionId', 'question', 'answers', 'errorMessage', 'answer', 'showError'])
-    const emit = defineEmits(['setValue', 'validationError'])
-    const selectedAnswer = ref(props.answer ?? null)
+    const props = defineProps<{
+      questionId: string | number
+      question?: string | null
+      answers: string[]
+      errorMessage?: string
+      answer?: number | null
+      showError?: boolean
+    }>()
+    const emit = defineEmits<{
+      setValue: [value: number]
+      validationError: [value: boolean]
+    }>()
+    const selectedAnswer = ref<number | null>(props.answer ?? null)
     
     const radioError = ref(props.errorMessage ? props.errorMessage : '必須です。')
 
-    const handleChange = (value) => {
+    const handleChange = (value: number) => {
       emit('setValue', value)
       emit('validationError', false)
     }
 
     watch(() => props.showError, (newVal) => {
-      if (newVal && !selectedAnswer.value) {
+      if (newVal && selectedAnswer.value === null) {
         emit('validationError', true)
       }
     })

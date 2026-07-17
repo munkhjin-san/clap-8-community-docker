@@ -10,7 +10,7 @@
                 </div> 
             </div>
             <div v-for="item in summaries" :key="item.id">
-                <div v-for="q in item.questions" style="margin-bottom: 20px;">
+                <div v-for="q in item.questions ?? []" :key="q.id" style="margin-bottom: 20px;">
                     <!-- <div style="margin-bottom: 10px;">{{ q.question }}</div> -->
                     <div v-html="q.content"></div>
                     <div style="padding: 10px; background-color: var(--bg3); margin-top: 20px;">
@@ -47,9 +47,17 @@
 import LoaderButton from '@/components/Global/LoaderButton.vue';
 import { computed, ref, watch } from 'vue';
 import HasReason from './HasReason.vue';
-const props = defineProps(['material', 'summaries'])
+import type { LearningMaterial, LearningSummary } from '@/types/learning';
 
-const emit = defineEmits(['close', 'updateAnswerStatus'])
+const props = defineProps<{
+    material?: LearningMaterial | null
+    summaries: LearningSummary[]
+}>()
+
+const emit = defineEmits<{
+    close: []
+    updateAnswerStatus: [status: number, cantUnderstand: string, reason?: string]
+}>()
 const selectedAnswer = ref<{ [key: string]: number }>({})
 const radioError = ref<{ [key: string]: string }>({})
 const reason = ref(false)
@@ -59,19 +67,19 @@ const list = [
     { value: 1, content: '理解できなかった'}        
 ]
 const understandAll = computed(() => {
-    return props.summaries.every((item: any) => item?.questions.every((q: any) => selectedAnswer.value[q.id] === 2))
+    return props.summaries.every((item) => (item.questions ?? []).every((q) => selectedAnswer.value[q.id] === 2))
 })
 const complete = async(status: number) => {
     const errors: { [key: string]: string } = {}
     const unansweredSummaries: string[] = []
 
     for (const item of props.summaries) {
-        for (const q of item.questions) {
+        for (const q of item.questions ?? []) {
             if (!selectedAnswer.value[q.id]) {
                 errors[q.id] = '必須です。'
             }
             if (selectedAnswer.value[q.id] === 1) {
-                unansweredSummaries.push(q.question)
+                unansweredSummaries.push(q.question ?? '')
             }
         }
         

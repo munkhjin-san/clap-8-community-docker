@@ -25,7 +25,8 @@
                                         <tr >
                                             <td>
                                                 <div class="inner-col"><span class="mobile">ID</span>
-                                                    <a class="jump-link flex items-center whitespace-nowrap" target="_blank" :href="`https://glowd-hldgs.cybozu.com/k/138/show#record=${contract['レコード番号']}`">
+                                                    <a class="jump-link flex items-center whitespace-nowrap gap-[6px]" target="_blank" :href="`https://glowd-hldgs.cybozu.com/k/138/show#record=${contract['レコード番号']}`">
+                                                        <span v-if="hasUnreadKintoneContract(Number(contract['レコード番号']))" class="contract-unread-dot"></span>
                                                         <span>{{ contract['レコード番号'] }}</span>
                                                         <svg xmlns="http://www.w3.org/2000/svg" height="15" fill="var(--link-color)" class="ml-[1px] mb-[1px]" viewBox="0 0 32 32">
                                                             <path d="M 18 5 L 18 7 L 23.5625 7 L 11.28125 19.28125 L 12.71875 20.71875 L 25 8.4375 L 25 14 L 27 14 L 27 5 Z M 5 9 L 5 27 L 23 27 L 23 14 L 21 16 L 21 25 L 7 25 L 7 11 L 16 11 L 18 9 Z"/>
@@ -43,7 +44,13 @@
                                             </td>                                            
                                             <td>
                                                 <label>
-                                                    <input type="checkbox" class="hidden" :value="contract['レコード番号']" v-model="selectedContracts">
+                                                    <input
+                                                        type="checkbox"
+                                                        class="hidden"
+                                                        :value="contract['レコード番号']"
+                                                        v-model="selectedContracts"
+                                                        @change="onDetailToggle(Number(contract['レコード番号']), $event)"
+                                                    >
                                                     <span class="jump-link whitespace-nowrap">詳細</span>
                                                 </label>
                                             </td>
@@ -141,8 +148,17 @@ const columnTypes = ref<{
 const selectedContracts = ref<any[]>([])
 const tableColumns = ref<string[]>([])
 const fetchCount = ref(0)
-const { selectedProject } = useProject()
+const { selectedProject, hasUnreadKintoneContract, checkKintoneContractChange } = useProject()
 const api = useApi()
+
+const onDetailToggle = async (recordId: number, event: Event) => {
+    const checked = (event.target as HTMLInputElement).checked
+    if (!checked) {
+        return
+    }
+
+    await checkKintoneContractChange(recordId)
+}
 onMounted(async() => {
     if(!props.hasPrivilage) return;
     setLoader(true)
@@ -240,5 +256,13 @@ table{
         gap: 5px;
         width: 100%;
     }
+}
+.contract-unread-dot {
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    border-radius: 50%;
+    background-color: tomato;
+    display: inline-block;
 }
 </style>

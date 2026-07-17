@@ -8,7 +8,6 @@
         class="footAreaContainer" 
         v-show="openedBoard"
     >
-        <div v-if="charLength >= 5000" style="position: absolute;right: 10px;top: -20px;font-size: 12px;color: tomato;">メッセージは5000文字以内で入力してください</div>
         <div @click="emit('unreadJumped')" v-if="unread.status" class="unread" style="position:absolute;top: -40px;bottom:auto;user-select:none;">
             <p class="unread-inner cursor-pointer">{{ `${unread.count} 件の新しいメッセージ` }}</p>
         </div>
@@ -115,7 +114,7 @@
                     @compositionupdate="composeUpdate"
                     id="typeArea" 
                     contenteditable="plaintext-only" 
-                    :class="['typeBoxArea',  'boardTypeArea', {maxLengthAlert: charLength >= 5000}, {hasText: true}]"
+                    :class="['typeBoxArea',  'boardTypeArea', {hasText: true}]"
                     >
                 </div>
                 <Transition name="modalFade">
@@ -251,7 +250,7 @@ import type { AxiosProgressEvent } from 'axios'
     const replyLoader = ref(false)
     const aiEditing = ref(false)
     const api = useApi()
-    const { toast } = useDialog()
+    const { toast, ask } = useDialog()
     const tab = ref('oikawa')
     const aiCorrectionRef = useTemplateRef('aiCorrectionRef')
     
@@ -397,28 +396,23 @@ import type { AxiosProgressEvent } from 'axios'
         caretPosition.value = caretPosition.value + 2;
         msgSave();
     }
-    const commentSendConfirm = async(draftFlag: number) => {
-        if (!messageInputArea.value || !openedBoard.value) return  
-        let textCheck = messageInputArea.value.textContent || '';     
-        const nospace = textCheck.replace(/\s/g, "")       
-        charLength.value = textCheck.length
-        if(draftFlag == 1 && !nospace){
-            toast('下書き保存する内容がありません。')
-            return
-        }
-        if((!nospace && (!attachedFiles.value || !attachedFiles.value.length) && !sharingFiles.value.length && !forwardItem.value) || charLength.value >= 5000) return;       
-   
-        const replyFlag = quoteReply.active && quoteReply.which == 'reply'
+    const MAX_MESSAGE_LENGTH = 5000
+    // Builds a queued message from a text chunk. Attachments, sharing files and
+    // reply/quote/forward context are only carried by the first message when a
+    // long message is split into several chunks.
+    const buildQueueMessage = (text: string, draftFlag: number, withContext: boolean): Message | null => {
+        if(!openedBoard.value) return null
+        const replyFlag = withContext && quoteReply.active && quoteReply.which == 'reply'
         const replyId = replyFlag ? quoteReply.message.id : null
-        const quotFlag = quoteReply.active && quoteReply.which == 'quot'
-        const quotId = quotFlag ? quoteReply.message.id : null 
+        const quotFlag = withContext && quoteReply.active && quoteReply.which == 'quot'
+        const quotId = quotFlag ? quoteReply.message.id : null
         const message_quot = quotFlag ? quoteReply.message : null
         const message_reply = replyFlag ? quoteReply.message : null
-        const forward_message_id = forwardItem.value ? forwardItem.value.id : null
-        const message_forward = forwardItem.value ? forwardItem.value : null
-        const queueMessage:Message = {
+        const forward_message_id = withContext && forwardItem.value ? forwardItem.value.id : null
+        const message_forward = withContext && forwardItem.value ? forwardItem.value : null
+        return {
             deleted_at: null,
-            message: textCheck,
+            message: text,
             user: auth.activeUser as User,
             reply_flag: replyFlag,
             reply_id: replyId,
@@ -429,34 +423,67 @@ import type { AxiosProgressEvent } from 'axios'
             record_id: openedBoard.value.id,
             user_id: Number(auth.activeUser.id),
             id: Math.random().toString(36).substring(5),
-            attached_temp_files: successUploadedFiles.value,
+            attached_temp_files: withContext ? successUploadedFiles.value : [],
             message_quot: message_quot,
             message_reply: message_reply,
             message_forward: message_forward,
-            message_attachments: attachedFiles.value && attachedFiles.value.length ? attachedFiles.value : [],
+            message_attachments: withContext && attachedFiles.value && attachedFiles.value.length ? attachedFiles.value : [],
             created_at: DateTime.now().toFormat('yyyy-MM-dd HH:mm:ss'),
             error: false,
             u_id: `${Date.now().toString()}_${Math.random().toString(36).substring(5)}`,
-            sharing_files: sharingFiles.value,
+            sharing_files: withContext ? sharingFiles.value : [],
             draft_flag: draftFlag,
             message_files: [],
             actual_sender: null,
             reserved_at: null,
             emoted_users: []
         }
-        addQueue(queueMessage)        
+    }
+    const clearInput = () => {
+        if(!messageInputArea.value || !openedBoard.value) return
         messageInputArea.value.textContent = ''
         localStorage.setItem(openedBoard.value.id.toString(), '');
         mentionBoxToggle.value = false;
         successUploadedFiles.value = [];
-        msgSave();   
-        attachedFiles.value = []; 
-                    
+        msgSave();
+        attachedFiles.value = [];
+
         resetSharingData();
         forwardItem.value = null;
-        sharingFiles.value = []             
-        
-    }       
+        sharingFiles.value = []
+        charLength.value = 0
+    }
+    const commentSendConfirm = async(draftFlag: number) => {
+        if (!messageInputArea.value || !openedBoard.value) return
+        let textCheck = messageInputArea.value.textContent || '';
+        const nospace = textCheck.replace(/\s/g, "")
+        charLength.value = textCheck.length
+        if(draftFlag == 1 && !nospace){
+            toast('下書き保存する内容がありません。')
+            return
+        }
+        if(!nospace && (!attachedFiles.value || !attachedFiles.value.length) && !sharingFiles.value.length && !forwardItem.value) return;
+
+        // Over the limit: offer to split the text and send it in chunks.
+        // Drafts are saved as a single record, so splitting doesn't apply there.
+        if(charLength.value >= MAX_MESSAGE_LENGTH && draftFlag == 0){
+            const answer = await ask('メッセージが5000文字を超えています。分割して送信しますか？')
+            if(!answer.value) return
+            for(let i = 0; i < textCheck.length; i += MAX_MESSAGE_LENGTH){
+                const chunk = textCheck.slice(i, i + MAX_MESSAGE_LENGTH)
+                const queueMessage = buildQueueMessage(chunk, draftFlag, i === 0)
+                if(queueMessage) addQueue(queueMessage)
+            }
+            clearInput()
+            return
+        }
+        if(charLength.value >= MAX_MESSAGE_LENGTH) return;
+
+        const queueMessage = buildQueueMessage(textCheck, draftFlag, true)
+        if(!queueMessage) return
+        addQueue(queueMessage)
+        clearInput()
+    }
     const selectOikawa = (label: string) => {
         const el = messageInputArea.value
         if (!el) return

@@ -1,5 +1,5 @@
 <template>
-<Modal :loader="fetching" @close="closeChargeModal()" :custom-class="'!h-auto !w-[70%] max-w-[70%]'">
+<Modal :loader="fetching" @close="closeChargeModal()" :custom-class="'!h-auto !w-[70%] '">
     <template #title>
         <p>チャージする</p>
     </template>
@@ -13,7 +13,7 @@
             </span>
             <span class="py-1 px-4 bg-[var(--bg3)] ml-1" v-else>{{amountOfMoneyParser(possibleAmount)}}円</span>
         </div>
-        <p class="text-center text-[12px] text-[gray] my-3" v-if="isMini">ミニチャレンジのため、最大のチャージ額は500円までです</p>
+        <p class="text-center text-[12px] text-[gray] my-3" v-if="isRakuaward || isMini">最大のチャージ額は500円までです</p>
         <div v-if="chargeQuickOptions.length" class="flex flex-wrap justify-center gap-3 mt-2" >
             <button
                 v-for="option in chargeQuickOptions"
@@ -41,7 +41,7 @@
                     -
                 </button>
                 <div class="flex items-center justify-center bg-[var(--bg3)] px-5 py-3 min-w-[100px]">
-                    <span class="mr-1 text-[18px] font-semibold">¥</span>
+                    <span class="mr-1 md:text-[18px] text-sm font-semibold">¥</span>
                     <input
                         name="charge-pick"
                         :value="chargeInput"
@@ -50,7 +50,7 @@
                         :max="maxChargeAmount"
                         :step="chargeStep"
                         inputmode="numeric"
-                        class="w-full bg-transparent text-center text-[18px] outline-none text-[var(--primary-color)]"
+                        class="w-full bg-transparent text-center md:text-[18px] text-sm outline-none text-[var(--primary-color)]"
                         @input="handleChargeAmountInput"
                         @blur="syncChargeAmount"
                     >
@@ -70,6 +70,23 @@
             <div v-if="chargeInputError" class="mt-2 text-center text-[11px] text-[tomato] absolute left-1/2 -translate-x-1/2">
                 {{ chargeInputError }}
             </div>
+            <div class="mt-8 flex justify-center flex-col items-center">
+                <p class="text-sm">スタンプで応援しましょう</p>
+                <div class="w-max p-4"
+                    :id="`iokawaReactionPop_${chargeTarget}`">
+                    <div v-if="selectedOikawa" class="flex gap-2 relative">
+                        <Character :size="40" :emote-name="selectedOikawa" />
+                        <CloseIcon @click="selectedOikawa = ''" :size="8" class="cursor-pointer p-1 hover:bg-[var(--bg2)] absolute top-[-5px] right-[-20px]"/>
+                    </div>
+                    <div v-else class="grid grid-cols-5 gap-2">
+                        <div class="flex items-end justify-center transition-transform duration-200 ease-out hover:scale-105"
+                            v-for="oikawa in oikawaMap" :key="oikawa.name" @click="selectedOikawa = oikawa.name">
+                            <Character :size="40" :emoteName="oikawa.name" />
+                        </div>
+                        
+                    </div>
+                </div>
+            </div>
         </div>
         <div class="si-box">
             <LoaderButton 
@@ -88,13 +105,17 @@ import Modal from '../Global/Modal.vue'
 import LoaderButton from '../Global/LoaderButton.vue'
 import { onMounted } from 'vue';
 import { useApi } from '@/composables/api';
-import { amountOfMoneyParser } from '@/utils/tools';
+import { amountOfMoneyParser, oikawaMap } from '@/utils/tools';
+import Character from '../Global/Character.vue';
+import CloseIcon from '../Form/CloseIcon.vue';
     type ChargeOption = { value: number, label: string }
     const minChargeAmount = 100
     const chargeStep = 100
+    const selectedOikawa = ref('')
     const props = defineProps<{
         chargeTarget: number,
-        isMini: boolean
+        isMini: boolean,
+        isRakuaward?: boolean
     }>()
     const emit = defineEmits<{
         'close': [number | undefined]
@@ -111,7 +132,7 @@ import { amountOfMoneyParser } from '@/utils/tools';
         getMyCharge()
     })
 
-    const maxChargeAmount = computed(() => Math.min(possibleAmount.value, props.isMini ? 500 : 15000))
+    const maxChargeAmount = computed(() => Math.min(possibleAmount.value, (props.isMini || props.isRakuaward) ? 500 : 15000))
     const chargeAmount = computed(() => charge_bet.value?.value ?? 0)
     const numericChargeInput = computed(() => Number.parseInt(chargeInput.value, 10))
 
@@ -138,7 +159,7 @@ import { amountOfMoneyParser } from '@/utils/tools';
 
         if(chargeLock.value|| !props.chargeTarget || !charge_bet.value || charge_bet.value.value == 0) return
 
-        await api.post('/challenge_charge_to',{ charge_bet: charge_bet.value.value, record_id: props.chargeTarget }, {
+        await api.post('/challenge_charge_to',{ charge_bet: charge_bet.value.value, record_id: props.chargeTarget, emote: selectedOikawa.value }, {
             toast: 'チャージしました。',
             loadingRef: chargeLock,
         })

@@ -298,7 +298,7 @@ import { mkConfig, generateCsv, download } from 'export-to-csv'
                 year: selectedYear.value,
                 month: selectedMonth.value,
                 users: exportUserIds.value.join(','),
-                mode: 'project_detail',
+                mode: 'summary',
             })
             const data = Array.isArray(response) ? response : []
 

@@ -10,8 +10,12 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">    
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
 
-    <link rel="icon" href="/dark2.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
-    <link rel="icon" href="/light2.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
+    @if (app()->environment('production'))
+        <link rel="icon" href="/dark2.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
+        <link rel="icon" href="/light2.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
+    @else
+        <link rel="icon" href="/dev2.svg" type="image/svg+xml">
+    @endif
 
     <link rel="manifest" href="/manifest.json">
     <title>GLOWD</title>
@@ -20,7 +24,7 @@
     <link rel="dns-prefetch" href="//fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css?family=Nunito" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.gstatic.com">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600&display=swap" rel="stylesheet">
     <script>
         /* ピッチインピッチアウトによる拡大縮小を禁止 */
         document.documentElement.addEventListener('touchstart', function (e) {

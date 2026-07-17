@@ -14,6 +14,7 @@ use App\Models\attendanceRecord;
 
 use App\Models\customFieldDataRecord;
 
+use App\Models\GasolineRate;
 use App\Models\ProjectCase;
 use App\Models\shiftRecord;
 use App\Models\shiftType;
@@ -423,6 +424,60 @@ class AdminWorkController extends Controller{
         return response()->json($responseArray);
 
     }
+
+    /**
+     * マイカーガソリン代（円/km）の現在値と変更履歴を返す。
+     */
+    public function gasoline_rate()
+    {
+        return response()->json($this->gasolineRatePayload());
+    }
+
+    /**
+     * マイカーガソリン代を新しい単価として追加する（管理者のみ）。
+     */
+    public function store_gasoline_rate(Request $request)
+    {
+        $user = $this->active_user();
+        abort_unless($user && $user->isAdmin(), 403, 'マイカーガソリン代を編集する権限がありません。');
+
+        $data = $request->validate([
+            'rate' => 'required|numeric|min:0',
+            'effective_from' => 'required|date',
+            'note' => 'nullable|string|max:255',
+        ], [
+            'rate.required' => '金額を入力してください。',
+            'rate.numeric' => '金額は数字で入力してください。',
+            'effective_from.required' => '適用開始日を入力してください。',
+            'effective_from.date' => '適用開始日が正しくありません。',
+        ]);
+
+        GasolineRate::create([
+            'rate' => $data['rate'],
+            'effective_from' => $data['effective_from'],
+            'note' => $data['note'] ?? null,
+            'created_by' => $user->id,
+        ]);
+
+        return response()->json($this->gasolineRatePayload());
+    }
+
+    private function gasolineRatePayload(): array
+    {
+        $history = GasolineRate::with('creator:id,name')
+            ->orderByDesc('effective_from')
+            ->orderByDesc('id')
+            ->get();
+
+        $today = Carbon::now()->toDateString();
+        $current = $history->first(fn ($row) => $row->effective_from->toDateString() <= $today);
+
+        return [
+            'current' => $current,
+            'history' => $history,
+        ];
+    }
+
     private function timecardDepartmentRows($record, string $userName): array
     {
         $month = Carbon::parse($record->day)->format('Y-m');

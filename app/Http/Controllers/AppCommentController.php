@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\AppComment;
+use App\Models\FlowRecord;
 use App\Models\Incident;
 use App\Models\messageFile;
 use App\Models\User;
+use App\Services\FlowService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +18,7 @@ class AppCommentController extends Controller
 {
     private const COMMENTABLE_TYPES = [
         'incident' => Incident::class,
+        'flow_record' => FlowRecord::class,
     ];
 
 
@@ -83,8 +86,13 @@ class AppCommentController extends Controller
 
     private function authorizeCommentable(Model $commentable): void
     {
-        if ($commentable instanceof Incident && !$this->canAccessIncident($commentable, Auth::user())) {
+        $user = Auth::user();
+        if ($commentable instanceof Incident && !$this->canAccessIncident($commentable, $user)) {
             abort(403);
+        }
+        if ($commentable instanceof FlowRecord) {
+            $commentable->loadMissing(['definition.appPermissions', 'definition.recordPermissionSets']);
+            abort_unless(app(FlowService::class)->recordPermissions($user, $commentable, $commentable->definition)['view'], 403);
         }
     }
 

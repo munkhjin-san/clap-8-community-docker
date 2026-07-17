@@ -797,7 +797,7 @@ const { getBatchDashboardData } = useDashboardStore()
 const emit = defineEmits(['close', 'getProjects'])
 const props = defineProps(['userList', 'editData'])
 const api = useApi()
-const {ask, ping } = useDialog()
+const { ask, ping } = useDialog()
 const loadingStatus = ref<ProjectStatus | null>(null)
 const taskCreating = ref(false)
 const misoCreating = ref(false)
@@ -1410,14 +1410,21 @@ const createProject = async(status: ProjectStatus, specs?: any) => {
     const params = buildParams(status, specs)
     
     loadingStatus.value = status
-    const data = await api.post('/create_project', params, {
-        toast: '保存しました。',
-    })
-    if(data){
-        emit('close')
-        emit('getProjects')
+    try {
+        const data = await api.post('/create_project', params, {
+            toast: '保存しました。',
+        })
+        if(data){
+            const kintoneSync = data.kintone_sync
+            if (kintoneSync?.message && kintoneSync.status !== 'created') {
+                ping(kintoneSync.message)
+            }
+            emit('close')
+            emit('getProjects')
+        }
+    } finally {
+        loadingStatus.value = null
     }
-    loadingStatus.value = null
 }
 const generateTasks = async() => {
 

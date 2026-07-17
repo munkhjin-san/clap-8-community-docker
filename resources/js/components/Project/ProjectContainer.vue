@@ -476,7 +476,8 @@ const confirmBadges = (projectId: number) => {
     return badge.goalsBadgeByFilter([{by: 'project_id', value: projectId}]).length +
     badge.salaryIssueByFilter([{by: 'project_id', value: projectId}]).length +
     badge.assetsBadgeByFilter([{by: 'project_id', value: projectId}]).length +
-    (badge.checkItemConfirmByFilter[projectId] ?? 0)
+    (badge.checkItemConfirmByFilter[projectId] ?? 0) +
+    (badge.kintoneContractChangesByProject[projectId] ?? 0)
 }
 const jumpToProject = (project: Project) => {
     const routeName = route.name === 'project' ? 'overview' : route.name

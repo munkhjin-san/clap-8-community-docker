@@ -6,6 +6,7 @@ use App\Models\boardRecord;
 use App\Models\boardToUser;
 use App\Models\CalendarMeetingSummary;
 use App\Models\CalendarRecord;
+use App\Models\ZoomAccount;
 use App\Models\ChallengeRecord;
 use App\Models\KnowledgeRecord;
 use App\Models\NiceRecord;
@@ -70,13 +71,18 @@ use App\Models\IncidentPunishment;
 use App\Models\FileAttachment;
 use App\Models\AppComment;
 use App\Infrastructure\Kintone\KintoneClient;
+use App\Services\KintoneContractUpdateNotificationService;
 use Intervention\Image\Laravel\Facades\Image;
 class AutoJobController extends Controller
 
 {
     protected $sharedService;
     protected $gemini_url;
-    public function __construct(SharedService $sharedService, private KintoneClient $kintoneClient)
+    public function __construct(
+        SharedService $sharedService,
+        private KintoneClient $kintoneClient,
+        private KintoneContractUpdateNotificationService $kintoneContractUpdateNotificationService,
+    )
     {
         $this->sharedService = $sharedService;
         
@@ -225,19 +231,51 @@ class AutoJobController extends Controller
 
         // dd($data);
     }
+    public function kintoneContractUpdated(Request $request)
+    {
+        $payload = $request->all();
+
+        Log::info('Contract changed hook', ['request' => $payload]);
+
+        $this->kintoneContractUpdateNotificationService->processWebhook($payload);
+
+        return response('success', 200);
+    }
+
     public function zoom_event(Request $request){
         $data = $request->all();
         $path = $request->path();
-        $zoom_keys = [
-            'zoom1_event' => 'QrGNdoq8TqaJkyOHOnsxhw',
-            'zoom2_event' => 'mp63oT6YQbevg-j1z-v-ag',
-            'zoom3_event' => 'N7Uu27CwQsOQokLFQQyAgA',
-        ];
-        
-        if ($data['event'] === 'endpoint.url_validation') {
+        $slot = $request->route('slot');
+        $slot = $slot !== null ? (int) $slot : match ($path) {
+            'zoom1_event' => 0,
+            'zoom2_event' => 1,
+            'zoom3_event' => 2,
+            default => null,
+        };
+        $zoomAccount = $slot === null
+            ? null
+            : ZoomAccount::query()->where('slot', $slot)->where('active', true)->first();
+
+        if (!$zoomAccount || !filled($zoomAccount->webhook_secret)) {
+            return response()->json(['message' => 'Webhook is not configured'], 503);
+        }
+
+        $timestamp = $request->header('x-zm-request-timestamp');
+        $receivedSignature = $request->header('x-zm-signature');
+        $timestampIsFresh = is_numeric($timestamp)
+            && abs(now()->timestamp - (int) $timestamp) <= 300;
+        $message = 'v0:' . $timestamp . ':' . $request->getContent();
+        $expectedSignature = 'v0=' . hash_hmac('sha256', $message, $zoomAccount->webhook_secret);
+
+        if (!$timestampIsFresh
+            || !is_string($receivedSignature)
+            || !hash_equals($expectedSignature, $receivedSignature)) {
+            return response()->json(['message' => 'Invalid webhook signature'], 401);
+        }
+
+        if (($data['event'] ?? null) === 'endpoint.url_validation') {
             $plainToken = $data['payload']['plainToken'];            
-            $secret = $zoom_keys[$path];            
-            $encryptedToken = hash_hmac('sha256', $plainToken, $secret);
+            $encryptedToken = hash_hmac('sha256', $plainToken, $zoomAccount->webhook_secret);
             $response = [
                 'plainToken' => $plainToken,
                 'encryptedToken' => $encryptedToken,
@@ -245,7 +283,7 @@ class AutoJobController extends Controller
             return response()->json($response, 200);
         }
 
-        if($data['event'] === 'meeting.summary_completed'){
+        if(($data['event'] ?? null) === 'meeting.summary_completed'){
             $meeting_id = $data['payload']['object']['meeting_id'];
             $calendar = CalendarRecord::where('zoom_id', $meeting_id)->first();
             $filePath = storage_path('logs/zoomEvent.log');

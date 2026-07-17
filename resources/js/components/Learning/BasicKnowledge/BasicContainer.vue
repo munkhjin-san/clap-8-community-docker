@@ -1,8 +1,11 @@
 <template>
-    <div style="height: 100%;width: 100%;position: relative;overflow: hidden;">
-        <div v-if="selectedTopic && selectedTopic.active == 1 && route.name == 'basic'" :style="{height: route.name == 'basic'  ? '100%' : '0'}">
-            <div style="height: 100%; overflow: hidden auto;">
-                <div v-if="headerMaterials.length" class="bg-[var(--background-color)] p-[30px] leading-[1.8] flex flex-col gap-[30px] mx-[20px] relative break-words whitespace-break-spaces">
+    <div class="w-full h-full relative overflow-hidden">
+        <div class="w-full h-full absolute top-0 left-0 bg-[var(--bg2)] z-10 flex items-center justify-center" v-if="mainLoader">
+            <div class="spinner-micro"></div>
+        </div>
+        <div v-if="selectedTopic && isEnabled(selectedTopic.active) && route.name == 'basic'" :style="{height: route.name == 'basic'  ? '100%' : '0'}">
+            <div class="h-full overflow-y-auto overflow-x-hidden">
+                <div v-if="headerMaterials.length" class="bg-[var(--background-color)] p-[30px] leading-[1.8] flex flex-col gap-[20px] relative break-words whitespace-break-spaces">
                     <div class="absolute right-[10px] top-[10px] bg-[var(--primary-button)] text-[#fff] px-[10px] h-[30px]">                        
                         <TTSPlayer 
                             :text="getTextContent(getAllContent())"  
@@ -10,58 +13,24 @@
                         />
                     </div>
                     <div class="lessons-topic" v-for="topic in headerMaterials">
-                        <p v-html="filteredContent(topic.content)"></p>
-                        <HasQuestion v-if="topic.has_question" :material="topic"/>
+                        <LearningContentRenderer :content="topic.content" />
                     </div>  
                 </div>
-                <div class="topic-container" style="margin: 25px 0;">
-                    <div @click="(basicStatus || section.material_type !== 'ケーススタディ') ? router.push({name: 'material', params: { materialId: section?.id}}) : ''" :class="['topic-item' , {'inactive-theme' : !basicStatus && section.material_type === 'ケーススタディ'}]" style="flex-direction: row;align-items: center;justify-content: start;gap:5px;" v-for="section in filteredMaterials">
-                        <div v-if="sectionStatus(section.id) == 2 || section?.answer?.status == 2" style="background-color: rgb(100, 188, 68); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
-                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
-                        </div>
-                        <div v-if="sectionStatus(section.id) == 1 || section?.answer?.status < 0" style="background-color: rgb(255, 165, 0); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
-                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
-                        </div>
-                        <div class="flex flex-col">
-                            <div style="text-wrap: wrap;line-height: 1.5;">{{section.title}}</div>         
-                            <div class="text-xs" v-if="section?.answer?.status == 2 && section?.answer?.updated_at">完了日:{{ dateFormat(section?.answer?.updated_at) }}</div>
-                        </div>
-                    </div>
-                    <div v-if="examAvailable" @click="goExam" :class="['topic-item', {'inactive-theme' : (!canAccessExam && !examPassed)}]" style="flex-direction: row;align-items: center;justify-content: start;gap:5px;">
-                        <div v-if="examPassed || examAttempted" style="background-color: rgb(100, 188, 68); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
-                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
-                        </div>
-                        <div v-else-if="canAccessExam" style="background-color: rgb(255, 165, 0); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
-                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
-                        </div>
-                        <div style="text-wrap: wrap;line-height: 1.5;">試験</div>
-                        <div class="text-xs" v-if="examLoading">試験情報を読み込み中です…</div>
-                        <div class="text-xs" v-else-if="examPassed">ステータス：合格済み</div>
-                        <div class="text-xs" v-else>
-                            <span>残り受験回数：{{ examRemaining }}回</span>
-                            <span v-if="latestAttempt">（前回 {{ latestAttempt.score }}% / {{ latestAttempt.status === 'passed' ? '合格' : '不合格' }}）</span>
-                        </div>
-                    </div>
-                    <div v-if="selectedTopic.portfolio == 1" @click="sectionsCompleted && portfolioStatus < 1 ? router.push({name: 'story'}) : sectionsCompleted ? router.push({name: 'summary'}) : ''" :class="['topic-item', {'inactive-theme' : !sectionsCompleted}]" style="flex-direction: row;align-items: center;justify-content: start;gap:5px;">
-                        <div v-if="portfolioStatus >= 1" style="background-color: rgb(100, 188, 68); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
-                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
-                        </div>
-                        <div v-else-if="sectionsCompleted" style="background-color: rgb(255, 165, 0); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
-                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
-                        </div>
-                        <div style="text-wrap: wrap;line-height: 1.5;">ポートフォリオ作成</div>
-                    </div>
-                    <div v-if="selectedTopic.custom_form_id" :class="['topic-item' , {'inactive-theme' : !surveyAvailable}]" @click="goSurvey" style="flex-direction: row;align-items: center;justify-content: start;gap:5px;">
-                        <div v-if="selectedTopic.survey_completed" style="background-color: rgb(100, 188, 68); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
-                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
-                        </div>
-                        <div class="flex flex-col">
-                            <div style="text-wrap: wrap;line-height: 1.5;">チェックリスト</div>
-                            <div class="text-xs" v-if="examAvailable && !examPassed">試験合格後に回答できます。</div>
-                            <div class="text-xs" v-if="selectedTopic.survey_date">完了日:{{ dateFormat(selectedTopic.survey_date) }}</div>
-                        </div>
-                    </div>
-                </div>
+                <LearningPreviousExperiencePanel
+                    v-if="previousExperience?.has_experience && previousExperience.portfolio"
+                    :theme-title="previousExperience.theme?.title"
+                    :portfolio="previousExperience.portfolio"
+                    :theme="selectedTopic"
+                    :personal-material="previousExperience.personal_material"
+                    :can-generate-personal-material="previousExperience.can_generate_personal_material"
+                    :refresh-lesson-view="refreshPreviousExperience"
+                />
+                <LearningTopicMenu
+                    v-else
+                    class="learning-basic-menu"
+                    :items="basicMenuItems"
+                    @select="selectMenuItem"
+                />
             </div>
         </div>
         
@@ -78,166 +47,212 @@
     
     </div>  
 </template>
-<script setup>
-import { computed, ref, inject, provide, onMounted, watch } from 'vue';
+<script setup lang="ts">
+import { computed, ref, inject, provide, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import HasQuestion from './HasQuestion.vue';
 import { DateTime } from 'luxon';
-import { useApi } from '@/composables/api';
+import { useLearningApi, type LearningPortfolioSaveRequest } from '@/composables/learningApi';
 import TTSPlayer from '@/components/Global/TTSPlayer.vue';
+import LearningTopicMenu, { type LearningTopicMenuItem } from '@/components/Learning/shared/LearningTopicMenu.vue';
+import LearningPreviousExperiencePanel from '@/components/Learning/shared/LearningPreviousExperiencePanel.vue';
+import LearningContentRenderer from '@/components/Learning/shared/LearningContentRenderer.vue';
+import { LEARNING_MATERIAL_TYPES, LESSON_ANSWER_STATUS, LESSON_MATERIAL_PRIORITY, LESSON_PORTFOLIO_STATUS, LESSON_SECTION_STATUS } from '@/config/learning';
+import { isEnabled } from '@/utils/learningProgress';
+import type { LearningExam, LearningExamAttempt, LearningMaterial, LearningPreviousExperiencePayload, LearningSection, LearningTheme } from '@/types/learning';
+import type { LearningBasicItemContext, LearningValidatableRef } from '@/composables/learningDraftContext';
     const router = useRouter()
-    const props = defineProps(['selectedTopic', 'materials', 'sections_status', 'filteredMaterials', 'sectionsCompleted'])
-    const loading = ref([false, false])
-    const lesson = inject('getLessonPortfolios')
-    const api = useApi()
-    const examData = ref(null)
-    const examAttempts = ref([])
-    const examRemaining = ref(0)
-    const examLoading = ref(false)
+    const props = defineProps<{
+        selectedTopic: LearningTheme
+        materials: LearningMaterial[]
+        sections_status: LearningSection[]
+        filteredMaterials: LearningMaterial[]
+        sectionsCompleted: boolean
+        examData?: LearningExam | null
+        examAttempts?: LearningExamAttempt[]
+        examRemaining?: number
+        examLoading?: boolean
+        refreshLessonView?: () => Promise<void>
+    }>()
+    const loading = ref<boolean[]>([false, false])
+    const lesson = inject<() => void | Promise<void>>('getLessonPortfolios')
+    const learningApi = useLearningApi()
     const route = useRoute()
-    const fetchExam = async(id) => {
-        if(!id) return
-        examLoading.value = true
-        try{
-            const data = await api.get('/learning_exam', {
-                lesson_theme_id: id
-            })
-            examData.value = data?.exam ?? null
-            examAttempts.value = data?.attempts ?? []
-            examRemaining.value = data?.remaining_attempts ?? 0
-        }catch(error){
-            console.error(error)
-            examData.value = null
-            examAttempts.value = []
-            examRemaining.value = 0
-        }finally{
-            examLoading.value = false
-        }
+    const mainLoader = ref(true)
+    const previousExperience = ref<LearningPreviousExperiencePayload | null>(null)
+
+    onMounted(async () => {
+        await refreshPreviousExperience()
+        mainLoader.value = false
+    })
+    // The backend decides whether this is a repeater (path 2) attempt.
+    const refreshPreviousExperience = async() => {
+        if (!props.selectedTopic?.id) return
+
+        previousExperience.value = await learningApi.getPreviousExperience(props.selectedTopic.id)
+        await props.refreshLessonView?.()
     }
-    onMounted(() => {
-        fetchExam(props.selectedTopic?.id)
-    })
-    watch(() => props.selectedTopic?.id, (newVal) => {
-        fetchExam(newVal)
-    })
+    const progress = computed(() => props.selectedTopic?.progress ?? null)
+    const examRemaining = computed(() => progress.value?.exam.remaining_attempts ?? props.examRemaining ?? 0)
+    const examLoading = computed(() => props.examLoading ?? false)
     const headerMaterials = computed(() => {
-        return props.materials && props.materials.length ? props.materials.filter(ob => ob.priority == 0) : [] 
+        return props.materials?.filter(ob => ob.priority === LESSON_MATERIAL_PRIORITY.HEADER) ?? []
     })
     
     const portfolioStatus = computed(() => {
-        return props.selectedTopic && props.selectedTopic.lesson_portfolio ? props.selectedTopic.lesson_portfolio.status >= 1 : false
+        return progress.value?.portfolio.status ?? Number(props.selectedTopic?.lesson_portfolio?.status ?? 0)
     })
 
-    const sectionStatus = (id) => {
-        const record = props.sections_status.find(ob => ob.material_id == id)
-        if(record){
-            return record.status
-        }
-        return null
+    const sectionStatus = (id: number) => {
+        return props.sections_status.find(ob => ob.material_id === id)?.status ?? null
     }    
-    const filteredContent = (value) => {
-        
-        return value.replace(/\[\[learning_video src="(.*?)" learning_video\]\]/g, (match, videoSrc) => {
-            return `<video class="ls-video" controls="controls"><source src="${videoSrc}"></video>`;
-        });
-    }
     const getAllContent = () => {
         let contents = ''
         headerMaterials.value.forEach(element => {
-            contents += element.content
+            contents += element.content ?? ''
         });
         return contents
     }
-    const getTextContent = (html) => {
+    const getTextContent = (html: string) => {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
         return tempDiv.textContent || tempDiv.innerText;
     }
-    const saveItems = async(route_name, status, refs, params) => {
+    const saveItems = async(routeName: string, status: number, refs: LearningValidatableRef[], params: LearningPortfolioSaveRequest) => {
         let result = true
         for(const ref of refs){
-            const val = await ref?.validate() || {valid: false}
-            result = result * val.valid
+            const val = ref.validate ? await ref.validate() : {valid: false}
+            result = result && val.valid
         }
         if(!result) return
         loading.value[status] = true
         
     
-        await api.post('/save_lesson_portfolio', params, {
-            toast: '保存しました。'
-        })
+        await learningApi.savePortfolio(params)
         loading.value[status] = false
         if(status == 1){
-            router.push({name: route_name})
+            router.push({name: routeName})
         }
-        lesson()
+        await lesson?.()
 
     }
     const viewPortfolios = async() => {
+        if (!props.selectedTopic) return
         const url = `/learning/${props.selectedTopic.id}/portfolioview`
-        window.open(url, '_blank').focus();
+        window.open(url, '_blank')?.focus();
     } 
-    provide('basicItem', {
-        saveItems: (route, status, refs, params) => saveItems(route, status, refs, params),
+    const basicItemContext: LearningBasicItemContext = {
+        saveItems: (route: string, status: number, refs: LearningValidatableRef[], params: LearningPortfolioSaveRequest) => saveItems(route, status, refs, params),
         viewPortfolios: () => viewPortfolios(),
-        loading: loading
-    })
+        loading: loading,
+    }
+    provide('basicItem', basicItemContext)
+    provide('previousExperience', previousExperience)
     const basicStatus = computed(() => {
-        const filtered = props.materials.filter(ob => ob.material_type == '基礎知識' && ob.priority == 1 && ob.has_understand == 0)
-        if (filtered.length) {
-            return filtered.every(ob => ob.answer?.status == 2)
-        }
-        return true
-    })
-    const caseStatus = computed(() => {
-        const filtered = props.materials.filter(ob => ob.material_type == 'ケーススタディ')
-        if (!filtered.length) return true
-        return filtered.every(ob => {
-            if(ob.has_understand){
-                const record = props.sections_status.find(sec => sec.material_id == ob.id)
-                return record?.status == 2
-            }
-            return ob.answer?.status == 2
-        })
-    })
-
-    const allSectionUnderstand = computed(() => {
-        const sectionsHasUnderstand = props.materials.filter(ob => ob.has_understand == 1 && ob.priority == 1)
-        if(!sectionsHasUnderstand.length) return true
-        const sectionAnswerData = props.sections_status
-        const completedAnswerData = sectionAnswerData.filter(ob => ob.status == 2)
-        return sectionsHasUnderstand.length == completedAnswerData.length
+        return progress.value?.basic_completed ?? false
     })
     const canAccessExam = computed(() => {
-        return basicStatus.value && caseStatus.value && allSectionUnderstand.value
+        return Boolean(progress.value?.basic_completed && progress.value?.case_completed)
     })
-    const examAvailable = computed(() => !!examData.value)
+    const examAvailable = computed(() => progress.value?.exam.available ?? false)
     const examPassed = computed(() => {
-        return examAttempts.value.some(attempt => attempt.status === 'passed')
+        return progress.value?.exam.passed ?? false
     })
     const examAttempted = computed(() => {
-        return examAttempts.value.length === examData.value?.max_attempts
-    })
-    const latestAttempt = computed(() => {
-        return examAttempts.value.length ? examAttempts.value[0] : null
+        return progress.value?.exam.exhausted ?? false
     })
     const surveyAvailable = computed(() => {
-        if(!props.selectedTopic?.custom_form_id) return false
-        if(!basicStatus.value || !caseStatus.value || !allSectionUnderstand.value) return false
-        if(!examAvailable.value) return true
-        return examPassed.value
+        return progress.value?.survey.available ?? false
     })
     const goExam = () => {
-        if(!examAvailable.value || !canAccessExam.value){
+        if(!examAvailable.value || !canAccessExam.value || !props.selectedTopic){
             return
         }
         router.push({name: 'exam', params: {lessonThemeId: props.selectedTopic.id}})
     }
     const goSurvey = () => {
         if(!surveyAvailable.value) return
-        router.push(`/survey/${props.selectedTopic.custom_form_id}`)
+        router.push(`/survey/${props.selectedTopic?.custom_form_id}`)
     }
-    const dateFormat = (date) => {
+    const dateFormat = (date: string | null | undefined) => {
+        if (!date) return ''
         return DateTime.fromISO(date).toISODate()
+    }
+    const materialTone = (material: LearningMaterial) => {
+        if (sectionStatus(material.id) === LESSON_SECTION_STATUS.COMPLETED || material.answer?.status === LESSON_ANSWER_STATUS.COMPLETED) return 'complete'
+        if (sectionStatus(material.id) === LESSON_SECTION_STATUS.DRAFT || Number(material.answer?.status ?? 0) < 0) return 'warning'
+        return undefined
+    }
+    const basicMenuItems = computed<LearningTopicMenuItem[]>(() => {
+        const items: LearningTopicMenuItem[] = props.filteredMaterials.map((section) => ({
+            id: `material-${section.id}`,
+            title: section.title ?? '',
+            disabled: !basicStatus.value && section.material_type === LEARNING_MATERIAL_TYPES.CASE_STUDY,
+            completed: materialTone(section) === 'complete',
+            tone: materialTone(section) === 'warning' ? 'warning' : undefined,
+            meta: section.answer?.status === LESSON_ANSWER_STATUS.COMPLETED && section.answer.updated_at
+                ? [`完了日:${dateFormat(section.answer.updated_at)}`]
+                : [],
+        }))
+
+        if (examAvailable.value) {
+            items.push({
+                id: 'exam',
+                title: '試験',
+                disabled: !canAccessExam.value && !examPassed.value,
+                completed: examPassed.value || examAttempted.value,
+                tone: !examPassed.value && !examAttempted.value && canAccessExam.value ? 'warning' : undefined,
+                meta: examMeta.value,
+            })
+        }
+
+        if (isEnabled(props.selectedTopic?.portfolio)) {
+            items.push({
+                id: 'portfolio',
+                title: 'ポートフォリオ作成',
+                disabled: !props.sectionsCompleted,
+                completed: portfolioStatus.value >= LESSON_PORTFOLIO_STATUS.DISCUSSION_DRAFT_READY,
+                tone: portfolioStatus.value < LESSON_PORTFOLIO_STATUS.DISCUSSION_DRAFT_READY && props.sectionsCompleted ? 'warning' : undefined,
+            })
+        }
+
+        if (props.selectedTopic?.custom_form_id) {
+            const meta: string[] = []
+            if (examAvailable.value && !examPassed.value) meta.push('試験合格後に回答できます。')
+            const surveyDate = progress.value?.survey.completed_at ?? props.selectedTopic.survey_date
+            if (surveyDate) meta.push(`完了日:${dateFormat(surveyDate)}`)
+
+            items.push({
+                id: 'survey',
+                title: 'チェックリスト',
+                disabled: !surveyAvailable.value,
+                completed: progress.value?.survey.completed ?? Boolean(props.selectedTopic.survey_completed),
+                meta,
+            })
+        }
+
+        return items
+    })
+    const examMeta = computed(() => {
+        if (examLoading.value) return ['試験情報を読み込み中です...']
+        if (examPassed.value) return ['ステータス：合格済み']
+        const lines = [`残り受験回数：${examRemaining.value}回`]
+        if (progress.value?.exam.latest_status) {
+            lines.push(`前回 ${progress.value.exam.latest_score}% / ${progress.value.exam.latest_status === 'passed' ? '合格' : '不合格'}`)
+        }
+        return lines
+    })
+    const selectMenuItem = (item: LearningTopicMenuItem) => {
+        if (item.disabled) return
+
+        if (String(item.id).startsWith('material-')) {
+            router.push({name: 'material', params: { materialId: String(item.id).replace('material-', '')}})
+        } else if (item.id === 'exam') {
+            goExam()
+        } else if (item.id === 'portfolio') {
+            router.push({name: portfolioStatus.value < LESSON_PORTFOLIO_STATUS.DISCUSSION_DRAFT_READY ? 'story' : 'summary'})
+        } else if (item.id === 'survey') {
+            goSurvey()
+        }
     }
 </script>

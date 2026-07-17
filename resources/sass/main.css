@@ -176,7 +176,7 @@ a:active,
 a:hover {
   color: var(--link-color);
   text-decoration: underline;
-  font-weight: 600;
+  /* font-weight: 600; */
 }
 
 code,
@@ -318,7 +318,6 @@ button,
 [type="submit"],
 [role="button"] {
   cursor: pointer;
-  color: inherit;
 }
 
 /* Remove inner padding and border in Firefox 4+ */
@@ -6635,17 +6634,6 @@ input:autofill {
 
 .from-left {
   left: 55px !important;
-}
-
-.routeposition {
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  width: 100%;
-  z-index: 6;
-  background: var(--background-color);
-  color: var(--primary-color);
 }
 
 .project-wrapper {

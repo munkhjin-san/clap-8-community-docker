@@ -339,6 +339,19 @@ interface SalaryIssue {
     files?: MessageFile[];
     status_logs?: StatusLog[];
     issue_notifications_count?: number;
+    lesson_theme_id?: number | null;
+    portfolio?: SalaryIssuePortfolio | null;
+}
+export interface SalaryIssuePortfolio {
+    id: number;
+    status: number;
+    portfolio_title: string | null;
+    public_title: string | null;
+    public_content: string | null;
+    positive_feedback: string | null;
+    negative_feedback: string | null;
+    noticed: string | null;
+    discussion_topic: string | null;
 }
 export interface SalaryIssueAction {
     id: number;
@@ -348,6 +361,14 @@ export interface SalaryIssueAction {
     learning_content: string;
     learning_title: string;
     status: number;
+}
+export interface SalaryIssueEligibility {
+    previous_total: number;
+    allowance: number;
+    used: number;
+    remaining: number;
+    grade: number | null;
+    allowed_axes: string[];
 }
 interface Evaluation {
     id: number;

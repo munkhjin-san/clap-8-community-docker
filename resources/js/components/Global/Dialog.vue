@@ -11,7 +11,18 @@
                 </div>
                 <div v-if="input" class="mt-3">
                     <!-- <label class="text-xs">{{ input.label || 'ダ名' }}</label> -->
+                    <textarea
+                        v-if="input.multiline"
+                        ref="inputEl"
+                        v-model="inputValue"
+                        class="cu-text-input cu-textarea mt-1"
+                        :placeholder="input.placeholder || ''"
+                        rows="4"
+                        @keydown.stop
+                        @keydown.esc.prevent="emit('close')"
+                    ></textarea>
                     <input
+                        v-else
                         ref="inputEl"
                         v-model="inputValue"
                         type="text"
@@ -61,6 +72,8 @@ type InputOptions = {
     submitText?: string;
     required?: boolean;
     selectBaseName?: boolean;
+    multiline?: boolean;
+    maxLength?: number;
     validate?: (v:string) => string | null;
 }
 interface Props {
@@ -102,7 +115,13 @@ const isCancel = (answer: Answer | undefined) => {
 const inputError = computed(() => {
   if (!props.input) return null;
   const v = (inputValue.value ?? '').trim();
-  if (props.input.required && !v) return '名前は必須です。';
+  if (props.input.required && !v) return '入力してください。';
+  // Multiline free-text (e.g. reasons): skip the filename-specific rules below.
+  if (props.input.multiline) {
+    const max = props.input.maxLength ?? 2000;
+    if (v.length > max) return `${max}文字以内で入力してください。`;
+    return props.input.validate ? props.input.validate(v) : null;
+  }
   if (v.length > 255) return '名前が長すぎます。';
   if (/[\\/:*?"<>|]/.test(v)) return '使用できない文字が含まれています（\\ / : * ? " < > |）。';
   if (v === '.' || v === '..') return '「.」や「..」は使用できません。';
@@ -121,15 +140,16 @@ watch(() => props.input, async(inp) => {
   if (!inp) return;
   inputValue.value = inp.value ?? '';
   queueMicrotask(() => {
-    inputEl.value?.focus();
-    if (!inputEl.value) return;
-    if (inp.selectBaseName) {
+    const el = inputEl.value as HTMLInputElement | HTMLTextAreaElement | null;
+    el?.focus();
+    if (!el) return;
+    if (inp.selectBaseName && el instanceof HTMLInputElement) {
       const v = inputValue.value ?? '';
       const dot = v.lastIndexOf('.');
       const end = dot > 0 ? dot : v.length;
-      inputEl.value.setSelectionRange(0, end);
+      el.setSelectionRange(0, end);
     } else {
-      inputEl.value.select();
+      el.select();
     }
   });
 }, { immediate: true, flush: 'post' });
@@ -145,6 +165,15 @@ $secondary: #fff;
   transition: border-color .15s, box-shadow .15s;
 }
 .cu-text-input::placeholder { color: #999; }
+
+.cu-textarea {
+  width: 320px;
+  max-width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
 
 
 .cu-toast-container {

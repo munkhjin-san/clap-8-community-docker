@@ -119,6 +119,11 @@ export const projectRoutes: RouteRecordRaw[] = [
                         name: 'legal',
                         component: () => import('@/components/Project/ProjectTabs/Legal.vue'),
                     },
+                    // {
+                    //     path: 'apps',
+                    //     name: 'custom-apps',
+                    //     component: () => import('@/components/Project/ProjectTabs/CustomApps.vue'),
+                    // },
                     {
                         path: 'finance',
                         name: 'finance',

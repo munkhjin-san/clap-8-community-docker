@@ -1,6 +1,8 @@
 # Agent Instructions
 
-This repository follows the contribution and coding rules in `CONTRIBUTING.md`. Use the summary below for day-to-day work.
+**Start here:** read [AGENT_CONTEXT.md](./AGENT_CONTEXT.md) for full app structure, domain map, entry points, and active migration work. This file covers day-to-day rules only.
+
+This repository follows the contribution and coding rules in `CONTRIBUTING.md`.
 
 ## Quality Gates
 - PHP lint/static analysis: `composer run-script phpcs`, `composer run-script phpstan`

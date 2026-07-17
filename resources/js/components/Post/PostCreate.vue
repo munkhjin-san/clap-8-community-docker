@@ -27,6 +27,10 @@
                     <PostIcon which="6" size="20"/>
                     リフレッシュ
                 </div>
+                <div v-if="auth.user.position_id === 6" @click="app_type = 7" :class="['pt-selector', { ptSelected: app_type == 7}]">
+                    <PostIcon which="7" size="20"/>
+                    ノミネート
+                </div>
             </div>
              <div class="si-box" v-if="app_type == 2">
                 <div class="switchLabel">
@@ -146,12 +150,13 @@
             </div>
                     
             
-            <div class="si-box" v-if="app_type == 0">
-                <MemberSelector 
-                    :placeHolder="'宛先選択（必須）'"
+            <div class="si-box" v-if="app_type == 0 || app_type == 7">
+                <MemberSelector
+                    :placeHolder="app_type == 7 ? '宛先選択（1名）（必須）' : '宛先選択（必須）'"
                     rules="required"
                     name="recordUsers"
                     :multiple="true"
+                    :limit="app_type == 7 ? 1 : undefined"
                     ref="recordUsers"
                     :path="possiblePath"
                     :closeOnSelect="false"
@@ -184,7 +189,7 @@
                 <LongInput
                     v-model="content"  
                     ref="contentRef"
-                    :placeHolder="`${appNameJp}内容を入力（必須）`"
+                    :placeHolder="app_type == 7 ? '推薦コメント' : `${appNameJp}内容を入力（必須）`"
                     name="contentRef"
                     rules="required|max:2000"
                 />  
@@ -617,7 +622,7 @@ import { useDashboardStore } from '@/store/dashboard'
             }
         }
     })
-    onMounted(() => {
+    onMounted(async() => {
         if(!props.editTarget && sharingData.active){
             if(app_type.value == 2){
                 content_rule.value = sharingData.text
@@ -627,8 +632,8 @@ import { useDashboardStore } from '@/store/dashboard'
         }
         costsFill()
         loadRefreshSummary()
-
     })
+    
     watch(donatable, async(newVal) => {
         if (newVal) {
             const result = await ask('必要経費以外のチャージ総額はNPOに寄付します。よろしいでしょうか?')
@@ -695,6 +700,7 @@ import { useDashboardStore } from '@/store/dashboard'
     watch(isRelayChallengeCreate, () => {
         applyRelayChallengeDefaults()
     })
+    
     watch(selectedChallengeMainCategory, () => {
         challengeCategoryValidationError.value = false
     })
@@ -783,7 +789,7 @@ import { useDashboardStore } from '@/store/dashboard'
         
         processing.value = true      
 
-            
+        
         const params = {
             edit_id: props.editTarget ? props.editTarget.id : null,
             to_users: to_users.value.length ? to_users.value.map(ob => ob.id) : [], 
@@ -986,7 +992,13 @@ import { useDashboardStore } from '@/store/dashboard'
     animation: ai-loader-shimmer 1.8s ease-in-out infinite;
     pointer-events: none;
 } */
-
+.rakuaward-switch-label-disabled {
+    cursor: not-allowed !important;
+    opacity: 0.6;
+}
+.rakuaward-switch-label-disabled .switch-toggle {
+    filter: grayscale(0.5);
+}
 .ai-generation-loader-icon {
     position: relative;
     display: flex;

@@ -124,6 +124,25 @@ class KintoneClient
         }
     }
 
+    public function getProcessManagement(string|int $appId): array
+    {
+        $queryString = http_build_query(['app' => $appId]);
+
+        try {
+            $resp = $this->http->get("app/status.json?{$queryString}", [
+                'headers' => $this->headers(),
+                'timeout' => 15,
+            ]);
+
+            return json_decode((string) $resp->getBody(), true) ?? [];
+        } catch (ClientException $e) {
+            $body = $e->hasResponse()
+                ? (string) $e->getResponse()->getBody()
+                : 'no response body';
+            throw new \RuntimeException("Kintone API request failed: {$e->getMessage()} | Body: {$body}", 0, $e);
+        }
+    }
+
     public function putRecord(string|int $appId, string|int $recordId, array $record): array
     {
         $payload = [

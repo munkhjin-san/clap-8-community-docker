@@ -6,7 +6,6 @@
         :type="data.type"
         :can-resize="data.canResize"
         :can-fullscreen="data.canFullscreen"
-        :pulse="hasPulseReminder"
         @toggle="(el, title) => emit('toggle', el, data.type)"
         @resize="emit('resize', data.type)"
     >
@@ -33,9 +32,10 @@
                         <PanelTitle :expanded="expanded">
                             <div class="flex gap-2 items-center">
                                 <div v-if="challenge.attention_is_overdue" class="mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
-                                <Nice v-if="isNiceReminder(challenge)" size="16"/>
+                                <Nice v-if="isNiceReminder(challenge) || isGlowdNinePlay(challenge)" size="16"/>
+                                <Award v-else-if="isRakuawardNominate(challenge)" size="16"/>
                                 <Challenge v-else size="16"/>
-                                <div class="overflow-hidden text-ellipsis">
+                                <div class="text-wrap">
                                     
                                     {{ titleText(challenge) }}
                                 </div>
@@ -132,6 +132,40 @@
                                 </button>
                             </div>
                         </PanelData>
+                        <PanelData v-else-if="isGlowdNinePlay(challenge)">
+                            <p v-if="challenge.glowd_nine_source === 'rakuaward'" class="text-[12px] text-[gray]">
+                                楽アワードノミネートチャージからグラウドナインを受け取りました
+                            </p>
+                            <p v-else-if="challenge.glowd_nine_source === 'challenge_award'" class="text-[12px] text-[gray]">
+                                応援したチャレンジが達成されました！グラウドナインに挑戦できます
+                            </p>
+                            <p v-else class="text-[12px] text-[gray]">
+                                ナイスリレーからグラウドナインを受け取りました!
+                            </p>
+                            <div class="mt-3 flex items-center justify-end gap-2 text-right">
+                                <button
+                                    type="button"
+                                    class="flex items-center gap-1 rounded-full bg-[var(--bg3)] text-[var(--primary-color)] text-[12px] px-3 py-1 cursor-pointer"
+                                    @click="openGlowdNine(challenge)"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true">
+                                        <path d="M8 5v14l11-7z" />
+                                    </svg>
+                                    プレイ
+                                </button>
+                            </div>
+                        </PanelData>
+                        <PanelData v-else-if="isRakuawardNominate(challenge)">
+                            <p class="text-[12px]" :class="challenge.attention_is_overdue ? 'text-[tomato]' : 'text-[gray]'">
+                                今月の楽アワードノミネートがまだ作成されていません。20日までに作成してください。
+                            </p>
+                            <p v-if="challenge.attention_deadline" class="mt-1 text-[11px] text-[gray]">
+                                締切: {{ formatDeadline(challenge.attention_deadline) }}
+                            </p>
+                            <div class="mt-3 text-right">
+                                <router-link :to="{ name: 'post', query: { app_type: 7, create: '1' } }">作成</router-link>
+                            </div>
+                        </PanelData>
                         <PanelData v-else>
                             <p v-if="isUpdateNeed(challenge)" class="text-[12px] text-[tomato]">チャレンジ期間が終了しました。結果を入力してください。</p>
                             <p v-else-if="isProgressNeed(challenge)" class="text-[12px] text-[gray]">チャレンジが {{ challenge.attention_checkpoint }}% のチェックポイントを通過しました。進行状況の報告を提出してください。</p>
@@ -152,6 +186,13 @@
                 </section>
             </div>
         </div>
+        <Transition name="modalFade">
+            <RollDice
+                v-if="glowdNineTarget"
+                :relayRootId="glowdNineTarget"
+                @close="closeGlowdNine"
+            />
+        </Transition>
     </BaseLayout>
 </template>
 
@@ -167,6 +208,8 @@ import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import Nice from '@/components/Icons/Nice.vue';
 import Challenge from '@/components/Icons/Challenge.vue';
+import RollDice from '@/components/Global/RollDice.vue';
+import Award from '@/components/Icons/Award.vue';
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import { useApi } from '@/composables/api';
 import { useDashboardStore } from '@/store/dashboard';
@@ -193,8 +236,13 @@ const relayTargets = ref<Record<number, User | null>>({})
 const relayReassignOpen = ref<Record<number, boolean>>({})
 const relayProcessing = ref<Record<number, boolean>>({})
 const niceProcessing = ref<Record<number, boolean>>({})
+const glowdNineTarget = ref<number | null>(null)
+
+const NICE_RELAY_LIMIT = 9
 
 const isNiceReminder = (challenge: DashboardPostReminder) => challenge.attention_type === 'nice_follow_up'
+const isGlowdNinePlay = (challenge: DashboardPostReminder) => challenge.attention_type === 'nice_relay_glowd_nine'
+const isRakuawardNominate = (challenge: DashboardPostReminder) => challenge.attention_type === 'rakuaward_nominate'
 const isProgressNeed = (challenge: DashboardPostReminder) => challenge.attention_type === 'progress_need'
 const isUpdateNeed = (challenge: DashboardPostReminder) => challenge.attention_type === 'update_need'
 const isChallengeRelayReceived = (challenge: DashboardPostReminder) => challenge.attention_type === 'challenge_relay_received'
@@ -208,18 +256,18 @@ const isOverdue = (challenge: DashboardPostReminder) => {
     return diff < 0;
 }
 
-const hasPulseReminder = computed(() => {
-    return props.data.data.some(challenge => (isNiceReminder(challenge) || isChallengeRelayReceived(challenge)) && challenge.attention_is_overdue)
-})
-
 const challengeSections = computed(() => {
     const challengeRelays = props.data.data.filter(isChallengeRelay)
     const niceRelays = props.data.data.filter(isNiceReminder)
-    const progressAndResultNeeds = props.data.data.filter(challenge => !isChallengeRelay(challenge) && !isNiceReminder(challenge))
+    const glowdNinePlays = props.data.data.filter(isGlowdNinePlay)
+    const rakuawardNominates = props.data.data.filter(isRakuawardNominate)
+    const progressAndResultNeeds = props.data.data.filter(challenge => !isChallengeRelay(challenge) && !isNiceReminder(challenge) && !isGlowdNinePlay(challenge) && !isRakuawardNominate(challenge))
 
     return [
         { key: 'challenge-relay', title: 'チャレンジリレー', items: challengeRelays },
         { key: 'nice-relay', title: 'ナイスリレー', items: niceRelays },
+        { key: 'glowd-nine', title: 'グラウドナイン', items: glowdNinePlays },
+        { key: 'raku-award', title: '楽アワードノミネート', items: rakuawardNominates },
         { key: 'progress-result', title: '進捗・結果報告依頼', items: progressAndResultNeeds },
     ].filter(section => section.items.length)
 })
@@ -238,12 +286,22 @@ const titleText = (challenge: DashboardPostReminder) => {
         return `${challenge.user?.name ?? '誰か'}さんからナイスが届きました`
     }
 
+    if (isGlowdNinePlay(challenge)) {
+        return challenge.glowd_nine_source === 'rakuaward'
+            ? '楽アワードのグラウドナイン'
+            : 'グラウドナインを受け取りました'
+    }
+
     if (isChallengeRelayReceived(challenge)) {
         return `${challenge.user?.name ?? '誰か'}さんからバトンが届きました`
     }
 
     if (isChallengeRelayReturned(challenge)) {
         return `${challenge.declined_by_user?.name ?? challenge.user?.name ?? 'メンバー'}さんがバトンをパスしました`
+    }
+
+    if (isRakuawardNominate(challenge)) {
+        return '楽アワードノミネートを作成'
     }
 
     return challenge.title
@@ -266,6 +324,17 @@ const relayExcludeIds = (challenge: DashboardPostReminder) => {
 
 const refreshChallenges = async () => {
     await getBatchDashboardData(['challenges'])
+}
+
+const openGlowdNine = (challenge: DashboardPostReminder) => {
+    const rootPostId = Number(challenge.relay_root_post_id ?? 0)
+    if (!rootPostId) return
+    glowdNineTarget.value = rootPostId
+}
+
+const closeGlowdNine = async () => {
+    glowdNineTarget.value = null
+    await refreshChallenges()
 }
 
 const passChallengeRelay = async (challenge: DashboardPostReminder) => {

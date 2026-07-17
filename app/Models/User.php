@@ -241,6 +241,9 @@ class User extends Authenticatable implements PasskeyUser
     public function custom_form_users(){
         return $this->hasMany(CustomFormUser::class);
     }
+    public function relay_prizes(){
+        return $this->hasMany(PostRelayPrize::class, 'user_id');
+    }
     public function related_projects()
     {
         return $this->belongsToMany(ProjectRecord::class, 'project_members', 'user_id', 'project_id');
@@ -360,6 +363,14 @@ class User extends Authenticatable implements PasskeyUser
     public function canHrApprove(): bool
     {
         return app(CommunityPermissionService::class)->can('hr.approve', $this);
+    }
+
+    // (merge) main's server-side is_admin serialization — reads our community-role isAdmin().
+    protected $appends = ['is_admin'];
+
+    public function getIsAdminAttribute(): bool
+    {
+        return $this->isAdmin();
     }
     public function oauthCredentials()
     {

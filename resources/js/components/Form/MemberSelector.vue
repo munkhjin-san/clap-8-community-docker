@@ -2,7 +2,7 @@
     <div>
         <div
             class="member-selector-shell"
-            :class="{ 'member-selector-disabled': disabled }"
+            :class="{ 'member-selector-disabled': disabled, 'member-selector-compact': compact }"
             ref="selectorRef"
             @compositionstart="isComposing = true"
             @compositionend="isComposing = false"
@@ -115,6 +115,7 @@ interface Props {
     options?: User[]
     exclude?: number[]
     disabled?: boolean
+    compact?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -128,6 +129,7 @@ const props = withDefaults(defineProps<Props>(), {
     options: undefined,
     exclude: () => [],
     disabled: false,
+    compact: false,
 })
 const error = ref('')
 const trigger = ref(false)
@@ -369,6 +371,18 @@ defineExpose({ validate, selectAll, selectBy, options })
 
 .member-selector-disabled {
     opacity: 0.75;
+}
+
+/* compact variant — match inline form inputs (thin formBorder, rounded, shorter) instead of the bold modal style */
+.member-selector-shell.member-selector-compact {
+    border: 1px solid var(--formBorder);
+    border-radius: 6px;
+}
+
+.member-selector-compact {
+    .v-field__input { min-height: 38px; padding-top: 2px; padding-bottom: 2px; }
+    .member-selector-user { padding: 2px 0; font-size: 13px; }
+    .member-selector-chip { margin: 2px; }
 }
 
 .global-user-select {

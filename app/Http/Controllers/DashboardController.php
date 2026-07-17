@@ -23,6 +23,7 @@ use App\Models\ProjectRecord;
 use App\Models\CalendarRecord;
 use App\Models\PostRecord;
 use App\Models\PostRelay;
+use App\Models\PostRelayPrize;
 use App\Models\AssetRecord;
 use App\Models\timecardRecord;
 use App\Models\shiftType;
@@ -33,6 +34,7 @@ use App\Models\attendanceRecord;
 use App\Models\NoticeRecord;
 use App\Models\EmergencyContact;
 use App\Models\Incident;
+use App\Models\IncidentCandidate;
 use App\Models\IncidentAdvice;
 use App\Models\IncidentAssignee;
 use App\Models\IncidentCategory;
@@ -808,6 +810,8 @@ class DashboardController extends Controller
         $active_user = Auth::user();
         $challengeRelays = $this->challengeRelayReminders($active_user->id, $now);
         $niceReminders = $this->niceFollowUpReminders($active_user->id, $now);
+        $glowdNinePlays = $this->niceRelayGlowdNineReminders($active_user->id);
+        $rakuawardNominate = $this->rakuawardNominationReminder($active_user, $now);
         $challengesQuery = PostRecord::query()
             ->where('app_type', 2)
             ->whereHas('to_users', function ($q) use ($active_user) {
@@ -888,7 +892,7 @@ class DashboardController extends Controller
             ->sortBy('date_start')
             ->values();
 
-        return $challengeRelays->concat($niceReminders)->concat($final)->values();
+        return $challengeRelays->concat($niceReminders)->concat($glowdNinePlays)->concat($rakuawardNominate)->concat($final)->values();
 
     }
     private function challengeRelayReminders(int $userId, Carbon $now)
@@ -1048,6 +1052,60 @@ class DashboardController extends Controller
                 'closed_by_user_id' => $closedByUserId,
                 'closed_at' => $closedAt,
             ]);
+    }
+    private function rakuawardNominationReminder($user, Carbon $now)
+    {
+        // Only PMs nominate, and only until the 20th of the month.
+        if ((int) ($user->position_id ?? 0) !== 6 || $now->day > 20) {
+            return collect();
+        }
+
+        // Already nominated this month? Nothing to remind.
+        $alreadyNominated = PostRecord::where('user_id', $user->id)
+            ->where('app_type', 7)
+            ->whereBetween('created_at', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()])
+            ->exists();
+
+        if ($alreadyNominated) {
+            return collect();
+        }
+
+        $deadline = $now->copy()->startOfMonth()->addDays(19)->endOfDay(); // the 20th, end of day
+
+        return collect([[
+            'id' => 'rakuaward-nominate-' . $now->format('Y-m'),
+            'attention_type' => 'rakuaward_nominate',
+            'attention_deadline' => $deadline->toIso8601String(),
+            // Pulse during the final stretch (15th - 20th).
+            'attention_is_overdue' => $now->day >= 15 && $now->day <= 20,
+        ]]);
+    }
+    private function niceRelayGlowdNineReminders(int $userId)
+    {
+        if (in_array($userId, PostRelay::EXCLUDED_USER_IDS, true)) {
+            return collect();
+        }
+
+        return PostRelayPrize::where('user_id', $userId)
+            ->where('try_flag', 0)
+            ->with(['rootPost.user'])
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function (PostRelayPrize $prize) {
+                $post = $prize->rootPost;
+                if (!$post) {
+                    return null;
+                }
+
+                $post['attention_type'] = 'nice_relay_glowd_nine';
+                $post['relay_root_post_id'] = (int) $prize->root_post_id;
+                // Prefer the recorded source; fall back for rows created before the column existed.
+                $post['glowd_nine_source'] = $prize->source ?: ((int) $post->app_type === 7 ? 'rakuaward' : 'relay');
+
+                return $post;
+            })
+            ->filter()
+            ->values();
     }
     private function firstOrCreateNiceRelay(PostRecord $post, int $userId): PostRelay
     {
@@ -1302,6 +1360,48 @@ class DashboardController extends Controller
             'emergency_contacts' => $emergencyContacts,
             'attention' => $query->orderByDesc('created_at')->get(),
         ];
+    }
+
+    /**
+     * Pending incident candidates (daily-report streaks / overdue outcome goals)
+     * that the active user is responsible for reviewing, scoped by role:
+     *  - PM (position_id == 6): pm-audience candidates for projects they manage.
+     *  - Director/executive (position_id < 6) or admin: director-audience candidates.
+     * Regular staff never see this card.
+     */
+    private function incidentAlerts() {
+        $activeUser = $this->active_user();
+
+        $isPM = $activeUser->position_id == 6;
+        $isBoss = $activeUser->position_id && $activeUser->position_id < 6;
+        $isAdmin = in_array($activeUser->id, self::TIMESHEET_ADMIN_IDS, true);
+
+        if (!$isPM && !$isBoss && !$isAdmin) {
+            return [];
+        }
+
+        $query = IncidentCandidate::query()
+            ->where('status', IncidentCandidate::STATUS_PENDING)
+            ->with([
+                'subject:id,name,icon_path,icon_bg,position_id',
+                'project:id,name',
+            ])
+            ->orderByDesc('created_at');
+
+        if ($isBoss || $isAdmin) {
+            $query->where('audience', IncidentCandidate::AUDIENCE_DIRECTOR);
+        } else {
+            $managedProjectIds = ProjectRecord::query()
+                ->whereHas('manager', function ($managerQuery) use ($activeUser) {
+                    $managerQuery->where('users.id', $activeUser->id);
+                })
+                ->pluck('id');
+
+            $query->where('audience', IncidentCandidate::AUDIENCE_PM)
+                ->whereIn('project_record_id', $managedProjectIds);
+        }
+
+        return $query->get();
     }
 
     public function systemUpdates() {

@@ -37,7 +37,7 @@
                     <p>結果：{{ submissionResult.status === 'passed' ? '合格' : '不合格' }}（{{ submissionResult.score }}%）</p>
                     <p>受験回数：{{ submissionResult.attempt_number }} / {{ exam.max_attempts }}</p>
                 </div>
-                <div class="question-block" v-for="(question, index) in exam.questions" :key="question.id">
+                <div class="question-block" v-for="(question, index) in exam.questions ?? []" :key="question.id">
                     <div class="question-title">Q{{ index + 1 }}. {{ question.prompt }}</div>
                     <div class="question-explanation" v-if="question.explanation">{{ question.explanation }}</div>
                     <div class="option-list">
@@ -97,34 +97,36 @@
     </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
-import { useApi } from '@/composables/api';
-import { useDialog } from '@/composables/dialog';
+import { useLearningApi } from '@/composables/learningApi';
+import type { LearningExam, LearningExamAttempt, LearningExamQuestion, LearningFinalExamAnswer } from '@/types/learning';
 
 const route = useRoute()
 const router = useRouter()
-const api = useApi()
-const { toast } = useDialog()
+const learningApi = useLearningApi()
+const props = defineProps<{
+    refreshLessonView?: () => Promise<void>
+}>()
 
-const exam = ref(null)
-const attempts = ref([])
+const exam = ref<LearningExam | null>(null)
+const attempts = ref<LearningExamAttempt[]>([])
 const remainingAttempts = ref(0)
 const loading = ref(false)
 const submitting = ref(false)
-const selectedAnswers = reactive({})
+const selectedAnswers = reactive<Record<number, number | null>>({})
 const formError = ref('')
-const submissionResult = ref(null)
-const finalAnswers = ref([])
+const submissionResult = ref<LearningExamAttempt | null>(null)
+const finalAnswers = ref<LearningFinalExamAnswer[]>([])
 const revealAnswers = ref(false)
 const complete = ref(false)
 const validate = ref(false)
 const examPassed = computed(() => attempts.value.some(attempt => attempt.status === 'passed'))
 
 const finalAnswersMap = computed(() => {
-    return finalAnswers.value.reduce((acc, answer) => {
+    return finalAnswers.value.reduce<Record<number, LearningFinalExamAnswer>>((acc, answer) => {
         acc[answer.question_id] = answer
         return acc
     }, {})
@@ -134,7 +136,7 @@ const shouldRevealAnswers = computed(() => revealAnswers.value)
 const canSubmitExam = computed(() => remainingAttempts.value > 0)
 
 const initializeAnswers = () => {
-    Object.keys(selectedAnswers).forEach(key => delete selectedAnswers[key])
+    Object.keys(selectedAnswers).forEach(key => delete selectedAnswers[Number(key)])
     if(!exam.value?.questions) return
     exam.value.questions.forEach(question => {
         const finalAnswer = shouldRevealAnswers.value ? finalAnswersMap.value[question.id] : null
@@ -145,9 +147,10 @@ const initializeAnswers = () => {
 const fetchExam = async() => {
     loading.value = true
     try{
-        const data = await api.get('/learning_exam', {
-            lesson_theme_id: route.params.lessonThemeId
-        })
+        const themeId = Array.isArray(route.params.lessonThemeId) ? route.params.lessonThemeId[0] : route.params.lessonThemeId
+        if (!themeId) return
+
+        const data = await learningApi.getLearningExam(themeId)
         revealAnswers.value = !!data?.reveal_answers
         finalAnswers.value = data?.final_attempt_answers ?? []
         exam.value = data?.exam ?? null
@@ -178,7 +181,8 @@ const submitExam = async() => {
         formError.value = '受験可能回数を超えています。'
         return
     }
-    const unanswered = exam.value.questions.some(question => !selectedAnswers[question.id])
+    const questions = exam.value.questions ?? []
+    const unanswered = questions.some(question => !selectedAnswers[question.id])
     if(unanswered){
         formError.value = '全ての設問に回答してください。'
         return
@@ -188,17 +192,16 @@ const submitExam = async() => {
     submitting.value = true
     const payload = {
         lesson_theme_id: route.params.lessonThemeId,
-        answers: exam.value.questions.map(question => ({
+        answers: questions.map(question => ({
             question_id: question.id,
-            option_id: selectedAnswers[question.id]
+            option_id: Number(selectedAnswers[question.id])
         }))
     }
     try{
-        const response = await api.post('/learning_exam_submit', payload, {
-            toast: '試験を送信しました。'
-        })
+        const response = await learningApi.submitLearningExam(payload)
         submissionResult.value = response
         await fetchExam()
+        await props.refreshLessonView?.()
     }catch(error){
         console.error(error)
     }finally{
@@ -212,7 +215,7 @@ onMounted(() => {
 
 watch(() => exam.value?.questions?.length, () => initializeAnswers())
 
-const getCorrectOptionLabel = (question) => {
+const getCorrectOptionLabel = (question: LearningExamQuestion) => {
     if(!shouldRevealAnswers.value) return ''
     const option = question.options?.find(opt => opt.is_correct)
     return option?.label ?? ''
@@ -357,7 +360,6 @@ const getCorrectOptionLabel = (question) => {
 }
 .exam-result{
     background: var(--bg3);
-    border-radius: 6px;
     padding: 10px;
     font-size: 14px;
 }

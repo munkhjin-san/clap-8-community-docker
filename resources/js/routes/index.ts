@@ -1,6 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { adminRoutes } from './admin'
 import { boardRoutes } from './board'
+import { customAppRoutes } from './customApp'
 import { communityRoutes } from './community'
 import { dashboardRoutes } from './dashboard'
 import { learningRoutes } from './learning'
@@ -16,6 +17,7 @@ export const routes: RouteRecordRaw[] = [
     ...postRoutes,
     ...projectRoutes,
     ...adminRoutes,
+    ...customAppRoutes,
     ...miscRoutes,
     ...learningRoutes,
     ...dashboardRoutes,

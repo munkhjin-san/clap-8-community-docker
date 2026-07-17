@@ -16,6 +16,13 @@
             </svg>
         </template>
         <div class="m-5">
+            <div v-if="streakCandidates.length" class="mb-3">
+                <p class="my-2 text-sm overflow-hidden whitespace-nowrap text-ellipsis flex items-center gap-2">
+                    <span class="text-[11px] rounded-full bg-[var(--bg3)] px-1 py-0.5">要対応</span>
+                    日報未申請アラート
+                </p>
+                <IncidentAlertList :candidates="streakCandidates" :col="Number(data.col?.split('-')[2] ?? 1)" />
+            </div>
             <div v-if="data.data.pendingAttendance">
                 <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
                     <ExpansionPanelItem
@@ -294,6 +301,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useAuthUserStore } from '@/store/auth';
 import WeatherIcon from '@/components/Global/WeatherIcon.vue';
 import { useApi } from '@/composables/api';
+import IncidentAlertList from './IncidentAlertList.vue';
 
 const props = defineProps<{
     data: DashboardTimesheetCard
@@ -310,6 +318,9 @@ const dashboardStore = useDashboardStore();
 const auth = useAuthUserStore();
 const api = useApi();
 const markingAutoApprovedUsers = ref<number[]>([])
+const streakCandidates = computed(() =>
+    (dashboardStore.collection.incidentAlerts ?? []).filter((candidate) => candidate.source_type === 'daily_report_streak')
+)
 const autoApprovedTimesheets = computed(() => props.data.data.autoApprovedTimesheets ?? [])
 const autoApprovedCount = computed(() => {
     return autoApprovedTimesheets.value.reduce((total, item) => total + (item.read ? 0 : item.records.length), 0)
@@ -341,7 +352,8 @@ const actionCount = computed(() => {
         (props.data.data.pendingPlannedLeaveChangeRequests?.length ?? 0) +
         departureReportCount.value +
         (props.data.data.pendingTimesheets?.length ?? 0) +
-        autoApprovedCount.value
+        autoApprovedCount.value +
+        streakCandidates.value.length
     )
 })
 const formatAutoApprovedDay = (day: string) => {
@@ -376,7 +388,7 @@ onMounted(() => {
     }
 })
 const nothingTodo = computed(() => {
-    return !props.data.data.pendingAttendance && !props.data.data.pendingTimesheets.length && !autoApprovedTimesheets.value.length && !props.data.data.departuresReportUsers.length && !props.data.data.pendingPlannedLeaves.length && !props.data.data.pendingPlannedLeaveChangeRequests.length && !dashboardStore.annualLeaveData.planned_leaves_this_year.length && !dashboardStore.annualLeaveData.planned_leaves_last_year.length
+    return !props.data.data.pendingAttendance && !props.data.data.pendingTimesheets.length && !autoApprovedTimesheets.value.length && !props.data.data.departuresReportUsers.length && !props.data.data.pendingPlannedLeaves.length && !props.data.data.pendingPlannedLeaveChangeRequests.length && !dashboardStore.annualLeaveData.planned_leaves_this_year.length && !dashboardStore.annualLeaveData.planned_leaves_last_year.length && !streakCandidates.value.length
 })
 defineExpose({
     cardType: props.data.type,

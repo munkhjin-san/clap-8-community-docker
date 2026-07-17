@@ -22,6 +22,8 @@ use App\Http\Controllers\AdminAccountController;
 use App\Http\Controllers\AdminCostMasterController;
 use App\Http\Controllers\AdminPaidLeaveLedgerController;
 use App\Http\Controllers\AdminPaidLeavePolicyController;
+use App\Http\Controllers\AdminZoomAccountController;
+use App\Http\Controllers\AdminCalendarFacilityController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\WorkController;
 use App\Http\Controllers\CustomfieldController;
@@ -48,11 +50,13 @@ use App\Http\Controllers\PushController;
 use App\Http\Controllers\PublicHolidayController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IncidentController;
+use App\Http\Controllers\FlowController;
 use App\Http\Controllers\AppCommentController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\FinanceToolController;
 use App\Http\Controllers\FinanceChatController;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -65,11 +69,14 @@ use App\Models\User;
 */
 // Route::get('/incident_fill', [AutoJobController::class, 'incident_fill']);
 //for home page
+
+Route::match(['get', 'post'], '/contract_updated', [AutoJobController::class, 'kintoneContractUpdated']);
 Route::get('get_team_external', [ProjectController::class, 'get_team_external']);
 Route::get('get_projects_external', [ProjectController::class, 'get_projects_external']);
-Route::match(['get', 'post'],'/zoom3_event', [AutoJobController::class, 'zoom_event']);
-Route::match(['get', 'post'],'/zoom2_event', [AutoJobController::class, 'zoom_event']);
-Route::match(['get', 'post'],'/zoom1_event', [AutoJobController::class, 'zoom_event']);
+Route::post('/zoom3_event', [AutoJobController::class, 'zoom_event']);
+Route::post('/zoom2_event', [AutoJobController::class, 'zoom_event']);
+Route::post('/zoom1_event', [AutoJobController::class, 'zoom_event']);
+Route::post('/zoom/{slot}/event', [AutoJobController::class, 'zoom_event'])->whereNumber('slot');
 
 Route::get("/departure_report", [AutoJobController::class, 'departure_report'])->name('departure_activate')->middleware('signed');;
 
@@ -234,9 +241,9 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         'file-preview',
         'help',
         'dashboard',
+        'apps',
     ])->where('any', '.*')->name('board');
 
-    Route::get('/board_default_thumbnail/{name}/{size}/{color?}', [ContentController::class, 'board_default_thumbnail']);
     Route::get('/board_icon_thumbnail/{path}/{size?}/{color?}', [ContentController::class, 'board_icon_thumbnail']);
 
     Route::get('/shared_thumbnail/{board_id}/{path}', [ContentController::class, 'sharedThumbnail']);
@@ -346,6 +353,8 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/work_group_delete', [AdminAccountController::class, 'workgroupDelete']);
         // Admin Panel Work
         Route::post('/get_admin_work', [AdminWorkController::class, 'get_admin_work']);
+        Route::get('/gasoline_rate', [AdminWorkController::class, 'gasoline_rate']);
+        Route::post('/gasoline_rate', [AdminWorkController::class, 'store_gasoline_rate']);
         Route::get('/work_audit_logs', [AdminWorkController::class, 'work_audit_logs']);
         Route::get('/work_audit_logs/{event}', [AdminWorkController::class, 'work_audit_log_detail']);
         // Admin clap statistics
@@ -360,7 +369,17 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::get('/admin/paid-leave-ledger', [AdminPaidLeaveLedgerController::class, 'index']);
         Route::get('/admin/paid-leave-ledger/{account}', [AdminPaidLeaveLedgerController::class, 'show']);
         Route::post('/admin/paid-leave-ledger/{account}/adjustments', [AdminPaidLeaveLedgerController::class, 'storeAdjustment']);
+        Route::get('/admin/zoom-accounts', [AdminZoomAccountController::class, 'index']);
+        Route::post('/admin/zoom-accounts', [AdminZoomAccountController::class, 'store']);
+        Route::put('/admin/zoom-accounts/{zoomAccount}', [AdminZoomAccountController::class, 'update']);
+        Route::delete('/admin/zoom-accounts/{zoomAccount}', [AdminZoomAccountController::class, 'destroy']);
+        Route::post('/admin/zoom-accounts/{zoomAccount}/test', [AdminZoomAccountController::class, 'test']);
+        Route::get('/admin/calendar-facilities', [AdminCalendarFacilityController::class, 'index']);
+        Route::post('/admin/calendar-facilities', [AdminCalendarFacilityController::class, 'store']);
+        Route::put('/admin/calendar-facilities/{calendarFacility}', [AdminCalendarFacilityController::class, 'update']);
+        Route::delete('/admin/calendar-facilities/{calendarFacility}', [AdminCalendarFacilityController::class, 'destroy']);
         Route::get('/admin/cost-items', [AdminCostMasterController::class, 'index']);
+        Route::get('/admin/cost-items/sync-status', [AdminCostMasterController::class, 'syncStatus']);
         Route::post('/admin/cost-items/sync/kintone', [AdminCostMasterController::class, 'syncKintone']);
         Route::post('/admin/cost-items', [AdminCostMasterController::class, 'store']);
         Route::put('/admin/cost-items/{costItem}', [AdminCostMasterController::class, 'update']);
@@ -426,6 +445,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/challenge_relay_reassign', [PostController::class, 'challenge_relay_reassign']);
         Route::post('/challenge_relay_close', [PostController::class, 'challenge_relay_close']);
         Route::post('/nice_follow_up_dismiss', [PostController::class, 'nice_follow_up_dismiss']);
+        Route::put('/save_relay_prize', [PostController::class, 'save_relay_prize']);
         Route::post('/post_get_post_users', [PostController::class, 'post_get_post_users']);
         Route::post('/post_get_all_possible_users', [PostController::class, 'post_get_all_possible_users']);
         Route::post('/post_get_challenge_users', [PostController::class, 'post_get_challenge_users']);
@@ -440,6 +460,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/get_top_posts', [PostController::class, 'get_top_posts']);
         Route::post('/post_grant_upload', [PostController::class, 'post_grant_upload']);
         Route::post('/post_remove_file', [PostController::class, 'post_remove_file']);
+        Route::post('/check_rakuaward', [PostController::class, 'check_rakuaward']);
         Route::prefix('/refresh')->group(function () {
             Route::get('/posts', [RefreshController::class, 'indexPosts']);
             Route::patch('/posts/{id}/approve', [RefreshController::class, 'approvePost']);
@@ -449,6 +470,9 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
             Route::post('/kintone/sync', [RefreshController::class, 'syncKintone']);
             Route::get('/me/summary', [RefreshController::class, 'mySummary']);
             Route::get('/users/{id}/history', [RefreshController::class, 'userHistory']);
+            Route::get('/rakuaward', [RefreshController::class, 'indexRakuaward']);
+            Route::post('/rakuaward/{id}/grant', [RefreshController::class, 'grantRakuaward']);
+            Route::post('/rakuaward/refund', [RefreshController::class, 'refundRakuaward']);
             Route::get('/management', [RefreshController::class, 'indexManagement']);
             Route::post('/management/grants', [RefreshController::class, 'storeManagementGrant']);
             Route::patch('/management/leave-review', [RefreshController::class, 'confirmLeaveReview']);
@@ -487,6 +511,8 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/get_kadai_list', [MemberController::class, 'get_kadai_list']);
         Route::post('/update_kadai', [MemberController::class, 'update_kadai']);
         Route::post('/save_kadai_template', [MemberController::class, 'save_kadai_template']);
+        Route::post('/get_salary_issue_eligibility', [MemberController::class, 'get_salary_issue_eligibility']);
+        Route::post('/suggest_salary_issue_theme', [MemberController::class, 'suggest_salary_issue_theme']);
         Route::post('/get_kadai_template', [MemberController::class, 'get_kadai_template']);
         Route::post('/check_kadai_record', [MemberController::class, 'check_kadai_record']);
         Route::post('/delete_kadai_template', [MemberController::class, 'delete_kadai_template']);
@@ -643,8 +669,27 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::get('/get_completed_lesson_themes', [LessonController::class, 'get_completed_lesson_themes']);
 
         Route::post('/create_learning_theme', [LessonController::class, 'create_learning_theme']);
+        Route::get('/lesson_theme/{theme}/material_versions', [LessonController::class, 'get_material_versions']);
+        Route::post('/lesson_theme/{theme}/material_versions', [LessonController::class, 'create_material_version']);
+        Route::put('/lesson_theme/{theme}/material_versions/{version}/default', [LessonController::class, 'set_default_material_version']);
+        Route::delete('/lesson_theme/{theme}/material_versions/{version}', [LessonController::class, 'delete_material_version']);
+        Route::get('/lesson_theme/{theme}/learner_state', [LessonController::class, 'get_learner_theme_state']);
+        Route::post('/lesson_theme/{theme}/start_attempt', [LessonController::class, 'start_learning_attempt']);
+        Route::delete('/lesson_theme/{theme}/attempt/{portfolio}', [LessonController::class, 'delete_learning_attempt']);
+        Route::get('/lesson_theme/{theme}/challenge_options', [LessonController::class, 'get_theme_challenge_options']);
+        Route::post('/lesson_theme/{theme}/challenge', [LessonController::class, 'create_theme_challenge']);
         Route::delete('/delete_learning_theme', [LessonController::class, 'delete_learning_theme']);
+        Route::post('/lesson_theme/{theme}/ai_config', [LessonController::class, 'save_lesson_theme_ai_config']);
+        Route::get('/lesson_theme/{theme}/personal_materials/portfolio_recurring_trainee/stream', [LessonController::class, 'stream_personal_material']);
+        Route::post('/lesson_theme/{theme}/personal_materials/portfolio_recurring_trainee/feedback', [LessonController::class, 'save_personal_material_feedback']);
+        Route::get('/lesson_theme_categories', [LessonController::class, 'get_lesson_categories']);
+        Route::post('/lesson_theme_category', [LessonController::class, 'save_lesson_category']);
+        Route::delete('/lesson_theme_category', [LessonController::class, 'delete_lesson_category']);
+        Route::put('/lesson_theme_categories/reorder', [LessonController::class, 'reorder_lesson_categories']);
+        Route::put('/lesson_theme_category/{category}/default', [LessonController::class, 'set_default_lesson_category']);
         Route::get('/get_portfolios_list', [LessonController::class, 'get_portfolios_list']);
+        Route::delete('/admin/learning/portfolio/{portfolio}', [LessonController::class, 'delete_admin_portfolio']);
+        Route::get('/get_previous_experience', [LessonController::class, 'get_previous_experience']);
 
         Route::post('/upload_lesson_file', [LessonController::class, 'upload_lesson_file']);
         Route::get('/get_support_account', function () {
@@ -694,6 +739,10 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::delete('/delete_project_goal', [ProjectController::class, 'delete_project_goal']);
         Route::put('/approve_salary_issue', [ProjectController::class, 'approve_salary_issue']);
         Route::post('/get_salary_issues', [ProjectController::class, 'get_salary_issues']);
+        Route::post('/salary_issue/{salaryIssue}/generate_study_material', [ProjectController::class, 'generate_salary_issue_study_material']);
+        Route::get('/salary_issue/{salaryIssue}/learning', [ProjectController::class, 'get_salary_issue_learning']);
+        Route::post('/salary_issue/{salaryIssue}/learning/understanding', [ProjectController::class, 'save_salary_issue_understanding']);
+        Route::post('/salary_issue/{salaryIssue}/learning/portfolio', [ProjectController::class, 'save_salary_issue_portfolio']);
         Route::delete('/delete_project', [ProjectController::class, 'delete_project']);
         Route::put('/approve_outcome_goal', [ProjectController::class, 'approve_outcome_goal']);
         Route::put('/update_issue_report', [ProjectController::class, 'update_issue_report']);
@@ -728,12 +777,14 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/finance_check', [ProjectController::class, 'finance_check']);
         Route::get('/clear_project_report_badge', [ProjectController::class, 'clear_project_report_badge']);
         Route::get('/clear_project_confirm_badge', [ProjectController::class, 'clear_project_confirm_badge']);
-
+        Route::get('/projects/{project}/actual-results', [ProjectController::class, 'actualResultDepartments']);
+        
         Route::get('/get_members_goals_badge', [ProjectController::class, 'get_members_goals_badge']);
         Route::get('/get_managers_goals_badge', [ProjectController::class, 'get_managers_goals_badge']);
         Route::get('/get_salary_issue_badge', [ProjectController::class, 'get_salary_issue_badge']);
 
         Route::get('/get_contracts', [ProjectController::class, 'get_contracts']);
+        Route::post('/kintone_contract_change/check', [ProjectController::class, 'check_kintone_contract_change']);
 
         Route::get('/project_actual_status_suggestions', [ProjectController::class, 'project_actual_status_suggestions']);
         Route::post('/get_resources_kintone', [ProjectController::class, 'get_resources_kintone']);
@@ -759,11 +810,18 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
 
         Route::get('/projects/{project}/profit-plan', [ProjectProfitPlanController::class, 'show']);
         Route::get('/projects/{project}/profit-plan/cost-items', [ProjectProfitPlanController::class, 'costItems']);
+        Route::get('/projects/{project}/profit-plan/worksites', [ProjectProfitPlanController::class, 'worksites']);
         Route::post('/projects/{project}/profit-plan', [ProjectProfitPlanController::class, 'save']);
         Route::post('/projects/{project}/profit-plan/submit', [ProjectProfitPlanController::class, 'submit']);
+        Route::post('/projects/{project}/profit-plan/withdraw', [ProjectProfitPlanController::class, 'withdraw']);
         Route::post('/projects/{project}/profit-plan/confirm', [ProjectProfitPlanController::class, 'confirm']);
+        Route::post('/projects/{project}/profit-plan/return', [ProjectProfitPlanController::class, 'returnForRevision']);
         Route::post('/projects/{project}/profit-plan/unlock', [ProjectProfitPlanController::class, 'unlock']);
         Route::post('/projects/{project}/profit-plan/monthly-revision', [ProjectProfitPlanController::class, 'monthlyRevision']);
+        Route::post('/projects/{project}/profit-plan/monthly-revision-batch', [ProjectProfitPlanController::class, 'monthlyRevisionBatch']);
+        Route::post('/projects/{project}/profit-plan/copy-from-previous', [ProjectProfitPlanController::class, 'copyFromPrevious']);
+        Route::get('/projects/{project}/profit-plan/available-members', [ProjectProfitPlanController::class, 'availableMembers']);
+        Route::get('/projects/{project}/profit-plan/partners', [ProjectProfitPlanController::class, 'partners']);
         });
         Route::get('/projects/{project}/management-lists', [ProjectManagementController::class, 'index']);
         Route::post('/projects/{project}/management-lists', [ProjectManagementController::class, 'storeList']);
@@ -835,6 +893,11 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/contact/{contact}/comment_read', [ContactController::class, 'contact_comment_read']);
         Route::get('get_contact_comment_badge', [ContactController::class, 'get_contact_comment_badge']);
         Route::delete('/unfollow_contact/{contact}', [ContactController::class, 'unfollow_contact']);
+        Route::post('/contact_link_project', [ContactController::class, 'link_contact_project']);
+        Route::delete('/contact_link_project', [ContactController::class, 'unlink_contact_project']);
+        Route::post('/contact_link_related', [ContactController::class, 'link_related_contact']);
+        Route::delete('/contact_link_related', [ContactController::class, 'unlink_related_contact']);
+        Route::get('/contact_project_search', [ContactController::class, 'search_projects']);
         Route::get('/contact_batches', [ContactController::class, 'contact_batches']);
         Route::post('/contact_batches/{batch}/dismiss', [ContactController::class, 'dismiss_contact_batch']);
         Route::get('/contact_batch_notifications', [ContactController::class, 'contact_batch_notifications']);
@@ -961,6 +1024,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::get('/stream_prompt', [OpenAiController::class, 'stream_prompt']);
         Route::post('/review_document', [OpenAiController::class, 'review_document']);
         Route::post('/summarize_contract_comparison', [OpenAiController::class, 'summarize_contract_comparison']);
+        Route::get('/openai/models', [OpenAiController::class, 'models']);
         Route::post('/suggest_challenge', [OpenAiController::class, 'suggest_challenge']);
         Route::get('/lunch_challenge_popup', [OpenAiController::class, 'lunch_challenge_popup']);
         Route::post('/chatkit/session', [OpenAiController::class, 'session']);
@@ -997,6 +1061,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::get('/incident_advice_stream', [IncidentController::class, 'streamIncidentAdvice']);
         Route::post('/incident_advice', [IncidentController::class, 'createIncidentAdvice']);
         Route::delete('/incident_advice', [IncidentController::class, 'deleteIncidentAdvice']);
+        Route::post('/incident_candidate_decision', [IncidentController::class, 'decideIncidentCandidate']);
         Route::post('/incident_record_create', [IncidentController::class, 'createIncidentRecord']);
         Route::post('/incident_record_update', [IncidentController::class, 'updateIncidentRecord']);
         Route::post('/incident_record_delete', [IncidentController::class, 'deleteIncidentRecord']);
@@ -1004,6 +1069,40 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/incident_assignee_complete', [IncidentController::class, 'completeIncidentAssigneeReport']);
         Route::post('/incident_report_assignment', [IncidentController::class, 'createIncidentReportAssignment']);
         Route::get('incident_related_mentionable_users', [IncidentController::class, 'incidentRelatedMentionableUsers']);
+
+        // 申請・承認フロー (approval flow)
+        Route::get('/flow_definitions', [FlowController::class, 'getFlowDefinitions']);
+        Route::post('/flow_app_pin', [FlowController::class, 'toggleAppPin']);
+        Route::get('/flow_portal_prefs', [FlowController::class, 'getPortalPrefs']);
+        Route::post('/flow_portal_prefs', [FlowController::class, 'savePortalPrefs']);
+        Route::get('/flow_definitions/{id}', [FlowController::class, 'getFlowDefinition']);
+        Route::post('/flow_definition_save', [FlowController::class, 'saveFlowDefinition']);
+        Route::post('/flow_definition_delete', [FlowController::class, 'deleteFlowDefinition']);
+        Route::post('/flow_kintone_preview', [FlowController::class, 'kintonePreview']);
+        Route::get('/flow_options', [FlowController::class, 'getFlowOptions']);
+        Route::get('/flow_dashboard', [FlowController::class, 'getFlowDashboard']);
+        // app runtime (records / views / actions / formula)
+        Route::get('/flow_app_records/{definition}', [FlowController::class, 'getAppRecords']);
+        Route::get('/flow_app_record/{id}', [FlowController::class, 'getAppRecord']);
+        Route::get('/flow_app_record_by_number/{definition}/{number}', [FlowController::class, 'getAppRecordByNumber']);
+        Route::get('/flow_reference_search/{definition}', [FlowController::class, 'referenceSearch']);
+        Route::get('/flow_lookup_record/{definition}/{record}', [FlowController::class, 'lookupRecord']);
+        Route::get('/flow_definition_fields/{definition}', [FlowController::class, 'getDefinitionFields']);
+        Route::post('/flow_generate_icon', [FlowController::class, 'generateAppIcon']);
+        Route::post('/flow_app_record_create', [FlowController::class, 'storeAppRecord']);
+        Route::post('/flow_app_record_update', [FlowController::class, 'updateAppRecord']);
+        Route::post('/flow_app_record_delete', [FlowController::class, 'deleteAppRecord']);
+        Route::post('/flow_app_truncate/{id}', [FlowController::class, 'truncateAppRecords']);
+        Route::get('/flow_tool_pdf/{toolId}/{recordId}', [FlowController::class, 'renderToolPdf']);
+        Route::post('/flow_tool_pdf_preview', [FlowController::class, 'previewToolPdf']);
+        Route::post('/flow_app_record_transition', [FlowController::class, 'transitionAppRecord']);
+        Route::post('/flow_formula_preview', [FlowController::class, 'previewFormula']);
+        Route::get('/flow_app_export/{definition}', [FlowController::class, 'exportRecords']);
+        Route::post('/flow_app_import', [FlowController::class, 'importRecords']);
+        Route::get('/flow_audit_logs/{definition}', [FlowController::class, 'getFlowAuditLogs']);
+        Route::get('/flow_audit_log/{logId}/download', [FlowController::class, 'downloadAuditExport']);
+        Route::post('/flow_file_download_log', [FlowController::class, 'logFileDownload']);
+
         Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
 
         // Unified AI Chat — Goal + Finance + Timesheet (role-based)

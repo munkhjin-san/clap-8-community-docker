@@ -27,7 +27,7 @@
             <div class="si-box">
                 <div v-if="iconType == 0" style="width: fit-content;padding: 15px;margin: auto;">
                     <div id="boardIconPreview" class="iconPreview">
-                        <img draggable="false" loading="lazy" class="iconPreviewInner" :src="defaultIcon">
+                        <UserDefaultIcon :name="userData.name" :bg="iconBg" :size="45" class="iconPreviewInner" />
                     </div>
                 </div>
             </div>    
@@ -38,12 +38,13 @@
     </Modal>   
 </template>
 <script setup lang="ts">
-import { computed, ref, useTemplateRef } from 'vue';
+import { ref, useTemplateRef } from 'vue';
 import Modal from '../Global/Modal.vue';
 import ColorPicker from '../Global/ColorPicker.vue';
 import { User } from '@/interface/globalInterface';
 import Cropper from '../Global/Cropper.vue';
 import LoaderButton from '../Global/LoaderButton.vue';
+import UserDefaultIcon from '../Global/UserDefaultIcon.vue';
 import { useApi } from '@/composables/api';
 const props = defineProps<{
     userData: User
@@ -57,13 +58,6 @@ const iconBg = ref(props.userData?.icon_bg ?? '#000')
 const sendLoader = ref(false)
 const cropperInstance = useTemplateRef('cropperInstance')
 const api = useApi()
-
-const defaultIcon = computed(() => {
-    const color = encodeURIComponent(iconBg.value);
-    const noSpace = props.userData.name?.charAt(0).toUpperCase();   
-    const basePath = '/user_default_thumbnail'
-    return `${basePath}/${noSpace}/45/${color}`; 
-})
 
 const sendIcon = async() => {
     if(iconType.value == 0) {

@@ -1,161 +1,216 @@
 <template>
-
-    <div class="post-root learning">
+    <!-- Temporary maintenance screen during the big update rollout — everyone except admins. -->
+    <div v-if="!auth.isAdmin" class="learning-maintenance">
+        <div class="learning-maintenance__box">
+            <svg class="learning-maintenance__icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2-2 2.5-2.5z"/>
+            </svg>
+            <p class="learning-maintenance__title">ただいまメンテナンス中です</p>
+            <p class="learning-maintenance__text">
+                アップデート対応のため、職能研修は一時的にご利用いただけません。<br>
+                準備が整い次第、再開いたします。ご不便をおかけしますが、今しばらくお待ちください。
+            </p>
+        </div>
+    </div>
+    <div v-else class="post-root learning !bg-[var(--bg3)]">
         <div>
             <router-view v-slot="{ Component }">
                 <transition name="lessonShift">
                     <component
-                        class="routeposition" 
+                        class="routeposition"
                         :is="Component"
                         :selectedTopic="selectedTopic"
                     />
                 </transition>
             </router-view>
         </div>
-        <div class="post-header" >
+        <div class="post-header">
             <HamBurger v-if="responsive.mobile"/>
             <div class="post-search-wrap">
-                <p style="color:gray;">研修のテーマを選択してください。</p>
-            </div>            
+                <div v-if="categories.length" class="learning__categories">
+                    <button
+                        type="button"
+                        :class="['learning__category', { 'learning__category--selected': selectedCategoryId === null }]"
+                        @click="selectCategory(null)"
+                    >
+                        すべて
+                    </button>
+                    <button
+                        v-for="category in categories"
+                        :key="category.id"
+                        type="button"
+                        :class="['learning__category', { 'learning__category--selected': selectedCategoryId === category.id }]"
+                        @click="selectCategory(category.id)"
+                    >
+                        {{ category.name }}
+                    </button>
+                </div>
+            </div>
         </div>
         <div class="post-container scrollable">
-            <div>
-                <TransitionGroup name="t-list" class="topic-container" tag="div">
-                <div 
-                    :class="['topic-item', {'inactive-theme' : topic.active == 0}]" 
-                    v-for="topic in topicList"
-                    :key="topic.id"
-                    @click="select(topic)"
-                >                            
-                    <div class="topic-title flex" style="gap:5px">
-                        <div v-if="topic.lesson_portfolio?.status == 3 || (materialStatus(topic.materials) && !topic.portfolio)" style="background-color: rgb(100, 188, 68); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
-                            <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
-                        </div>
-                        {{ topic.title }}
-                    </div>
-                    <div v-if="topic.lesson_portfolio" class="flex flex-col gap-2.5" style="margin-top: 10px;">
-                        <div v-for="status in topic.lesson_portfolio.status" class="flex" style="gap: 5px;align-items: center;">
-                            <div style="background-color: rgb(100, 188, 68); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
-                                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
-                            </div>
-                            {{ statusMap[status - 1] }}
-                        </div>
-                        <div v-if="topic.lesson_portfolio.status == 0" class="flex" style="gap: 5px;align-items: center;">
-                            <div style="background-color: rgb(255, 165, 0); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
-                                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
-                            </div>
-                            知識研修中
-                        </div>
-                    </div>
-                    <div v-else-if="topic.has_case_study && (basicStatus(topic.materials) || caseStatus(topic.materials))" class="flex flex-col gap-2.5 mt-[10px]">
-                        <div class="flex gap-[5px] items-center" v-if="basicStatus(topic.materials)">
-                            <div v-if="basicStatus(topic.materials) === 'completed'" style="background-color: rgb(100, 188, 68); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
-                                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
-                            </div>
-                            <div v-if="basicStatus(topic.materials) === 'uncompleted'" style="background-color: rgb(255, 165, 0); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
-                                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
-                            </div>
-                            知識研修
-                        </div>
-                        <div class="flex gap-[5px] items-center" v-if="caseStatus(topic.materials)">
-                            <div style="background-color: rgb(100, 188, 68); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
-                                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
-                            </div>
-                            ケーススタディ
-                        </div>
-                        <div class="flex gap-[5px] items-center" v-if="topic.survey_completed">
-                            <div style="background-color: rgb(100, 188, 68); width: 18px; height: 18px; display: flex; border-radius: 50%; margin: auto 3px; min-width: 18px;">
-                                <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="10" viewBox="0 0 38 32" style="fill: rgb(255, 255, 255); margin-left: 4px;"><path data-v-3c7a9f1f="" d="M36.486 0.324c-0.666-0.515-1.629-0.396-2.204 0.22l-3.039 3.271-3.060 3.328c-2.031 2.23-4.067 4.452-6.086 6.689-2.025 2.234-8.487 9.367-9.743 10.772-0.132 0.15-0.369 0.129-0.486-0.025-1.060-1.399-2.287-3.028-3.468-4.519-1.161-1.465-2.516-3.22-3.271-4.144-0.755-0.927-1.702-2.093-2.191-2.668-0.528-0.625-1.457-0.791-2.182-0.329-0.765 0.489-0.973 1.521-0.518 2.307 0.367 0.636 2.307 3.801 2.307 3.801 0.801 1.27 3.213 5.039 3.699 5.791 0.487 0.751 1.194 1.782 1.879 2.788 0.684 1.004 1.52 2.313 2.429 3.264s2.487 0.627 3.321-0.358c1.932-2.282 9.588-11.527 11.498-13.857 1.916-2.327 3.815-4.668 5.719-7.004l2.842-3.517 2.823-3.535c0.548-0.687 0.451-1.716-0.272-2.276z"></path></svg>
-                            </div>
-                            チェックリスト
-                        </div>
-                    </div>
-                </div>
-                </TransitionGroup>
-                
-            </div>
-            <!-- <div style="padding: 0 20px 20px;">
-                <div style="position: unset;margin-top: 30px;" class="no-comment-text" v-if="!activeId"></div>
-                
-            </div> -->
+            <LearningThemeGrid :themes="topicList" @select="select" />
         </div>
-        
-        
-        
     </div>
 </template>
-<script setup>
-import { useRoute, useRouter } from 'vue-router';
-import HamBurger from '../Global/HamBurger.vue';
-import { ref, computed, onMounted, provide } from 'vue'
-import { useResponsive } from '@/store/responsive';
-import { useApi } from '@/composables/api';
-    const route = useRoute()
-    const router = useRouter()
-    const responsive = useResponsive()
-    const themeRecords = ref([])
-    const statusMap = ['知識研修','グループディスカッション','ポートフォリオ']
-    const api = useApi()
-    onMounted(() => {
-        getThemes()
-    })
-    
-    
-    const activeId = computed(() => {
-            return route.params && route.params.lessonThemeId ? parseInt(route.params.lessonThemeId): null
-    })
-    const topicList = computed(() => {            
-        return themeRecords.value            
-    })
-    const selectedTopic = computed(() => {
-        return activeId.value ? themeRecords.value.find(ob => ob.id == activeId.value) : null
-    })
-    const materialStatus = (materials) => {
-        return materials.every(ob => ob.answer?.status == 2)
-    }
-    const basicStatus = (materials) => {
-        const filtered = materials.filter(ob => ob.material_type == '基礎知識' && ob.priority == 1)
-        const completed = filtered.length && filtered.every(ob => ob.answer?.status == 2)
-        const uncompleted = filtered.length && filtered.some(ob => ob.answer?.status == -1)
-        return completed ? 'completed' : uncompleted ? 'uncompleted' : null
-    }
-    const caseStatus = (materials) => {
-        const filtered = materials.filter(ob => ob.material_type == 'ケーススタディ')
-        return filtered.length && filtered.every(ob => ob.answer?.status == 2)
-    }
-    const select = (topic) => {
-        const isActive = activeId.value && activeId.value === topic.id;
-        let path;
 
-        if (topic.has_case_study && !topic.portfolio) {
-            path = isActive ? `/learning` : `/learning/${topic.id}/basic`;
-        } else if (topic.active === 1) {
-            path = isActive ? `/learning` : `/learning/${topic.id}`;
-        }
+<script setup lang="ts">
+import { computed, onMounted, provide, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import HamBurger from '../Global/HamBurger.vue'
+import { useResponsive } from '@/store/responsive'
+import { useLearningApi } from '@/composables/learningApi'
+import type { LearningTheme, LearningThemeCategory } from '@/types/learning'
+import { isEnabled } from '@/utils/learningProgress'
+import { useAuthUserStore } from '@/store/auth'
+import LearningThemeGrid from './shared/LearningThemeGrid.vue'
 
-        if (path) {
-            router.push(path);
-        }
-    };
+const route = useRoute()
+const router = useRouter()
+const responsive = useResponsive()
+const auth = useAuthUserStore()
 
-    const getThemes = async() => {
-        const data = await api.get('/get_lesson_themes')             
-        themeRecords.value = data                  
+const themeRecords = ref<LearningTheme[]>([])
+const categories = ref<LearningThemeCategory[]>([])
+const learningApi = useLearningApi()
+
+onMounted(() => {
+    // Skip data fetches while the maintenance screen is showing for non-admins.
+    if (!auth.isAdmin) return
+    getThemes()
+    getCategories()
+})
+
+const activeId = computed(() => {
+    const param = route.params && route.params.lessonThemeId
+        ? (Array.isArray(route.params.lessonThemeId) ? route.params.lessonThemeId[0] : route.params.lessonThemeId)
+        : null
+    return param ? parseInt(param) : null
+})
+// Global default category (admin-set) pre-selected on first load.
+const defaultCategoryId = computed(() => categories.value.find(category => isEnabled(category.is_default))?.id ?? null)
+const selectedCategoryId = computed(() => {
+    const queryValue = Array.isArray(route.query.category) ? route.query.category[0] : route.query.category
+    // Explicit "すべて" clears the filter; no param falls back to the default category.
+    if (queryValue === 'all') return null
+    if (queryValue) {
+        const categoryId = Number(queryValue)
+        return categories.value.some(category => category.id === categoryId) ? categoryId : defaultCategoryId.value
     }
-    provide('getThemes', getThemes)
-    provide('providedMaterial', themeRecords.value)
+    return defaultCategoryId.value
+})
+const topicList = computed(() => {
+    if (!selectedCategoryId.value) {
+        return themeRecords.value
+    }
 
+    return themeRecords.value.filter(theme => {
+        return theme.categories?.some(category => category.id === selectedCategoryId.value)
+    })
+})
+const selectedTopic = computed(() => {
+    return activeId.value ? themeRecords.value.find(theme => theme.id === activeId.value) : null
+})
+const selectCategory = (categoryId: number | null) => {
+    const query = { ...route.query }
+    // "すべて" is explicit (=all) so it isn't re-defaulted back to the default category.
+    query.category = categoryId ? String(categoryId) : 'all'
+
+    router.push({ path: route.path, query })
+}
+const select = (topic: LearningTheme) => {
+    const isActive = activeId.value && activeId.value === topic.id
+    let path
+
+    if (isEnabled(topic.has_case_study) && !isEnabled(topic.portfolio)) {
+        path = isActive ? '/learning' : `/learning/${topic.id}/basic`
+    } else if (isEnabled(topic.active)) {
+        path = isActive ? '/learning' : `/learning/${topic.id}`
+    }
+
+    if (path) {
+        router.push({ path, query: route.query })
+    }
+}
+
+const getThemes = async() => {
+    const data = await learningApi.getLearnerThemes()
+    themeRecords.value = data
+}
+const getCategories = async() => {
+    const data = await learningApi.getThemeCategories()
+    categories.value = data
+}
+
+provide('getThemes', getThemes)
+provide('providedMaterial', themeRecords)
 </script>
+
 <style>
+.learning-maintenance{
+    height: 100%;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg3);
+    padding: 40px 20px;
+    box-sizing: border-box;
+}
+.learning-maintenance__box{
+    max-width: 460px;
+    text-align: center;
+    color: var(--primary-color);
+    background: var(--background-color);
+    border: 1px solid var(--calendarBorder);
+    padding: 40px 32px;
+}
+.learning-maintenance__icon{
+    color: var(--third-color);
+    margin-bottom: 16px;
+}
+.learning-maintenance__title{
+    font-size: 15px;
+    margin-bottom: 12px;
+}
+.learning-maintenance__text{
+    font-size: 13px;
+    line-height: 1.9;
+    color: var(--third-color);
+}
+
 .routeposition{
     position:absolute;
     left: 0;
     top: 0;
     height: 100%;
     width: 100%;
-    z-index: 6;
-    background: var(--bg2);
+    z-index: 8;
+    background: var(--background-color);
     color:var(--primary-color);
+}
+
+.learning__hint{
+    color: gray;
+}
+
+.learning__categories{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.learning__category{
+    background: var(--background-color);
+    color: var(--primary-color);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 5px 15px;
+    border-radius: 50px;
+}
+
+.learning__category--selected{
+    background: var(--primary-color);
+    color: var(--background-color);
 }
 .lessons-topic p:empty::after {
     content: "\00A0";
@@ -190,8 +245,6 @@ import { useApi } from '@/composables/api';
   /* box-shadow: rgba(0, 0, 0, 0.35) 0px 5px 15px; */
 }
 .topic-title{
-    font-size: 18px;
-    font-weight: 600;
     white-space: normal;
     word-break: break-all;
 }
@@ -251,11 +304,9 @@ import { useApi } from '@/composables/api';
     white-space: nowrap;
     /* overflow: hidden; */
     /* text-overflow: ellipsis; */
-    
 }
 .lesson-breadcumb:hover{
     font-weight: 600;
-
 }
 .lesson-nav-bar{
     display: flex;
@@ -286,9 +337,8 @@ import { useApi } from '@/composables/api';
     gap: 30px;
 }
 .section-inner{
-    margin: 0 20px; 
     background: var(--background-color);
-    padding: 30px;
+    padding: 20px;
 }
 .section-wrapper p:empty::after {
     content: "\00A0";

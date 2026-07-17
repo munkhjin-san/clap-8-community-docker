@@ -1,9 +1,14 @@
-[  
-{"light": "#F7D5D5","dark": "#25161d","id": 0, "name": "pink-soft"},  
-{"light": "#FFD4A8","dark": "#2b1d00","id": 1, "name": "orange-soft"},  
-{"light": "#F8F2A6","dark": "#1a220b","id": 2, "name": "yellow-soft"},  
-{"light": "#CEE4D2","dark": "#151f28","id": 3, "name": "green-soft"},  
-{"light": "#C2D2E4","dark": "#1b1a1f","id": 4, "name": "blue-soft"}, 
-{"light": "#D6CFED","dark": "#400906","id": 5, "name": "pink-med"}
-
+[
+{"light": "#F7D5D5","dark": "#b34d4d","id": 0, "name": "pink-soft"},
+{"light": "#FFD4A8","dark": "#b3804d","id": 1, "name": "orange-soft"},
+{"light": "#F8F2A6","dark": "#b3ab4d","id": 2, "name": "yellow-soft"},
+{"light": "#CEE4D2","dark": "#4db35f","id": 3, "name": "green-soft"},
+{"light": "#C2D2E4","dark": "#4d7cb3","id": 4, "name": "blue-soft"},
+{"light": "#D6CFED","dark": "#644db3","id": 5, "name": "pink-med"},
+{"light": "#FBEDE3","dark": "#B3774D","id": 6, "name": "araigaki"},
+{"light": "#E8C5BA","dark": "#B3654D","id": 7, "name": "akacha"},
+{"light": "#EFE4C2","dark": "#B3994D","id": 8, "name": "karashi"},
+{"light": "#C8DADA","dark": "#4DB3B1","id": 9, "name": "sabiasagi"},
+{"light": "#DBD6DD","dark": "#934DB3","id": 10, "name": "hatobamurasaki"},
+{"light": "#E2C2D9","dark": "#B34D95","id": 11, "name": "umemurasaki"}
 ]

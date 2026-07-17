@@ -82,9 +82,13 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
     const myGoals = ref<ProjectGoal[]>([])
     const unfinishedPreviousSpanGoals = ref<ProjectGoal[]>([])
     const pendingMembers = ref<UserWithGoals[]>([])
+    const returnedMembers = ref<UserWithGoals[]>([])
     const managersGoals = ref<UserWithGoals[]>([])
     const adminApprovalNeededGoalsWithSalaryIssue = ref<UserWithGoals[]>([])
     const mentorApprovalNeededGoalsWithSalaryIssue = ref<UserWithGoals[]>([])
+    // Path-3 portfolio approval flow (昇給課題として学習する)
+    const mentorPortfolioApprovalNeeded = ref<UserWithGoals[]>([])
+    const adminPortfolioApprovalNeeded = ref<UserWithGoals[]>([])
     const adminApprovalNeededGoals = ref<UserWithGoals[]>([])
     const evaluationData = ref<Evaluation | null>(null)
     const requiredGoalData = ref<GoalRequiredData | null>(null)
@@ -118,7 +122,10 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         '結果を差戻中（本人対応中）', // 8
         '結果を人事に申請中（人事対応中）', // 9
         '昇給達成（完了）', // 10
-        '未達成（完了）' // 11
+        '未達成（完了）', // 11
+        'ポートフォリオをメンターに申請中（メンター対応中）', // 12 (path3)
+        'ポートフォリオを差戻中（本人対応中）', // 13 (path3)
+        'ポートフォリオを人事に申請中（人事対応中）' // 14 (path3)
     ]
 
     const pointByGeneralPosition: Record<string, { kpi: number; kgi: number }> = {
@@ -145,10 +152,13 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
             evaluationData.value = data.evaluation ?? null
             totalScore.value = data.achievement_total ?? 0
             pendingMembers.value = data.members_goals ?? []
+            returnedMembers.value = data.returned_goals ?? []
             myGoals.value = data.my_goals ?? []
             managersGoals.value = data.managers_goals ?? []
             adminApprovalNeededGoalsWithSalaryIssue.value = data.admin_approval_needed_goals_with_salary_issue ?? []
             mentorApprovalNeededGoalsWithSalaryIssue.value = data.mentor_approval_needed_goals_with_salary_issue ?? []
+            mentorPortfolioApprovalNeeded.value = data.mentor_portfolio_approval_needed ?? []
+            adminPortfolioApprovalNeeded.value = data.admin_portfolio_approval_needed ?? []
             adminApprovalNeededGoals.value = data.admin_approval_needed_goals ?? []
             unfinishedPreviousSpanGoals.value = data.unfinished_previous_span_goals ?? []
             requiredGoalData.value = data.goal_required_data ?? null
@@ -293,11 +303,14 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         const attentionNeededMyGoals = myGoals.value.filter(goal => goal.status == 1 || goal.status == 8 || (goal.salary_issue && (goal.salary_issue.status == 1 || goal.salary_issue.status == 8)))
 
         return pendingMembers.value.length +
+        returnedMembers.value.length +
         managerNormalGoals.value.length +
         adminApprovalNeededGoalsWithSalaryIssue.value.length +
         mentorApprovalNeededGoalsWithSalaryIssue.value.length +
+        mentorPortfolioApprovalNeeded.value.length +
+        adminPortfolioApprovalNeeded.value.length +
         adminApprovalNeededGoals.value.length +
-        attentionNeededMyGoals.length + 
+        attentionNeededMyGoals.length +
         commentCount.value
         
     })
@@ -362,9 +375,12 @@ export const useDashboardGoalsStore = defineStore('dashboardGoals', () => {
         myGoals,
         unfinishedPreviousSpanGoals,
         pendingMembers,
+        returnedMembers,
         managersGoals,
         adminApprovalNeededGoalsWithSalaryIssue,
         mentorApprovalNeededGoalsWithSalaryIssue,
+        mentorPortfolioApprovalNeeded,
+        adminPortfolioApprovalNeeded,
         adminApprovalNeededGoals,
         evaluationData,
         requiredGoalData,
@@ -512,6 +528,7 @@ export function useGoalConstants() {
             challenges: 'challenges',
             assets: 'assets',
             incidents: 'incidents',
+            incidentAlerts: 'incidentAlerts',
             schedules: 'schedules',
             timesheet: 'timesheet',
             notices: 'notices',

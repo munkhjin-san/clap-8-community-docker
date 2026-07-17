@@ -3,7 +3,7 @@
         <p><strong>理解度チェック</strong></p>
         <div v-for="summary in material?.summaries" :key="summary.id">
             <p>{{ summary.title }}</p>
-            <div class="ml-5 mt-5" v-for="question in summary.questions" :key="question.id">
+            <div class="ml-5 mt-5" v-for="question in summary.questions ?? []" :key="question.id">
                 <QuestionRadio 
                     :question-id="question.id"
                     :question="question.question"
@@ -22,16 +22,15 @@
 import { decidedAnswers } from '@/utils/tools';
 import QuestionRadio from '../Portfolio/QuestionRadio.vue';
 import { useAuthUserStore } from '@/store/auth';
-defineProps(['material'])
-interface SummaryAnswers {
-    lesson_summary_id: number,
-    lesson_summary_question_id: number,
-    answer_val: number
-}
-const summaryAnswers = defineModel<SummaryAnswers[]>('answers')
+import type { LearningMaterial, LearningSummaryAnswer, LearningSummaryQuestion } from '@/types/learning';
+
+defineProps<{
+    material: LearningMaterial
+}>()
+const summaryAnswers = defineModel<LearningSummaryAnswer[]>('answers')
 const auth = useAuthUserStore()
 const validationErrors = defineModel<Record<number, boolean>>('errors');
-const setAnswers = (val: number, summaryId: number, question: any) => {
+const setAnswers = (val: number, summaryId: number, question: LearningSummaryQuestion) => {
     const data = {
         id: question.answer?.id,
         lesson_summary_id: summaryId,

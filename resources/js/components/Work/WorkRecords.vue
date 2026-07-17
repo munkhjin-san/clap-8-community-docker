@@ -719,7 +719,7 @@ import { useResponsive } from '@/store/responsive';
                 }
                 .w-row.project-chip-open-row {
                     overflow: visible !important;
-                    z-index: 35;
+                    z-index: 15;
                 }
                 .w-row.project-chip-open-row .mobile-project-segment-card-cell {
                     overflow: visible !important;
@@ -916,7 +916,7 @@ import { useResponsive } from '@/store/responsive';
     .mobile-day-card:has(.project-chip-open-row) {
         overflow: visible;
         position: relative;
-        z-index: 35;
+        z-index: 15;
     }
 
     .mobile-day-card-date {
@@ -961,7 +961,7 @@ import { useResponsive } from '@/store/responsive';
     .records-wrapper-mobile-day-grouped :deep(.mobile-day-member-table .w-row.project-chip-open-row) {
         overflow: visible !important;
         position: relative;
-        z-index: 35;
+        z-index: 15;
     }
 
     .records-wrapper-mobile-day-grouped :deep(.mobile-day-member-table .w-row.project-chip-open-row .mobile-project-segment-card-cell) {
