@@ -1,6 +1,6 @@
 <template>
     <div class="relative">
-        <button @click.stop="toggle" class="flex items-center border border-solid border-[var(--secondary-background)] px-2 py-1 cursor-pointer w-fit" :class="{'!cursor-not-allowed pointer-events-none': disabled}">        
+        <button @click.stop="toggle" class="flex items-center border border-solid border-[var(--secondary-background)] text-[var(--primary-color)] px-2 py-1 cursor-pointer w-fit" :class="{'!cursor-not-allowed pointer-events-none': disabled}">        
             <div v-if="user">
                 <UserPanel size="25" :user="user" with-name disable-instant/>
             </div>

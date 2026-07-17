@@ -3,14 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\GenerateLunchChallenge;
+use App\Jobs\ProcessContractReview;
+use App\Models\ContractReviewJob;
 use App\Models\LessonThemeAiConfig;
+use App\Models\ProjectContract;
 use App\Models\User;
 use App\Services\ChallengeSuggestionService;
 use App\Services\Contracts\CachedContractExtractionService;
-use App\Services\Contracts\GeminiContractOcrService;
+use App\Services\Contracts\ContractReviewService;
+use App\Support\ProjectAccess;
 use Illuminate\Http\Request;
 use Illuminate\Http\StreamedEvent;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
@@ -149,24 +155,7 @@ TXT
             ],
         ]);
 
-        $text = $response->outputText ?? null;
-        if (!$text) {
-            foreach ($response->output as $output) {
-                if (($output['role'] ?? null) !== 'assistant') {
-                    continue;
-                }
-
-                foreach (($output['content'] ?? []) as $content) {
-                    $text .= $content['text'] ?? '';
-                }
-            }
-        }
-
-        $payloadText = trim((string) $text);
-        if (str_starts_with($payloadText, '```')) {
-            $payloadText = preg_replace('/^```(?:json)?\s*/', '', $payloadText) ?? $payloadText;
-            $payloadText = preg_replace('/\s*```$/', '', $payloadText) ?? $payloadText;
-        }
+        $payloadText = ContractReviewService::stripJsonCodeFences(ContractReviewService::extractOutputText($response));
 
         $json = json_decode($payloadText, true);
         abort_if(!is_array($json), 500, '比較サマリーの生成に失敗しました。');
@@ -310,168 +299,162 @@ TXT
     public function review_document(
         Request $request,
         CachedContractExtractionService $contractExtractionService,
-        GeminiContractOcrService $geminiContractOcrService,
     ){
-        $CRITERIA = [
-        '乙' => <<<TXT
-        - 乙に対する無制限または上限なしの損害賠償責任、間接・特別損害の包含
-        - 甲による一方的な変更・中止・解除が補償なしで可能な条項
-        - 乙の既存資産や共通ライブラリまでを含めた知的財産権の譲渡要求
-        - 検収基準が不明確、みなし検収がなく支払時期が曖昧
-        - 再委託の不合理な制限、過度な守秘・広報禁止
-        - その他、乙の立場で重大な不利益
-        TXT,
-        '甲' => <<<TXT
-        - 成果物の品質・仕様・納期に関する基準や検収手続が不明確または甲に不利
-        - 乙の再委託・外注に対する甲の承認や管理・報告義務が不十分
-        - 成果物や成果知財の帰属・使用範囲が甲に不利（ライセンスが限定的、エスカローション不可等）
-        - 解除・変更・中止時の救済や損害賠償の範囲が甲に不利、責任上限が低すぎる
-        - 守秘義務・情報セキュリティ・法令遵守（下請法・個情法等）への担保が弱い
-        - その他、甲の立場で重大な不利益
-        TXT,
-        ];
         $data = $request->validate([
-            'file' => 'required|file|max:209715',
-            'role' => 'required|string',
-            'type' => 'required|string',
-            'review_type' => 'required|string',
+            'file' => 'required_without:contract_id|file|max:209715|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,txt,rtf,odt,ods,odp',
+            'contract_id' => 'required_without:file|integer',
+            'project_id' => 'required_with:contract_id|integer',
+            'role' => ['required', 'string', Rule::in(['甲', '乙'])],
+            'type' => 'required|string|max:32',
+            'review_type' => ['required', Rule::in(['quick', 'deep'])],
             'rendered_pages' => 'nullable|array|max:80',
             'rendered_pages.*' => 'file|mimes:png,jpg,jpeg,webp|max:20480',
         ]);
-        abort_if(!isset($data['file']), 400, 'Missing file');
-        $file = $data['file'];
-        $apiKey = config('services.openai.api_key');
-        $client = OpenAI::client($apiKey);
+
+        $user = $this->active_user();
+        abort_unless($user, 403, '権限がありません。');
+
         $review_type = $data['review_type'];
         $configKey = $review_type === 'deep' ? "services.openai.prompts.legal_deep_review" : "services.openai.prompts.legal_quick_review";
-        $promptId = config($configKey);
-        $mime = $file->getClientMimeType();
-        $fileName = $file->getClientOriginalName();
-        
-        if(!$promptId){
-            abort(400, 'Invalid config_key');
+        abort_if(!config($configKey), 400, 'Invalid config_key');
+
+        $disk = Storage::disk('local');
+        $file = $request->file('file');
+        $sourceContract = null;
+
+        if ($file) {
+            $absolutePath = $file->getRealPath();
+            $extension = strtolower($file->getClientOriginalExtension() ?: pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION));
+            $fileName = $file->getClientOriginalName();
+            $mime = $file->getClientMimeType();
+            $fileSize = (int) $file->getSize();
+        } else {
+            $project = \App\Models\ProjectRecord::findOrFail($data['project_id']);
+            abort_unless(ProjectAccess::allows($user, $project), 403, '権限がありません。');
+
+            $sourceContract = ProjectContract::where('project_record_id', $project->id)
+                ->findOrFail($data['contract_id']);
+            abort_if(!$sourceContract->file_path || !$disk->exists($sourceContract->file_path), 404, '契約書ファイルが見つかりません。');
+
+            $absolutePath = $disk->path($sourceContract->file_path);
+            $extension = strtolower(pathinfo($sourceContract->file_path, PATHINFO_EXTENSION));
+            $fileName = basename($sourceContract->file_path);
+            $mime = $disk->mimeType($sourceContract->file_path) ?: 'application/octet-stream';
+            $fileSize = (int) $disk->size($sourceContract->file_path);
         }
-        $role = $data['role'];
-        $type = $data['type'];
-        $criteria = $CRITERIA[$role] ?? $CRITERIA['乙'];
-        
-        $inputContent = null;
-        $documentInput = [
-            'method' => 'openai_file',
-            'filename' => $fileName,
-            'mime' => $mime,
-        ];
 
-        if ($this->shouldUseExtractedContractText($file, $contractExtractionService)) {
-            $renderedPages = $request->file('rendered_pages', []);
-            $renderedPages = is_array($renderedPages) ? array_values($renderedPages) : [$renderedPages];
+        $useExtractedText = $this->pdfRequiresOcr($absolutePath, $extension, $contractExtractionService);
 
-            if ($renderedPages === [] && $this->requiresClientRenderedPdfPages()) {
+        $renderedPages = $file ? $request->file('rendered_pages', []) : [];
+        $renderedPages = is_array($renderedPages) ? array_values(array_filter($renderedPages)) : [$renderedPages];
+
+        if ($useExtractedText && $renderedPages === []) {
+            $hasCachedIndex = $contractExtractionService->hasCachedExtraction($absolutePath, 'pdf', true);
+
+            if (!$hasCachedIndex && $this->requiresClientRenderedPdfPages()) {
                 return response()->json([
                     'message' => 'PDF_RENDERED_PAGES_REQUIRED',
                     'code' => 'rendered_pages_required',
                 ], 422);
             }
 
-            try {
-                if ($renderedPages !== []) {
-                    $documentIndex = $contractExtractionService->rememberExtractedIndex(
-                        $file->getRealPath(),
-                        'pdf',
-                        true,
-                        function () use ($contractExtractionService, $geminiContractOcrService, $renderedPages) {
-                            $pages = $geminiContractOcrService->extractImagePages($renderedPages);
-
-                            return [
-                                'document_index' => $contractExtractionService->buildIndexFromPages($pages),
-                                'extraction' => [
-                                    'extension' => 'pdf',
-                                    'method' => 'gemini_rendered_image_ocr',
-                                    'rendered_pages' => count($renderedPages),
-                                    'text_length' => $this->countDocumentPageTextLength($pages),
-                                ],
-                            ];
-                        }
-                    );
-                } else {
-                    $documentIndex = $contractExtractionService->extractIndex($file->getRealPath(), 'pdf', true);
-                }
-                $contractText = $this->formatDocumentIndexForReview($documentIndex);
-            } catch (Throwable $exception) {
-                abort(422, 'PDF OCR extraction failed: '.$exception->getMessage());
+            $serverRendersPages = filter_var(config('services.google.contract_ocr_render_pages', false), FILTER_VALIDATE_BOOL);
+            $inlineOcrMaxBytes = (int) config('contracts.inline_ocr_max_bytes', 50 * 1024 * 1024);
+            if (!$hasCachedIndex && !$serverRendersPages && $fileSize > $inlineOcrMaxBytes) {
+                abort(422, sprintf(
+                    'OCRが必要なPDFは%dMBまで処理できます。ファイルを分割するか、テキストレイヤー付きのPDFをご利用ください。',
+                    intdiv($inlineOcrMaxBytes, 1024 * 1024),
+                ));
             }
+        }
 
-            if (trim($contractText) === '') {
-                abort(422, 'PDF OCR extraction returned no reviewable text.');
+        // Persist inputs so the queued job can read them after this request ends.
+        if ($file) {
+            $pendingDir = ContractReviewService::PENDING_DIR.'/'.Str::uuid()->toString();
+            $storedPath = $file->storeAs($pendingDir, basename($fileName));
+
+            $renderedPagePaths = [];
+            foreach ($renderedPages as $index => $renderedPage) {
+                $renderedPagePaths[] = $renderedPage->storeAs(
+                    $pendingDir.'/pages',
+                    sprintf('page-%03d.%s', $index + 1, $renderedPage->getClientOriginalExtension() ?: 'png'),
+                );
             }
-
-            $inputContent = [[
-                'type' => 'input_text',
-                'text' => $this->buildExtractedContractReviewInput($fileName, $contractText),
-            ]];
-            $documentInput = [
-                'method' => 'extracted_text',
-                'filename' => $fileName,
-                'mime' => $mime,
-                'extraction' => $contractExtractionService->lastExtractionMetadata(),
-            ];
         } else {
-            $base64String = base64_encode((string) file_get_contents($file->getRealPath()));
-            $inputContent = [[
-                'type' => "input_file",
-                "file_data" => "data:${mime};base64,${base64String}",
-                "filename" => $fileName
-            ]];
+            $storedPath = $sourceContract->file_path;
+            $renderedPagePaths = [];
         }
 
-        $resp = $client->responses()->create([
-            'prompt' => [
-                "id" => $promptId,
-                'variables' => [
-                    'role'          => $role,          // '甲' or '乙'
-                    'contract_type' => $type,          // '業務委託契約' etc.
-                    'criteria'      => $criteria,  // the bullet list string
-                ],
-            ],
-            'metadata' => [
-                'role' => $role,
-                'contract_type' => $type,
-            ],
-            'input' => [
-                [
-                    "role" => "user",
-                    "content" => $inputContent,
-                ],
-            ],
+        $job = ContractReviewJob::create([
+            'user_id' => $user->id,
+            'status' => ContractReviewJob::STATUS_QUEUED,
+            'review_type' => $review_type,
+            'role' => $data['role'],
+            'contract_type' => $data['type'],
+            'original_filename' => $fileName,
+            'mime' => $mime,
+            'stored_path' => $storedPath,
+            'rendered_page_paths' => $renderedPagePaths,
+            'use_extracted_text' => $useExtractedText,
+            'project_contract_id' => $sourceContract?->id,
         ]);
-        $text = $resp->output?->content[1]?->text
-          ?? $resp->outputText
-          ?? null;
-        $json = json_decode($text ?? '', true);
-        $filePath = null;
-        if ($review_type !== 'deep') {
-            $filePath = $file->storeAs('project_files/contracts/' . Str::uuid()->toString(), $fileName);
-        }
+
+        ProcessContractReview::dispatch($job->id);
+
         return response()->json([
-            'status' => 'ok',
-            'raw'    => $text,     // in case you want to see it
-            'json'   => $json ?? null,
-            'path' => $filePath,
-            'role' => $role,
-            'type' => $type,
-            'document_input' => $documentInput,
-        ]);
+            'job_id' => $job->id,
+            'status' => $job->fresh()->status,
+        ], 202);
     }
 
-    private function shouldUseExtractedContractText($file, CachedContractExtractionService $contractExtractionService): bool
+    public function review_document_status(Request $request)
     {
-        $extension = strtolower($file->getClientOriginalExtension() ?: pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION));
+        $data = $request->validate([
+            'job_id' => 'required|integer',
+        ]);
+
+        $job = ContractReviewJob::findOrFail($data['job_id']);
+        $user = $this->active_user();
+        abort_unless($user && (int) $job->user_id === (int) $user->id, 403, '権限がありません。');
+
+        $payload = [
+            'job_id' => $job->id,
+            'status' => $job->status,
+            'error' => $job->error_message,
+        ];
+
+        if ($job->status === ContractReviewJob::STATUS_COMPLETED) {
+            $payload['result'] = [
+                'status' => 'ok',
+                'raw' => $job->raw_text,
+                'json' => $job->result_json,
+                'path' => $job->file_path,
+                'role' => $job->role,
+                'type' => $job->contract_type,
+                'document_input' => $job->document_input,
+            ];
+        }
+
+        return response()->json($payload);
+    }
+
+    private function active_user(){
+        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
+        if($sub){
+            return $sub;
+        }else{
+            return Auth::user();
+        }
+    }
+
+    private function pdfRequiresOcr(string $absolutePath, string $extension, CachedContractExtractionService $contractExtractionService): bool
+    {
         if ($extension !== 'pdf') {
             return false;
         }
 
         try {
-            $preflight = $contractExtractionService->inspectPdf($file->getRealPath());
+            $preflight = $contractExtractionService->inspectPdf($absolutePath);
         } catch (Throwable) {
             return false;
         }
@@ -484,47 +467,6 @@ TXT
         return filter_var(config('services.google.contract_ocr_client_render_pages', true), FILTER_VALIDATE_BOOL);
     }
 
-    private function countDocumentPageTextLength(array $pages): int
-    {
-        $text = '';
-
-        foreach ($pages as $page) {
-            $text .= (string) ($page['text'] ?? '');
-        }
-
-        return mb_strlen(trim($text), 'UTF-8');
-    }
-
-    private function formatDocumentIndexForReview(array $documentIndex): string
-    {
-        $pageTexts = [];
-
-        foreach (($documentIndex['pages'] ?? []) as $page) {
-            $text = trim((string) ($page['text'] ?? ''));
-            if ($text === '') {
-                continue;
-            }
-
-            $pageNumber = (int) ($page['page'] ?? count($pageTexts) + 1);
-            $pageTexts[] = "【Page {$pageNumber}】\n".$text;
-        }
-
-        $text = trim(implode("\n\n", $pageTexts));
-
-        return Str::limit($text, 180000, "\n\n[contract text truncated]");
-    }
-
-    private function buildExtractedContractReviewInput(string $fileName, string $contractText): string
-    {
-        return <<<TXT
-The uploaded PDF could not be reviewed reliably as a raw PDF because it has no usable embedded text layer.
-The contract text below was extracted with OCR. Review this extracted text as the source contract.
-
-Filename: {$fileName}
-
-{$contractText}
-TXT;
-    }
     public function stream_tts(Request $request){
         $request->validate([
             'text' => 'required|string|max:40960', // Increased limit since we'll chunk it

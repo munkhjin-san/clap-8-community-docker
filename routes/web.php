@@ -4,7 +4,6 @@ use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetCategoryController;
 use App\Http\Controllers\CustomFormController;
 use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\ProjectManagementController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -401,7 +400,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/get_top_posts', [PostController::class, 'get_top_posts']);
         Route::post('/post_grant_upload', [PostController::class, 'post_grant_upload']);
         Route::post('/post_remove_file', [PostController::class, 'post_remove_file']);
-        Route::post('/check_rakuaward', [PostController::class, 'check_rakuaward']);
         Route::prefix('/refresh')->group(function () {
             Route::get('/posts', [RefreshController::class, 'indexPosts']);
             Route::patch('/posts/{id}/approve', [RefreshController::class, 'approvePost']);
@@ -764,22 +762,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/projects/{project}/profit-plan/copy-from-previous', [ProjectProfitPlanController::class, 'copyFromPrevious']);
         Route::get('/projects/{project}/profit-plan/available-members', [ProjectProfitPlanController::class, 'availableMembers']);
         Route::get('/projects/{project}/profit-plan/partners', [ProjectProfitPlanController::class, 'partners']);
-        Route::get('/projects/{project}/management-lists', [ProjectManagementController::class, 'index']);
-        Route::post('/projects/{project}/management-lists', [ProjectManagementController::class, 'storeList']);
-        Route::put('/projects/{project}/management-lists/{list}', [ProjectManagementController::class, 'updateList']);
-        Route::delete('/projects/{project}/management-lists/{list}', [ProjectManagementController::class, 'destroyList']);
-        Route::post('/projects/{project}/management-lists/import', [ProjectManagementController::class, 'importNew']);
-        Route::post('/projects/{project}/management-lists/{list}/fields', [ProjectManagementController::class, 'storeField']);
-        Route::post('/projects/{project}/management-lists/{list}/import', [ProjectManagementController::class, 'importExisting']);
-        Route::get('/projects/{project}/management-lists/{list}/export', [ProjectManagementController::class, 'export']);
-        Route::get('/projects/{project}/management-lists/{list}/records', [ProjectManagementController::class, 'records']);
-        Route::post('/projects/{project}/management-lists/{list}/records', [ProjectManagementController::class, 'storeRecord']);
-        Route::put('/projects/{project}/management-fields/{field}', [ProjectManagementController::class, 'updateField']);
-        Route::delete('/projects/{project}/management-fields/{field}', [ProjectManagementController::class, 'destroyField']);
-        Route::put('/projects/{project}/management-records/{record}', [ProjectManagementController::class, 'updateRecord']);
-        Route::post('/projects/{project}/management-records/{record}/fields/{field}/files', [ProjectManagementController::class, 'syncRecordFiles']);
-        Route::delete('/projects/{project}/management-records/{record}', [ProjectManagementController::class, 'destroyRecord']);
-        Route::post('/projects/{project}/management-records/{record}/actions', [ProjectManagementController::class, 'storeAction']);
         Route::get('/projects/{project}/cases', [ProjectController::class, 'project_cases']);
         Route::post('/projects/{project}/cases', [ProjectController::class, 'project_case_store']);
         Route::put('/projects/{project}/cases/{case}', [ProjectController::class, 'project_case_update']);
@@ -823,7 +805,13 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::delete('contact_item', [ContactController::class, 'delete_contact']);
         Route::post('upload_name_card', [ContactController::class, 'upload_name_card']);
         Route::get('contact_list', [ContactController::class, 'contact_list']);
-        Route::post('contact_private_memo', [ContactController::class, 'update_private_memo']);
+        // NOTE: must NOT start with the `contact/` segment — the SPA route
+        // `/{name}/{any?}` (web.php ~178, name includes 'contact') shadows all GETs
+        // under /contact/... and returns index.html. Use a distinct first segment.
+        Route::get('contact_histories/{contact}', [ContactController::class, 'list_contact_histories']);
+        Route::get('contact_private_memos_list/{contact}', [ContactController::class, 'list_private_memos']);
+        Route::post('contact_private_memo_add', [ContactController::class, 'add_private_memo']);
+        Route::delete('contact_private_memo/{memo}', [ContactController::class, 'delete_private_memo']);
         Route::get('google_test', [ContactController::class, 'index_test']);
         Route::post('scan_card', [ContactController::class, 'scan_card']);
         Route::get('get_contact_types', [ContactController::class, 'get_contact_types']);
@@ -839,6 +827,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/contact_link_related', [ContactController::class, 'link_related_contact']);
         Route::delete('/contact_link_related', [ContactController::class, 'unlink_related_contact']);
         Route::get('/contact_project_search', [ContactController::class, 'search_projects']);
+        Route::post('/contact_attach_files', [ContactController::class, 'contact_attach_files']);
+        Route::post('/contact_file_delete', [ContactController::class, 'contact_file_delete']);
+        Route::post('/contact_scan_file', [ContactController::class, 'contact_scan_file']);
         Route::get('/contact_batches', [ContactController::class, 'contact_batches']);
         Route::post('/contact_batches/{batch}/dismiss', [ContactController::class, 'dismiss_contact_batch']);
         Route::get('/contact_batch_notifications', [ContactController::class, 'contact_batch_notifications']);
@@ -963,8 +954,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/ai_correction_prepare', [OpenAiController::class, 'prepare']);
         Route::post('/non_stream_prompt', [OpenAiController::class, 'non_stream_prompt']);
         Route::get('/stream_prompt', [OpenAiController::class, 'stream_prompt']);
-        Route::post('/review_document', [OpenAiController::class, 'review_document']);
-        Route::post('/summarize_contract_comparison', [OpenAiController::class, 'summarize_contract_comparison']);
+        Route::post('/review_document', [OpenAiController::class, 'review_document'])->middleware('throttle:6,1');
+        Route::get('/review_document/status', [OpenAiController::class, 'review_document_status'])->middleware('throttle:60,1');
+        Route::post('/summarize_contract_comparison', [OpenAiController::class, 'summarize_contract_comparison'])->middleware('throttle:20,1');
         Route::get('/openai/models', [OpenAiController::class, 'models']);
         Route::post('/suggest_challenge', [OpenAiController::class, 'suggest_challenge']);
         Route::get('/lunch_challenge_popup', [OpenAiController::class, 'lunch_challenge_popup']);

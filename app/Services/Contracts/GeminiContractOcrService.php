@@ -3,6 +3,8 @@
 namespace App\Services\Contracts;
 
 use Illuminate\Support\Arr;
+use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
@@ -16,7 +18,7 @@ class GeminiContractOcrService
     {
         $apiKey = config('services.google.gemini_api_key');
         $baseUrl = rtrim(config('services.google.gemini_url') ?: 'https://generativelanguage.googleapis.com/v1beta', '/');
-        $model = config('services.google.contract_ocr_model', 'models/gemini-3-flash-preview');
+        $model = config('services.google.contract_ocr_model', 'models/gemini-3.5-flash');
         $timeout = max(10, (int) config('services.google.contract_ocr_page_timeout', 90));
 
         if (!$apiKey) {
@@ -90,13 +92,13 @@ class GeminiContractOcrService
             throw new RuntimeException('PDF file is empty or unreadable.');
         }
 
-        if ($fileSize > self::INLINE_PDF_MAX_BYTES) {
+        if ($fileSize > (int) config('contracts.inline_ocr_max_bytes', self::INLINE_PDF_MAX_BYTES)) {
             throw new RuntimeException('PDF is too large for inline Gemini OCR.');
         }
 
         $apiKey = config('services.google.gemini_api_key');
         $baseUrl = rtrim(config('services.google.gemini_url') ?: 'https://generativelanguage.googleapis.com/v1beta', '/');
-        $model = config('services.google.contract_ocr_model', 'models/gemini-3-flash-preview');
+        $model = config('services.google.contract_ocr_model', 'models/gemini-3.5-flash');
         $timeout = max(10, (int) config('services.google.contract_ocr_timeout', 120));
         $pageTimeout = max(10, (int) config('services.google.contract_ocr_page_timeout', 90));
         $maxOutputTokens = max(2048, (int) config('services.google.contract_ocr_max_output_tokens', 32768));
@@ -441,8 +443,29 @@ TEXT;
     {
         try {
             return Http::timeout($timeout)
-                ->withHeaders(['Content-Type' => 'application/json'])
-                ->post("{$baseUrl}/{$model}:generateContent?key={$apiKey}", $payload);
+                ->withHeaders([
+                    'Content-Type' => 'application/json',
+                    'x-goog-api-key' => $apiKey,
+                ])
+                ->retry(
+                    3,
+                    750,
+                    function (Throwable $exception): bool {
+                        if ($exception instanceof ConnectionException) {
+                            return true;
+                        }
+
+                        if ($exception instanceof RequestException) {
+                            $status = $exception->response->status();
+
+                            return $status === 429 || $status >= 500;
+                        }
+
+                        return false;
+                    },
+                    throw: false,
+                )
+                ->post("{$baseUrl}/{$model}:generateContent", $payload);
         } catch (Throwable $exception) {
             throw new RuntimeException(
                 'Gemini contract OCR request failed: '.$this->sanitizeGeminiError($exception->getMessage()),
@@ -521,7 +544,7 @@ TEXT;
 
     private function shouldRenderPdfPages(): bool
     {
-        return filter_var(config('services.google.contract_ocr_render_pages', true), FILTER_VALIDATE_BOOL);
+        return filter_var(config('services.google.contract_ocr_render_pages', false), FILTER_VALIDATE_BOOL);
     }
 
     private function appendDecodedPdfStreams(string $contents): string

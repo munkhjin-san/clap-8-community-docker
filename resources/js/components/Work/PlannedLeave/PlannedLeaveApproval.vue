@@ -291,6 +291,8 @@ onBeforeUnmount(() => {
     background: transparent;
     text-align: left;
     cursor: pointer;
+    color: var(--primary-color);
+
 }
 .reason-text {
     max-width: 240px;

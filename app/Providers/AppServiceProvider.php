@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Notifications\Messages\MailMessage;
+use App\Services\ActualReserveAllocationService;
+use App\Services\ActualResultCsvService;
 use App\Services\SharedService;
 use App\Services\BoardControllerProxy;
 use GuzzleHttp\Client as Http;
@@ -42,6 +44,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ActualProvider::class, GoogleSheetsActualProvider::class);
         $this->app->bind(BoardControllerProxy::class, fn($app) =>
             new BoardControllerProxy($app->make(\App\Http\Controllers\BoardController::class))
+        );
+        $this->app->bind(ActualResultCsvService::class, fn($app) =>
+            new ActualResultCsvService($app->make(ActualReserveAllocationService::class))
         );
     }
 

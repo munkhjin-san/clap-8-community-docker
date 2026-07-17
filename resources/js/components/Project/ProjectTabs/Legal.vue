@@ -607,6 +607,7 @@ import {
     compareContractIndexes,
     type ContractDocumentIndex,
 } from '@/utils/contractAnalysis'
+import { isRenderedPagesRequiredError, submitContractReview } from '@/utils/contractReview'
 
 const props = defineProps<{
     hasPrivilage: boolean
@@ -1027,11 +1028,6 @@ const resolveErrorMessage = (error: unknown, fallback: string) => {
     return fallback
 }
 
-const isRenderedPagesRequiredError = (error: any) => {
-    return error?.response?.data?.code === 'rendered_pages_required'
-        || error?.response?.data?.message === 'PDF_RENDERED_PAGES_REQUIRED'
-}
-
 const loadPdfJs = async () => {
     if (!pdfJsModuleRequest) {
         const pdfJsAssetUrl = (path: string) => new URL(path, window.location.origin).toString()
@@ -1132,6 +1128,8 @@ const buildReviewForm = (
     return formData
 }
 
+const submitReview = (formData: FormData) => submitContractReview(api, formData)
+
 const reviewDocumentWithRenderedRetry = async (
     file: File,
     role: string,
@@ -1139,26 +1137,20 @@ const reviewDocumentWithRenderedRetry = async (
     reviewType: 'quick' | 'deep',
     loadingRef: typeof uploadLoading,
 ) => {
+    loadingRef.value = true
     try {
-        return await api.post('/review_document', buildReviewForm(file, role, type, reviewType), {
-            loadingRef,
-            silent: true,
-        })
-    } catch (error) {
-        if (!isRenderedPagesRequiredError(error)) {
-            throw error
-        }
-
-        loadingRef.value = true
         try {
+            return await submitReview(buildReviewForm(file, role, type, reviewType))
+        } catch (error) {
+            if (!isRenderedPagesRequiredError(error)) {
+                throw error
+            }
+
             const renderedPages = await renderPdfPagesForOcr(file)
-            return await api.post('/review_document', buildReviewForm(file, role, type, reviewType, renderedPages), {
-                loadingRef,
-                silent: true,
-            })
-        } finally {
-            loadingRef.value = false
+            return await submitReview(buildReviewForm(file, role, type, reviewType, renderedPages))
         }
+    } finally {
+        loadingRef.value = false
     }
 }
 
@@ -1516,16 +1508,39 @@ const getContractBlob = async () => {
     return response.blob()
 }
 
+const buildStoredContractReviewForm = (selected: ProjectContractResponse) => {
+    const formData = new FormData()
+    formData.append('contract_id', String(selected.id))
+    formData.append('project_id', String(selectedProject.value?.id ?? ''))
+    formData.append('role', selected.role)
+    formData.append('type', selected.contract_type)
+    formData.append('review_type', 'deep')
+    return formData
+}
+
 const runDeepReview = async (selected: ProjectContractResponse) => {
     if (!selected.file_path) {
         ping('契約ファイルがありません。')
         return
     }
 
+    aiLoading.value = true
     try {
-        const blob = await getContractBlob()
-        const file = new File([blob], fileMeta.value.name, { type: blob.type || 'application/octet-stream' })
-        const data = await reviewDocumentWithRenderedRetry(file, selected.role, selected.contract_type, 'deep', aiLoading)
+        let data: Record<string, any> | null = null
+        try {
+            // The server reviews the already-stored file; no blob round trip.
+            data = await submitReview(buildStoredContractReviewForm(selected))
+        } catch (error) {
+            if (!isRenderedPagesRequiredError(error)) {
+                throw error
+            }
+
+            // Extraction cache expired: render pages locally and re-upload.
+            const blob = await getContractBlob()
+            const file = new File([blob], fileMeta.value.name, { type: blob.type || 'application/octet-stream' })
+            const renderedPages = await renderPdfPagesForOcr(file)
+            data = await submitReview(buildReviewForm(file, selected.role, selected.contract_type, 'deep', renderedPages))
+        }
 
         if (data) {
             deepResult.value = data
@@ -1533,6 +1548,8 @@ const runDeepReview = async (selected: ProjectContractResponse) => {
         }
     } catch (error) {
         ping(resolveErrorMessage(error, 'ディープレビューの実行に失敗しました。'))
+    } finally {
+        aiLoading.value = false
     }
 }
 

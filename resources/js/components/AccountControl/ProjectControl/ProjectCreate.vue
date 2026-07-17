@@ -782,6 +782,7 @@ import { useFilePreview } from '@/store/filePreview';
 import { filesize } from 'filesize';
 import ProjectContract from './ProjectContract.vue';
 import { contractTypeDefaults, contractRoleDefaults } from '@/utils/tools';
+import { isRenderedPagesRequiredError, submitContractReview } from '@/utils/contractReview';
 import { useTour } from '@/composables/useTour';
 import { useTutorialStore } from '@/store/tutorial';
 import ProjectCreationForm from '@/components/Project/ProjectTabs/Overview/ProjectCreationForm.vue';
@@ -1134,16 +1135,25 @@ const ai_review = async() => {
     }
     
     contractReviewing.value = true
-    const formData = new FormData();
-    formData.append('file', uploaded.value)
-    formData.append('role', contract_role.value)
-    formData.append('type', contract_type.value)
-    formData.append('review_type', 'quick')
-    const data = await api.post('/review_document', formData)
-    if (data) {
-        contract.value = data
+    try {
+        const formData = new FormData();
+        formData.append('file', uploaded.value)
+        formData.append('role', contract_role.value)
+        formData.append('type', contract_type.value)
+        formData.append('review_type', 'quick')
+        const data = await submitContractReview(api, formData)
+        if (data) {
+            contract.value = data as ContractResp
+        }
+    } catch (error: any) {
+        if (isRenderedPagesRequiredError(error)) {
+            ping('このPDFはOCRが必要なため、ここではレビューできません。プロジェクト作成後、法務レビュータブから追加してください。')
+        } else {
+            ping(error?.response?.data?.message || error?.message || '契約書のレビューに失敗しました。')
+        }
+    } finally {
+        contractReviewing.value = false
     }
-    contractReviewing.value = false
 }
 onBeforeUnmount(() => {
     if (contractPreviewUrl.value) {

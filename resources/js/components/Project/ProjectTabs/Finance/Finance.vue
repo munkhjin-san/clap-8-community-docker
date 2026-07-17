@@ -1,15 +1,14 @@
 <template>
-    <div v-if="selectedProject" class="h-full relative bg-[var(--background-color)]">
+    <!-- <div v-if="selectedProject" class="h-full relative bg-[var(--background-color)]">
         <div class="flex justify-between items-center p-4">
             <div class="sub-tab-container">
                 <div @click="router.push({name: 'finance'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name === 'finance'}]">収支確認</div>
                 <div v-if="selectedProject.has_actual_func" id="performanceManagement" @click="router.push({name: 'result'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name === 'result'}]">実績管理</div>
-                <!-- <div v-if="hasPrivilage" @click="router.push({name: 'plan'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name === 'plan'}]">損益計画</div> -->
-                <div v-if="hasPrivilage" @click="router.push({name: 'plan'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name === 'plan'}]">年度予算</div>
+                <div v-if="hasPrivilage" @click="router.push({name: 'plan'})" :class="['sub-tab-item', { 'selected-sub-tab': route.name === 'plan'}]">損益</div>
             </div>
-        </div>
-        
-        <div v-if="route.name === 'finance'" class="h-[calc(100%-60px)] overflow-y-auto">
+        </div> -->
+
+        <div v-if="selectedProject" class="h-[calc(100%-60px)] overflow-y-auto">
             <div class="flex items-center gap-4 static flex-wrap md:flex-nowrap px-5 md:justify-normal justify-center">
                 <div class="text-sm"><span class="p-[5px] text-xs bg-[var(--bg3)] mr-[10px]">期間</span> {{ selectedProject?.date_start && selectedProject.date_end ? `${DateTime.fromISO(selectedProject.date_start).toLocaleString(DateTime.DATE_SHORT)}  ~  ${DateTime.fromISO(selectedProject.date_end).toLocaleString(DateTime.DATE_SHORT)}` : '未設定' }}</div>
                 <div class="flex items-center gap-3 relative justify-end ml-auto">
@@ -51,12 +50,12 @@
                                 colspan="4"
                                 :class="[
                                     'border-r border-[var(--calendarBorder)]',
-                                    {'[border-right-style:solid]': i !== periods.length - 1} 
+                                    {'[border-right-style:solid]': i !== periods.length - 1}
                                 ]"
                             >
                                 <div :id="p.period" class="month-header">
                                     <span>{{ p.year }}月{{ monthLabel(p.month) }}</span>
-                                    
+
                                     <span
                                         v-if="showAnyArrow(p.period) && hasPrivilage"
                                         class="variance-flag"
@@ -93,7 +92,7 @@
                     <tbody>
                         <template v-if="!loaderYP">
                             <tr>
-                                <td class="h-cell border-r [border-right-style:solid] border-[var(--calendarBorder)]">年度予算</td>
+                                <td class="h-cell border-r [border-right-style:solid] border-[var(--calendarBorder)]">予算</td>
                                 <template v-for="p in periods" :key="p.period">
                                     <td>
                                         <div class="inner-col"><span class="mobile">売上</span>{{ amountOfMoneyParser(yearlyPlanData?.[p.period]?.sales ?? NaN) }}</div>
@@ -112,7 +111,7 @@
                     </template>
                     <template v-else>
                         <tr>
-                            <td class="h-cell">年度予算</td>
+                            <td class="h-cell">予算</td>
                             <template v-for="p in periods" :key="p.period">
                                 <CellLoader :order="num" v-for="num in cellloadNum"/>
                             </template>
@@ -120,7 +119,7 @@
                     </template>
                     <template v-if="!loaderProfit">
                         <tr>
-                            <td class="h-cell border-r [border-right-style:solid] border-[var(--calendarBorder)]">損益計画</td>
+                            <td class="h-cell border-r [border-right-style:solid] border-[var(--calendarBorder)]">損益</td>
                                 <template v-for="p in periods" :key="p.period">
                                     <td>
                                         <div class="flex items-center gap-[5px] w-full">
@@ -155,7 +154,7 @@
                         </template>
                         <template v-else>
                             <tr>
-                                <td class="h-cell">損益計画</td>
+                                <td class="h-cell">損益</td>
                                 <template v-for="p in periods" :key="p.period">
                                     <CellLoader :order="num" v-for="num in cellloadNum"/>
                                 </template>
@@ -243,57 +242,129 @@
                         </template>
                     </tbody>
                 </table>
-                
+
             </div>
-        
-            
-        </div>   
-        <Transition name="smLoad">
-            <CommentWindow 
-                v-if="commentView && selectedCommentPeriod"  
-                type="実績"
-                :currentProjectId="selectedProject.id"
-                :period="selectedCommentPeriod"
-                @close="commentView = false; selectedCommentPeriod = null"
-                @getCommentCounts="getCommentCounts" 
-            />
-        </Transition>
-        <router-view 
-            :refresh-key="caseRefreshKey"
+            <div v-if="loaderActualResult" class="actual-breakdown actual-breakdown--loading">
+                実績内訳を読み込み中...
+            </div>
+            <div v-else-if="hasActualBreakdown" class="actual-breakdown">
+                <div class="actual-breakdown__header">
+                    <span>実績内訳</span>
+                </div>
+                <div class="actual-breakdown__months">
+                    <section
+                        v-for="row in actualBreakdownRows"
+                        :key="row.period"
+                        class="actual-breakdown__month"
+                    >
+                        <div class="actual-breakdown__month-header">
+                            <span>{{ row.label }}</span>
+                            <span v-if="row.department.manual_adjusted" class="actual-breakdown__badge">手動編集あり</span>
+                        </div>
+                        <div class="actual-breakdown__statement">
+                            <div class="actual-breakdown__group">
+                                <div class="actual-breakdown__total-row">
+                                    <span>売上合計</span>
+                                    <span class="actual-breakdown__value">{{ formatActualAmount(row.department.sales) }}</span>
+                                </div>
+                                <div
+                                    v-for="line in row.salesLines"
+                                    :key="`${row.period}-sales-${line.key}`"
+                                    class="actual-breakdown__line actual-breakdown__line--child"
+                                >
+                                    <span>{{ line.label }}</span>
+                                    <span class="actual-breakdown__value">{{ formatActualAmount(line.amount) }}</span>
+                                </div>
+                            </div>
+                            <div
+                                class="actual-breakdown__group"
+                            >
+                                <div class="actual-breakdown__total-row">
+                                    <span>費用合計</span>
+                                    <span class="actual-breakdown__value">{{ formatActualAmount(row.department.total_expenses) }}</span>
+                                </div>
+                                <div
+                                    v-for="line in row.expenseLines"
+                                    :key="`${row.period}-expense-${line.key}`"
+                                    class="actual-breakdown__line actual-breakdown__line--child"
+                                >
+                                    <span>
+                                        {{ line.label }}
+                                        <!-- <span v-if="line.meta" class="actual-breakdown__meta">{{ line.meta }}</span> -->
+                                    </span>
+                                    <span class="actual-breakdown__value">{{ formatActualAmount(line.amount) }}</span>
+                                </div>
+                                <div
+                                    v-if="row.department.accounts_restricted"
+                                    class="actual-breakdown__line actual-breakdown__line--child"
+                                >
+                                    <span>給与関連の明細は権限により非表示</span>
+                                </div>
+                            </div>
+                            <div class="actual-breakdown__result">
+                                <div class="actual-breakdown__total-row actual-breakdown__total-row--result">
+                                    <span>利益</span>
+                                    <span class="actual-breakdown__value">{{ formatActualAmount(row.department.real_profit) }}</span>
+                                </div>
+                                <div class="actual-breakdown__total-row actual-breakdown__total-row--result">
+                                    <span>利益率</span>
+                                    <span class="actual-breakdown__value">{{ formatRate(row.department.real_margin) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+            <Transition name="smLoad">
+                <CommentWindow
+                    v-if="commentView && selectedCommentPeriod"
+                    type="実績"
+                    :currentProjectId="selectedProject.id"
+                    :currentProjectName="selectedProject.name"
+                    :period="selectedCommentPeriod"
+                    @close="commentView = false; selectedCommentPeriod = null"
+                    @getCommentCounts="getCommentCounts"
+                    @goToPeriod="selectedCommentPeriod = $event"
+                    @navigateUnread="onNavigateUnread"
+                />
+            </Transition>
+
+        </div>
+
+        <!-- <router-view
             :has-privilage="hasPrivilage"
             :year="defaultFiscalYear"
             :month="month"
-        />
-    </div>
+        /> -->
+    <!-- </div> -->
 </template>
 <script setup lang="ts">
 import Back from '@/components/Icons/Back.vue';
 import { DateTime, MonthNumbers } from 'luxon';
 import { computed, onMounted, ref } from 'vue';
 import { amountOfMoneyParser } from '@/utils/tools';
-import CellLoader from './Finance/CellLoader.vue';
+import CellLoader from './CellLoader.vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
-import DeltaNumbers from './Finance/DeltaNumbers.vue';
+import DeltaNumbers from './DeltaNumbers.vue';
 import { useApi } from '@/composables/api';
-import CommentWindow from './Finance/CommentWindow.vue';
+import CommentWindow from './CommentWindow.vue';
 import { useBadgeStore } from '@/store/badge';
-import PeriodRangePicker from './Finance/PeriodRangePicker.vue';
+import PeriodRangePicker from './PeriodRangePicker.vue';
 import { isMobile } from '@/utils/tools';
 import { useTutorialStore } from '@/store/tutorial';
 import { useTour } from '@/composables/useTour';
 import { useProject } from '@/composables/project';
+import type { ActualAccount, ActualDepartment, ActualResultDepartmentResponse } from '@/interface/actualResultInterface';
 const props = defineProps<{
-    userList: any;
     hasPrivilage: boolean
-    totalBadge: number;
 }>();
-const caseRefreshKey = ref(0)
 const commentView = ref(false)
 const selectedCommentPeriod = ref<string | null>(null)
 const loaderYP = ref(true)
 const loaderSettlement = ref(true)
 const loaderProfit = ref(true)
+const loaderActualResult = ref(true)
 const route = useRoute()
 const router = useRouter()
 const badge = useBadgeStore()
@@ -345,17 +416,28 @@ const periodEnd = ref<DateTime>(normalizedRange.end)
 
 const periodStartIso = computed(() => periodStart.value.toFormat('yyyy-MM'))
 const periodEndIso = computed(() => periodEnd.value.toFormat('yyyy-MM'))
-const nextMonthKey = computed(() =>
-  periodEnd.value.plus({ months: 1 }).toFormat('yyyy-MM')
-)
-const previosMonthKey = computed(() => 
-  periodStart.value.minus({ months: 1 }).toFormat('yyyy-MM')
-)
+// 表示中の期間より後（未来方向）で、未読コメントが残っている最も近い月。
+// 例：5月表示で12月にだけ未読がある場合でも、12月の件数を表示し続ける。
+const nextMonthKey = computed<string | null>(() => {
+  const counts = financeCommentBadgeByPeriod.value
+  const keys = Object.keys(counts)
+    .filter(p => (counts[p] ?? 0) > 0 && p > periodEndIso.value)
+    .sort() // yyyy-MM は文字列ソートで時系列順（年跨ぎも含む）
+  return keys.length ? keys[0] : null // 直近 = 最も小さいキー
+})
+// 表示中の期間より前（過去方向）で、未読コメントが残っている最も近い月。
+const previosMonthKey = computed<string | null>(() => {
+  const counts = financeCommentBadgeByPeriod.value
+  const keys = Object.keys(counts)
+    .filter(p => (counts[p] ?? 0) > 0 && p < periodStartIso.value)
+    .sort()
+  return keys.length ? keys[keys.length - 1] : null // 直近 = 最も大きいキー
+})
 const nextMonthCount = computed(() =>
-  financeCommentBadgeByPeriod.value[nextMonthKey.value] ?? 0
+  nextMonthKey.value ? (financeCommentBadgeByPeriod.value[nextMonthKey.value] ?? 0) : 0
 )
-const previousMonthCount = computed(() => 
-  financeCommentBadgeByPeriod.value[previosMonthKey.value] ?? 0
+const previousMonthCount = computed(() =>
+  previosMonthKey.value ? (financeCommentBadgeByPeriod.value[previosMonthKey.value] ?? 0) : 0
 )
 const thisMonthCount = computed(() => {
     const badge = financeCommentBadgeByPeriod.value
@@ -408,6 +490,8 @@ const yearlyPlanData = ref<BalanceMap<BalanceColumn>>({})
 const settlementData = ref<BalanceMap<SettlementColumn>>({})
 
 const profitData = ref<BalanceMap<BalanceColumn>>({})
+
+const actualResultDepartments = ref<Record<string, ActualDepartment | null>>({})
 
 const profitCalculate = (sales: number | null, expense: number | null) => {
     return sales && expense ? sales - expense : null
@@ -465,6 +549,16 @@ const openComment = (period: string) => {
   if (!props.hasPrivilage) return
   selectedCommentPeriod.value = period
   commentView.value = true
+}
+// 別プロジェクトの未読コメントへ遷移する。
+// プロジェクト切替で finance ページが再マウントされ、onMounted が comment_period クエリを読んで自動で開く。
+const onNavigateUnread = ({ projectId, period }: { projectId: number, period: string }) => {
+  // ダッシュボードのコメント遷移と同じパターン（period で表示月、comment_period で自動オープン）
+  router.push({
+    name: 'finance',
+    params: { projectId },
+    query: { period, comment_period: period },
+  })
 }
 const tutorialStore = useTutorialStore()
 const { startTour } = useTour()
@@ -593,6 +687,101 @@ const formatRate = (value: number | null | undefined) => {
   return `${Number(value).toFixed(2)}%`
 }
 
+const formatActualAmount = (value: unknown) => {
+    const num = toNumeric(value)
+    if (num === null || Number.isNaN(num)) return '—'
+
+    return amountOfMoneyParser(num)
+}
+
+type ActualBreakdownLine = {
+    key: string;
+    label: string;
+    amount: number;
+    meta?: string;
+}
+
+const actualBreakdownSalesLines = (department: ActualDepartment): ActualBreakdownLine[] => [
+    {
+        key: 'external_sales',
+        label: '売上高',
+        amount: toNumeric(department.external_sales) ?? 0,
+    },
+    {
+        key: 'internal_sales',
+        label: '内部売上',
+        amount: toNumeric(department.internal_sales) ?? 0,
+    },
+]
+
+const actualBreakdownFallbackExpenseLines = (department: ActualDepartment): ActualBreakdownLine[] => [
+    { key: 'cost_of_goods_sold', label: '売上原価', amount: toNumeric(department.cost_of_goods_sold) ?? 0 },
+    { key: 'sg_and_a_expenses', label: '販管費', amount: toNumeric(department.sg_and_a_expenses) ?? 0 },
+    { key: 'performance_bonus_reserve', label: '業績賞与', amount: toNumeric(department.performance_bonus_reserve) ?? 0 },
+    { key: 'indirect_allocation_expense', label: '間接費配賦', amount: toNumeric(department.indirect_allocation_expense) ?? 0 },
+    { key: 'basic_bonus_reserve', label: '基本賞与', amount: toNumeric(department.basic_bonus_reserve) ?? 0 },
+    { key: 'paid_leave_reserve', label: '有給', amount: toNumeric(department.paid_leave_reserve) ?? 0 },
+    { key: 'welfare_reserve', label: '福利厚生', amount: toNumeric(department.welfare_reserve) ?? 0 },
+    { key: 'refresh_reserve', label: 'リフレッシュ', amount: toNumeric(department.refresh_reserve) ?? 0 },
+].filter(line => line.amount !== 0)
+
+const actualBreakdownExpenseLines = (department: ActualDepartment): ActualBreakdownLine[] => {
+    const grouped = new Map<string, ActualBreakdownLine>()
+
+    ;(department.accounts ?? [])
+        .filter(account => account.category === 'expense')
+        .forEach((account: ActualAccount) => {
+            const amount = toNumeric(account.amount)
+            if (amount === null || amount === 0) return
+
+            const label = account.account_name || account.bucket_label || '費用'
+            const meta = account.bucket_label && account.bucket_label !== label ? account.bucket_label : ''
+            const key = `${label}|${meta}`
+            const existing = grouped.get(key)
+
+            if (existing) {
+                existing.amount += amount
+                return
+            }
+
+            grouped.set(key, {
+                key,
+                label,
+                amount,
+                meta,
+            })
+        })
+
+    const lines = Array.from(grouped.values())
+
+    return lines.length ? lines : actualBreakdownFallbackExpenseLines(department)
+}
+
+type ActualBreakdownRow = {
+    period: string;
+    label: string;
+    department: ActualDepartment;
+    salesLines: ActualBreakdownLine[];
+    expenseLines: ActualBreakdownLine[];
+}
+
+const actualBreakdownRows = computed<ActualBreakdownRow[]>(() => {
+    return periods.value.flatMap(p => {
+        const department = actualResultDepartments.value[p.period]
+        if (!department) return []
+
+        return [{
+            period: p.period,
+            label: `${p.year}年${p.month}月`,
+            department,
+            salesLines: actualBreakdownSalesLines(department),
+            expenseLines: actualBreakdownExpenseLines(department),
+        }]
+    })
+})
+
+const hasActualBreakdown = computed(() => actualBreakdownRows.value.length > 0)
+
 const getYearlyPlan = async (token?: number) => {
     loaderYP.value = true
     try {
@@ -658,6 +847,26 @@ const getSettlement = async (token?: number) => {
         if (token == null || token === refreshToken) loaderSettlement.value = false
     }
 }
+
+const getActualResultDepartments = async (token?: number) => {
+    loaderActualResult.value = true
+    try {
+        const response = await api.get(`/projects/${route.params.projectId}/actual-results`, {
+            start: periodStartIso.value,
+            end: periodEndIso.value,
+        }, {silent: true}) as ActualResultDepartmentResponse
+
+        if (token != null && token !== refreshToken) return
+        actualResultDepartments.value = response?.months ?? {}
+    } catch (error) {
+        if (token != null && token !== refreshToken) return
+        console.error('Failed to load actual result department data', error)
+        actualResultDepartments.value = {}
+    } finally {
+        if (token == null || token === refreshToken) loaderActualResult.value = false
+    }
+}
+
 let refreshToken = 0
 const refreshFinanceData = async() => {
     const token = ++refreshToken
@@ -666,6 +875,7 @@ const refreshFinanceData = async() => {
         getYearlyPlan(token),
         getProfit(token),
         getSettlement(token),
+        getActualResultDepartments(token),
         getCommentCounts(token),
         // getMetrics(),
     ])
@@ -759,7 +969,7 @@ const getCommentCounts = async(token?: number) => {
         period_end: periodEndIso.value,
     }, { cancel: true });
     commentCount.value = data
-    
+
 }
 </script>
 
@@ -856,6 +1066,101 @@ table{
     font-size: 12px;
     font-weight: 500;
 }
+.actual-breakdown{
+    margin: 0 20px 24px;
+    border: 1px solid var(--calendarBorder);
+    background: var(--background-color);
+    color: var(--primary-color);
+    font-size: 12px;
+}
+.actual-breakdown--loading{
+    padding: 12px 14px;
+}
+.actual-breakdown__header{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--calendarBorder);
+    background: var(--bg3);
+    font-weight: 500;
+}
+.actual-breakdown__months{
+    display: flex;
+    overflow: auto;
+}
+.actual-breakdown__month{
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--calendarBorder);
+    width: 100%;
+    min-width: 250px;
+}
+.actual-breakdown__month:last-child{
+    border-bottom: none;
+}
+.actual-breakdown__month-header{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+.actual-breakdown__badge{
+    border: 1px solid var(--calendarBorder);
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 400;
+    background: var(--bg2);
+}
+.actual-breakdown__statement{
+    border-top: 1px solid var(--calendarBorder);
+}
+.actual-breakdown__group{
+    border-bottom: 1px solid var(--calendarBorder);
+}
+.actual-breakdown__total-row,
+.actual-breakdown__line{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+}
+.actual-breakdown__total-row{
+    background: var(--bg3);
+    font-weight: 500;
+}
+.actual-breakdown__line{
+    border-top: 1px dashed var(--calendarBorder);
+}
+.actual-breakdown__line--child{
+    padding-left: 24px;
+}
+.actual-breakdown__line--child::before{
+    content: "-";
+    margin-right: -4px;
+    opacity: 0.7;
+}
+.actual-breakdown__value{
+    font-weight: 500;
+    text-align: right;
+    white-space: nowrap;
+}
+.actual-breakdown__meta{
+    margin-left: 6px;
+    opacity: 0.7;
+    font-size: 11px;
+}
+// .actual-breakdown__result{
+//     display: grid;
+//     grid-template-columns: repeat(2, minmax(0, 1fr));
+// }
+.actual-breakdown__total-row--result{
+    border-bottom: 1px solid var(--calendarBorder);
+}
+.actual-breakdown__total-row--result:last-child{
+    border-bottom: none;
+}
 @media screen and (max-width: 959px) {
     table{
         thead{
@@ -873,7 +1178,7 @@ table{
                 }
             }
         }
-    }   
+    }
     .h-cell{
         width: auto;
         text-align: start;
@@ -886,6 +1191,16 @@ table{
         justify-content: space-between;
         gap: 5px;
         width: 100%;
+    }
+    .actual-breakdown__result{
+        grid-template-columns: 1fr;
+    }
+    .actual-breakdown__total-row--result{
+        border-right: none;
+        border-bottom: 1px solid var(--calendarBorder);
+    }
+    .actual-breakdown__total-row--result:last-child{
+        border-bottom: none;
     }
 }
 .orphan-wrapper{

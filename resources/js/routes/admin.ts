@@ -228,25 +228,25 @@ export const adminRoutes: RouteRecordRaw[] = [
                 meta: { head: '各種届出' },
                 component: () => import('@/components/AccountControl/EmployeeChangeApplications.vue'),
             },
-            {
-                path: 'ai-control',
-                name: 'admin-ai',
-                meta: { head: 'AI管理' },
-                component: () => import('@/components/AccountControl/AIControl/AIControl.vue'),           
+            // {
+            //     path: 'ai-control',
+            //     name: 'admin-ai',
+            //     meta: { head: 'AI管理' },
+            //     component: () => import('@/components/AccountControl/AIControl/AIControl.vue'),           
             
-            },
+            // },
             // {
             //     path: 'cost-master',
             //     name: 'cost-master',
             //     meta: { head: '原価マスタ管理' },
             //     component: () => import('@/components/AccountControl/CostMaster/CostMasterWorkspace.vue'),
             // },
-            // {
-            //     path: 'actual-results',
-            //     name: 'actual-results',
-            //     meta: { head: '実績計算' },
-            //     component: () => import('@/components/AccountControl/ActualResult/ActualResultCalculator.vue'),
-            // },
+            {
+                path: 'actual-results',
+                name: 'actual-results',
+                meta: { head: '実績計算' },
+                component: () => import('@/components/AccountControl/ActualResult/ActualResultCalculator.vue'),
+            },
         ],
     },
 ]

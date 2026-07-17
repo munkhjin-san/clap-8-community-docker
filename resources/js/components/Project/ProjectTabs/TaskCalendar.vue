@@ -1286,10 +1286,21 @@ const showTaskUsers = (task: Task) => {
     })
 }
 
-const taskUnreadCommentCount = (task: Task) => {
-    const badges = badge.taskCommentBadgeByFilter([{ by: 'task_id', value: task.id }])
-    return badges?.[0]?.comments ?? 0
-}
+// Memoized once per render: taskUnreadCommentCount was called ~4x per task
+// (title, bar, tooltip, comment button), each doing an O(badges) filter → O(tasks*badges).
+const taskUnreadMap = computed(() => {
+    const map = new Map<number, number>()
+    const walk = (tasks: Task[] = []) => {
+        for (const task of tasks) {
+            const badges = badge.taskCommentBadgeByFilter([{ by: 'task_id', value: task.id }])
+            map.set(task.id, badges?.[0]?.comments ?? 0)
+            if (task.sub_tasks?.length) walk(task.sub_tasks)
+        }
+    }
+    walk(project.value?.tasks ?? [])
+    return map
+})
+const taskUnreadCommentCount = (task: Task) => taskUnreadMap.value.get(task.id) ?? 0
 
 const hasUnreadComments = (task: Task) => taskUnreadCommentCount(task) > 0
 
@@ -1298,9 +1309,9 @@ const unreadCommentLabel = (task: Task) => {
     return unread > 9 ? '9+' : unread.toString()
 }
 
-const taskCommentTotal = (task: Task) => {
-    return task.comments_count || taskUnreadCommentCount(task) || 0
-}
+// Total = the task's real comment count. (Was `comments_count || unread || 0`,
+// which showed the UNREAD count as the total whenever comments_count was 0.)
+const taskCommentTotal = (task: Task) => task.comments_count ?? 0
 
 const taskCommentTitle = (task: Task) => {
     const total = taskCommentTotal(task)

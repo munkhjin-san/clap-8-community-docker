@@ -21,7 +21,7 @@ class WorkReceiptOcrService
 
         $apiKey = config('services.google.gemini_api_key');
         $baseUrl = rtrim(config('services.google.gemini_url') ?: 'https://generativelanguage.googleapis.com/v1beta', '/');
-        $model = config('services.google.receipt_ocr_model', 'models/gemini-3-flash-preview');
+        $model = config('services.google.receipt_ocr_model', 'models/gemini-3.5-flash');
 
         if (!$apiKey) {
             throw ValidationException::withMessages(['message' => 'Gemini APIキーが設定されていません。']);

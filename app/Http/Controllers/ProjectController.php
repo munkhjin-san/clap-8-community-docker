@@ -6,7 +6,7 @@ use App\Ai\Agents\ProjectMemberAssignmentEvaluator;
 use App\Imports\YearlyPlanImport;
 use App\Models\AssetRecord;
 use App\Models\AssetRequest;
-// use App\Models\ActualResultDepartment;
+use App\Models\ActualResultDepartment;
 use App\Models\boardRecord;
 use App\Models\EvaluationRecord;
 use App\Models\ProjectCondition;
@@ -56,7 +56,7 @@ use App\Http\Controllers\BoardController;
 use App\Services\SharedService;
 use App\Services\VarianceService;
 use App\Services\BadgeService;
-// use App\Services\ActualResultPersistenceService;
+use App\Services\ActualResultPersistenceService;
 use App\Services\FinanceAnalysisService;
 use App\Services\ProjectPlanFormulaService;
 use App\Imports\EvaluationImport;
@@ -969,7 +969,22 @@ class ProjectController extends Controller
             return $this->projectCreateResponse($project, $kintoneSync);
         }
 
-        $overall   = $contract['overall_risk'] ?? 'unknown';
+        $contractFilePath = (string) $request->input('contract_file_path', '');
+        $contractFilePathValid = $contractFilePath !== ''
+            && str_starts_with($contractFilePath, 'project_files/contracts/')
+            && !str_contains($contractFilePath, '..')
+            && Storage::disk('local')->exists($contractFilePath);
+
+        if (!$contractFilePathValid) {
+            Log::warning('Skipped contract creation during project create: invalid or missing contract file path.', [
+                'project_record_id' => $project->id,
+                'contract_file_path' => $contractFilePath,
+            ]);
+
+            return $this->projectCreateResponse($project, $kintoneSync);
+        }
+
+        $overall   = $this->normalizeContractRisk($contract['overall_risk'] ?? null);
         $findings  = $contract['findings'] ?? [];
         $findCount = is_array($findings) ? count($findings) : 0;
 
@@ -984,13 +999,13 @@ class ProjectController extends Controller
             'findings_count'    => $findCount,
             'result_json'       => $contract,
             'response_hash'     => $responseHash,
-            'file_path'         => $request->input('contract_file_path'),
+            'file_path'         => $contractFilePath,
             'role'              => $request->input('contract_role'),
             'contract_type'     => $request->input('contract_type'),
             'version'           => $nextVersion,
             'active'            => true,
         ]);
-        
+
         return $this->projectCreateResponse($project, $kintoneSync);
     }
 
@@ -1698,9 +1713,9 @@ class ProjectController extends Controller
 
         $data = $request->validate([
             'contract_data'   => ['required', 'array'],
-            'file_path'       => ['required', 'string'],
-            'contract_role'   => ['required', 'string'],
-            'contract_type'   => ['required', 'string'],
+            'file_path'       => ['required', 'string', 'starts_with:project_files/contracts/', 'not_regex:/\.\./'],
+            'contract_role'   => ['required', 'string', Rule::in(['甲', '乙'])],
+            'contract_type'   => ['required', 'string', 'max:32'],
             'review_type'     => ['nullable', Rule::in(['quick', 'deep'])],
         ]);
 
@@ -1708,7 +1723,7 @@ class ProjectController extends Controller
         abort_if(!$disk->exists($data['file_path']), 404, '契約書ファイルが見つかりません。');
 
         $contractPayload = $data['contract_data'];
-        $overall   = $contractPayload['overall_risk'] ?? 'unknown';
+        $overall   = $this->normalizeContractRisk($contractPayload['overall_risk'] ?? null);
         $findings  = $contractPayload['findings'] ?? [];
         $findCount = is_array($findings) ? count($findings) : 0;
         $responseHash = hash('sha256', json_encode($contractPayload, JSON_UNESCAPED_UNICODE));
@@ -4416,64 +4431,65 @@ class ProjectController extends Controller
         );
     }
 
-    // public function actualResultDepartments(
-    //     Request $request,
-    //     ProjectRecord $project,
-    //     ActualResultPersistenceService $actualResults
-    // ) {
-    //     $this->ensureProjectAccess($project);
+    public function actualResultDepartments(
+        Request $request,
+        ProjectRecord $project,
+        ActualResultPersistenceService $actualResults
+    ) {
+        $this->ensureProjectAccess($project);
+        $includePayrollAccounts = \App\Support\ProjectAccess::canViewActualResultPayroll($this->active_user());
 
-    //     $data = $request->validate([
-    //         'start' => ['required', 'date_format:Y-m'],
-    //         'end' => ['required', 'date_format:Y-m'],
-    //     ]);
+        $data = $request->validate([
+            'start' => ['required', 'date_format:Y-m'],
+            'end' => ['required', 'date_format:Y-m'],
+        ]);
 
-    //     $start = Carbon::createFromFormat('Y-m-d', "{$data['start']}-01")->startOfMonth();
-    //     $end = Carbon::createFromFormat('Y-m-d', "{$data['end']}-01")->startOfMonth();
+        $start = Carbon::createFromFormat('Y-m-d', "{$data['start']}-01")->startOfMonth();
+        $end = Carbon::createFromFormat('Y-m-d', "{$data['end']}-01")->startOfMonth();
 
-    //     if ($end->lt($start)) {
-    //         [$start, $end] = [$end, $start];
-    //     }
+        if ($end->lt($start)) {
+            [$start, $end] = [$end, $start];
+        }
 
-    //     $months = [];
-    //     $cursor = $start->copy();
-    //     while ($cursor->lte($end)) {
-    //         $months[$cursor->format('Y-m')] = null;
-    //         $cursor->addMonth();
-    //     }
+        $months = [];
+        $cursor = $start->copy();
+        while ($cursor->lte($end)) {
+            $months[$cursor->format('Y-m')] = null;
+            $cursor->addMonth();
+        }
 
-    //     $departments = ActualResultDepartment::query()
-    //         ->with('report')
-    //         ->where(function ($query) use ($project) {
-    //             $query->where('project_record_id', $project->id)
-    //                 ->orWhere(function ($fallback) use ($project) {
-    //                     $fallback->whereNull('project_record_id')
-    //                         ->where('department_name', $project->name);
-    //                 });
-    //         })
-    //         ->whereHas('report', function ($query) use ($start, $end) {
-    //             $query->whereBetween('target_month', [
-    //                 $start->toDateString(),
-    //                 $end->copy()->endOfMonth()->toDateString(),
-    //             ]);
-    //         })
-    //         ->get();
+        $departments = ActualResultDepartment::query()
+            ->with('report')
+            ->where(function ($query) use ($project) {
+                $query->where('project_record_id', $project->id)
+                    ->orWhere(function ($fallback) use ($project) {
+                        $fallback->whereNull('project_record_id')
+                            ->where('department_name', $project->name);
+                    });
+            })
+            ->whereHas('report', function ($query) use ($start, $end) {
+                $query->whereBetween('target_month', [
+                    $start->toDateString(),
+                    $end->copy()->endOfMonth()->toDateString(),
+                ]);
+            })
+            ->get();
 
-    //     foreach ($departments as $department) {
-    //         $month = $department->report?->target_month?->format('Y-m');
-    //         if (! $month || ! array_key_exists($month, $months)) {
-    //             continue;
-    //         }
+        foreach ($departments as $department) {
+            $month = $department->report?->target_month?->format('Y-m');
+            if (! $month || ! array_key_exists($month, $months)) {
+                continue;
+            }
 
-    //         $payload = $actualResults->departmentPayload($department);
-    //         $payload['month'] = $month;
-    //         $months[$month] = $payload;
-    //     }
+            $payload = $actualResults->departmentPayload($department, $includePayrollAccounts);
+            $payload['month'] = $month;
+            $months[$month] = $payload;
+        }
 
-    //     return response()->json([
-    //         'months' => $months,
-    //     ]);
-    // }
+        return response()->json([
+            'months' => $months,
+        ]);
+    }
 
     public function get_comment_count_from_total(Request $req) {
         $data = $req->validate([
@@ -5298,9 +5314,11 @@ class ProjectController extends Controller
 
         abort_unless(is_array($contract), 422, 'レビュー結果が不正です。');
 
-        $overall   = $contract['overall_risk'] ?? $contract['overallRisk'] ?? 'unknown';
-        $findings  = $contract['findings'] ?? [];
-        $findCount = is_array($findings) ? count($findings) : 0;
+        $findings = $contract['findings'] ?? [];
+        abort_unless(is_array($findings), 422, 'レビュー結果の指摘一覧が不正です。');
+
+        $overall   = $this->normalizeContractRisk($contract['overall_risk'] ?? $contract['overallRisk'] ?? null);
+        $findCount = count($findings);
 
         $responseHash = hash('sha256', json_encode($contract, JSON_UNESCAPED_UNICODE));
         $contractRecord = $this->resolveProjectContract($project, (int) $data['id']);
@@ -5315,6 +5333,11 @@ class ProjectController extends Controller
         ]);
 
         return response()->json($this->projectContractPayload($project, $contractRecord->fresh()));
+    }
+
+    protected function normalizeContractRisk(mixed $value): string
+    {
+        return in_array($value, ['high', 'medium', 'low', 'unknown'], true) ? $value : 'unknown';
     }
 
     protected function resolveProjectContract(ProjectRecord $project, ?int $contractId = null): ?ProjectContract
@@ -5401,20 +5424,7 @@ class ProjectController extends Controller
 
     protected function userCanAccessProject(ProjectRecord $project): bool
     {
-        $user = $this->active_user();
-        if (!$user) {
-            return false;
-        }
-
-        if (($user->position_id && $user->position_id < 6) || in_array($user->id, [608, 610])) {
-            return true;
-        }
-
-        $project->loadMissing(['manager', 'members']);
-
-        return $project->manager->contains('id', $user->id)
-            || $project->members->contains('id', $user->id)
-            || $project->director_id === $user->id;
+        return \App\Support\ProjectAccess::allows($this->active_user(), $project);
     }
 
     public function get_resources_kintone(Request $request)

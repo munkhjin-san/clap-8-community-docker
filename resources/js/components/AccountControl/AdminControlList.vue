@@ -17,8 +17,8 @@
                     <div class="admin-tab-item" @click="router.push({name: 'admin-offices'})" :class="{'selected-tab' : route.name == 'admin-offices'}">営業所</div>
                     <div class="admin-tab-item" @click="router.push({name: 'facility-rooms'})" :class="{'selected-tab' : route.path.includes('/facilities')}">施設</div>
                     <!-- <div class="admin-tab-item" @click="router.push({name: 'admin-ai'})" :class="{'selected-tab' : route.name == 'admin-ai'}">AI</div>
-                    <div class="admin-tab-item" @click="router.push({name: 'cost-master'})" :class="{'selected-tab' : route.name == 'cost-master'}">コスト</div>
-                    <div class="admin-tab-item" @click="router.push({name: 'actual-results'})" :class="{'selected-tab' : route.name == 'actual-results'}">実績</div> -->
+                    <div class="admin-tab-item" @click="router.push({name: 'cost-master'})" :class="{'selected-tab' : route.name == 'cost-master'}">コスト</div> -->
+                    <div class="admin-tab-item" @click="router.push({name: 'actual-results'})" :class="{'selected-tab' : route.name == 'actual-results'}">実績</div>
                 </div>
                 <div v-if="auth.isBoss || auth.isPM" class="admin-tab-item" @click="router.push({name: 'custom-form-control'})" :class="{'selected-tab' : route.path.includes('custom-form-control')}">フォーム</div>
                 <div v-if="auth.id === 494" class="admin-tab-item" @click="router.push({name: 'learningcontrol'})" :class="{'selected-tab' : route.path.includes('learningcontrol')}">ラーニング</div>
