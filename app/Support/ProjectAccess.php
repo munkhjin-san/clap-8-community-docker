@@ -25,16 +25,22 @@ class ProjectAccess
             || $project->director_id === $user->id;
     }
 
-    public static function canViewActualResultPayroll(?User $user): bool
+    public static function canViewActualResultPayroll(?User $user, ProjectRecord $project): bool
     {
         if (! $user) {
             return false;
         }
 
-        return in_array(
+        if (in_array(
             (int) $user->id,
             (array) config('access.actual_result_payroll_user_ids', []),
             true
-        );
+        )) {
+            return true;
+        }
+
+        $project->loadMissing('manager');
+
+        return $project->manager->contains('id', $user->id);
     }
 }
