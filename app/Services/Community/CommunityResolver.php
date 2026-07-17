@@ -12,13 +12,20 @@ class CommunityResolver
 {
     public const SESSION_KEY = 'active_community_id';
 
+    private static ?bool $communityTablesExist = null;
+
+    private static function communityTablesExist(): bool
+    {
+        return self::$communityTablesExist ??= (Schema::hasTable('communities') && Schema::hasTable('community_user'));
+    }
+
     public function __construct(private CommunityContext $context)
     {
     }
 
     public function resolveFor(User $user): ?CommunityMembership
     {
-        if (!Schema::hasTable('communities') || !Schema::hasTable('community_user')) {
+        if (!self::communityTablesExist()) {
             $this->context->setMembership(null);
 
             return null;
@@ -48,7 +55,7 @@ class CommunityResolver
      */
     public function membershipFor(User $user): ?CommunityMembership
     {
-        if (!Schema::hasTable('communities') || !Schema::hasTable('community_user')) {
+        if (!self::communityTablesExist()) {
             return null;
         }
 
@@ -81,7 +88,7 @@ class CommunityResolver
 
     public function ensureDefaultMembership(User $user): void
     {
-        if (!Schema::hasTable('communities') || !Schema::hasTable('community_user')) {
+        if (!self::communityTablesExist()) {
             return;
         }
 

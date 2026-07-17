@@ -365,13 +365,13 @@ class User extends Authenticatable implements PasskeyUser
         return app(CommunityPermissionService::class)->can('hr.approve', $this);
     }
 
-    // (merge) main's server-side is_admin serialization — reads our community-role isAdmin().
-    protected $appends = ['is_admin'];
-
-    public function getIsAdminAttribute(): bool
-    {
-        return $this->isAdmin();
-    }
+    // ⚠️ MERGE RED FLAG — do NOT re-add `protected $appends = ['is_admin']` +
+    // getIsAdminAttribute() from main (origin commit 4d6140cb). In main, isAdmin()
+    // is a cheap config-id check so the append is harmless; on THIS branch isAdmin()
+    // resolves community→membership→role per user (a DB query), so the append fires
+    // that for EVERY serialized User → N+1 (~1,277 queries on /board_list, ~0.78s).
+    // The FE reads admin via communityRole/capabilities (store/auth.ts), NOT this
+    // attribute — it is unused here. If a future main merge brings it back, delete it.
     public function oauthCredentials()
     {
         return $this->hasMany(OAuthCredential::class);

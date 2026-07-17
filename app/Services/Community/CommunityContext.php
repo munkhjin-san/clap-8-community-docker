@@ -11,6 +11,13 @@ class CommunityContext
 {
     private ?CommunityMembership $membership = null;
 
+    private static ?bool $communityTablesExist = null;
+
+    private static function communityTablesExist(): bool
+    {
+        return self::$communityTablesExist ??= (Schema::hasTable('communities') && Schema::hasTable('community_user'));
+    }
+
     public function setMembership(?CommunityMembership $membership): void
     {
         $this->membership = $membership?->loadMissing(['community', 'role']);
@@ -132,7 +139,7 @@ class CommunityContext
 
     public function authPayload(User $user): array
     {
-        if (!Schema::hasTable('communities') || !Schema::hasTable('community_user')) {
+        if (!self::communityTablesExist()) {
             return [
                 'active_community' => null,
                 'active_membership' => null,
