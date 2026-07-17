@@ -40,12 +40,8 @@ class CalendarController extends Controller
     // (merge) main reintroduced active_user() here; account-switch is disabled so it
     // resolves to Auth::user() in practice. Flagged to retire per our active_user policy.
     private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        if($sub){
-            return $sub;
-        }else{
-            return Auth::user();
-        }
+        // Double-account (act-as / linked sub-account) is dropped on this branch — always the auth user.
+        return Auth::user();
     }
     private function zoom_account($index){
         $account = $this->zoomApi->accountForSlot((int) $index);

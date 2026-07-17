@@ -90,12 +90,7 @@ class AdminCalendarFacilityController extends Controller
         $user = Auth::user();
         abort_unless($user, 401, '認証が必要です。');
 
-        $sub = $user->linked()
-            ->where('main_id', Auth::id())
-            ->wherePivot('active', 1)
-            ->first();
-        $activeUserId = (int) ($sub?->id ?? $user->id);
-
-        abort_unless(in_array($activeUserId, User::ADMIN_USER_IDS, true), 403, '管理者権限がありません。');
+        // Double-account dropped + admin gate via community role (was hardcoded ADMIN_USER_IDS).
+        abort_unless($user->isAdmin(), 403, '管理者権限がありません。');
     }
 }

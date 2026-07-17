@@ -27,9 +27,8 @@ class FlowController extends Controller
 
     private function active_user()
     {
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-
-        return $sub ?: Auth::user();
+        // Double-account (act-as / linked sub-account) is dropped on this branch — always the auth user.
+        return Auth::user();
     }
 
     private function ensureCanManageFlows(): void

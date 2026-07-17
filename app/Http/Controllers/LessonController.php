@@ -548,8 +548,8 @@ class LessonController extends Controller
     }
     // Resolve the effective user, honouring the linked/active-account switch used across the app.
     private function active_user(){
-        $sub = Auth::user()->linked()->where('main_id', Auth::id())->wherePivot('active', 1)->first();
-        return $sub ?: Auth::user();
+        // Double-account (act-as / linked sub-account) is dropped on this branch — always the auth user.
+        return Auth::user();
     }
 
     // Admin: remove any learner's portfolio (a specific attempt), recording an audit log.
