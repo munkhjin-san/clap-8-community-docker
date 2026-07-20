@@ -10,73 +10,72 @@
                 <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
             </div> 
         </Transition>
-        <div class="admin-command-bar" style="margin: 20px">            
-            <div class="sub-tab-container" style="margin-bottom: 20px;">
+        <div class="admin-command-bar">
+            <div class="sub-tab-container">
                 <div @click="retire = 0, on_leave = 0" :class="['sub-tab-item', { 'selected-sub-tab': retire == 0 && on_leave == 0}]">在籍者</div>
                 <div @click="on_leave = 1, retire = 0" :class="['sub-tab-item', { 'selected-sub-tab': on_leave == 1 && retire == 0}]">休職者</div>
-                <div @click="retire = 1, on_leave = 0" :class="['sub-tab-item', { 'selected-sub-tab': retire == 1 && on_leave == 0}]">退職者</div>                
-            </div>    
-            <div class="account-filter-row">
-                <PostSearchBar 
+                <div @click="retire = 1, on_leave = 0" :class="['sub-tab-item', { 'selected-sub-tab': retire == 1 && on_leave == 0}]">退職者</div>
+            </div>
+            <div class="admin-command-tools">
+                <PostSearchBar
                     :key="searchBarKey"
-                    className="newChatMemberSearch" 
+                    className="newChatMemberSearch"
                     @search-start="(word) => {keywords = word}"
                 />
-                <select v-model="selectedPositionId" class="account-filter-select">
-                    <option value="">役職: すべて</option>
-                    <option v-for="position in positions" :key="position.id" :value="String(position.id)">
-                        {{ position.name }}
-                    </option>
-                </select>
-                <select v-model="selectedOfficeId" class="account-filter-select">
-                    <option value="">営業所: すべて</option>
-                    <option v-for="office in offices" :key="office.id" :value="String(office.id)">
-                        {{ office.name }}
-                    </option>
-                </select>
-                <select v-model="selectedWorkType" class="account-filter-select">
-                    <option value="">雇用形態: すべて</option>
-                    <option v-for="workType in workTypeOptions" :key="workType.value" :value="String(workType.value)">
-                        {{ workType.label }}
-                    </option>
-                </select>
-                <button type="button" class="account-filter-reset" @click="resetFilters">フィルタ解除</button>
+                <div ref="filterRef" class="filter-toggle-wrap">
+                    <button type="button" class="filter-toggle" :class="{ active: filtersOpen || filtersActive }" title="絞り込み" @click="filtersOpen = !filtersOpen">
+                        <Filter :size="18" :filtered="filtersActive"/>
+                        <span v-if="filtersActive" class="filter-dot"></span>
+                    </button>
+                    <div v-if="filtersOpen" class="filter-panel">
+                        <select v-model="selectedPositionId" class="account-filter-select">
+                            <option value="">役職: すべて</option>
+                            <option v-for="position in positions" :key="position.id" :value="String(position.id)">
+                                {{ position.name }}
+                            </option>
+                        </select>
+                        <select v-model="selectedOfficeId" class="account-filter-select">
+                            <option value="">営業所: すべて</option>
+                            <option v-for="office in offices" :key="office.id" :value="String(office.id)">
+                                {{ office.name }}
+                            </option>
+                        </select>
+                        <select v-model="selectedWorkType" class="account-filter-select">
+                            <option value="">雇用形態: すべて</option>
+                            <option v-for="workType in workTypeOptions" :key="workType.value" :value="String(workType.value)">
+                                {{ workType.label }}
+                            </option>
+                        </select>
+                        <button type="button" class="account-filter-reset" @click="resetFilters">フィルタ解除</button>
+                    </div>
+                </div>
+                <p class="account-count-summary">
+                    表示 {{ filteredUsers.length }} / {{ tabUsers.length }} 件（全 {{ usersList.length }}）
+                </p>
             </div>
-            <p class="account-count-summary">
-                表示 {{ filteredUsers.length }}件 / 現在タブ {{ tabUsers.length }}件 / 全体 {{ usersList.length }}件
-            </p>
         </div>
         
         <div style="flex: 1;overflow: hidden;">
-            <div class="user-record-parent" ref="scrollContainer">
+            <div id="admin-account-scroll" class="user-record-parent" ref="scrollContainer">
                 <div class="admin-account-center-inner" :key="item.id" v-for="item in filteredUsers">
-                    <div class="account-wrapper">
-                        <div style="display:flex; align-items:center;margin-bottom:10px;">
-                            <UserPanel :disableInstant="true" size="30" :title="item.name" :user="item" imgClass="userNormalIcon"/>
-                            <div style="display:flex; flex-direction:column">
-                                <span style="margin-left:10px;">{{item.name}}</span>
-                                <!-- <span style="margin-left:10px; margin-top:10px;">{{ item.name_kana }}</span> -->
-                            </div>
-                        </div>
-                        <!-- <p>{{ item.phone }}</p> -->
-                        <p class="account-content">{{ item.email }}</p>
+                    <div class="account-card-menu">
+                        <ItemMenu :items="[{title: '編集', action: () => openModal(item)}]" fit="admin-account-scroll"/>
                     </div>
-                    <div class="detail-wrapper">
-                        <div style="display:flex;overflow:hidden;margin-right:20px;padding-bottom:10px;" >
-                            <p style="white-space:nowrap">役職:</p>
-                            <p style="margin-left:10px;white-space:break-spaces;">{{ item.positions?.name ? item.positions.name : ' ' }}</p>
+                    <div class="account-card-head">
+                        <UserPanel :disableInstant="true" size="26" :title="item.name" :user="item" imgClass="userNormalIcon"/>
+                        <span class="account-card-name">{{ item.name }}</span>
+                    </div>
+                    <p class="account-card-email" :title="item.email">{{ item.email }}</p>
+                    <div class="account-card-meta">
+                        <div class="account-card-meta-row">
+                            <span class="account-card-label">役職</span>
+                            <span class="account-card-value" :title="item.positions?.name">{{ item.positions?.name ? item.positions.name : '—' }}</span>
                         </div>
-                        <div style="display:flex;overflow:hidden;margin-right:20px;padding-bottom:10px;" >
-                            <p style="white-space:nowrap">営業所:</p>
-                            <p style="margin-left:10px;white-space:break-spaces;">{{ item.offices?.name ? item.offices?.name : ' ' }}</p>
+                        <div class="account-card-meta-row">
+                            <span class="account-card-label">営業所</span>
+                            <span class="account-card-value" :title="item.offices?.name">{{ item.offices?.name ? item.offices.name : '—' }}</span>
                         </div>
                     </div>
-                    <div class="button-wrapper">
-                        <CommandButton :buttons="[{title: '編集', action:() => openModal(item)}]"/>
-                        <!-- <button type="submit" @click="openModal(item)" class="account-btn cursor-pointer">
-                            編集
-                        </button> -->
-                    </div>        
                 </div>
             </div>
         </div>
@@ -100,10 +99,11 @@
    
 </template>
 <script setup>
-import CommandButton from '../Global/CommandButton.vue';
+import ItemMenu from '@/components/Global/ItemMenu.vue';
+import Filter from '../Icons/Filter.vue';
 import UserCreate from './UserCreate.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import PostSearchBar from '../Post/PostSearchBar.vue';
 import { useApi } from '@/composables/api';
     const showModalContent = ref(false)
@@ -117,6 +117,8 @@ import { useApi } from '@/composables/api';
     const selectedPositionId = ref('')
     const selectedOfficeId = ref('')
     const selectedWorkType = ref('')
+    const filtersOpen = ref(false)
+    const filterRef = ref(null)
     const usersList = ref([])
     const fetch = ref(0)
     const workGroups = ref([])
@@ -163,15 +165,27 @@ import { useApi } from '@/composables/api';
             return true
         })
         if(keywords.value){
-            let lowSearch = keywords.value.toLowerCase()
-            return filtered.filter(user => Object.values(user).some(val => 
-                    String(val).toLowerCase().includes(lowSearch)
-                )
-            )
-        }else{         
+            const lowSearch = keywords.value.toLowerCase()
+            return filtered.filter(user => {
+                const haystack = [
+                    user.id,
+                    user.name,
+                    user.name_kana,
+                    user.email,
+                    user.positions?.name,
+                    user.offices?.name,
+                ]
+                return haystack.some(val => val != null && String(val).toLowerCase().includes(lowSearch))
+            })
+        }else{
             return filtered
         }
     })
+
+    // Reflects only the popover filters (search has its own always-visible bar).
+    const filtersActive = computed(() =>
+        !!(selectedPositionId.value || selectedOfficeId.value || selectedWorkType.value)
+    )
 
     const resetFilters = () => {
         keywords.value = ''
@@ -180,6 +194,14 @@ import { useApi } from '@/composables/api';
         selectedWorkType.value = ''
         searchBarKey.value++
     }
+
+    const onDocumentClick = (event) => {
+        if(filtersOpen.value && filterRef.value && !filterRef.value.contains(event.target)){
+            filtersOpen.value = false
+        }
+    }
+    onMounted(() => document.addEventListener('click', onDocumentClick))
+    onUnmounted(() => document.removeEventListener('click', onDocumentClick))
 
      
     const postFinish = () => {
@@ -199,54 +221,177 @@ import { useApi } from '@/composables/api';
 <style scoped lang="scss">  
 
     .admin-account-center-inner{
-        padding: 15px;
+        padding: 14px 16px;
         background: var(--background-color);
         display: flex;
         flex-direction: column;
+        gap: 7px;
         height: fit-content;
         border: solid thin var(--calendarBorder);
         position: relative;
-        word-break: break-word;
-        font-size: 14px;
+        font-size: 13px;
+        line-height: 1.5;
+        min-width: 0;
     }
 
-    .button-wrapper{
+    .account-card-menu{
         position: absolute;
-        top: 10px;
-        right: 10px;
+        top: 8px;
+        right: 8px;
     }
-    .account-content{
-     margin-bottom: 10px;
+    .account-card-head{
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding-right: 22px;
+        min-width: 0;
     }
-    .account-btn{
-        color: #fff;
-        background-color: var(--primary-button);
-        padding: 5px 10px 5px 10px;
+    .account-card-name{
+        font-weight: 600;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .account-card-email{
+        margin: 0;
+        color: gray;
         font-size: 12px;
-        line-height: 1.5;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
+    .account-card-meta{
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 12px;
+    }
+    .account-card-meta-row{
+        display: flex;
+        gap: 8px;
+        min-width: 0;
+    }
+    .account-card-label{
+        color: gray;
+        min-width: 42px;
+        flex: 0 0 auto;
+    }
+    .account-card-value{
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Responsive card grid: 1 column on mobile up to a max of 4 on wide screens. */
     .user-record-parent {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 20px;
+        grid-template-columns: 1fr;
+        gap: 14px;
         height: -webkit-fill-available;
         height: -moz-available;
         overflow: hidden auto;
         background: var(--bg3);
         grid-auto-rows: max-content;
-        padding: 0 20px;
+        padding: 0 20px 20px;
+    }
+    @media screen and (min-width: 600px){
+        .user-record-parent{ grid-template-columns: repeat(2, 1fr); }
+    }
+    @media screen and (min-width: 992px){
+        .user-record-parent{ grid-template-columns: repeat(3, 1fr); }
+    }
+    @media screen and (min-width: 1440px){
+        .user-record-parent{ grid-template-columns: repeat(4, 1fr); }
     }
 
-    .account-filter-row{
+    .admin-command-bar{
+        margin: 20px;
         display: flex;
-        gap: 12px;
+        flex-direction: column;
+        gap: 14px;
+    }
+
+    /* Second header row (below tabs): search (grows) + filter toggle + count. */
+    .admin-command-tools{
+        display: flex;
         align-items: center;
+        gap: 10px;
         flex-wrap: wrap;
     }
 
-    .account-filter-select{
+    /* className "newChatMemberSearch" makes PostSearchBar's inner box fill 100%. */
+    .admin-command-tools :deep(.newChatMemberSearch){
+        flex: 1 1 200px;
         min-width: 160px;
-        height: 35px;
+    }
+    /* Kill the input's default side margins so it aligns flush with the toggle. */
+    .admin-command-tools :deep(.newChatMemberSearch .searchBarArea){
+        margin: 0 !important;
+    }
+
+    .account-count-summary{
+        margin: 0;
+        font-size: 13px;
+        color: gray;
+        white-space: nowrap;
+    }
+
+    /* ---- filter toggle + popover ---- */
+    .filter-toggle-wrap{
+        position: relative;
+    }
+    /* Match the search bar: same height, border and 5px radius for consistency. */
+    .filter-toggle{
+        position: relative;
+        width: 38px;
+        height: 31px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: solid thin var(--normalBorder);
+        border-radius: 5px;
+        background: var(--background-color);
+        color: var(--primary-color);
+        cursor: pointer;
+    }
+    .filter-toggle.active{
+        border-color: var(--primary-color);
+        background: var(--bg3);
+    }
+    .filter-dot{
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--primary-color);
+    }
+    .filter-panel{
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        z-index: 50;
+        width: min(300px, calc(100vw - 40px));
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px;
+        background: var(--background-color);
+        border: solid thin var(--calendarBorder);
+        box-shadow: #3c40434d 0 1px 2px, #3c404326 0 2px 6px 2px;
+    }
+    .filter-panel :deep(.newChatMemberSearch){
+        width: 100%;
+    }
+
+    .account-filter-select{
+        width: 100%;
+        height: 36px;
         padding: 0 12px;
         border: solid thin var(--calendarBorder);
         background: var(--background-color);
@@ -254,36 +399,13 @@ import { useApi } from '@/composables/api';
     }
 
     .account-filter-reset{
-        height: 35px;
+        width: 100%;
+        height: 36px;
         padding: 0 14px;
         border: solid thin var(--calendarBorder);
         background: var(--background-color);
         color: inherit;
         white-space: nowrap;
+        cursor: pointer;
     }
-
-    .account-count-summary{
-        margin-top: 10px;
-        font-size: 13px;
-        color: var(--gray-text, inherit);
-    }
-
-    @media screen and (max-width: 959px) {
-        .account-filter-row{
-            align-items: stretch;
-        }
-
-        .account-filter-select{
-            width: 100%;
-        }
-
-        .account-filter-reset{
-            width: 100%;
-        }
-
-        .user-record-parent{
-            grid-template-columns: 100%;
-        }
-
-    }    
 </style>

@@ -10,8 +10,6 @@ use Illuminate\Support\Facades\Schema;
 
 class CommunityResolver
 {
-    public const SESSION_KEY = 'active_community_id';
-
     private static ?bool $communityTablesExist = null;
 
     private static function communityTablesExist(): bool
@@ -36,7 +34,6 @@ class CommunityResolver
         $membership = $this->membershipFor($user);
 
         if ($membership) {
-            session([self::SESSION_KEY => $membership->community_id]);
             $membership->forceFill(['last_active_at' => now()])->save();
         }
 
@@ -46,12 +43,15 @@ class CommunityResolver
     }
 
     /**
-     * Resolve a user's active membership WITHOUT any side-effects — no session
-     * write, no last_active_at, no CommunityContext mutation, no membership
-     * creation. Safe to call for any user (incl. non-acting users, in loops),
-     * which is what per-user permission checks need. Resolution order matches
-     * resolveFor(): the user's membership in the current active community, else
-     * their default, else their first. Returns null if the user has none.
+     * Resolve a user's active membership WITHOUT any side-effects — no DB write,
+     * no CommunityContext mutation, no membership creation. Safe to call for any
+     * user (incl. non-acting users, in loops), which is what per-user permission
+     * checks need.
+     *
+     * The active community is stored GLOBALLY on the pivot (community_user.is_default),
+     * not in the session — so the same account resolves to the same community in
+     * every browser/device. Resolution order: the user's default membership, else
+     * their lowest-id membership. Returns null if the user has none.
      */
     public function membershipFor(User $user): ?CommunityMembership
     {
@@ -59,18 +59,10 @@ class CommunityResolver
             return null;
         }
 
-        $membership = $this->membershipQuery($user)
-            ->when(session()->has(self::SESSION_KEY), fn ($query) => $query->where('community_id', session(self::SESSION_KEY)))
+        return $this->membershipQuery($user)
+            ->orderByDesc('is_default')
+            ->orderBy('community_id')
             ->first();
-
-        if (!$membership) {
-            $membership = $this->membershipQuery($user)
-                ->where('is_default', true)
-                ->first()
-                ?: $this->membershipQuery($user)->first();
-        }
-
-        return $membership;
     }
 
     public function switch(User $user, int $communityId): CommunityMembership
@@ -79,8 +71,16 @@ class CommunityResolver
             ->where('community_id', $communityId)
             ->firstOrFail();
 
-        session([self::SESSION_KEY => $communityId]);
-        $membership->forceFill(['last_active_at' => now()])->save();
+        // Persist the choice globally: exactly one default per user. Any browser
+        // this account opens next will resolve to this community.
+        DB::transaction(function () use ($user, $membership) {
+            $user->communityMemberships()
+                ->where('is_default', true)
+                ->where('community_id', '!=', $membership->community_id)
+                ->update(['is_default' => false]);
+            $membership->forceFill(['is_default' => true, 'last_active_at' => now()])->save();
+        });
+
         $this->context->setMembership($membership);
 
         return $membership;

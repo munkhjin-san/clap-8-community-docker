@@ -134,7 +134,6 @@ watch(
 
 .calendar-facility-box__title {
     font-size: 15px;
-    font-weight: 600;
     line-height: 1.5;
 }
 

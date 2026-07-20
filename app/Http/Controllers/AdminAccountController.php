@@ -46,6 +46,7 @@ class AdminAccountController extends Controller
                             ->whereNotIn('name', $ng_list)
                             ->with('offices')
                             ->with('work_groups')
+                            ->inActiveCommunity()
                             ->get();
         $position_list_label = positionRecord::select('name', 'id')->orderBy('sort_flag', 'asc')->get();
         $office_list_label = officeRecord::select('name', 'id')->get();

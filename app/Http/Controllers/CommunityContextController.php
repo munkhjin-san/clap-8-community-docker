@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Community;
 use App\Models\CommunityMembership;
 use App\Models\CommunityRole;
 use App\Services\Community\CommunityCapabilityCatalog;
@@ -37,6 +38,98 @@ class CommunityContextController extends Controller
         $this->resolver->switch($request->user(), (int) $validated['community_id']);
 
         return response()->json($this->context->authPayload($request->user()->fresh()));
+    }
+
+    /**
+     * Create a new community. Any authenticated user may create one; we seed the
+     * full default role set, assign the creator to the community's `admin` role,
+     * then switch the creator into the new community.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'icon_path' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $user = $request->user();
+
+        $community = DB::transaction(function () use ($validated, $user) {
+            $community = Community::create([
+                'name' => $validated['name'],
+                'slug' => $this->uniqueCommunitySlug($validated['name']),
+                'status' => 'active',
+                'config' => ['icon_path' => $validated['icon_path'] ?? null],
+            ]);
+
+            $adminRole = $this->seedDefaultRoles($community);
+
+            // Assign the creator as admin of the NEW community (not their default one).
+            DB::table('community_user')->insert([
+                'community_id' => $community->id,
+                'user_id' => $user->id,
+                'community_role_id' => $adminRole->id,
+                'scope' => 'internal',
+                'is_default' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            return $community;
+        });
+
+        // Decision: switch the creator into the community they just created.
+        $this->resolver->switch($user->fresh(), $community->id);
+
+        return response()->json($this->context->authPayload($user->fresh()), 201);
+    }
+
+    /** Seed a new community's default roles from the capability catalog; returns the admin role. */
+    private function seedDefaultRoles(Community $community): CommunityRole
+    {
+        $names = [
+            'admin' => '管理者', 'board' => '役員', 'pm' => 'PM', 'member' => 'メンバー',
+            'regular_employee' => '正社員', 'contract_employee' => '契約社員',
+            'project_leader' => 'プロジェクトリーダー', 'transferred_employee' => '転籍社員',
+            'registered' => '登録社員', 'partner' => 'パートナー', 'hr' => '人事',
+        ];
+
+        $sort = 0;
+        $adminRole = null;
+        foreach (CommunityCapabilityCatalog::roleDefaults() as $key => $capabilities) {
+            $sort += 10;
+            $role = $community->roles()->create([
+                'key' => $key,
+                'name' => $names[$key] ?? $key,
+                'sort_order' => $sort,
+                'capabilities' => $capabilities,
+                'scopes' => [],
+                'is_system' => true,
+            ]);
+            if ($key === 'admin') {
+                $adminRole = $role;
+            }
+        }
+
+        // roleDefaults() always includes 'admin'; fall back defensively.
+        return $adminRole ?? $community->roles()->where('key', 'admin')->firstOrFail();
+    }
+
+    /** Unique slug for a new community (name-based; ULID fallback for non-latin names). */
+    private function uniqueCommunitySlug(string $name): string
+    {
+        $base = Str::slug($name);
+        if ($base === '') {
+            $base = 'c-'.Str::lower((string) Str::ulid());
+        }
+
+        $slug = $base;
+        $n = 1;
+        while (Community::where('slug', $slug)->exists()) {
+            $slug = $base.'-'.(++$n);
+        }
+
+        return $slug;
     }
 
     public function update(Request $request): JsonResponse

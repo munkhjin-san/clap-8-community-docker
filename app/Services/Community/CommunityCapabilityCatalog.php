@@ -44,6 +44,7 @@ class CommunityCapabilityCatalog
                     self::capability('app.asset', '物品', '備品・物品画面を利用します。'),
                     self::capability('app.support', 'サポート', 'サポート・問い合わせ画面を利用します。'),
                     self::capability('app.form', 'フォーム', 'フォーム・アンケートを利用します。'),
+                    self::capability('app.flow', 'アプリ', 'カスタムアプリ（申請・承認フロー）を利用します。'),
                 ],
             ],
             [
@@ -100,8 +101,13 @@ class CommunityCapabilityCatalog
 
         $without = fn (array $list, array $remove) => array_values(array_diff($list, $remove));
 
+        // Flow (アプリ / カスタムアプリ) defaults to admin + board only, matching its
+        // prior isAdmin||isBoss visibility. Every other role's app set excludes it;
+        // admins can still toggle it on per role in the permission matrix.
+        $appsGeneric = $without($apps, ['app.flow']);
+
         // Base internal-staff set; the employment-type roles extend it.
-        $member = array_merge($apps, ['board.create']);
+        $member = array_merge($appsGeneric, ['board.create']);
 
         return [
             // Admin is the fixed super role; it bypasses every gate via isAdmin(),
@@ -111,7 +117,7 @@ class CommunityCapabilityCatalog
                 'project.approve', 'finance.manage', 'finance.analyze', 'notice.manage', 'board.create',
                 'benefit.lunch_challenge',
             ]),
-            'pm' => array_merge($apps, ['finance.analyze', 'board.create', 'benefit.refresh', 'benefit.lunch_challenge']),
+            'pm' => array_merge($appsGeneric, ['finance.analyze', 'board.create', 'benefit.refresh', 'benefit.lunch_challenge']),
             // Catch-all internal staff (unmapped positions: dummy/system accounts); no benefits.
             'member' => $member,
             // Employment-type roles (seeded from position; HR truth stays on position_records).
@@ -119,16 +125,16 @@ class CommunityCapabilityCatalog
             'contract_employee' => array_merge($member, ['benefit.refresh', 'benefit.lunch_challenge']),
             'project_leader' => array_merge($member, ['benefit.refresh', 'benefit.lunch_challenge']),
             'transferred_employee' => $member,
-            // Registered staff: every app except posts / learning / contact.
+            // Registered staff: every app except posts / learning / contact (and flow).
             'registered' => array_merge(
-                $without($apps, ['app.post', 'app.learning', 'app.contact']),
+                $without($appsGeneric, ['app.post', 'app.learning', 'app.contact']),
                 ['board.create']
             ),
             // Partner (external): minimal read-mostly access, no creation rights.
             // (Dashboard + Chat are built-in and always available.)
             'partner' => ['app.schedule', 'app.notice'],
             // HR: full app access plus the human-resources approval capability + benefits.
-            'hr' => array_merge($apps, ['board.create', 'hr.approve', 'benefit.refresh', 'benefit.lunch_challenge']),
+            'hr' => array_merge($appsGeneric, ['board.create', 'hr.approve', 'benefit.refresh', 'benefit.lunch_challenge']),
         ];
     }
 

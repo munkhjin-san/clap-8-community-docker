@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCommunity;
 use Illuminate\Database\Eloquent\Model;
 
 class ZoomAccount extends Model
 {
+    use BelongsToCommunity;
+
     protected $guarded = [];
 
     protected $hidden = [

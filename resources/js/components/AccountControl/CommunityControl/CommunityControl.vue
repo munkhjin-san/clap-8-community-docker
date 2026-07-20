@@ -7,7 +7,6 @@
         <div class="community-control-main">
             <div class="community-control-title">
                 <p>{{ auth.activeCommunity?.name }}</p>
-                <span>{{ auth.activeCommunity?.slug }}</span>
             </div>
         </div>
         <div class="community-control-actions" v-if="canManageCommunity">
@@ -78,7 +77,10 @@ const syncCommunityForm = () => {
 
 watch(() => auth.activeCommunity, syncCommunityForm, { immediate: true, deep: true })
 
-const canManageCommunity = computed(() => auth.hasCapability('community.manage'))
+// Use can() (admin super-role bypass), not hasCapability() (raw list): no role
+// carries community.manage — it's admin-only, granted via the bypass. Matches the
+// backend gate CommunityContextController::can('community.manage').
+const canManageCommunity = computed(() => auth.can('community.manage'))
 const communityIconPreview = computed(() => communityIconPath.value ? `/board_icon_thumbnail/${communityIconPath.value}/96` : '')
 const communityInitial = computed(() => (communityTitle.value || auth.activeCommunity?.name || 'C').charAt(0).toUpperCase())
 const hasCommunityChanges = computed(() => {
@@ -185,7 +187,6 @@ const closeCommunitySettings = () => {
 .community-control-title p{
     margin: 0;
     font-size: 15px;
-    font-weight: 700;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

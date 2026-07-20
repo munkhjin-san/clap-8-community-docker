@@ -256,6 +256,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
     Route::post('/account_chooser/remember', [AccountChooserController::class, 'remember']);
     Route::post('/account_chooser/switch', [AccountChooserController::class, 'switch']);
     Route::get('/community_context', [CommunityContextController::class, 'index']);
+    Route::post('/community_context', [CommunityContextController::class, 'store']); // create a new community (any authenticated user)
     Route::patch('/community_context', [CommunityContextController::class, 'update']);
     Route::patch('/community_context/switch', [CommunityContextController::class, 'switch']);
     Route::get('/community_context/roles', [CommunityContextController::class, 'roles']);
@@ -346,7 +347,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         // Admin Panel User:
         Route::get('/get_controllable_users', [AdminAccountController::class, 'get_controllable_users']);
         Route::post('/user_add', [AdminAccountController::class, 'addUser']);
-        Route::get('/get_monthly_prizes', [AdminAccountController::class, 'getMonthlyPrizes']);
+        Route::get('/get_monthly_prizes', [AdminAccountController::class, 'getMonthlyPrizes'])->middleware('community.glowd'); // グラウドナイン (glowd-exclusive)
         // Admin Panel Work Group
         Route::post('/work_group_add', [AdminAccountController::class, 'workgroupAdd']);
         Route::post('/work_group_edit', [AdminAccountController::class, 'workgroupEdit']);
@@ -403,11 +404,14 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/user_pass_change_api', [UserController::class, 'passChange']); // パスワード変更API
         Route::post('/profile_get_update_user', [UserController::class, 'profile_get_update_user']);
         Route::post('/profile_set_color', [UserController::class, 'setColor']);
-        Route::get('/employee_change_applications', [EmployeeController::class, 'indexChangeApplications']);
-        Route::get('/my_employee_change_applications', [EmployeeController::class, 'myChangeApplications']);
-        Route::post('/employee_change_applications', [EmployeeController::class, 'storeChangeApplication']);
-        Route::get('/employee_change_applications/{application}', [EmployeeController::class, 'showChangeApplication']);
-        Route::patch('/employee_change_applications/{application}/review', [EmployeeController::class, 'reviewChangeApplication']);
+        // 各種届出 — glowd-exclusive (see EnsureGlowdCommunity)
+        Route::middleware('community.glowd')->group(function () {
+            Route::get('/employee_change_applications', [EmployeeController::class, 'indexChangeApplications']);
+            Route::get('/my_employee_change_applications', [EmployeeController::class, 'myChangeApplications']);
+            Route::post('/employee_change_applications', [EmployeeController::class, 'storeChangeApplication']);
+            Route::get('/employee_change_applications/{application}', [EmployeeController::class, 'showChangeApplication']);
+            Route::patch('/employee_change_applications/{application}/review', [EmployeeController::class, 'reviewChangeApplication']);
+        });
         Route::post('/get_user_claps', [UserController::class, 'getClaps']);
         Route::post('/user_file_upload', [UserController::class, 'userFileUpload']);
         Route::post('/user_file_delete', [UserController::class, 'user_file_delete']);
@@ -461,7 +465,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/post_grant_upload', [PostController::class, 'post_grant_upload']);
         Route::post('/post_remove_file', [PostController::class, 'post_remove_file']);
         Route::post('/check_rakuaward', [PostController::class, 'check_rakuaward']);
-        Route::prefix('/refresh')->group(function () {
+        Route::prefix('/refresh')->middleware('community.glowd')->group(function () {
             Route::get('/posts', [RefreshController::class, 'indexPosts']);
             Route::patch('/posts/{id}/approve', [RefreshController::class, 'approvePost']);
             Route::patch('/usages/{id}/confirm', [RefreshController::class, 'confirmPendingUsage']);

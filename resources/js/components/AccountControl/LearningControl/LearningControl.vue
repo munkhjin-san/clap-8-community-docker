@@ -123,6 +123,7 @@ import LearningThemeGrid from './Shell/LearningThemeGrid.vue';
     background: var(--bg3);
     gap: 0;
     height: 100%;
+    flex: 1;
 }
 
 .learning-control__content{

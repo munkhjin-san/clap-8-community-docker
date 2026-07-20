@@ -104,7 +104,7 @@
                     </div>
                 </div>
             </div>
-            <div v-if="isSelf" id="user-private-part" class="bg-[var(--background-color)] p-8 under960:p-4 rounded mt-8">
+            <div v-if="isSelf && auth.isGlowdCommunity" id="user-private-part" class="bg-[var(--background-color)] p-8 under960:p-4 rounded mt-8">
                 <div class="private-section-header">
                     <div class="private-section-title">
                         <PrivateChip />
@@ -218,7 +218,7 @@
                     </div>
                 </div>
             </div>
-            <div class="bg-[var(--background-color)] p-8 under960:p-4 rounded mt-8">
+            <div v-if="auth.isGlowdCommunity" class="bg-[var(--background-color)] p-8 under960:p-4 rounded mt-8">
                 <div class="relative">
                     <p class="text-[13px] font-semibold text-[var(--third-color)] mb-4 tracking-wide">グラウドニュース関連記事</p>
                     <!-- Skeleton loading -->

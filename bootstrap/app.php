@@ -75,6 +75,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'session.expired' => CheckSessionExpired::class,
             // (community_logic) multi-community RBAC middleware
             'community.active' => \App\Http\Middleware\ResolveActiveCommunity::class,
+            'community.glowd' => \App\Http\Middleware\EnsureGlowdCommunity::class,
             'capability' => \App\Http\Middleware\EnsureCommunityCapability::class,
             'app.capability' => \App\Http\Middleware\EnforceAppCapability::class,
         ]);

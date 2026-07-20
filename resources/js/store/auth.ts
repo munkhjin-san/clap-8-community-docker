@@ -3,7 +3,6 @@ import axios from 'axios'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 
-type LinkedUser = User & { pivot: { active: number } }
 type CommunityRole = {
     id: number
     key: string
@@ -25,7 +24,6 @@ type CommunitySummary = {
     role: CommunityRole | null
 }
 type AuthUser = User & {
-    linked?: LinkedUser[]
     active_community?: CommunitySummary | null
     active_membership?: any
     communities?: CommunitySummary[]
@@ -41,7 +39,6 @@ export const useAuthUserStore = defineStore('authUser', () => {
     const isPartner = ref<boolean>(false)
     const isRegistered = ref<boolean>(false)
     const isOnLeave = ref<boolean>(false)
-    const linked = ref<LinkedUser[]>([])
     const communities = ref<CommunitySummary[]>([])
     const activeCommunity = ref<CommunitySummary | null>(null)
     const communityScope = ref<CommunitySummary['scope'] | null>(null)
@@ -82,7 +79,6 @@ export const useAuthUserStore = defineStore('authUser', () => {
         if (payload && 'on_leave' in payload) {
             isOnLeave.value = payload.on_leave
         }
-        linked.value = []
     }
 
     function setFooterView(payload: boolean) {
@@ -108,6 +104,15 @@ export const useAuthUserStore = defineStore('authUser', () => {
     async function updateActiveCommunity(payload: { name: string; icon_path?: string | null }) {
         const response = await axios
             .patch('/community_context', payload)
+            .then((res) => res.data)
+        applyCommunityPayload(response)
+    }
+
+    async function createCommunity(payload: { name: string; icon_path?: string | null }) {
+        // Backend creates the community, seeds default roles, assigns the caller as
+        // admin, then switches context and returns the new community's auth payload.
+        const response = await axios
+            .post('/community_context', payload)
             .then((res) => res.data)
         applyCommunityPayload(response)
     }
@@ -149,21 +154,31 @@ export const useAuthUserStore = defineStore('authUser', () => {
         return user.value
     })
 
-    const hasCapability = (capability: string): boolean => communityCapabilities.value.includes(capability)
+    // INTERNAL ONLY — raw capability check with NO admin bypass. Used to build
+    // isAdmin/isBoss/isPM/hasPrivilage below. NOT exported: components must use
+    // can() (admin super-role bypass) for permission gates. (BE User::hasCapability
+    // is bypass-inclusive; do not confuse the two.)
+    const hasRawCapability = (capability: string): boolean => communityCapabilities.value.includes(capability)
 
-    const isAdmin = computed((): boolean => communityRole.value?.key === 'admin' || hasCapability('admin.access'))
+    const isAdmin = computed((): boolean => communityRole.value?.key === 'admin' || hasRawCapability('admin.access'))
+
+    // True only inside the glowd community (Community::DEFAULT_SLUG). Gates
+    // glowd-exclusive features (グラウドナイン / リフレッシュ / 各種届出, …) that are
+    // not part of the generic community feature set. slug is DB-unique, so this
+    // is an exact, reliable match.
+    const isGlowdCommunity = computed((): boolean => activeCommunity.value?.slug === 'glowd')
 
     // Capability check with admin super-role bypass. Use for app-access and action capabilities.
     const can = (capability: string): boolean => isAdmin.value || communityCapabilities.value.includes(capability)
 
     const hasPrivilage = computed((): boolean => {
         const positionId = activeUser.value?.position_id
-        return hasCapability('project.approve') || hasCapability('project.manage_assigned') || (typeof positionId === 'number' && positionId <= 6) || isAdmin.value
+        return hasRawCapability('project.approve') || hasRawCapability('project.manage_assigned') || (typeof positionId === 'number' && positionId <= 6) || isAdmin.value
     })
 
-    const isBoss = computed(() => communityRole.value?.key === 'board' || hasCapability('project.approve') || (activeUser.value && activeUser.value.position_id && activeUser.value.position_id < 6))
+    const isBoss = computed(() => communityRole.value?.key === 'board' || hasRawCapability('project.approve') || (activeUser.value && activeUser.value.position_id && activeUser.value.position_id < 6))
 
-    const isPM = computed(() => communityRole.value?.key === 'pm' || hasCapability('project.manage_assigned') || (activeUser.value && activeUser.value.position_id == 6))
+    const isPM = computed(() => communityRole.value?.key === 'pm' || hasRawCapability('project.manage_assigned') || (activeUser.value && activeUser.value.position_id == 6))
 
     const isMentor = computed(() => activeUser.value && (activeUser.value.general_position && activeUser.value.general_position !== '一般社員') || isBoss.value)
 
@@ -175,7 +190,6 @@ export const useAuthUserStore = defineStore('authUser', () => {
         isPartner,
         isRegistered,
         isOnLeave,
-        linked,
         communities,
         activeCommunity,
         communityScope,
@@ -187,13 +201,14 @@ export const useAuthUserStore = defineStore('authUser', () => {
         setActiveUser,
         switchCommunity,
         updateActiveCommunity,
+        createCommunity,
         refreshCommunityContext,
         loadAccountChooserAccounts,
         activeUser,
-        hasCapability,
         can,
         hasPrivilage,
         isAdmin,
+        isGlowdCommunity,
         isBoss,
         isPM,
         isMentor,

@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCommunity;
 use Illuminate\Database\Eloquent\Model;
 
 class CalendarFacility extends Model
 {
+    use BelongsToCommunity;
+
     public const TYPE_ROOM = 'room';
 
     public const TYPE_CAR = 'car';

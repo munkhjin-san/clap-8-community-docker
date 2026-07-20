@@ -1,5 +1,5 @@
 <template>
-    <div class="admin-window perm-window">
+    <div class="perm-window">
 
         <div v-if="!canManageRoles" class="perm-empty">
             <p>権限編集のアクセス権限ありません。</p>
@@ -128,7 +128,7 @@
                             :class="['perm-action', { disabled: isProtectedRole(selectedRole) }]"
                         >
                             <div class="perm-action-text">
-                                <strong>{{ capability.name }}</strong>
+                                {{ capability.name }}
                                 <span v-if="capability.description">{{ capability.description }}</span>
                             </div>
                             <input
@@ -427,8 +427,9 @@ watch(canManageRoles, (canManage) => { if(canManage) void loadPermissionSettings
     width: auto;
     flex: 1;
     position: relative;
+    background: var(--bg3);
 }
-.perm-head h2{ margin: 0; font-size: 20px; font-weight: 700; }
+.perm-head h2{ margin: 0; font-size: 20px; }
 .perm-head p{ margin: 6px 0 0; color: gray; font-size: 13px; }
 .perm-empty{
     min-height: 220px; display: flex; align-items: center; justify-content: center;
@@ -457,7 +458,7 @@ watch(canManageRoles, (canManage) => { if(canManage) void loadPermissionSettings
 .perm-roles-head{
     display: flex; align-items: center; justify-content: space-between;
     padding: 12px 14px; border-bottom: solid thin var(--formBorder);
-    font-size: 12px; font-weight: 700; color: gray;
+    font-size: 12px; color: gray;
 }
 .perm-role-list{ list-style: none; margin: 0; padding: 6px; overflow: auto; }
 .perm-role-item{
@@ -466,7 +467,7 @@ watch(canManageRoles, (canManage) => { if(canManage) void loadPermissionSettings
 .perm-role-item:hover{ background: var(--bg3); }
 .perm-role-item.active{ background: var(--primary-color); }
 .perm-role-main{ display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.perm-role-name{ font-size: 14px; font-weight: 600; }
+.perm-role-name{ font-size: 14px; }
 .perm-role-item.active .perm-role-name,
 .perm-role-item.active .perm-count{ color: var(--background-color); }
 .perm-role-meta{ display: flex; align-items: center; gap: 6px; }
@@ -493,11 +494,11 @@ watch(canManageRoles, (canManage) => { if(canManage) void loadPermissionSettings
 }
 .perm-detail-title{ display: flex; flex-direction: column; gap: 4px; }
 .perm-detail-name{
-    font-size: 18px; font-weight: 700; border: none; border-bottom: solid 2px transparent;
+    font-size: 18px; border: none; border-bottom: solid 2px transparent;
     background: transparent; color: var(--primary-color); padding: 2px 0; max-width: 320px;
 }
 .perm-detail-name:focus{ outline: none; border-bottom-color: var(--primary-color); }
-.perm-detail-name-fixed{ font-size: 18px; font-weight: 700; }
+.perm-detail-name-fixed{ font-size: 18px; }
 .perm-detail-sub{ font-size: 12px; color: gray; }
 .perm-members{
     display: inline-flex; align-items: center; gap: 6px;
@@ -530,7 +531,7 @@ watch(canManageRoles, (canManage) => { if(canManage) void loadPermissionSettings
 
 .perm-section{ margin-bottom: 22px; }
 .perm-section-title{
-    margin: 0 0 10px; font-size: 12px; font-weight: 700; color: gray; letter-spacing: 0.04em;
+    margin: 0 0 10px; font-size: 12px; color: gray; letter-spacing: 0.04em;
 }
 
 /* app tiles */
@@ -554,7 +555,7 @@ watch(canManageRoles, (canManage) => { if(canManage) void loadPermissionSettings
 }
 .perm-tile.on{ background: var(--bg3); border-color: var(--primary-color); }
 .perm-tile.on .perm-tile-check{ background: var(--primary-color); border-color: var(--primary-color); color: var(--background-color); }
-.perm-tile.on .perm-tile-name{ font-weight: 600; }
+.perm-tile.on .perm-tile-name{ }
 .perm-tile.locked{ cursor: default; opacity: 0.85; }
 .perm-tile:disabled{ cursor: default; }
 
