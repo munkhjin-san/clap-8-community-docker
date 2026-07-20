@@ -103,7 +103,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
 import Filter from '../Icons/Filter.vue';
 import UserCreate from './UserCreate.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import PostSearchBar from '../Post/PostSearchBar.vue';
 import { useApi } from '@/composables/api';
     const showModalContent = ref(false)
@@ -120,6 +120,9 @@ import { useApi } from '@/composables/api';
     const filtersOpen = ref(false)
     const filterRef = ref(null)
     const usersList = ref([])
+    const searchResults = ref(null)   // BE search results; null when not searching
+    const searching = ref(false)
+    let searchTimer = null
     const fetch = ref(0)
     const workGroups = ref([])
     const linkables = ref([])
@@ -145,11 +148,15 @@ import { useApi } from '@/composables/api';
         offices.value = o
         roles.value = r ?? []
     }
+    // When searching, the source is the server's matches; otherwise the full list.
+    // Tab + popover filters still apply client-side (those fields are in the slim rows).
+    const sourceUsers = computed(() => searchResults.value ?? usersList.value)
+
     const tabUsers = computed(() => {
-        return usersList.value.filter(user => user.retire == retire.value && user.on_leave == on_leave.value)
+        return sourceUsers.value.filter(user => user.retire == retire.value && user.on_leave == on_leave.value)
     })
     const filteredUsers = computed(() => {
-        const filtered = tabUsers.value.filter(user => {
+        return tabUsers.value.filter(user => {
             if (selectedPositionId.value && String(user.position_id ?? '') !== selectedPositionId.value) {
                 return false
             }
@@ -164,22 +171,31 @@ import { useApi } from '@/composables/api';
 
             return true
         })
-        if(keywords.value){
-            const lowSearch = keywords.value.toLowerCase()
-            return filtered.filter(user => {
-                const haystack = [
-                    user.id,
-                    user.name,
-                    user.name_kana,
-                    user.email,
-                    user.positions?.name,
-                    user.offices?.name,
-                ]
-                return haystack.some(val => val != null && String(val).toLowerCase().includes(lowSearch))
-            })
-        }else{
-            return filtered
+    })
+
+    // Search runs on the backend (across name / kana / email / phone / user_code / id),
+    // since the slim list no longer carries enough data to search client-side.
+    const runSearch = async (term) => {
+        const q = term.trim()
+        if(!q){
+            searchResults.value = null
+            searching.value = false
+            return
         }
+        searching.value = true
+        try {
+            const res = await api.get('/get_controllable_users', { search: q })
+            // Ignore stale responses if the term changed while awaiting.
+            if(keywords.value.trim() === q){
+                searchResults.value = res?.u ?? []
+            }
+        } finally {
+            if(keywords.value.trim() === q) searching.value = false
+        }
+    }
+    watch(keywords, (val) => {
+        if(searchTimer) clearTimeout(searchTimer)
+        searchTimer = setTimeout(() => runSearch(val), 300)
     })
 
     // Reflects only the popover filters (search has its own always-visible bar).
@@ -192,6 +208,7 @@ import { useApi } from '@/composables/api';
         selectedPositionId.value = ''
         selectedOfficeId.value = ''
         selectedWorkType.value = ''
+        searchResults.value = null
         searchBarKey.value++
     }
 
@@ -201,19 +218,36 @@ import { useApi } from '@/composables/api';
         }
     }
     onMounted(() => document.addEventListener('click', onDocumentClick))
-    onUnmounted(() => document.removeEventListener('click', onDocumentClick))
+    onUnmounted(() => {
+        document.removeEventListener('click', onDocumentClick)
+        if(searchTimer) clearTimeout(searchTimer)
+    })
 
      
     const postFinish = () => {
         showModalContent.value = false;
         editUserData.value = null;
         getUsers()
-    }          
+        if(keywords.value.trim()) runSearch(keywords.value)
+    }
 
 
-    const openModal = (value) => {
-        editUserData.value = value;
-        showModalContent.value = true;
+    const openingId = ref(null)
+    // The list rows are slim; fetch the full user before opening the editor.
+    const openModal = async (value) => {
+        if(!value){
+            editUserData.value = null
+            showModalContent.value = true
+            return
+        }
+        if(openingId.value === value.id) return
+        openingId.value = value.id
+        try {
+            editUserData.value = await api.get(`/get_user_edit_data/${value.id}`)
+            showModalContent.value = true
+        } finally {
+            openingId.value = null
+        }
     }
 
         

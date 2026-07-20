@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ProjectRecord;
 use DB;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\boardRecord;
@@ -39,57 +40,94 @@ class AdminAccountController extends Controller
         
     }
     public function get_controllable_users(Request $request){
-        $with_users = (int) $request->with_users;
         $ng_list = ['推し', '知人', '家族', '友人', '関係者', 'お知らせアカウント'];
-        $user_list = User::with('user_detail')
-                            ->with('positions')
-                            ->whereNotIn('name', $ng_list)
-                            ->with('offices')
-                            ->with('work_groups')
-                            ->inActiveCommunity()
-                            ->get();
-        $position_list_label = positionRecord::select('name', 'id')->orderBy('sort_flag', 'asc')->get();
-        $office_list_label = officeRecord::select('name', 'id')->get();
-        $work_groups = workGroup::select('name', 'id')
-        ->whereHas('members')
-        ->when($with_users, function ($q) {
-            $q->with(['members' => function($q) {
-                $q->where('users.partner_flag', 0)
-                    ->where('users.hide_flag',0)
-                    ->where('users.retire', 0)
-                    ->orderBy('pivot_authority', 'desc')
-                    ->orderBy('users.id', 'desc');
-            }]);
-        })
-        ->get();
-        $projects = ProjectRecord::select('name', 'id')
-        ->whereHas('members')
-        ->orWhereHas('manager')
-        ->get();
+        $search = trim((string) $request->query('search', ''));
 
-        // Attach each user's community role (for the active community) and the
-        // selectable role list, so the user editor can assign roles.
+        // Slim list: only the columns the cards + client-side tab/filters need.
+        // Heavy relations (user_detail, work_groups) and the rest of the row are
+        // loaded per-user from get_user_edit_data when the editor opens.
         $activeCommunityId = app(CommunityContext::class)->communityId();
+
+        $query = User::query()
+            ->whereNotIn('name', $ng_list)
+            ->inActiveCommunity()
+            ->with(['positions:id,name', 'offices:id,name']);
+
+        // Search runs on the server across fields the slim list no longer carries
+        // (phone / user_code) plus name / kana / email / id.
+        if ($search !== '') {
+            $like = '%'.addcslashes($search, '%_\\').'%';
+            $query->where(function ($q) use ($like, $search) {
+                $q->where('name', 'like', $like)
+                    ->orWhere('name_kana', 'like', $like)
+                    ->orWhere('email', 'like', $like)
+                    ->orWhere('phone_number', 'like', $like)
+                    ->orWhere('user_code', 'like', $like);
+                if (ctype_digit($search)) {
+                    $q->orWhere('id', (int) $search);
+                }
+            });
+        }
+
+        $user_list = $query->get([
+            'id', 'name', 'name_kana', 'email', 'icon_path', 'icon_bg',
+            'position_id', 'office_id', 'work_type', 'retire', 'on_leave',
+            'hide_flag', 'partner_flag', 'work_authority',
+        ]);
+
         $roleByUser = $activeCommunityId
             ? DB::table('community_user')->where('community_id', $activeCommunityId)->pluck('community_role_id', 'user_id')
             : collect();
         $user_list->each(function ($user) use ($roleByUser) {
             $user->community_role_id = $roleByUser[$user->id] ?? null;
         });
+
+        // Search calls only need the matching (slim) users — the reference lists
+        // (positions/offices/roles/projects) are already on the client.
+        if ($search !== '') {
+            return response()->json(['u' => $user_list]);
+        }
+
+        $position_list_label = positionRecord::select('name', 'id')->orderBy('sort_flag', 'asc')->get();
+        $office_list_label = officeRecord::select('name', 'id')->get();
+        $projects = ProjectRecord::select('name', 'id')
+            ->whereHas('members')
+            ->orWhereHas('manager')
+            ->get();
         $roles = $activeCommunityId
             ? CommunityRole::where('community_id', $activeCommunityId)->orderBy('sort_order')->get(['id', 'key', 'name'])
             : collect();
 
-        $data = [
+        return response()->json([
             "u" => $user_list,
             "p" => $position_list_label,
             "o" => $office_list_label,
             "l" => [],
             "w" => $projects,
             "r" => $roles,
-        ];
+        ]);
+    }
 
-        return response()->json($data);
+    /**
+     * Full editable data for a single user (community-isolated). Fetched when the
+     * account editor opens, so the list payload can stay slim.
+     */
+    public function get_user_edit_data(User $user): JsonResponse
+    {
+        $communityUserIds = app(CommunityContext::class)->userIds();
+        abort_if($communityUserIds !== null && !in_array((int) $user->id, $communityUserIds, true), 404);
+
+        $user->load('work_groups');
+
+        $activeCommunityId = app(CommunityContext::class)->communityId();
+        $user->community_role_id = $activeCommunityId
+            ? DB::table('community_user')
+                ->where('community_id', $activeCommunityId)
+                ->where('user_id', $user->id)
+                ->value('community_role_id')
+            : null;
+
+        return response()->json($user);
     }
     function generateRandomString($length = 10) {
         $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';

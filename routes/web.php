@@ -346,6 +346,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
     Route::post('/add_board_task', [TaskController::class, 'addBoardTask']);
         // Admin Panel User:
         Route::get('/get_controllable_users', [AdminAccountController::class, 'get_controllable_users']);
+        Route::get('/get_user_edit_data/{user}', [AdminAccountController::class, 'get_user_edit_data']);
         Route::post('/user_add', [AdminAccountController::class, 'addUser']);
         Route::get('/get_monthly_prizes', [AdminAccountController::class, 'getMonthlyPrizes'])->middleware('community.glowd'); // グラウドナイン (glowd-exclusive)
         // Admin Panel Work Group
