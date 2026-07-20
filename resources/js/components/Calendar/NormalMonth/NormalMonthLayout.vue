@@ -141,7 +141,10 @@ import { CalendarRecord, GoogleEventItem, NormalMonthDay, WeeksArray } from '@/i
 <style lang="scss" scoped>    
     $primary_gray: #ddd;
     .weekday-header{
-        width: calc(100% - 1px);
+        /* border-box: width is the full outer box, so 100% (border-left sits inside)
+           makes the header content = 100% - 1px, matching the body week rows. The
+           old calc(100% - 1px) assumed content-box and now leaves a 1px column drift. */
+        width: 100%;
         height: 40px;
         display: flex;
         justify-content: space-around;
