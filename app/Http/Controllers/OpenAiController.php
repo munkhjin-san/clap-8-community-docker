@@ -493,21 +493,53 @@ TXT
                 while (ob_get_level() > 0) { @ob_end_flush(); }
                 @ob_implicit_flush(1);
 
+                // A long text becomes several sequential OpenAI requests; the
+                // total wall time can exceed default php-fpm/fastcgi timeouts and
+                // get the stream killed mid-playback. Remove the PHP time limit.
+                @set_time_limit(0);
+
                 // Split text into chunks (1400 characters for Japanese)
                 $chunks = $this->chunkText($text, 1400);
+                $total = count($chunks);
 
-                foreach ($chunks as $chunk) {
-                    $stream = $client->audio()->speechStreamed([
-                        'model'  => $model,
-                        'voice'  => $voice,
-                        'input'  => $chunk,
-                        'instructions' => "発音: ほとんど日本語ですので、日本語の発音に注意ください。ネイティブ日本語っぽく。 声: 温かみがあり、共感的で、プロフェッショナルな口調で、お客様の問題が理解され解決されることをお客様に安心させます。\n\n句読点: 自然な間を置いた構造で、明瞭で安定した落ち着いた流れを実現します。\n\n話し方: 落ち着いて辛抱強く、聞き手に思いやりのあるサポートと理解のある口調で話します。\n\n言い回し: 明確かつ簡潔で、専門用語を避けながらプロ意識を維持し、お客様にわかりやすい言葉を使用します。\n\n口調: 共感的でソリューション重視で、理解と積極的な支援の両方を重視します。",
-                        'response_format' => $format,
-                    ]);
+                $instructions = "発音: ほとんど日本語ですので、日本語の発音に注意ください。ネイティブ日本語っぽく。 声: 温かみがあり、共感的で、プロフェッショナルな口調で、お客様の問題が理解され解決されることをお客様に安心させます。\n\n句読点: 自然な間を置いた構造で、明瞭で安定した落ち着いた流れを実現します。\n\n話し方: 落ち着いて辛抱強く、聞き手に思いやりのあるサポートと理解のある口調で話します。\n\n言い回し: 明確かつ簡潔で、専門用語を避けながらプロ意識を維持し、お客様にわかりやすい言葉を使用します。\n\n口調: 共感的でソリューション重視で、理解と積極的な支援の両方を重視します。";
+
+                foreach ($chunks as $i => $chunk) {
+                    // Retry establishing each part's stream so a transient OpenAI
+                    // failure (429 rate-limit / 5xx / network) does not silently
+                    // truncate the audio. Retrying only the establishment avoids
+                    // duplicating bytes that were already streamed to the client.
+                    $stream = null;
+                    $lastError = null;
+                    for ($attempt = 1; $attempt <= 3; $attempt++) {
+                        try {
+                            $stream = $client->audio()->speechStreamed([
+                                'model'  => $model,
+                                'voice'  => $voice,
+                                'input'  => $chunk,
+                                'instructions' => $instructions,
+                                'response_format' => $format,
+                            ]);
+                            break;
+                        } catch (\Exception $e) {
+                            $lastError = $e;
+                            \Log::warning('TTS part ' . ($i + 1) . "/{$total} attempt {$attempt} failed: " . $e->getMessage());
+                            usleep(400000 * $attempt); // 0.4s, 0.8s, 1.2s backoff
+                        }
+                    }
+
+                    if (!$stream) {
+                        \Log::error('TTS Error (part ' . ($i + 1) . "/{$total} gave up): " . ($lastError ? $lastError->getMessage() : 'unknown'));
+                        break; // cannot recover mid-stream; client plays what arrived
+                    }
 
                     foreach ($stream as $audioChunk) {
                         echo $audioChunk;
                         flush();
+                    }
+
+                    if ($i < $total - 1) {
+                        usleep(150000); // brief gap between parts eases rate limits
                     }
                 }
             } catch (\Exception $e) {

@@ -26,6 +26,10 @@
                         class="whitespace-nowrap text-[12px] pl-4 pr-3 py-1 rounded-full bg-[var(--bg3)] mr-2">
                         {{ status }}
                     </div>
+                    <div v-if="readableText" title="読み上げる"
+                        class="h-[25px] flex justify-center relative min-w-[25px] mr-2">
+                        <TTSPlayer :text="readableText" :key="`tts_post_${record.id}`" color="var(--kebab-icon)" />
+                    </div>
                     <ItemMenu v-if="isOwner || auth.id === 516" :items="postMenu" />
                 </div>
             </div>
@@ -338,6 +342,7 @@
 </template>
 <script setup lang="ts">
 import UserPanel from '@/components/Global/UserPanel.vue'
+import TTSPlayer from '@/components/Global/TTSPlayer.vue'
 import PostDate from './PostDate.vue'
 import PostTag from './PostTag.vue';
 import ClapButton from './ClapButton.vue';
@@ -698,6 +703,29 @@ const tags = computed(() => {
 })
 const title = computed(() => {
     return props.record && props.record.title ? props.record.title : ''
+})
+// Plain-text version of the post's content for text-to-speech.
+const htmlToText = (html: string | null | undefined) => {
+    if (!html) return ''
+    const div = document.createElement('div')
+    div.innerHTML = html
+        .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '$&\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+    return (div.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim()
+}
+const readableText = computed(() => {
+    const isChallenge = props.record.app_type == 2
+    const parts = [
+        htmlToText(title.value),
+        htmlToText(isChallenge ? props.record.content_rule : props.record.content),
+    ]
+    if (isChallenge) {
+        const g = htmlToText(props.record.content_goal)
+        if (g) parts.push('達成条件。\n' + g)
+    }
+    const r = htmlToText(props.record.result)
+    if (r) parts.push((props.record.status_flag == 5 ? '進捗状況。\n' : '結果発表。\n') + r)
+    return parts.filter(Boolean).join('\n\n').replace(/https?:\/\/[^\s]+/g, '')
 })
 const body = computed(() => {
     const text = props.record.app_type == 2 ? props.record.content_rule : props.record.content

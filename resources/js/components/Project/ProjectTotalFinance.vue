@@ -3022,6 +3022,7 @@ table {
     padding: 8px 14px;
     font-size: 13px;
     transition: border-color 0.2s ease, background-color 0.2s ease;
+    color: var(--primary-color);
 }
 
 .finance-empty-state__button:hover {

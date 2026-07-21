@@ -25,6 +25,8 @@ export function useTTS(options: TTSOptions) {
   // Queue for audio chunks
   let chunkQueue: Uint8Array[] = []
   let isAppending = false
+  let streamComplete = false      // network body finished downloading
+  let endOfStreamCalled = false   // mediaSource.endOfStream() already called (guard)
 
   // Fallback mode for iOS Safari
   let useFallbackMode = false
@@ -332,16 +334,52 @@ export function useTTS(options: TTSOptions) {
    * Append next chunk from queue to SourceBuffer
    */
   const appendNextChunk = () => {
-    if (isAppending || !sourceBuffer || chunkQueue.length === 0) return
-    
+    if (isAppending || !sourceBuffer || sourceBuffer.updating || chunkQueue.length === 0) return
+
     isAppending = true
-    const chunk = chunkQueue.shift()!
-    
+    const chunk = chunkQueue[0] // peek; only drop after the append is accepted
+
     try {
       sourceBuffer.appendBuffer(chunk as BufferSource)
+      chunkQueue.shift()
     } catch (err) {
-      console.error('Error appending buffer:', err)
       isAppending = false
+      if (err instanceof DOMException && err.name === 'QuotaExceededError') {
+        // SourceBuffer is full (~12MB cap). Do NOT drop the chunk — evict
+        // already-played audio and retry on the next 'updateend'. The
+        // backpressure gate in the read loop keeps this rare.
+        if (audioElement && sourceBuffer.buffered.length) {
+          const evictEnd = Math.max(0, audioElement.currentTime - 10)
+          if (evictEnd > sourceBuffer.buffered.start(0)) {
+            try {
+              sourceBuffer.remove(0, evictEnd) // fires 'updateend' -> retry
+            } catch (e) {
+              console.error('Error evicting buffer:', e)
+            }
+          }
+        }
+      } else {
+        console.error('Error appending buffer:', err)
+        chunkQueue.shift() // non-recoverable: drop to avoid an infinite retry
+      }
+    }
+  }
+
+  /**
+   * Finalize the MediaSource once the network stream has finished AND the
+   * append queue has fully drained. Fixes the race where endOfStream() was
+   * only attempted once (right after fetch) while chunks were still queued,
+   * leaving MediaSource 'open' forever so 'ended'/onComplete never fired.
+   */
+  const tryEndOfStream = () => {
+    if (endOfStreamCalled || !mediaSource || mediaSource.readyState !== 'open') return
+    if (!streamComplete || chunkQueue.length > 0) return
+    if (sourceBuffer && sourceBuffer.updating) return
+    try {
+      mediaSource.endOfStream()
+      endOfStreamCalled = true
+    } catch (e) {
+      console.error('Error ending stream:', e)
     }
   }
 
@@ -355,6 +393,8 @@ export function useTTS(options: TTSOptions) {
 
       chunkQueue = []
       isAppending = false
+      streamComplete = false
+      endOfStreamCalled = false
 
       if (!audioElement) {
         audioElement = new Audio()
@@ -372,16 +412,37 @@ export function useTTS(options: TTSOptions) {
       })
 
       sourceBuffer = mediaSource.addSourceBuffer('audio/mpeg')
-      
+
+      // Start playback explicitly so a blocked autoplay surfaces (via
+      // onUserInteractionRequired) instead of failing silently. The
+      // MediaSource path previously relied only on autoplay=true.
+      let playRequested = false
+      const attemptPlay = () => {
+        audioElement?.play().catch((err) => {
+          if (err && err.name === 'NotAllowedError') {
+            waitingForUserInteraction = true
+            status.value = 'paused'
+            options.onUserInteractionRequired?.()
+            const resumeOnClick = () => {
+              document.removeEventListener('click', resumeOnClick)
+              waitingForUserInteraction = false
+              audioElement?.play().catch(() => {})
+            }
+            document.addEventListener('click', resumeOnClick, { once: true })
+          }
+        })
+      }
+
       sourceBuffer.addEventListener('updateend', () => {
         isAppending = false
-        appendNextChunk()
-        
-        // End stream only after all chunks are appended and stream is complete
-        if (chunkQueue.length === 0 && mediaSource?.readyState === 'open') {
-          // Check if we should end the stream (when no more data is coming)
-          // This will be handled after the fetch completes
+        if (!playRequested) {
+          playRequested = true
+          attemptPlay()
         }
+        appendNextChunk()
+        // Finalize the stream once the queue drains after the download ended
+        // (see tryEndOfStream) — fixes the endOfStream race.
+        tryEndOfStream()
       })
 
       sourceBuffer.addEventListener('error', (e) => {
@@ -455,35 +516,43 @@ export function useTTS(options: TTSOptions) {
 
       const reader = response.body.getReader()
       let receivedLength = 0
-      let streamComplete = false
+      const MAX_FORWARD_BUFFER = 45 // seconds of audio to keep buffered ahead
 
       while (true) {
+        // Backpressure: the backend delivers the whole (possibly 10+ min)
+        // audio much faster than realtime. If we appended it all, the forward
+        // buffer would exceed the SourceBuffer's ~12MB cap -> QuotaExceededError
+        // -> lost/truncated audio. So stop reading while we're far ahead of
+        // playback and resume as it drains (TCP flow-control throttles the
+        // backend too).
+        if (audioElement && audioElement.buffered.length && !intentionalStop) {
+          let forward = audioElement.buffered.end(audioElement.buffered.length - 1) - audioElement.currentTime
+          while (forward > MAX_FORWARD_BUFFER && !intentionalStop) {
+            await new Promise((r) => setTimeout(r, 200))
+            if (!audioElement.buffered.length) break
+            forward = audioElement.buffered.end(audioElement.buffered.length - 1) - audioElement.currentTime
+          }
+        }
+
         const { done, value } = await reader.read()
-        
+
         if (done) {
           streamComplete = true
-          // Mark stream as complete but don't change status
-          // Status will change naturally when audio ends
+          tryEndOfStream() // finalize now if the queue already drained
           break
         }
-        
+
         receivedLength += value.length
-        
+
         chunkQueue.push(value)
         appendNextChunk()
-        
+
         // Update progress but keep it below 100% until audio actually completes
         progress.value = Math.min(receivedLength / 100000, 0.95)
       }
 
-      // Stream is complete, but audio may still be playing
-      if (streamComplete && chunkQueue.length === 0 && mediaSource?.readyState === 'open') {
-        try {
-          mediaSource.endOfStream()
-        } catch (e) {
-          console.error('Error ending stream:', e)
-        }
-      }
+      // If chunks are still draining, the 'updateend' handler calls
+      // endOfStream() once the queue empties (tryEndOfStream).
       
     } catch (err) {
       if (err instanceof Error) {
@@ -594,6 +663,8 @@ export function useTTS(options: TTSOptions) {
     chunkQueue = []
     audioChunks = []
     isAppending = false
+    streamComplete = false
+    endOfStreamCalled = false
     isPlayingFallback = false
     waitingForUserInteraction = false
     progress.value = 0
