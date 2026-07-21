@@ -4527,7 +4527,7 @@ class ProjectController extends Controller
                 continue;
             }
 
-            $payload = $actualResults->departmentPayload($department, $includePayrollAccounts);
+            $payload = $actualResults->departmentPayload($department);
             $payload['month'] = $month;
             $months[$month] = $payload;
         }
