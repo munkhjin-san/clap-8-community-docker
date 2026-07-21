@@ -183,11 +183,12 @@
                         <div class="flex justify-between mb-4 flex-wrap gap-3">
                             <div class="flex-1">
                                 <div class="w-fit min-w-[150px]">
-                                    <GoalUserPicker 
+                                    <GoalUserPicker
                                         v-if="selectedDate.year && selectedDate.which_half"
-                                        v-model="selectedUser" 
+                                        v-model="selectedUser"
                                         :year="selectedDate.year"
                                         :which_half="selectedDate.which_half"
+                                        :approval-needed-ids="approvalNeededUserIds"
                                     />
                                 </div>
                                 
@@ -365,6 +366,15 @@ const overWeekCount = computed(() => {
         }
     }
     return count
+})
+const approvalNeededUserIds = computed(() => {
+    const ids = new Set<number>()
+    for(const item of approvaNeeded.value){
+        for(const user of item.users){
+            ids.add(user.id)
+        }
+    }
+    return Array.from(ids)
 })
 const goalActionCount = computed(() => pulseBadgeCount.value + normalBadgeCount.value + goalCandidates.value.length)
 const goalIsOverWeek = (goal: ProjectGoal) => {

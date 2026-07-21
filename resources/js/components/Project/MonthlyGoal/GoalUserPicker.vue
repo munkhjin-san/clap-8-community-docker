@@ -35,6 +35,7 @@
                 <div v-if="searchName.length">
                     <div v-if="searchResult.length">
                         <label @click="menu.close()" v-for="resultUser in searchResult" :key="resultUser.id" class="cursor-pointer hover:bg-[var(--secondary-background)] p-2 flex items-center gap-2 rounded-md" >
+                            <span v-if="isApprovalNeeded(resultUser)" class="rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5" title="承認対応が必要"></span>
                             <input type="radio" class="hidden" :value="resultUser" v-model="user" />
                             <UserPanel size="25" disable-instant :user="resultUser" with-name/>
                         </label>
@@ -46,6 +47,7 @@
                 <div v-if="!searchName.length">
                     <div v-if="baseUserList.length">
                         <label @click="menu.close()" v-for="selectableUser in baseUserList" :key="selectableUser.id" class="cursor-pointer hover:bg-[var(--secondary-background)] p-2 flex items-center gap-2 rounded-md" >
+                            <span v-if="isApprovalNeeded(selectableUser)" class="rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5" title="承認対応が必要"></span>
                             <input type="radio" class="hidden" :value="selectableUser" v-model="user" />
                             <UserPanel size="25" disable-instant :user="selectableUser" with-name/>
                         </label>
@@ -65,6 +67,7 @@
                             </label>
                             <div v-if="openedProjects.includes(project.id)" class="pl-5">
                                 <label @click="menu.close()" v-for="member in project.members" :key="member.id" class="cursor-pointer hover:bg-[var(--secondary-background)] p-2 flex items-center gap-2 rounded-md" >
+                                    <span v-if="isApprovalNeeded(member)" class="rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5" title="承認対応が必要"></span>
                                     <input type="radio" class="hidden" :value="member" v-model="user" />
                                     <UserPanel size="25" disable-instant :user="member" with-name/>
                                 </label>
@@ -90,15 +93,21 @@ import { computed, onMounted, ref } from 'vue';
 
 const user = defineModel<User | null>();
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     disabled?: boolean
     year: number | string
     which_half: string
-}>()
+    approvalNeededIds?: (number | string)[]
+}>(), {
+    approvalNeededIds: () => [],
+})
 
 const auth = useAuthUserStore();
 const tabs = ref<{ name: string; label: string }[]>([]);
 const menu = useMenuStore()
+
+const approvalNeededIdSet = computed(() => new Set((props.approvalNeededIds ?? []).map((id) => String(id))))
+const isApprovalNeeded = (candidate: User) => approvalNeededIdSet.value.has(String(candidate.id))
 
 onMounted(() => {
     tabs.value.push({ name: 'self', label: '自分' });
