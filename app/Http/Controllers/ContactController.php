@@ -3,11 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Jobs\SendContactEmail;
+use App\Jobs\EnrichContactCompany;
 use App\Models\ContactBatch;
 use App\Models\ContactBatchItem;
 use App\Models\ContactBatchNotification;
 use App\Models\ContactRecord;
+use App\Models\ContactRecordHistory;
+use App\Models\ContactPrivateMemo;
+use App\Models\messageFile;
 use App\Models\ContactType;
+use App\Models\ProjectRecord;
 use App\Models\User;
 use App\Models\ContactCommentLastRead;
 use App\Mail\ContactMention;
@@ -18,6 +23,7 @@ use Intervention\Image\Laravel\Facades\Image;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use App\Services\ContactScanService; 
 use App\Services\ContactCardSplitService;
 use App\Services\ContactBatchSubmissionService;
@@ -63,161 +69,138 @@ class ContactController extends Controller
             return Auth::user();
         }
     }
-    private function get_company_name($image)
+    private function get_company_name($image, $mime = 'image/jpeg')
     {
-        $apiKey = config('app.gemini_api_key');
-    
+        $apiKey = config('services.google.gemini_api_key') ?: config('app.gemini_api_key');
+
         if (empty($apiKey)) {
             throw ValidationException::withMessages(['message' => 'APIキーが設定されていません。']);
         }
+
+        $base = rtrim(config('services.google.gemini_url') ?: 'https://generativelanguage.googleapis.com/v1beta', '/');
+        $model = config('services.google.contact_scan_model') ?: 'models/gemini-3.5-flash';
+
         $instruction = <<<EOD
-            名称画像ファイルから[氏名、会社名、役職、住所、電話番号、メールアドレス、FAX、ホームページURL]を出力してください。
-            情報が見つからない場合は空白にしてください。
-            例: {name: 氏名, company_name: 会社名, position: 役職, address: 住所, phone: 電話番号, email: メールアドレス, fax: FAX, url: ホームページURL}'
+            あなたは厳密な名刺OCR抽出器です。添付された名刺画像だけを見て、連絡先情報を抽出してください。
+            返却はJSONオブジェクトのみです。説明文やMarkdownは出力しないでください。
+
+            規則:
+            - 抽出元は添付画像のみです。推測・補完・創作は禁止です。
+            - すべての値は文字列にしてください。見つからない項目は空文字 "" にしてください。
+            - 部署（例: 営業部）と役職（例: 代表取締役）は別項目として分けてください。部署は department、役職は position に入れてください。
+            - 住所は郵便番号を含め、同じ住所情報として自然な1つの文字列にまとめてください。
+            - メールアドレスは小文字で返してください。
+            - 会社名、氏名、部署、役職、住所、電話番号、FAX、URLを取り違えないでください。
         EOD;
-        // Prepare payload
-        $payload = [
-            'contents' => [
-                [
-                    'parts' => [
-                        ["text" => $instruction],
-                        [
-                            'inline_data' => [
-                                'data' => $image,
-                                'mimeType' => 'image/webp',
-                            ],
-                        ]
-                    ],
-                ],
-            ],
-            'generationConfig' => [
-                'temperature' => 1.0,
-                'topK' => 40,
-                'topP' => 0.95,
-                'maxOutputTokens' => 8192,
-                'responseMimeType' => 'application/json',
-                'responseSchema' => [
-                    'type' => 'object',
-                    'properties' => [
-                        'company_name' => ['type' => 'string'],
-                        'name' => ['type' => 'string'],
-                        'position' => ['type' => 'string'],
-                        'address' => ['type' => 'string'],
-                        'phone' => ['type' => 'string'],
-                        'email' => ['type' => 'string'],
-                        'fax' => ['type' => 'string'],
-                        'url' => ['type' => 'string']
-                    ],
-                    'required' => ['company_name', 'name'],
-                ]
-            ],
-        ];
-    
-        // Send request
-        $url = $this->gemini_url;
-        $response = Http::withHeaders(['Content-Type' => 'application/json'])
-                        ->post("$url?key={$apiKey}", $payload);
-    
-        if (!$response->successful()) {
-            throw ValidationException::withMessages(['message' => '画像ファイルの読み取りに失敗しました。']);
-        }
-    
-        // Parse the response
-        $data = $response->json();
-        $text = data_get($data, 'candidates.0.content.parts.0.text');
-    
-        if (empty($text)) {
-            throw ValidationException::withMessages(['message' => 'データ出力できません。']);
-        }
-    
-        // Clean up and decode JSON
-        $text = preg_replace('/^json\s+/i', '', trim($text));
-        $jsonData = json_decode($text, true);
-    
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw ValidationException::withMessages(['message' => '無効レスポンス。']);
-        }
-    
-        // Extract company name
-        $name = $jsonData['name'] ?? null;
-        $companyName = $jsonData['company_name'] ?? null;
-    
-        if (empty($name) || empty($companyName)) {
-            throw ValidationException::withMessages(['message' => '企業名を認識できません。']);
-        }
-    
-        return $jsonData;
-    }
-    public function company_data_gemini($cardData){
-        $apiKey = config('app.gemini_api_key');
-        if (empty($apiKey)) {
-            throw ValidationException::withMessages(['message' => 'APIキーが設定されていません。']);
-        }
-        $instruction = $this->instruction($cardData);
-        
+
         $payload = [
             'contents' => [
                 [
                     'role' => 'user',
                     'parts' => [
+                        ['text' => $instruction],
                         [
-                            'text' => $instruction,
+                            'inlineData' => [
+                                'mimeType' => $mime,
+                                'data' => $image,
+                            ],
                         ],
                     ],
                 ],
             ],
-            "tools" => [
-                [
-                    "google_search" => (object)[]
-                ]
-            ],
             'generationConfig' => [
-                'temperature' => 1,
+                'temperature' => 0,
                 'topK' => 40,
                 'topP' => 0.95,
                 'maxOutputTokens' => 8192,
-                'responseMimeType' => 'text/plain'
+                'responseMimeType' => 'application/json',
+                'responseSchema' => [
+                    'type' => 'OBJECT',
+                    'required' => ['company_name', 'name', 'department', 'position', 'address', 'phone', 'email', 'fax', 'url'],
+                    'properties' => [
+                        'company_name' => ['type' => 'STRING'],
+                        'name' => ['type' => 'STRING'],
+                        'department' => ['type' => 'STRING'],
+                        'position' => ['type' => 'STRING'],
+                        'address' => ['type' => 'STRING'],
+                        'phone' => ['type' => 'STRING'],
+                        'email' => ['type' => 'STRING'],
+                        'fax' => ['type' => 'STRING'],
+                        'url' => ['type' => 'STRING'],
+                    ],
+                ],
             ],
         ];
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=$apiKey";
-        $response = Http::withHeaders([
-            'Content-Type' => 'application/json',
-        ])->post($url, $payload);
+
+        $response = Http::withHeaders(['Content-Type' => 'application/json'])
+            ->timeout(60)
+            ->post("{$base}/{$model}:generateContent?key={$apiKey}", $payload);
+
+        if (!$response->successful()) {
+            \Log::warning('Contact scan_card OCR failed', [
+                'status' => $response->status(),
+                'model' => $model,
+                'body' => mb_substr($response->body(), 0, 500),
+            ]);
+            throw ValidationException::withMessages(['message' => '画像ファイルの読み取りに失敗しました。']);
+        }
+
         $data = $response->json();
-        $text = data_get($data, 'candidates.0.content.parts.0.text');        
-        if (!$text) {
+        $text = data_get($data, 'candidates.0.content.parts.0.text');
+
+        if (empty($text)) {
             throw ValidationException::withMessages(['message' => 'データ出力できません。']);
         }
-        $cleanJson = preg_replace('/^```html\n|\n```$/', '', $text);
-        return $cleanJson;
+
+        // Clean up and decode JSON
+        $text = preg_replace('/^```json\s*|\s*```$/', '', trim($text));
+        $text = preg_replace('/^json\s+/i', '', $text);
+        $jsonData = json_decode($text, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw ValidationException::withMessages(['message' => '無効レスポンス。']);
+        }
+
+        // Require at least something usable; the user can fill the rest manually.
+        $name = $jsonData['name'] ?? null;
+        $companyName = $jsonData['company_name'] ?? null;
+
+        if (empty($name) && empty($companyName)) {
+            throw ValidationException::withMessages(['message' => '名刺を認識できませんでした。手入力で登録してください。']);
+        }
+
+        return $jsonData;
     }
     public function scan_batch_cards(Request $request)
     {
         $validated = $request->validate([
             'images' => 'required|array|min:1|max:30',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:5120',
-            'type_id' => 'required|integer',
-            'p_type' => 'nullable|string|max:100',
+            'types' => 'required|array|min:1',
+            'types.*' => 'string|max:100',
         ]);
 
         $authUser = Auth::user();
 
-        $typeId = (int) $validated['type_id'];
-        $pseudoType = $validated['p_type'] ?? null;
-
-        if ($typeId === -1) {
-            if (!$pseudoType) {
-                throw ValidationException::withMessages(['type_id' => '新規コンタクト種類の名称を入力してください。']);
+        $typeIds = [];
+        foreach ($validated['types'] as $title) {
+            $title = trim((string) $title);
+            if ($title === '') {
+                continue;
             }
-            $type = ContactType::firstOrCreate(['title' => $pseudoType]);
-            $typeId = $type->id;
+            $typeIds[] = ContactType::firstOrCreate(['title' => $title])->id;
+        }
+        $typeIds = array_values(array_unique($typeIds));
+
+        if (empty($typeIds)) {
+            throw ValidationException::withMessages(['types' => 'コンタクト種類を選択してください。']);
         }
 
         $batch = ContactBatch::create([
             'user_id' => $authUser?->id,
             'status' => ContactBatch::STATUS_QUEUED,
-            'contact_type_id' => $typeId,
-            'pseudo_type' => $pseudoType,
+            'contact_type_id' => $typeIds[0],
+            'type_ids' => $typeIds,
         ]);
 
         $storageDisk = Storage::disk('local');
@@ -249,14 +232,7 @@ class ContactController extends Controller
     {
         $batches = ContactBatch::query()
             ->ownedBy(Auth::id())
-            ->where(function ($query) {
-                $query->whereNull('dismissed_at')
-                    ->orWhereIn('status', [
-                        ContactBatch::STATUS_QUEUED,
-                        ContactBatch::STATUS_SCANNING,
-                        ContactBatch::STATUS_ENRICHING,
-                    ]);
-            })
+            ->whereNull('dismissed_at')
             ->where(function ($query) {
                 $query->where('updated_at', '>=', now()->subDays(14))
                     ->orWhereIn('status', [
@@ -284,11 +260,7 @@ class ContactController extends Controller
 
             return $batch;
         })->filter(function (ContactBatch $batch) {
-            return !$batch->dismissed_at || in_array($batch->status, [
-                ContactBatch::STATUS_QUEUED,
-                ContactBatch::STATUS_SCANNING,
-                ContactBatch::STATUS_ENRICHING,
-            ], true);
+            return !$batch->dismissed_at;
         })->values();
 
         return response()->json(
@@ -325,12 +297,8 @@ class ContactController extends Controller
     {
         $this->assertBatchOwner($batch);
 
-        if (!in_array($batch->status, [ContactBatch::STATUS_COMPLETED, ContactBatch::STATUS_FAILED], true)) {
-            return response()->json([
-                'message' => '進行中の取り込み状況は閉じられません。',
-            ], 422);
-        }
-
+        // Any batch can be dismissed (including stuck ones); if it later
+        // completes, the completion notification still fires.
         if (!$batch->dismissed_at) {
             $batch->forceFill([
                 'dismissed_at' => now(),
@@ -556,7 +524,7 @@ class ContactController extends Controller
         $deletedCardPath = null;
 
         DB::transaction(function () use ($contact, $target, &$deletedCardPath) {
-            $contact->loadMissing('collaborators');
+            $contact->loadMissing(['collaborators', 'types']);
 
             $fields = ['position', 'address', 'phone', 'email', 'fax', 'url', 'description', 'data'];
             foreach ($fields as $field) {
@@ -594,6 +562,8 @@ class ContactController extends Controller
                 $target->collaborators()->syncWithoutDetaching($collaboratorData);
             }
 
+            $target->types()->syncWithoutDetaching($contact->types->pluck('id')->all());
+
             ContactBatchItem::where('contact_record_id', $contact->id)->update([
                 'contact_record_id' => $target->id,
                 'needs_review' => false,
@@ -629,64 +599,86 @@ class ContactController extends Controller
     public function scan_card(Request $request)
     {
         $request->validate([
-            'image' => 'required|file|mimes:jpeg,png,jpg,gif|max:8000',
+            'image' => 'required|file|mimes:jpeg,png,jpg,gif,webp|max:8000',
         ]);
         $file = $request->file('image');
         $base64Image = base64_encode(file_get_contents($file));
+        $mime = $file->getMimeType() ?: 'image/jpeg';
 
-        $cardData = $this->get_company_name($base64Image);
-        $companyData = $this->company_data_gemini($cardData);
-        
-        return response()->json(['text' => $companyData, 'data' => $cardData]);
+        // Real-time step: OCR the card for the basic contact fields only (fast).
+        // The slower company-profile enrichment runs in the background after the
+        // record is saved (see create_contact -> EnrichContactCompany).
+        $cardData = $this->get_company_name($base64Image, $mime);
+
+        return response()->json(['data' => $cardData]);
     }
     public function contact_list(Request $request)
     {
         
         $contacts = ContactRecord::orderBy('created_at', 'desc')
-            ->with(['comments' => 
+            ->with(['comments' =>
                 function ($q) {
                     $q->with(['user', 'files']);
                 },
-                'updater', 'creator', 'type', 'collaborators'
+                'updater', 'creator', 'type', 'types', 'collaborators', 'projects', 'relatedContacts', 'files'
             ])->get();
         return response()->json($contacts);
     }
-    public function update_private_memo(Request $request)
+    // 履歴 (change history) — loaded on demand for the detail modal, not with the list.
+    public function list_contact_histories(int $contactId)
+    {
+        return response()->json(
+            ContactRecordHistory::where('contact_record_id', $contactId)
+                ->with('user')
+                ->orderByDesc('id')
+                ->get()
+        );
+    }
+
+    // 非公開メモ is a per-user, timestamped, add/delete log (private to each user).
+    public function list_private_memos(int $contactId)
     {
         $userId = Auth::id();
         if (!$userId) {
-            abort(403, 'メモを更新するにはログインが必要です。');
+            abort(403, 'メモを利用するにはログインが必要です。');
         }
+        $memos = ContactPrivateMemo::where('contact_record_id', $contactId)
+            ->where('user_id', $userId)
+            ->orderByDesc('id')
+            ->get();
+        return response()->json($memos);
+    }
 
+    public function add_private_memo(Request $request)
+    {
+        $userId = Auth::id();
+        if (!$userId) {
+            abort(403, 'メモを追加するにはログインが必要です。');
+        }
         $data = $request->validate([
             'contact_id' => 'required|integer|exists:contact_records,id',
-            'private_memo' => 'nullable|string|max:2000',
+            'body' => 'required|string|max:2000',
         ]);
+        $memo = ContactPrivateMemo::create([
+            'contact_record_id' => $data['contact_id'],
+            'user_id' => $userId,
+            'body' => $data['body'],
+        ]);
+        return response()->json($memo->fresh(), 201);
+    }
 
-        $contact = ContactRecord::with(['collaborators' => function ($query) use ($userId) {
-            $query->where('users.id', $userId);
-        }])->findOrFail($data['contact_id']);
-
-        $existingPivot = $contact->collaborators->first();
-
-        if ($existingPivot) {
-            $contact->collaborators()->updateExistingPivot($userId, [
-                'private_memo' => $data['private_memo'] ?? '',
-            ]);
-            $role = $existingPivot->pivot->role;
-        } else {
-            $role = 'viewer';
-            $contact->collaborators()->attach($userId, [
-                'role' => $role,
-                'private_memo' => $data['private_memo'] ?? '',
-            ]);
+    public function delete_private_memo(int $memoId)
+    {
+        $userId = Auth::id();
+        if (!$userId) {
+            abort(403);
         }
-
-        return response()->json([
-            'contact_id' => $contact->id,
-            'private_memo' => $data['private_memo'] ?? '',
-            'role' => $role,
-        ]);
+        // Only the author can delete their own private memo.
+        $memo = ContactPrivateMemo::where('id', $memoId)->where('user_id', $userId)->first();
+        if ($memo) {
+            $memo->delete();
+        }
+        return response()->json(['status' => 'ok']);
     }
     private function path_generator()
     {
@@ -712,7 +704,9 @@ class ContactController extends Controller
         $unique_path = $this->path_generator();
         File::isDirectory(storage_path('app/card_files')) or File::makeDirectory(storage_path('app/card_files'), 0755, true, true);
         $img->toWebp()->save(storage_path("app/card_files/$unique_path.webp"));
-        return response()->json($unique_path);
+        // Return the full storage-relative path so `/cdn/{card_path}` resolves to
+        // storage/app/{card_path}. Returning the bare id here left card images 404.
+        return response()->json("card_files/$unique_path.webp");
     }
     public function delete_contact(Request $request){
         $request->validate([
@@ -729,132 +723,267 @@ class ContactController extends Controller
             // 'name_kana' => 'nullable|string|max:100',
             'company_name' => 'nullable|string|max:100',
             // 'company_name_kana' => 'nullable|string|max:100',
+            'department' => 'nullable|string|max:150',
             'address' => 'nullable|string|max:255',
             'position' => 'nullable|string|max:250',
             'phone' => 'nullable|string|max:100',
             'email' => 'nullable|string|max:255',
             'fax' => 'nullable|string|max:100',
+            'url' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'strategy' => 'nullable|string',
             'card_path' => 'nullable|string',
             'data' => 'nullable|string',
-            // 'contact_type_id' => 'nullable|integer'
+            'types' => 'nullable|array',
+            'types.*' => 'string|max:100',
         ]);
 
-
+        $typeTitles = $validatedData['types'] ?? [];
+        unset($validatedData['types']);
 
         $id = $request->id ?? null;
 
+        // Snapshot the pre-edit state so we can log field-level 履歴 (change history).
+        $existing = $id ? ContactRecord::find($id) : null;
+        $oldSnapshot = $existing ? $this->historySnapshot($existing) : [];
+        $oldTypeTitles = $existing ? $existing->types()->pluck('contact_types.title')->sort()->values()->all() : [];
+
         $record = ContactRecord::updateOrCreate(["id" => $id], $validatedData);
-        
+
         if ($id == null) {
             $record->update([
                 'created_by' => $this->active_user()->id
             ]);
+            // Register the creator as an owner collaborator. Permissions (edit/delete,
+            // no forced follow) are derived from the collaborators pivot role, not
+            // created_by — mirrors the batch import path (syncCollaborator).
+            $record->collaborators()->syncWithoutDetaching([
+                $this->active_user()->id => ['role' => 'owner'],
+            ]);
         }
-        $type_id = $request->contact_type_id;
-        if($type_id == -1){
-            $type = ContactType::firstOrCreate(["title" => $request->pseudo_type]);
-            $type_id = $type->id;
+
+        $typeIds = [];
+        if ($request->has('types')) {
+            $typeIds = $this->syncContactTypes($record, $typeTitles);
         }
+
         $record->update([
             'updated_by' => $this->active_user()->id,
-            'contact_type_id' => $type_id
+            'contact_type_id' => $typeIds[0] ?? $record->contact_type_id,
         ]);
+
+        // 履歴: record creation, or field-level diffs on edit.
+        $userId = $this->active_user()->id;
+        if ($id == null) {
+            ContactRecordHistory::create([
+                'contact_record_id' => $record->id,
+                'user_id' => $userId,
+                'event' => 'created',
+            ]);
+        } else {
+            $record->refresh();
+            $this->logContactChanges(
+                $record,
+                $oldSnapshot,
+                $oldTypeTitles,
+                $request->has('types') ? $typeTitles : null,
+                $userId
+            );
+        }
+
+        // Background company enrichment: only for brand-new records that have a
+        // company but no profile yet. Runs after the response is sent (the queue
+        // connection is `sync`), so the user never waits on the create screen.
+        $record->refresh();
+        if ($id == null && !empty($record->company_name) && empty($record->data)) {
+            // Mark as pending so the UI can show "企業情報を取得中" until the job
+            // (dispatchAfterResponse, sync queue) flips it to completed/failed.
+            $record->update(['enrichment_status' => 'pending']);
+            EnrichContactCompany::dispatchAfterResponse($record->id);
+        }
 
         return response('OK');
     }
-    private function instruction($cardData)
-    {   
-        $name = $cardData['company_name'] ?? '';
-        $url = $cardData['url'] ?? '';
-        $address = $cardData['address'] ?? '';
-        return <<<EOD
-            会社情報:
-            会社名: $name
-            ホームページのURL: $url
-            住所: $address
+    // Fields tracked for 履歴 (change history).
+    private function historySnapshot(ContactRecord $record): array
+    {
+        return [
+            'name' => $record->name,
+            'company_name' => $record->company_name,
+            'department' => $record->department,
+            'position' => $record->position,
+            'address' => $record->address,
+            'phone' => $record->phone,
+            'email' => $record->email,
+            'fax' => $record->fax,
+            'url' => $record->url,
+            'description' => $record->description,
+        ];
+    }
 
-            上記の企業情報を利用し、会社名や会社のホームページを利用して情報をを取得し、各カテゴリを整理してください。情報はユーザーが企業の基本情報や最新の動向を素早く把握できるよう、簡潔かつ直感的に表示できる形式で提供してください。
+    // Diff old vs new snapshot (and types when submitted) → one history row per changed field.
+    private function logContactChanges(ContactRecord $record, array $old, array $oldTypeTitles, ?array $newTypeTitles, ?int $userId): void
+    {
+        $new = $this->historySnapshot($record);
+        foreach ($new as $field => $newVal) {
+            $oldVal = $old[$field] ?? null;
+            if ((string) ($oldVal ?? '') === (string) ($newVal ?? '')) {
+                continue;
+            }
+            ContactRecordHistory::create([
+                'contact_record_id' => $record->id,
+                'user_id' => $userId,
+                'event' => 'updated',
+                'field' => $field,
+                'old_value' => $oldVal,
+                'new_value' => $newVal,
+            ]);
+        }
 
-            出力形式
+        if ($newTypeTitles !== null) {
+            $newSorted = collect($newTypeTitles)->map(fn ($t) => trim((string) $t))->filter()->unique()->sort()->values()->all();
+            $oldSorted = array_values($oldTypeTitles);
+            if ($newSorted !== $oldSorted) {
+                ContactRecordHistory::create([
+                    'contact_record_id' => $record->id,
+                    'user_id' => $userId,
+                    'event' => 'updated',
+                    'field' => 'types',
+                    'old_value' => implode('、', $oldSorted),
+                    'new_value' => implode('、', $newSorted),
+                ]);
+            }
+        }
+    }
 
-            Markdown形式で順番とサブテキスト形を守り、データを取得・整理してください。
-            各カラムはわかりやすい見出しに統一し、重複を避けてください。
-            カラムの情報が不明や取得出来なかった場合はカラムを消してください。
-            情報のソースURLを付記することで、情報の信頼性を担保してください。
-            情報が不明なカラムをレスポンスに入れないでください。
-            レスポンス例:
+    // Only owner/follower collaborators may manage a contact's files — mirrors the
+    // frontend canManage gate (viewers get read-only). Enforced server-side because
+    // file deletion is irreversible (physical file removed from disk).
+    private function userCanManageContact(int $contactId): bool
+    {
+        $userId = Auth::id();
+        if (!$userId) {
+            return false;
+        }
+        return DB::table('contact_record_user')
+            ->where('contact_record_id', $contactId)
+            ->where('user_id', $userId)
+            ->whereIn('role', ['owner', 'follower'])
+            ->exists();
+    }
 
-            - **基本情報**
-                1. 会社名 : {{company_name}}
-                2. ロゴ（画像URL） : {{logo_url}}
-                ...
-            - **事業概要**
-            ...
+    // Attach previously-uploaded temp files (from /attach_upload_api) to a contact,
+    // as either 裏面 photos (kind=image) or documents (kind=file). Mirrors the
+    // comment-attach flow: move temp_upload/{id}.{ext} → contact_files/{id}_{uid}.{ext}.
+    public function contact_attach_files(Request $request)
+    {
+        $data = $request->validate([
+            'record_id' => 'required|integer|exists:contact_records,id',
+            'kind' => 'required|in:image,file',
+            'attached_temp_files' => 'required|array|min:1',
+            'attached_temp_files.*.id' => 'required|integer',
+        ]);
 
-            ---
+        if (!$this->userCanManageContact((int) $data['record_id'])) {
+            abort(403, 'このコンタクトのファイルを追加する権限がありません。');
+        }
 
-            注意事項
-            1. 情報は必ず、会社名でwebから取得します。名称情報から適当に作成しません
-            2. 取得した情報は簡潔かつ正確にまとめてください。
-            3. 不明な情報や取得できなかった場合はカラムはいりません。
-            4. カテゴリごとに情報を整理し、ユーザーが即座に理解できるようにしてください。
-            5. 機密性の高い情報（例: 非公開情報）は取得対象から除外してください。
+        $record = ContactRecord::findOrFail($data['record_id']);
+        $userId = Auth::id();
+        $path = 'contact_files';
+        File::isDirectory(storage_path("app/{$path}")) or File::makeDirectory(storage_path("app/{$path}"), 0755, true, true);
 
-            取得する情報のカテゴリとカラム
-            ※情報が不明な場合カラムを削除してください。
-            1. 基本情報
-                会社名
-                ロゴ（画像URLまたはホームページのfavicon URL大きめの）
-                所在地（本社住所、支店情報）
-                設立年月日
-                代表者名
-                従業員数
-                資本金
-                売上高
-                株式情報（上場/未上場、証券コード）
-            2. 事業概要
-                事業内容（簡潔な概要）
-                主な製品・サービス（リスト形式）
-                業種分類（例: IT、製造、飲食）
-                顧客層（例: 法人向け、個人向け）
-                主な取引先
-            3. 事業戦略
-                ミッション・ビジョン（企業理念や目標）
-                戦略目標（例: SDGs、DX推進）
-                競争優位性（例: 特許、技術力、ブランド力）
-                現在進行中のプロジェクトや取り組み
-            4. 最新情報
-                最新ニュース（プレスリリース、イベント情報）
-                受賞歴や認定（例: ISO認証、業界賞）
-                提携・コラボ情報（他社との協業内容）
-                株主や取引先の動向
-            5. 財務情報
-                年度別業績（売上、利益など）
-                成長率
-                資金調達の履歴や状況
-            6. 人事情報
-                採用情報
-                福利厚生の特徴
-                求める人物像
-            7. ウェブ・SNS情報
-                公式サイトのURL
-                SNSアカウント情報（LinkedIn, Twitter, Facebookなど）
-                問い合わせ窓口（メールアドレス、電話番号）
-            8. その他
-                CSR活動（社会貢献活動の内容）
-                サステナビリティ情報
-                特許や認定技術の詳細
-            ---
+        foreach ($data['attached_temp_files'] as $item) {
+            // Only the caller's OWN, still-pending temp upload may be attached. This
+            // blocks hijacking another user's / another feature's messageFile (IDOR)
+            // and prevents stamping a phantom row when no physical temp file exists.
+            $file = messageFile::where('id', $item['id'])
+                ->where('user_id', $userId)
+                ->whereNull('message_id')
+                ->whereNull('comment_record_id')
+                ->whereNull('contact_record_id')
+                ->first();
+            if (!$file) {
+                continue;
+            }
+            $src = "temp_upload/{$file->id}.{$file->extension}";
+            if (!Storage::disk('local')->exists($src)) {
+                continue;
+            }
+            $dest = "{$path}/{$file->id}_{$file->user_id}.{$file->extension}";
+            Storage::disk('local')->move($src, $dest);
+            $file->update([
+                'contact_record_id' => $record->id,
+                'contact_file_kind' => $data['kind'],
+            ]);
+        }
 
+        return response()->json($record->fresh('files')->files);
+    }
 
-            EOD;
+    public function contact_file_delete(Request $request)
+    {
+        $data = $request->validate(['id' => 'required|integer']);
+        $file = messageFile::whereNotNull('contact_record_id')->find($data['id']);
+        if ($file) {
+            // Physical deletion is irreversible — require owner/follower on the contact.
+            if (!$this->userCanManageContact((int) $file->contact_record_id)) {
+                abort(403, 'このファイルを削除する権限がありません。');
+            }
+            $rel = "contact_files/{$file->id}_{$file->user_id}.{$file->extension}";
+            if (Storage::disk('local')->exists($rel)) {
+                Storage::disk('local')->delete($rel);
+            }
+            $file->delete();
+        }
+        return response()->json(['status' => 'ok']);
+    }
+
+    // OCR a stored 裏面/名刺 photo (kind=image) and return the extracted fields, so the
+    // user can review + apply them to the contact (re-scan after a job change, etc.).
+    public function contact_scan_file(Request $request)
+    {
+        $data = $request->validate(['file_id' => 'required|integer']);
+        $file = messageFile::whereNotNull('contact_record_id')
+            ->where('contact_file_kind', 'image')
+            ->find($data['file_id']);
+        if (!$file) {
+            abort(404, '画像が見つかりません。');
+        }
+        if (!$this->userCanManageContact((int) $file->contact_record_id)) {
+            abort(403, 'この操作を行う権限がありません。');
+        }
+        $rel = "contact_files/{$file->id}_{$file->user_id}.{$file->extension}";
+        $abs = storage_path("app/{$rel}");
+        if (!is_file($abs)) {
+            abort(404, '画像ファイルが見つかりません。');
+        }
+        $base64 = base64_encode(file_get_contents($abs));
+        $mime = @mime_content_type($abs) ?: 'image/jpeg';
+        $cardData = $this->get_company_name($base64, $mime);
+        return response()->json(['data' => $cardData]);
+    }
+
+    private function syncContactTypes(ContactRecord $record, array $typeTitles): array
+    {
+        $ids = [];
+        foreach ($typeTitles as $title) {
+            $title = trim((string) $title);
+            if ($title === '') {
+                continue;
+            }
+            // Match existing types by title; create new ones on demand (free entry).
+            $type = ContactType::firstOrCreate(['title' => $title]);
+            $ids[] = $type->id;
+        }
+        $ids = array_values(array_unique($ids));
+        $record->types()->sync($ids);
+        return $ids;
     }
 
     private function formatContactRecord(ContactRecord $contact): array
     {
-        $contact->loadMissing(['collaborators', 'type']);
+        $contact->loadMissing(['collaborators', 'type', 'types']);
 
         return [
             'id' => $contact->id,
@@ -875,6 +1004,8 @@ class ContactController extends Controller
                 'id' => $contact->type->id,
                 'title' => $contact->type->title,
             ] : null,
+            'types' => $contact->types
+                ->map(fn ($t) => ['id' => $t->id, 'title' => $t->title])->all(),
             'collaborators' => $contact->collaborators
                 ->map(fn ($user) => [
                     'id' => $user->id,
@@ -946,16 +1077,28 @@ class ContactController extends Controller
             'comment' => $request->comment,
             'user_id' => $user->id,
         ]);
-        if($request->attached_temp_files){ 
-            foreach($request->attached_temp_files as $item){      
-                $file = messageFile::findOrFail($item['id']);
-                $file->update(['comment_record_id' => $report->id]);
-                $path = "contact_comment_files";
-                File::isDirectory(storage_path("app/{$path}")) or File::makeDirectory(storage_path("app/{$path}"), 0755, true, true);         
-                $srcPath = "{$file->id}.{$file->extension}";
+        if($request->attached_temp_files){
+            $path = "contact_comment_files";
+            foreach($request->attached_temp_files as $item){
+                // Only the caller's own still-pending temp upload — blocks hijacking
+                // another user's / another feature's messageFile (IDOR).
+                $file = messageFile::where('id', $item['id'])
+                    ->where('user_id', $user->id)
+                    ->whereNull('message_id')
+                    ->whereNull('comment_record_id')
+                    ->whereNull('contact_record_id')
+                    ->first();
+                if (!$file) {
+                    continue;
+                }
+                $src = "temp_upload/{$file->id}.{$file->extension}";
+                if (!Storage::disk('local')->exists($src)) {
+                    continue;
+                }
+                File::isDirectory(storage_path("app/{$path}")) or File::makeDirectory(storage_path("app/{$path}"), 0755, true, true);
                 $destPath = "{$file->id}_{$file->user_id}.{$file->extension}";
-                $temp_path = storage_path("app/temp_upload/{$srcPath}");
-                Storage::disk('local')->move("temp_upload/{$file->id}.{$file->extension}", "{$path}/{$destPath}");                
+                Storage::disk('local')->move($src, "{$path}/{$destPath}");
+                $file->update(['comment_record_id' => $report->id]);
             }
         }
         $syntax = '/\[To:(.*?)\:\]/';
@@ -1058,5 +1201,77 @@ class ContactController extends Controller
             'status' => $deleted ? 'deleted' : 'noop',
             'deleted_rows' => $deleted,
         ]);
+    }
+
+    public function link_contact_project(Request $request)
+    {
+        $data = $request->validate([
+            'contact_id' => 'required|integer|exists:contact_records,id',
+            'project_id' => 'required|integer|exists:project_records,id',
+        ]);
+        ContactRecord::findOrFail($data['contact_id'])
+            ->projects()->syncWithoutDetaching([$data['project_id']]);
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    public function unlink_contact_project(Request $request)
+    {
+        $data = $request->validate([
+            'contact_id' => 'required|integer|exists:contact_records,id',
+            'project_id' => 'required|integer',
+        ]);
+        ContactRecord::findOrFail($data['contact_id'])
+            ->projects()->detach($data['project_id']);
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    public function link_related_contact(Request $request)
+    {
+        $data = $request->validate([
+            'contact_id' => 'required|integer|exists:contact_records,id',
+            'related_id' => 'required|integer|exists:contact_records,id|different:contact_id',
+        ]);
+        $contact = ContactRecord::findOrFail($data['contact_id']);
+        $related = ContactRecord::findOrFail($data['related_id']);
+        // Symmetric link — store both directions so it shows on either contact.
+        $contact->relatedContacts()->syncWithoutDetaching([$related->id]);
+        $related->relatedContacts()->syncWithoutDetaching([$contact->id]);
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    public function unlink_related_contact(Request $request)
+    {
+        $data = $request->validate([
+            'contact_id' => 'required|integer|exists:contact_records,id',
+            'related_id' => 'required|integer',
+        ]);
+        $contact = ContactRecord::findOrFail($data['contact_id']);
+        $contact->relatedContacts()->detach($data['related_id']);
+        optional(ContactRecord::find($data['related_id']))->relatedContacts()->detach($contact->id);
+
+        return response()->json(['status' => 'ok']);
+    }
+
+    public function search_projects(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        $userId = $this->active_user()->id;
+
+        $projects = ProjectRecord::query()
+            ->when($q !== '', fn ($query) => $query->where('name', 'like', "%{$q}%"))
+            ->where(function ($query) use ($userId) {
+                $query->where('director_id', $userId)
+                    ->orWhereIn('id', function ($sub) use ($userId) {
+                        $sub->select('project_id')->from('project_members')->where('user_id', $userId);
+                    });
+            })
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get(['id', 'name']);
+
+        return response()->json($projects);
     }
 }

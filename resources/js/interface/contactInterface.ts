@@ -3,11 +3,12 @@ import { MessageFile, User } from "./globalInterface"
 
 export interface ContactRecord {
     id: number | null
-    name: string	
-    name_kana: string		
-    company_name: string		
-    company_name_kana: string		
-    address: string		
+    name: string
+    name_kana: string
+    company_name: string
+    company_name_kana: string
+    department: string
+    address: string
     phone: string		
     fax: string		
     email: string		
@@ -24,11 +25,47 @@ export interface ContactRecord {
     updater?: User
     collaborators?: Collaborator[]
     data: string
+    enrichment_status?: 'pending' | 'completed' | 'failed' | null
     position: string
     comments: ContactComment[]
+    files?: ContactFile[]
+    histories?: ContactHistory[]
     type: ContactType | null
+    types?: ContactType[]
     contact_type_id: number | null
     pseudo_type: string
+    projects?: ContactProject[]
+    related_contacts?: ContactRecord[]
+}
+export interface ContactProject {
+    id: number
+    name: string
+}
+export interface ContactFile {
+    id: number
+    user_id: number
+    name: string
+    mime_type: string
+    extension: string
+    size: number
+    contact_file_kind: 'image' | 'file'
+}
+export interface ContactPrivateMemo {
+    id: number
+    contact_record_id: number
+    user_id: number
+    body: string
+    created_at: string
+    updated_at: string
+}
+export interface ContactHistory {
+    id: number
+    event: 'created' | 'updated'
+    field: string | null
+    old_value: string | null
+    new_value: string | null
+    created_at: string
+    user?: User
 }
 export interface ContactComment {
     id: number
@@ -119,8 +156,7 @@ export interface ContactBatchNotificationSummary {
 }
 export interface BatchPayload {
     files: File[];
-    type: number | null;
-    p_type: string | null;
+    types: string[];
 }
 
 export interface DuplicateCandidateSummary {

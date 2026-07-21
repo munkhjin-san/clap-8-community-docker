@@ -232,14 +232,18 @@ trait HandlesContactBatch
         $attributes = [
             'name' => $normalized['name'] ?? null,
             'company_name' => $normalized['company_name'] ?? null,
+            'department' => $normalized['department'] ?? null,
             'position' => $normalized['position'] ?? null,
             'address' => $normalized['address'] ?? null,
             'phone' => $normalized['phone'] ?? null,
             'email' => $normalized['email'] ?? null,
             'fax' => $normalized['fax'] ?? null,
             'url' => $normalized['url'] ?? null,
-            'description' => '名刺画像から自動登録',
+            // Leave description (メモ) empty — it is a user field, not a place for
+            // system markers like "名刺画像から自動登録".
+            'description' => null,
             'data' => $html,
+            'enrichment_status' => !empty($html) ? 'completed' : null,
             'contact_type_id' => $batch->contact_type_id,
             'strategy' => null,
             'card_path' => $cardPath,
@@ -255,6 +259,7 @@ trait HandlesContactBatch
             $existingRecord->save();
 
             $this->syncCollaborator($existingRecord, $batch->user_id);
+            $this->syncBatchTypes($existingRecord, $batch);
 
             return $existingRecord;
         }
@@ -265,8 +270,17 @@ trait HandlesContactBatch
         ]));
 
         $this->syncCollaborator($record, $batch->user_id);
+        $this->syncBatchTypes($record, $batch);
 
         return $record;
+    }
+
+    protected function syncBatchTypes(ContactRecord $record, ContactBatch $batch): void
+    {
+        $typeIds = $batch->type_ids ?: ($batch->contact_type_id ? [$batch->contact_type_id] : []);
+        if (!empty($typeIds)) {
+            $record->types()->syncWithoutDetaching($typeIds);
+        }
     }
 
     protected function computeCardHash(ContactBatchItem $item, ?string $existingHash = null): ?string

@@ -32,7 +32,7 @@
                         <PanelTitle :expanded="expanded">
                             <div class="flex gap-2 items-center">
                                 <div v-if="challenge.attention_is_overdue" class="mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5 custom-heartbeat"></div>
-                                <Nice v-if="isNiceReminder(challenge) || isGlowdNinePlay(challenge)" size="16"/>
+                                <Nice v-if="isNiceReminder(challenge) || (isGlowdNinePlay(challenge) && challenge.glowd_nine_source !== 'challenge_award')" size="16"/>
                                 <Award v-else-if="isRakuawardNominate(challenge)" size="16"/>
                                 <Challenge v-else size="16"/>
                                 <div class="text-wrap">

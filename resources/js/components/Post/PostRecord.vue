@@ -96,10 +96,7 @@
                     <div class="flex items-center text-sm gap-2 whitespace-nowrap">
                         <PostDate :record="record" which="period" />
                     </div>
-                    <div v-if="record.app_type == 2 && record.status_flag == 0">
-                        <span class="text-sm inline-block mx-1">残り: {{ challengeProgressMeta?.leftdays }}日</span>
-                    </div>
-                    <!-- <div v-if="record.app_type == 2 && challengeProgressMeta"
+                    <div v-if="record.app_type == 2 && challengeProgressMeta"
                         class="w-full min-w-[160px] max-w-[160px] post-progress-block">
                         <div class="h-[13px] overflow-hidden border-[softgray] bg-[var(--bg3)] relative rounded-full">
                             <div class="h-full bg-[var(--check-inactive)] transition-[width] duration-500 ease-out"
@@ -107,7 +104,7 @@
                             <div class="absolute inset-0 flex items-center justify-center text-[10px]">{{
                                 challengeProgressMeta.progress }}%</div>
                         </div>
-                    </div> -->
+                    </div>
 
                     <span v-once v-if="badge.post.last_chargeable_ids.some(id => id === record.id)"
                         class="text-sm text-[tomato] inline-block mx-1">チャージする最終日</span>
@@ -587,8 +584,48 @@ const challengeProgressMeta = computed(() => {
     if (props.record.app_type !== 2) {
         return null
     }
-    const left = DateTime.fromISO(props.record.date_end).diffNow('days').days
-    return { leftdays: left ? Math.ceil(left) : 0 }
+    if (props.record.status_flag == 2 || props.record.status_flag == 3 || props.record.status_flag == 4) {
+        return {
+            progress: 0,
+            label: status.value
+        }
+    }
+    const start = DateTime.fromISO(props.record.date_start).set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
+    const end = DateTime.fromISO(props.record.date_end).set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
+    const now = DateTime.now()
+
+    const isBetween = now >= start && now <= end
+    if (!isBetween) {
+        return null
+    }
+
+    if (!start.isValid || !end.isValid || end <= start) {
+        return null
+    }
+
+    const totalMillis = end.toMillis() - start.toMillis()
+    const elapsedMillis = now.toMillis() - start.toMillis()
+    const rawProgress = (elapsedMillis / totalMillis) * 100
+    const progress = Math.max(0, Math.min(100, Math.round(rawProgress)))
+
+    if (now < start) {
+        return {
+            progress: 0,
+            label: `${Math.max(0, Math.ceil(start.diff(now, 'days').days ?? 0))}日後に開始`
+        }
+    }
+
+    if (now > end) {
+        return {
+            progress: 100,
+            label: '期間終了'
+        }
+    }
+
+    return {
+        progress,
+        label: `残り${Math.max(0, Math.ceil(end.diff(now, 'days').days ?? 0))}日`
+    }
 })
 const hasProgressReportBadge = computed(() => {
     return badge.post.progress_report_ids?.includes(props.record.id) ?? false

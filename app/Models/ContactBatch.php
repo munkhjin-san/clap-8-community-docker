@@ -15,6 +15,7 @@ class ContactBatch extends Model
 
     protected $casts = [
         'metadata' => 'array',
+        'type_ids' => 'array',
         'scan_requested_at' => 'datetime',
         'scan_completed_at' => 'datetime',
         'enrich_requested_at' => 'datetime',
