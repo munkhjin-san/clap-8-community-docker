@@ -4479,11 +4479,11 @@ class ProjectController extends Controller
         ProjectRecord $project,
         ActualResultPersistenceService $actualResults
     ) {
-        $this->ensureProjectAccess($project);
-        $includePayrollAccounts = \App\Support\ProjectAccess::canViewActualResultPayroll(
-            $this->active_user(),
-            $project
-        );
+        // $this->ensureProjectAccess($project);
+        // $includePayrollAccounts = \App\Support\ProjectAccess::canViewActualResultPayroll(
+        //     $this->active_user(),
+        //     $project
+        // );
 
         $data = $request->validate([
             'start' => ['required', 'date_format:Y-m'],
