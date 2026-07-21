@@ -1,6 +1,6 @@
 <template>
     <div class="relative flex min-h-[30px] items-stretch">
-        <button @click.stop="toggle" class="flex min-h-[30px] items-center px-2 cursor-pointer w-fit" :class="{'!cursor-not-allowed pointer-events-none': disabled}">        
+        <button @click.stop="toggle" class="flex min-h-[30px] items-center px-2 cursor-pointer w-fit text-[var(--primary-color)]" :class="{'!cursor-not-allowed pointer-events-none': disabled}">        
             <div v-if="selectedUsers.length" class="flex gap-2 flex-wrap">
                 <UserPanel size="20" v-for="user in selectedUsers" :key="user.id" :user="user" :with-name="!(selectedUsers.length > 5 || responsive.mobile)" disable-instant/>
                 <span class="font-xs text-[gray]" v-if="selectedUsers.length > 5">+{{ selectedUsers.length - 5 }}</span>    
