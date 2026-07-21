@@ -110,7 +110,7 @@ class OpenAiController extends Controller
             ->all();
 
         $client = OpenAI::client($apiKey);
-        $model = config('services.openai.compare_model', 'gpt-4.1-mini');
+        $model = config('services.openai.compare_model', 'gpt-5.6-luna');
 
         $response = $client->responses()->create([
             'model' => $model,

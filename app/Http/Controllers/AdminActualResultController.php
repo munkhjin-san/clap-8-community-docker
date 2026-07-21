@@ -41,7 +41,6 @@ class AdminActualResultController extends Controller
             'month' => ['nullable', 'date_format:Y-m'],
             'overwrite_confirmed' => ['nullable', 'boolean'],
             'discard_manual_edits' => ['nullable', 'boolean'],
-            'warnings_confirmed' => ['nullable', 'boolean'],
         ]);
 
         if (! empty($data['month'])) {
@@ -65,18 +64,6 @@ class AdminActualResultController extends Controller
         }
 
         $result = $calculator->calculateFromUploadedFile($data['file']);
-
-        $warnings = array_values(array_filter(
-            $result['file']['generated_reserve_warnings'] ?? [],
-            fn ($warning) => is_string($warning) && trim($warning) !== ''
-        ));
-
-        if ($warnings !== [] && ! ($data['warnings_confirmed'] ?? false)) {
-            throw ValidationException::withMessages([
-                'warnings_confirmation' => count($warnings).'件の積立金計算警告があります。確認後に保存してください。',
-                'warnings' => array_slice($warnings, 0, 50),
-            ]);
-        }
 
         if (! empty($data['month'])) {
             $csvMonth = $result['file']['calculation_month'] ?? null;

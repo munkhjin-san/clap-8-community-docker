@@ -3221,7 +3221,7 @@ class ProjectController extends Controller
         $f = (float) $v;
         return is_finite($f) ? $f : null;
     }
-    public function get_settlement(Request $request){
+    public function get_settlement(Request $request, ActualResultPersistenceService $actualResults){
         $request->validate([
             'project_id' => 'required',
             'year' => 'required',
@@ -3232,15 +3232,28 @@ class ProjectController extends Controller
         $year = (int) $request->year;
         $project_name = trim((string)($project->name ?? ''));
 
+        $sDate = $request->start ? Carbon::createFromFormat('Y-m-d', $request->start . '-01') : Carbon::createFromDate((int) $year, 3, 1);
+        $eDate = $request->end ? Carbon::createFromFormat('Y-m-d', $request->end . '-01') : $sDate->copy()->addMonthsNoOverflow(11);
+        $actualSettlements = $actualResults->settlementUnitsForProjects([$project], $sDate, $eDate)[$project->id] ?? [];
+        $result = [];
+
+        foreach ($actualSettlements as $period => $settlement) {
+            $result[(int) substr($period, 5, 2)] = $settlement;
+        }
+
         $svc      = $this->client->svc;
         $sheet_id = config('services.google.spreadsheet_id');
 
         $needed_ranges = [];
-        $sDate = $request->start ? Carbon::createFromFormat('Y-m-d', $request->start . '-01') : Carbon::createFromDate((int) $year, 3, 1);
-        $eDate = $request->end ? Carbon::createFromFormat('Y-m-d', $request->end . '-01') : $sDate->copy()->addMonthsNoOverflow(11);
         
         for ($d = $sDate->copy(); $d->lessThanOrEqualTo($eDate); $d->addMonth()) {
-            $needed_ranges[] = sprintf('%04d%02d', $d->year, $d->month);
+            if (! isset($actualSettlements[$d->format('Y-m')])) {
+                $needed_ranges[] = sprintf('%04d%02d', $d->year, $d->month);
+            }
+        }
+
+        if (empty($needed_ranges)) {
+            return response()->json($result);
         }
         
         $spreadsheet = $svc->spreadsheets->get($sheet_id);
@@ -3253,7 +3266,7 @@ class ProjectController extends Controller
             }
         }
         if (empty($existing)) {
-            return response()->json([]); 
+            return response()->json($result);
         }
 
         $findRanges = array_map(fn($t) => "'{$t}'!B:B", $existing);
@@ -3290,8 +3303,6 @@ class ProjectController extends Controller
             // No matching project rows in any existing sheet.
             // Still return per-month zeros so frontend can calculate variance.
 
-            $result = [];
-
             foreach ($existing as $t) {
                 // $t is like "202504" → month = 4
                 $monthKey = (int) substr($t, 4, 2);
@@ -3311,7 +3322,6 @@ class ProjectController extends Controller
 
         $detailResp = $svc->spreadsheets_values->batchGet($sheet_id, ['ranges' => $detailRanges]);
 
-        $result = [];
         foreach ($existing as $t) {
             $monthKey = (int) substr($t, 4, 2);
             $result[$monthKey] = [];
@@ -3540,7 +3550,10 @@ class ProjectController extends Controller
         }, $records);
         return $cleaned;
     }
-    public function get_total_finance(FinanceRequest $request): JsonResponse{
+    public function get_total_finance(
+        FinanceRequest $request,
+        ActualResultPersistenceService $actualResults
+    ): JsonResponse{
 
         $interval = $request->getInterval();
         $project_ids = $request->getProjectIds();
@@ -3577,10 +3590,27 @@ class ProjectController extends Controller
         $projects = $query->get();
         $project_names = $projects->pluck('name', 'id')->toArray();   
 
+        $actualSettlementData = $actualResults->settlementUnitsForProjects(
+            $projects,
+            $startInstance,
+            $endInstance
+        );
+
         $project_names_str = implode('","', $project_names); 
 
         //get settlement data
-        $batchSettlementData = $this->settlementCollector($startInstance, $endInstance);
+        $needsGoogleSettlement = false;
+        foreach ($projects as $project) {
+            for ($monthCursor = $startInstance->copy(); $monthCursor->lte($endInstance); $monthCursor->addMonth()) {
+                if (! isset($actualSettlementData[$project->id][$monthCursor->format('Y-m')])) {
+                    $needsGoogleSettlement = true;
+                    break 2;
+                }
+            }
+        }
+        $batchSettlementData = $needsGoogleSettlement
+            ? $this->settlementCollector($startInstance, $endInstance)
+            : [];
         //get settlement data
 
 
@@ -3914,8 +3944,21 @@ class ProjectController extends Controller
 
 
 
+                $actualSettlement = $actualSettlementData[(int) $id][$periodKey] ?? null;
                 $settlements = $batchSettlementData[$settle_tab_index] ?? [];
-                if (!empty($settlements )) {
+                if ($actualSettlement !== null) {
+                    $plan_res_data[$project_name][$periodKey]['settlement'] = $actualSettlement;
+                    $sumData[$project_name]['settlement']['sales'] = ($sumData[$project_name]['settlement']['sales'] ?? 0) + $actualSettlement['sales'];
+                    $sumData[$project_name]['settlement']['expense'] = ($sumData[$project_name]['settlement']['expense'] ?? 0) + $actualSettlement['expense'];
+                    $sumData[$project_name]['settlement']['profit'] = ($sumData[$project_name]['settlement']['profit'] ?? 0) + $actualSettlement['profit'];
+
+                    $accumulatePeriodTotals(
+                        $periodKey,
+                        'settlement',
+                        $actualSettlement,
+                        in_array($project_name, ['間接費部門', '積立部門'], true)
+                    );
+                } else if (!empty($settlements )) {
                     $settlement_headers = $settlements[1];
                     $settlement_data = array_slice($settlements, 2);
                     $project_index_in_settlement = array_search($project_name, array_column($settlement_data, 1)); 

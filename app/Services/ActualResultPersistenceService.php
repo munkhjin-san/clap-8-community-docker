@@ -8,6 +8,7 @@ use App\Models\ActualResultReport;
 use App\Models\ActualResultUpload;
 use App\Models\ProjectRecord;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -54,6 +55,11 @@ class ActualResultPersistenceService
         '役員賞与',
         '賞与',
         '賞与引当金繰入額',
+    ];
+
+    private const ANALYSIS_INTERNAL_TRANSFER_DEPARTMENTS = [
+        '経営管理本部',
+        '積立部門',
     ];
 
     private const EXPORT_COLUMNS = [
@@ -391,6 +397,210 @@ class ActualResultPersistenceService
         $payload['real_margin'] = $this->profitMargin($sales, (int) ($payload['real_profit'] ?? $department->real_profit ?? 0));
 
         return $payload;
+    }
+
+    public function settlementUnitsForProjects(
+        iterable $projects,
+        CarbonInterface $start,
+        CarbonInterface $end
+    ): array {
+        return $this->departmentUnitsForProjects(
+            $projects,
+            $start,
+            $end,
+            false,
+            fn (ActualResultDepartment $department) => $this->settlementUnit($department)
+        );
+    }
+
+    public function analysisUnitsForProjects(
+        iterable $projects,
+        CarbonInterface $start,
+        CarbonInterface $end
+    ): array {
+        return $this->departmentUnitsForProjects(
+            $projects,
+            $start,
+            $end,
+            true,
+            fn (ActualResultDepartment $department) => array_merge(
+                $this->settlementUnit($department),
+                ['actual_result_details' => $this->analysisDetails($department)]
+            )
+        );
+    }
+
+    public function settlementUnit(ActualResultDepartment $department): array
+    {
+        $metrics = $department->metrics ?: [];
+        $sales = (int) ($metrics['sales'] ?? $department->sales ?? 0);
+        $profit = (int) ($metrics['real_profit'] ?? $department->real_profit ?? 0);
+        $expense = array_key_exists('total_expenses', $metrics)
+            ? (int) $metrics['total_expenses']
+            : $sales - $profit;
+
+        return [
+            'row' => null,
+            'sales' => $sales,
+            'expense' => $expense,
+            'overhead' => (int) ($metrics['indirect_allocation_expense'] ?? $department->indirect_allocation_expense ?? 0),
+            'profit' => $profit,
+            'profit_rate' => $this->profitMargin($sales, $profit),
+            'has_data' => true,
+            'is_forecast' => false,
+            'source' => 'actual_result',
+        ];
+    }
+
+    public function analysisDetails(ActualResultDepartment $department): array
+    {
+        $metrics = $department->metrics ?: [];
+        $topExpenseAccounts = [];
+        $internalTransferExpense = 0;
+
+        foreach ($department->accounts ?: [] as $account) {
+            if (($account['category'] ?? 'expense') !== 'expense') {
+                continue;
+            }
+
+            $accountName = trim((string) ($account['account_name'] ?? ''));
+            $amount = (int) ($account['amount'] ?? 0);
+
+            if (
+                $accountName === '賞与'
+                && in_array($department->department_name, self::ANALYSIS_INTERNAL_TRANSFER_DEPARTMENTS, true)
+            ) {
+                $internalTransferExpense += $amount;
+                continue;
+            }
+
+            if ($amount <= 0 || ($account['bucket'] ?? 'ordinary_expense') !== 'ordinary_expense') {
+                continue;
+            }
+
+            $label = in_array($accountName, self::SENSITIVE_PAYROLL_ACCOUNTS, true)
+                ? '給与関連'
+                : $accountName;
+
+            if ($label !== '') {
+                $topExpenseAccounts[$label] = ($topExpenseAccounts[$label] ?? 0) + $amount;
+            }
+        }
+
+        arsort($topExpenseAccounts, SORT_NUMERIC);
+        $topExpenseAccounts = array_map(
+            fn (string $accountName, int $amount) => [
+                'account_name' => $accountName,
+                'amount' => $amount,
+            ],
+            array_keys(array_slice($topExpenseAccounts, 0, 5, true)),
+            array_values(array_slice($topExpenseAccounts, 0, 5, true))
+        );
+
+        return [
+            'report_id' => $department->actual_result_report_id,
+            'source_mode' => $department->report?->file_metadata['calculation_source_mode'] ?? null,
+            'manual_adjusted' => (bool) $department->manual_adjusted,
+            'external_sales' => (int) ($metrics['external_sales'] ?? $department->external_sales ?? 0),
+            'internal_sales' => (int) ($metrics['internal_sales'] ?? $department->internal_sales ?? 0),
+            'cost_of_goods_sold' => (int) ($metrics['cost_of_goods_sold'] ?? $department->cost_of_goods_sold ?? 0),
+            'sg_and_a_expenses' => (int) ($metrics['sg_and_a_expenses'] ?? $department->sg_and_a_expenses ?? 0),
+            'indirect_allocation_expense' => (int) ($metrics['indirect_allocation_expense'] ?? $department->indirect_allocation_expense ?? 0),
+            'performance_bonus_reserve' => (int) ($metrics['performance_bonus_reserve'] ?? $department->performance_bonus_reserve ?? 0),
+            'basic_bonus_reserve' => (int) ($metrics['basic_bonus_reserve'] ?? $department->basic_bonus_reserve ?? 0),
+            'paid_leave_reserve' => (int) ($metrics['paid_leave_reserve'] ?? $department->paid_leave_reserve ?? 0),
+            'welfare_reserve' => (int) ($metrics['welfare_reserve'] ?? $department->welfare_reserve ?? 0),
+            'refresh_reserve' => (int) ($metrics['refresh_reserve'] ?? $department->refresh_reserve ?? 0),
+            'reserve_transfer_sales' => (int) ($metrics['reserve_transfer_sales'] ?? 0),
+            'internal_transfer_expense' => $internalTransferExpense,
+            'top_expense_accounts' => $topExpenseAccounts,
+        ];
+    }
+
+    private function departmentUnitsForProjects(
+        iterable $projects,
+        CarbonInterface $start,
+        CarbonInterface $end,
+        bool $includeAnalysisDetails,
+        callable $mapDepartment
+    ): array {
+        $projects = collect($projects)
+            ->filter(fn ($project) => $project instanceof ProjectRecord)
+            ->values();
+
+        if ($projects->isEmpty()) {
+            return [];
+        }
+
+        $projectIds = $projects->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $projectNames = $projects->pluck('name')->filter()->unique()->values()->all();
+        $projectIdsByName = $projects->pluck('id', 'name');
+        $columns = [
+            'id',
+            'actual_result_report_id',
+            'project_record_id',
+            'department_name',
+            'metrics',
+            'sales',
+            'indirect_allocation_expense',
+            'real_profit',
+        ];
+
+        if ($includeAnalysisDetails) {
+            $columns = array_merge($columns, [
+                'accounts',
+                'manual_adjusted',
+                'external_sales',
+                'internal_sales',
+                'cost_of_goods_sold',
+                'sg_and_a_expenses',
+                'performance_bonus_reserve',
+                'basic_bonus_reserve',
+                'paid_leave_reserve',
+                'welfare_reserve',
+                'refresh_reserve',
+            ]);
+        }
+
+        $departments = ActualResultDepartment::query()
+            ->select($columns)
+            ->with(['report' => fn ($query) => $query->select('id', 'target_month', 'file_metadata')])
+            ->where(function ($query) use ($projectIds, $projectNames) {
+                $query->whereIn('project_record_id', $projectIds)
+                    ->orWhere(function ($fallback) use ($projectNames) {
+                        $fallback->whereNull('project_record_id')
+                            ->whereIn('department_name', $projectNames);
+                    });
+            })
+            ->whereHas('report', function ($query) use ($start, $end) {
+                $query->whereBetween('target_month', [
+                    $start->copy()->startOfMonth()->toDateString(),
+                    $end->copy()->endOfMonth()->toDateString(),
+                ]);
+            })
+            ->get();
+
+        $units = [];
+
+        foreach ($departments as $department) {
+            $projectId = $department->project_record_id !== null
+                ? (int) $department->project_record_id
+                : (int) ($projectIdsByName->get($department->department_name) ?? 0);
+            $month = $department->report?->target_month?->format('Y-m');
+
+            if ($projectId === 0 || $month === null) {
+                continue;
+            }
+
+            // A direct project relation is more reliable than the legacy name fallback.
+            if (isset($units[$projectId][$month]) && $department->project_record_id === null) {
+                continue;
+            }
+
+            $units[$projectId][$month] = $mapDepartment($department);
+        }
+
+        return $units;
     }
 
     private function syncReportPayload(

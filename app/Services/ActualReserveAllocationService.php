@@ -28,6 +28,28 @@ class ActualReserveAllocationService
         '社員コード',
     ];
 
+    private const PEOPLE_COST_REQUEST_FIELDS = [
+        '社員コード数値',
+        '社員コード',
+        '基本給',
+        '役職手当',
+        '有給引当金',
+        '有休引当金',
+        '有給休暇引当金',
+        '福利厚生費等引当金（リ補除く）',
+        '福利厚生費等引当金(リ補除く)',
+        '福利厚生費等引当金_リ補除く',
+        '福利厚生費等引当金_リ補除く_',
+        '福利厚生費等引当金',
+        '福利厚生引当金',
+        'リ補引当金',
+        'リフレッシュ補助金引当金',
+        'リフレッシュ補助引当金',
+        'リフレッシュ引当金',
+        'リフレッシュ補助積立金',
+        '計算基準日',
+    ];
+
     private const RESERVE_FIELDS = [
         'basic_bonus_reserve' => [
             'account_name' => '基本賞与積立金',
@@ -115,14 +137,12 @@ class ActualReserveAllocationService
             $codeKey = $this->normalizeEmployeeCode($userCode);
 
             if ($codeKey === '') {
-                $warnings[] = "社員コードがないため、{$userData['user_name']} の積立金を計算できませんでした。";
                 continue;
             }
 
             $peopleCostRecord = $peopleCostRecords[$codeKey] ?? null;
 
             if ($peopleCostRecord === null) {
-                $warnings[] = "Kintone app 96 に社員コード {$userCode} のレコードがないため、{$userData['user_name']} の積立金を計算できませんでした。";
                 continue;
             }
 
@@ -252,7 +272,7 @@ class ActualReserveAllocationService
             $user = $record->user;
 
             if ($user === null) {
-                $warnings[] = "timecard_records #{$record->id} のユーザーが見つかりませんでした。";
+                $warnings[] = $this->timecardDescription($record).'にユーザー情報がないため、積立金を計算できませんでした。';
                 continue;
             }
 
@@ -324,15 +344,11 @@ class ActualReserveAllocationService
             $departmentName = trim((string) ($segment->project?->name ?? ''));
 
             if ($departmentName === '') {
-                $warnings[] = "timecard_project_segments #{$segment->id} の部門が見つかりませんでした。";
+                $warnings[] = $this->timecardDescription($record).'の勤務区分に部門がないため、積立金を計算できませんでした。';
                 continue;
             }
 
             $minutesByDepartment[$departmentName] = ($minutesByDepartment[$departmentName] ?? 0) + $minutes;
-        }
-
-        if ($minutesByDepartment === []) {
-            $warnings[] = "timecard_records #{$record->id} に就業セグメントの勤務時間がないため、積立金の時間按分から除外しました。";
         }
 
         return $minutesByDepartment;
@@ -347,20 +363,27 @@ class ActualReserveAllocationService
         $departmentName = trim((string) ($record->department?->name ?? ''));
 
         if ($departmentName === '') {
-            $warnings[] = "timecard_records #{$record->id} の部門が見つかりませんでした。";
+            $warnings[] = $this->timecardDescription($record).'に勤務部門がないため、積立金を計算できませんでした。';
             return [];
         }
 
         $minutes = (int) ($record->work_time ?? 0);
 
         if ($minutes <= 0) {
-            $warnings[] = "timecard_records #{$record->id} の勤務時間がないため、積立金の時間按分から除外しました。";
             return [];
         }
 
         return [
             $departmentName => $minutes,
         ];
+    }
+
+    private function timecardDescription(timecardRecord $record): string
+    {
+        $date = $record->day ? Carbon::parse($record->day)->format('Y/m/d') : '日付不明';
+        $userName = trim((string) ($record->user?->name ?? ''));
+
+        return $userName !== '' ? "{$date} {$userName}の勤怠" : "{$date}の勤怠";
     }
 
     private function isEligibleForBucket(mixed $positionId, string $bucket): bool
@@ -384,7 +407,13 @@ class ActualReserveAllocationService
      */
     private function peopleCostRecordsByCode(Carbon $monthEnd): array
     {
-        $records = $this->kintone->getAllRecords(self::APP_PEOPLE_COSTS);
+        $fields = $this->peopleCostRequestFields();
+        $records = $this->kintone->getAllRecords(
+            self::APP_PEOPLE_COSTS,
+            '',
+            $fields,
+            $fields === [] ? 100 : 500
+        );
         $recordsByCode = [];
 
         foreach ($records as $record) {
@@ -400,6 +429,34 @@ class ActualReserveAllocationService
         }
 
         return $recordsByCode;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function peopleCostRequestFields(): array
+    {
+        try {
+            $availableFields = array_keys($this->kintone->getAppFields(self::APP_PEOPLE_COSTS));
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $requestedKeys = array_fill_keys(array_map(
+            fn (string $field) => $this->normalizeFieldKey($field),
+            self::PEOPLE_COST_REQUEST_FIELDS
+        ), true);
+        $fields = array_values(array_filter($availableFields, function (string $field) use ($requestedKeys) {
+            $normalized = $this->normalizeFieldKey($field);
+
+            return isset($requestedKeys[$normalized])
+                || isset($requestedKeys[$this->stripTrailingDigits($normalized)]);
+        }));
+
+        // System fields are not always returned by the form-fields endpoint.
+        $fields[] = '更新日時';
+
+        return array_values(array_unique($fields));
     }
 
     /**

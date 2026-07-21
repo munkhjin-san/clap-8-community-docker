@@ -721,14 +721,12 @@ const calculate = async () => {
     await submitCalculation({
         overwriteConfirmed: !!result.value?.exists,
         discardManualEdits: hasManualEdits,
-        warningsConfirmed: false,
     });
 };
 
 type CalculationConfirmations = {
     overwriteConfirmed: boolean;
     discardManualEdits: boolean;
-    warningsConfirmed: boolean;
 };
 
 const submitCalculation = async (confirmations: CalculationConfirmations) => {
@@ -739,7 +737,6 @@ const submitCalculation = async (confirmations: CalculationConfirmations) => {
     formData.append('month', selectedMonthKey.value);
     formData.append('overwrite_confirmed', confirmations.overwriteConfirmed ? '1' : '0');
     formData.append('discard_manual_edits', confirmations.discardManualEdits ? '1' : '0');
-    formData.append('warnings_confirmed', confirmations.warningsConfirmed ? '1' : '0');
 
     try {
         const data = await api.post('/admin/actual-results/calculate', formData, {
@@ -762,24 +759,6 @@ const submitCalculation = async (confirmations: CalculationConfirmations) => {
         }
     } catch (error: any) {
         const errors = error?.response?.data?.errors as Record<string, string[]> | undefined;
-
-        if (!confirmations.warningsConfirmed && errors?.warnings_confirmation?.length) {
-            const warnings = errors.warnings || [];
-            const preview = warnings.slice(0, 3).map((warning) => `・${warning}`).join('\n');
-            const more = warnings.length > 3 ? `\nほか ${warnings.length - 3}件` : '';
-            const confirmed = await dialog.ask(`${errors.warnings_confirmation[0]}\n${preview}${more}\nこの内容で保存しますか？`, {
-                answers: [
-                    { value: true, label: '保存' },
-                    { value: false, label: 'キャンセル' },
-                ],
-            });
-
-            if (confirmed.value) {
-                await submitCalculation({ ...confirmations, warningsConfirmed: true });
-            }
-
-            return;
-        }
 
         uploadError.value = Object.values(errors || {})[0]?.[0]
             || error?.response?.data?.message
