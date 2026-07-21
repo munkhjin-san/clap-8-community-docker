@@ -518,6 +518,7 @@ watch(() => props.period, async () => {
     background: transparent;
     cursor: pointer;
     transition: background-color .15s ease, color .15s ease;
+    color: var(--primary-color);
 }
 .next-unread-btn:hover {
     background: var(--bg3);
