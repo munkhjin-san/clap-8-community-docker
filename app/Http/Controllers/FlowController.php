@@ -14,6 +14,7 @@ use App\Services\FlowFormulaEvaluator;
 use App\Services\FlowService;
 use App\Services\KintoneImportService;
 use App\Services\PdfRenderService;
+use App\Support\FlowSystemSources;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -1232,6 +1233,101 @@ class FlowController extends Controller
                 continue;
             }
             $out[$key] = $vals[(string) $f->id] ?? null;
+        }
+
+        return response()->json(['values' => $out]);
+    }
+
+    /* ---- system reference sources (built-in masters, e.g. offices) ---------------------------------
+     * A reference field can point at a real master table instead of another Flow app. These mirror
+     * the app-reference endpoints above (list picker / label / field-copy) against the source's real
+     * model, so the master stays the single source of truth. See App\Support\FlowSystemSources. */
+
+    /** The available system sources ({key,label}) for the field inspector's source picker. */
+    public function systemReferenceSources()
+    {
+        return response()->json(['sources' => FlowSystemSources::options()]);
+    }
+
+    /** A system source's columns as text pseudo-fields — same shape as getDefinitionFields. */
+    public function systemReferenceFields($source)
+    {
+        $s = FlowSystemSources::get($source);
+        abort_unless($s !== null, 404);
+
+        return response()->json([
+            'id' => $source,
+            'name' => $s['label'],
+            'fields' => collect($s['columns'])
+                ->map(fn ($c) => ['key' => $c['key'], 'label' => $c['label'], 'input_type' => 'short', 'result_type' => null])
+                ->values(),
+        ]);
+    }
+
+    /** Search a system source (mirrors referenceSearch): returns {id, number, label} rows. */
+    public function systemReferenceSearch(Request $request, $source)
+    {
+        $s = FlowSystemSources::get($source);
+        abort_unless($s !== null, 404);
+
+        $q = trim((string) $request->input('q', ''));
+        $labelKey = (string) $request->input('label_field', '') ?: $s['label_column'];
+        $resolve = $s['value'] ?? fn ($m, $k) => $m->{$k} ?? null;
+
+        /** @var \Illuminate\Database\Eloquent\Builder $query */
+        $query = $s['model']::query();
+        if (isset($s['filter'])) {
+            ($s['filter'])($query);
+        }
+        if ($q !== '') {
+            $query->where(function ($w) use ($s, $q) {
+                foreach ($s['search'] as $col) {
+                    $w->orWhere($col, 'like', '%'.$q.'%');
+                }
+            });
+        }
+        $rows = $query->orderBy($s['label_column'])->limit(20)->get();
+
+        $out = $rows->map(function ($m) use ($resolve, $labelKey) {
+            $label = $resolve($m, $labelKey);
+            $label = is_scalar($label) ? (string) $label : '';
+
+            return ['id' => $m->id, 'number' => $m->id, 'label' => $label !== '' ? $label : ('#'.$m->id)];
+        });
+
+        return response()->json(['records' => $out->values()]);
+    }
+
+    /** A picked system-source row's column values (mirrors lookupRecord) for field-copy. */
+    public function systemReferenceRecord(Request $request, $source, $id)
+    {
+        $s = FlowSystemSources::get($source);
+        abort_unless($s !== null, 404);
+
+        $wantKeys = array_values(array_filter(array_map('trim', explode(',', (string) $request->input('fields', '')))));
+        if (! $wantKeys) {
+            return response()->json(['values' => (object) []]);
+        }
+
+        /** @var \Illuminate\Database\Eloquent\Builder $query */
+        $query = $s['model']::query();
+        if (isset($s['filter'])) {
+            ($s['filter'])($query);
+        }
+        $row = $query->whereKey($id)->first();
+        if (! $row) {
+            return response()->json(['values' => (object) []]);
+        }
+
+        $allowed = collect($s['columns'])->pluck('key')->flip();
+        $resolve = $s['value'] ?? fn ($m, $k) => $m->{$k} ?? null;
+
+        $out = [];
+        foreach ($wantKeys as $key) {
+            if (! $allowed->has($key)) {
+                continue;
+            }
+            $out[$key] = $resolve($row, $key);
         }
 
         return response()->json(['values' => $out]);

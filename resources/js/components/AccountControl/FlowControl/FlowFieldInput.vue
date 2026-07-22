@@ -165,7 +165,7 @@
                     :value="refQuery"
                     class="fi-input"
                     :placeholder="refPlaceholder"
-                    :disabled="!refTargetId"
+                    :disabled="!hasRefTarget"
                     @focus="openRef"
                     @input="onRefInput"
                     @keydown="onRefKeydown"
@@ -397,6 +397,9 @@ const setCell = (ri: number, key: string, value: any) => {
 
 /* ---- reference field: single-record picker (snapshot {id, number, label}) ---- */
 const refTargetId = computed(() => props.field.validation?.target_definition_id ?? null)
+// a reference can target a built-in system source (e.g. offices) instead of a Flow app
+const refSource = computed(() => props.field.validation?.target_source ?? null)
+const hasRefTarget = computed(() => refTargetId.value != null || refSource.value != null)
 const refLabelField = computed(() => props.field.validation?.label_field ?? '')
 const refMappings = computed(() => (props.field.validation?.field_mappings ?? []).filter((m: any) => m?.from && m?.to))
 const refSelected = computed<any>(() => (props.modelValue && props.modelValue.id ? props.modelValue : null))
@@ -410,21 +413,24 @@ const { placement } = useFloatingMenu(refOpen, refInputEl)
 const refLoading = ref(false)
 const refResults = ref<any[]>([])
 let refTimer: ReturnType<typeof setTimeout> | null = null
-const refPlaceholder = computed(() => (refTargetId.value ? 'レコードを検索…' : '参照先アプリが未設定です'))
+const refPlaceholder = computed(() => (hasRefTarget.value ? 'レコードを検索…' : '参照先アプリが未設定です'))
 const searchRef = async () => {
-    if (!refTargetId.value) return
+    if (!hasRefTarget.value) return
     refLoading.value = true
     try {
         const q = encodeURIComponent(refQuery.value.trim())
         const lf = encodeURIComponent(refLabelField.value || '')
-        const data = await api.get(`/flow_reference_search/${refTargetId.value}?q=${q}&label_field=${lf}`)
+        const url = refSource.value
+            ? `/flow_system_reference/${refSource.value}?q=${q}&label_field=${lf}`
+            : `/flow_reference_search/${refTargetId.value}?q=${q}&label_field=${lf}`
+        const data = await api.get(url)
         refResults.value = data?.records ?? []
         refHighlighted.value = 0
     } finally {
         refLoading.value = false
     }
 }
-const openRef = () => { if (!refTargetId.value) return; refOpen.value = true; searchRef() }
+const openRef = () => { if (!hasRefTarget.value) return; refOpen.value = true; searchRef() }
 // read the live DOM value (not v-model) so search fires while an IME composition is still in progress
 const onRefInput = (e: Event) => {
     refQuery.value = (e.target as HTMLInputElement).value
@@ -456,10 +462,13 @@ const pickRef = async (c: any) => {
     refQuery.value = ''
     refOpen.value = false
     // kintone-style field copy: pull the picked record's mapped source values, let the parent fill fields
-    if (!props.readonly && refMappings.value.length && refTargetId.value && c.id) {
+    if (!props.readonly && refMappings.value.length && hasRefTarget.value && c.id) {
         try {
             const keys = encodeURIComponent(refMappings.value.map((m: any) => m.from).join(','))
-            const data = await api.get(`/flow_lookup_record/${refTargetId.value}/${c.id}?fields=${keys}`)
+            const url = refSource.value
+                ? `/flow_system_record/${refSource.value}/${c.id}?fields=${keys}`
+                : `/flow_lookup_record/${refTargetId.value}/${c.id}?fields=${keys}`
+            const data = await api.get(url)
             emit('lookup', { mappings: refMappings.value, source: data?.values ?? {} })
         } catch { /* copy is best-effort; the link itself is already set */ }
     }

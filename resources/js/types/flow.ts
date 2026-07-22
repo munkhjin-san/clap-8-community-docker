@@ -39,6 +39,9 @@ export interface FlowFieldValidation {
     columns?: TableColumn[]
     /** reference: the target app to link records from. */
     target_definition_id?: number | null
+    /** reference: a built-in system source (e.g. 'office') to link from instead of an app. Mutually
+     *  exclusive with target_definition_id — set one or the other. See App\Support\FlowSystemSources. */
+    target_source?: string | null
     /** reference: which field key of the target app to show as the label (falls back to record number). */
     label_field?: string | null
     /**

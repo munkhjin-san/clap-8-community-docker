@@ -1020,6 +1020,11 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/flow_app_record_by_number/{definition}/{number}', [FlowController::class, 'getAppRecordByNumber']);
         Route::get('/flow_reference_search/{definition}', [FlowController::class, 'referenceSearch']);
         Route::get('/flow_lookup_record/{definition}/{record}', [FlowController::class, 'lookupRecord']);
+        // system reference sources (built-in masters, e.g. offices) — mirror the app-reference endpoints
+        Route::get('/flow_system_sources', [FlowController::class, 'systemReferenceSources']);
+        Route::get('/flow_system_fields/{source}', [FlowController::class, 'systemReferenceFields']);
+        Route::get('/flow_system_reference/{source}', [FlowController::class, 'systemReferenceSearch']);
+        Route::get('/flow_system_record/{source}/{id}', [FlowController::class, 'systemReferenceRecord']);
         Route::get('/flow_definition_fields/{definition}', [FlowController::class, 'getDefinitionFields']);
         Route::post('/flow_generate_icon', [FlowController::class, 'generateAppIcon']);
         Route::post('/flow_app_record_create', [FlowController::class, 'storeAppRecord']);
