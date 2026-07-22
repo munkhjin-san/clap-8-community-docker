@@ -504,10 +504,10 @@ import { storeToRefs } from 'pinia';
     const onClick = (event: MouseEvent | TouchEvent) => {
         const target = event.target
         if(menu && target){
-            const cont = document.getElementById(menu.parent ? menu.parent : menu.name);  
-            if(cont && !cont.contains(target as Node)){
+            const cont = document.getElementById(menu.parent ? menu.parent : menu.name);
+            if(!cont || !cont.contains(target as Node)){
                 menu.close()
-            } 
+            }
         }        
     }
     const authCheck = async() => {
