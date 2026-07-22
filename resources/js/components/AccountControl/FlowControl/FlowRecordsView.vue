@@ -97,6 +97,9 @@
                                     <button v-if="rec.can_edit" class="rv-actbtn" title="編集" @click="editRecord(rec)">
                                         <Edit size="13" />
                                     </button>
+                                    <button v-if="permissions?.add" class="rv-actbtn" title="複製して新規作成" @click="duplicateRecord(rec)">
+                                        <Copy size="13" />
+                                    </button>
                                     <button v-if="rec.can_delete" class="rv-actbtn rv-actbtn-del" title="削除" @click="deleteRecord(rec)">
                                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                     </button>
@@ -161,6 +164,7 @@ import FlowRecordFilterModal from './FlowRecordFilterModal.vue'
 import FlowCsvExportModal from './FlowCsvExportModal.vue'
 import Back from '@/components/Icons/Back.vue'
 import Edit from '@/components/Icons/Edit.vue'
+import Copy from '@/components/Icons/Copy.vue'
 import Gear from '@/components/Icons/Gear.vue'
 import Filter from '@/components/Icons/Filter.vue'
 import PostSearchBar from '@/components/Post/PostSearchBar.vue'
@@ -293,8 +297,12 @@ const load = async () => {
             records.value = data.records ?? []
             total.value = data.total ?? records.value.length
             if (!activeViewId.value) {
+                // restore the view from the URL (?view=) so it survives leaving/returning to the list;
+                // fall back to the app's default view
+                const q = route.query.view ? Number(route.query.view) : null
+                const fromQuery = q && views.value.some((v) => v.id === q) ? q : null
                 const def = views.value.find((v) => v.is_default) ?? views.value[0]
-                activeViewId.value = def?.id ?? null
+                activeViewId.value = fromQuery ?? def?.id ?? null
             }
         }
     } finally {
@@ -307,7 +315,14 @@ const scrollTop = () => { const el = document.getElementById('rvScroll'); if (el
 const refetch = () => { if (mode.value === 'server') load() }
 
 const onSearch = (kw: string) => { search.value = kw; page.value = 1; refetch() }
-const onViewChange = () => { sortRef.value = null; page.value = 1; refetch() }
+const onViewChange = () => {
+    sortRef.value = null
+    page.value = 1
+    // reflect the choice in the URL so opening a record then coming back keeps this view selected
+    const cur = route.query.view ? Number(route.query.view) : null
+    if (cur !== activeViewId.value) router.replace({ query: { ...route.query, view: activeViewId.value ?? undefined } })
+    refetch()
+}
 const setPage = (n: number) => {
     const p = Math.min(pageCount.value, Math.max(1, n))
     if (p === page.value) return
@@ -355,6 +370,8 @@ const openNew = () => router.push({ name: 'flow-record-new', params: { flowId: f
 const openRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number } })
 // quick-edit shortcut: open the record already in edit mode
 const editRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number }, query: { edit: '1' } })
+// 複製: open a new record pre-filled with this record's values
+const duplicateRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-new', params: { flowId: flowId.value }, query: { from: rec.id } })
 
 /* ---- row shortcuts (edit / delete) + bulk delete (一括処理) ---- */
 const deleteRecord = async (rec: FlowRecordDto) => {
@@ -412,8 +429,11 @@ onMounted(async () => {
 .rv-filterbtn {color: var(--primary-color); box-sizing: border-box !important; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); cursor: pointer; }
 .rv-filterbtn:hover { background: var(--bg3); border-color: var(--primary-color); }
 .rv-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
-.rv-actbtn { display: flex; align-items: center; gap: 6px; height: 20px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; transition: background .12s, border-color .12s; fill: var(--primary-color); }
-.rv-actbtn:hover { background: var(--bg3); border-color: var(--primary-color); }
+/* top-bar buttons (アプリ設定 / CSV): scoped to .rv-r1 so the row-action .rv-actbtn rule below can't
+   override their geometry. border-box + explicit height pins the <button> and the CSV <div> to the
+   SAME total height (a bare <button> defaults to border-box while the <div> is content-box). */
+.rv-r1 .rv-actbtn { box-sizing: border-box !important; display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; transition: background .12s, border-color .12s; fill: var(--primary-color); }
+.rv-r1 .rv-actbtn:hover { background: var(--bg3); border-color: var(--primary-color); }
 .rv-actlabel { font-size: 13px; color: var(--primary-color); white-space: nowrap; }
 .rv-csv :deep(.boardMenuContainer) { display: flex; align-items: center; height: 30px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; transition: background .12s, border-color .12s; }
 .rv-csv :deep(.boardMenuContainer:hover) { background: var(--bg3); border-color: var(--primary-color); }

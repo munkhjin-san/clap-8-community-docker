@@ -9,7 +9,7 @@
         <div class="flow-builder-bar">
             <div class="flex items-center gap-[10px] min-w-0 flex-wrap">
                 <div class="flow-back" @click="back"><Back size="14" /></div>
-                <button v-if="!def.id && auth.hasPrivilage" class="flow-ghost-btn flow-ghost-btn-lg" @click="kintoneOpen = true">kintoneから取込</button>
+                <button v-if="!def.id && (auth.isAdmin || auth.isBoss)" class="flow-ghost-btn flow-ghost-btn-lg" @click="kintoneOpen = true">kintoneから取込</button>
             </div>
             <div class="flex items-center gap-[8px]">
                 <button class="flow-ghost-btn flow-ghost-btn-lg" @click="back">キャンセル</button>
