@@ -50,15 +50,12 @@
 
         <!-- Toolbar: scope + export -->
         <div class="mx-[20px] flex items-center gap-[14px] flex-wrap mb-[16px]">
-            <div class="flex bg-[var(--inactive-background)] border border-[var(--normalBorder)] p-[3px] gap-[2px]">
+            <div class="fc-scope">
                 <button
                     v-for="s in scopeOptions"
                     :key="s.key"
                     @click="scope = s.key"
-                    :class="[
-                        'h-[34px] px-[14px] flex items-center justify-center text-[13px] font-medium cursor-pointer transition-colors border-none',
-                        scope === s.key ? 'bg-[var(--message-background)] text-[var(--primary-color)] shadow-sm' : 'bg-transparent text-[gray]'
-                    ]"
+                    :class="['fc-scope-btn', scope === s.key ? 'on' : '']"
                 >{{ s.label }}</button>
             </div>
             <div class="flex-1"></div>
@@ -135,8 +132,7 @@
             </button>
             <div class="flex-1"></div>
             <div class="relative flex items-center">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="gray" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="absolute left-[11px] pointer-events-none"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
-                <select v-model="sort" class="h-[36px] pl-[32px] pr-[30px] bg-[var(--inactive-background)] text-[gray] border border-[var(--normalBorder)] text-[13px] cursor-pointer outline-none appearance-none">
+                <select v-model="sort" class="h-[36px] pl-[15px] pr-[30px] border border-[var(--normalBorder)] text-[13px] cursor-pointer outline-none appearance-none">
                     <option value="name">氏名順</option>
                     <option value="dept">部署順</option>
                     <option value="date">登録日時（新しい順）</option>
@@ -144,12 +140,12 @@
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="gray" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute right-[10px] pointer-events-none"><path d="M6 9l6 6 6-6"/></svg>
             </div>
             <span class="text-[13px] text-[gray]"><span class="text-[var(--primary-color)] font-bold">{{ totalCount }}</span> 件</span>
-            <div v-if="!responsive.mobile" class="flex bg-[var(--inactive-background)] border border-[var(--normalBorder)] p-[3px] gap-[2px]">
+            <div v-if="!responsive.mobile" class="fc-viewtoggle">
                 <button @click="selectView('grid')" :class="viewToggleClass('grid')" title="グリッド表示">
-                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></svg>
+                    <Grid size="13"/>
                 </button>
                 <button @click="selectView('table')" :class="viewToggleClass('table')" title="テーブル表示">
-                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M3 9.5h18M3 14.5h18M9 4.5v15"/></svg>
+                    <List size="13"/>
                 </button>
             </div>
         </div>
@@ -169,7 +165,6 @@
                 @open-memo="openPrivateMemo"
             />
             <div v-if="initialLoader > 0 && contacts.length > 0 && totalCount === 0" class="flex flex-col items-center justify-center py-[90px] text-[gray] gap-[14px]">
-                <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.2-4.2"/></svg>
                 <div class="text-[15px]">該当するコンタクトが見つかりません</div>
             </div>
         </div>
@@ -256,6 +251,8 @@ import DuplicateReviewModal from './DuplicateReviewModal.vue';
 import PrivateMemoModal from './PrivateMemoModal.vue';
 import MultiSelectDropdown from './Filters/MultiSelectDropdown.vue';
 import { mkConfig, generateCsv, download } from 'export-to-csv';
+import Grid from '@/components/Icons/Grid.vue';
+import List from '@/components/Icons/List.vue';
 
 const props = defineProps<{
     keyword: string
@@ -410,10 +407,7 @@ const selectView = (v: 'grid' | 'table') => {
     viewType.value = v;
     localStorage.setItem('contactViewType', v);
 };
-const viewToggleClass = (v: 'grid' | 'table') => [
-    'w-[34px] h-[30px] flex items-center justify-center cursor-pointer transition-colors border-none',
-    viewType.value === v ? 'bg-[var(--message-background)] text-[var(--primary-color)] shadow-sm' : 'bg-transparent text-[gray]'
-];
+const viewToggleClass = (v: 'grid' | 'table') => ['fc-vt-btn', viewType.value === v ? 'on' : ''];
 
 const formatDate = (iso: string) => {
     const date = new Date(iso);
@@ -795,4 +789,16 @@ const resolveDuplicate = async ({ contactId, action, targetId }: { contactId: nu
 [class~="border-t"] { border-top-style: solid; }
 [class~="border-b"] { border-bottom-style: solid; }
 [class*="border"] { box-sizing: border-box !important; }
+.fc-viewtoggle { display: inline-flex; flex-shrink: 0; height: 29px; border: 1px solid var(--formBorder); }
+.fc-vt-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 100%; border: none; background: var(--background-color); cursor: pointer; padding: 0; }
+.fc-vt-btn + .fc-vt-btn { border-left: 1px solid var(--formBorder); }
+.fc-vt-btn :deep(svg) { fill: gray; }
+.fc-vt-btn.on { background: var(--primary-button, var(--primary-color)); }
+/* --primary-button is dark in both themes (#000 / #4b4b4b), so the active glyph is white in both */
+.fc-vt-btn.on :deep(svg) { fill: #fff; }
+/* Scope switch — same segmented control, but text buttons */
+.fc-scope { display: inline-flex; flex-shrink: 0; border: 1px solid var(--formBorder); }
+.fc-scope-btn { display: inline-flex; align-items: center; justify-content: center; height: 34px; padding: 0 16px; border: none; background: var(--background-color); color: gray; font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.fc-scope-btn + .fc-scope-btn { border-left: 1px solid var(--formBorder); }
+.fc-scope-btn.on { background: var(--primary-button, var(--primary-color)); color: #fff; }
 </style>
