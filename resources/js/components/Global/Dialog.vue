@@ -96,7 +96,12 @@ const sendAnswer = (answer: Answer, index: number) => {
   selected.value = index;
   attempted.value = true;
 
-  if (props.input && inputError.value && !isCancel(answer)) return;
+  if (props.input && inputError.value && !isCancel(answer)) {
+    setTimeout(() => {
+      selected.value = null
+    }, 150)
+    return
+  };
   emit('handle', answer); // keep legacy event
   emit('submit', { input: (inputValue.value ?? '').trim(), answer });
   setTimeout(() => emit('close'), 50);
