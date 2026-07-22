@@ -185,11 +185,17 @@ const setViewMode = (m: ViewMode) => {
     try { localStorage.setItem(VIEW_KEY, m) } catch { /* private mode / quota — non-fatal */ }
 }
 
-const menuItems = (def: FlowDefinitionListItem): MenuList[] => [
-    { title: def.pinned ? 'ピン留めを外す' : 'ピン留め', action: () => togglePin(def) },
-    { title: '設定', action: () => openBuilder(def.id) },
-    { title: '削除', action: () => removeDefinition(def.id) },
-]
+const menuItems = (def: FlowDefinitionListItem): MenuList[] => {
+    // ピン留め is a per-user preference (anyone who can see the app); 設定/削除 need 管理 (manage)
+    const items: MenuList[] = [
+        { title: def.pinned ? 'ピン留めを外す' : 'ピン留め', action: () => togglePin(def) },
+    ]
+    if (def.can_manage) {
+        items.push({ title: '設定', action: () => openBuilder(def.id) })
+        items.push({ title: '削除', action: () => removeDefinition(def.id) })
+    }
+    return items
+}
 
 const onSearch = (kw: string) => { search.value = kw }
 const sortedDefinitions = computed(() => {

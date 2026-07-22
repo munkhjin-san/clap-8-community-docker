@@ -56,6 +56,7 @@
                 <!-- desktop only: on mobile these consolidate into the ⋮ menu in the title bar -->
                 <template v-if="mode === 'view' && !isNarrow">
                     <button v-for="t in pdfTools" :key="t.id" class="rd-tool" @click="downloadPdf(t)" :title="t.name"><FileIcon ext="unknown" class="rd-tool-file" />{{ t.name }}</button>
+                    <button v-if="canDuplicate" class="rd-tool" title="このレコードを複製して新規作成" @click="duplicate"><Copy size="13" />複製</button>
                     <button v-if="!isNew && can.delete" class="rd-tool danger" @click="remove"><Trash size="13" />削除</button>
                     <button v-if="can.edit" class="rd-tool primary" @click="mode = 'edit'"><Edit size="13" />編集</button>
                 </template>
@@ -186,6 +187,7 @@ import Back from '@/components/Icons/Back.vue'
 import FlowAppIcon from './FlowAppIcon.vue'
 import Trash from '@/components/Icons/Trash.vue'
 import Edit from '@/components/Icons/Edit.vue'
+import Copy from '@/components/Icons/Copy.vue'
 import Gear from '@/components/Icons/Gear.vue'
 import Comment from '@/components/Icons/Comment.vue'
 import ChangeLog from '@/components/Icons/ChangeLog.vue'
@@ -268,6 +270,10 @@ const selectTab = (k: 'comment' | 'history') => {
 const flowId = computed(() => route.params.flowId)
 const recordId = computed(() => route.params.recordId as string | undefined)
 const isNew = computed(() => !recordId.value)
+// duplicate ("複製"): new-record screen opened as ?from={sourceRecordId} — seed the form with that
+// record's values instead of plain defaults. Holds the fetched source values while seeding.
+const dupFrom = computed(() => (route.query.from ? String(route.query.from) : null))
+const dupValues = ref<Record<string, any> | null>(null)
 const visibleFields = computed(() => (definition.value?.fields ?? []).filter((f) => !f.hidden))
 
 const fieldRows = computed<FlowField[][]>(() => {
@@ -283,7 +289,10 @@ const fieldRows = computed<FlowField[][]>(() => {
 
 const isReadonly = (f: FlowField) => mode.value === 'view' || f.input_type === 'formula' || !!f.validation?.disabled
 
-const recordTitle = computed(() => (isNew.value ? '新規レコード' : `#${record.value?.record_number ?? recordId.value ?? ''}`))
+const recordTitle = computed(() => (isNew.value ? (dupFrom.value ? '新規レコード（複製）' : '新規レコード') : `#${record.value?.record_number ?? recordId.value ?? ''}`))
+// 複製: open the new-record screen pre-filled from this record (needs 追加 permission)
+const canDuplicate = computed(() => !isNew.value && !!permissions.value?.add && !!record.value?.id)
+const duplicate = () => router.push({ name: 'flow-record-new', params: { flowId: flowId.value }, query: { from: record.value!.id } })
 const showFlow = computed(() => !!definition.value?.use_status_flow && !isNew.value)
 // Show the status area only when the app uses the flow AND this record actually has a status.
 const showStatus = computed(() => showFlow.value && !!record.value?.current_status)
@@ -301,6 +310,7 @@ const downloadPdf = (tool: FlowAppTool) => {
 const mobileMenuItems = computed<MenuList[]>(() => {
     const items: MenuList[] = []
     pdfTools.value.forEach((t) => items.push({ title: t.name, action: () => downloadPdf(t) }))
+    if (canDuplicate.value) items.push({ title: '複製', action: () => duplicate() })
     if (!isNew.value && can.delete) items.push({ title: '削除', action: () => remove() })
     if (can.edit) items.push({ title: '編集', action: () => { mode.value = 'edit' } })
     if (permissions.value?.manage) items.push({ title: 'アプリ設定', action: () => editApp() })
@@ -362,11 +372,21 @@ const onLookup = (payload: { mappings: { from: string; to: string }[]; source: R
     }
 }
 
+// duplicate copies every editable field EXCEPT formula (recomputed), layout (no value), and file
+// (attachments aren't re-uploaded — copying the refs would share storage between records)
+const canDuplicateField = (f: FlowField) => !isLayoutType(f.input_type) && f.input_type !== 'formula' && f.input_type !== 'file'
+const cloneVal = (v: any) => (v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v)
+
 const initValues = () => {
-    (definition.value?.fields ?? []).forEach((f) => {
-        values[f.id!] = isNew.value
-            ? resolveFieldDefault(f, auth.id)
-            : (record.value?.values?.[f.id!] ?? emptyValue(f))
+    const dup = isNew.value ? dupValues.value : null
+    ;(definition.value?.fields ?? []).forEach((f) => {
+        if (!isNew.value) {
+            values[f.id!] = record.value?.values?.[f.id!] ?? emptyValue(f)
+            return
+        }
+        // duplicate: use the source value when present, else fall back to the field's default
+        const src = dup && canDuplicateField(f) ? dup[f.id!] : undefined
+        values[f.id!] = src !== undefined && src !== null ? cloneVal(src) : resolveFieldDefault(f, auth.id)
     })
 }
 
@@ -391,6 +411,12 @@ const load = async () => {
             if (data) {
                 definition.value = data.definition
                 permissions.value = data.permissions
+                // duplicate: pull the source record's values to pre-fill the form (view perm enforced server-side)
+                dupValues.value = null
+                if (dupFrom.value) {
+                    const src = await api.get(`/flow_app_record/${dupFrom.value}`)
+                    dupValues.value = src?.record?.values ?? null
+                }
             }
         }
         initValues()
@@ -465,7 +491,12 @@ const transition = async (a: StatusActionDto) => {
     }
 }
 
-const back = () => router.push({ name: 'flow-records', params: { flowId: flowId.value } })
+const back = () => {
+    // prefer history so the records list keeps its state (selected view via ?view=, etc.); fall back
+    // to a plain push when there's no in-app history (e.g. the record was opened via a direct link)
+    if (window.history.state?.back) { router.back(); return }
+    router.push({ name: 'flow-records', params: { flowId: flowId.value } })
+}
 const editApp = () => router.push({ name: 'flow-builder', params: { flowId: flowId.value } })
 
 load()

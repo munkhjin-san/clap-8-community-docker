@@ -532,80 +532,6 @@
                         @count-changed="handleCommentCountChanged"
                     />
                 </main>
-                <aside v-if="!isCreateMode || canCreateNextAssignment" class="incident-detail-assignment">
-                    <section class="incident-detail-section incident-assignment-section">
-                        <div v-if="!isCreateMode && incidentReports.length" class="incident-assignment-steps">
-                            <div
-                                v-for="reportStep in incidentReports"
-                                :key="reportStep.id"
-                                class="incident-assignment-step"
-                                :class="{ 'incident-assignment-step--current': reportStep.id === latestIncidentReport?.id }"
-                            >
-                                <div class="incident-assignment-step-head">
-                                    <div
-                                        class="incident-assignment-status-chip"
-                                        :class="reportStep.completed_at ? 'incident-assignment-status-chip--complete' : 'incident-assignment-status-chip--active'"
-                                    >
-                                        {{ reportStep.completed_at ? '完了' : '対応中' }}
-                                    </div>
-                                    <small>{{ formatDateTime(reportStep.created_at) }}</small>
-                                </div>
-                                <p v-if="reportStep.request" class="incident-assignment-request">{{ reportStep.request }}</p>
-                                <div class="incident-assignee-list">
-                                    <div
-                                        v-for="assignee in reportStep.assignees ?? []"
-                                        :key="assignee.id"
-                                        class="incident-assignee-row"
-                                    >
-                                        <div class="incident-assignee-user">
-                                            <UserPanel v-if="assignee.user" :user="assignee.user" with-name size="25" disable-instant/>
-                                            <strong v-else>担当者 {{ assignee.user_id }}</strong>
-                                            <span>{{ assignee.completed_at ? '完了' : '未完了' }}</span>
-                                        </div>
-                                        <div v-if="canRespondToAssignee(assignee)" class="incident-assignee-response-editor">
-                                            <LongInput
-                                                v-model="assigneeResponses[assignee.id]"
-                                                place-holder="対応内容"
-                                            />
-                                            <div class="incident-assignee-actions">
-                                                <LoaderButton
-                                                    content="保存"
-                                                    :loading="savingAssigneeId === assignee.id"
-                                                    @click="saveAssigneeReport(assignee)"
-                                                />
-                                                <LoaderButton
-                                                    content="完了"
-                                                    :loading="completingAssigneeId === assignee.id"
-                                                    @click="completeAssigneeReport(assignee)"
-                                                />
-                                            </div>
-                                        </div>
-                                        <p v-else class="incident-assignee-report">{{ assignee.report || '対応内容は未入力です。' }}</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div v-if="canCreateNextAssignment" class="incident-next-assignment">
-                            <p v-if="isCreateMode" class="incident-assignment-empty">作成時に最初の対応担当として設定されます。</p>
-                            <LongInput
-                                v-model="nextAssignmentRequest"
-                                :place-holder="isCreateMode ? '担当者への依頼内容' : '次の担当者への依頼内容'"
-                            />
-                            <MemberSelector
-                                v-model="nextAssigneeUsers"
-                                :multiple="true"
-                                :options="userOptions"
-                                :place-holder="isCreateMode ? '担当者を選択' : '次の担当者を選択'"
-                            />
-                            <LoaderButton
-                                v-if="!isCreateMode"
-                                content="次の担当者を設定"
-                                :loading="creatingNextAssignment"
-                                @click="createNextAssignment"
-                            />
-                        </div>
-                    </section>
-                </aside>
                 </div>
             </div>
             <div v-else class="incident-history">
@@ -1854,7 +1780,7 @@ const formatLogValue = (value: unknown) => {
 .incident-detail-content{
     min-width: 0;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(290px, 290px);
+    grid-template-columns: minmax(0, 1fr);
     align-items: start;
     gap: 20px;
 }
