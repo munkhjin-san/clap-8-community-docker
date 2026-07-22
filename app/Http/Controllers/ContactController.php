@@ -78,7 +78,7 @@ class ContactController extends Controller
         }
 
         $base = rtrim(config('services.google.gemini_url') ?: 'https://generativelanguage.googleapis.com/v1beta', '/');
-        $model = config('services.google.contact_scan_model') ?: 'models/gemini-3.5-flash';
+        $model = config('services.google.contact_scan_model') ?: 'models/gemini-3.6-flash';
 
         $instruction = <<<EOD
             あなたは厳密な名刺OCR抽出器です。添付された名刺画像だけを見て、連絡先情報を抽出してください。

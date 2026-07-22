@@ -74,7 +74,7 @@ class ContactBatchSubmissionService
         $payload = [
             'batch' => [
                 'displayName' => 'contact-scan-' . now()->format('YmdHis'),
-                'model' => 'models/gemini-3.5-flash',
+                'model' => 'models/gemini-3.6-flash',
                 'inputConfig' => [
                     'requests' => [
                         'requests' => $requests,
@@ -83,9 +83,9 @@ class ContactBatchSubmissionService
             ],
         ];
 
-        $this->logEntry($batch, 'scan_submit', 'Submitting scan batch.', ['request_count' => count($requests)], 'models/gemini-3.5-flash');
+        $this->logEntry($batch, 'scan_submit', 'Submitting scan batch.', ['request_count' => count($requests)], 'models/gemini-3.6-flash');
 
-        $operation = $this->startGeminiBatch($batch, $apiKey, 'models/gemini-3.5-flash', $payload);
+        $operation = $this->startGeminiBatch($batch, $apiKey, 'models/gemini-3.6-flash', $payload);
 
         $batch->update([
             'status' => ContactBatch::STATUS_SCANNING,

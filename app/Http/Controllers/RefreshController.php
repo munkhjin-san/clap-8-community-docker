@@ -24,7 +24,10 @@ class RefreshController extends Controller
     public function indexPosts(Request $request)
     {
         return response()->json(
-            $this->refreshService->getApplicationData((array) ($request->status ?? []))
+            $this->refreshService->getApplicationData(
+                (array) ($request->status ?? []),
+                search: $request->filled('search') ? (string) $request->input('search') : null,
+            )
         );
     }
 
