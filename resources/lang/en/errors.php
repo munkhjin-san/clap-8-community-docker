@@ -8,8 +8,8 @@ return [
     |--------------------------------------------------------------------------
     |
     | User-facing error messages returned by the global exception handler
-    | (App\Exceptions\Handler). Missing records and forbidden records are
-    | intentionally collapsed into the same message to avoid leaking whether
+    | (bootstrap/app.php withExceptions). Missing records and forbidden records
+    | are intentionally collapsed into the same message to avoid leaking whether
     | a given record exists.
     |
     */
@@ -19,5 +19,14 @@ return [
 
     // When no ID is available (firstOrFail, 403, etc.)
     'record_forbidden_or_missing' => 'The record does not exist, or you do not have permission to access it.',
+
+    // Unauthenticated (401)
+    'unauthenticated' => 'Please log in to continue.',
+
+    // Too many requests (429)
+    'too_many_requests' => 'Too many requests. Please wait a moment and try again.',
+
+    // Server error (5xx, production only)
+    'server_error' => 'A server error occurred. Please try again in a moment.',
 
 ];

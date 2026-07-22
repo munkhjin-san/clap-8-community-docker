@@ -11,7 +11,7 @@
                     <span v-if="sideMenuView.active">グラウド株式会社</span>                    
                 </div> 
             </router-link>
-            <div :class="['side-menu-route']" style="padding:14px;flex-direction: column;height: auto;overflow: visible;min-height: auto">
+            <div :class="['side-menu-route']" style="padding: 10px 16px;flex-direction: column;height: auto;overflow: visible;min-height: auto">
                 <div @click.prevent.stop="setActiveUser(auth.id)" class="side-menu-route-inner">  
                     <div :class="['side-user-icon', { 'active-user-icon' : auth.linked.length && auth.activeUser && auth.activeUser.id == auth.id} ]">
                         <UserPanel :user="auth.user" :disableInstant="true" imgClass="userMidIcon" size="25"/>

@@ -141,7 +141,7 @@ import { CalendarRecord, GoogleEventItem, NormalMonthDay, WeeksArray } from '@/i
 <style lang="scss" scoped>    
     $primary_gray: #ddd;
     .weekday-header{
-        width: calc(100% - 1px);
+        width: 100%;
         height: 40px;
         display: flex;
         justify-content: space-around;

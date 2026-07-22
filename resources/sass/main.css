@@ -99,7 +99,6 @@ html {
 ::before,
 ::after {
   background-repeat: no-repeat;
-  box-sizing: unset !important;
 }
 
 ::before,
