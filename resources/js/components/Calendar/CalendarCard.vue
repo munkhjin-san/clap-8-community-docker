@@ -81,7 +81,7 @@
             <div>更新者 : {{ updater }}</div>
         </div>
 
-        <div v-if="expanded && editable && record.shift == 0 && !record.task" class="flex" style="align-self: normal;position: absolute;right: 10px;top: 10px;" @click.stop>
+        <div v-if="expanded && editable && record.shift == 0 && !record.task" class="flex" style="align-self: normal;position: absolute;right: 10px;top: 10px;gap: 5px;" @click.stop>
             <ItemMenu 
                 type="share" :items="shareMenuItems"
             />

@@ -77,8 +77,8 @@ import { useCalendar } from '@/composables/calendar';
     const maxHeight = computed(() => {
         return expanded.value ? '100vh' : '60px'
     })
+    const u = Math.floor(100000 + Math.random() * 900000).toString()
     const unique = computed(() => {
-        const u = Math.floor(100000 + Math.random() * 900000).toString()
         const r = props.record.id.toString()
         return `cal_${r}_${u}`
     })
