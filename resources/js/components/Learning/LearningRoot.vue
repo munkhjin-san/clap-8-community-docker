@@ -193,13 +193,32 @@ provide('providedMaterial', themeRecords)
     color: gray;
 }
 
+/* The shared .post-search-wrap is 30% wide (for the Board search box); the learning
+   category bar should use the full header width instead of clipping early. */
+.learning .post-search-wrap{
+    width: auto;
+    flex: 1;
+    min-width: 0;
+    margin-right: 20px;
+}
+
 .learning__categories{
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.learning__categories::-webkit-scrollbar{
+    height: 0;
+    width: 0;
 }
 
 .learning__category{
+    flex: 0 0 auto;
+    white-space: nowrap;
     background: var(--background-color);
     color: var(--primary-color);
     cursor: pointer;

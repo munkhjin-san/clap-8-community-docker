@@ -56,11 +56,6 @@ export const adminRoutes: RouteRecordRaw[] = [
                                 component: () => import('@/components/AccountControl/LearningControl/AssistantControl.vue'),
                             },
                             {
-                                path: 'case-study',
-                                name: 'case-study',
-                                component: () => import('@/components/AccountControl/LearningControl/CaseStudyControl.vue'),
-                            },
-                            {
                                 path: 'non-trainee',
                                 name: 'non-trainee',
                                 component: () => import('@/components/AccountControl/LearningControl/NonTraineeControl.vue'),

@@ -2,7 +2,24 @@
     <div class="section-wrapper">
         <div class="section-inner" v-if="selectedTopic && isEnabled(selectedTopic.active)">
         
-            <div>
+            <div v-if="isSalaryChallenge">
+                <p><strong>個人専用研修資料</strong></p>
+                <div
+                    ref="materialBody"
+                    class="markdown-content"
+                    :class="{ '!line-clamp-[10]': !materialExpanded }"
+                    v-html="aiMaterialHtml"
+                ></div>
+                <p v-if="materialNeedsMore" class="jump-link mt-2" @click="materialExpanded = !materialExpanded">
+                    {{ materialExpanded ? '閉じる' : '続きを表示する' }}
+                </p>
+
+                <div class="si-box gd-theme">
+                    <p><strong>グループディスカッション用テーマ</strong></p>
+                    <p class="gd-theme__value">{{ portfolio?.discussion_theme || '（未選択）' }}</p>
+                </div>
+            </div>
+            <div v-else>
                 <p><strong>ポートフォリオ</strong></p>
                 <div class="markdown-content" v-html="portfolioContentHtml"></div>
             </div>
@@ -72,7 +89,7 @@
 <script setup lang="ts">
 import LongInput from '../../Form/LongInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue';
-import { computed, ref, inject, watch, type Ref } from 'vue'
+import { computed, ref, inject, watch, nextTick, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router';
 import { useDialog } from '@/composables/dialog';
 import { useLearningApi } from '@/composables/learningApi';
@@ -101,6 +118,19 @@ import type { LearningPortfolio, LearningTheme } from '@/types/learning';
     const { ask, toast } = useDialog()
     const themeId = computed(() => route.params.lessonThemeId)
     const portfolioContentHtml = computed(() => renderMarkdown(portfolio?.value?.content))
+    // Path 3 (salary challenge): studied AI material is collapsible; the chosen theme is highlighted.
+    const isSalaryChallenge = computed(() => Boolean(portfolio?.value?.salary_issue_id))
+    const aiMaterialHtml = computed(() => renderMarkdown(portfolio?.value?.ai_material))
+    const materialExpanded = ref(false)
+    const materialBody = ref<HTMLElement | null>(null)
+    const materialNeedsMore = ref(false)
+    // Only show the「続きを表示する」link when the clamped material actually overflows.
+    watch(aiMaterialHtml, async () => {
+        materialExpanded.value = false
+        await nextTick()
+        const el = materialBody.value
+        materialNeedsMore.value = !!el && el.scrollHeight > el.clientHeight
+    }, { immediate: true })
 
     watch(portfolio ?? ref(null), (record) => {
         p_feedBack.value = record?.positive_feedback ?? ''
@@ -196,5 +226,14 @@ import type { LearningPortfolio, LearningTheme } from '@/types/learning';
     .markdown-content ul,
     .markdown-content ol {
         padding-left: 1.4em;
+    }
+
+    .gd-theme {
+        margin-top: 20px;
+    }
+    .gd-theme__value {
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.8;
     }
 </style>

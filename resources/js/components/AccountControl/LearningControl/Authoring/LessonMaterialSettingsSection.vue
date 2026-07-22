@@ -71,12 +71,12 @@
                     id="for_understand"
                     v-model="hasUnderstand"
                     type="checkbox"
-                    :disabled="hasQuestion"
+                    :disabled="hasQuestion || hasExam"
                 >
                 <label
                     for="for_understand"
                     class="cursor-pointer lesson-material-settings__toggle-label"
-                    :class="{ 'disabled-toggle': hasQuestion }"
+                    :class="{ 'disabled-toggle': hasQuestion || hasExam }"
                 >
                     <span></span>
                     <div class="switch-toggle"></div>
@@ -99,12 +99,12 @@
                     id="for_question"
                     v-model="hasQuestion"
                     type="checkbox"
-                    :disabled="hasUnderstand"
+                    :disabled="hasUnderstand || hasExam"
                 >
                 <label
                     for="for_question"
                     class="cursor-pointer lesson-material-settings__toggle-label"
-                    :class="{ 'disabled-toggle': hasUnderstand }"
+                    :class="{ 'disabled-toggle': hasUnderstand || hasExam }"
                 >
                     <span></span>
                     <div class="switch-toggle"></div>
@@ -112,6 +112,34 @@
             </div>
             <p class="form-helper lesson-material-settings__helper">
                 ONにすると受講者へ質問投稿を求めるタスクが表示されます。理解依頼と同時に設定することはできません。
+            </p>
+        </div>
+
+        <div
+            v-if="!isHeader"
+            class="si-box"
+        >
+            <div class="switchLabel">
+                <p class="form-lbl lesson-material-settings__switch-label">「試験」依頼</p>
+            </div>
+            <div class="selectSwitchArea lesson-material-settings__switch">
+                <input
+                    id="for_exam"
+                    v-model="hasExam"
+                    type="checkbox"
+                    :disabled="hasUnderstand || hasQuestion"
+                >
+                <label
+                    for="for_exam"
+                    class="cursor-pointer lesson-material-settings__toggle-label"
+                    :class="{ 'disabled-toggle': hasUnderstand || hasQuestion }"
+                >
+                    <span></span>
+                    <div class="switch-toggle"></div>
+                </label>
+            </div>
+            <p class="form-helper lesson-material-settings__helper">
+                ONにすると受講者はこのセクションを完了する前に試験に合格する必要があります。理解依頼・質問依頼と同時に設定することはできません。
             </p>
         </div>
     </div>
@@ -134,6 +162,7 @@ const priority = defineModel<number | null>('priority', { required: true })
 const materialType = defineModel<string>('materialType', { required: true })
 const hasUnderstand = defineModel<boolean>('hasUnderstand', { required: true })
 const hasQuestion = defineModel<boolean>('hasQuestion', { required: true })
+const hasExam = defineModel<boolean>('hasExam', { required: true })
 
 const priorityOptions = [
     { value: LESSON_MATERIAL_PRIORITY.HEADER, content: 'ヘッダー' },

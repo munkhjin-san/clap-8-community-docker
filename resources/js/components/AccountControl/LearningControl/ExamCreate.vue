@@ -71,6 +71,7 @@ import type { EditableExamOption, EditableExamQuestion } from './Authoring/examE
 
 const props = defineProps<{
     themeId: number
+    materialId?: number | null
     examData?: LearningExam | null
 }>()
 const emit = defineEmits<{
@@ -212,6 +213,7 @@ const save = async() => {
     processing.value = true
     const payload = {
         lesson_theme_id: props.themeId,
+        lesson_material_id: props.materialId ?? null,
         exam_id: props.examData?.id ?? null,
         title: title.value,
         description: description.value,

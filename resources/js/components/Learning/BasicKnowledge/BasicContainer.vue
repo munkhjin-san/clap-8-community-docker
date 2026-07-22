@@ -23,6 +23,7 @@
                     :theme="selectedTopic"
                     :personal-material="previousExperience.personal_material"
                     :can-generate-personal-material="previousExperience.can_generate_personal_material"
+                    :is-salary-challenge="previousExperience.is_salary_challenge"
                     :refresh-lesson-view="refreshPreviousExperience"
                 />
                 <LearningTopicMenu

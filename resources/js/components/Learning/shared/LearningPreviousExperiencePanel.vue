@@ -60,7 +60,39 @@
                 <p class="prev-portfolio__section-title">個人専用研修資料</p>
                 <div class="prev-portfolio__generated" v-html="personalMaterialHtml"></div>
 
-                <div v-if="canShowPersonalMaterialFeedback" class="prev-portfolio__understanding">
+                <!-- Path 3 (salary challenge): choose a group-discussion theme instead of the understanding questionnaire. -->
+                <div v-if="canShowPersonalMaterialFeedback && isSalaryChallenge" class="prev-portfolio__understanding">
+                    <div v-if="isPersonalMaterialCompleted">
+                        <div class="si-box prev-portfolio__important-point">
+                            <p class="prev-portfolio__important-title">
+                                <strong>グループディスカッション用テーマ</strong>
+                            </p>
+                            <div>
+                                <p>{{ importantPoint }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <template v-else>
+                        <p class="prev-portfolio__important-title mt-4"><strong>グループディスカッション用テーマ</strong></p>
+                        <p class="prev-portfolio__theme-hint">生成された3つのテーマから1つを選び、下の欄に貼り付けてください。</p>
+                        <LongInput
+                            ref="importantPointRef"
+                            v-model="importantPoint"
+                            place-holder="グループディスカッション用テーマ"
+                            rules="required"
+                            name="discussionTheme"
+                        />
+                        <div class="prev-portfolio__button-row">
+                            <LoaderButton
+                                :loading="feedbackSaving"
+                                content="完了"
+                                @triggered="finalizeSalaryChallenge"
+                            />
+                        </div>
+                    </template>
+                </div>
+
+                <div v-else-if="canShowPersonalMaterialFeedback" class="prev-portfolio__understanding">
                     <div v-if="isPersonalMaterialCompleted">
                         <div class="si-box prev-portfolio__important-point">
                             <p class="prev-portfolio__important-title">
@@ -132,6 +164,7 @@ import { useDialog } from '@/composables/dialog'
 import { useSSE } from '@/composables/sse'
 import { useLearningApi } from '@/composables/learningApi'
 import { renderMarkdown } from '@/utils/markdown'
+import { LESSON_PORTFOLIO_STATUS } from '@/config/learning'
 import LoaderButton from '@/components/Global/LoaderButton.vue'
 import LongInput from '@/components/Form/LongInput.vue'
 import AiIcon from '@/components/Icons/AiIcon.vue'
@@ -147,11 +180,12 @@ const props = defineProps<{
     theme?: LearningTheme | null
     personalMaterial?: LearningPersonalMaterial | null
     canGeneratePersonalMaterial?: boolean
+    isSalaryChallenge?: boolean
     refreshLessonView?: () => Promise<void>
 }>()
 
 const displayTitle = computed(() => props.themeTitle || props.portfolio.public_title || '前回のポートフォリオ')
-const { ping } = useDialog()
+const { ping, ask } = useDialog()
 const router = useRouter()
 const learningApi = useLearningApi()
 const { on, start, stop } = useSSE({ autoReconnect: false })
@@ -266,6 +300,41 @@ const submitPersonalMaterialFeedback = async() => {
     }
 }
 
+// Path 3: paste a chosen group-discussion theme, finalize 知識研修, then jump straight
+// to the completion screen (no /summary route). The theme is stored in important_point.
+const finalizeSalaryChallenge = async() => {
+    if (!props.theme?.id || feedbackSaving.value || personalMaterialLoading.value) return
+
+    const result = importantPointRef.value?.validate
+        ? await importantPointRef.value.validate()
+        : { valid: true }
+    if (!result.valid) return
+
+    feedbackSaving.value = true
+    try {
+        // Save silently — a toast here would reset the shared dialog and make the
+        // completion notice below flash away instead of waiting for the user.
+        await learningApi.savePersonalMaterialFeedback(props.theme.id, {
+            understand: true,
+            important_point: importantPoint.value,
+        }, { silent: true })
+        await learningApi.savePortfolio({
+            theme_id: props.theme.id,
+            params: { status: LESSON_PORTFOLIO_STATUS.DISCUSSION_DRAFT_READY },
+        })
+
+        // Stop on the completion notice; jump to the theme top on OK (no /summary route).
+        const answer = await ask('知識研修完了しました。\nお疲れ様でした。', { answers: [{ label: 'OK', value: true }] })
+        personalMaterialCompleted.value = true
+        await props.refreshLessonView?.()
+        if (answer?.value) {
+            router.push({ name: 'top', params: { lessonThemeId: props.theme.id } })
+        }
+    } finally {
+        feedbackSaving.value = false
+    }
+}
+
 // Proceed from an already-completed understanding to the portfolio (discussion-prep) step.
 const goToPortfolio = () => {
     if (!props.theme?.id) return
@@ -294,7 +363,7 @@ const feedbackCards = computed(() => {
         },
         {
             key: 'negative',
-            title: '改善・懸念のフィードバック',
+            title: 'ネガティヴフィードバック',
             content: props.portfolio.negative_feedback,
             tone: 'negative',
         },
@@ -538,6 +607,13 @@ const detailBlocks = computed(() => {
 
 .prev-portfolio__important-title {
     margin-bottom: 20px;
+}
+
+.prev-portfolio__theme-hint {
+    margin: -8px 0 16px;
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--secondary-color);
 }
 
 .prev-portfolio__button-row {

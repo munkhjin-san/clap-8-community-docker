@@ -26,7 +26,6 @@
 import { computed } from 'vue'
 import Back from '@/components/Icons/Back.vue'
 import type { LearningTheme } from '@/types/learning'
-import { isEnabled } from '@/utils/learningProgress'
 
 const props = defineProps<{
     theme: LearningTheme | null
@@ -40,10 +39,7 @@ const emit = defineEmits<{
 
 const tabs = computed(() => [
     { routeName: 'content', label: 'コンテンツ' },
-    {
-        routeName: isEnabled(props.theme?.has_case_study) ? 'case-study' : 'trainee',
-        label: '参加者',
-    },
+    { routeName: 'trainee', label: '参加者' },
     { routeName: 'non-trainee', label: '未参加者' },
     { routeName: 'assistant', label: 'AIアシスタント' },
 ])

@@ -64,11 +64,24 @@ class LessonViewService
 
     public function portfolio($themeId, int $userId)
     {
-        return LessonPortfolio::where('lesson_theme_id', $themeId)
+        $portfolio = LessonPortfolio::where('lesson_theme_id', $themeId)
             ->where('user_id', $userId)
             ->currentAttempt()
             ->with('lesson_sections')
             ->first();
+
+        // Path 3 (salary challenge): attach the studied AI material + the chosen
+        // group-discussion theme (both live on the attempt's personal material).
+        if ($portfolio && $portfolio->salary_issue_id) {
+            $personalMaterial = LessonPersonalMaterial::where('lesson_theme_id', $themeId)
+                ->where('user_id', $userId)
+                ->where('config_key', 'repeater_attempt_'.$portfolio->id)
+                ->first();
+            $portfolio->setAttribute('ai_material', $personalMaterial?->content);
+            $portfolio->setAttribute('discussion_theme', $personalMaterial?->important_point);
+        }
+
+        return $portfolio;
     }
 
     public function examSummary($themeId, int $userId): array
@@ -121,6 +134,7 @@ class LessonViewService
             'portfolio' => null,
             'personal_material' => null,
             'can_generate_personal_material' => false,
+            'is_salary_challenge' => false,
         ];
 
         $theme = LessonTheme::query()->select('id', 'title')->find($themeId);
@@ -167,6 +181,7 @@ class LessonViewService
             'portfolio' => $prior,
             'personal_material' => $personalMaterial,
             'can_generate_personal_material' => true,
+            'is_salary_challenge' => (bool) $current->salary_issue_id,
         ];
     }
 

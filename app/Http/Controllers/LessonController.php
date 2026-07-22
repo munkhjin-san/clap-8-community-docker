@@ -573,11 +573,18 @@ class LessonController extends Controller
                 'positive_feedback' => $portfolio->positive_feedback,
                 'negative_feedback' => $portfolio->negative_feedback,
                 'noticed' => $portfolio->noticed,
+                'salary_issue_id' => $portfolio->salary_issue_id,
             ],
         ]);
 
         LessonSection::where('portfolio_id', $portfolio->id)->delete();
         LessonPersonalMaterial::where('config_key', $this->repeaterConfigKey($portfolio->id))->delete();
+
+        // Path 3: a challenge portfolio is backed by a salary issue — remove it too.
+        if ($portfolio->salary_issue_id) {
+            \App\Models\SalaryIssue::where('id', $portfolio->salary_issue_id)->delete();
+        }
+
         $portfolio->delete();
 
         return response()->json(['deleted' => true]);
@@ -589,6 +596,18 @@ class LessonController extends Controller
         ->currentAttempt()
         ->with('lesson_sections')
         ->first();
+
+        // Path 3 (salary challenge): surface the studied AI material + the group-discussion
+        // theme the learner picked in stage 1 (stored on the personal material).
+        if ($lesson_portfolio && $lesson_portfolio->salary_issue_id) {
+            $personalMaterial = LessonPersonalMaterial::where('lesson_theme_id', $request->lesson_theme_id)
+                ->where('user_id', Auth::id())
+                ->where('config_key', $this->repeaterConfigKey($lesson_portfolio->id))
+                ->first();
+            $lesson_portfolio->setAttribute('ai_material', $personalMaterial?->content);
+            $lesson_portfolio->setAttribute('discussion_theme', $personalMaterial?->important_point);
+        }
+
         return response()->json($lesson_portfolio);
     }
     public function get_portfolios_list(Request $request){
@@ -767,6 +786,9 @@ class LessonController extends Controller
 
         if ($section === 'all' || $section === 'portfolio') {
             $payload['portfolio_participants'] = $this->learningParticipantProgressService->portfolioRows((int) $theme->id);
+            $sectionExams = $this->learningParticipantProgressService->portfolioSectionExams((int) $theme->id);
+            $payload['section_exams'] = $sectionExams['section_exams'];
+            $payload['section_exam_results'] = $sectionExams['results'];
         }
 
         return response()->json($payload);

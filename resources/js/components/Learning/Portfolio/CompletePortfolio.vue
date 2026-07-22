@@ -1,9 +1,17 @@
 <template>
     <div class="section-wrapper">
         <div v-if="selectedTopic && isEnabled(selectedTopic.active)"  class="section-inner">
-    
+
             <!-- <div v-if="selectedTopic && selectedTopic.guidance" v-html="selectedTopic?.guidance"></div> -->
-            
+
+            <!-- Path 3: AI study material is reference-only here — collapsed behind a link. -->
+            <div v-if="hasAiMaterial" class="si-box" style="margin-top:0;">
+                <p class="jump-link" @click="showAiMaterial = !showAiMaterial">
+                    {{ showAiMaterial ? '閉じる' : 'AI生成学習教材を表示する' }}
+                </p>
+                <div v-if="showAiMaterial" class="markdown-content" v-html="aiMaterialHtml"></div>
+            </div>
+
             <div v-if="portfolio && portfolio.positive_feedback">
                 <p><strong>ポジティブフィードバック</strong></p>
                 <p>{{ portfolio.positive_feedback }}</p>
@@ -16,7 +24,9 @@
                 <p><strong>フィードバックから得た発見と成長</strong></p>
                 <p>{{ portfolio.noticed }}</p>
             </div>
-            <div class="si-box" v-if="portfolio && portfolio.content">
+            <!-- For path 3, `content` is the AI material (shown via the collapsible button above),
+                 so this raw block is only for the first-timer's own discussion draft. -->
+            <div class="si-box" v-if="portfolio && portfolio.content && !hasAiMaterial">
                 <p><strong>ディスカッション用ポートフォリオタイトル</strong></p>
                 <p>{{ portfolio.portfolio_title }}</p>
                 <p><strong>ディスカッション用ポートフォリオ内容</strong></p>
@@ -81,6 +91,7 @@ import { useLearningApi } from '@/composables/learningApi';
 import { useDialog } from '@/composables/dialog';
 import { LESSON_PORTFOLIO_STATUS } from '@/config/learning';
 import { isEnabled } from '@/utils/learningProgress';
+import { renderMarkdown } from '@/utils/markdown';
 import type { LearningPortfolio, LearningTheme } from '@/types/learning';
 
     const PORTFOLIO_AFTER_DISCUSSION_CONFIG_KEY = 'portfolio_after_discussion'
@@ -105,6 +116,10 @@ import type { LearningPortfolio, LearningTheme } from '@/types/learning';
         return props.selectedTopic?.ai_configs?.find(config => config.config_key === PORTFOLIO_AFTER_DISCUSSION_CONFIG_KEY) ?? null
     })
     const hasAfterDiscussionReview = computed(() => Boolean(afterDiscussionConfig.value))
+    // Path 3: the AI-generated study material, shown on demand (markdown-rendered).
+    const showAiMaterial = ref(false)
+    const hasAiMaterial = computed(() => Boolean(portfolio?.value?.ai_material))
+    const aiMaterialHtml = computed(() => renderMarkdown(portfolio?.value?.ai_material))
     watch(portfolio ?? ref(null), (record) => {
         portfolioContent.value = record?.public_content ?? ''
         portfolio_title.value = record?.public_title ?? ''

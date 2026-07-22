@@ -56,19 +56,25 @@
                     
                 </div>
                 <HasQuestion
-                    v-if="material.has_question" 
+                    v-if="material.has_question"
                     :material="material"
                     :selected-topic="selectedTopic"
+                />
+                <MaterialExam
+                    v-if="hasExam && sectionStatus != 2"
+                    :theme-id="route.params.lessonThemeId as string"
+                    :material-id="material.id"
+                    @finished="completeExamMaterial"
                 />
                 <div v-if="sectionStatus != 2 && material.has_understand" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
                     <div v-if="selectedAnswer == 1">
                         <LoaderButton @triggered="validate('save')" :loading="processing_save" :content="'一時保存'"/>
-                    </div> 
+                    </div>
                     <div>
                         <LoaderButton @triggered="nextStage" :loading="processing" :content="selectedAnswer == 0  ? '次へ' : '完了'"/>
                     </div>
                 </div>
-                <div v-else-if="!material.has_understand && !material.has_question && (!material.answer || (material.answer.status ?? 0) < 2)" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
+                <div v-else-if="!material.has_understand && !material.has_question && !hasExam && (!material.answer || (material.answer.status ?? 0) < 2)" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
                     <LoaderButton @triggered="nextStage" :loading="processing" :content="filteredSummaries.length > 0 ? '次へ' : '完了'"/>
                 </div>
             </div>
@@ -91,6 +97,7 @@ import DraftLayout from './DraftLayout.vue';
 import EasySummary from './EasySummary.vue';
 import HasQuestion from './HasQuestion.vue';
 import SummaryQuestions from './SummaryQuestions.vue';
+import MaterialExam from '../Exam/MaterialExam.vue';
 import { useLearningApi } from '@/composables/learningApi';
 import { useDialog } from '@/composables/dialog';
 import TTSPlayer from '@/components/Global/TTSPlayer.vue';
@@ -137,6 +144,9 @@ import type { LearningMaterial, LearningSection, LearningSummaryAnswer, Learning
     })
     const sectionContent = computed(() => {
         return props.sections_status?.find((val) => val.material_id === material.value?.id)?.content ?? ''
+    })
+    const hasExam = computed(() => {
+        return material.value?.has_exam === 1 || material.value?.has_exam === true
     })
     const hasQuestions = computed(() => {
         return Boolean(material.value?.summaries?.length)
@@ -263,6 +273,12 @@ import type { LearningMaterial, LearningSection, LearningSummaryAnswer, Learning
         }
         
         
+    }
+    const completeExamMaterial = async() => {
+        const result = await sectionUpdate('next', sectionContent.value || '')
+        if(result){
+            router.push({name: 'basic'})
+        }
     }
     const saveSummaryAnswers = async() => {
         if(!summaryAnswers.value.length) return

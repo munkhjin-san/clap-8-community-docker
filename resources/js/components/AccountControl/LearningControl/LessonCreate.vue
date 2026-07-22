@@ -36,6 +36,7 @@
                 v-model:material-type="material_type"
                 v-model:has-understand="has_understand"
                 v-model:has-question="has_question"
+                v-model:has-exam="has_exam"
                 :has-case-study="hasCaseStudy"
                 :is-header="isHeader"
                 :material-type-description="materialTypeDescription"
@@ -77,6 +78,7 @@ interface LessonCreateErrors {
     const processing = ref(false)
     const hasFeedBack =  ref(props.editTarget && props.editTarget.has_feedback ? props.editTarget.has_feedback : false)
     const has_question = ref(props.editTarget?.has_question === 1 ? true : false)
+    const has_exam = ref(props.editTarget?.has_exam === 1 || props.editTarget?.has_exam === true)
     const has_understand = ref(props.editTarget?.has_understand === 0 ? false : props.has_case_study ? false : true)
     const title = ref(props.editTarget && props.editTarget.title ? props.editTarget.title : '')
     const richEdit = ref<unknown>(null)
@@ -108,6 +110,7 @@ interface LessonCreateErrors {
     const cachedSectionSettings = ref({
         hasUnderstand: has_understand.value,
         hasQuestion: has_question.value,
+        hasExam: has_exam.value,
         materialType: material_type.value
     })
     const materialTypeDescription = computed(() => {
@@ -116,11 +119,12 @@ interface LessonCreateErrors {
         }
         return '基礎知識にすると通常のセクションとして表示され、すぐに受講可能になります。'
     })
-    watch([has_understand, has_question, material_type], () => {
+    watch([has_understand, has_question, has_exam, material_type], () => {
         if(isHeader.value) return
         cachedSectionSettings.value = {
             hasUnderstand: has_understand.value,
             hasQuestion: has_question.value,
+            hasExam: has_exam.value,
             materialType: material_type.value
         }
     })
@@ -128,10 +132,12 @@ interface LessonCreateErrors {
         if(header){
             has_understand.value = false
             has_question.value = false
+            has_exam.value = false
             material_type.value = '基礎知識'
         }else{
             has_understand.value = cachedSectionSettings.value.hasUnderstand ?? true
             has_question.value = cachedSectionSettings.value.hasQuestion ?? false
+            has_exam.value = cachedSectionSettings.value.hasExam ?? false
             material_type.value = cachedSectionSettings.value.materialType ?? '基礎知識'
         }
     }, { immediate: true })
@@ -190,6 +196,7 @@ interface LessonCreateErrors {
                 priority: selectedPriority.value,
                 has_question: has_question.value,
                 has_understand: has_understand.value,
+                has_exam: has_exam.value,
                 material_type: material_type.value
             }
             

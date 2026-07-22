@@ -142,6 +142,8 @@ export interface LearningMaterial {
     has_feedback: number | boolean
     has_question: number | boolean | null
     has_understand: number | boolean
+    has_exam?: number | boolean
+    exam?: LearningExam | null
     material_type: LearningMaterialType | string | null
     created_at: string | null
     updated_at: string | null
@@ -172,6 +174,8 @@ export interface LearningPortfolio {
     attempt_no?: number
     path?: number
     salary_issue_id?: number | null
+    ai_material?: string | null
+    discussion_theme?: string | null
     understand?: number
     title?: string | null
     portfolio_title?: string | null
@@ -253,6 +257,7 @@ export interface LearningClap {
 export interface LearningExam {
     id: number
     lesson_theme_id: number
+    lesson_material_id?: number | null
     title: string | null
     description: string | null
     passing_score: number
@@ -308,12 +313,57 @@ export interface LearningPreviousExperiencePayload {
     portfolio: LearningPortfolio | null
     personal_material: LearningPersonalMaterial | null
     can_generate_personal_material: boolean
+    is_salary_challenge: boolean
 }
 
 export interface LearningFinalExamAnswer {
     question_id: number
     option_id: number
     is_correct: boolean
+}
+
+export interface PortfolioSectionExam {
+    material_id: number
+    title: string | null
+    passing_score: number
+    max_attempts: number
+}
+
+export interface PortfolioSectionExamResult {
+    attempt_count: number
+    latest_score: number | null
+    latest_status: 'passed' | 'failed' | null
+    passed: boolean
+}
+
+// ---- Unified participant table (portfolio + case-study themes) ----
+export interface ParticipantExamCell {
+    key: string
+    title: string | null
+    attemptCount: number | null
+    maxAttempts: number | null
+    score: number | null
+    passed: boolean | null // null = 未受験
+}
+
+export type ParticipantDetail =
+    | { type: 'portfolio'; portfolio: LearningPortfolio }
+    | { type: 'caseStudy'; participant: LearningParticipantProgress }
+
+export interface ParticipantEntry {
+    key: string
+    methodLabel: string | null
+    attemptNo: number
+    statusChips: Array<{ label: string; done: boolean }>
+    portfolioId: number | null // portfolio attempts are deletable / rollback-able
+    detail: ParticipantDetail
+}
+
+export interface ParticipantRow {
+    userId: number
+    userName: string | null
+    entries: ParticipantEntry[]
+    examRows: ParticipantExamCell[]
 }
 
 export interface LearningParticipantProgress {

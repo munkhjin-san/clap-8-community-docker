@@ -28,6 +28,9 @@ class LessonMaterial extends Model
     public function version() {
         return $this->belongsTo(LessonMaterialVersion::class, 'lesson_material_version_id');
     }
+    public function exam() {
+        return $this->hasOne(LessonExam::class, 'lesson_material_id');
+    }
 
     // Active content = not retired. Retired materials are kept for history
     // (lesson_answers / lesson_sections reference material_id) but hidden
@@ -55,6 +58,7 @@ class LessonMaterial extends Model
         'priority',
         'has_question',
         'has_understand',
+        'has_exam',
         'prompt_id',
         'material_type',
         'retired_at',
