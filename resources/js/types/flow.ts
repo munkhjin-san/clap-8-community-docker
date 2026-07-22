@@ -495,6 +495,8 @@ export interface FlowDefinitionListItem {
     created_at?: string
     updated_at?: string
     pinned?: boolean
+    /** current user has 管理 on this app → may open 設定 / 削除 (both manage-gated server-side) */
+    can_manage?: boolean
     creator?: FlowOptionUser | null
     fields_count?: number
     statuses_count?: number

@@ -55,7 +55,14 @@ class FlowController extends Controller
             ->withCount(['fields', 'statuses', 'records'])
             ->orderByDesc('created_at')
             ->get()
-            ->filter(fn ($d) => $this->flowService->effectiveAppPermissions($user, $d)['view'])
+            ->filter(function ($d) use ($user) {
+                $perms = $this->flowService->effectiveAppPermissions($user, $d);
+                // expose 管理 so the portal card menu only offers 設定/削除 to those who can use them
+                // (both are manage-gated server-side; this keeps the UI honest)
+                $d->setAttribute('can_manage', $perms['manage']);
+
+                return $perms['view'];
+            })
             ->map(function ($d) use ($pinned) {
                 // "全社員に公開" reflects actual permissions, not the vestigial visibility flag.
                 $d->setAttribute('is_public', $d->appPermissions->contains(
