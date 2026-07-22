@@ -20,18 +20,20 @@
                 @blur="onBlur"
             >
             <div v-if="open" ref="menuEl" class="fss-menu" :class="placement" @mousedown.prevent>
-                <button
-                    v-for="(o, i) in filtered"
-                    :key="o.value"
-                    type="button"
-                    class="fss-opt"
-                    :class="{ on: o.value === modelValue, hl: i === highlighted }"
-                    @click="pick(o)"
-                    @mousemove="highlighted = i"
-                >
-                    <span class="fss-opt-label">{{ o.label }}</span>
-                    <span v-if="o.sub" class="fss-opt-sub">{{ o.sub }}</span>
-                </button>
+                <template v-for="(o, i) in filtered" :key="o.value">
+                    <!-- divider between groups (e.g. normal apps vs system sources) -->
+                    <div v-if="i > 0 && o.group !== filtered[i - 1].group" class="fss-divider" aria-hidden="true"></div>
+                    <button
+                        type="button"
+                        class="fss-opt"
+                        :class="{ on: o.value === modelValue, hl: i === highlighted }"
+                        @click="pick(o)"
+                        @mousemove="highlighted = i"
+                    >
+                        <span class="fss-opt-label">{{ o.label }}</span>
+                        <span v-if="o.sub" class="fss-opt-sub">{{ o.sub }}</span>
+                    </button>
+                </template>
                 <div v-if="!filtered.length" class="fss-empty">該当なし</div>
             </div>
         </div>
@@ -47,6 +49,8 @@ export interface SearchSelectOption {
     label: string
     /** optional right-aligned muted sub-label (e.g. "#12") */
     sub?: string
+    /** optional group key — a divider is drawn where consecutive options' groups differ */
+    group?: string
 }
 
 const props = withDefaults(defineProps<{
@@ -149,6 +153,7 @@ const onBlur = () => setTimeout(() => { open.value = false; editing.value = fals
 .fss-opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; box-sizing: border-box !important; text-align: left; border: none; background: none; padding: 7px 9px; border-radius: 6px; cursor: pointer; font-size: 13px; letter-spacing: normal; color: var(--primary-color); }
 .fss-opt.hl { background: var(--bg3); }
 .fss-opt.on { background: var(--bg3); }
+.fss-divider { height: 1px; background: var(--formBorder); margin: 5px 6px; }
 .fss-opt-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .fss-opt-sub { flex-shrink: 0; font-size: 11px; color: gray; }
 .fss-empty { padding: 9px; font-size: 12px; color: gray; text-align: center; }

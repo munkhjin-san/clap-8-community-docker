@@ -27,7 +27,7 @@ class FlowSystemSources
     {
         return [
             'office' => [
-                'label' => 'オフィス',
+                'label' => '営業所',
                 'model' => officeRecord::class,
                 // columns the search box matches (LIKE %q%)
                 'search' => ['name', 'address'],
@@ -35,7 +35,7 @@ class FlowSystemSources
                 'label_column' => 'name',
                 // exposed as pseudo-fields (label choices + field-copy sources); all treated as text
                 'columns' => [
-                    ['key' => 'name', 'label' => 'オフィス名'],
+                    ['key' => 'name', 'label' => '営業所名'],
                     ['key' => 'post_code', 'label' => '郵便番号'],
                     ['key' => 'address', 'label' => '住所'],
                     ['key' => 'tel', 'label' => 'TEL'],

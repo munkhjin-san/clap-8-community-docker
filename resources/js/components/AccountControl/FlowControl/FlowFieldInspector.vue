@@ -526,9 +526,10 @@ const onRefAppChange = (val: string | number | null) => {
 }
 // option lists for the searchable selectors (app / system source / label field / mapping fields)
 const refSelectValue = computed(() => (v.value.target_source ? `sys:${v.value.target_source}` : (v.value.target_definition_id ?? null)))
+// normal apps first, then a divider, then system sources (grouped so FlowSearchSelect draws the line)
 const refAppOptions = computed(() => [
-    ...refApps.value.map((a) => ({ value: a.id as number | string, label: a.name })),
-    ...refSystemSources.value.map((s) => ({ value: `sys:${s.key}`, label: `${s.label}（システム）` })),
+    ...refApps.value.map((a) => ({ value: a.id as number | string, label: a.name, group: 'app' })),
+    ...refSystemSources.value.map((s) => ({ value: `sys:${s.key}`, label: `${s.label}（システム）`, group: 'system' })),
 ])
 const refFieldOptions = computed(() => refTargetFields.value.map((f) => ({ value: f.key, label: f.label })))
 const labelFieldOptions = computed(() => [{ value: '', label: 'レコード番号' }, ...refFieldOptions.value])
