@@ -139,12 +139,13 @@
                     <span v-if="sideMenuView.active">設定</span>                    
                 </div>                
             </router-link> 
-            <div v-show="sideMenuView.active" class="account-settings-wrap bottomItems">                
-                <GlowdNews :newsItems="newsItems"/>
-                     
+            <div v-show="sideMenuView.active" class="account-settings-wrap bottomItems">   
                 <div style="width:100%;bottom: 0;left: 0;display: flex;flex-direction: column;gap:15px;padding: 10px 20px 20px 20px;">   
                     <router-link :to="adminRoute" v-if="[608, 610].includes(auth.activeUser.id) || (auth.activeUser.position_id && auth.activeUser.position_id <= 6)" class="login-link jump-link" style="cursor: pointer;font-size: 15px;">管理画面</router-link>
-                </div>         
+                </div>                 
+                <GlowdNews :newsItems="newsItems"/>
+                     
+                     
                                                  
             </div>     
         </div>
