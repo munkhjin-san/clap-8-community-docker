@@ -29,9 +29,9 @@
 
         <div class="fc-tabs">
             <button class="fc-tab" :class="{ on: tab === 'all' }" @click="tab = 'all'">全て</button>
-            <button class="fc-tab" :class="{ on: tab === 'waiting' }" @click="tab = 'waiting'">
+            <!-- <button class="fc-tab" :class="{ on: tab === 'waiting' }" @click="tab = 'waiting'">
                 対応待ち<Badge :count="waiting.length" />
-            </button>
+            </button> -->
             <!-- sort control lives at the right end of the tab bar (all breakpoints) -->
             <div v-if="tab === 'all' && definitions.length" class="fc-sort-wrap fc-tabs-sort">
                 <select v-model="sort" class="fc-sort" @change="savePrefs">
