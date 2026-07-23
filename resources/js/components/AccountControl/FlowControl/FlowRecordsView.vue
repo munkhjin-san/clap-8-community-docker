@@ -441,7 +441,7 @@ onMounted(async () => {
 .rv-csv-inner { display: flex; align-items: center; gap: 6px; }
 .rv-r2 { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 16px; position: sticky; left: 0; background: var(--background-color); }
 .rv-title { flex: 1 1 auto; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;line-height: 1.5; }
-.rv-viewinfo { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
+.rv-viewinfo { display: flex; align-items: center; gap: 8px; flex: none; }
 .rv-viewname { font-size: 13px; color: var(--primary-color); }
 .rv-count { font-size: 12px; color: gray; white-space: nowrap; }
 .rv-ctrl {
