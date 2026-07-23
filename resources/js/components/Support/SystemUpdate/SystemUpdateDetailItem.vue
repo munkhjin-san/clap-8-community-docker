@@ -6,7 +6,7 @@
         </div>
 
         <div>
-            <p v-if="detail.content" class="whitespace-break-spaces leading-[1.7]">{{ urlCheck(detail.content) }}</p>
+            <p v-if="detail.content" class="whitespace-break-spaces leading-[1.7]" v-html="urlCheck(detail.content)"></p>
             <SystemUpdateFiles v-if="detail.files?.length" :list="detail.files" />
         </div>
     </section>
