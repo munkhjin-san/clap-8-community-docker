@@ -193,7 +193,10 @@ const records = ref<FlowRecordDto[]>([])
 const flowOptionsStore = useFlowOptionsStore()
 const { users, projects } = storeToRefs(flowOptionsStore)
 const views = ref<FlowViewApi[]>([])
-const activeViewId = ref<number | null>(null)
+// Restore the view from the URL (?view=) BEFORE the first load so the initial fetch already
+// carries it — restoring after the response would show the default view's records under a
+// correctly-selected view (server mode filters by view_id server-side).
+const activeViewId = ref<number | null>(route.query.view ? Number(route.query.view) : null)
 const search = ref('')
 const sortRef = ref<number | string | null>(null)
 const sortDir = ref<'asc' | 'desc'>('asc')
@@ -296,13 +299,11 @@ const load = async () => {
             mode.value = data.mode === 'client' ? 'client' : 'server'
             records.value = data.records ?? []
             total.value = data.total ?? records.value.length
-            if (!activeViewId.value) {
-                // restore the view from the URL (?view=) so it survives leaving/returning to the list;
-                // fall back to the app's default view
-                const q = route.query.view ? Number(route.query.view) : null
-                const fromQuery = q && views.value.some((v) => v.id === q) ? q : null
+            // no view yet, or a stale ?view= id that isn't one of this app's views (the server
+            // falls back to the default view in that case) → sync the selector to the default
+            if (!activeViewId.value || !views.value.some((v) => v.id === activeViewId.value)) {
                 const def = views.value.find((v) => v.is_default) ?? views.value[0]
-                activeViewId.value = fromQuery ?? def?.id ?? null
+                activeViewId.value = def?.id ?? null
             }
         }
     } finally {
