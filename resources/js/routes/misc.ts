@@ -66,6 +66,14 @@ export const miscRoutes: RouteRecordRaw[] = [
                     },
                 ],
             },
+            {
+                path: 'documentation/:docId?/:articleId?',
+                name: 'help-documentation',
+                meta: {
+                    title: 'ヘルプドキュメント',
+                },
+                component: () => import('@/components/Help/Documentation.vue'),
+            },
         ],
     },
     {
