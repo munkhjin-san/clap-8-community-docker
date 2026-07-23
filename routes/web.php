@@ -66,6 +66,17 @@ use Illuminate\Support\Facades\Log;
 // Route::get('/incident_fill', [AutoJobController::class, 'incident_fill']);
 //for home page
 
+// Local-only: session login for the help-docs screenshot script (scripts/help-screenshots.mjs).
+// Never registered outside the local environment.
+if (app()->environment('local')) {
+    Route::get('/dev_screenshot_login/{user}', function ($user) {
+        Auth::login(\App\Models\User::findOrFail($user));
+        request()->session()->regenerate();
+
+        return redirect('/');
+    });
+}
+
 Route::match(['get', 'post'], '/contract_updated', [AutoJobController::class, 'kintoneContractUpdated']);
 Route::get('get_team_external', [ProjectController::class, 'get_team_external']);
 Route::get('get_projects_external', [ProjectController::class, 'get_projects_external']);
