@@ -64,8 +64,7 @@
                 title="公開情報をCSV出力"
                 class="h-[40px] px-[15px] flex items-center gap-[8px] bg-[var(--message-background)] text-[gray] border border-[var(--normalBorder)] text-[13.5px] cursor-pointer transition-colors hover:border-[var(--formBorder)] hover:text-[var(--primary-color)]"
             >
-                <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
-                CSV出力
+                <Download fill="currentColor" size="13" />CSV出力
             </button>
         </div>
 
@@ -253,6 +252,7 @@ import MultiSelectDropdown from './Filters/MultiSelectDropdown.vue';
 import { mkConfig, generateCsv, download } from 'export-to-csv';
 import Grid from '@/components/Icons/Grid.vue';
 import List from '@/components/Icons/List.vue';
+import Download from '@/components/Icons/Download.vue';
 
 const props = defineProps<{
     keyword: string

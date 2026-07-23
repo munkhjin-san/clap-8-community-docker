@@ -1035,6 +1035,7 @@ table{
     background: transparent;
     cursor: pointer;
     padding: 0;
+    color: var(--primary-color);
 }
 .comment-trigger svg {
     overflow: visible;

@@ -1271,6 +1271,7 @@ tr.border-diff-row > td {
   font-weight: 600;
   background: var(--background-color);
   transition: background 0.2s ease;
+  color: var(--primary-color);
 }
 .settings-button:hover {
   background: var(--bg3);
@@ -1309,6 +1310,7 @@ tr.border-diff-row > td {
   padding: 4px 10px;
   font-size: 12px;
   background: var(--background-color);
+  color: var(--primary-color);
   /* transition: background 0.2s ease, color 0.2s ease; */
 }
 .chip-button.active {
