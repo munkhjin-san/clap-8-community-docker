@@ -64,15 +64,16 @@
                 <h3 v-if="portfolio?.public_title" class="cp-title">{{ portfolio?.public_title }}</h3>
                 <p class="cp-text">{{ portfolio?.public_content }}</p>
             </LearningCollapseCard>
-            <OpenAiReview 
-                v-if="selectedTopic && portfolio && hasAfterDiscussionReview"
-                :config-key="afterDiscussionConfig?.config_key"
-                :lesson-theme-id="selectedTopic.id"
-                :source-text="portfolio?.ai_review_final ?? undefined"
-                :message="portfolioContent || portfolio?.public_content || ''"
-                confirm-text="ポジティブ・ネガティブフィードバックから得た発見と成長がポートフォリオに反映されている。"
-                ref="reviewElFinal"
-            />
+            <div v-if="selectedTopic && portfolio && hasAfterDiscussionReview && portfolio.status == 2" class="m-5 p-5 bg-[var(--background-color)]">           
+                <OpenAiReview                     
+                    :config-key="afterDiscussionConfig?.config_key"
+                    :lesson-theme-id="selectedTopic.id"
+                    :source-text="portfolio?.ai_review_final ?? undefined"
+                    :message="portfolioContent || portfolio?.public_content || ''"
+                    confirm-text="ポジティブ・ネガティブフィードバックから得た発見と成長がポートフォリオに反映されている。"
+                    ref="reviewElFinal"
+                />
+            </div>
             <div v-if="portfolio && portfolio.status == 2" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
                 <div>
                     <LoaderButton @triggered="savePortfolio('save')" :loading="processing_save" :content="'一時保存'"/>
