@@ -187,6 +187,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::get('/employee', function () {return redirect("/members");});
     Route::get('/notice/{id}', function ($id) {return redirect("/dashboard/notice?notice_id={$id}");});
 
+    // API routes under /support must be registered before the SPA catch-all below.
+    Route::get('/support/ai-test/conversations', [SupportAiChatController::class, 'index']);
+
     Route::get('/{name}/{any?}',[BoardController::class, "index"])
     ->whereIn('name', [
         'community',
@@ -977,8 +980,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/suggest_challenge', [OpenAiController::class, 'suggest_challenge']);
         Route::get('/lunch_challenge_popup', [OpenAiController::class, 'lunch_challenge_popup']);
         Route::post('/chatkit/session', [OpenAiController::class, 'session']);
-        Route::get('/support/ai-test/conversations', [SupportAiChatController::class, 'index']);
         Route::post('/support/ai-test/messages', [SupportAiChatController::class, 'send'])
+            ->middleware('throttle:20,1');
+        Route::post('/support/ai-test/messages/stream', [SupportAiChatController::class, 'stream'])
             ->middleware('throttle:20,1');
         Route::delete('/support/ai-test/conversations/{conversation}', [SupportAiChatController::class, 'destroy']);
 

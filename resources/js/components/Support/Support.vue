@@ -36,7 +36,9 @@
                     :class="[
                         'sp-nav-item',
                         {
-                            'sp-nav-item--active': selectedRoute.includes(item.name),
+                            'sp-nav-item--active': item.name.startsWith('ai_chat')
+                                ? selectedRoute === item.name
+                                : selectedRoute.includes(item.name),
                             'sp-nav-item--attention': item.attention,
                         }
                     ]"
@@ -57,7 +59,10 @@
             <div
                 v-show="!isMobile || !isParentRoute"
                 class="sp-content"
-                :class="{ 'sp-content--welcome': isParentRoute }"
+                :class="{
+                    'sp-content--welcome': isParentRoute,
+                    'sp-content--chat': selectedRoute === 'ai_chat' || selectedRoute === 'ai_chat_test',
+                }"
             >
                 <div v-if="isParentRoute" class="support-welcome">
                     <section class="support-priority">
@@ -176,6 +181,11 @@ import SupportHelpIcon from '../Icons/SupportHelpIcon.vue'
             icon: SupportAiIcon,
         },
         {
+            name: 'ai_chat_test',
+            label: 'AIチャット（BETA）',
+            icon: SupportAiIcon,
+        },
+        {
             name: 'emergency_contact',
             label: '緊急連絡・インシデント報告',
             attention: true,
@@ -228,6 +238,7 @@ import SupportHelpIcon from '../Icons/SupportHelpIcon.vue'
         email_inbox: '管理者向けのメール相談受付状況を確認できます。',
         phone_consult: '電話相談窓口や外部相談先を確認できます。',
         ai_chat: '規定やFAQをもとにAIへ質問できます。',
+        ai_chat_test: '規定やFAQをもとにAIへ質問できます。',
         system_updates: 'システム保守、更新、障害などのお知らせを確認できます。',
     }
 
@@ -447,6 +458,10 @@ import SupportHelpIcon from '../Icons/SupportHelpIcon.vue'
 
 .sp-content--welcome {
     background: var(--background-color);
+}
+
+.sp-content--chat {
+    overflow: hidden;
 }
 
 /* ── Root welcome ───────────────────────────────────── */
