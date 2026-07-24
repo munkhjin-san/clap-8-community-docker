@@ -141,8 +141,8 @@
                             <div class="flex gap-2 items-center relative w-full">
                                 <p class="max-w-[calc(100%-60px)] overflow-hidden whitespace-nowrap text-ellipsis"><span v-if="project.status != 'running' && project.status != 'completed'">【未締結】</span>{{ project.name }}</p>
                                 <div class="flex items-center gap-1">
-                                    <span title="確認バッジ" class="side-notification" style="position: unset;width:15px;" v-if="confirmBadges(project.id) > 0">{{ confirmBadges(project.id) }}</span>
-                                    <span title="コメントバッジ" class="side-notification" style="position: unset;width:15px;background-color:#F28C28;" v-if="commentBadges(project.id) > 0">{{ commentBadges(project.id) }}</span>
+                                    <Badge style="position: unset;" title="確認バッジ" :count="confirmBadges(project.id)" v-if="confirmBadges(project.id) > 0"/>
+                                    <Badge style="position: unset;" title="コメントバッジ" :count="commentBadges(project.id)" color="tomato" v-if="commentBadges(project.id) > 0"/>
                                 </div>
                             </div>                           
                         </div>
@@ -266,6 +266,7 @@ import { PROJECT_STATUS_LABEL } from '@/utils/tools';
 import ResourceSort from './Resource/ResourceSort.vue';
 import CommandButton from '../Global/CommandButton.vue';
 import Filter from '../Icons/Filter.vue';
+import Badge from '../Global/Badge.vue';
 type ColorState = 0 | 1 | 2;
 const state = ref<ColorState>(0);
 

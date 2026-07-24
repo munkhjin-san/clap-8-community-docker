@@ -24,20 +24,7 @@
             <router-link :id="tab.path == 'finance' ? 'financeSelection' : ''" :to="{name : tab.path}" v-for="tab in tabs" :key="tab.name" class="tab tab-link flex items-center gap-[5px]" :class="{active: tab.path ? route.fullPath.includes(tab.path) : false}">
 
                 <div class="tab-name">{{ tab.name }}</div>
-                
-                
-                <div class="flex items-center gap-1">
-                    <span
-                        v-for="b in badgesForTab(tab.path)"
-                        :key="b.key"
-                        v-show="b.value"
-                        class="side-notification"
-                        :title="b.title"
-                        :style="badgeStyle(b.variant)"
-                    >
-                        {{ b.value }}
-                    </span>
-                </div>
+                <Badge v-for="b in badgesForTab(tab.path)" :key="b.key" v-show="b.value" :title="b.title" :style="badgeStyle(b.variant)" :count="b.value" />
             </router-link>
         </div>
     </div>
@@ -67,6 +54,7 @@ import { useTutorialStore } from '@/store/tutorial';
 import { PROJECT_STATUS_LABEL } from '@/utils/tools';
 import { computed, onMounted, provide, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import Badge from '../Global/Badge.vue';
 
     const props = defineProps(['userList', 'maxInterval', 'projects', 'ownProjectIds'])
     const route = useRoute()
