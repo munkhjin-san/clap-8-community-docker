@@ -22,7 +22,7 @@
                             <Back class="rotate-[270deg]" size="10" />
                         </span>
                     </div>
-                    <div v-if="record.app_type == 7"
+                    <div v-if="nominateChargable"
                         class="whitespace-nowrap text-[12px] pl-4 pr-3 py-1 rounded-full bg-[var(--bg3)] mr-2">
                         {{ status }}
                     </div>
@@ -200,7 +200,7 @@
                         </button>
                     </div> -->
                 </div>
-                <div v-if="(record.app_type == 2 && record.status_flag == 0) || (record.app_type == 7)"
+                <div v-if="(record.app_type == 2 && record.status_flag == 0) || nominateChargable"
                     class="text-[12px] flex-wrap justify-center flex w-fit mx-auto text-[gray] items-center gap-2 whitespace-nowrap">
                     <p>チャージ受付期間：</p>
                     <PostDate :record="record" class="!m-0" which="charge_period" />
@@ -215,7 +215,7 @@
                     <button id="glowlympicButton" class="chargeFormeAddButton cursor-pointer">参加期間は終了しました</button>
                 </div>
             </div>
-            <div class="post-footer mb-1 text-sm justify-end" v-if="record.app_type == 2 || record.app_type == 7">
+            <div class="post-footer mb-1 text-sm justify-end" v-if="record.app_type == 2 || nominateChargable">
                 <div>現在のチャージ総額 {{ totalChargeAmmount }}円</div>
             </div>
             <div class="post-footer">
@@ -677,11 +677,16 @@ const canNotCharge = computed(() => {
     }
     return ''
 })
+const nominateChargable = computed(() => {
+    const created_at = DateTime.fromISO(props.record.created_at)
+    const twentieth = DateTime.now().set({ day: 20 });
+    return created_at <= twentieth && props.record.app_type == 7
+})
 const challengeButtonView = computed(() => {
     if (props.record.app_type == 2) {
         return !props.record.to_users.some(obj => obj.id == auth.id)
     }
-    if (props.record.app_type == 7) {
+    if (nominateChargable.value) {
         const isRecipient = props.record.to_users.some(obj => obj.id == auth.id)
         const isAuthor = props.record.user_id == auth.id
         return !isRecipient && !isAuthor
