@@ -39,8 +39,10 @@
         <div v-if="isPlaying || isPaused" @click="handleStop" class="tts-btn h-[15px] w-[15px] min-w-[15px] bg-[tomato]" title="停止"></div>
         <!-- Error Message -->
         <div v-if="hasError && showError" class="tts-error">
-            <span>{{ error?.message || 'Playback failed' }}</span>
-            <button @click="showError = false" class="tts-error-close">&times;</button>
+            <span>{{ error?.message || '再生に失敗しました' }}</span>
+            <button @click="showError = false" class="tts-error-close">
+                <CloseIcon fill="var(--background-color)"/>
+            </button>
         </div>
     </div>
 </template>
@@ -48,6 +50,7 @@
 <script setup lang="ts">
 import { ref, watch, onBeforeUnmount } from 'vue'
 import { useTTS } from '@/composables/useTTS'
+import CloseIcon from '../Form/CloseIcon.vue'
 
 interface Props {
     text: string
@@ -199,14 +202,11 @@ button{
 .tts-error {
     position: absolute;
     top: 100%;
-    left: 0;
     right: 0;
     margin-top: 8px;
     padding: 8px 12px;
-    background-color: #ffebee;
-    border: 1px solid #f44336;
-    border-radius: 6px;
-    color: #c62828;
+    background-color: var(--primary-color);
+    color: var(--background-color);
     font-size: 12px;
     display: flex;
     align-items: center;
@@ -220,7 +220,7 @@ button{
 .tts-error-close {
     background: none;
     border: none;
-    color: #c62828;
+    fill: #c62828;
     font-size: 20px;
     cursor: pointer;
     padding: 0;

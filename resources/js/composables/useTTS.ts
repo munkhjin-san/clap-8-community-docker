@@ -172,7 +172,7 @@ export function useTTS(options: TTSOptions) {
         URL.revokeObjectURL(audioUrl)
 
         if (!intentionalStop) {
-          error.value = new Error('Audio playback error')
+          error.value = new Error('音声再生エラー')
           status.value = 'error'
           options.onError?.(error.value)
           isPlayingFallback = false
@@ -201,7 +201,7 @@ export function useTTS(options: TTSOptions) {
               await audioElement?.play()
             } catch (e) {
               console.error('Failed to resume after user interaction:', e)
-              error.value = new Error('Failed to resume playback')
+              error.value = new Error('再生を再開できませんでした')
               status.value = 'error'
               options.onError?.(error.value)
               isPlayingFallback = false
@@ -212,7 +212,7 @@ export function useTTS(options: TTSOptions) {
           document.addEventListener('click', resumePlayback, { once: true })
         } else {
           if (!intentionalStop) {
-            error.value = err instanceof Error ? err : new Error('Playback failed')
+            error.value = err instanceof Error ? err : new Error('再生に失敗しました')
             status.value = 'error'
             options.onError?.(error.value)
             isPlayingFallback = false
@@ -473,7 +473,7 @@ export function useTTS(options: TTSOptions) {
         if (intentionalStop) return
         
         console.error('Audio element error:', e)
-        error.value = new Error('Audio playback error')
+        error.value = new Error('音声再生エラー')
         status.value = 'error'
         options.onError?.(error.value)
       }
@@ -606,7 +606,7 @@ export function useTTS(options: TTSOptions) {
     
     audioElement.play().catch(err => {
       console.error('Error resuming playback:', err)
-      error.value = err instanceof Error ? err : new Error('Resume failed')
+      error.value = err instanceof Error ? err : new Error('再開に失敗しました')
       status.value = 'error'
     })
   }
