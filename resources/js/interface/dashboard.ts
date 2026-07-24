@@ -174,6 +174,13 @@ export type IncidentCandidate = {
         icon_path?: string | null
         icon_bg?: string | null
     }) | null
+    logs?: Array<{
+        id: number
+        action?: string | null
+        note?: string | null
+        created_at?: string | null
+        user?: (Pick<User, 'id' | 'name'> & { icon_path?: string | null; icon_bg?: string | null }) | null
+    }>
 }
 
 export type DashboardIncidentAlertCardData = IncidentCandidate[]

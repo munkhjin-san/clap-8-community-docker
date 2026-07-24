@@ -1378,8 +1378,8 @@ class DashboardController extends Controller
         $activeUser = $this->active_user();
 
         $isPM = $activeUser->position_id == 6;
-        $isBoss = $activeUser->position_id && $activeUser->position_id < 6;
         $isAdmin = in_array($activeUser->id, self::TIMESHEET_ADMIN_IDS, true);
+        $isBoss = $activeUser->position_id && $activeUser->position_id < 6 && !$isAdmin;
 
         if (!$isPM && !$isBoss && !$isAdmin) {
             return [];
