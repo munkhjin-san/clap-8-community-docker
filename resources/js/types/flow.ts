@@ -500,6 +500,8 @@ export interface FlowDefinitionListItem {
     pinned?: boolean
     /** current user has 管理 on this app → may open 設定 / 削除 (both manage-gated server-side) */
     can_manage?: boolean
+    /** unread notification events for the current user (per-app bell badge) */
+    unread_notifications?: number
     creator?: FlowOptionUser | null
     fields_count?: number
     statuses_count?: number

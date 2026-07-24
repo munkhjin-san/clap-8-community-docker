@@ -6,12 +6,14 @@ use App\Models\FlowAppTool;
 use App\Models\FlowAuditLog;
 use App\Models\FlowDefinition;
 use App\Models\FlowField;
+use App\Models\FlowNotification;
 use App\Models\FlowRecord;
 use App\Models\positionRecord;
 use App\Models\ProjectRecord;
 use App\Models\User;
 use App\Services\FlowFormulaEvaluator;
 use App\Services\FlowService;
+use App\Services\FlowNotificationService;
 use App\Services\KintoneImportService;
 use App\Services\PdfRenderService;
 use App\Support\FlowSystemSources;
@@ -24,7 +26,10 @@ use Mpdf\Output\Destination;
 
 class FlowController extends Controller
 {
-    public function __construct(private FlowService $flowService) {}
+    public function __construct(
+        private FlowService $flowService,
+        private FlowNotificationService $flowNotifications,
+    ) {}
 
     private function active_user()
     {
@@ -48,6 +53,7 @@ class FlowController extends Controller
         $projectId = $request->input('project_id');
 
         $pinned = DB::table('flow_app_pins')->where('user_id', $user->id)->pluck('flow_definition_id')->flip();
+        $unread = $this->flowNotifications->unreadCounts($user);
 
         return FlowDefinition::query()
             ->when($projectId, fn ($q) => $q->where('project_record_id', $projectId))
@@ -64,12 +70,14 @@ class FlowController extends Controller
 
                 return $perms['view'];
             })
-            ->map(function ($d) use ($pinned) {
+            ->map(function ($d) use ($pinned, $unread) {
                 // "全社員に公開" reflects actual permissions, not the vestigial visibility flag.
                 $d->setAttribute('is_public', $d->appPermissions->contains(
                     fn ($p) => $p->subject_type === 'everyone' && $p->can_view
                 ));
                 $d->setAttribute('pinned', $pinned->has($d->id));
+                // per-app bell badge (unread notification events for this user)
+                $d->setAttribute('unread_notifications', $unread[$d->id] ?? 0);
 
                 return $d->makeHidden('appPermissions');
             })
@@ -963,6 +971,9 @@ class FlowController extends Controller
             'views' => $views,
         ];
 
+        // seeing the record list clears grouped CSV-import events (they have no single record to open)
+        $this->flowNotifications->markImportSeen($user, $definition);
+
         // Record-level permissions must be evaluated per record in PHP — can't be SQL-paginated
         // cleanly, so those apps return the full visible set and the front-end paginates.
         if ($definition->recordPermissionSets->isNotEmpty()) {
@@ -1333,6 +1344,66 @@ class FlowController extends Controller
         return response()->json(['values' => $out]);
     }
 
+    /* ---- flow notifications (per-app bell badge + popup) --------------------------------------- */
+
+    /** The bell popup: latest events for this user on this app + their notification prefs. */
+    public function getFlowNotifications($definitionId)
+    {
+        $user = $this->active_user();
+        $definition = FlowDefinition::with('appPermissions')->findOrFail($definitionId);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['view'], 403);
+
+        $events = FlowNotification::where('user_id', $user->id)
+            ->where('flow_definition_id', $definition->id)
+            ->with(['actor', 'record:id,record_number'])
+            ->orderByDesc('id')
+            ->limit(30)
+            ->get()
+            ->map(fn ($n) => [
+                'id' => $n->id,
+                'type' => $n->type,
+                'actor' => $n->actor,
+                'record_number' => $n->record?->record_number,
+                'meta' => $n->meta,
+                'read' => $n->read_at !== null,
+                'created_at' => $n->created_at,
+            ]);
+
+        return response()->json([
+            'events' => $events,
+            'prefs' => $this->flowNotifications->prefsFor($user, (int) $definition->id),
+        ]);
+    }
+
+    /** Per-user per-app notification opt-in/out (the toggles inside the bell popup). */
+    public function saveFlowNotificationPref(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate([
+            'flow_definition_id' => 'required|integer|exists:flow_definitions,id',
+            'pref' => 'required|string',
+            'enabled' => 'required|boolean',
+        ]);
+        $definition = FlowDefinition::with('appPermissions')->findOrFail($data['flow_definition_id']);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['view'], 403);
+
+        $this->flowNotifications->savePref($user, (int) $definition->id, $data['pref'], (bool) $data['enabled']);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** The comment tab has actually been viewed (FE fires after ~5s visible) → clear comment badges. */
+    public function markFlowCommentsRead(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate(['record_id' => 'required|integer|exists:flow_records,id']);
+        $record = FlowRecord::findOrFail($data['record_id']);
+
+        $this->flowNotifications->markCommentsRead($user, $record);
+
+        return response()->json(['ok' => true]);
+    }
+
     private function serializeRecord(FlowRecord $record, $fields, ?array $can = null): array
     {
         return [
@@ -1390,6 +1461,9 @@ class FlowController extends Controller
 
         if ($logView) {
             $this->flowService->logAudit($def, $user, 'record_view', $record, ['record_number' => $record->record_number]);
+            // opening the record clears its new-record / status-change badges (comments clear
+            // separately, only after the comment tab has actually been viewed)
+            $this->flowNotifications->markRecordOpened($user, $record);
         }
 
         $statusNames = $def->statuses->pluck('name', 'id');
@@ -1422,6 +1496,8 @@ class FlowController extends Controller
             'status_actions' => $actions,
             'logs' => $logs,
             'mentionable_users' => $this->flowService->mentionableUsers($record, $def),
+            // unread comment events for THIS user on this record → comment-tab badge
+            'unread_comments' => $this->flowNotifications->unreadCommentCount($user, $record),
         ]);
     }
 
@@ -1474,6 +1550,9 @@ class FlowController extends Controller
         });
 
         $record->load(['values', 'currentStatus', 'createdByUser']);
+
+        // badge event: everyone who can view the app hears about the new record (per prefs)
+        $this->flowNotifications->notifyNewRecord($definition, $record, $user);
 
         return response()->json($this->serializeRecord($record, $definition->fields));
     }
@@ -1562,7 +1641,12 @@ class FlowController extends Controller
         abort_unless($action, 422, '現在のステータスでは実行できないアクションです。');
         abort_unless($this->flowService->canPressAction($user, $record, $action), 403);
 
+        $fromName = $record->currentStatus?->name;
+        $toName = $def->statuses->firstWhere('id', $action->to_status_id)?->name;
         $this->flowService->applyStatusAction($user, $record, $action);
+
+        // badge event: the record's creator hears their record moved (per prefs)
+        $this->flowNotifications->notifyStatusChange($record, $user, $fromName, $toName);
 
         $record->load(self::RECORD_DETAIL_WITH);
 
@@ -2003,6 +2087,11 @@ class FlowController extends Controller
 
             return ['imported' => $imported, 'skipped' => count($parsed['groups']) - $imported];
         });
+
+        // badge event: ONE grouped notification for the whole import (never one per row)
+        if (($result['imported'] ?? 0) > 0) {
+            $this->flowNotifications->notifyImport($definition, $user, (int) $result['imported']);
+        }
 
         return response()->json($result + ['invalid' => array_slice($validation['invalid'], 0, 50)]);
     }

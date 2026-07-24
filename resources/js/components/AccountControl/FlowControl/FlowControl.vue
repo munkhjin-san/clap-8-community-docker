@@ -84,6 +84,7 @@
                                     </div>
                                 </div>
                                 <div class="fc-card-menu" @click.stop>
+                                    <FlowBellMenu :def-id="def.id" :count="def.unread_notifications ?? 0" />
                                     <ItemMenu :items="menuItems(def)" />
                                 </div>
                             </div>
@@ -118,6 +119,7 @@
                                 <div class="ar fc-num">{{ def.fields_count ?? 0 }}</div>
                                 <div class="ac"><span class="fc-vis">{{ def.is_public ? '全社員' : '限定' }}</span></div>
                                 <div class="fc-td-menu" @click.stop>
+                                    <FlowBellMenu :def-id="def.id" :count="def.unread_notifications ?? 0" />
                                     <ItemMenu :items="menuItems(def)" />
                                 </div>
                             </div>
@@ -155,6 +157,7 @@ import { useApi } from '@/composables/api'
 import { useResponsive } from '@/store/responsive'
 import FlowAppIcon from './FlowAppIcon.vue'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
+import FlowBellMenu from './FlowBellMenu.vue'
 import type { FlowDefinitionListItem } from '@/types/flow'
 import type { MenuList } from '@/interface/globalInterface'
 import FloatButton from '@/components/Global/FloatButton.vue'
@@ -323,7 +326,7 @@ onMounted(() => {
 .fc-card-head { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .fc-card-name { font-size: 15px; line-height: 1.4; color: var(--primary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fc-card-flags { display: flex; align-items: center; gap: 8px; }
-.fc-card-menu { flex-shrink: 0; margin: -2px -4px 0 0; }
+.fc-card-menu { flex-shrink: 0; margin: -2px -4px 0 0; display: flex; align-items: center; gap: 2px; }
 .fc-card-foot { display: flex; align-items: center; gap: 14px; font-size: 12px; color: gray; border-top: 1px solid var(--calendarBorder); padding-top: 12px; }
 .fc-fi { display: inline-flex; align-items: baseline; gap: 3px; }
 .fc-num { font-size: 15px; color: var(--primary-color); }
@@ -344,7 +347,7 @@ onMounted(() => {
 .fc-td-name { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .fc-td-ico :deep(.fai-initial) { font-weight: 400; }
 .fc-td-nm { font-size: 14px; color: var(--primary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fc-td-menu { display: flex; justify-content: flex-end; }
+.fc-td-menu { display: flex; justify-content: flex-end; align-items: center; gap: 2px; }
 .fc-unit { font-size: 12px; color: gray; margin-left: 2px; }
 .fc-tr.fc-row .fc-num { font-size: 14px; }
 

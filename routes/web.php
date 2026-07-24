@@ -1046,6 +1046,10 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/flow_app_record_by_number/{definition}/{number}', [FlowController::class, 'getAppRecordByNumber']);
         Route::get('/flow_reference_search/{definition}', [FlowController::class, 'referenceSearch']);
         Route::get('/flow_lookup_record/{definition}/{record}', [FlowController::class, 'lookupRecord']);
+        // flow notifications (per-app bell badge + popup + prefs + comment read)
+        Route::get('/flow_notifications/{definition}', [FlowController::class, 'getFlowNotifications']);
+        Route::post('/flow_notification_pref', [FlowController::class, 'saveFlowNotificationPref']);
+        Route::post('/flow_notification_comments_read', [FlowController::class, 'markFlowCommentsRead']);
         // system reference sources (built-in masters, e.g. offices) — mirror the app-reference endpoints
         Route::get('/flow_system_sources', [FlowController::class, 'systemReferenceSources']);
         Route::get('/flow_system_fields/{source}', [FlowController::class, 'systemReferenceFields']);

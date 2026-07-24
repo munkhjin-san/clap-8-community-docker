@@ -118,7 +118,11 @@
                             :title="t.label"
                             :aria-label="t.label"
                             @click="selectTab(t.k)"
-                        ><component :is="t.icon" :size="16" /></button>
+                        >
+                            <component :is="t.icon" :size="16" />
+                            <!-- unread comments: cleared only after the tab has actually been viewed (~5s) -->
+                            <span v-if="t.k === 'comment' && unreadComments" class="rd-tab-badge">{{ unreadComments }}</span>
+                        </button>
                     </div>
                     <button v-if="isNarrow" class="rd-sheet-toggle" @click="sheetOpen = !sheetOpen">{{ sheetOpen ? '▼ 閉じる' : '▲ 開く' }}</button>
                 </div>
@@ -162,14 +166,17 @@
                     class="rd-reveal"
                     @click="toggleSide"
                     title="パネルを表示"
-                ><ChevronDouble :size="15" /></button>
+                >
+                    <ChevronDouble :size="15" />
+                    <span v-if="unreadComments" class="rd-tab-badge rd-reveal-badge">{{ unreadComments }}</span>
+                </button>
             </Transition>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useApi } from '@/composables/api'
@@ -289,6 +296,26 @@ const fieldRows = computed<FlowField[][]>(() => {
 
 const isReadonly = (f: FlowField) => mode.value === 'view' || f.input_type === 'formula' || !!f.validation?.disabled
 
+/* ---- unread-comment badge: clears only after the comment tab has really been viewed ---- */
+const unreadComments = ref(0)
+// "viewed" = comment tab active AND its content actually on screen (panel expanded / sheet open)
+const commentVisible = computed(() =>
+    !isNew.value && !!record.value && activeTab.value === 'comment'
+    && (isNarrow.value ? sheetOpen.value : !sideCollapsed.value))
+let commentReadTimer: ReturnType<typeof setTimeout> | null = null
+watch([commentVisible, unreadComments], () => {
+    if (commentReadTimer) { clearTimeout(commentReadTimer); commentReadTimer = null }
+    if (!commentVisible.value || unreadComments.value === 0) return
+    // ~5s of the tab being visible counts as "read" — then clear the badge server-side
+    commentReadTimer = setTimeout(async () => {
+        const id = record.value?.id
+        if (!id || !commentVisible.value) return
+        await api.post('/flow_notification_comments_read', { record_id: id }, { silent: true })
+        unreadComments.value = 0
+    }, 5000)
+}, { immediate: true })
+onBeforeUnmount(() => { if (commentReadTimer) clearTimeout(commentReadTimer) })
+
 const recordTitle = computed(() => (isNew.value ? (dupFrom.value ? '新規レコード（複製）' : '新規レコード') : `#${record.value?.record_number ?? recordId.value ?? ''}`))
 // 複製: open the new-record screen pre-filled from this record (needs 追加 permission)
 const canDuplicate = computed(() => !isNew.value && !!permissions.value?.add && !!record.value?.id)
@@ -405,6 +432,7 @@ const load = async () => {
                 statusActions.value = data.status_actions ?? []
                 logs.value = data.logs ?? []
                 mentionableUsers.value = data.mentionable_users ?? []
+                unreadComments.value = data.unread_comments ?? 0
             }
         } else {
             const data = await api.get(`/flow_app_records/${flowId.value}`)
@@ -567,7 +595,10 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .chipFade-enter-from, .chipFade-leave-to { opacity: 0; transform: translateX(10px); }
 .rd-tabs { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--calendarBorder); position: relative; }
 .rd-tabseg { display: inline-flex; gap: 4px; }
-.rd-tabbtn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 28px; border: none; background: none; border-radius: 7px; color: gray; fill: currentColor; cursor: pointer; transition: background .12s, color .12s; }
+.rd-tabbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 28px; border: none; background: none; border-radius: 7px; color: gray; fill: currentColor; cursor: pointer; transition: background .12s, color .12s; }
+/* unread-comment count riding on the comment tab (or the collapsed reveal chevron) */
+.rd-tab-badge { position: absolute; top: -4px; right: 2px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px; background: tomato; color: #fff; font-size: 10px; line-height: 15px; text-align: center; box-sizing: border-box !important; }
+.rd-reveal-badge { top: -7px; right: auto; left: -9px; }
 .rd-tabbtn:hover { color: var(--primary-color); }
 .rd-tabbtn.on { background: var(--bg3); color: var(--primary-color); }
 .rd-side-content { flex: 1; overflow: auto; padding: 14px; }
