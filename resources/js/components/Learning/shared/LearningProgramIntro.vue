@@ -1,21 +1,23 @@
 <template>
     <section class="learning-program-intro">
-        <div v-if="showEvaluationLink" class="learning-program-intro__eval">
-            <router-link :to="{name: 'evaluate'}">職能研修機関確認用</router-link>
-        </div>
+        <div class="learning-program-intro__content">
+            <div v-if="showEvaluationLink" class="learning-program-intro__eval">
+                <router-link :to="{name: 'evaluate'}">職能研修機関確認用</router-link>
+            </div>
 
-        <p class="learning-program-intro__title">研修プログラムについて<br></p>
-        <p class="learning-program-intro__body">この研修プログラムは、社会活動で求められる9つの職能を学ぶためのものです。<br>まず、GLOWDのラーニングアプリを使用して基礎学習を行い、内容を理解します。<br>理解が困難な場合は、補足資料の確認やフォローアップ面談を通じてサポートを受けることができます。<br>次に、基礎学習を理解した参加者は、グループディスカッションのためのポートフォリオを作成します。<br>このディスカッションでは、ポートフォリオを発表し、ポジティブフィードバックとネガティブフィードバックを受けて、ポートフォリオを完成させます。<br>完成したポートフォリオは、各参加者のマイページのプロフィール欄に自動的に掲載されます。<br>基礎学習を完了し、ポートフォリオが完成した参加者は、1つのテーマの履修が完了したとみなされます。</p>
+            <p class="learning-program-intro__title">研修プログラムについて<br></p>
+            <p class="learning-program-intro__body">この研修プログラムは、社会活動で求められる9つの職能を学ぶためのものです。<br>まず、GLOWDのラーニングアプリを使用して基礎学習を行い、内容を理解します。<br>理解が困難な場合は、補足資料の確認やフォローアップ面談を通じてサポートを受けることができます。<br>次に、基礎学習を理解した参加者は、グループディスカッションのためのポートフォリオを作成します。<br>このディスカッションでは、ポートフォリオを発表し、ポジティブフィードバックとネガティブフィードバックを受けて、ポートフォリオを完成させます。<br>完成したポートフォリオは、各参加者のマイページのプロフィール欄に自動的に掲載されます。<br>基礎学習を完了し、ポートフォリオが完成した参加者は、1つのテーマの履修が完了したとみなされます。</p>
 
-        <p class="learning-program-intro__title">ポートフォリオとは<br></p>
-        <p class="learning-program-intro__body">ポートフォリオは、自分の学んだことや経験をまとめた記録です。<br>これには、研修で学んだ内容、過去に取り組んだプロジェクトやその成果、自分の強みや特性、自分の意見や考え方などを含めます。<br>ポートフォリオを作ることで、自分がどう成長したか、どのように考えているかを他の人に示すことができます。<br>また、フィードバックを受け入れて改善することで、さらに自分自身を深く理解し、発展させることができます。</p>
+            <p class="learning-program-intro__title">ポートフォリオとは<br></p>
+            <p class="learning-program-intro__body">ポートフォリオは、自分の学んだことや経験をまとめた記録です。<br>これには、研修で学んだ内容、過去に取り組んだプロジェクトやその成果、自分の強みや特性、自分の意見や考え方などを含めます。<br>ポートフォリオを作ることで、自分がどう成長したか、どのように考えているかを他の人に示すことができます。<br>また、フィードバックを受け入れて改善することで、さらに自分自身を深く理解し、発展させることができます。</p>
 
-        <div class="learning-program-intro__videos">
-            <div v-for="video in videos" :key="video.src" class="learning-program-intro__video">
-                <p><strong>{{ video.title }}</strong></p>
-                <video controls>
-                    <source :src="video.src">
-                </video>
+            <div class="learning-program-intro__videos">
+                <div v-for="video in videos" :key="video.src" class="learning-program-intro__video">
+                    <p><strong>{{ video.title }}</strong></p>
+                    <video controls>
+                        <source :src="video.src">
+                    </video>
+                </div>
             </div>
         </div>
     </section>
@@ -49,7 +51,11 @@ const videos = [
     font-size: 14px;
     line-height: 1.5;
     color: var(--primary-color);
+}
+
+.learning-program-intro__content {
     background: var(--background-color);
+    padding: 20px;
 }
 
 .learning-program-intro__eval {

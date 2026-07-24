@@ -62,6 +62,7 @@ return [
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
         'chatkit_workflow_id' => env('OPENAI_CHATKIT_WORKFLOW_ID'),
+        'support_chat_model' => env('OPENAI_SUPPORT_CHAT_MODEL', 'gpt-5.6-terra'),
         'organization' => env('OPENAI_ORGANIZATION'),
         'compare_model' => env('OPENAI_COMPARE_SUMMARY_MODEL', 'gpt-5.6-luna'),
         'prompts' => [
@@ -81,6 +82,12 @@ return [
             'normal_challenge_suggestion' => env('OPENAI_PROMPT_NORMAL_CHALLENGE_SUGGESTION'),
             'project_member_assign_evaluation' => env('OPENAI_PROMPT_PROJECT_MEMBER_ASSIGN_EVALUATION'),
         ]
+    ],
+    'learning_presentation' => [
+        'model' => env('LEARNING_PRESENTATION_MODEL', 'gpt-5.6-sol'),
+        'max_output_tokens' => env('LEARNING_PRESENTATION_MAX_OUTPUT_TOKENS', 20000),
+        'node_binary' => env('NODE_BINARY', 'node'),
+        'render_timeout' => env('LEARNING_PRESENTATION_RENDER_TIMEOUT', 60),
     ],
     'VAPID' => [
         'public_key' => env('VAPID_PUBLIC_KEY'),

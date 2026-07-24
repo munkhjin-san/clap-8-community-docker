@@ -52,6 +52,9 @@ export interface LearningPersonalMaterial {
     lesson_theme_ai_config_id: number | null
     config_key: string
     content: string | null
+    presentation_spec: LearningPresentationSpec | null
+    presentation_theme: string | null
+    presentation_available: boolean
     understand: boolean | null
     important_point: string | null
     source_snapshot: Record<string, unknown> | null
@@ -60,6 +63,41 @@ export interface LearningPersonalMaterial {
     created_at?: string | null
     updated_at?: string | null
 }
+
+export type LearningPresentationLayout =
+    | 'hero'
+    | 'key_points'
+    | 'comparison'
+    | 'action_plan'
+    | 'reflection'
+    | 'discussion'
+
+export interface LearningPresentationSlide {
+    layout: LearningPresentationLayout
+    eyebrow: string
+    title: string
+    body: string
+    bullets: string[]
+    callout: string
+}
+
+export interface LearningSlidePresentationSpec {
+    title: string
+    subtitle: string
+    summary: string
+    slides: LearningPresentationSlide[]
+    discussion_topics: string[]
+}
+
+export interface LearningHtmlPresentationSpec {
+    html: string
+    title: string
+    summary: string
+}
+
+export type LearningPresentationSpec =
+    | LearningSlidePresentationSpec
+    | LearningHtmlPresentationSpec
 
 export interface LearningThemeCategory {
     id: number
@@ -397,6 +435,7 @@ export interface LearningChallengeGoalOption {
     title: string | null
     start_date: string | null
     end_date: string | null
+    score: number
     selectable: boolean
     reason: string | null
 }

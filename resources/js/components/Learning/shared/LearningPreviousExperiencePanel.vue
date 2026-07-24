@@ -1,52 +1,56 @@
 <template>
-    <section class="prev-portfolio">
-        <header class="prev-portfolio__header">
-            <div>
-                <div class="mb-4">前回のポートフォリオ</div>
-                <p v-if="updatedLabel" class="prev-portfolio__date">{{ updatedLabel }}</p>
-            </div>
-        </header>
+    <section class="prev-portfolio prev-portfolio--flat">
+        <AiLoader
+            v-if="personalMaterialLoading"
+            message="個人専用研修資料をAIで生成中です。<br>この処理には数分かかる場合があります。"
+        />
+        <!-- The previous run (any repeater / salary challenger) shown as collapsible
+             cards matching the basic-knowledge card, collapsed by default. -->
+        <LearningCollapseCard label="前回のグループディスカッション内容">
+                <div class="prev-box">
+                    <div class="prev-box__item">
+                        <p class="prev-box__label">ディスカッション前の内容</p>
+                        <p class="prev-portfolio__text" :class="{ 'prev-portfolio__empty': !hasText(portfolio.content) }">
+                            {{ hasText(portfolio.content) ? portfolio.content : '記録なし' }}
+                        </p>
+                    </div>
+                    <div class="prev-box__item">
+                        <p class="prev-box__label">
+                            <span class="prev-portfolio__mark prev-portfolio__mark--positive"></span>ポジティブフィードバック
+                        </p>
+                        <p class="prev-portfolio__text" :class="{ 'prev-portfolio__empty': !hasText(portfolio.positive_feedback) }">
+                            {{ hasText(portfolio.positive_feedback) ? portfolio.positive_feedback : '記録なし' }}
+                        </p>
+                    </div>
+                    <div class="prev-box__item">
+                        <p class="prev-box__label">
+                            <span class="prev-portfolio__mark prev-portfolio__mark--negative"></span>ネガティヴフィードバック
+                        </p>
+                        <p class="prev-portfolio__text" :class="{ 'prev-portfolio__empty': !hasText(portfolio.negative_feedback) }">
+                            {{ hasText(portfolio.negative_feedback) ? portfolio.negative_feedback : '記録なし' }}
+                        </p>
+                    </div>
+                    <div class="prev-box__item">
+                        <p class="prev-box__label">フィードバックから得た成長</p>
+                        <p class="prev-portfolio__text" :class="{ 'prev-portfolio__empty': !hasText(portfolio.noticed) }">
+                            {{ hasText(portfolio.noticed) ? portfolio.noticed : '記録なし' }}
+                        </p>
+                    </div>
+                </div>
+            </LearningCollapseCard>
 
-        <div v-if="feedbackCards.length" class="prev-portfolio__feedback-grid">
-            <article
-                v-for="card in feedbackCards"
-                :key="card.key"
-                class="prev-portfolio__card prev-portfolio__feedback-card"
-            >
-                <p class="prev-portfolio__card-title">
-                    <span class="prev-portfolio__mark" :class="`prev-portfolio__mark--${card.tone}`"></span>
-                    {{ card.title }}
+            <LearningCollapseCard label="完成したポートフォリオ">
+                <h3 v-if="portfolio.public_title" class="prev-box__title">{{ portfolio.public_title }}</h3>
+                <p class="prev-portfolio__text prev-portfolio__text--large" :class="{ 'prev-portfolio__empty': !hasText(portfolio.public_content) }">
+                    {{ hasText(portfolio.public_content) ? portfolio.public_content : '記録なし' }}
                 </p>
-                <p
-                    class="prev-portfolio__text"
-                    :class="{ 'prev-portfolio__empty': !hasText(card.content) }"
-                >
-                    {{ hasText(card.content) ? card.content : '記録なし' }}
-                </p>
-            </article>
-        </div>
+            </LearningCollapseCard>
 
-        <article v-if="hasFinalPortfolio" class="prev-portfolio__card prev-portfolio__portfolio-card">
-            <p class="prev-portfolio__section-title">完成したポートフォリオ</p>
-            <h3 v-if="portfolio.public_title" class="prev-portfolio__portfolio-title">
-                {{ portfolio.public_title }}
-            </h3>
-            <p class="prev-portfolio__text prev-portfolio__text--large">{{ portfolio.public_content }}</p>
-        </article>
-
-        <div v-if="detailBlocks.length" class="prev-portfolio__details">
-            <article
-                v-for="block in detailBlocks"
-                :key="block.key"
-                class="prev-portfolio__detail"
-            >
-                <p class="prev-portfolio__detail-title">{{ block.title }}</p>
-                <p class="prev-portfolio__text">{{ block.content }}</p>
-            </article>
-        </div>
-
-        <div v-if="canGeneratePersonalMaterial" class="prev-portfolio__ai-area">
+        <div v-if="canGeneratePersonalMaterial" class="prev-portfolio__ai-area prev-portfolio__ai-area--flat">
+            <!-- (Re)generation is only for the active learner still working through 基礎知識;
+                 once completed the material is read-only, so hide the generate button. -->
             <LoaderButton
+                v-if="!isPersonalMaterialCompleted"
                 :loading="personalMaterialLoading"
                 :content="personalMaterialButtonLabel"
                 @triggered="generatePersonalMaterial"
@@ -57,8 +61,26 @@
             </LoaderButton>
 
             <article v-if="personalMaterialRaw" class="prev-portfolio__card prev-portfolio__ai-card">
-                <p class="prev-portfolio__section-title">個人専用研修資料</p>
-                <div class="prev-portfolio__generated" v-html="personalMaterialHtml"></div>
+                <div v-if="personalMaterialPresentation" class="prev-portfolio__presentation-card">
+                    <div>
+                        <h3>{{ personalMaterialPresentation.title }}</h3>
+                        <p>{{ personalMaterialPresentation.summary }}</p>
+                    </div>
+                    <div>
+                        <button class="prev-portfolio__presentation-button" @click="presentationOpen = true">
+                            研修資料を見る
+                        </button>
+                    </div>
+
+                </div>
+                <LearningCollapseCard
+                    v-if="personalMaterialPresentation"
+                    label="テキスト版を見る"
+                    class="prev-portfolio__text-version"
+                >
+                    <div class="prev-portfolio__generated" v-html="personalMaterialHtml"></div>
+                </LearningCollapseCard>
+                <div v-else class="prev-portfolio__generated" v-html="personalMaterialHtml"></div>
 
                 <!-- Path 3 (salary challenge): choose a group-discussion theme instead of the understanding questionnaire. -->
                 <div v-if="canShowPersonalMaterialFeedback && isSalaryChallenge" class="prev-portfolio__understanding">
@@ -68,7 +90,7 @@
                                 <strong>グループディスカッション用テーマ</strong>
                             </p>
                             <div>
-                                <p>{{ importantPoint }}</p>
+                                <p class="prev-portfolio__text">{{ importantPoint }}</p>
                             </div>
                         </div>
                     </div>
@@ -99,7 +121,7 @@
                                 <strong>特に重要だと理解した点</strong>
                             </p>
                             <div>
-                                <p>{{ importantPoint }}</p>
+                                <p class="prev-portfolio__text">{{ importantPoint }}</p>
                             </div>
                         </div>
                         <div class="prev-portfolio__button-row">
@@ -154,6 +176,13 @@
                 </div>
             </article>
         </div>
+        <LearningPresentationPreview
+            v-if="presentationOpen && personalMaterialPresentation"
+            :presentation="personalMaterialPresentation"
+            :accent-color="personalMaterialAccentColor"
+            @close="presentationOpen = false"
+            @select-discussion-theme="selectDiscussionTheme"
+        />
     </section>
 </template>
 
@@ -161,14 +190,21 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useDialog } from '@/composables/dialog'
-import { useSSE } from '@/composables/sse'
 import { useLearningApi } from '@/composables/learningApi'
 import { renderMarkdown } from '@/utils/markdown'
 import { LESSON_PORTFOLIO_STATUS } from '@/config/learning'
+import AiLoader from '@/components/Global/AiLoader.vue'
 import LoaderButton from '@/components/Global/LoaderButton.vue'
 import LongInput from '@/components/Form/LongInput.vue'
 import AiIcon from '@/components/Icons/AiIcon.vue'
-import type { LearningPersonalMaterial, LearningPortfolio, LearningTheme } from '@/types/learning'
+import LearningCollapseCard from '@/components/Learning/shared/LearningCollapseCard.vue'
+import LearningPresentationPreview from '@/components/Learning/shared/LearningPresentationPreview.vue'
+import type {
+    LearningHtmlPresentationSpec,
+    LearningPersonalMaterial,
+    LearningPortfolio,
+    LearningTheme,
+} from '@/types/learning'
 
 type ValidatableRef = {
     validate?: () => Promise<{ valid: boolean }>
@@ -185,10 +221,10 @@ const props = defineProps<{
 }>()
 
 const displayTitle = computed(() => props.themeTitle || props.portfolio.public_title || '前回のポートフォリオ')
-const { ping, ask } = useDialog()
+const { ping, ask, toast } = useDialog()
 const router = useRouter()
 const learningApi = useLearningApi()
-const { on, start, stop } = useSSE({ autoReconnect: false })
+const currentPersonalMaterial = ref<LearningPersonalMaterial | null>(props.personalMaterial ?? null)
 const personalMaterialRaw = ref(props.personalMaterial?.content ?? '')
 const personalMaterialLoading = ref(false)
 const personalMaterialSaved = ref(Boolean(props.personalMaterial?.id))
@@ -198,6 +234,7 @@ const importantPoint = ref(props.personalMaterial?.important_point ?? '')
 const importantPointRef = ref<ValidatableRef | null>(null)
 const feedbackSaving = ref(false)
 const feedbackError = ref('')
+const presentationOpen = ref(false)
 const understandOptions = [
     { value: true, content: '理解した' },
     { value: false, content: '理解できなかった' },
@@ -207,6 +244,16 @@ const hasText = (value?: string | null) => Boolean(value && value.trim())
 const canGeneratePersonalMaterial = computed(() => Boolean(props.canGeneratePersonalMaterial && props.theme?.id))
 const personalMaterialHtml = computed(() => {
     return renderMarkdown(personalMaterialRaw.value)
+})
+const personalMaterialPresentation = computed<LearningHtmlPresentationSpec | null>(() => {
+    const presentation = currentPersonalMaterial.value?.presentation_spec
+
+    return presentation && 'html' in presentation && typeof presentation.html === 'string'
+        ? presentation
+        : null
+})
+const personalMaterialAccentColor = computed(() => {
+    return currentPersonalMaterial.value?.presentation_theme ?? null
 })
 const personalMaterialButtonLabel = computed(() => {
     return hasText(personalMaterialRaw.value) ? '個人専用研修資料再生成' : '個人専用研修資料生成'
@@ -219,6 +266,7 @@ const isPersonalMaterialCompleted = computed(() => {
 })
 
 watch(() => props.personalMaterial, (material) => {
+    currentPersonalMaterial.value = material ?? null
     personalMaterialRaw.value = material?.content ?? ''
     personalMaterialSaved.value = Boolean(material?.id)
     personalMaterialCompleted.value = Boolean(material?.understand)
@@ -226,35 +274,44 @@ watch(() => props.personalMaterial, (material) => {
     importantPoint.value = material?.important_point ?? ''
 }, { immediate: true })
 
-on('update', (payload) => {
-    try {
-        const parsed = JSON.parse(payload)
-        if (parsed?.event === 'response.output_text.delta') {
-            personalMaterialRaw.value += parsed.response?.delta ?? parsed.delta ?? ''
-        }
-    } catch {}
-})
-on('error', () => {
-    personalMaterialLoading.value = false
-    ping('個人専用研修資料の作成に失敗しました。しばらくしてから再度お試しください。')
-})
-on('complete', () => {
-    personalMaterialLoading.value = false
-    personalMaterialSaved.value = true
-})
-
-const generatePersonalMaterial = () => {
+const generatePersonalMaterial = async() => {
     if (!props.theme?.id || !props.canGeneratePersonalMaterial) return
 
-    stop()
-    personalMaterialRaw.value = ''
-    personalMaterialSaved.value = false
-    personalMaterialCompleted.value = false
-    selectedUnderstand.value = null
-    importantPoint.value = ''
+    presentationOpen.value = false
     feedbackError.value = ''
     personalMaterialLoading.value = true
-    start(`/lesson_theme/${props.theme.id}/personal_materials/portfolio_recurring_trainee/stream`)
+    let generatedPresentationAvailable = false
+
+    try {
+        const material = await learningApi.generatePersonalMaterial(props.theme.id)
+        currentPersonalMaterial.value = material
+        personalMaterialRaw.value = material.content ?? ''
+        personalMaterialSaved.value = true
+        personalMaterialCompleted.value = Boolean(material.understand)
+        selectedUnderstand.value = material.understand
+        importantPoint.value = material.important_point ?? ''
+        generatedPresentationAvailable = Boolean(personalMaterialPresentation.value)
+        toast('個人専用研修資料の生成が完了しました。')
+
+        try {
+            await props.refreshLessonView?.()
+        } catch {
+            ping('資料は作成されましたが、画面の更新に失敗しました。ページを再読み込みしてください。')
+        }
+    } catch {
+        ping('個人専用研修資料の作成に失敗しました。しばらくしてから再度お試しください。')
+    } finally {
+        personalMaterialLoading.value = false
+    }
+
+    if (generatedPresentationAvailable) {
+        presentationOpen.value = true
+    }
+}
+
+const selectDiscussionTheme = (content: string) => {
+    importantPoint.value = content
+    presentationOpen.value = false
 }
 
 const submitPersonalMaterialFeedback = async() => {
@@ -399,6 +456,45 @@ const detailBlocks = computed(() => {
     border: 1px solid var(--secondary-color);
     color: var(--primary-color);
 }
+/* Salary-challenge layout: the collapsible cards carry their own margin/border,
+   so the section itself is a plain full-width container. */
+.prev-portfolio--flat {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.prev-box {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.prev-box__item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.prev-box__label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0;
+    font-size: 13px;
+    color: var(--secondary-color);
+}
+
+.prev-box__title {
+    margin: 0 0 14px;
+    font-size: 18px;
+    line-height: 1.6;
+}
+
+.prev-portfolio__ai-area--flat {
+    margin: 20px;
+}
 
 .prev-portfolio__header {
     display: grid;
@@ -464,7 +560,6 @@ const detailBlocks = computed(() => {
 
 .prev-portfolio__card {
     min-width: 0;
-    background: var(--bg3);
     border: 1px solid var(--secondary-color);
 }
 
@@ -482,11 +577,13 @@ const detailBlocks = computed(() => {
 
 .prev-portfolio__ai-card {
     margin-top: 18px;
-    padding: 24px 26px;
 }
 
 .prev-portfolio__ai-area {
     margin-top: 22px;
+    background: var(--background-color);
+    padding: 20px;
+    border: solid thin var(--formBorder);
 }
 
 .prev-portfolio__ai-area :deep(.l-button) {
@@ -577,6 +674,58 @@ const detailBlocks = computed(() => {
     margin: 18px 0 10px;
     font-weight: 700;
     line-height: 1.6;
+}
+
+.prev-portfolio__presentation-card {
+    gap: 16px 22px;
+    margin-top: 16px;
+    padding: 24px;
+    overflow: hidden;
+    background: var(--background-color);
+    border: 1px solid var(--formBorder);
+}
+
+.prev-portfolio__presentation-card span {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    opacity: 0.78;
+}
+
+.prev-portfolio__presentation-card h3 {
+    margin: 8px 0;
+    font-size: 21px;
+    line-height: 1.5;
+}
+
+.prev-portfolio__presentation-card p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.8;
+    opacity: 0.86;
+}
+
+.prev-portfolio__presentation-card button,
+.prev-portfolio__presentation-card a {
+    align-self: center;
+    padding: 11px 16px;
+    border: 1px solid rgb(255 255 255 / 70%);
+    background: gray;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    margin-top: 20px;
+}
+
+.prev-portfolio__presentation-card a {
+    margin-left: 20px;
+}
+
+.prev-portfolio__text-version {
+    margin: 16px 0 0;
 }
 
 .prev-portfolio__understanding {
@@ -678,6 +827,14 @@ const detailBlocks = computed(() => {
     .prev-portfolio__feedback-grid,
     .prev-portfolio__details {
         grid-template-columns: 1fr;
+    }
+
+    .prev-portfolio__presentation-card {
+        grid-template-columns: 1fr;
+    }
+
+    .prev-portfolio__presentation-card a {
+        grid-column: 1;
     }
 
     .prev-portfolio__header {

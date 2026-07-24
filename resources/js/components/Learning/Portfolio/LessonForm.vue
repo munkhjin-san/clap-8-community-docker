@@ -1,6 +1,6 @@
 <template>
     <div class="section-wrapper">
-        <div class="section-inner" v-if="selectedTopic && isEnabled(selectedTopic.active)"> 
+        <div class="m-5 bg-[var(--background-color)] p-5" v-if="selectedTopic && isEnabled(selectedTopic.active)"> 
             <p>研修はまだ完了しておりません。アンケートの回答にご協力をお願い致します。</p>
             <p style="font-size: 18px;"><strong>研修に関するアンケート</strong></p>
             <div style="height: 20px;"></div>         

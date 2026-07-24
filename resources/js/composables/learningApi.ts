@@ -414,6 +414,14 @@ export function useLearningApi() {
         return await api.get('/get_previous_experience', { lesson_theme_id: themeId }) as LearningPreviousExperiencePayload
     }
 
+    const generatePersonalMaterial = async(themeId: number | string) => {
+        return await api.post(
+            `/lesson_theme/${themeId}/personal_materials/portfolio_recurring_trainee/generate`,
+            {},
+            { silent: true },
+        ) as LearningPersonalMaterial
+    }
+
     const savePersonalMaterialFeedback = async(themeId: number | string, payload: LearningPersonalMaterialFeedbackRequest, options?: { silent?: boolean }) => {
         return await api.post(`/lesson_theme/${themeId}/personal_materials/portfolio_recurring_trainee/feedback`, payload,
             options?.silent ? {} : { toast: '保存しました。' }) as LearningPersonalMaterial
@@ -470,6 +478,7 @@ export function useLearningApi() {
         getExamAttempts,
         getSupportAccountId,
         getPreviousExperience,
+        generatePersonalMaterial,
         savePersonalMaterialFeedback,
     }
 }

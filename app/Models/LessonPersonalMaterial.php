@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class LessonPersonalMaterial extends Model
 {
@@ -11,7 +12,16 @@ class LessonPersonalMaterial extends Model
 
     protected $guarded = [];
 
+    protected $hidden = [
+        'presentation_path',
+    ];
+
+    protected $appends = [
+        'presentation_available',
+    ];
+
     protected $casts = [
+        'presentation_spec' => 'array',
         'source_snapshot' => 'array',
         'understand' => 'boolean',
         'generated_at' => 'datetime',
@@ -31,5 +41,11 @@ class LessonPersonalMaterial extends Model
     public function aiConfig()
     {
         return $this->belongsTo(LessonThemeAiConfig::class, 'lesson_theme_ai_config_id');
+    }
+
+    public function getPresentationAvailableAttribute(): bool
+    {
+        return filled($this->presentation_path)
+            && Storage::disk('local')->exists($this->presentation_path);
     }
 }

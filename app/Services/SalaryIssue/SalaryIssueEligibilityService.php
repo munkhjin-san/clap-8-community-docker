@@ -263,8 +263,9 @@ class SalaryIssueEligibilityService
             ->where('year', $span['year'])
             ->where('which_half', $span['which_half'])
             ->withExists('salaryIssue as has_salary_issue')
+            ->with(['steps:id,project_goal_id,progress', 'user:id,general_position'])
             ->orderByDesc('id')
-            ->get(['id', 'title', 'outcome_goal', 'start_date', 'end_date'])
+            ->get(['id', 'user_id', 'title', 'outcome_goal', 'start_date', 'end_date', 'achievement_rate'])
             ->map(function (ProjectGoal $goal) use ($spanReason) {
                 // The span-level block is surfaced once at the top; per-goal reason
                 // only carries goal-specific problems (already used / too short).
@@ -277,6 +278,8 @@ class SalaryIssueEligibilityService
                     'title' => $goal->title ?: $goal->outcome_goal,
                     'start_date' => $goal->start_date,
                     'end_date' => $goal->end_date,
+                    // Authoritative weighted KPI/KGI evaluation score (点).
+                    'score' => $this->scores->overallScore($goal),
                     'selectable' => $spanReason === null && $goalReason === null,
                     'reason' => $goalReason,
                 ];

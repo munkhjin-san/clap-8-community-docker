@@ -114,12 +114,13 @@ const stageItems = computed<StageItem[]>(() => {
     if (isEnabled(props.theme.portfolio)) {
         return [
             {
+                // 知識研修 must reflect real knowledge completion (basicTone),
+                // not merely that a portfolio draft exists (draft_ready). A salary
+                // challenger can reach the portfolio without finishing the basic
+                // sections, so draft_ready would falsely light this green while
+                // the 完了 badge (which requires basic_completed) stays hidden.
                 label: '知識研修',
-                tone: portfolioProgress.value.draft_ready
-                    ? 'complete'
-                    : portfolioProgress.value.status === 0
-                        ? 'warning'
-                        : undefined,
+                tone: basicTone.value,
             },
             {
                 label: 'ディスカッション',

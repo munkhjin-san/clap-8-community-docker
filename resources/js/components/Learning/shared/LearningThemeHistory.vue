@@ -29,7 +29,7 @@
                             :class="{ 'lh-step--done': stage.done, 'lh-step--current': stage.current, 'lh-step--link': stepClickable(attempt, i) }"
                             @click="onStepClick(attempt, i)"
                         >
-                            <span class="lh-step__mark">{{ stage.done ? '✓' : i + 1 }}</span>
+                            <span class="lh-step__mark"></span>
                             <span class="lh-step__label">{{ stage.label }}</span>
                         </span>
                     </template>
@@ -53,7 +53,7 @@
 
         <!-- Start a NEW learning (hidden while an attempt is in progress). -->
         <div v-if="showStart" class="lh__foot">
-            <button type="button" class="lh__btn lh__btn--primary" :disabled="busy" @click="onStart">研修を始める</button>
+            <LoaderButton content="研修を始める" :loading="busy" @triggered="onStart" />
         </div>
 
         <Teleport to="body">
@@ -67,12 +67,13 @@
 
                         <div v-if="mode === 'choose'" class="lh-modal__body lh-modal__choose">
                             <!-- Path 2 (もう一度学ぶ) is hidden for now; keep the handler so it can be re-enabled. -->
-                            <button v-if="SHOW_LEARN_AGAIN" type="button" class="lh__btn lh__btn--primary lh__btn--block" :disabled="busy" @click="learnAgain">
+                            <!-- <button v-if="SHOW_LEARN_AGAIN" type="button" class="lh__btn lh__btn--primary lh__btn--block" :disabled="busy" @click="learnAgain">
                                 もう一度学ぶ（AI個別教材）
-                            </button>
-                            <button v-if="state.options.path3" type="button" class="lh__btn lh__btn--primary lh__btn--block" @click="openChallenge">
+                            </button> -->
+                            <!-- <button v-if="state.options.path3" type="button" class="lh__btn lh__btn--primary lh__btn--block" @click="openChallenge">
                                 昇給課題として学習する
-                            </button>
+                            </button> -->
+                            <LoaderButton content="昇給課題として学習する" :loading="busy" @triggered="openChallenge" />
                         </div>
 
                         <div v-else class="lh-modal__body">
@@ -88,23 +89,26 @@
                                         class="lh__goal"
                                         :class="{ 'lh__goal--disabled': !goal.selectable }"
                                     >
-                                        <span class="lh__goal-title">{{ goal.title || '（無題の目標）' }}</span>
-                                        <button
-                                            v-if="goal.selectable"
-                                            type="button"
-                                            class="lh__btn lh__btn--primary lh__btn--sm"
-                                            :disabled="busy"
-                                            @click="submitChallenge(goal.goal_id)"
-                                        >
-                                            選択する
-                                        </button>
-                                        <span v-else-if="goal.reason" class="lh__goal-reason">{{ goal.reason }}</span>
+                                        <div class="lh__goal-row">
+                                            <div class="lh__goal-main">
+                                                <span class="lh__goal-title">{{ goal.title || '（無題の目標）' }}</span>
+                                                <div class="lh__goal-period">{{ goalPeriod(goal) }}</div>
+                                                <div class="lh__goal-score">評価点：{{ goal.score }}点</div>
+                                            </div>
+                                            <div v-if="goal.selectable" class="lh__goal-action">
+                                                <LoaderButton
+                                                    content="選択する"
+                                                    :loading="busy"
+                                                    @triggered="submitChallenge(goal.goal_id)"
+                                                />
+                                            </div>
+                                        </div>
+                                        <p v-if="!goal.selectable && goal.reason" class="lh__goal-note">{{ goal.reason }}</p>
                                     </li>
                                 </ul>
                             </template>
-                            <p v-else class="lh__notice">読み込み中…</p>
-                            <div class="lh-modal__foot">
-                                <button type="button" class="lh__btn lh__btn--ghost" @click="mode = 'choose'">戻る</button>
+                            <div v-else class="lh__notice">
+                                <div class="spinner-mini"></div>
                             </div>
                         </div>
                     </div>
@@ -120,6 +124,7 @@ import { useRouter } from 'vue-router'
 import { useLearningApi } from '@/composables/learningApi'
 import { useDialog } from '@/composables/dialog'
 import type { LearningThemeChallengeOptions, LearningThemeState } from '@/types/learning'
+import LoaderButton from '@/components/Global/LoaderButton.vue'
 
 const props = defineProps<{ themeId: number }>()
 const emit = defineEmits<{ changed: [] }>()
@@ -179,6 +184,9 @@ const SHOW_LEARN_AGAIN = false
 // attempt even while one is in progress); first-timers get path 1 only. When
 // path 2 is hidden, a cleared user only needs the entry if path 3 is available.
 const showStart = computed(() => {
+    // Never offer a new start while an attempt is still incomplete — one
+    // in-progress portfolio at a time.
+    if (hasInProgress.value) return false
     if (orderedAttempts.value.length === 0) return true
     if (!state.value?.cleared) return false
     return SHOW_LEARN_AGAIN || !!state.value?.options.path3
@@ -214,6 +222,13 @@ const formatDate = (value: string | null) => {
     return Number.isNaN(d.getTime()) ? '' : d.toLocaleDateString('ja-JP')
 }
 
+const goalPeriod = (goal: { start_date: string | null; end_date: string | null }) => {
+    const start = formatDate(goal.start_date)
+    const end = formatDate(goal.end_date)
+    if (!start && !end) return '期間未設定'
+    return `${start || '—'} 〜 ${end || '—'}`
+}
+
 // Stage index -> route: 0 知識研修 (basic), 1 ディスカッション, 2 ポートフォリオ.
 const STAGE_ROUTES = ['basic', 'discussion', 'portfolio'] as const
 const goStage = (index: number) => {
@@ -223,9 +238,11 @@ const goStage = (index: number) => {
 // Resume the current attempt at whatever stage it's on (first-timer → basic).
 const enterLearning = () => goStage(state.value?.current?.status ?? 0)
 
-// A stage is reachable only on the current (active) attempt, once prior stages are done.
+// A stage is openable on the current attempt once it's been reached. Finished
+// attempts (status 3) keep all stages openable so the learner can review them —
+// the stage views render their completed state read-only.
 const stepClickable = (attempt: { id: number; status: number }, index: number) =>
-    attempt.id === currentAttemptId.value && attempt.status < 3 && attempt.status >= index
+    attempt.id === currentAttemptId.value && attempt.status >= index
 const onStepClick = (attempt: { id: number; status: number }, index: number) => {
     if (stepClickable(attempt, index)) goStage(index)
 }
@@ -315,39 +332,43 @@ defineExpose({ reload: load })
 .lh-card {
     border: 1px solid var(--formBorder);
     background: var(--background-color);
-    padding: 14px 16px;
+    padding: 22px 24px;
 }
 .lh-card--active {
     border-color: var(--primary-color);
     background: var(--selected-background);
 }
-.lh-card__top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
-.lh-card__no { font-size: 13px; font-weight: 700; }
-.lh-card__type { font-size: 11px; padding: 1px 8px; border: solid thin var(--formBorder); white-space: nowrap; }
-.lh-card__type--3 { border-color: var(--primary-color); font-weight: 700; }
+.lh-card__top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.lh-card__no { font-size: 13px; }
+.lh-card__type { font-size: 12px; padding: 5px 14px; border: solid thin var(--formBorder); white-space: nowrap; }
+.lh-card__type--3 { border-color: var(--primary-color); }
 .lh-card__spacer { flex: 1; }
-.lh-card__state { font-size: 11px; color: var(--third-color); white-space: nowrap; }
-.lh-card__state--done { color: #64bc44; font-weight: 700; }
+.lh-card__state {
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: var(--bg3);
+    color: var(--third-color);
+    white-space: nowrap;
+}
+.lh-card__state--done { background: rgba(100, 188, 68, 0.16); color: #4a9e2f; }
 .lh-card__date { font-size: 11px; color: var(--third-color); white-space: nowrap; }
 
 .lh-card__steps { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.lh-step { display: inline-flex; align-items: center; gap: 6px; }
+.lh-step { display: inline-flex; align-items: center; gap: 7px; }
 .lh-step__mark {
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    border: solid thin var(--formBorder);
-    color: var(--third-color);
+    width: 12px;
+    height: 12px;
+    flex: none;
+    border-radius: 50%;
+    border: 1px solid var(--check-inactive);
     background: var(--background-color);
 }
 .lh-step__label { font-size: 12px; color: var(--third-color); white-space: nowrap; }
-.lh-step--done .lh-step__mark { background: #64bc44; border-color: #64bc44; color: #fff; }
+.lh-step--done .lh-step__mark { background: #64bc44; border-color: #64bc44; }
 .lh-step--done .lh-step__label { color: var(--primary-color); }
-.lh-step--current .lh-step__mark { border-color: var(--primary-color); color: var(--primary-color); }
-.lh-step--current .lh-step__label { color: var(--primary-color); font-weight: 700; }
+.lh-step--current .lh-step__mark { background: var(--primary-color); border-color: var(--primary-color); }
+.lh-step--current .lh-step__label { color: var(--primary-color); }
 .lh-step__conn { width: 18px; height: 1px; background: var(--formBorder); flex: none; }
 .lh-step__conn--done { background: #64bc44; }
 .lh-step--link { cursor: pointer; }
@@ -356,8 +377,8 @@ defineExpose({ reload: load })
 .lh-card__action { margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .lh-card__paused { margin-top: 12px; font-size: 11px; color: var(--third-color); }
 
-.lh__foot { margin-top: 4px; }
-.lh__notice { margin: 0 0 10px; font-size: 12px; line-height: 1.7; color: var(--third-color); }
+.lh__foot { margin-top: 4px; display: flex; justify-content: center; }
+.lh__notice { margin: 0 0 10px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 12px; line-height: 1.7; color: var(--third-color); }
 
 .lh-overlay {
     position: fixed;
@@ -371,7 +392,7 @@ defineExpose({ reload: load })
     overscroll-behavior: contain;
 }
 .lh-modal {
-    width: min(440px, 100%);
+    width: min(500px, 100%);
     background: var(--background-color);
     color: var(--primary-color);
     border: 1px solid var(--formBorder);
@@ -398,20 +419,32 @@ defineExpose({ reload: load })
 .lh-modal__choose { display: flex; flex-direction: column; gap: 10px; }
 .lh-modal__foot { margin-top: 12px; display: flex; justify-content: flex-end; }
 .lh__btn--block { align-self: stretch; text-align: center; }
-.lh__goals { margin: 0 0 10px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.lh__goals { margin: 0 0 10px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
 .lh__goal {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-    padding: 8px 10px;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px;
     background: var(--background-color);
     border: solid thin var(--formBorder);
 }
-.lh__goal-title { flex: 1; min-width: 140px; word-break: break-word; line-height: 1.5; font-size: 13px; }
-.lh__goal--disabled { background: var(--bg3); }
+.lh__goal--disabled { background: var(--bg3); border-style: dashed; }
+.lh__goal-row { display: flex; align-items: center; gap: 16px; }
+.lh__goal-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.lh__goal-title { word-break: break-word; line-height: 1.5; font-size: 13px; }
 .lh__goal--disabled .lh__goal-title { color: var(--third-color); }
-.lh__goal-reason { font-size: 11px; line-height: 1.5; color: var(--third-color); text-align: right; max-width: 190px; }
+.lh__goal-period { font-size: 12px; color: var(--primary-color);}
+.lh__goal-score { font-size: 12px; color: var(--primary-color); margin-top: 5px;}
+.lh__goal--disabled .lh__goal-score { color: var(--third-color); }
+.lh__goal-action { flex: none; }
+.lh__goal-note {
+    margin: 0;
+    padding-top: 10px;
+    border-top: 1px dashed var(--formBorder);
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--third-color);
+}
 
 .lh__btn {
     box-sizing: border-box;

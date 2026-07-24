@@ -63,14 +63,16 @@ const emit = defineEmits<{
 .learning-lesson-header__breadcrumbs {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 5px;
+    overflow: auto hidden;
 }
 
 .learning-lesson-header__crumb {
     display: inline-flex;
     gap: 5px;
     align-items: center;
+    white-space: nowrap;
 }
 
 .learning-lesson-header__crumb button {

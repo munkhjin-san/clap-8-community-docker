@@ -18,7 +18,7 @@
   
 <script setup lang="ts">
     import { validator } from '@/validation/validator'
-    import { computed, onMounted, ref, useTemplateRef } from 'vue';
+    import { computed, onMounted, ref, useTemplateRef, watch } from 'vue';
     import { useTheme } from '@/store/theme';
     import {  useElementSize } from '@vueuse/core'
     const growRef = useTemplateRef('growRef')
@@ -44,15 +44,16 @@
     const inputName = computed(() => props.name ? props.name : `long-input-${Math.random().toString(36).substring(2, 15)}`)
     const value = defineModel<any>()
     onMounted(() => {
+        if(props.initialValue){
+            value.value = props.initialValue
+        }
         updateTarget()
     })
     const updateTarget = () => {
-        if(props.initialValue){
-            value.value = props.initialValue
-        }    
         if(!growRef.value) return   
-        growRef.value.dataset.replicatedValue = value.value || props.initialValue
+       growRef.value.dataset.replicatedValue = value.value || props.initialValue
     }
+    watch(value, updateTarget, { flush: 'post' })
     const validate = async(passive?: boolean, event?: Event) => {
         if(event && growRef.value){
             const target = event.target as HTMLTextAreaElement

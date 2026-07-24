@@ -28,6 +28,7 @@ use App\Http\Controllers\AutoJobController;
 use App\Http\Controllers\AdminWorkController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\SupportController;
+use App\Http\Controllers\SupportAiChatController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\LessonController;
 use App\Http\Controllers\LessonExamController;
@@ -631,8 +632,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/lesson_theme/{theme}/challenge', [LessonController::class, 'create_theme_challenge']);
         Route::delete('/delete_learning_theme', [LessonController::class, 'delete_learning_theme']);
         Route::post('/lesson_theme/{theme}/ai_config', [LessonController::class, 'save_lesson_theme_ai_config']);
-        Route::get('/lesson_theme/{theme}/personal_materials/portfolio_recurring_trainee/stream', [LessonController::class, 'stream_personal_material']);
+        Route::post('/lesson_theme/{theme}/personal_materials/portfolio_recurring_trainee/generate', [LessonController::class, 'generate_personal_material']);
         Route::post('/lesson_theme/{theme}/personal_materials/portfolio_recurring_trainee/feedback', [LessonController::class, 'save_personal_material_feedback']);
+        Route::get('/lesson_theme/{theme}/personal_materials/{personalMaterial}/presentation', [LessonController::class, 'download_personal_material_presentation']);
         Route::get('/lesson_theme_categories', [LessonController::class, 'get_lesson_categories']);
         Route::post('/lesson_theme_category', [LessonController::class, 'save_lesson_category']);
         Route::delete('/lesson_theme_category', [LessonController::class, 'delete_lesson_category']);
@@ -975,6 +977,10 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/suggest_challenge', [OpenAiController::class, 'suggest_challenge']);
         Route::get('/lunch_challenge_popup', [OpenAiController::class, 'lunch_challenge_popup']);
         Route::post('/chatkit/session', [OpenAiController::class, 'session']);
+        Route::get('/support/ai-test/conversations', [SupportAiChatController::class, 'index']);
+        Route::post('/support/ai-test/messages', [SupportAiChatController::class, 'send'])
+            ->middleware('throttle:20,1');
+        Route::delete('/support/ai-test/conversations/{conversation}', [SupportAiChatController::class, 'destroy']);
 
         Route::get('/goal_issue_comment_badge', [ProjectController::class, 'goal_issue_comment_badge']);
         Route::post('/clear_goal_issue_badge', [ProjectController::class, 'clear_goal_issue_badge']);

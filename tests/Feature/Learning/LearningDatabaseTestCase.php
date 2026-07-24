@@ -35,6 +35,18 @@ abstract class LearningDatabaseTestCase extends TestCase
             $table->softDeletes();
         });
 
+        Schema::create('evaluation_records', function ($table) {
+            $table->increments('id');
+            $table->integer('user_id');
+            $table->integer('year')->nullable();
+            $table->string('which_half')->nullable();
+            $table->string('general_position')->nullable();
+            $table->string('current_salary_rank')->nullable();
+            $table->boolean('temp_flag')->default(false);
+            $table->timestamps();
+            $table->softDeletes();
+        });
+
         Schema::create('lesson_themes', function ($table) {
             $table->increments('id');
             $table->string('title')->nullable();
@@ -95,6 +107,7 @@ abstract class LearningDatabaseTestCase extends TestCase
             $table->text('positive_feedback')->nullable();
             $table->text('negative_feedback')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('lesson_sections', function ($table) {
@@ -114,6 +127,9 @@ abstract class LearningDatabaseTestCase extends TestCase
             $table->integer('lesson_theme_ai_config_id')->nullable();
             $table->string('config_key');
             $table->longText('content')->nullable();
+            $table->text('presentation_spec')->nullable();
+            $table->string('presentation_theme')->nullable();
+            $table->string('presentation_path')->nullable();
             $table->text('source_snapshot')->nullable();
             $table->boolean('understand')->nullable();
             $table->longText('important_point')->nullable();

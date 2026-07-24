@@ -1,5 +1,5 @@
 <template>
-    <div class="learning-content-renderer">
+    <div class="learning-content-renderer bg-[var(--background-color)]">
         <template v-for="(segment, index) in segments" :key="index">
             <div
                 v-if="segment.type === 'html'"

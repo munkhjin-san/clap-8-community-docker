@@ -185,7 +185,7 @@ provide('providedMaterial', themeRecords)
     height: 100%;
     width: 100%;
     z-index: 8;
-    background: var(--background-color);
+    background: var(--bg3);
     color:var(--primary-color);
 }
 
@@ -355,10 +355,6 @@ provide('providedMaterial', themeRecords)
     flex-direction: column;
     gap: 30px;
 }
-.section-inner{
-    background: var(--background-color);
-    padding: 20px;
-}
 .section-wrapper p:empty::after {
     content: "\00A0";
 }
@@ -374,9 +370,6 @@ provide('providedMaterial', themeRecords)
     display: flex;
 }
 @media screen and (max-width: 959px) {
-    .section-inner{
-        padding: 20px;
-    }
     .lesson-breadcumb{
         font-size: 14px;
         /* max-width: 190px; */

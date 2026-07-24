@@ -11,6 +11,7 @@ use App\Models\LessonSummaryQuestion;
 use App\Services\Learning\LearningParticipantProgressService;
 use App\Services\Learning\LearningProgressService;
 use App\Services\Learning\LessonViewService;
+use App\Services\Learning\PersonalMaterialPresentationService;
 use Illuminate\Http\Request;
 use App\Models\LessonMaterial;
 use App\Models\LessonPortfolio;
@@ -27,12 +28,15 @@ use Intervention\Image\Laravel\Facades\Image;
 use OpenAI;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
+
 class LessonController extends Controller
 {
     public function __construct(
         private LessonViewService $lessonViewService,
         private LearningProgressService $learningProgressService,
-        private LearningParticipantProgressService $learningParticipantProgressService
+        private LearningParticipantProgressService $learningParticipantProgressService,
+        private PersonalMaterialPresentationService $personalMaterialPresentationService
     ) {
     }
 
@@ -888,7 +892,7 @@ class LessonController extends Controller
     // Repeater (path 2) personal material for the learner's CURRENT attempt.
     // No previous_version: generated from the theme's active materials (母体) +
     // the learner's FULL portfolio history on this theme (avoids duplication).
-    public function stream_personal_material(Request $request, LessonTheme $theme)
+    public function generate_personal_material(Request $request, LessonTheme $theme)
     {
         $userId = (int) Auth::id();
         $this->authorizeLearnerThemeAccess($theme, $userId);
@@ -920,57 +924,149 @@ class LessonController extends Controller
         $aiConfigKey = $current->salary_issue_id ? 'salary_issue' : 'portfolio_recurring_trainee';
         $config = $theme->aiConfigs()->where('config_key', $aiConfigKey)->first();
         $configKey = $this->repeaterConfigKey($current->id);
-        $input = $this->buildRecurringPersonalMaterialInput($theme, $history, $goal);
+        $learnerProfile = $this->personalMaterialPresentationService->learnerEvaluationContext(
+            $userId,
+            $goal?->year ? (int) $goal->year : null,
+            $goal?->which_half ? (string) $goal->which_half : null
+        );
+        $input = $this->buildRecurringPersonalMaterialInput(
+            $theme,
+            $history,
+            $goal,
+            $learnerProfile
+        );
         $defaultInstructions = $goal
             ? 'これまでの学習履歴・ポートフォリオと、挑戦する成果目標をもとに、昇給課題に挑む学習者向けの個人専用研修資料を日本語で作成してください。成果目標の達成に必要な知識・考え方・行動を補完する構成にし、過去の内容の重複は避けること。末尾にグループディスカッション用のテーマを3つ提示してください。'
             : 'これまでの学習履歴とポートフォリオをもとに、再学習者向けの個人専用研修資料を日本語で作成してください。復習ではなく、最新の考え方で自分の整理を見直す構成にし、過去の内容の重複は避けること。末尾にグループディスカッション用のテーマを3つ提示してください。';
         $settings = ($config && is_array($config->settings)) ? $config->settings : [];
+        $model = ($config?->model) ?: config('services.learning_presentation.model', 'gpt-5.6-sol');
+        $settings = $this->personalMaterialPresentationService->compatibleRequestSettings(
+            $settings,
+            $model
+        );
+        $textSettings = is_array($settings['text'] ?? null) ? $settings['text'] : [];
+        unset($textSettings['format']);
+        unset($settings['text']);
+        $presentationAccentColor = $this->personalMaterialPresentationService->randomAccentColor();
+        $requiredContentContract = <<<'PROMPT'
+ Mandatory content contract:
+ - 完成した資料の最後のsceneは、グループディスカッション用テーマ専用の<section id="group-discussion" class="scene">にする。
+ - #group-discussion内に、次の構造を持つ<article class="discussion-theme">をちょうど3つ置く。省略、統合、追加は禁止。
+ - 3つのarticleにはdata-theme-number="1"、"2"、"3"を順番に付ける。
+ - 各articleには、<h3>テーマN：具体的なテーマ名</h3>、テーマの狙いを説明する<p>、話し合う問いを示す<p class="discussion-question">を必ず含める。
+ - 3つは互いに異なる観点を扱い、入力された研修テーマ、学習履歴、成果目標の具体的な内容に接続する。
+ - 視覚表現のために、この必須内容を短縮、置換、装飾テキスト化してはならない。
+ - HTMLを返す直前に、#group-discussion直下または子孫の.discussion-themeがちょうど3つあり、連番、見出し、問いが揃っていることを確認し、不足があれば修正する。
+PROMPT;
+        $htmlPresentationInstructions = <<<PROMPT
+ Role: あなたは、学習体験を設計する日本語エディトリアルデザイナー兼インフォメーションデザイナーです。
+
+ Goal: 入力された学習履歴と目標を、読むほど理解が深まる、独創的な縦スクロール型HTML研修体験にしてください。
+ オフィス文書や箇条書き資料ではなく、デザイン誌の特集ページや上質なインタラクティブ記事のように構成してください。
+
+ Success criteria:
+ - 完全な自己完結型HTMLドキュメントを1つだけ返す。説明、Markdown、JSON、コードフェンスは返さない。
+ - <main class="story">直下に6〜9個の<section class="scene">を置き、1つの連続したページとして自然な縦スクロールで読めるようにする。
+ - 横スクロール、scroll snap、固定スライド高、矢印ナビゲーション、ページ送りは使用しない。
+ - 最初の画面だけでテーマと学習者固有の課題が印象的に伝わる。
+ - 各sceneは異なる役割と視覚構成を持ち、同じカードや箇条書きレイアウトを反復しない。
+ - 少なくとも3つの内容を、文章ではなくインラインSVGまたはCSSによる図解にする。
+   例: 関係図、プロセス、タイムライン、比較、優先順位、ロードマップ、フィードバックループ。
+ - 大きなタイポグラフィ、非対称グリッド、重なり、番号、余白、黒い面を意図的に組み合わせ、視覚的なリズムを作る。
+ - 最後のグループディスカッションsceneに、学習者が次に取る行動も示す。
+ - 入力の具体的な文脈とニュアンスを保ち、経験の再解釈、課題との接続、実践方法まで深める。
+
+ Visual system:
+ - 今回の唯一の有彩色は{$presentationAccentColor}。:rootに--accentとして定義する。
+ - --accentは強調面、図形、ラベルに限定し、ページやscene全面の背景には使わない。
+ - 白、オフホワイト、黒、グレーを主役にし、淡いアクセントと強い黒のコントラストで見せる。
+ - 本文を小さく詰め込まない。長文は編集し、視覚構造へ変換する。
+ - 細い左線、薄い枠、同じ角丸カード、同じ影を繰り返すだけのデザインは禁止。
+ - 見出し上部などにeyebrow（短い補助ラベル）を置く場合は、英語を使用せず、内容に即した自然な日本語にする。
+
+ Constraints:
+ - <html lang="ja">、<head>、<title>、<style>、<body>、表紙の<h1>を含める。
+ - 見出し、段落、リスト、blockquoteを意味に応じて使用し、Markdown版へ変換可能な意味的HTMLにする。
+ - インラインSVGはviewBoxを持たせ、外部参照を使わない。装飾SVGにはaria-hidden="true"を付ける。
+ - 図解の意味は近接する見出し、段落、または<figcaption>にも残し、テキスト版でも文脈を失わないようにする。
+ - JavaScript、外部URL、外部フォント、外部画像、フォーム要素は使用しない。
+ - 入力にない事実、個人情報、数値は作らない。
+PROMPT;
         $package = array_merge($settings, [
-            'model' => ($config?->model) ?: config('services.openai.chat_model', 'gpt-4.1-mini'),
-            'instructions' => ($config?->instructions) ?: $defaultInstructions,
+            'model' => $model,
+            'max_output_tokens' => (int) (
+                $settings['max_output_tokens']
+                ?? config('services.learning_presentation.max_output_tokens', 20000)
+            ),
+            'instructions' => (($config?->instructions) ?: $defaultInstructions)
+                ."\n\n入力にない事実や個人情報を作らないでください。\n\n"
+                .$requiredContentContract."\n\n"
+                .$htmlPresentationInstructions,
             'input' => $input,
         ]);
-
-        $headers = [
-            'Content-Type' => 'text/plain; charset=utf-8',
-            'Cache-Control' => 'no-cache, no-transform',
-            'X-Accel-Buffering' => 'no',
-            'Content-Encoding' => 'none',
-        ];
+        if ($textSettings !== []) {
+            $package['text'] = $textSettings;
+        }
 
         $client = OpenAI::client($apiKey);
+        $presentationService = $this->personalMaterialPresentationService;
+        $response = $client->responses()->create($package);
+        $content = trim((string) $response->outputText);
 
-        return response()->eventStream(function () use ($client, $package, $theme, $config, $userId, $configKey, $history) {
-            $content = '';
-            $stream = $client->responses()->createStreamed($package);
+        try {
+            $presentation = $presentationService->parseHtmlResponse($content);
+        } catch (RuntimeException $exception) {
+            $repairPackage = $package;
+            $repairPackage['instructions'] = $package['instructions']
+                ."\n\nRepair requirement:\n"
+                .'前回のHTMLは必須契約の検証に失敗しました。検証エラー: '
+                .$exception->getMessage()
+                ."\n既存の内容とデザイン品質をできる限り保ちながら、"
+                .'必須構造を満たす完全なHTMLドキュメントとして修正してください。'
+                .'説明、Markdown、コードフェンスは返さないでください。';
+            $repairPackage['input'] = $input
+                ."\n\n修正対象の前回HTML:\n"
+                .$content;
+            $repairResponse = $client->responses()->create($repairPackage);
+            $content = trim((string) $repairResponse->outputText);
+            $presentation = $presentationService->parseHtmlResponse($content);
+        }
 
-            foreach ($stream as $event) {
-                if (data_get($event, 'event') === 'response.output_text.delta') {
-                    $content .= data_get($event, 'response.delta', '');
-                }
+        $markdown = $presentationService->toMarkdown($presentation);
+        $existingMaterial = LessonPersonalMaterial::query()
+            ->where('lesson_theme_id', $theme->id)
+            ->where('user_id', $userId)
+            ->where('config_key', $configKey)
+            ->first();
+        $previousPresentationPath = $existingMaterial?->presentation_path;
 
-                yield json_encode($event);
-            }
-
-            LessonPersonalMaterial::updateOrCreate(
-                [
-                    'lesson_theme_id' => $theme->id,
-                    'user_id' => $userId,
-                    'config_key' => $configKey,
+        $personalMaterial = LessonPersonalMaterial::updateOrCreate(
+            [
+                'lesson_theme_id' => $theme->id,
+                'user_id' => $userId,
+                'config_key' => $configKey,
+            ],
+            [
+                'lesson_theme_ai_config_id' => $config?->id,
+                'content' => $markdown,
+                'presentation_spec' => $presentation,
+                'presentation_theme' => $presentationAccentColor,
+                'presentation_path' => null,
+                'understand' => null,
+                'important_point' => null,
+                'source_snapshot' => [
+                    'history_portfolio_ids' => $history->pluck('id')->all(),
                 ],
-                [
-                    'lesson_theme_ai_config_id' => $config?->id,
-                    'content' => $content,
-                    'understand' => null,
-                    'important_point' => null,
-                    'source_snapshot' => [
-                        'history_portfolio_ids' => $history->pluck('id')->all(),
-                    ],
-                    'generated_at' => now(),
-                    'completed_at' => null,
-                ]
-            );
-        }, $headers);
+                'generated_at' => now(),
+                'completed_at' => null,
+            ]
+        );
+
+        if ($previousPresentationPath) {
+            Storage::disk('local')->delete($previousPresentationPath);
+        }
+
+        return response()->json($personalMaterial->fresh());
     }
 
     private function repeaterConfigKey(int $attemptId): string
@@ -1024,6 +1120,35 @@ class LessonController extends Controller
         return response()->json($personalMaterial->fresh());
     }
 
+    public function download_personal_material_presentation(
+        LessonTheme $theme,
+        LessonPersonalMaterial $personalMaterial
+    ) {
+        $userId = (int) Auth::id();
+        $this->authorizeLearnerThemeAccess($theme, $userId);
+
+        abort_unless(
+            (int) $personalMaterial->lesson_theme_id === (int) $theme->id
+            && (int) $personalMaterial->user_id === $userId,
+            404
+        );
+        abort_if(
+            blank($personalMaterial->presentation_path)
+            || ! Storage::disk('local')->exists($personalMaterial->presentation_path),
+            404,
+            'プレゼンテーションファイルがありません。'
+        );
+
+        $themeTitle = str_replace(["\r", "\n", '/', '\\'], '-', $theme->title ?: '個人専用研修資料');
+        $filename = $themeTitle.'-個人専用研修資料.pptx';
+
+        return response()->download(
+            Storage::disk('local')->path($personalMaterial->presentation_path),
+            $filename,
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation']
+        );
+    }
+
     private function authorizeLearnerThemeAccess(LessonTheme $theme, int $userId): void
     {
         $allowed = $theme->accessMembers()
@@ -1035,8 +1160,15 @@ class LessonController extends Controller
         }
     }
 
-    private function buildRecurringPersonalMaterialInput(LessonTheme $theme, $history, $goal = null): string
-    {
+    /**
+     * @param  array{職階: string|null, 等級: string|null}  $learnerProfile
+     */
+    private function buildRecurringPersonalMaterialInput(
+        LessonTheme $theme,
+        $history,
+        $goal,
+        array $learnerProfile
+    ): string {
         // 母体 = the theme's default-version content.
         $materials = LessonMaterial::where('lesson_theme_id', $theme->id)
             ->whereHas('version', fn ($q) => $q->where('is_default', true))
@@ -1082,6 +1214,7 @@ class LessonController extends Controller
                 'materials' => $materials,
             ],
             'portfolio_history' => $portfolioHistory,
+            'learner_profile' => $learnerProfile,
             'salary_challenge_goal' => $goal ? [
                 'title' => $goal->title,
                 'outcome_goal' => $goal->outcome_goal,

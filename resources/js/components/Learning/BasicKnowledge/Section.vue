@@ -3,7 +3,7 @@
         <template #main>        
             <div style="background:inherit">
                 <div class="relative">
-                    <div class="absolute right-[10px] top-[10px] bg-[var(--primary-button)] text-[#fff] px-[10px] h-[30px]">
+                    <div class="absolute right-0 top-0 bg-[var(--primary-button)] text-[#fff] px-[10px] h-[30px]">
                         <TTSPlayer 
                             v-if="material" 
                             :text="getTextContent(material.content ?? '')"
@@ -13,7 +13,6 @@
                     </div>
                     <LearningContentRenderer :content="material.content" />
                 </div>
-                <div class="post-separetor mt-6"></div>
                 <SummaryQuestions 
                     v-if="hasQuestions"
                     :material="material"
@@ -27,7 +26,7 @@
                     @updateAnswerStatus="updateAnswerStatus"
                     @close="showSummary = false"
                 />
-                <div v-if="sectionStatus != 2 && material.has_understand">
+                <div class="m-5 bg-[var(--background-color)] p-5" v-if="sectionStatus != 2 && material.has_understand">
                     <p><strong>内容を理解しましたか？</strong></p>
                     <div v-for="answer in list" style="display: flex;align-items: center;padding: 5px 0;">
                         <input class="fish-eye" v-model="selectedAnswer" type="radio" :id="String(answer.value)" name="answer" :value="answer.value" >
@@ -36,7 +35,7 @@
                     <span class="form-error" style="font-size: 11px;color:tomato">{{ selectedAnswer != null ? '' : radioError }}</span>
                 </div>
                 
-                <div v-if="selectedAnswer == 1 || sectionStatus == 2" class="si-box bg-[var(--bg3)] p-4" style="margin:0">
+                <div v-if="selectedAnswer == 1 || sectionStatus == 2" class="si-box bg-[var(--background-color)]">
                     <p :style="{marginBottom: sectionStatus != 2 ? '20px' : '0'}"><strong>{{ sectionStatus != 2 ? '特に重要だと理解した点を入力してください' : '特に重要だと理解した点'}}</strong></p>
                     <LongInput
                         v-if="sectionStatus != 2"
