@@ -753,7 +753,7 @@ class IncidentService
     {
         return IncidentCandidate::query()
             ->where('status', IncidentCandidate::STATUS_PENDING)
-            ->with(['subject', 'project'])
+            ->with(['subject', 'project.manager'])
             ->orderByDesc('created_at')
             ->get();
     }
@@ -786,7 +786,7 @@ class IncidentService
             ->where('status', $status)
             ->with([
                 'subject',
-                'project',
+                'project.manager',
                 'decidedByUser',
                 'logs' => fn ($logQuery) => $logQuery->with('user')->orderBy('created_at'),
             ]);

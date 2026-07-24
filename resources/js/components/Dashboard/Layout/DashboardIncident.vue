@@ -280,7 +280,12 @@ const candidateDetailLines = (candidate: IncidentCandidate): { label: string; va
             lines.push({ label: '申請日', value: fmtDay(candidate.context?.submitted_at) })
         }
     }
-    lines.push({ label: '担当', value: candidate.audience === 'director' ? '役員' : 'PM' })
+    const manager = candidate.project?.manager?.[0]
+    if (candidate.audience === 'pm' && manager) {
+        lines.push({ label: '担当者', value: manager?.name || '未設定'})
+    } else {
+        lines.push({ label: '担当者', value: '役員'})
+    }
     return lines
 }
 const fmtDay = (date?: string | null) => {

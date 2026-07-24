@@ -216,7 +216,7 @@
                         <td>対象者</td>
                         <td>プロジェクト</td>
                         <td>内容</td>
-                        <td>担当</td>
+                        <td>担当者</td>
                         <td>検知日</td>
                     </tr>
                 </thead>
@@ -227,7 +227,15 @@
                             <td><div class="inner-col"><span class="mobile">対象者</span><UserPanel v-if="candidate.subject" :user="(candidate.subject as any)" with-name size="20" disable-instant/><span v-else>不明</span></div></td>
                             <td class="max-w-[180px] overflow-hidden text-ellipsis"><div class="inner-col"><span class="mobile">プロジェクト</span><p class="truncate">{{ candidate.project?.name || '-' }}</p></div></td>
                             <td><div class="inner-col"><span class="mobile">内容</span><p class="whitespace-pre-wrap">{{ candidateContent(candidate) }}</p></div></td>
-                            <td><div class="inner-col"><span class="mobile">担当</span>{{ candidateAudienceLabel(candidate) }}</div></td>
+                            <td>
+                                <div class="inner-col"><span class="mobile">対象者</span>
+                                    <div v-if="candidate.audience === 'pm'">
+                                        <UserPanel v-if="candidate.project" :user="(candidate.project?.manager?.[0] as any)" with-name size="20" disable-instant/>
+                                        <span v-else>-</span>
+                                    </div>
+                                    <span v-else>役員</span>
+                                </div>
+                            </td>
                             <td><div class="inner-col"><span class="mobile">検知日</span><p class="text-[gray] text-[12px]">{{ formatDate(candidate.created_at) }}</p></div></td>
                         </tr>
                     </template>
@@ -482,7 +490,6 @@ const candidateContent = (candidate: IncidentCandidate) => {
     }
     return candidate.context?.goal_title || '-'
 }
-const candidateAudienceLabel = (candidate: IncidentCandidate) => candidate.audience === 'director' ? '役員' : 'PM'
 const fmtDay = (date?: string | null) => {
     if (!date) return ''
     const parsed = DateTime.fromISO(date)
