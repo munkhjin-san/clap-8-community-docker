@@ -169,7 +169,7 @@ export type IncidentCandidate = {
         icon_bg?: string | null
         position_id?: number | null
     }) | null
-    project: { id: number; name: string } | null
+    project: { id: number; name: string, manager: User[] } | null
     decided_by_user?: (Pick<User, 'id' | 'name'> & {
         icon_path?: string | null
         icon_bg?: string | null
