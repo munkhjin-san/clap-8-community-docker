@@ -40,9 +40,8 @@ const fillColor = computed(() => colorMap[props.color])
     left: 33px;
     color: #ffffff;
     background: v-bind('fillColor');
-    min-width: 15px;
-    padding: 1px;
-    height: 15px;
+    min-width: 17px;
+    height: 17px;
     text-align: center;
     font-size: 10px;
     border-radius: 50%;
@@ -50,7 +49,21 @@ const fillColor = computed(() => colorMap[props.color])
     align-items: center;
     justify-content: center;
     z-index: 6;
-    text-indent: 1px;
-    line-height: 15px;
+    /* the global stylesheet forces line-height 15px / letter-spacing 1px in here —
+       at 10px digits both visibly knock the number off center */
+    line-height: 1 !important;
+    letter-spacing: 0 !important;
+    /* digits only: Arial's near-symmetric vertical metrics sit on the optical center,
+       unlike Noto Sans JP whose CJK ascent sinks Latin digits ~0.7px low */
+    font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+.badge-circle > span {
+    display: block;
+    line-height: 1 !important;
+}
+@supports (text-box: trim-both cap alphabetic) {
+    /* trim the line box to cap height so flex centers the actual glyphs, not the em box */
+    .badge-circle > span { text-box: trim-both cap alphabetic; }
 }
 </style>

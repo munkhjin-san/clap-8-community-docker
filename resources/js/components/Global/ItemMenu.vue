@@ -1,5 +1,5 @@
 <template>
-    <div class="rt">
+    <div ref="rootEl" class="rt">
         <slot :show="show" :active="active">       
             <div :class="['boardMenuContainer', {'active': active} ]" :title="title ?? (type == 'share' ? 'シェア' : 'メニュー')" @click.stop="show">
                 <slot name="icon">
@@ -14,8 +14,10 @@
                 </slot>
             </div>
         </slot>
-        <Transition name="modalFade"> 
-            <div :id="unique.name" ref="menuRef" class="b-m" v-if="active" :style="{top: `${topAlign}px`}">
+        <!-- teleport (opt-in): escapes overflow-clipping ancestors, e.g. scrollable table wrappers -->
+        <Teleport to="body" :disabled="!teleport">
+        <Transition name="modalFade">
+            <div :id="unique.name" ref="menuRef" class="b-m" :class="{ tp: teleport }" v-if="active" :style="teleport ? { top: `${fixedPos.top}px`, right: `${fixedPos.right}px` } : { top: `${topAlign}px` }">
                 <ul v-if="subItem == null" class="reset-bullet"> 
                     <li @click.stop="action(item)" v-for="item in items">
                         <span style="margin-right: 10px;">{{ item.title}}</span>
@@ -30,13 +32,14 @@
                 </ul>
             </div>
         </Transition>
-    </div>        
+        </Teleport>
+    </div>
 </template>
 <script setup lang="ts">
 import { MenuList } from "@/interface/globalInterface";
 import { useMenuStore } from "@/store/menu";
 import { useResponsive } from "@/store/responsive";
-import { computed, ref, nextTick } from "vue";
+import { computed, reactive, ref, nextTick, onBeforeUnmount, watch } from "vue";
 import Back from "../Icons/Back.vue";
 const menu = useMenuStore()
 interface MenuProps {
@@ -44,13 +47,18 @@ interface MenuProps {
     fit?: string | null;
     type?: string | null;
     title?: string | null;
+    /* render the dropdown teleported to <body> with fixed positioning — needed when an
+       ancestor scrolls/clips (overflow), which no z-index can escape */
+    teleport?: boolean;
 }
 const props = defineProps<MenuProps>();
 
 const subItem = ref<MenuList | null>()
 const topAlign = ref(10)
 const responsive = useResponsive()
+const rootEl = ref<HTMLElement | null>(null);
 const menuRef = ref<HTMLElement | null>(null);
+const fixedPos = reactive({ top: 0, right: 0 })
 const action = (item: MenuList) => {
     if(item.children){
         subItem.value = item
@@ -83,13 +91,29 @@ const show = () => {
         menu.close()
     }
     subItem.value = null
+    if(props.teleport){
+        // mirror the in-place anchor (top:10px / right:25px relative to the trigger) in viewport coords
+        const r = rootEl.value?.getBoundingClientRect()
+        if(r){
+            fixedPos.top = r.top + 10
+            fixedPos.right = window.innerWidth - r.right + 25
+        }
+    }
     align()
-    
+
 }
 const align = () => {
     topAlign.value = 10
     setTimeout(() => {
         if(active.value){
+            if(props.teleport){
+                // clamp to the viewport instead of a `fit` container
+                const h = menuRef.value?.offsetHeight ?? 0
+                if(h && fixedPos.top + h > window.innerHeight - 8){
+                    fixedPos.top = Math.max(8, window.innerHeight - 8 - h)
+                }
+                return
+            }
             const parent = props.fit ? document.getElementById(props.fit) : null;
             if (parent && menuRef.value) {
                 const parentRect = parent.getBoundingClientRect();
@@ -98,9 +122,9 @@ const align = () => {
                     const diff = parentRect.bottom - elRect.bottom - 5;
                     if(diff < 0) {
                         topAlign.value = diff
-                    }                    
+                    }
                 }
-            }       
+            }
         }
     }, 0);
 }
@@ -126,12 +150,23 @@ const active = computed(() => {
     return menu.name == unique.value.name && menu.id && menu.id == unique.value.id
 })
 
+// a teleported (fixed) menu would stay floating in place while its trigger scrolls away
+const onScroll = () => menu.close()
+watch(() => props.teleport && !!active.value, (on) => {
+    if (on) window.addEventListener('scroll', onScroll, true)
+    else window.removeEventListener('scroll', onScroll, true)
+})
+onBeforeUnmount(() => window.removeEventListener('scroll', onScroll, true))
 
 defineExpose({show, longTapAction, active})
 </script>
 <style lang="scss" scoped>
 .rt{
     position: relative;
+}
+.b-m.tp{
+    position: fixed;
+    z-index: 1000;
 }
 .b-m{
     z-index: 99;
