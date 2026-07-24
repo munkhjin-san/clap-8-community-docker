@@ -194,6 +194,54 @@ class FlowService
         return false;
     }
 
+    /**
+     * True if an action on the record's current status EXPLICITLY names this user
+     * (user / position / field / project-role subject). Strict counterpart of
+     * hasPendingAction: 'everyone', empty eligible and the manage safety net don't
+     * count — a duty needs the user's name on it. Drives the 対応待ち counter.
+     */
+    public function hasExplicitPendingAction(User $user, FlowRecord $record): bool
+    {
+        foreach ($this->statusActionsFor($record) as $action) {
+            foreach (($action->eligible ?? []) as $subj) {
+                $type = $subj['subject_type'] ?? null;
+                if ($type && $type !== 'everyone'
+                    && $this->matchesSubject($type, $subj['subject_id'] ?? null, $user, $record->definition, $record)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Records in this app awaiting the user's action (strict 対応待ち). Live data — nothing
+     * is stored: the count exists exactly as long as the record sits on a status whose
+     * actions name the user, and drops the moment they (or anyone) move it on.
+     */
+    public function pendingActionRecords(User $user, FlowDefinition $definition)
+    {
+        if (! $definition->use_status_flow || ! $definition->is_active) {
+            return collect();
+        }
+        $definition->loadMissing(['statuses', 'statusActions', 'recordPermissionSets']);
+        $statusIds = $definition->statusActions->pluck('flow_status_id')->unique()->values();
+        if ($statusIds->isEmpty()) {
+            return collect();
+        }
+
+        return FlowRecord::where('flow_definition_id', $definition->id)
+            ->whereIn('current_status_id', $statusIds)
+            ->with('currentStatus:id,name')
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(fn ($rec) => tap($rec)->setRelation('definition', $definition))
+            ->filter(fn ($rec) => $this->recordPermissions($user, $rec, $definition)['view']
+                && $this->hasExplicitPendingAction($user, $rec))
+            ->values();
+    }
+
     /** Users who may VIEW this record (app-level ∩ record-level) — the mentionable set for comments. */
     public function mentionableUsers(FlowRecord $record, FlowDefinition $def)
     {

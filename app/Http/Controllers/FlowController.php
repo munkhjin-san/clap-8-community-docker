@@ -70,7 +70,7 @@ class FlowController extends Controller
 
                 return $perms['view'];
             })
-            ->map(function ($d) use ($pinned, $unread) {
+            ->map(function ($d) use ($user, $pinned, $unread) {
                 // "全社員に公開" reflects actual permissions, not the vestigial visibility flag.
                 $d->setAttribute('is_public', $d->appPermissions->contains(
                     fn ($p) => $p->subject_type === 'everyone' && $p->can_view
@@ -78,8 +78,11 @@ class FlowController extends Controller
                 $d->setAttribute('pinned', $pinned->has($d->id));
                 // per-app bell badge (unread notification events for this user)
                 $d->setAttribute('unread_notifications', $unread[$d->id] ?? 0);
+                // 対応待ち: live count of records whose current status names this user as
+                // worker — no stored rows, no prefs; it drops only when the record moves on
+                $d->setAttribute('pending_actions', $this->flowService->pendingActionRecords($user, $d)->count());
 
-                return $d->makeHidden('appPermissions');
+                return $d->makeHidden(['appPermissions', 'statuses', 'statusActions', 'recordPermissionSets']);
             })
             ->values();
     }
@@ -1342,6 +1345,25 @@ class FlowController extends Controller
         }
 
         return response()->json(['values' => $out]);
+    }
+
+    /** 対応待ち popup: records in this app currently awaiting the user's own action (live). */
+    public function getFlowPendingActions($definitionId)
+    {
+        $user = $this->active_user();
+        $definition = FlowDefinition::with('appPermissions')->findOrFail($definitionId);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['view'], 403);
+
+        $items = $this->flowService->pendingActionRecords($user, $definition)
+            ->map(fn ($r) => [
+                'record_id' => $r->id,
+                'record_number' => $r->record_number,
+                'status' => $r->currentStatus?->name,
+                'updated_at' => $r->updated_at,
+            ])
+            ->values();
+
+        return response()->json(['items' => $items]);
     }
 
     /* ---- flow notifications (per-app bell badge + popup) --------------------------------------- */

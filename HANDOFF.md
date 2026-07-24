@@ -23,7 +23,10 @@ everything.
 - Comments are the generic polymorphic `app_comments` (`AppCommentController`), `commentable_type = flow_record`.
 
 ### Frontend map (`resources/js/components/AccountControl/FlowControl/`)
-- `FlowControl.vue` — portal (`/apps`): cards/table, pin, sort, search, bell (`FlowBellMenu.vue`).
+- `FlowControl.vue` — portal (`/apps`): cards/table, pin, sort, search, 対応待ち icon
+  (`FlowPendingMenu.vue`) then bell (`FlowBellMenu.vue`) — both popups teleport to `<body>` with
+  fixed positioning (overflow-clipping table wrapper + side-menu paint order make in-place
+  absolute dropdowns unusable; see §1 conventions).
 - `FlowBuilder.vue` + tabs: `FlowFormTab` (+ `FlowFieldInspector`), `FlowStatusTab`, `FlowViewTab`,
   `FlowToolsTab` (PDF designer), `FlowPermissionTab`, `FlowAuditLogTab`. Tab = route param
   (`/apps/builder/:flowId?/:tab?`); edit lands on Form tab, tab switches use `router.replace`.
@@ -51,6 +54,15 @@ everything.
   `Badge.vue` for counts, LoaderButton for async submits.
 - Vue gotcha that has bitten twice: `computed`/watch sources evaluated during setup must not
   reference consts declared later in the file (TDZ). Watch declaration order.
+- **Dropdowns/popups**: never rely on `position:absolute` + z-index inside portal/table containers —
+  `.fc-table-scroll` (overflow) clips them and the side menu wins by paint order (its stacking
+  context beats any z-index trapped in a card). Pattern: `<Teleport to="body">` + `position:fixed`
+  coords from the trigger's rect, viewport clamp, close-on-scroll (see FlowBellMenu/FlowPendingMenu;
+  `ItemMenu` has an opt-in `teleport` prop — pass it inside any scrolling container).
+- `Badge.vue` digit centering is deliberate: `line-height/letter-spacing` pinned with `!important`
+  (global sheet leaks 15px/1px), Arial for digits (Noto Sans JP's CJK ascent sinks them ~0.7px),
+  `text-box: trim-both cap alphabetic` where supported. Consumers overriding position must reset
+  `left` (base style hardcodes `left:33px`).
 
 ## 2. Feature log (all shipped & pushed unless noted)
 
@@ -63,16 +75,31 @@ exports w/ archived file, settings diffs, downloads), lookup incl. **field mappi
 values into real fields, strict type compat + scalar→text) and **system sources** (営業所), portal
 polish (pin/sort/view toggle, 使い方 link), help documentation hub (`/help/documentation/app`,
 27 articles + screenshots; regenerate via `node scripts/help-screenshots.mjs` — needs demo app 37
-and the local-only `/dev_screenshot_login/{user}` route, both must stay).
+and the local-only `/dev_screenshot_login/{user}` route, both must stay), 対応待ち counter (§3),
+portal popup hardening 2026-07-25 (bell/対応待ち/ItemMenu dropdowns → teleport+fixed, Badge digit
+centering — see §1 conventions; bell moved to card foot, pin icon 15px).
 
-## 3. CURRENT WORK — smart notifications (built, verified, committed with this file)
+## 3. CURRENT WORK — smart notifications + 対応待ち counter (built & verified)
 
-Per-app bell badges on the portal. **No 対応待ち logic** (deliberately dropped by owner).
+Per-app bell badges on the portal, plus (2026-07-25) a separate live 対応待ち counter.
+History note: 対応待ち was first dropped, then briefly built as an `assigned` notification event,
+then **reverted the same day** — the owner ruled it a duty, not information (see spec below). Don't
+re-add an `assigned` event type.
 
 ### Spec (owner-locked decisions)
 - Events stored per recipient in `flow_notifications`: `comment` (record creator + past commenters),
   `new_record` (**everyone with view permission** on the app), `status_change` (record creator).
   Own actions never notify. CSV import writes **one grouped event** (`meta.count`, no record id).
+- 対応待ち is **NOT a notification** (owner decision 2026-07-25): being the 作業者 is a duty, not
+  info. It's a separate icon BEFORE the bell (`FlowPendingMenu.vue`, ⚠ exclamation-in-circle +
+  count badge) —
+  **live-computed, no stored rows, no read state, NO prefs** (you can't opt out of your job).
+  Count = records whose current status has an action whose `eligible` EXPLICITLY names the user
+  (`FlowService::hasExplicitPendingAction` — `everyone`/empty-eligible/manage-safety-net do NOT
+  count; own records DO). Drops only when the record leaves the status. Piggybacked as
+  `pending_actions` on `getFlowDefinitions`; popup list = `GET /flow_pending_actions/{definition}`.
+  NB: the `flow_statuses.assignment_type` / `flow_record_assignees` snapshot subsystem is dead code
+  (`waitingForUserQuery` too); the portal 対応待ち tab remains commented out.
 - Prefs: `flow_notification_prefs`, keys `comment_own / comment_participated / new_record /
   status_change`, **all default ON**, sparse rows (only deviations). Any viewer can toggle their own,
   per app, from the bell popup gear.
@@ -97,8 +124,11 @@ Per-app bell badges on the portal. **No 対応待ち logic** (deliberately dropp
   `transitionAppRecord` (captures from/to names before `applyStatusAction`), `importRecords`
   (after commit), `getAppRecords` (markImportSeen), `respondWithRecordDetail` (markRecordOpened +
   `unread_comments` in payload), `getFlowDefinitions` (counts).
-- FE: `FlowBellMenu.vue` (bell + popup + prefs), `Icons/Bell.vue`, wiring in `FlowControl.vue`
-  (grid card + table row), badge + 5s timer in `FlowRecordDetail.vue`, `unread_notifications` type.
+- FE: `FlowBellMenu.vue` (bell + popup + prefs), `FlowPendingMenu.vue` (対応待ち icon + popup),
+  `Icons/Bell.vue`, wiring in `FlowControl.vue` (grid card foot + table row; pending icon first),
+  badge + 5s timer in `FlowRecordDetail.vue`, `unread_notifications` / `pending_actions` types.
+- 対応待ち backend: `FlowService::hasExplicitPendingAction` + `pendingActionRecords`,
+  `FlowController::getFlowPendingActions`, counts in `getFlowDefinitions`.
 
 ### Verified
 Service-level via tinker (fan-out 189 recipients w/ actor excluded, creator-only status, pref
@@ -107,9 +137,12 @@ prefs round-trip → event tap-through → each clearing rule incl. collapsed-pa
 
 ### Known gaps / phase 2
 - No pruning job yet (read rows accumulate — add scheduler delete of read_at > ~90d).
-- Counts refresh only on portal load (no socket push; existing badge/socket infra is the candidate).
+- Counts (`unread_notifications` AND `pending_actions`) refresh only on portal load (no socket push;
+  existing badge/socket infra is the candidate).
 - No notification center across apps; no live comment-count update while the record is open.
 - Fan-out cost: new_record inserts one row per viewer — fine at company scale, revisit if usage grows.
+- `pending_actions` cost: per status-flow app it loads every record sitting on an action-bearing
+  status and evaluates eligibility in memory — fine at current scale, index/cache if apps grow.
 
 ## 4. Environment & workflow
 
@@ -118,8 +151,13 @@ prefs round-trip → event tap-through → each clearing rule incl. collapsed-pa
   reformat them wholesale.
 - After adding routes: `php artisan route:clear` (dev server caches; new routes 404 otherwise).
   `php artisan route:list` errors on a missing `AdminCostMasterController` — pre-existing, ignore.
-- Verify via tinker scripts (write to a file, `php artisan tinker <file>`) + the in-app browser
-  (dev servers on :8000/:5173 usually already running; don't start your own).
+- Verify via tinker scripts (write to a file, `php artisan tinker <file>`) + browser preview.
+  **Shared host (xs954629.xsrv.jp)**: no dev servers — every FE change needs `npm run build` to show
+  at `https://xs954629.xsrv.jp`. Browser testing via the Claude-in-Chrome extension on the owner's
+  machine (they switch linked accounts to test different users).
+- **This dev DB is NOT the environment §5 describes**: only a handful of apps exist here (2026-07-25:
+  1=システム資産 w/ status-flow test config eligible→user 604, 2=労使協定, 3=re). App ids in §5
+  (15/37/1) belong to the original environment — verify with tinker before assuming either way.
 - Commit style: `type(flow): summary` + body; work stays on `main`; push only when asked. Remote
   sometimes gains commits between sessions (user commits from elsewhere) — fetch/rebase, never force.
 

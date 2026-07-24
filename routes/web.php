@@ -1047,6 +1047,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/flow_reference_search/{definition}', [FlowController::class, 'referenceSearch']);
         Route::get('/flow_lookup_record/{definition}/{record}', [FlowController::class, 'lookupRecord']);
         // flow notifications (per-app bell badge + popup + prefs + comment read)
+        Route::get('/flow_pending_actions/{definition}', [FlowController::class, 'getFlowPendingActions']);
         Route::get('/flow_notifications/{definition}', [FlowController::class, 'getFlowNotifications']);
         Route::post('/flow_notification_pref', [FlowController::class, 'saveFlowNotificationPref']);
         Route::post('/flow_notification_comments_read', [FlowController::class, 'markFlowCommentsRead']);
