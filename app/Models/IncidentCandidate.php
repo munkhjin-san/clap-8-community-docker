@@ -36,7 +36,7 @@ class IncidentCandidate extends Model
             ->select('id', 'name');
     }
 
-    public function decidedBy()
+    public function decidedByUser()
     {
         return $this->belongsTo(User::class, 'decided_by')
             ->select('id', 'name', 'icon_path', 'icon_bg');
@@ -50,5 +50,9 @@ class IncidentCandidate extends Model
     public function logs()
     {
         return $this->morphMany(UpdateLog::class, 'loggable');
+    }
+    public function readHistories()
+    {
+        return $this->morphMany(UserReadHistory::class, 'readable');
     }
 }

@@ -123,6 +123,8 @@ export type DashboardAssetCardData = {
 export type DashboardIncidentCardData = {
     attention: Incident[]
     emergency_contacts: EmergencyContactRecord[]
+    pending_candidates: IncidentCandidate[]
+    dismissed_candidates: IncidentCandidate[]
 }
 
 export type IncidentCandidateSource = 'daily_report_streak' | 'outcome_goal_submission' | 'outcome_goal_pm_approval'
@@ -168,6 +170,10 @@ export type IncidentCandidate = {
         position_id?: number | null
     }) | null
     project: { id: number; name: string } | null
+    decided_by_user?: (Pick<User, 'id' | 'name'> & {
+        icon_path?: string | null
+        icon_bg?: string | null
+    }) | null
 }
 
 export type DashboardIncidentAlertCardData = IncidentCandidate[]
@@ -310,6 +316,8 @@ export const createDashboardAssetCardData = (): DashboardAssetCardData => ({
 export const createDashboardIncidentCardData = (): DashboardIncidentCardData => ({
     attention: [],
     emergency_contacts: [],
+    pending_candidates: [],
+    dismissed_candidates: [],
 })
 
 export const createDashboardIncidentAlertCardData = (): DashboardIncidentAlertCardData => []

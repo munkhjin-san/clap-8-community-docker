@@ -1327,6 +1327,8 @@ class DashboardController extends Controller
         $isBoss = $activeUser->position_id && $activeUser->position_id < 6;
         $isAdmin = in_array($activeUser->id, [610, 608], true);
         $emergencyContacts = collect();
+        $pendingCandidates = collect();
+        $dismissedCandidates = collect();
 
         if (!$isBoss && !$isAdmin) {
             $query->where(function ($scopeQuery) use ($activeUser, $isPM) {
@@ -1343,6 +1345,8 @@ class DashboardController extends Controller
                 }
             });
         } else {
+            $pendingCandidates = $this->incidentService->pendingCandidates();
+            $dismissedCandidates = $this->incidentService->dismissedCandidates($activeUser->id);
             $emergencyContacts = EmergencyContact::query()
                 ->with([
                     'user' => fn ($userQuery) => $userQuery->select('id', 'name', 'icon_path', 'icon_bg'),
@@ -1358,6 +1362,8 @@ class DashboardController extends Controller
         return [
             'emergency_contacts' => $emergencyContacts,
             'attention' => $query->orderByDesc('created_at')->get(),
+            'pending_candidates' => $pendingCandidates,
+            'dismissed_candidates' => $dismissedCandidates,
         ];
     }
 
@@ -1387,7 +1393,7 @@ class DashboardController extends Controller
             ])
             ->orderByDesc('created_at');
 
-        if ($isBoss || $isAdmin) {
+        if ($isBoss) {
             $query->where('audience', IncidentCandidate::AUDIENCE_DIRECTOR);
         } else {
             $managedProjectIds = ProjectRecord::query()

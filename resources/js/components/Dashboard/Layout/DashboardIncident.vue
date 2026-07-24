@@ -44,6 +44,7 @@
                 </div>
             </div>
             <div v-if="data.data.attention.length" class="mb-3">
+                <div class="text-[14px] mb-3">未完了（{{ data.data.attention.length }}）</div>
                 <ExpansionGrid class="gap-x-4" :col="Number(data.col?.split('-')[2] ?? 1)">
                     <ExpansionPanelItem
                         selected-class="selected-panel-item"
@@ -102,7 +103,84 @@
                     </ExpansionPanelItem>
                 </ExpansionGrid>
             </div>
-            <div v-else-if="!data.data.emergency_contacts?.length" class="text-sm text-[gray] mb-3 text-center">
+            <div v-if="pendingCandidates.length" class="mb-3">
+                <div class="text-[14px] mb-3">未対応（{{ pendingCandidates.length }}）</div>
+                <ExpansionGrid class="gap-x-4" :col="col">
+                    <ExpansionPanelItem
+                        selected-class="selected-panel-item"
+                        hide-actions
+                        static
+                        :tile="true"
+                        class="rm-p"
+                        v-for="(candidate, index) in pendingCandidates"
+                        :key="`pending-${candidate.id ?? index}`"
+                        :value="`pending-${candidate.id ?? index}`"
+                        :col="col"
+                    >
+                        <template #title="{ expanded }">
+                            <PanelTitle :expanded="expanded">
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="candidate-tag">{{ candidateLabel(candidate) }}</span>
+                                        <UserPanel v-if="candidate.subject" with-name disable-instant size="22" :user="(candidate.subject as any)" />
+                                        <span v-else class="text-[13px]">不明</span>
+                                    </div>
+                                    <div class="text-[11px] text-[gray] truncate mt-1">{{ candidate.project?.name || 'プロジェクト未設定' }}</div>
+                                </div>
+                            </PanelTitle>
+                        </template>
+                        <template #body>
+                            <PanelData>
+                                <div class="flex flex-col gap-2 text-[12px]">
+                                    <div v-for="line in candidateDetailLines(candidate)" :key="line.label" class="break-words">
+                                        <span class="text-[gray]">{{ line.label }}：</span>{{ line.value }}
+                                    </div>
+                                </div>
+                            </PanelData>
+                        </template>
+                    </ExpansionPanelItem>
+                </ExpansionGrid>
+            </div>
+            <div v-if="dismissedCandidates.length" class="mb-3">
+                <div class="text-[14px] mb-3">却下（{{ dismissedCandidates.length }}）</div>
+                <ExpansionGrid class="gap-x-4" :col="col">
+                    <ExpansionPanelItem
+                        selected-class="selected-panel-item"
+                        hide-actions
+                        static
+                        :tile="true"
+                        class="rm-p"
+                        v-for="(candidate, index) in dismissedCandidates"
+                        :key="`dismissed-${candidate.id ?? index}`"
+                        :value="`dismissed-${candidate.id ?? index}`"
+                        :col="col"
+                    >
+                        <template #title="{ expanded }">
+                            <PanelTitle :expanded="expanded" @click="markCandidateRead(candidate)">
+                                <div v-if="!isCandidateRead(candidate)" class="mr-2 mx-0.5 rounded-full bg-[tomato] w-1.5 min-w-1.5 h-1.5"></div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="candidate-tag candidate-tag--muted">却下</span>
+                                        <UserPanel v-if="candidate.subject" with-name disable-instant size="22" :user="(candidate.subject as any)" />
+                                        <span v-else class="text-[13px]">不明</span>
+                                    </div>
+                                    <div class="text-[11px] text-[gray] truncate mt-1">{{ candidateLabel(candidate) }} / {{ candidate.project?.name || '未設定' }}</div>
+                                </div>
+                            </PanelTitle>
+                        </template>
+                        <template #body>
+                            <PanelData>
+                                <div class="flex flex-col gap-2 text-[12px]">
+                                    <div class="break-words"><span class="text-[gray]">理由：</span><span class="whitespace-pre-wrap">{{ candidate.decision_reason || '未記入' }}</span></div>
+                                    <div><span class="text-[gray]">決定者：</span>{{ candidate.decided_by_user?.name || '不明' }}</div>
+                                    <div><span class="text-[gray]">決定日：</span>{{ formatDateTime(candidate.decided_at) }}</div>
+                                </div>
+                            </PanelData>
+                        </template>
+                    </ExpansionPanelItem>
+                </ExpansionGrid>
+            </div>
+            <div v-if="hasNothing" class="text-sm text-[gray] mb-3 text-center">
                 対応が必要なインシデントはありません。
             </div>
             <div class="text-center">
@@ -117,9 +195,9 @@
 
 <script setup lang="ts">
 import { DateTime } from 'luxon';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import type { DashboardIncidentCard } from '@/interface/dashboard';
+import type { DashboardIncidentCard, IncidentCandidate } from '@/interface/dashboard';
 import type { Incident } from '@/interface/incident';
 import BaseLayout from './BaseLayout.vue';
 import IncidentContainer from '@/components/Incident/IncidentContainer.vue';
@@ -127,7 +205,9 @@ import ExpansionGrid from '../ExpansionGrid.vue';
 import ExpansionPanelItem from '../ExpansionPanelItem.vue';
 import PanelTitle from './PanelTitle.vue';
 import PanelData from './PanelData.vue';
+import UserPanel from '@/components/Global/UserPanel.vue';
 import { useAuthUserStore } from '@/store/auth';
+import { useApi } from '@/composables/api';
 
 const props = defineProps<{
     data: DashboardIncidentCard
@@ -141,8 +221,73 @@ const emit = defineEmits<{
 }>()
 const router = useRouter()
 const auth = useAuthUserStore()
-const dashboardItemCount = computed(() => props.data.data.attention.length + (props.data.data.emergency_contacts?.length ?? 0))
+const api = useApi()
+const col = computed(() => Number(props.data.col?.split('-')[2] ?? 1))
+const pendingCandidates = computed(() => props.data.data.pending_candidates ?? [])
+const dismissedCandidates = computed(() => props.data.data.dismissed_candidates ?? [])
+const dashboardItemCount = computed(() =>
+    props.data.data.attention.length
+    + (props.data.data.emergency_contacts?.length ?? 0)
+    + pendingCandidates.value.length
+    + dismissedCandidates.value.length
+)
 const canSeeIncidentCard = computed(() => auth.isPM || auth.isBoss || auth.isAdmin || dashboardItemCount.value > 0)
+const hasNothing = computed(() =>
+    !props.data.data.attention.length
+    && !pendingCandidates.value.length
+    && !dismissedCandidates.value.length
+    && !(props.data.data.emergency_contacts?.length ?? 0)
+)
+
+const readCandidateIds = ref<Set<number>>(new Set())
+const isCandidateRead = (candidate: IncidentCandidate) => readCandidateIds.value.has(candidate.id)
+const markCandidateRead = async (candidate: IncidentCandidate) => {
+    if (isCandidateRead(candidate)) return
+    readCandidateIds.value.add(candidate.id)
+    try {
+        await api.post('/incident_candidates_read', { ids: [candidate.id] }, { silent: true })
+    } catch (e) {
+        // best-effort; the dot re-appears on next load if this fails
+    }
+}
+
+const candidateMissedCount = (candidate: IncidentCandidate) =>
+    candidate.context?.missed_count ?? candidate.context?.missed_dates?.length ?? 0
+const candidateLabel = (candidate: IncidentCandidate) => {
+    switch (candidate.source_type) {
+        case 'daily_report_streak':
+            return `日報未申請 ${candidateMissedCount(candidate)}回`
+        case 'outcome_goal_submission':
+            return '成果目標 未申請'
+        case 'outcome_goal_pm_approval':
+            return '成果目標 PM未承認'
+        default:
+            return 'アラート'
+    }
+}
+const candidateDetailLines = (candidate: IncidentCandidate): { label: string; value: string }[] => {
+    const lines: { label: string; value: string }[] = []
+    lines.push({ label: 'プロジェクト', value: candidate.project?.name || '未設定' })
+    if (candidate.source_type === 'daily_report_streak') {
+        const dates = (candidate.context?.missed_dates ?? []).map(fmtDay).filter(Boolean).join('、')
+        lines.push({ label: '未申請日', value: dates || '不明' })
+    } else {
+        lines.push({ label: '成果目標', value: candidate.context?.goal_title || '未設定' })
+        if (candidate.source_type === 'outcome_goal_submission') {
+            lines.push({ label: '終了日', value: fmtDay(candidate.context?.end_date) })
+        } else {
+            lines.push({ label: '対象者', value: candidate.context?.goal_owner_name || '不明' })
+            lines.push({ label: '申請日', value: fmtDay(candidate.context?.submitted_at) })
+        }
+    }
+    lines.push({ label: '担当', value: candidate.audience === 'director' ? '役員' : 'PM' })
+    return lines
+}
+const fmtDay = (date?: string | null) => {
+    if (!date) return '不明'
+    const parsed = DateTime.fromISO(date)
+    return parsed.isValid ? parsed.toFormat('yyyy/MM/dd') : date
+}
 const isNewIncident = (incident: Incident) => !incident.last_read_at && !(incident.read_histories?.length)
 const shouldShowUnreadDot = (incident: Incident) => (isNewIncident(incident) || (incident.unread_update_logs_count ?? 0) > 0) && incident.status !== '完了'
 const unreadIncidentsCount = computed(() => props.data.data.attention.filter(incident => shouldShowUnreadDot(incident)).length)
@@ -198,6 +343,25 @@ defineExpose({
     color: white;
     font-size: 10px;
     line-height: 1;
+}
+
+.candidate-tag{
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    width: fit-content;
+    background: rgba(249, 115, 22, 0.14);
+    color: #c2410c;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 5px 8px;
+    border-radius: 4px;
+}
+
+.candidate-tag--muted{
+    background: var(--bg3);
+    color: var(--font2);
 }
 
 .emergency-contact-card{

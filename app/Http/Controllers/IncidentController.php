@@ -894,7 +894,7 @@ class IncidentController extends Controller
 
         return response()->json([
             'ok' => true,
-            'candidate' => $candidate->fresh(['subject', 'project', 'decidedBy']),
+            'candidate' => $candidate->fresh(['subject', 'project', 'decidedByUser']),
         ]);
     }
 
@@ -917,6 +917,35 @@ class IncidentController extends Controller
         return ProjectRecord::where('id', $candidate->project_record_id)
             ->whereHas('manager', fn ($managerQuery) => $managerQuery->where('users.id', $user->id))
             ->exists();
+    }
+
+    /**
+     * Mark dismissed incident candidates as reviewed by the active user
+     * (admin oversight read-tracking, mirrors the auto-approved daily report pattern).
+     */
+    public function markIncidentCandidatesRead(Request $request)
+    {
+        $activeUser = $this->active_user();
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array'],
+            'ids.*' => ['integer'],
+        ]);
+
+        foreach (array_unique($validated['ids']) as $id) {
+            UserReadHistory::updateOrCreate(
+                [
+                    'readable_type' => IncidentCandidate::class,
+                    'readable_id' => (int) $id,
+                    'user_id' => $activeUser->id,
+                ],
+                [
+                    'last_read_at' => now(),
+                ],
+            );
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     public function createIncidentRecord(Request $request)

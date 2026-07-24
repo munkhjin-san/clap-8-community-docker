@@ -50,6 +50,11 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
     const updatedIncidentCount = computed(() => collection.value.incidents.attention.filter(hasUnreadIncidentUpdates).length)
     const incidentBadgeCount = computed(() => updatedIncidentCount.value + unreadIncidentCommentCount.value)
     const activeEmergencyContactCount = computed(() => collection.value.incidents.emergency_contacts.filter((contact) => contact.status !== 'complete').length)
+    const incidentAlertBadgeCount = computed(() =>
+        (collection.value.incidentAlerts?.length ?? 0)
+        + (collection.value.incidents.pending_candidates?.length ?? 0)
+        + (collection.value.incidents.dismissed_candidates?.length ?? 0)
+    )
     const autoApprovedTimesheetCount = computed(() => {
         return collection.value.timesheet.autoApprovedTimesheets.reduce((total, item) => {
             return total + (item.read ? 0 : item.records.length)
@@ -111,7 +116,8 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         collection.value.notices.length + collection.value.projects.assign_approval_waiting.length + 
         collection.value.projects.officer_approval_waiting.length +
         autoApprovedTimesheetCount.value +
-        incidentBadgeCount.value + collection.value.systemUpdates.length 
+        incidentBadgeCount.value + collection.value.systemUpdates.length +
+        incidentAlertBadgeCount.value
         return total
     })
     const goalsStore = useDashboardGoalsStore()
@@ -159,5 +165,6 @@ export const useDashboardStore = defineStore('dashboardStore', () => {
         unreadIncidentCommentCount,
         incidentBadgeCount,
         activeEmergencyContactCount,
+        incidentAlertBadgeCount,
     }
 });

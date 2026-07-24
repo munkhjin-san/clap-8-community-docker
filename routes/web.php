@@ -526,6 +526,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/daily_report_add', [WorkController::class, 'dailyReportAdd']);
         Route::post('/daily_report_break', [WorkController::class, 'daily_report_break']);
         Route::post('/save_time_card', [WorkController::class, 'saveTimeCard']);
+        Route::get('/my_actual_goals', [WorkController::class, 'my_actual_goals']);
         Route::post('/delete_time_card', [WorkController::class, 'deleteTimeCard']);
         Route::get('/get_attendance_data', [WorkController::class, 'getAttendanceData']);
         Route::post('/remand_time_card', [WorkController::class, 'remandTimeCard']);
@@ -675,6 +676,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/save_project_goal', [ProjectController::class, 'save_project_goal']);
         Route::post('/get_applied_goals', [ProjectController::class, 'get_applied_goals']);
         Route::put('/update_project_progress', [ProjectController::class, 'update_project_progress']);
+        Route::post('/hr_confirm_goal', [ProjectController::class, 'hr_confirm_goal']);
+        Route::get('/goal_source_details', [ProjectController::class, 'goal_source_details']);
         Route::put('/apply_kadai', [ProjectController::class, 'apply_kadai']);
         Route::post('/get_selectable_users', [ProjectController::class, 'get_selectable_users']);
         Route::post('/users_with_goals', [ProjectController::class, 'users_with_goals']);
@@ -1006,6 +1009,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/incident_advice', [IncidentController::class, 'createIncidentAdvice']);
         Route::delete('/incident_advice', [IncidentController::class, 'deleteIncidentAdvice']);
         Route::post('/incident_candidate_decision', [IncidentController::class, 'decideIncidentCandidate']);
+        Route::post('/incident_candidates_read', [IncidentController::class, 'markIncidentCandidatesRead']);
         Route::post('/incident_record_create', [IncidentController::class, 'createIncidentRecord']);
         Route::post('/incident_record_update', [IncidentController::class, 'updateIncidentRecord']);
         Route::post('/incident_record_delete', [IncidentController::class, 'deleteIncidentRecord']);
