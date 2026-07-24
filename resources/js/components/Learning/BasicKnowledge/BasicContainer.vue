@@ -20,7 +20,7 @@
                     >
                         <Back size="11" class="transition-transform duration-200" :class="showBasic ? 'rotate-[270deg]' : 'rotate-180'" />
                         <span>基礎知識内容</span>
-                        <div class="w-fit bg-[var(--primary-button)] text-[#fff] px-[10px] h-[30px] ml-auto" v-show="showBasic">
+                        <div @click.stop class="w-fit bg-[var(--primary-button)] text-[#fff] px-[10px] h-[30px] ml-auto" v-show="showBasic">
                             <TTSPlayer
                                 :text="getTextContent(getAllContent())"
                                 :color="'#fff'"

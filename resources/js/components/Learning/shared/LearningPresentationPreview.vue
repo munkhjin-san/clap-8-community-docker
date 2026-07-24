@@ -9,6 +9,13 @@
         <template #title>
             <strong class="learning-presentation__title">{{ presentation.title }}</strong>
         </template>
+        <template #menu>
+            <TTSPlayer
+                v-if="presentationText"
+                :key="presentation.title"
+                :text="presentationText"
+            />
+        </template>
         <template #content>
             <div class="learning-presentation__content">
                 <iframe
@@ -46,6 +53,7 @@
 import { computed } from 'vue'
 import DOMPurify from 'dompurify'
 import Modal from '@/components/Global/Modal.vue'
+import TTSPlayer from '@/components/Global/TTSPlayer.vue'
 import type { LearningHtmlPresentationSpec } from '@/types/learning'
 
 const props = defineProps<{
@@ -91,6 +99,31 @@ const sanitizedPresentationHtml = computed(() => {
             'poster',
         ],
     })
+})
+
+// Spoken text for the TTS menu. There is no dedicated plain-text field on the
+// presentation spec, so we strip the sanitized HTML down to its readable body
+// text (dropping style/script) for the reader.
+const presentationText = computed(() => {
+    const document = new DOMParser().parseFromString(
+        sanitizedPresentationHtml.value,
+        'text/html',
+    )
+
+    document.querySelectorAll('style, script, noscript').forEach(element => element.remove())
+
+    const container = document.body ?? document.documentElement
+    container.querySelectorAll('br').forEach(element => element.replaceWith('\n'))
+    container
+        .querySelectorAll('h1, h2, h3, h4, h5, h6, p, li, blockquote, section')
+        .forEach(element => element.append('\n'))
+
+    return (container.textContent ?? '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[ \t]+\n/g, '\n')
+        .replace(/\n[ \t]+/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
 })
 
 const discussionThemes = computed(() => {
