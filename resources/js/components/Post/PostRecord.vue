@@ -679,7 +679,7 @@ const canNotCharge = computed(() => {
 })
 const nominateChargable = computed(() => {
     const created_at = DateTime.fromISO(props.record.created_at)
-    const twentieth = DateTime.now().set({ day: 20 });
+    const twentieth = DateTime.now().set({ day: 20 }).endOf("day")
     return created_at <= twentieth && props.record.app_type == 7
 })
 const challengeButtonView = computed(() => {
