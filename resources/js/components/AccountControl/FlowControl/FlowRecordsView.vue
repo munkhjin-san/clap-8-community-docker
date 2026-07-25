@@ -207,16 +207,42 @@ const sortRef = ref<number | string | null>(
 const sortDir = ref<'asc' | 'desc'>(route.query.sd === 'desc' ? 'desc' : 'asc')
 const importInput = ref<HTMLInputElement | null>(null)
 
+// ?f= carries the ad-hoc filter as base64url of a compact array form
+// (["and", [field, op, ...values], …]) — raw JSON in the URL reads as a wall of %22
+const encodeAdhoc = (f: FlowAdhocFilter): string => {
+    const compact = [f.logic, ...f.conditions.map((c) => [c.field, c.operator, ...(c.values ?? [])])]
+    const bytes = new TextEncoder().encode(JSON.stringify(compact))
+    return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+const decodeAdhoc = (s: string): FlowAdhocFilter | null => {
+    try {
+        // legacy links carried raw JSON — keep reading them
+        const json = /^[{[]/.test(s) ? s : new TextDecoder().decode(
+            Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (ch) => ch.charCodeAt(0)),
+        )
+        const parsed = JSON.parse(json)
+        if (Array.isArray(parsed)) {
+            const [logic, ...conds] = parsed
+            return {
+                logic: logic === 'or' ? 'or' : 'and',
+                conditions: conds.filter(Array.isArray).map((c: any[]) => ({ field: c[0], operator: c[1], values: c.slice(2) })),
+            }
+        }
+        if (parsed && Array.isArray(parsed.conditions)) {
+            return { logic: parsed.logic === 'or' ? 'or' : 'and', conditions: parsed.conditions }
+        }
+    } catch { /* malformed ?f= — start unfiltered */ }
+    return null
+}
+
 // ad-hoc filter (from the search bar's ⚲ icon) — session-only, not saved to the view
 const adhocFilter = reactive<FlowAdhocFilter>({ logic: 'and', conditions: [] })
 if (typeof route.query.f === 'string') {
-    try {
-        const parsed = JSON.parse(route.query.f)
-        if (parsed && Array.isArray(parsed.conditions)) {
-            adhocFilter.logic = parsed.logic === 'or' ? 'or' : 'and'
-            adhocFilter.conditions = parsed.conditions
-        }
-    } catch { /* malformed ?f= — start unfiltered */ }
+    const seeded = decodeAdhoc(route.query.f)
+    if (seeded) {
+        adhocFilter.logic = seeded.logic
+        adhocFilter.conditions = seeded.conditions
+    }
 }
 const hasAdhocFilter = computed(() => adhocFilter.conditions.length > 0)
 const filterModalOpen = ref(false)
@@ -227,7 +253,7 @@ const listQuery = (): Record<string, string> => {
     const q: Record<string, string> = {}
     if (activeViewId.value) q.view = String(activeViewId.value)
     if (sortRef.value !== null) { q.sf = String(sortRef.value); q.sd = sortDir.value }
-    if (hasAdhocFilter.value) q.f = JSON.stringify(adhocFilter)
+    if (hasAdhocFilter.value) q.f = encodeAdhoc(adhocFilter)
     return q
 }
 const syncQuery = () => router.replace({ query: listQuery() })
