@@ -535,6 +535,8 @@ export interface FlowRecordDto {
     updated_at?: string
     can_edit?: boolean
     can_delete?: boolean
+    /** 要対応 — an action on the record's current status explicitly names the viewer */
+    pending_action?: boolean
 }
 
 export interface FlowRecordsResponse {

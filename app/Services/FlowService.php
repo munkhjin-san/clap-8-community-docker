@@ -226,14 +226,24 @@ class FlowService
             return collect();
         }
         $definition->loadMissing(['statuses', 'statusActions', 'recordPermissionSets']);
-        $statusIds = $definition->statusActions->pluck('flow_status_id')->unique()->values();
+        // only actions with explicit subjects can flag anything — apps without them skip the
+        // record scan entirely (this runs on every portal load, once per status-flow app)
+        $isExplicit = fn ($s) => ($s['subject_type'] ?? null) && $s['subject_type'] !== 'everyone';
+        $actions = $definition->statusActions->filter(
+            fn ($a) => collect($a->eligible ?? [])->contains($isExplicit)
+        );
+        $statusIds = $actions->pluck('flow_status_id')->unique()->values();
         if ($statusIds->isEmpty()) {
             return collect();
         }
+        // 'field' subjects resolve against record values — eager-load them only when needed
+        // (otherwise fieldUserIds lazy-loads per record → N+1)
+        $needsValues = $actions->contains(fn ($a) => collect($a->eligible ?? [])
+            ->contains(fn ($s) => ($s['subject_type'] ?? null) === 'field'));
 
         return FlowRecord::where('flow_definition_id', $definition->id)
             ->whereIn('current_status_id', $statusIds)
-            ->with('currentStatus:id,name')
+            ->with($needsValues ? ['currentStatus:id,name', 'values'] : ['currentStatus:id,name'])
             ->orderByDesc('updated_at')
             ->get()
             ->map(fn ($rec) => tap($rec)->setRelation('definition', $definition))

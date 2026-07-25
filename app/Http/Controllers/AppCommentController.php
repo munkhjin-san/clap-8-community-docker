@@ -66,9 +66,14 @@ class AppCommentController extends Controller
             $this->attachTempFile($comment, (int) $item['id']);
         }
 
-        // flow badge event: record creator + past commenters hear about the new comment
+        // flow badge event: record creator + past commenters hear about the new comment.
+        // Best-effort: a failure here must not 500 the already-saved comment.
         if ($commentable instanceof FlowRecord) {
-            app(FlowNotificationService::class)->notifyComment($commentable, $activeUser, $comment);
+            try {
+                app(FlowNotificationService::class)->notifyComment($commentable, $activeUser, $comment);
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         return $comment->load(['user', 'files']);

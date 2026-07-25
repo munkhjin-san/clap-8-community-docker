@@ -961,7 +961,7 @@ class FlowController extends Controller
     public function getAppRecords(Request $request, $definitionId)
     {
         $user = $this->active_user();
-        $definition = FlowDefinition::with(['fields', 'statuses', 'appPermissions', 'recordPermissionSets', 'tools' => fn ($q) => $q->where('is_active', true)])->findOrFail($definitionId);
+        $definition = FlowDefinition::with(['fields', 'statuses', 'statusActions', 'appPermissions', 'recordPermissionSets', 'tools' => fn ($q) => $q->where('is_active', true)])->findOrFail($definitionId);
         $app = $this->flowService->effectiveAppPermissions($user, $definition);
         abort_unless($app['view'], 403);
 
@@ -982,13 +982,13 @@ class FlowController extends Controller
         if ($definition->recordPermissionSets->isNotEmpty()) {
             $records = FlowRecord::where('flow_definition_id', $definition->id)
                 ->with($with)->orderByDesc('created_at')->get()
-                ->map(fn ($r) => ['rec' => $r, 'rp' => $this->flowService->recordPermissions($user, $r, $definition)])
+                ->map(fn ($r) => ['rec' => tap($r)->setRelation('definition', $definition), 'rp' => $this->flowService->recordPermissions($user, $r, $definition)])
                 ->filter(fn ($x) => $x['rp']['view'])
                 ->values();
 
             return response()->json($base + [
                 'mode' => 'client',
-                'records' => $records->map(fn ($x) => $this->serializeRecord($x['rec'], $fields, $x['rp']))->values(),
+                'records' => $records->map(fn ($x) => $this->serializeRecord($x['rec'], $fields, $x['rp'], $user))->values(),
                 'total' => $records->count(),
             ]);
         }
@@ -1019,12 +1019,13 @@ class FlowController extends Controller
             || collect($adhocFilter['conditions'] ?? [])->contains(fn ($f) => $isFormulaRef($f['field'] ?? null));
         if ($needsCompute) {
             $records = FlowRecord::where('flow_records.flow_definition_id', $definition->id)
-                ->with($with)->orderByDesc('created_at')->get();
+                ->with($with)->orderByDesc('created_at')->get()
+                ->each(fn ($r) => $r->setRelation('definition', $definition));
             $can = ['edit' => $app['edit'], 'delete' => $app['delete']];
 
             return response()->json($base + [
                 'mode' => 'client',
-                'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can))->values(),
+                'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can, $user))->values(),
                 'total' => $records->count(),
             ]);
         }
@@ -1032,13 +1033,14 @@ class FlowController extends Controller
         $query = $this->flowService->recordListQuery($definition, $filters, (string) $request->input('search', ''), $adhocFilter);
         $total = (clone $query)->count();
         $this->flowService->applyRecordSort($query, $sort, $definition);
-        $records = $query->with($with)->forPage($page, $perPage)->get();
+        $records = $query->with($with)->forPage($page, $perPage)->get()
+            ->each(fn ($r) => $r->setRelation('definition', $definition));
 
         $can = ['edit' => $app['edit'], 'delete' => $app['delete']];
 
         return response()->json($base + [
             'mode' => 'server',
-            'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can))->values(),
+            'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can, $user))->values(),
             'total' => $total,
             'page' => $page,
             'per_page' => $perPage,
@@ -1347,6 +1349,19 @@ class FlowController extends Controller
         return response()->json(['values' => $out]);
     }
 
+    /**
+     * Notification events are best-effort side writes that run AFTER the main save committed —
+     * a failure here must never turn an already-successful save into a 500 for the user.
+     */
+    private function notifySafely(\Closure $fn): void
+    {
+        try {
+            $fn();
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     /** 対応待ち popup: records in this app currently awaiting the user's own action (live). */
     public function getFlowPendingActions($definitionId)
     {
@@ -1426,7 +1441,7 @@ class FlowController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    private function serializeRecord(FlowRecord $record, $fields, ?array $can = null): array
+    private function serializeRecord(FlowRecord $record, $fields, ?array $can = null, ?User $forUser = null): array
     {
         return [
             'id' => $record->id,
@@ -1443,6 +1458,9 @@ class FlowController extends Controller
             // per-record eligibility for the row shortcut buttons
             'can_edit' => (bool) ($can['edit'] ?? false),
             'can_delete' => (bool) ($can['delete'] ?? false),
+            // 要対応 marker (red dot on the list's status pill): an action on the record's
+            // current status explicitly names this user — same strict rule as the portal counter
+            'pending_action' => $forUser !== null && $this->flowService->hasExplicitPendingAction($forUser, $record),
         ];
     }
 
@@ -1513,7 +1531,7 @@ class FlowController extends Controller
         return response()->json([
             'definition' => $def->makeHidden(['appPermissions', 'recordPermissionSets']),
             'permissions' => $this->flowService->effectiveAppPermissions($user, $def),
-            'record' => $this->serializeRecord($record, $def->fields),
+            'record' => $this->serializeRecord($record, $def->fields, null, $user),
             'can' => $recordPerms,
             'status_actions' => $actions,
             'logs' => $logs,
@@ -1574,7 +1592,7 @@ class FlowController extends Controller
         $record->load(['values', 'currentStatus', 'createdByUser']);
 
         // badge event: everyone who can view the app hears about the new record (per prefs)
-        $this->flowNotifications->notifyNewRecord($definition, $record, $user);
+        $this->notifySafely(fn () => $this->flowNotifications->notifyNewRecord($definition, $record, $user));
 
         return response()->json($this->serializeRecord($record, $definition->fields));
     }
@@ -1668,7 +1686,7 @@ class FlowController extends Controller
         $this->flowService->applyStatusAction($user, $record, $action);
 
         // badge event: the record's creator hears their record moved (per prefs)
-        $this->flowNotifications->notifyStatusChange($record, $user, $fromName, $toName);
+        $this->notifySafely(fn () => $this->flowNotifications->notifyStatusChange($record, $user, $fromName, $toName));
 
         $record->load(self::RECORD_DETAIL_WITH);
 
@@ -2112,7 +2130,7 @@ class FlowController extends Controller
 
         // badge event: ONE grouped notification for the whole import (never one per row)
         if (($result['imported'] ?? 0) > 0) {
-            $this->flowNotifications->notifyImport($definition, $user, (int) $result['imported']);
+            $this->notifySafely(fn () => $this->flowNotifications->notifyImport($definition, $user, (int) $result['imported']));
         }
 
         return response()->json($result + ['invalid' => array_slice($validation['invalid'], 0, 50)]);

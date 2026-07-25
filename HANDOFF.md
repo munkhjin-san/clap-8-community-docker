@@ -98,6 +98,8 @@ re-add an `assigned` event type.
   (`FlowService::hasExplicitPendingAction` — `everyone`/empty-eligible/manage-safety-net do NOT
   count; own records DO). Drops only when the record leaves the status. Piggybacked as
   `pending_actions` on `getFlowDefinitions`; popup list = `GET /flow_pending_actions/{definition}`.
+  Same rule per record: `pending_action` on list rows (`serializeRecord` w/ user) → red dot inside
+  the status pill in `FlowRecordsView` (`.rv-pdot`, white-ringed for colored pills).
   NB: the `flow_statuses.assignment_type` / `flow_record_assignees` snapshot subsystem is dead code
   (`waitingForUserQuery` too); the portal 対応待ち tab remains commented out.
 - Prefs: `flow_notification_prefs`, keys `comment_own / comment_participated / new_record /
@@ -120,6 +122,10 @@ re-add an `assigned` event type.
 - `app/Models/FlowNotification.php` (UPDATED_AT null), `app/Models/FlowNotificationPref.php`
 - `app/Services/FlowNotificationService.php` — all write/read logic; recipient resolution for
   new_record loops active users × `effectiveAppPermissions` in memory (company scale, bulk insert).
+- All event writes go through `FlowController::notifySafely` (try/catch + report) — they run after
+  the main save committed, so a notify failure must never 500 an already-successful save. Keep new
+  hooks inside it. (Queue/dispatchAfterResponse deliberately not used: shared host, no worker;
+  revisit if fan-out cost grows ~10×.)
 - Hooks: `AppCommentController::store` (flow_record branch), `FlowController::storeAppRecord`,
   `transitionAppRecord` (captures from/to names before `applyStatusAction`), `importRecords`
   (after commit), `getAppRecords` (markImportSeen), `respondWithRecordDetail` (markRecordOpened +
@@ -142,7 +148,11 @@ prefs round-trip → event tap-through → each clearing rule incl. collapsed-pa
 - No notification center across apps; no live comment-count update while the record is open.
 - Fan-out cost: new_record inserts one row per viewer — fine at company scale, revisit if usage grows.
 - `pending_actions` cost: per status-flow app it loads every record sitting on an action-bearing
-  status and evaluates eligibility in memory — fine at current scale, index/cache if apps grow.
+  status and evaluates eligibility in memory — measured 2026-07-25: ~7 queries / 6ms per app at toy
+  scale. Mitigations already in: apps with no explicit-subject actions skip the scan; `values`
+  eager-loaded only for `field` subjects. If it hurts later: short-TTL per-user count cache, or
+  materialize assignees at transition time (= resurrect the dead `flow_record_assignees` design).
+  Known N+1 left: `project_member/manager` eligible subjects query membership per record.
 
 ## 4. Environment & workflow
 

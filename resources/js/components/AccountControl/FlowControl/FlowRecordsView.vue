@@ -87,7 +87,7 @@
                             <td v-for="c in columns" :key="c.key" class="rv-td" :class="{ num: isNumericCol(c) }">
                                 <template v-if="c.system">
                                     <span v-if="c.ref === '$record_number'" class="rv-idcell">{{ rec.record_number }}</span>
-                                    <span v-else-if="c.ref === '$status'"><span v-if="rec.current_status" class="rv-statuscell" :style="statusStyle(rec)">{{ rec.current_status }}</span></span>
+                                    <span v-else-if="c.ref === '$status'"><span v-if="rec.current_status" class="rv-statuscell" :style="statusStyle(rec)"><span v-if="rec.pending_action" class="rv-pdot" title="あなたの対応待ちです"></span>{{ rec.current_status }}</span></span>
                                     <span v-else class="rv-datecell">{{ sysDate(rec, c.ref) }} <span class="rv-time">{{ sysTime(rec, c.ref) }}</span></span>
                                 </template>
                                 <FlowFieldInput v-else :field="c.field!" :model-value="rec.values[c.field!.id!]" :users="users" :projects="projects" readonly />
@@ -508,6 +508,9 @@ onMounted(async () => {
 .rv-bulkdel:hover { background: tomato; color: #fff; }
 .rv-idcell { font-size: 13px; color: gray; }
 .rv-statuscell { display: inline-block; font-size: 12px; color: var(--primary-color); background: var(--bg3); padding: 3px 10px; border-radius: 12px; }
+/* 要対応: red dot inside the status pill — the viewer is named by an action on this status.
+   White ring keeps it legible on any builder-picked pill color (incl. reds). */
+.rv-pdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: tomato; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .9); margin-right: 6px; vertical-align: 1px; }
 .rv-datecell { font-size: 13px; color: gray; }
 .rv-time { opacity: .6; }
 .rv-empty { text-align: center; color: gray; font-size: 13px; padding: 40px; }
