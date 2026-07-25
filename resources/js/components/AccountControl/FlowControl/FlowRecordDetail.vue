@@ -24,6 +24,16 @@
                     <div class="rd-title truncate">{{ recordTitle }}</div>
                 </div>
             </div>
+            <!-- up/down record navigation, matching the list's newest-first order:
+                 ↑ = newer (higher #), ↓ = older (lower #) -->
+            <div v-if="mode === 'view' && !isNew" class="rd-nav">
+                <button class="rd-navbtn" :disabled="!nav.next" :title="nav.next ? `一つ上のレコード #${nav.next}` : '上のレコードはありません'" @click="goToRecord(nav.next)">
+                    <Back fill="currentColor" :size="12" class="rotate-90" />
+                </button>
+                <button class="rd-navbtn" :disabled="!nav.prev" :title="nav.prev ? `一つ下のレコード #${nav.prev}` : '下のレコードはありません'" @click="goToRecord(nav.prev)">
+                    <Back fill="currentColor" :size="12" class="-rotate-90" />
+                </button>
+            </div>
             <!-- app settings: top-right of the title bar; hidden while editing a record and on mobile
                  (mobile consolidates it, along with the PDF/削除/編集 tools, into the ⋮ menu below) -->
             <button v-if="mode === 'view' && permissions?.manage && !isNarrow" class="rd-settings" title="アプリ設定" @click="editApp">
@@ -108,7 +118,7 @@
             <div v-if="!isNew" class="rd-side" :class="{ mobile: isNarrow, open: sheetOpen, collapsed: !isNarrow && sideCollapsed }">
                 <div class="rd-side-inner">
                 <div class="rd-tabs">
-                    <button v-if="!isNarrow" class="rd-collapse" @click="toggleSide" title="パネルを隠す"><ChevronDouble :size="16" /></button>
+                    <button v-if="!isNarrow" class="rd-collapse" @click="toggleSide" title="パネルを隠す"><Back fill="currentColor" :size="11" class="rotate-180"/></button>
                     <div class="rd-tabseg">
                         <button
                             v-for="t in sideTabs"
@@ -190,7 +200,6 @@ import { useTheme } from '@/store/theme'
 import { pageTitleOverride } from '@/composables/pageTitle'
 import { useAuthUserStore } from '@/store/auth'
 import FlowFieldInput from './FlowFieldInput.vue'
-import Back from '@/components/Icons/Back.vue'
 import FlowAppIcon from './FlowAppIcon.vue'
 import Trash from '@/components/Icons/Trash.vue'
 import Edit from '@/components/Icons/Edit.vue'
@@ -198,7 +207,6 @@ import Copy from '@/components/Icons/Copy.vue'
 import Gear from '@/components/Icons/Gear.vue'
 import Comment from '@/components/Icons/Comment.vue'
 import ChangeLog from '@/components/Icons/ChangeLog.vue'
-import ChevronDouble from '@/components/Icons/ChevronDouble.vue'
 import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
 import AppCommentSection from '@/components/Global/AppCommentSection.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
@@ -206,6 +214,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue'
 import { isLayoutType } from '@/types/flow'
 import type { FlowField, FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowAppTool } from '@/types/flow'
 import type { MenuList } from '@/interface/globalInterface'
+import Back from '@/components/Icons/Back.vue'
 
 const api = useApi()
 const route = useRoute()
@@ -248,6 +257,12 @@ const errors = reactive<Record<string, string | null>>({})
 
 interface StatusActionDto { id: number; label: string; color?: string | null; to_status_id: number | null; to_status?: string | null; can: boolean }
 const statusActions = ref<StatusActionDto[]>([])
+// prev/next record numbers (record-number order, view-permission aware) for the header arrows
+const nav = reactive<{ prev: number | null; next: number | null }>({ prev: null, next: null })
+const goToRecord = (n: number | null) => {
+    if (n == null) return
+    router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: n } })
+}
 const transitioning = ref(false)
 
 interface LogDto { id: number; user?: any; action?: string; field?: string | null; old_value?: any; new_value?: any; changes?: Record<string, any> | null; note?: string | null; created_at?: string }
@@ -433,6 +448,8 @@ const load = async () => {
                 logs.value = data.logs ?? []
                 mentionableUsers.value = data.mentionable_users ?? []
                 unreadComments.value = data.unread_comments ?? 0
+                nav.prev = data.nav?.prev ?? null
+                nav.next = data.nav?.next ?? null
             }
         } else {
             const data = await api.get(`/flow_app_records/${flowId.value}`)
@@ -539,6 +556,11 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-screen { display: flex; flex-direction: column; align-items: stretch; color: var(--primary-color); }
 .rd-screen.overlay { position: fixed; inset: 0; z-index: 30; background: var(--bg3); }
 .rd-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--calendarBorder); background: var(--background-color); }
+/* prev/next record arrows: borderless, hover chip like the other bar icons */
+.rd-nav { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; flex-shrink: 0; }
+.rd-navbtn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; background: none; border-radius: 7px; color: gray; fill: currentColor; cursor: pointer; transition: background .12s, color .12s; }
+.rd-navbtn:hover:not(:disabled) { background: var(--bg3); color: var(--primary-color); }
+.rd-navbtn:disabled { opacity: .3; cursor: default; }
 .rd-settings { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); fill: var(--primary-color); cursor: pointer; transition: background .12s, border-color .12s; }
 .rd-settings:hover { background: var(--bg3); border-color: var(--primary-color); }
 .rd-settings-label { font-size: 13px; color: var(--primary-color); white-space: nowrap; }

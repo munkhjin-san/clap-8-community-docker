@@ -1516,6 +1516,27 @@ class FlowController extends Controller
             'can' => $this->flowService->canPressAction($user, $record, $a),
         ])->values();
 
+        // prev/next record numbers for the header nav arrows. Apps without record-level
+        // permission sets: adjacent number in one indexed query. With sets: walk outward
+        // to the first viewable neighbor (bounded — beyond that the arrow just disables).
+        $neighbor = function (bool $forward) use ($def, $record, $user) {
+            $q = FlowRecord::where('flow_definition_id', $def->id);
+            $forward
+                ? $q->where('record_number', '>', $record->record_number)->orderBy('record_number')
+                : $q->where('record_number', '<', $record->record_number)->orderByDesc('record_number');
+            if ($def->recordPermissionSets->isEmpty()) {
+                return $q->value('record_number');
+            }
+            foreach ($q->with('values')->limit(30)->get() as $cand) {
+                $cand->setRelation('definition', $def);
+                if ($this->flowService->recordPermissions($user, $cand, $def)['view']) {
+                    return $cand->record_number;
+                }
+            }
+
+            return null;
+        };
+
         $logs = $record->logs->sortByDesc('id')->values()->map(fn ($l) => [
             'id' => $l->id,
             'user' => $l->user,
@@ -1538,6 +1559,7 @@ class FlowController extends Controller
             'mentionable_users' => $this->flowService->mentionableUsers($record, $def),
             // unread comment events for THIS user on this record → comment-tab badge
             'unread_comments' => $this->flowNotifications->unreadCommentCount($user, $record),
+            'nav' => ['prev' => $neighbor(false), 'next' => $neighbor(true)],
         ]);
     }
 
