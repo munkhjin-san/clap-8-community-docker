@@ -646,7 +646,8 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-sheet-toggle:hover { background: var(--bg3); color: var(--primary-color); }
 .rd-side.mobile { position: fixed; left: 0; right: 0; bottom: 0; width: auto; border-left: none; border-top: 1px solid var(--calendarBorder); box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12); z-index: 40; max-height: 72vh; }
 .rd-side.mobile .rd-side-inner { width: 100%; }
-.rd-side.mobile .rd-tabs { padding-right: 60px; background: var(--background-color); }
+/* no reserved right gap: the sheet toggle is a flex child now, not an absolute overlay */
+.rd-side.mobile .rd-tabs { background: var(--background-color); }
 .rd-side.mobile .rd-side-content { max-height: 58vh; }
 /* --sub-color = theme-aware muted text (light #666 / dark #b0b3b8): readable in dark without the
    near-white glare of --primary-color, and not the too-dim fixed gray. */
