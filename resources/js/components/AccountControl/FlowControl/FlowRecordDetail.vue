@@ -134,7 +134,14 @@
                             <span v-if="t.k === 'comment' && unreadComments" class="rd-tab-badge">{{ unreadComments }}</span>
                         </button>
                     </div>
-                    <button v-if="isNarrow" class="rd-sheet-toggle" @click="sheetOpen = !sheetOpen">{{ sheetOpen ? '▼ 閉じる' : '▲ 開く' }}</button>
+                    <button
+                        v-if="isNarrow"
+                        class="rd-sheet-toggle"
+                        :title="sheetOpen ? 'パネルを閉じる' : 'パネルを開く'"
+                        @click="sheetOpen = !sheetOpen"
+                    >
+                        <Back fill="currentColor" :size="11" :class="sheetOpen ? '-rotate-90' : 'rotate-90'" />
+                    </button>
                 </div>
                 <div class="rd-side-content" v-show="!isNarrow || sheetOpen">
                     <AppCommentSection
@@ -633,7 +640,10 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-tabbtn.on { background: var(--bg3); color: var(--primary-color); }
 .rd-side-content { flex: 1; overflow: auto; padding: 14px; }
 .rd-placeholder { font-size: 13px; color: gray; text-align: center; padding: 30px 10px; }
-.rd-sheet-toggle { position: absolute; right: 8px; top: 8px; border: none; background: none; cursor: pointer; color: gray; font-size: 11px; }
+/* mobile sheet toggle: same chip as the desktop .rd-collapse, arrow points up to open /
+   down to close. position+inset pinned — a global button rule leaks absolute/top:50px here */
+.rd-sheet-toggle { position: relative; inset: auto; margin-left: auto; box-sizing: border-box !important; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: none; background: none; border-radius: 6px; color: gray; fill: currentColor; cursor: pointer; flex-shrink: 0; transition: background .12s, color .12s; }
+.rd-sheet-toggle:hover { background: var(--bg3); color: var(--primary-color); }
 .rd-side.mobile { position: fixed; left: 0; right: 0; bottom: 0; width: auto; border-left: none; border-top: 1px solid var(--calendarBorder); box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12); z-index: 40; max-height: 72vh; }
 .rd-side.mobile .rd-side-inner { width: 100%; }
 .rd-side.mobile .rd-tabs { padding-right: 60px; background: var(--background-color); }
