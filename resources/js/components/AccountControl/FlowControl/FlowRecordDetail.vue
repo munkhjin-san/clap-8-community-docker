@@ -261,7 +261,10 @@ const statusActions = ref<StatusActionDto[]>([])
 const nav = reactive<{ prev: number | null; next: number | null }>({ prev: null, next: null })
 const goToRecord = (n: number | null) => {
     if (n == null) return
-    router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: n } })
+    // carry the originating view (?view=) so back still returns to the same list view,
+    // no matter how many records were shifted through (never carry ?edit=)
+    const query = route.query.view ? { view: route.query.view } : {}
+    router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: n }, query })
 }
 const transitioning = ref(false)
 
@@ -537,10 +540,13 @@ const transition = async (a: StatusActionDto) => {
 }
 
 const back = () => {
-    // prefer history so the records list keeps its state (selected view via ?view=, etc.); fall back
-    // to a plain push when there's no in-app history (e.g. the record was opened via a direct link)
-    if (window.history.state?.back) { router.back(); return }
-    router.push({ name: 'flow-records', params: { flowId: flowId.value } })
+    // always land on the app's record list (history-back would step through every record the
+    // up/down arrows visited); the ?view= carried on the record route restores the same view
+    router.push({
+        name: 'flow-records',
+        params: { flowId: flowId.value },
+        query: route.query.view ? { view: route.query.view } : {},
+    })
 }
 const editApp = () => router.push({ name: 'flow-builder', params: { flowId: flowId.value } })
 

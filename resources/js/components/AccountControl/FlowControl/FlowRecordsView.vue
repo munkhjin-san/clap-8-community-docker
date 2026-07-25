@@ -368,9 +368,12 @@ const onImported = (n: number) => {
 }
 
 const openNew = () => router.push({ name: 'flow-record-new', params: { flowId: flowId.value } })
-const openRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number } })
+// the record route carries the originating view (?view=) so its back button — and any amount of
+// up/down record shifting — can return to the list with the same view selected
+const viewQuery = () => (activeViewId.value ? { view: String(activeViewId.value) } : {})
+const openRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number }, query: viewQuery() })
 // quick-edit shortcut: open the record already in edit mode
-const editRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number }, query: { edit: '1' } })
+const editRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number }, query: { edit: '1', ...viewQuery() } })
 // 複製: open a new record pre-filled with this record's values
 const duplicateRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-new', params: { flowId: flowId.value }, query: { from: rec.id } })
 
