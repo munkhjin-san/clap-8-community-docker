@@ -353,14 +353,15 @@ onMounted(() => {
 .fc-unit { font-size: 12px; color: gray; margin-left: 2px; }
 .fc-tr.fc-row .fc-num { font-size: 14px; }
 
-/* mobile: no horizontal scroll — everything fits the device width, the app name ellipsizes */
+/* mobile: no horizontal scroll — everything fits the device width, the app name ellipsizes.
+   公開範囲 is secondary info and only crowds the right end → hidden. */
 @media (max-width: 640px) {
     .fc-table { min-width: 0; }
-    .fc-tr { grid-template-columns: minmax(0, 1fr) 58px 56px 88px; padding: 11px 10px; }
+    .fc-tr { grid-template-columns: minmax(0, 1fr) 48px 96px; column-gap: 8px; padding: 11px 10px; }
+    .fc-tr .ac { display: none; }
     .fc-td-name { gap: 7px; }
     .fc-td-nm { font-size: 13px; }
     .fc-td-menu { gap: 6px; }
-    .fc-vis { padding: 3px 6px; font-size: 10px; }
     .fc-th > div:nth-child(2), .fc-tr.fc-row .ar { font-size: 11px; }
 }
 
