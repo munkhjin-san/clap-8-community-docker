@@ -90,7 +90,6 @@
                             <div class="fc-card-foot">
                                 <span v-if="!def.is_active" class="fc-off">停止中</span>
                                 <span class="fc-fi"><span class="fc-num">{{ def.records_count ?? 0 }}</span>件</span>
-                                <span class="fc-fi">項目 <span class="fc-num">{{ def.fields_count ?? 0 }}</span></span>
                                 <div class="ml-auto flex items-center gap-[10px]" @click.stop>
                                     <FlowPendingMenu :def-id="def.id" :count="def.pending_actions ?? 0" />
                                     <FlowBellMenu :def-id="def.id" :count="def.unread_notifications ?? 0" />
@@ -105,7 +104,6 @@
                             <div class="fc-tr fc-th">
                                 <div>アプリ名</div>
                                 <div class="ar">レコード</div>
-                                <div class="ar">項目</div>
                                 <div class="ac">公開範囲</div>
                                 <div></div>
                             </div>
@@ -119,7 +117,6 @@
                                     <span v-if="!def.is_active" class="fc-off">停止中</span>
                                 </div>
                                 <div class="ar"><span class="fc-num">{{ def.records_count ?? 0 }}</span><span class="fc-unit">件</span></div>
-                                <div class="ar fc-num">{{ def.fields_count ?? 0 }}</div>
                                 <div class="ac"><span class="fc-vis">{{ def.is_public ? '全社員' : '限定' }}</span></div>
                                 <div class="fc-td-menu" @click.stop>
                                     <FlowPendingMenu style="margin-left: 20px;" :def-id="def.id" :count="def.pending_actions ?? 0" />
@@ -342,7 +339,7 @@ onMounted(() => {
 /* table view */
 .fc-table-scroll { overflow-x: auto; }
 .fc-table { min-width: 620px; border: 1px solid var(--calendarBorder); background: var(--background-color); }
-.fc-tr { display: grid; grid-template-columns: 1fr 130px 130px 110px 46px; align-items: center; padding: 11px 18px; }
+.fc-tr { display: grid; grid-template-columns: 1fr 130px 110px 110px; align-items: center; padding: 11px 18px; }
 /* header shade is distinct from BOTH the white rows and the --bg3 page behind the table */
 .fc-th { font-size: 12px; color: gray; border-bottom: 1px solid var(--calendarBorder); background: color-mix(in srgb, var(--primary-color) 10%, var(--background-color)); }
 .fc-row { border-bottom: 1px solid var(--calendarBorder); cursor: pointer; transition: background-color .1s; }

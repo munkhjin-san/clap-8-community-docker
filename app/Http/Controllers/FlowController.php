@@ -59,7 +59,7 @@ class FlowController extends Controller
             ->when($projectId, fn ($q) => $q->where('project_record_id', $projectId))
             ->when(! $projectId, fn ($q) => $q->whereNull('project_record_id'))
             ->with(['creator', 'appPermissions'])
-            ->withCount(['fields', 'statuses', 'records'])
+            ->withCount('records')
             ->orderByDesc('created_at')
             ->get()
             ->filter(function ($d) use ($user) {

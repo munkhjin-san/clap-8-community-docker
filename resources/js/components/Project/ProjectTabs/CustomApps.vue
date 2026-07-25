@@ -28,7 +28,6 @@
                     </div>
                     <p v-if="def.description" class="text-[12px] text-gray-500 mt-[5px] line-clamp-2">{{ def.description }}</p>
                     <div class="flex gap-[16px] text-[12px] text-gray-500 mt-[8px]">
-                        <span>項目 {{ def.fields_count ?? 0 }}</span>
                         <span>申請 {{ def.records_count ?? 0 }}件</span>
                     </div>
                     <div class="absolute right-[10px] top-[10px]">

@@ -505,8 +505,6 @@ export interface FlowDefinitionListItem {
     /** 対応待ち — live count of records whose current status names this user as worker */
     pending_actions?: number
     creator?: FlowOptionUser | null
-    fields_count?: number
-    statuses_count?: number
     records_count?: number
 }
 
