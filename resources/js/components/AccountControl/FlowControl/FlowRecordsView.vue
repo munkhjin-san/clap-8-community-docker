@@ -508,9 +508,9 @@ onMounted(async () => {
 .rv-bulkdel:hover { background: tomato; color: #fff; }
 .rv-idcell { font-size: 13px; color: gray; }
 .rv-statuscell { display: inline-block; font-size: 12px; color: var(--primary-color); background: var(--bg3); padding: 3px 10px; border-radius: 12px; }
-/* 要対応: red dot inside the status pill — the viewer is named by an action on this status.
-   White ring keeps it legible on any builder-picked pill color (incl. reds). */
-.rv-pdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: tomato; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .9); margin-right: 6px; vertical-align: 1px; }
+/* 要対応: small red dot inside the status pill — the viewer is named by an action on this
+   status. Matches the app-wide dot convention (6px, plain, no ring). */
+.rv-pdot { display: inline-block; width: 6px; min-width: 6px; height: 6px; border-radius: 9999px; background: tomato; margin-right: 5px; vertical-align: 1px; }
 .rv-datecell { font-size: 13px; color: gray; }
 .rv-time { opacity: .6; }
 .rv-empty { text-align: center; color: gray; font-size: 13px; padding: 40px; }
