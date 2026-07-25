@@ -119,8 +119,8 @@
                                 <div class="ar"><span class="fc-num">{{ def.records_count ?? 0 }}</span><span class="fc-unit">件</span></div>
                                 <div class="ac"><span class="fc-vis">{{ def.is_public ? '全社員' : '限定' }}</span></div>
                                 <div class="fc-td-menu" @click.stop>
-                                    <FlowPendingMenu style="margin-left: 20px;" :def-id="def.id" :count="def.pending_actions ?? 0" />
-                                    <FlowBellMenu style="margin-left: 10px;" :def-id="def.id" :count="def.unread_notifications ?? 0" />
+                                    <FlowPendingMenu :def-id="def.id" :count="def.pending_actions ?? 0" />
+                                    <FlowBellMenu :def-id="def.id" :count="def.unread_notifications ?? 0" />
                                     <ItemMenu :items="menuItems(def)" teleport />
                                 </div>
                             </div>
@@ -349,9 +349,20 @@ onMounted(() => {
 .fc-td-name { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .fc-td-ico :deep(.fai-initial) { font-weight: 400; }
 .fc-td-nm { font-size: 14px; color: var(--primary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fc-td-menu { display: flex; justify-content: flex-end; align-items: center; gap: 2px; }
+.fc-td-menu { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 .fc-unit { font-size: 12px; color: gray; margin-left: 2px; }
 .fc-tr.fc-row .fc-num { font-size: 14px; }
+
+/* mobile: no horizontal scroll — everything fits the device width, the app name ellipsizes */
+@media (max-width: 640px) {
+    .fc-table { min-width: 0; }
+    .fc-tr { grid-template-columns: minmax(0, 1fr) 58px 56px 88px; padding: 11px 10px; }
+    .fc-td-name { gap: 7px; }
+    .fc-td-nm { font-size: 13px; }
+    .fc-td-menu { gap: 6px; }
+    .fc-vis { padding: 3px 6px; font-size: 10px; }
+    .fc-th > div:nth-child(2), .fc-tr.fc-row .ar { font-size: 11px; }
+}
 
 /* empty */
 .fc-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 72px; color: gray; }
