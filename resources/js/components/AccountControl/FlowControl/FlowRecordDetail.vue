@@ -259,12 +259,18 @@ interface StatusActionDto { id: number; label: string; color?: string | null; to
 const statusActions = ref<StatusActionDto[]>([])
 // prev/next record numbers (record-number order, view-permission aware) for the header arrows
 const nav = reactive<{ prev: number | null; next: number | null }>({ prev: null, next: null })
+// list context riding on the record URL (?view/?sf/?sd/?f) — carried across up/down shifts and
+// handed back to the records list on 戻る so view, sort and ad-hoc filter all survive
+const LIST_CONTEXT_KEYS = ['view', 'sf', 'sd', 'f'] as const
+const listContext = () => {
+    const q: Record<string, any> = {}
+    for (const k of LIST_CONTEXT_KEYS) if (route.query[k] != null) q[k] = route.query[k]
+    return q
+}
 const goToRecord = (n: number | null) => {
     if (n == null) return
-    // carry the originating view (?view=) so back still returns to the same list view,
-    // no matter how many records were shifted through (never carry ?edit=)
-    const query = route.query.view ? { view: route.query.view } : {}
-    router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: n }, query })
+    // never carry ?edit= — arriving on the next record mid-edit would be a surprise
+    router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: n }, query: listContext() })
 }
 const transitioning = ref(false)
 
@@ -541,12 +547,8 @@ const transition = async (a: StatusActionDto) => {
 
 const back = () => {
     // always land on the app's record list (history-back would step through every record the
-    // up/down arrows visited); the ?view= carried on the record route restores the same view
-    router.push({
-        name: 'flow-records',
-        params: { flowId: flowId.value },
-        query: route.query.view ? { view: route.query.view } : {},
-    })
+    // up/down arrows visited); the carried list context restores view, sort and ad-hoc filter
+    router.push({ name: 'flow-records', params: { flowId: flowId.value }, query: listContext() })
 }
 const editApp = () => router.push({ name: 'flow-builder', params: { flowId: flowId.value } })
 

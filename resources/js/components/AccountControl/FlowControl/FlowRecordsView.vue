@@ -198,20 +198,46 @@ const views = ref<FlowViewApi[]>([])
 // correctly-selected view (server mode filters by view_id server-side).
 const activeViewId = ref<number | null>(route.query.view ? Number(route.query.view) : null)
 const search = ref('')
-const sortRef = ref<number | string | null>(null)
-const sortDir = ref<'asc' | 'desc'>('asc')
+// header sort + ad-hoc filter live in the URL too (?sf/?sd/?f) so opening a record and
+// coming back — or reloading — keeps them applied (same rule as ?view=: seed before first load)
+const seedSf = route.query.sf
+const sortRef = ref<number | string | null>(
+    typeof seedSf === 'string' && seedSf !== '' ? (isNaN(Number(seedSf)) ? seedSf : Number(seedSf)) : null,
+)
+const sortDir = ref<'asc' | 'desc'>(route.query.sd === 'desc' ? 'desc' : 'asc')
 const importInput = ref<HTMLInputElement | null>(null)
 
 // ad-hoc filter (from the search bar's ⚲ icon) — session-only, not saved to the view
 const adhocFilter = reactive<FlowAdhocFilter>({ logic: 'and', conditions: [] })
+if (typeof route.query.f === 'string') {
+    try {
+        const parsed = JSON.parse(route.query.f)
+        if (parsed && Array.isArray(parsed.conditions)) {
+            adhocFilter.logic = parsed.logic === 'or' ? 'or' : 'and'
+            adhocFilter.conditions = parsed.conditions
+        }
+    } catch { /* malformed ?f= — start unfiltered */ }
+}
 const hasAdhocFilter = computed(() => adhocFilter.conditions.length > 0)
 const filterModalOpen = ref(false)
 const statusNames = computed(() => (definition.value?.statuses ?? []).map((s) => s.name).filter(Boolean))
+
+// the list's full URL state; also attached to record links so 戻る can restore all of it
+const listQuery = (): Record<string, string> => {
+    const q: Record<string, string> = {}
+    if (activeViewId.value) q.view = String(activeViewId.value)
+    if (sortRef.value !== null) { q.sf = String(sortRef.value); q.sd = sortDir.value }
+    if (hasAdhocFilter.value) q.f = JSON.stringify(adhocFilter)
+    return q
+}
+const syncQuery = () => router.replace({ query: listQuery() })
+
 const onApplyFilter = (f: FlowAdhocFilter) => {
     adhocFilter.logic = f.logic
     adhocFilter.conditions = f.conditions
     filterModalOpen.value = false
     page.value = 1
+    syncQuery()
     refetch()
 }
 
@@ -317,11 +343,10 @@ const refetch = () => { if (mode.value === 'server') load() }
 
 const onSearch = (kw: string) => { search.value = kw; page.value = 1; refetch() }
 const onViewChange = () => {
+    // switching views drops the header sort (view brings its own) but keeps the ad-hoc filter
     sortRef.value = null
     page.value = 1
-    // reflect the choice in the URL so opening a record then coming back keeps this view selected
-    const cur = route.query.view ? Number(route.query.view) : null
-    if (cur !== activeViewId.value) router.replace({ query: { ...route.query, view: activeViewId.value ?? undefined } })
+    syncQuery()
     refetch()
 }
 const setPage = (n: number) => {
@@ -341,6 +366,7 @@ const toggleSort = (ref: number | string) => {
         sortDir.value = 'asc'
     }
     page.value = 1
+    syncQuery()
     refetch()
 }
 
@@ -368,12 +394,11 @@ const onImported = (n: number) => {
 }
 
 const openNew = () => router.push({ name: 'flow-record-new', params: { flowId: flowId.value } })
-// the record route carries the originating view (?view=) so its back button — and any amount of
-// up/down record shifting — can return to the list with the same view selected
-const viewQuery = () => (activeViewId.value ? { view: String(activeViewId.value) } : {})
-const openRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number }, query: viewQuery() })
+// the record route carries the list's URL state (?view/?sf/?sd/?f) so its back button — and any
+// amount of up/down record shifting — can return to the list with view, sort and filter intact
+const openRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number }, query: listQuery() })
 // quick-edit shortcut: open the record already in edit mode
-const editRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number }, query: { edit: '1', ...viewQuery() } })
+const editRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number }, query: { edit: '1', ...listQuery() } })
 // 複製: open a new record pre-filled with this record's values
 const duplicateRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-new', params: { flowId: flowId.value }, query: { from: rec.id } })
 
