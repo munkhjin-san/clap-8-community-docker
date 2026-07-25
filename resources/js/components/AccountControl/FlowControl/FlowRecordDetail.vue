@@ -167,7 +167,7 @@
                     @click="toggleSide"
                     title="パネルを表示"
                 >
-                    <ChevronDouble :size="15" />
+                    <Back :size="11" fill="currentColor" />
                     <span v-if="unreadComments" class="rd-tab-badge rd-reveal-badge">{{ unreadComments }}</span>
                 </button>
             </Transition>
@@ -588,9 +588,8 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-side.collapsed { width: 0; border-left: none; }
 .rd-collapse { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: none; background: none; border-radius: 6px; color: gray; cursor: pointer; flex-shrink: 0; transition: background .12s, color .12s; }
 .rd-collapse:hover { background: var(--bg3); color: var(--primary-color); }
-.rd-reveal { position: absolute; right: 0; top: 8px; z-index: 41; display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 30px; padding: 0; border: 1px solid var(--calendarBorder); border-right: none; border-radius: 7px 0 0 7px; background: var(--background-color); color: gray; cursor: pointer; box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08); transition: color .12s, background .12s; }
+.rd-reveal { position: absolute; right: 0; top: 8px; z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: auto; min-width: 34px; height: 30px; padding: 0 9px 0 8px; border: 1px solid var(--calendarBorder); border-right: none; border-radius: 7px 0 0 7px; background: var(--background-color); color: gray; cursor: pointer; box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08); transition: color .12s, background .12s; }
 .rd-reveal:hover { background: var(--bg3); color: var(--primary-color); }
-.rd-reveal :deep(svg) { transform: rotate(180deg); }
 .chipFade-enter-active, .chipFade-leave-active { transition: opacity .2s ease, transform .2s ease; }
 .chipFade-enter-from, .chipFade-leave-to { opacity: 0; transform: translateX(10px); }
 .rd-tabs { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--calendarBorder); position: relative; }
@@ -598,7 +597,8 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-tabbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 28px; border: none; background: none; border-radius: 7px; color: gray; fill: currentColor; cursor: pointer; transition: background .12s, color .12s; }
 /* unread-comment count riding on the comment tab (or the collapsed reveal chevron) */
 .rd-tab-badge { position: absolute; top: -4px; right: 2px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px; background: tomato; color: #fff; font-size: 10px; line-height: 15px; text-align: center; box-sizing: border-box !important; }
-.rd-reveal-badge { top: -7px; right: auto; left: -9px; }
+/* inline next to the Back icon (the shared .rd-tab-badge is absolute for the tab variant) */
+.rd-reveal-badge { position: static; top: auto; right: auto; left: auto; flex-shrink: 0; }
 .rd-tabbtn:hover { color: var(--primary-color); }
 .rd-tabbtn.on { background: var(--bg3); color: var(--primary-color); }
 .rd-side-content { flex: 1; overflow: auto; padding: 14px; }
