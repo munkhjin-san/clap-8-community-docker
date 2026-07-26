@@ -3,7 +3,7 @@
          Not a notification: no read state, no prefs; it drops only when the record moves on. -->
     <div v-if="count > 0" ref="rootEl" class="fpend">
         <button class="fpend-btn" :class="{ on: open }" :title="`対応待ち ${count}件`" @click.stop="toggle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
                 <circle cx="12" cy="12" r="9" />
                 <path d="M12 7.2v5.6" />
                 <path d="M12 16.3v.1" stroke-width="2.6" />
