@@ -4,7 +4,7 @@
             <div class="post-header">
                 <HamBurger v-if="responsive.mobile"/>
                 <div class="post-search-wrap">
-                    <PostSearchBar @search-start="(word) => {keyword = word}" className="newChatMemberSearch" :customPlaceHolder="`コンタクト検索`"/>                
+                    <PostSearchBar @search-start="(word) => {keyword = word}" className="newChatMemberSearch" :customPlaceHolder="`氏名・会社・部署・メールで検索`"/>
                 </div>    
             </div>
             <!-- <div class="sub-tab-container mb-[20px] ml-[20px]">

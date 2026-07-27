@@ -213,6 +213,7 @@ td, th {
     margin: 0 -1px;
     gap: 5px;
     font-size: 13px;
+    color: var(--primary-color);
 }
 .l-shift {
     border: solid 1px var(--calendarBorder);

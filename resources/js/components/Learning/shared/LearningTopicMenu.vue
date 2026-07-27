@@ -60,7 +60,12 @@ const emit = defineEmits<{
     text-align: left;
 }
 
-.learning-topic-menu__title-row,
+.learning-topic-menu__title-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+}
+
 .learning-topic-menu__child {
     display: flex;
     align-items: center;

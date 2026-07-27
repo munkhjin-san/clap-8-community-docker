@@ -5,16 +5,37 @@
         </div>
         <div v-if="selectedTopic && isEnabled(selectedTopic.active) && route.name == 'basic'" :style="{height: route.name == 'basic'  ? '100%' : '0'}">
             <div class="h-full overflow-y-auto overflow-x-hidden">
-                <div v-if="headerMaterials.length" class="bg-[var(--background-color)] p-[30px] leading-[1.8] flex flex-col gap-[20px] relative break-words whitespace-break-spaces">
-                    <div class="absolute right-[10px] top-[10px] bg-[var(--primary-button)] text-[#fff] px-[10px] h-[30px]">                        
-                        <TTSPlayer 
-                            :text="getTextContent(getAllContent())"  
-                            :color="'#fff'"
-                        />
+                <div
+                    v-if="headerMaterials.length"
+                    class="m-[20px] border border-solid border-[var(--formBorder)]"
+                >
+                    <!-- Collapsible basic knowledge for every learner. First-timers
+                         open by default; repeaters / salary challengers (who have
+                         already learned it) start collapsed. The toggle is set off by
+                         its own background with a single line above the content. -->
+                    <button
+                        type="button"
+                        class="w-full flex items-center gap-[10px] px-[15px] py-[20px] border-0 cursor-pointer text-[var(--primary-color)]"
+                        @click="showBasic = !showBasic"
+                    >
+                        <Back size="11" class="transition-transform duration-200" :class="showBasic ? 'rotate-[270deg]' : 'rotate-180'" />
+                        <span>基礎知識内容</span>
+                        <div @click.stop class="w-fit bg-[var(--primary-button)] text-[#fff] px-[10px] h-[30px] ml-auto" v-show="showBasic">
+                            <TTSPlayer
+                                :text="getTextContent(getAllContent())"
+                                :color="'#fff'"
+                            />
+                        </div>
+                    </button>
+                    <div
+                        v-show="showBasic"
+                        class="bg-[var(--background-color)] leading-[1.8] flex flex-col gap-[20px] relative break-words whitespace-break-spaces p-5"
+                    >
+                        
+                        <div class="lessons-topic" v-for="topic in headerMaterials">
+                            <LearningContentRenderer :content="topic.content" />
+                        </div>
                     </div>
-                    <div class="lessons-topic" v-for="topic in headerMaterials">
-                        <LearningContentRenderer :content="topic.content" />
-                    </div>  
                 </div>
                 <LearningPreviousExperiencePanel
                     v-if="previousExperience?.has_experience && previousExperience.portfolio"
@@ -23,6 +44,7 @@
                     :theme="selectedTopic"
                     :personal-material="previousExperience.personal_material"
                     :can-generate-personal-material="previousExperience.can_generate_personal_material"
+                    :is-salary-challenge="previousExperience.is_salary_challenge"
                     :refresh-lesson-view="refreshPreviousExperience"
                 />
                 <LearningTopicMenu
@@ -57,6 +79,7 @@ import TTSPlayer from '@/components/Global/TTSPlayer.vue';
 import LearningTopicMenu, { type LearningTopicMenuItem } from '@/components/Learning/shared/LearningTopicMenu.vue';
 import LearningPreviousExperiencePanel from '@/components/Learning/shared/LearningPreviousExperiencePanel.vue';
 import LearningContentRenderer from '@/components/Learning/shared/LearningContentRenderer.vue';
+import Back from '@/components/Icons/Back.vue';
 import { LEARNING_MATERIAL_TYPES, LESSON_ANSWER_STATUS, LESSON_MATERIAL_PRIORITY, LESSON_PORTFOLIO_STATUS, LESSON_SECTION_STATUS } from '@/config/learning';
 import { isEnabled } from '@/utils/learningProgress';
 import type { LearningExam, LearningExamAttempt, LearningMaterial, LearningPreviousExperiencePayload, LearningSection, LearningTheme } from '@/types/learning';
@@ -80,9 +103,13 @@ import type { LearningBasicItemContext, LearningValidatableRef } from '@/composa
     const route = useRoute()
     const mainLoader = ref(true)
     const previousExperience = ref<LearningPreviousExperiencePayload | null>(null)
+    // First-timers (no previous experience) see the basic knowledge open; any
+    // repeater / salary challenger who already learned it starts collapsed.
+    const showBasic = ref(true)
 
     onMounted(async () => {
         await refreshPreviousExperience()
+        showBasic.value = !(previousExperience.value?.has_experience ?? false)
         mainLoader.value = false
     })
     // The backend decides whether this is a repeater (path 2) attempt.

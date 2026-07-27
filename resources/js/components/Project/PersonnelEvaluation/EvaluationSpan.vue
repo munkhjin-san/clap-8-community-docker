@@ -10,7 +10,7 @@
                         </div>                        
                     </div>
                     
-                    <button @click="setOption(option)" v-for="option in dateOptionsData" class="flex items-center border border-solid border-[var(--formBorder)] px-[8px] py-[5px] cursor-pointer relative gap-1">
+                    <button @click="setOption(option)" v-for="option in dateOptionsData" class="flex items-center border border-solid border-[var(--formBorder)] text-[var(--primary-color)] px-[8px] py-[5px] cursor-pointer relative gap-1">
                         {{ option.name }}
                         <span class="side-notification" 
                                 style="right: 2px; top: 6px; left: auto;position:unset; width: fit-content;" 
@@ -27,7 +27,7 @@
             </div>
         </Transition>
         <div v-if="dateOptions.name" class="absolute right-[20px] top-[15px] z-[5]">
-            <button @click="picker = true" class="border border-solid border-[var(--formBorder)] px-[8px] py-[5px] cursor-pointer under960:text-[12px]">{{ dateOptions.short_name }}</button>
+            <button @click="picker = true" class="border border-solid border-[var(--formBorder)] text-[var(--primary-color)] px-[8px] py-[5px] cursor-pointer under960:text-[12px]">{{ dateOptions.short_name }}</button>
         </div>
         <router-view v-slot="{ Component }">
             <component

@@ -1,26 +1,32 @@
 <template>
-    <Modal @close="emit('close')">
+    <Modal @close="emit('close')" :persist="isProcessing || immediateBusy">
         <template #title>
             <p>名刺を取り込む</p>
         </template>
         <template #content>
             <div>
                 <div>
-                  <p class="text-[14px] mb-[10px]">コンタクト種類（必須）</p>
-                  <div class="flex">
-                      <div class="max-w-[50%] relative">
-                          <select v-model="contact_type_id" class="border border-solid border-[var(--primary-color)] h-[40px] m-h-[40px] px-[10px] text-[var(--primary-color)]">
-                              <option v-for="type in types" :value="type.id">{{ type.title }}</option>
-                          </select>
-                          <p v-if="typeError" class="text-[12px] text-[tomato]">必須です。</p>
-                      </div>
-                      <div v-if="contact_type_id == -1" class="relative">
-                          <input class="-ml-[1px] border border-solid border-[var(--primary-color)] h-[40px] m-h-[40px] px-[10px] text-[var(--primary-color)]"  v-model="pseudo_type" type="text"/>
-                          <p v-if="typeInputError" class="text-[12px] text-[tomato]">必須です。</p>
-                      </div>              
-                  </div>
-                  <span class="text-xs text-[gray]">同じ種類の名刺をアップロードしてください</span>
+                  <p class="text-[14px] mb-[10px]">コンタクト種類（必須・複数選択可）</p>
+                  <TypeChipSelect ref="typeChipRef" v-model="selectedTypes" :options="contactTypes" />
+                  <p v-if="typeError" class="text-[12px] text-[tomato] mt-[6px]">1つ以上選択してください。</p>
+                  <p class="text-xs text-[gray] mt-[6px] leading-normal">アップロードするすべての名刺にこの種類が付与されます</p>
               </div>
+
+                <div class="mt-[16px]">
+                    <p class="text-[14px] mb-[8px]">取り込み方法</p>
+                    <div class="flex gap-[10px] flex-wrap">
+                        <button type="button" @click="scanMode = 'immediate'" :class="modeCardClass('immediate')">
+                            <div class="font-bold text-[13px] text-[var(--primary-color)]">今すぐ読み取る</div>
+                            <div class="text-[11.5px] text-[gray] mt-[3px] leading-[1.5]">その場で読み取ってすぐ一覧に追加します。企業情報は保存後に自動で取得します。</div>
+                            <div v-if="selectedFiles.length" class="text-[11.5px] text-[var(--primary-color)] mt-[4px]">推定 約{{ eta }}秒 / {{ selectedFiles.length }}件</div>
+                        </button>
+                        <button type="button" @click="scanMode = 'batch'" :class="modeCardClass('batch')">
+                            <div class="font-bold text-[13px] text-[var(--primary-color)]">あとで通知（バックグラウンド）</div>
+                            <div class="text-[11.5px] text-[gray] mt-[3px] leading-[1.5]">アップロードだけで処理はおまかせ。完了したら通知します。1枚に複数の名刺があっても自動で分割します。</div>
+                        </button>
+                    </div>
+                </div>
+
                 <div
                 class="mt-8 !box-border relative flex flex-col items-center justify-center w-full p-8 text-center border-2 bg-[var(--bg3)] border-[var(--bg2)] cursor-pointer"
                  :class="borderStyle"
@@ -116,8 +122,8 @@
                     <div class="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 via-black/40 to-transparent">
                       <div class="text-xs text-white truncate" :title="it.name">{{ it.name }}</div>
                       <div class="mt-0.5 flex items-center gap-2 text-[11px] text-gray-300">
-                        <span class="px-1.5 py-0.5 rounded bg-black/40 ring-1 ring-white/10">{{ it.sizeLabel }}</span>
-                        <span v-if="it.type" class="px-1.5 py-0.5 rounded bg-black/40 ring-1 ring-white/10 truncate max-w-[8rem]">
+                        <span class="px-1.5 py-0.5 bg-black/40 ring-1 ring-white/10">{{ it.sizeLabel }}</span>
+                        <span v-if="it.type" class="px-1.5 py-0.5 bg-black/40 ring-1 ring-white/10 truncate max-w-[8rem]">
                           {{ it.type }}
                         </span>
                       </div>
@@ -127,7 +133,7 @@
                     <div class="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         type="button"
-                        class="p-1.5 rounded-md flex bg-black/60 hover:bg-black/80 !text-white ring-1 ring-white/10"
+                        class="p-1.5 flex bg-black/60 hover:bg-black/80 !text-white ring-1 ring-white/10"
                         @click="removeAt(i)"
                         aria-label="Remove file"
                       >
@@ -140,7 +146,7 @@
                         :href="it.src"
                         target="_blank"
                         rel="noopener"
-                        class="p-1.5 rounded-md flex bg-black/60 hover:bg-black/80 text-white ring-1 ring-white/10"
+                        class="p-1.5 flex bg-black/60 hover:bg-black/80 text-white ring-1 ring-white/10"
                         aria-label="Open preview"
                       >
                         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -162,7 +168,7 @@
                 </div>
               </div>
               <div class="si-box">
-                <LoaderButton :loading="isProcessing" @triggered="execute" :content="submitButtonText"/>
+                <LoaderButton :loading="isProcessing || immediateBusy" @triggered="execute" :content="submitButtonText"/>
               </div>
             </div>
         </template>
@@ -172,8 +178,11 @@
 import CommandButton from '@/components/Global/CommandButton.vue'
 import LoaderButton from '@/components/Global/LoaderButton.vue'
 import Modal from '@/components/Global/Modal.vue'
+import TypeChipSelect from './Filters/TypeChipSelect.vue'
 import { ContactType } from '@/interface/contactInterface'
-import { ref, computed, watch, onBeforeUnmount, toRaw } from 'vue'
+import { ref, computed, watch, onBeforeUnmount, useTemplateRef } from 'vue'
+import { useApi } from '@/composables/api'
+import { useDialog } from '@/composables/dialog'
 
 import { defineComponent, h } from 'vue'
 
@@ -194,7 +203,8 @@ const UploadIcon = defineComponent({
 })
 
 type BatchCreationEmits = {
-  (e: 'files-selected', payload: { files: File[]; type: number | null; p_type: string }): void
+  (e: 'files-selected', payload: { files: File[]; types: string[] }): void
+  (e: 'done'): void
   (e: 'close'): void
 }
 
@@ -202,30 +212,24 @@ const props = defineProps<{
   isProcessing: boolean
   contactTypes: ContactType[]
 }>()
-const contact_type_id = ref<number | null>(null)
-const pseudo_type = ref<string>('')
+const selectedTypes = ref<string[]>([])
+const typeChipRef = useTemplateRef<{ commit: () => void }>('typeChipRef')
 const trigger = ref(0)
-const types = computed(() => {
-    const types = [...toRaw(props.contactTypes)]
-    types.push({
-        id: -1,
-        title: 'その他（新規作成）'
-    })
-    return types
-})
 const typeError = computed(() => {
-    return trigger.value && (contact_type_id.value == undefined || contact_type_id.value == null)
-})
-const typeInputError = computed(() => {
-    return contact_type_id.value == -1 && !pseudo_type.value
+    return !!trigger.value && selectedTypes.value.length === 0
 })
 const emit = defineEmits<BatchCreationEmits>()
 
-watch(() => props.contactTypes, (types) => {
-  if (!contact_type_id.value && types?.length) {
-    contact_type_id.value = types[0]?.id ?? null
-  }
-}, { immediate: true })
+const api = useApi()
+const dialog = useDialog()
+const scanMode = ref<'immediate' | 'batch'>('immediate')
+const immediateBusy = ref(false)
+const immediateDone = ref(0)
+const immediateTotal = ref(0)
+const modeCardClass = (m: 'immediate' | 'batch') => [
+  'flex-1 min-w-[220px] text-left p-[12px] border border-solid cursor-pointer transition-colors',
+  scanMode.value === m ? 'border-[var(--formBorder)] bg-[var(--kebab-bg1)]' : 'border-[var(--normalBorder)] bg-[var(--message-background)]'
+]
 
 const previews = ref<string[]>([])
 const fileNames = ref<string[]>([])
@@ -308,16 +312,51 @@ const handleFileChange = (fileList: FileList | null) => {
   previews.value.push(...newPreviews)
   fileNames.value.push(...newNames)
 }
-const execute = () => {
-  if (selectedFiles.value.length === 0) return
+const execute = async () => {
+  if (selectedFiles.value.length === 0 || immediateBusy.value) return
   trigger.value++
-  if (typeError.value || typeInputError.value) return
-  const payload = {
-    files: selectedFiles.value,
-    type: contact_type_id.value,
-    p_type: pseudo_type.value
+  typeChipRef.value?.commit()
+  if (typeError.value) return
+  if (scanMode.value === 'batch') {
+    emit('files-selected', { files: selectedFiles.value, types: selectedTypes.value })
+    return
   }
-  emit('files-selected', payload)
+  await runImmediate()
+}
+
+// Immediate mode: OCR each card and create the contact synchronously (no batch
+// pipeline). Company enrichment is dispatched in the background per contact.
+const runImmediate = async () => {
+  immediateBusy.value = true
+  immediateTotal.value = selectedFiles.value.length
+  immediateDone.value = 0
+  let ok = 0
+  let fail = 0
+  for (const file of selectedFiles.value) {
+    try {
+      const upForm = new FormData()
+      upForm.append('image', file)
+      const cardPath = await api.post('/upload_name_card', upForm, { silent: true })
+
+      const scanForm = new FormData()
+      scanForm.append('image', file)
+      const scan = await api.post('/scan_card', scanForm, { silent: true })
+
+      await api.post('/contact_item', {
+        ...(scan?.data ?? {}),
+        card_path: cardPath,
+        types: selectedTypes.value,
+      }, { silent: true })
+      ok++
+    } catch (e) {
+      fail++
+    }
+    immediateDone.value++
+  }
+  immediateBusy.value = false
+  const failNote = fail ? `（${fail}件は読み取れませんでした）` : ''
+  dialog.toast(`${ok}件を登録しました。企業情報は取得中です。${failNote}`)
+  emit('done')
 }
 const onDragEnter = () => {
   isDragging.value = true
@@ -373,8 +412,11 @@ const processingDetail = computed(() => {
   return `${fileText}名刺の分割、WebP変換、読み取り準備を行っています。この画面のまま少しお待ちください。`
 })
 
+const eta = computed(() => Math.max(3, selectedFiles.value.length * 6))
 const submitButtonText = computed(() => {
-  return props.isProcessing ? '準備中...' : '取り込みを開始'
+  if (immediateBusy.value) return `読み取り中… ${immediateDone.value} / ${immediateTotal.value}`
+  if (props.isProcessing) return '準備中...'
+  return scanMode.value === 'immediate' ? '今すぐ取り込む' : '取り込みを開始'
 })
 
 watch(previews, (old, _new, onCleanup) => {

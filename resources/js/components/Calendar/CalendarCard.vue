@@ -81,7 +81,10 @@
             <div>更新者 : {{ updater }}</div>
         </div>
 
-        <div v-if="expanded && editable && record.shift == 0 && !record.task" style="align-self: normal;position: absolute;right: 10px;top: 10px;" @click.stop>
+        <div v-if="expanded && editable && record.shift == 0 && !record.task" class="flex" style="align-self: normal;position: absolute;right: 10px;top: 10px;gap: 5px;" @click.stop>
+            <ItemMenu 
+                type="share" :items="shareMenuItems"
+            />
             <ItemMenu :items="[
                 {title: '編集する', action: () => edit(record)},
                 {title: '複製する', action: () => duplicate(record)},
@@ -117,6 +120,8 @@ import { DateTime } from 'luxon';
 import { useCalendar } from '@/composables/calendar';
 import CommandButton from '@/components/Global/CommandButton.vue';
 import { CalendarGroupUser, CalendarRecord } from '@/interface/calendarInterface';
+import { MenuList } from '@/interface/globalInterface.js';
+import { useDialog } from '@/composables/dialog.js';
     const menu = useMenuStore()
     const auth = useAuthUserStore()
     const tempRecord = useTempRecord()
@@ -125,6 +130,7 @@ import { CalendarGroupUser, CalendarRecord } from '@/interface/calendarInterface
     const viewDetails = ref(false)
     const props = defineProps(['record', 'viewable', 'editable', 'expanded', 'mode', 'uniqueId'])
     const emit = defineEmits(['selectRecord'])
+    const { toast } = useDialog()
     onMounted(() => {
         if(tempRecord.id && tempRecord.id == props.record.id){  
             setTimeout(() => {
@@ -133,6 +139,38 @@ import { CalendarGroupUser, CalendarRecord } from '@/interface/calendarInterface
                              
         }
     })
+    const shareMenuItems = computed(() => {
+        const list:MenuList[]= []; 
+        function addItem(title: string, action: () => void) {
+            list.push({ title, action });
+        }
+        const builtInApps = [
+            {name: 'copy', name_jp: '内容をコピー'}, 
+        ] 
+        builtInApps.forEach(app => {
+            addItem(app.name_jp, () => copyRecordInfo())
+        });
+
+        return list
+    })
+    const copyRecordInfo = () => {
+        const lines: string[] = []
+        if(props.record.title){
+            lines.push(`タイトル : ${props.record.title}`)
+        }
+        lines.push(`日時 : ${timeDetailed.value}`)
+        if(props.record.remarks){
+            lines.push(`内容 : ${props.record.remarks}`)
+        }
+        if(props.record.zoom_value !== null && props.record.zoom_url){
+            lines.push(`URL : ${props.record.zoom_url}`)
+        }
+        navigator.clipboard.writeText(lines.join('\n'))
+        .then(() => {
+            toast('コピーしました。')
+            menu.setMenu({ name: '', id: null })
+        })
+    }
     const createdDate = computed(() => props.record.created_at && DateTime.fromISO(props.record.created_at).toLocaleString(DateTime.DATETIME_MED))
 
     const creator = computed(() => props.record.created_by && props.record.created_by.name)

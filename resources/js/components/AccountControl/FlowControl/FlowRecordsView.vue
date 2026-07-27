@@ -87,7 +87,7 @@
                             <td v-for="c in columns" :key="c.key" class="rv-td" :class="{ num: isNumericCol(c) }">
                                 <template v-if="c.system">
                                     <span v-if="c.ref === '$record_number'" class="rv-idcell">{{ rec.record_number }}</span>
-                                    <span v-else-if="c.ref === '$status'"><span v-if="rec.current_status" class="rv-statuscell" :style="statusStyle(rec)">{{ rec.current_status }}</span></span>
+                                    <span v-else-if="c.ref === '$status'"><span v-if="rec.current_status" class="rv-statuscell" :style="statusStyle(rec)"><span v-if="rec.pending_action" class="rv-pdot" title="あなたの対応待ちです"></span>{{ rec.current_status }}</span></span>
                                     <span v-else class="rv-datecell">{{ sysDate(rec, c.ref) }} <span class="rv-time">{{ sysTime(rec, c.ref) }}</span></span>
                                 </template>
                                 <FlowFieldInput v-else :field="c.field!" :model-value="rec.values[c.field!.id!]" :users="users" :projects="projects" readonly />
@@ -96,6 +96,9 @@
                                 <div class="rv-actions">
                                     <button v-if="rec.can_edit" class="rv-actbtn" title="編集" @click="editRecord(rec)">
                                         <Edit size="13" />
+                                    </button>
+                                    <button v-if="permissions?.add" class="rv-actbtn" title="複製して新規作成" @click="duplicateRecord(rec)">
+                                        <Copy size="13" />
                                     </button>
                                     <button v-if="rec.can_delete" class="rv-actbtn rv-actbtn-del" title="削除" @click="deleteRecord(rec)">
                                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
@@ -161,6 +164,7 @@ import FlowRecordFilterModal from './FlowRecordFilterModal.vue'
 import FlowCsvExportModal from './FlowCsvExportModal.vue'
 import Back from '@/components/Icons/Back.vue'
 import Edit from '@/components/Icons/Edit.vue'
+import Copy from '@/components/Icons/Copy.vue'
 import Gear from '@/components/Icons/Gear.vue'
 import Filter from '@/components/Icons/Filter.vue'
 import PostSearchBar from '@/components/Post/PostSearchBar.vue'
@@ -189,22 +193,77 @@ const records = ref<FlowRecordDto[]>([])
 const flowOptionsStore = useFlowOptionsStore()
 const { users, projects } = storeToRefs(flowOptionsStore)
 const views = ref<FlowViewApi[]>([])
-const activeViewId = ref<number | null>(null)
+// Restore the view from the URL (?view=) BEFORE the first load so the initial fetch already
+// carries it — restoring after the response would show the default view's records under a
+// correctly-selected view (server mode filters by view_id server-side).
+const activeViewId = ref<number | null>(route.query.view ? Number(route.query.view) : null)
 const search = ref('')
-const sortRef = ref<number | string | null>(null)
-const sortDir = ref<'asc' | 'desc'>('asc')
+// header sort + ad-hoc filter live in the URL too (?sf/?sd/?f) so opening a record and
+// coming back — or reloading — keeps them applied (same rule as ?view=: seed before first load)
+const seedSf = route.query.sf
+const sortRef = ref<number | string | null>(
+    typeof seedSf === 'string' && seedSf !== '' ? (isNaN(Number(seedSf)) ? seedSf : Number(seedSf)) : null,
+)
+const sortDir = ref<'asc' | 'desc'>(route.query.sd === 'desc' ? 'desc' : 'asc')
 const importInput = ref<HTMLInputElement | null>(null)
+
+// ?f= carries the ad-hoc filter as base64url of a compact array form
+// (["and", [field, op, ...values], …]) — raw JSON in the URL reads as a wall of %22
+const encodeAdhoc = (f: FlowAdhocFilter): string => {
+    const compact = [f.logic, ...f.conditions.map((c) => [c.field, c.operator, ...(c.values ?? [])])]
+    const bytes = new TextEncoder().encode(JSON.stringify(compact))
+    return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+const decodeAdhoc = (s: string): FlowAdhocFilter | null => {
+    try {
+        // legacy links carried raw JSON — keep reading them
+        const json = /^[{[]/.test(s) ? s : new TextDecoder().decode(
+            Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (ch) => ch.charCodeAt(0)),
+        )
+        const parsed = JSON.parse(json)
+        if (Array.isArray(parsed)) {
+            const [logic, ...conds] = parsed
+            return {
+                logic: logic === 'or' ? 'or' : 'and',
+                conditions: conds.filter(Array.isArray).map((c: any[]) => ({ field: c[0], operator: c[1], values: c.slice(2) })),
+            }
+        }
+        if (parsed && Array.isArray(parsed.conditions)) {
+            return { logic: parsed.logic === 'or' ? 'or' : 'and', conditions: parsed.conditions }
+        }
+    } catch { /* malformed ?f= — start unfiltered */ }
+    return null
+}
 
 // ad-hoc filter (from the search bar's ⚲ icon) — session-only, not saved to the view
 const adhocFilter = reactive<FlowAdhocFilter>({ logic: 'and', conditions: [] })
+if (typeof route.query.f === 'string') {
+    const seeded = decodeAdhoc(route.query.f)
+    if (seeded) {
+        adhocFilter.logic = seeded.logic
+        adhocFilter.conditions = seeded.conditions
+    }
+}
 const hasAdhocFilter = computed(() => adhocFilter.conditions.length > 0)
 const filterModalOpen = ref(false)
 const statusNames = computed(() => (definition.value?.statuses ?? []).map((s) => s.name).filter(Boolean))
+
+// the list's full URL state; also attached to record links so 戻る can restore all of it
+const listQuery = (): Record<string, string> => {
+    const q: Record<string, string> = {}
+    if (activeViewId.value) q.view = String(activeViewId.value)
+    if (sortRef.value !== null) { q.sf = String(sortRef.value); q.sd = sortDir.value }
+    if (hasAdhocFilter.value) q.f = encodeAdhoc(adhocFilter)
+    return q
+}
+const syncQuery = () => router.replace({ query: listQuery() })
+
 const onApplyFilter = (f: FlowAdhocFilter) => {
     adhocFilter.logic = f.logic
     adhocFilter.conditions = f.conditions
     filterModalOpen.value = false
     page.value = 1
+    syncQuery()
     refetch()
 }
 
@@ -292,7 +351,9 @@ const load = async () => {
             mode.value = data.mode === 'client' ? 'client' : 'server'
             records.value = data.records ?? []
             total.value = data.total ?? records.value.length
-            if (!activeViewId.value) {
+            // no view yet, or a stale ?view= id that isn't one of this app's views (the server
+            // falls back to the default view in that case) → sync the selector to the default
+            if (!activeViewId.value || !views.value.some((v) => v.id === activeViewId.value)) {
                 const def = views.value.find((v) => v.is_default) ?? views.value[0]
                 activeViewId.value = def?.id ?? null
             }
@@ -307,7 +368,13 @@ const scrollTop = () => { const el = document.getElementById('rvScroll'); if (el
 const refetch = () => { if (mode.value === 'server') load() }
 
 const onSearch = (kw: string) => { search.value = kw; page.value = 1; refetch() }
-const onViewChange = () => { sortRef.value = null; page.value = 1; refetch() }
+const onViewChange = () => {
+    // switching views drops the header sort (view brings its own) but keeps the ad-hoc filter
+    sortRef.value = null
+    page.value = 1
+    syncQuery()
+    refetch()
+}
 const setPage = (n: number) => {
     const p = Math.min(pageCount.value, Math.max(1, n))
     if (p === page.value) return
@@ -325,6 +392,7 @@ const toggleSort = (ref: number | string) => {
         sortDir.value = 'asc'
     }
     page.value = 1
+    syncQuery()
     refetch()
 }
 
@@ -352,9 +420,13 @@ const onImported = (n: number) => {
 }
 
 const openNew = () => router.push({ name: 'flow-record-new', params: { flowId: flowId.value } })
-const openRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number } })
+// the record route carries the list's URL state (?view/?sf/?sd/?f) so its back button — and any
+// amount of up/down record shifting — can return to the list with view, sort and filter intact
+const openRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number }, query: listQuery() })
 // quick-edit shortcut: open the record already in edit mode
-const editRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number }, query: { edit: '1' } })
+const editRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number }, query: { edit: '1', ...listQuery() } })
+// 複製: open a new record pre-filled with this record's values
+const duplicateRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-new', params: { flowId: flowId.value }, query: { from: rec.id } })
 
 /* ---- row shortcuts (edit / delete) + bulk delete (一括処理) ---- */
 const deleteRecord = async (rec: FlowRecordDto) => {
@@ -412,8 +484,11 @@ onMounted(async () => {
 .rv-filterbtn {color: var(--primary-color); box-sizing: border-box !important; flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); cursor: pointer; }
 .rv-filterbtn:hover { background: var(--bg3); border-color: var(--primary-color); }
 .rv-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
-.rv-actbtn { display: flex; align-items: center; gap: 6px; height: 20px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; transition: background .12s, border-color .12s; fill: var(--primary-color); }
-.rv-actbtn:hover { background: var(--bg3); border-color: var(--primary-color); }
+/* top-bar buttons (アプリ設定 / CSV): scoped to .rv-r1 so the row-action .rv-actbtn rule below can't
+   override their geometry. border-box + explicit height pins the <button> and the CSV <div> to the
+   SAME total height (a bare <button> defaults to border-box while the <div> is content-box). */
+.rv-r1 .rv-actbtn { box-sizing: border-box !important; display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; transition: background .12s, border-color .12s; fill: var(--primary-color); }
+.rv-r1 .rv-actbtn:hover { background: var(--bg3); border-color: var(--primary-color); }
 .rv-actlabel { font-size: 13px; color: var(--primary-color); white-space: nowrap; }
 .rv-csv :deep(.boardMenuContainer) { display: flex; align-items: center; height: 30px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 8px; background: var(--background-color); cursor: pointer; transition: background .12s, border-color .12s; }
 .rv-csv :deep(.boardMenuContainer:hover) { background: var(--bg3); border-color: var(--primary-color); }
@@ -421,7 +496,7 @@ onMounted(async () => {
 .rv-csv-inner { display: flex; align-items: center; gap: 6px; }
 .rv-r2 { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 16px; position: sticky; left: 0; background: var(--background-color); }
 .rv-title { flex: 1 1 auto; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;line-height: 1.5; }
-.rv-viewinfo { display: flex; align-items: center; gap: 8px; flex: none; margin-left: auto; }
+.rv-viewinfo { display: flex; align-items: center; gap: 8px; flex: none; }
 .rv-viewname { font-size: 13px; color: var(--primary-color); }
 .rv-count { font-size: 12px; color: gray; white-space: nowrap; }
 .rv-ctrl {
@@ -487,6 +562,9 @@ onMounted(async () => {
 .rv-bulkdel:hover { background: tomato; color: #fff; }
 .rv-idcell { font-size: 13px; color: gray; }
 .rv-statuscell { display: inline-block; font-size: 12px; color: var(--primary-color); background: var(--bg3); padding: 3px 10px; border-radius: 12px; }
+/* 要対応: small red dot inside the status pill — the viewer is named by an action on this
+   status. Matches the app-wide dot convention (6px, plain, no ring). */
+.rv-pdot { display: inline-block; width: 6px; min-width: 6px; height: 6px; border-radius: 9999px; background: tomato; margin-right: 5px; vertical-align: 1px; }
 .rv-datecell { font-size: 13px; color: gray; }
 .rv-time { opacity: .6; }
 .rv-empty { text-align: center; color: gray; font-size: 13px; padding: 40px; }

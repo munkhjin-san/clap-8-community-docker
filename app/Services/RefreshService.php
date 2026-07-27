@@ -57,13 +57,26 @@ class RefreshService
         return $result;
     }
 
-    public function getApplicationData(array $statuses = [], int $perPage = 30)
+    public function getApplicationData(array $statuses = [], int $perPage = 30, ?string $search = null)
     {
+        $search = $search !== null ? trim($search) : null;
+
         $posts = PostRecord::query()
             ->where('app_type', 6)
             ->where('refresh_amount', '>', 0)
             ->when(! empty($statuses), function ($query) use ($statuses) {
                 $query->whereIn('status_flag', $statuses);
+            })
+            ->when($search !== null && $search !== '', function ($query) use ($search) {
+                // Escape LIKE wildcards so user input is treated literally.
+                $term = '%' . addcslashes($search, '%_\\') . '%';
+                $query->where(function ($inner) use ($term) {
+                    $inner->where('title', 'like', $term)
+                        ->orWhere('content', 'like', $term)
+                        ->orWhereHas('user', function ($userQuery) use ($term) {
+                            $userQuery->where('name', 'like', $term);
+                        });
+                });
             })
             ->with('receipts')
             ->with('files')

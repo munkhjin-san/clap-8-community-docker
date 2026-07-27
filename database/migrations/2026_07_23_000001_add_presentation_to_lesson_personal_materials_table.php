@@ -1,0 +1,28 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('lesson_personal_materials', function (Blueprint $table) {
+            $table->json('presentation_spec')->nullable()->after('content');
+            $table->string('presentation_theme', 32)->nullable()->after('presentation_spec');
+            $table->string('presentation_path')->nullable()->after('presentation_theme');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('lesson_personal_materials', function (Blueprint $table) {
+            $table->dropColumn([
+                'presentation_spec',
+                'presentation_theme',
+                'presentation_path',
+            ]);
+        });
+    }
+};

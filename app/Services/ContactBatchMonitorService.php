@@ -72,10 +72,10 @@ class ContactBatchMonitorService
         }
 
         try {
-            $operation = $this->startGeminiBatch($batch, $apiKey, 'models/gemini-3-flash-preview', [
+            $operation = $this->startGeminiBatch($batch, $apiKey, 'models/gemini-3.6-flash', [
                 'batch' => [
                     'displayName' => 'contact-enrich-' . now()->format('YmdHis'),
-                    'model' => 'models/gemini-3-flash-preview',
+                    'model' => 'models/gemini-3.6-flash',
                     'inputConfig' => [
                         'requests' => [
                             'requests' => $requests,
@@ -86,7 +86,7 @@ class ContactBatchMonitorService
         } catch (\Throwable $exception) {
             $this->logEntry($batch, 'enrich_submit_fallback', 'Falling back to OCR-only completion.', [
                 'message' => $exception->getMessage(),
-            ], 'models/gemini-3-flash-preview');
+            ], 'models/gemini-3.6-flash');
 
             return $this->completeWithoutEnrichment($batch);
         }

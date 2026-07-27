@@ -52,6 +52,9 @@ export interface LearningPersonalMaterial {
     lesson_theme_ai_config_id: number | null
     config_key: string
     content: string | null
+    presentation_spec: LearningPresentationSpec | null
+    presentation_theme: string | null
+    presentation_available: boolean
     understand: boolean | null
     important_point: string | null
     source_snapshot: Record<string, unknown> | null
@@ -60,6 +63,41 @@ export interface LearningPersonalMaterial {
     created_at?: string | null
     updated_at?: string | null
 }
+
+export type LearningPresentationLayout =
+    | 'hero'
+    | 'key_points'
+    | 'comparison'
+    | 'action_plan'
+    | 'reflection'
+    | 'discussion'
+
+export interface LearningPresentationSlide {
+    layout: LearningPresentationLayout
+    eyebrow: string
+    title: string
+    body: string
+    bullets: string[]
+    callout: string
+}
+
+export interface LearningSlidePresentationSpec {
+    title: string
+    subtitle: string
+    summary: string
+    slides: LearningPresentationSlide[]
+    discussion_topics: string[]
+}
+
+export interface LearningHtmlPresentationSpec {
+    html: string
+    title: string
+    summary: string
+}
+
+export type LearningPresentationSpec =
+    | LearningSlidePresentationSpec
+    | LearningHtmlPresentationSpec
 
 export interface LearningThemeCategory {
     id: number
@@ -142,6 +180,8 @@ export interface LearningMaterial {
     has_feedback: number | boolean
     has_question: number | boolean | null
     has_understand: number | boolean
+    has_exam?: number | boolean
+    exam?: LearningExam | null
     material_type: LearningMaterialType | string | null
     created_at: string | null
     updated_at: string | null
@@ -172,6 +212,8 @@ export interface LearningPortfolio {
     attempt_no?: number
     path?: number
     salary_issue_id?: number | null
+    ai_material?: string | null
+    discussion_theme?: string | null
     understand?: number
     title?: string | null
     portfolio_title?: string | null
@@ -253,6 +295,7 @@ export interface LearningClap {
 export interface LearningExam {
     id: number
     lesson_theme_id: number
+    lesson_material_id?: number | null
     title: string | null
     description: string | null
     passing_score: number
@@ -308,12 +351,57 @@ export interface LearningPreviousExperiencePayload {
     portfolio: LearningPortfolio | null
     personal_material: LearningPersonalMaterial | null
     can_generate_personal_material: boolean
+    is_salary_challenge: boolean
 }
 
 export interface LearningFinalExamAnswer {
     question_id: number
     option_id: number
     is_correct: boolean
+}
+
+export interface PortfolioSectionExam {
+    material_id: number
+    title: string | null
+    passing_score: number
+    max_attempts: number
+}
+
+export interface PortfolioSectionExamResult {
+    attempt_count: number
+    latest_score: number | null
+    latest_status: 'passed' | 'failed' | null
+    passed: boolean
+}
+
+// ---- Unified participant table (portfolio + case-study themes) ----
+export interface ParticipantExamCell {
+    key: string
+    title: string | null
+    attemptCount: number | null
+    maxAttempts: number | null
+    score: number | null
+    passed: boolean | null // null = 未受験
+}
+
+export type ParticipantDetail =
+    | { type: 'portfolio'; portfolio: LearningPortfolio }
+    | { type: 'caseStudy'; participant: LearningParticipantProgress }
+
+export interface ParticipantEntry {
+    key: string
+    methodLabel: string | null
+    attemptNo: number
+    statusChips: Array<{ label: string; done: boolean }>
+    portfolioId: number | null // portfolio attempts are deletable / rollback-able
+    detail: ParticipantDetail
+}
+
+export interface ParticipantRow {
+    userId: number
+    userName: string | null
+    entries: ParticipantEntry[]
+    examRows: ParticipantExamCell[]
 }
 
 export interface LearningParticipantProgress {
@@ -347,6 +435,7 @@ export interface LearningChallengeGoalOption {
     title: string | null
     start_date: string | null
     end_date: string | null
+    score: number
     selectable: boolean
     reason: string | null
 }

@@ -104,6 +104,10 @@ export const useBadgeStore = defineStore('badge', () => {
     const goal_issue_comment = ref<any[]>([]);
     const contact_comment = ref<any[]>([]);
     const contact_batch_notification_count = ref(0);
+    // アプリ (Flow): unread notifications + records awaiting this user's action, summed across
+    // every visible app. Comes from badge_summary so the side-menu badge is correct on first
+    // paint, before the app list has ever been fetched.
+    const flow = ref<{ unread: number; pending: number; total: number }>({ unread: 0, pending: 0, total: 0 });
     const boardBadgeFetchedAt = ref<number | null>(null);
     const boardBadgeRequest = ref<Promise<void> | null>(null);
     const communityBadge = ref(false);
@@ -249,6 +253,14 @@ export const useBadgeStore = defineStore('badge', () => {
         kintone_contract_changes.value = data;
     }
 
+    /** Portal/record screens know the live numbers — let them correct the badge immediately
+     *  instead of waiting out badge_summary's 60s cache. */
+    function setFlowBadge(next: { unread?: number; pending?: number }) {
+        const unread = next.unread ?? flow.value.unread;
+        const pending = next.pending ?? flow.value.pending;
+        flow.value = { unread, pending, total: unread + pending };
+    }
+
     async function getbadgeSummary() {
         const data = await axios.get('/badge_summary').then(response => response.data);
         goal_issue_comment.value = data.goal_issue_comment;
@@ -267,6 +279,7 @@ export const useBadgeStore = defineStore('badge', () => {
         project_report.value = data.project_report;
         check_item_confirm.value = data.check_item_confirm;
         kintone_contract_changes.value = data.kintone_contract_changes ?? { total: 0, records: [], projects: [] };
+        flow.value = data.flow ?? { unread: 0, pending: 0, total: 0 };
     }
 
     // Getters
@@ -525,6 +538,8 @@ export const useBadgeStore = defineStore('badge', () => {
         goal_issue_comment,
         contact_comment,
         contact_batch_notification_count,
+        flow,
+        setFlowBadge,
         boardBadgeFetchedAt,
         boardBadgeRequest,
         communityBadge,

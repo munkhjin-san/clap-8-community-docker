@@ -94,7 +94,11 @@
                         :key="event.id"
                         class="receipt-audit-list-item"
                         :class="{ active: selectedEvent?.id === event.id }"
+                        role="button"
+                        tabindex="0"
                         @click="selectEvent(event)"
+                        @keydown.enter="selectEvent(event)"
+                        @keydown.space.prevent="selectEvent(event)"
                     >
                         <div class="receipt-audit-list-top">
                             <div class="receipt-audit-title">{{ eventTypeLabel(event.event_type) }}</div>
@@ -854,8 +858,8 @@ watch(() => props.month, () => {
         --audit-surface-soft: var(--bg2);
         --audit-border: var(--calendarBorder);
         --audit-border-strong: var(--formBorder);
-        --audit-shadow: 0 10px 18px rgba(0, 0, 0, 0.08);
-        --audit-shadow-soft: 0 6px 12px rgba(0, 0, 0, 0.05);
+        --audit-shadow: none;
+        --audit-shadow-soft: none;
         --audit-text-soft: var(--third-color, var(--primary-color));
         --audit-accent: var(--primary-color);
         height: 100%;
@@ -876,7 +880,6 @@ watch(() => props.month, () => {
         gap: 12px;
         padding: 16px;
         border: 1px solid var(--audit-border);
-        border-radius: 18px;
         background: var(--audit-surface-muted);
         box-shadow: var(--audit-shadow-soft);
     }
@@ -971,8 +974,7 @@ watch(() => props.month, () => {
         background: var(--audit-surface);
         font-size: 12px;
         color: var(--primary-color);
-        border-radius: 999px;
-        transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+        transition: background-color 0.18s ease;
     }
 
     .filter-summary-chip {
@@ -996,8 +998,6 @@ watch(() => props.month, () => {
     .preset-chip:hover,
     .preset-chip:focus-visible,
     .filter-summary-chip:hover {
-        transform: translateY(-1px);
-        box-shadow: var(--audit-shadow-soft);
         background: var(--audit-surface-soft);
     }
 
@@ -1019,11 +1019,10 @@ watch(() => props.month, () => {
     }
 
     .receipt-audit-list-item {
-        position: relative;
         padding: 18px 18px 16px;
         border-bottom: 1px solid var(--audit-border);
         cursor: pointer;
-        transition: transform 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+        transition: background-color 0.18s ease, box-shadow 0.18s ease;
         background: transparent;
     }
 
@@ -1031,22 +1030,14 @@ watch(() => props.month, () => {
         border-bottom: none;
     }
 
-    .receipt-audit-list-item::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 16px;
-        bottom: 16px;
-        width: 4px;
-        border-radius: 999px;
-        background: transparent;
-        transition: background-color 0.18s ease;
-    }
-
     .receipt-audit-list-item:hover {
         background: var(--audit-surface-muted);
-        transform: translateY(-1px);
         box-shadow: inset 0 0 0 1px var(--audit-border-strong);
+    }
+
+    .receipt-audit-list-item:focus-visible {
+        outline: 2px solid var(--audit-accent);
+        outline-offset: -2px;
     }
 
     .receipt-audit-list-top,
@@ -1061,13 +1052,8 @@ watch(() => props.month, () => {
     .receipt-audit-list-item.active {
         background: var(--selected-background, var(--audit-surface-muted));
         box-shadow:
-            inset 0 0 0 1px var(--audit-border-strong),
-            var(--audit-shadow-soft);
-        transform: translateY(-1px);
-    }
-
-    .receipt-audit-list-item.active::before {
-        background: var(--audit-accent);
+            inset 3px 0 0 var(--audit-accent),
+            inset 0 0 0 1px var(--audit-border-strong);
     }
 
     .receipt-audit-title {
@@ -1093,7 +1079,6 @@ watch(() => props.month, () => {
         padding: 5px 11px;
         font-size: 11px;
         font-weight: 700;
-        border-radius: 999px;
         border: 1px solid transparent;
     }
 
@@ -1148,7 +1133,6 @@ watch(() => props.month, () => {
         align-items: center;
         margin-left: 6px;
         padding: 2px 8px;
-        border-radius: 999px;
         border: 1px solid transparent;
         font-size: 11px;
         font-weight: 700;
@@ -1195,7 +1179,6 @@ watch(() => props.month, () => {
         padding: 16px 18px;
         background: var(--audit-surface-muted);
         border: 1px solid var(--audit-border-strong);
-        border-radius: 16px;
         box-shadow: var(--audit-shadow-soft);
         font-size: 13px;
         line-height: 1.7;
@@ -1213,7 +1196,6 @@ watch(() => props.month, () => {
     .detail-grid > div {
         padding: 12px 14px;
         border: 1px solid var(--audit-border);
-        border-radius: 14px;
         background: var(--audit-surface-muted);
         color: var(--primary-color);
     }
@@ -1222,7 +1204,6 @@ watch(() => props.month, () => {
         margin-top: 20px;
         padding: 16px 18px;
         border: 1px solid var(--audit-border);
-        border-radius: 18px;
         background: var(--audit-surface);
         box-shadow: var(--audit-shadow-soft);
     }
@@ -1347,7 +1328,6 @@ watch(() => props.month, () => {
         overflow: auto;
         font-size: 12px;
         margin: 0;
-        border-radius: 14px;
         border: 1px solid var(--audit-border);
     }
 
@@ -1358,7 +1338,6 @@ watch(() => props.month, () => {
         font-size: 13px;
         overflow: hidden;
         border: 1px solid var(--audit-border);
-        border-radius: 14px;
     }
 
     .detail-table td,
@@ -1389,7 +1368,6 @@ watch(() => props.month, () => {
         border: 1px solid var(--audit-border-strong);
         color: var(--primary-color);
         background: var(--audit-surface);
-        border-radius: 12px;
     }
 
     .audit-button {
@@ -1398,24 +1376,18 @@ watch(() => props.month, () => {
         background: var(--primary-button);
         padding: 9px 16px;
         width: fit-content;
-        border-radius: 12px;
-        box-shadow: var(--audit-shadow-soft);
-        transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+        transition: filter 0.18s ease, background-color 0.18s ease;
         cursor: pointer;
     }
 
     .audit-button:hover,
     .audit-button:focus-visible {
-        transform: translateY(-1px);
-        box-shadow: 0 12px 22px rgba(0, 0, 0, 0.12);
-        filter: saturate(1.05);
+        filter: brightness(1.06);
     }
 
     .audit-button:disabled {
         opacity: 0.55;
         cursor: not-allowed;
-        transform: none;
-        box-shadow: var(--audit-shadow-soft);
         filter: none;
     }
 
@@ -1447,7 +1419,6 @@ watch(() => props.month, () => {
     }
 
     .skeleton-line {
-        border-radius: 6px;
         background: linear-gradient(
             90deg,
             var(--audit-surface-muted) 25%,

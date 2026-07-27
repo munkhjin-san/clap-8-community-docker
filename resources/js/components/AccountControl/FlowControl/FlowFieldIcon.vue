@@ -50,6 +50,11 @@
             <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
             <polyline points="8,12 11,15 16,8.5" />
         </template>
+        <template v-else-if="type === 'password'">
+            <rect x="3.5" y="10.5" width="17" height="10.5" rx="2" />
+            <path d="M7.75 10.5V7.25a4.25 4.25 0 0 1 8.5 0v3.25" />
+            <circle cx="12" cy="15.75" r="1.35" />
+        </template>
         <template v-else-if="type === 'file'">
             <path d="M13.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5z" />
             <polyline points="13.5,3 13.5,8.5 19,8.5" />

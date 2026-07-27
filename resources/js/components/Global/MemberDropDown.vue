@@ -1,6 +1,6 @@
 <template>
     <div class="relative flex min-h-[30px] items-stretch">
-        <button @click.stop="toggle" class="flex min-h-[30px] items-center px-2 cursor-pointer w-fit" :class="{'!cursor-not-allowed pointer-events-none': disabled}">        
+        <button @click.stop="toggle" class="flex min-h-[30px] items-center px-2 cursor-pointer w-fit text-[var(--primary-color)]" :class="{'!cursor-not-allowed pointer-events-none': disabled}">        
             <div v-if="selectedUsers.length" class="flex gap-2 flex-wrap">
                 <UserPanel size="20" v-for="user in selectedUsers" :key="user.id" :user="user" :with-name="!(selectedUsers.length > 5 || responsive.mobile)" disable-instant/>
                 <span class="font-xs text-[gray]" v-if="selectedUsers.length > 5">+{{ selectedUsers.length - 5 }}</span>    
@@ -12,7 +12,7 @@
         </button>
         <Teleport defer :to="teleportTarget" :disabled="responsive.mobile ? false : true">
             <Transition name="slidePop">
-                <div @click.stop @touchstart.stop id="p-user-pick" v-if="menu.parent == 'p-user-pick'" :class="rightOrLeft === 'right' ? 'right-0' : 'left-0'" class="max-w-[80vw] absolute top-full w-max max-h-[400px] bg-[var(--background-color)] border border-solid border-[var(--secondary-background)] shadow-lg rounded-md overflow-auto z-[4]">
+                <div @click.stop @touchstart.stop :id="menuKey" v-if="menu.parent == menuKey" :class="[rightOrLeft === 'right' ? 'right-0' : 'left-0', { 'rounded-md': !square }]" class="max-w-[80vw] absolute top-full w-max max-h-[400px] bg-[var(--background-color)] border border-solid border-[var(--secondary-background)] shadow-lg overflow-auto z-[4]">
                     <div class="sticky top-0 bg-[var(--background-color)] z-[2] p-3">                
                         <div class="flex w-full ">
                             <input 
@@ -33,7 +33,7 @@
                                     <CommandButton :buttons="commandButtons" />
                                 </div>
                                 
-                                <label v-for="resultUser in searchResult" :key="resultUser.id" class="cursor-pointer hover:bg-[var(--secondary-background)] p-2 flex items-center gap-2 rounded-md" >
+                                <label v-for="resultUser in searchResult" :key="resultUser.id" class="cursor-pointer hover:bg-[var(--secondary-background)] p-2 flex items-center gap-2" :class="{ 'rounded-md': !square }">
                                     <input type="checkbox" id="assetMemberSelect" name="assetMemberSelect" class="custom-f-checkbox" :value="resultUser.id" v-model="user" />
                                     <UserPanel size="25" disable-instant :user="resultUser" with-name/>
                                 </label>
@@ -69,12 +69,16 @@ const props = withDefaults(defineProps<{
     slice?: boolean
     selectAll?: boolean
     rightOrLeft?: 'right' | 'left'
+    menuKey?: string
+    square?: boolean
 }>(), {
     users: undefined,
     teleportTarget: '#memberDropDown',
     slice: true,
     selectAll: true,
-    rightOrLeft: 'right'
+    rightOrLeft: 'right',
+    menuKey: 'p-user-pick',
+    square: false
 })
 
 const menu = useMenuStore()
@@ -127,10 +131,10 @@ const responsive = useResponsive()
 
 const toggle = () => {
     if (props.disabled) return;
-    if (menu.parent === 'p-user-pick') {
+    if (menu.parent === props.menuKey) {
         menu.close();
     } else {
-        menu.setMenu({ parent: 'p-user-pick' });
+        menu.setMenu({ parent: props.menuKey });
     }
     
 }

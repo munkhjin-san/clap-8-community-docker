@@ -7,7 +7,6 @@ use App\Http\Controllers\CustomFormController;
 use App\Http\Controllers\CommunityContextController;
 use App\Http\Controllers\ShiftTypeController;
 use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\ProjectManagementController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -32,6 +31,7 @@ use App\Http\Controllers\AutoJobController;
 use App\Http\Controllers\AdminWorkController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\SupportController;
+use App\Http\Controllers\SupportAiChatController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\LessonController;
 use App\Http\Controllers\LessonExamController;
@@ -69,6 +69,17 @@ use Illuminate\Support\Facades\Log;
 */
 // Route::get('/incident_fill', [AutoJobController::class, 'incident_fill']);
 //for home page
+
+// Local-only: session login for the help-docs screenshot script (scripts/help-screenshots.mjs).
+// Never registered outside the local environment.
+if (app()->environment('local')) {
+    Route::get('/dev_screenshot_login/{user}', function ($user) {
+        Auth::login(\App\Models\User::findOrFail($user));
+        request()->session()->regenerate();
+
+        return redirect('/');
+    });
+}
 
 Route::match(['get', 'post'], '/contract_updated', [AutoJobController::class, 'kintoneContractUpdated']);
 Route::get('get_team_external', [ProjectController::class, 'get_team_external']);
@@ -215,6 +226,9 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
 
     Route::get('/employee', function () {return redirect("/members");});
     Route::get('/notice/{id}', function ($id) {return redirect("/dashboard/notice?notice_id={$id}");});
+
+    // API routes under /support must be registered before the SPA catch-all below.
+    Route::get('/support/ai-test/conversations', [SupportAiChatController::class, 'index']);
 
     Route::get('/{name}/{any?}',[BoardController::class, "index"])
     ->whereIn('name', [
@@ -581,6 +595,7 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/daily_report_add', [WorkController::class, 'dailyReportAdd']);
         Route::post('/daily_report_break', [WorkController::class, 'daily_report_break']);
         Route::post('/save_time_card', [WorkController::class, 'saveTimeCard']);
+        Route::get('/my_actual_goals', [WorkController::class, 'my_actual_goals']);
         Route::post('/delete_time_card', [WorkController::class, 'deleteTimeCard']);
         Route::get('/get_attendance_data', [WorkController::class, 'getAttendanceData']);
         Route::post('/remand_time_card', [WorkController::class, 'remandTimeCard']);
@@ -685,8 +700,9 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/lesson_theme/{theme}/challenge', [LessonController::class, 'create_theme_challenge']);
         Route::delete('/delete_learning_theme', [LessonController::class, 'delete_learning_theme']);
         Route::post('/lesson_theme/{theme}/ai_config', [LessonController::class, 'save_lesson_theme_ai_config']);
-        Route::get('/lesson_theme/{theme}/personal_materials/portfolio_recurring_trainee/stream', [LessonController::class, 'stream_personal_material']);
+        Route::post('/lesson_theme/{theme}/personal_materials/portfolio_recurring_trainee/generate', [LessonController::class, 'generate_personal_material']);
         Route::post('/lesson_theme/{theme}/personal_materials/portfolio_recurring_trainee/feedback', [LessonController::class, 'save_personal_material_feedback']);
+        Route::get('/lesson_theme/{theme}/personal_materials/{personalMaterial}/presentation', [LessonController::class, 'download_personal_material_presentation']);
         Route::get('/lesson_theme_categories', [LessonController::class, 'get_lesson_categories']);
         Route::post('/lesson_theme_category', [LessonController::class, 'save_lesson_category']);
         Route::delete('/lesson_theme_category', [LessonController::class, 'delete_lesson_category']);
@@ -730,6 +746,8 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/save_project_goal', [ProjectController::class, 'save_project_goal']);
         Route::post('/get_applied_goals', [ProjectController::class, 'get_applied_goals']);
         Route::put('/update_project_progress', [ProjectController::class, 'update_project_progress']);
+        Route::post('/hr_confirm_goal', [ProjectController::class, 'hr_confirm_goal']);
+        Route::get('/goal_source_details', [ProjectController::class, 'goal_source_details']);
         Route::put('/apply_kadai', [ProjectController::class, 'apply_kadai']);
         Route::post('/get_selectable_users', [ProjectController::class, 'get_selectable_users']);
         Route::get('/check_goal_create_permission', [ProjectController::class, 'check_goal_create_permission']);
@@ -887,7 +905,13 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::delete('contact_item', [ContactController::class, 'delete_contact']);
         Route::post('upload_name_card', [ContactController::class, 'upload_name_card']);
         Route::get('contact_list', [ContactController::class, 'contact_list']);
-        Route::post('contact_private_memo', [ContactController::class, 'update_private_memo']);
+        // NOTE: must NOT start with the `contact/` segment — the SPA route
+        // `/{name}/{any?}` (web.php ~178, name includes 'contact') shadows all GETs
+        // under /contact/... and returns index.html. Use a distinct first segment.
+        Route::get('contact_histories/{contact}', [ContactController::class, 'list_contact_histories']);
+        Route::get('contact_private_memos_list/{contact}', [ContactController::class, 'list_private_memos']);
+        Route::post('contact_private_memo_add', [ContactController::class, 'add_private_memo']);
+        Route::delete('contact_private_memo/{memo}', [ContactController::class, 'delete_private_memo']);
         Route::get('google_test', [ContactController::class, 'index_test']);
         Route::post('scan_card', [ContactController::class, 'scan_card']);
         Route::get('get_contact_types', [ContactController::class, 'get_contact_types']);
@@ -903,6 +927,9 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/contact_link_related', [ContactController::class, 'link_related_contact']);
         Route::delete('/contact_link_related', [ContactController::class, 'unlink_related_contact']);
         Route::get('/contact_project_search', [ContactController::class, 'search_projects']);
+        Route::post('/contact_attach_files', [ContactController::class, 'contact_attach_files']);
+        Route::post('/contact_file_delete', [ContactController::class, 'contact_file_delete']);
+        Route::post('/contact_scan_file', [ContactController::class, 'contact_scan_file']);
         Route::get('/contact_batches', [ContactController::class, 'contact_batches']);
         Route::post('/contact_batches/{batch}/dismiss', [ContactController::class, 'dismiss_contact_batch']);
         Route::get('/contact_batch_notifications', [ContactController::class, 'contact_batch_notifications']);
@@ -1027,12 +1054,18 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::post('/ai_correction_prepare', [OpenAiController::class, 'prepare']);
         Route::post('/non_stream_prompt', [OpenAiController::class, 'non_stream_prompt']);
         Route::get('/stream_prompt', [OpenAiController::class, 'stream_prompt']);
-        Route::post('/review_document', [OpenAiController::class, 'review_document']);
-        Route::post('/summarize_contract_comparison', [OpenAiController::class, 'summarize_contract_comparison']);
+        Route::post('/review_document', [OpenAiController::class, 'review_document'])->middleware('throttle:6,1');
+        Route::get('/review_document/status', [OpenAiController::class, 'review_document_status'])->middleware('throttle:60,1');
+        Route::post('/summarize_contract_comparison', [OpenAiController::class, 'summarize_contract_comparison'])->middleware('throttle:20,1');
         Route::get('/openai/models', [OpenAiController::class, 'models']);
         Route::post('/suggest_challenge', [OpenAiController::class, 'suggest_challenge']);
         Route::get('/lunch_challenge_popup', [OpenAiController::class, 'lunch_challenge_popup']);
         Route::post('/chatkit/session', [OpenAiController::class, 'session']);
+        Route::post('/support/ai-test/messages', [SupportAiChatController::class, 'send'])
+            ->middleware('throttle:20,1');
+        Route::post('/support/ai-test/messages/stream', [SupportAiChatController::class, 'stream'])
+            ->middleware('throttle:20,1');
+        Route::delete('/support/ai-test/conversations/{conversation}', [SupportAiChatController::class, 'destroy']);
 
         Route::get('/goal_issue_comment_badge', [ProjectController::class, 'goal_issue_comment_badge']);
         Route::post('/clear_goal_issue_badge', [ProjectController::class, 'clear_goal_issue_badge']);
@@ -1066,7 +1099,9 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::get('/incident_advice_stream', [IncidentController::class, 'streamIncidentAdvice']);
         Route::post('/incident_advice', [IncidentController::class, 'createIncidentAdvice']);
         Route::delete('/incident_advice', [IncidentController::class, 'deleteIncidentAdvice']);
+        Route::get('/incident_candidates', [IncidentController::class, 'getIncidentCandidates']);
         Route::post('/incident_candidate_decision', [IncidentController::class, 'decideIncidentCandidate']);
+        Route::post('/incident_candidates_read', [IncidentController::class, 'markIncidentCandidatesRead']);
         Route::post('/incident_record_create', [IncidentController::class, 'createIncidentRecord']);
         Route::post('/incident_record_update', [IncidentController::class, 'updateIncidentRecord']);
         Route::post('/incident_record_delete', [IncidentController::class, 'deleteIncidentRecord']);
@@ -1092,6 +1127,18 @@ Route::group(["middleware"=> ["auth", "session.expired", "community.active", "ap
         Route::get('/flow_app_record_by_number/{definition}/{number}', [FlowController::class, 'getAppRecordByNumber']);
         Route::get('/flow_reference_search/{definition}', [FlowController::class, 'referenceSearch']);
         Route::get('/flow_lookup_record/{definition}/{record}', [FlowController::class, 'lookupRecord']);
+        // reveal an encrypted password field's plaintext (permission-gated + audit-logged)
+        Route::post('/flow_secret_reveal', [FlowController::class, 'revealFlowSecret']);
+        // flow notifications (per-app bell badge + popup + prefs + comment read)
+        Route::get('/flow_pending_actions/{definition}', [FlowController::class, 'getFlowPendingActions']);
+        Route::get('/flow_notifications/{definition}', [FlowController::class, 'getFlowNotifications']);
+        Route::post('/flow_notification_pref', [FlowController::class, 'saveFlowNotificationPref']);
+        Route::post('/flow_notification_comments_read', [FlowController::class, 'markFlowCommentsRead']);
+        // system reference sources (built-in masters, e.g. offices) — mirror the app-reference endpoints
+        Route::get('/flow_system_sources', [FlowController::class, 'systemReferenceSources']);
+        Route::get('/flow_system_fields/{source}', [FlowController::class, 'systemReferenceFields']);
+        Route::get('/flow_system_reference/{source}', [FlowController::class, 'systemReferenceSearch']);
+        Route::get('/flow_system_record/{source}/{id}', [FlowController::class, 'systemReferenceRecord']);
         Route::get('/flow_definition_fields/{definition}', [FlowController::class, 'getDefinitionFields']);
         Route::post('/flow_generate_icon', [FlowController::class, 'generateAppIcon']);
         Route::post('/flow_app_record_create', [FlowController::class, 'storeAppRecord']);

@@ -24,9 +24,9 @@
                     <span class="source-chip auto">チャレンジ: 自動</span>
                 </div>
 
-                <button type="button" class="sync-button" :disabled="syncing || loading || saving" @click="syncKintone">
+                <!-- <button type="button" class="sync-button" :disabled="syncing || loading || saving" @click="syncKintone">
                     {{ syncing ? '同期中' : 'Kintone同期' }}
-                </button>
+                </button> -->
             </div>
         </section>
 
@@ -915,7 +915,6 @@ input, select, textarea {
 
 .metric-card {
     padding: 10px 12px;
-    border-radius: 8px;
     background: var(--background-color);
     display: flex;
     flex-direction: column;
@@ -930,7 +929,7 @@ input, select, textarea {
 .preview-card span,
 .check-box span {
     font-size: 11px;
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .metric-card strong,
@@ -950,7 +949,6 @@ input, select, textarea {
 .source-chip {
     height: 28px;
     padding: 0 8px;
-    border-radius: 4px;
     display: inline-flex;
     align-items: center;
     background: rgba(255, 255, 255, 0.05);
@@ -977,7 +975,6 @@ input, select, textarea {
 .sync-button {
     height: 30px;
     padding: 0 12px;
-    border-radius: 4px;
     border: 1px solid var(--formBorder);
     background: var(--background-color);
     color: var(--primary-color);
@@ -1003,7 +1000,6 @@ input, select, textarea {
 .queue-panel,
 .detail-panel {
     min-height: 0;
-    border-radius: 8px;
     background: var(--background-color);
 }
 
@@ -1054,7 +1050,7 @@ input, select, textarea {
 .grant-drawer-copy p {
     margin: 4px 0 0;
     font-size: 11px;
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .linked-grant-alert {
@@ -1066,7 +1062,6 @@ input, select, textarea {
 .mini-chip,
 .close-button {
     padding: 4px 8px;
-    border-radius: 4px;
     font-size: 11px;
     background: var(--bg3);
 }
@@ -1089,7 +1084,6 @@ input, select, textarea {
 .form-grid textarea {
     width: 100%;
     border: 1px solid var(--formBorder);
-    border-radius: 6px;
     background: var(--background-color);
     color: var(--primary-color);
     padding: 10px 12px;
@@ -1109,7 +1103,6 @@ input, select, textarea {
 .ledger-tab {
     height: 30px;
     padding: 0 10px;
-    border-radius: 4px;
     border: 1px solid var(--formBorder);
     background: var(--background-color);
     color: var(--primary-color);
@@ -1119,8 +1112,8 @@ input, select, textarea {
 
 .filter-pill.active,
 .ledger-tab.active {
-    background: #4b4b4b;
-    border-color: #4b4b4b;
+    background: var(--primary-button);
+    border-color: var(--primary-button);
     color: #fff;
 }
 
@@ -1138,19 +1131,17 @@ input, select, textarea {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text2);
+    color: var(--sub-color);
     font-size: 12px;
 }
 
 .queue-empty {
     min-height: 120px;
-    border-radius: 6px;
     background: var(--bg3);
 }
 
 .queue-item {
     padding: 10px;
-    border-radius: 6px;
     background: var(--bg3);
     color: var(--primary-color);
     display: flex;
@@ -1161,7 +1152,7 @@ input, select, textarea {
 }
 
 .queue-item.active {
-    box-shadow: inset 3px 0 0 #4b4b4b;
+    box-shadow: inset 3px 0 0 var(--primary-button);
     background: rgba(0, 0, 0, 0.03);
 }
 
@@ -1192,7 +1183,7 @@ input, select, textarea {
 .status-note {
     margin: 0;
     font-size: 11px;
-    color: var(--text2);
+    color: var(--sub-color);
     text-align: right;
 }
 
@@ -1200,7 +1191,6 @@ input, select, textarea {
     min-width: 88px;
     text-align: center;
     padding: 4px 8px;
-    border-radius: 4px;
     font-size: 11px;
     font-weight: 700;
 }
@@ -1223,9 +1213,8 @@ input, select, textarea {
 .add-grant-button {
     height: 36px;
     padding: 0 14px;
-    border-radius: 6px;
-    border: 1px solid #4b4b4b;
-    background: #4b4b4b;
+    border: 1px solid var(--primary-button);
+    background: var(--primary-button);
     color: #fff;
     cursor: pointer;
     font-size: 12px;
@@ -1246,7 +1235,6 @@ input, select, textarea {
 .summary-card,
 .check-box {
     padding: 10px 12px;
-    border-radius: 6px;
     background: var(--bg3);
     display: flex;
     flex-direction: column;
@@ -1264,14 +1252,12 @@ input, select, textarea {
 .ledger-panel {
     min-height: 0;
     padding: 10px;
-    border-radius: 8px;
     background: var(--bg3);
     overflow: auto;
 }
 
 .usage-review-panel {
     padding: 10px;
-    border-radius: 8px;
     background: var(--bg3);
 }
 
@@ -1288,7 +1274,6 @@ input, select, textarea {
     align-items: stretch;
     gap: 12px;
     padding: 10px;
-    border-radius: 6px;
     background: var(--background-color);
 }
 
@@ -1305,14 +1290,13 @@ input, select, textarea {
 .usage-review-copy p {
     margin: 4px 0 0;
     font-size: 13px;
-    color: var(--text2);
+    color: var(--sub-color);
     line-height: normal;
 }
 
 .usage-receipts-panel {
     min-width: 0;
     padding: 8px;
-    border-radius: 6px;
     background: var(--bg3);
 }
 
@@ -1322,7 +1306,7 @@ input, select, textarea {
     gap: 8px;
     margin-bottom: 6px;
     font-size: 11px;
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .usage-receipts-head strong {
@@ -1343,7 +1327,6 @@ input, select, textarea {
     aspect-ratio: 4 / 3;
     padding: 0;
     border: 0;
-    border-radius: 6px;
     background: var(--background-color);
     cursor: pointer;
     overflow: hidden;
@@ -1373,7 +1356,6 @@ input, select, textarea {
 .usage-review-actions input {
     width: 100%;
     border: 1px solid var(--formBorder);
-    border-radius: 6px;
     background: var(--background-color);
     color: var(--primary-color);
     padding: 8px 10px;
@@ -1383,9 +1365,8 @@ input, select, textarea {
     height: 36px;
     width: 100%;
     padding: 0 12px;
-    border-radius: 6px;
-    border: 1px solid #4b4b4b;
-    background: #4b4b4b;
+    border: 1px solid var(--primary-button);
+    background: var(--primary-button);
     color: #fff;
     font-size: 12px;
     cursor: pointer;
@@ -1426,7 +1407,6 @@ input, select, textarea {
     align-items: center;
     gap: 8px;
     padding: 8px 10px;
-    border-radius: 6px;
     background: var(--background-color);
 }
 
@@ -1438,7 +1418,6 @@ input, select, textarea {
 .decision-note {
     margin-top: 12px;
     padding: 12px;
-    border-radius: 6px;
     background: var(--background-color);
 }
 
@@ -1446,9 +1425,8 @@ input, select, textarea {
     width: 100%;
     height: 34px;
     margin-top: 10px;
-    border-radius: 6px;
-    border: 1px solid #4b4b4b;
-    background: #4b4b4b;
+    border: 1px solid var(--primary-button);
+    background: var(--primary-button);
     color: #fff;
     font-size: 12px;
     cursor: pointer;
@@ -1485,7 +1463,6 @@ input, select, textarea {
 
 .preview-card {
     padding: 14px;
-    border-radius: 6px;
     background: var(--bg3);
     color: var(--primary-color);
     display: flex;
@@ -1495,7 +1472,7 @@ input, select, textarea {
 
 .preview-card span,
 .preview-card p {
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .preview-card strong {
@@ -1522,7 +1499,6 @@ input, select, textarea {
 .grant-drawer {
     width: min(520px, 100%);
     height: 100%;
-    border-radius: 8px;
     background: var(--background-color);
     padding: 14px;
     display: flex;
@@ -1542,7 +1518,7 @@ input, select, textarea {
 .grant-drawer-copy p {
     margin: 4px 0 0;
     font-size: 11px;
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .drawer-actions {
@@ -1556,7 +1532,6 @@ input, select, textarea {
 .drawer-button {
     height: 36px;
     padding: 0 14px;
-    border-radius: 6px;
     border: 1px solid transparent;
     cursor: pointer;
     font-size: 12px;
@@ -1569,8 +1544,8 @@ input, select, textarea {
 }
 
 .drawer-button.primary {
-    background: #4b4b4b;
-    border-color: #4b4b4b;
+    background: var(--primary-button);
+    border-color: var(--primary-button);
     color: #fff;
 }
 
@@ -1583,7 +1558,6 @@ input, select, textarea {
 .ledger-table-wrap {
     margin-top: 10px;
     overflow: auto;
-    border-radius: 6px;
 }
 
 .ledger-table {
@@ -1604,14 +1578,14 @@ input, select, textarea {
 .ledger-table th {
     position: sticky;
     top: 0;
-    background: #4b4b4b;
+    background: var(--primary-button);
     color: #fff;
     z-index: 1;
 }
 
 .ledger-empty td {
     text-align: center;
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .row-kind {
@@ -1620,7 +1594,6 @@ input, select, textarea {
     justify-content: center;
     min-width: 56px;
     padding: 4px 8px;
-    border-radius: 4px;
     font-size: 11px;
     font-weight: 700;
 }
@@ -1642,7 +1615,7 @@ input, select, textarea {
 
 .row-kind.adjust {
     background: rgba(75, 75, 75, 0.08);
-    color: #4b4b4b;
+    color: var(--primary-color);
 }
 
 .amount-cell.plus {

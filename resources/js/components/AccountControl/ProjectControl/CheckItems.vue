@@ -26,7 +26,7 @@
                             <td class="px-3 py-2">{{ item.label }}</td>
                             <td class="px-3 py-2">{{ item.parent_id ? '子項目' : '親項目' }}</td>
                             <td class="px-3 py-2">
-                                <button class="text-xs px-2 py-1 border border-solid border-[var(--normalBorder)] mr-1" @click="openEdit(item)">編集</button>
+                                <button class="text-xs px-2 py-1 border border-solid border-[var(--normalBorder)] mr-1 text-[var(--primary-color)]" @click="openEdit(item)">編集</button>
                                 <button class="text-xs px-2 py-1 border border-solid border-[var(--normalBorder)] text-red-500" @click="deleteItem(item)">削除</button>
                             </td>
                         </tr>

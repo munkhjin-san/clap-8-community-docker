@@ -39,18 +39,18 @@
       >
         <option v-for="m in 12" :key="m" :value="m">{{ monthLabel(m) }}</option>
       </select> -->
-      <button class="text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition" @click="downloadTemplate">テンプレートDL</button>
+      <button class="text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition text-[var(--primary-color)]" @click="downloadTemplate">テンプレートDL</button>
       <label class="text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition cursor-pointer">
         アップロード
         <input type="file" class="hidden" accept=".xlsx,.xls" :disabled="isReadOnly" @change="uploadTemplate" />
       </label>
       <button
-        class="text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+        class="text-xs px-4 py-2 border text-[var(--primary-color)] border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
         :disabled="isReadOnly"
         @click="copyFirstMonthToAll"
       >1月を全月にコピー</button>
       <button
-        class="text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+        class="text-xs px-4 py-2 border text-[var(--primary-color)] border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
         :disabled="isReadOnly"
         @click="clearAll"
       >クリア</button>
@@ -73,17 +73,17 @@
       <div class="flex items-center gap-2 ml-auto">
         <button
           v-if="lockState.is_locked && auth.isAdmin"
-          class="ml-auto text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition"
+          class="ml-auto text-xs px-4 py-2 text-[var(--primary-color)] border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition"
           @click="unlockPlan"
         >確定解除</button>
         <button
           v-if="!lockState.is_locked && auth.can('finance.manage')"
-          class="text-xs px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+          class="text-xs px-4 py-2 text-[var(--primary-color)] border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           :disabled="isReadOnly"
           @click="confirmAndLock"
         >確定</button>
         <button
-          class="text-xs bg-[var(--bg3)] px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
+          class="text-xs bg-[var(--bg3)] text-[var(--primary-color)] px-4 py-2 border border-solid border-[var(--normalBorder)] hover:border-[var(--hoverBorder)] transition disabled:opacity-40 disabled:cursor-not-allowed"
           :disabled="isReadOnly"
           @click="save"
         >保存</button>

@@ -14,15 +14,25 @@ use Illuminate\Validation\ValidationException;
 
 class LessonExamController extends Controller
 {
+    // Resolve the exam scope: a material exam (lesson_material_id) or the legacy
+    // theme-level exam (lesson_theme_id with no material).
+    private function scopedExamQuery(Request $request)
+    {
+        $query = LessonExam::query();
+        if ($request->filled('lesson_material_id')) {
+            return $query->where('lesson_material_id', $request->lesson_material_id);
+        }
+        return $query->where('lesson_theme_id', $request->lesson_theme_id)->whereNull('lesson_material_id');
+    }
+
     public function get_exam(Request $request)
     {
         $request->validate([
             'lesson_theme_id' => 'required|exists:lesson_themes,id',
+            'lesson_material_id' => 'nullable|exists:lesson_materials,id',
         ]);
 
-        $exam = LessonExam::with(['questions.options'])
-            ->where('lesson_theme_id', $request->lesson_theme_id)
-            ->first();
+        $exam = $this->scopedExamQuery($request)->with(['questions.options'])->first();
 
         return response()->json([
         'exists' => (bool) $exam,
@@ -34,6 +44,7 @@ class LessonExamController extends Controller
     {
         $validated = $request->validate([
             'lesson_theme_id' => 'required|exists:lesson_themes,id',
+            'lesson_material_id' => 'nullable|exists:lesson_materials,id',
             'exam_id' => 'nullable|exists:lesson_exams,id',
             'title' => 'nullable|string|max:255',
             'description' => 'nullable|string',
@@ -67,6 +78,7 @@ class LessonExamController extends Controller
         $exam = DB::transaction(function () use ($validated, $userId) {
             $payload = [
                 'lesson_theme_id' => $validated['lesson_theme_id'],
+                'lesson_material_id' => $validated['lesson_material_id'] ?? null,
                 'title' => $validated['title'] ?? null,
                 'description' => $validated['description'] ?? null,
                 'passing_score' => $validated['passing_score'],
@@ -143,9 +155,10 @@ class LessonExamController extends Controller
     {
         $request->validate([
             'lesson_theme_id' => 'required|exists:lesson_themes,id',
+            'lesson_material_id' => 'nullable|exists:lesson_materials,id',
         ]);
 
-        $exam = LessonExam::where('lesson_theme_id', $request->lesson_theme_id)->first();
+        $exam = $this->scopedExamQuery($request)->first();
 
         if (!$exam) {
             return response()->json([
@@ -216,9 +229,10 @@ class LessonExamController extends Controller
     {
         $request->validate([
             'lesson_theme_id' => 'required|exists:lesson_themes,id',
+            'lesson_material_id' => 'nullable|exists:lesson_materials,id',
         ]);
 
-        $exam = LessonExam::where('lesson_theme_id', $request->lesson_theme_id)->first();
+        $exam = $this->scopedExamQuery($request)->first();
 
         if(!$exam){
             return response()->json([]);
@@ -236,12 +250,13 @@ class LessonExamController extends Controller
     {
         $validated = $request->validate([
             'lesson_theme_id' => 'required|exists:lesson_themes,id',
+            'lesson_material_id' => 'nullable|exists:lesson_materials,id',
             'answers' => 'required|array|min:1',
             'answers.*.question_id' => 'required|exists:lesson_exam_questions,id',
             'answers.*.option_id' => 'required|exists:lesson_exam_options,id',
         ]);
 
-        $exam = LessonExam::where('lesson_theme_id', $validated['lesson_theme_id'])
+        $exam = $this->scopedExamQuery($request)
             ->with(['questions.options'])
             ->firstOrFail();
 

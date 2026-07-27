@@ -12,6 +12,7 @@ use App\Jobs\RemoveFile;
 use App\Jobs\ResetCharge;
 use App\Jobs\SendReport;
 use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
@@ -102,6 +103,16 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->view('errors.invalid-signature', [], 403);
         });
 
+        // Not authenticated (401). JSON callers get a localized message; web requests
+        // fall through to the framework's redirect-to-login behaviour.
+        $exceptions->render(function (AuthenticationException $e, Request $request) {
+            if (! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json(['message' => __('errors.unauthenticated')], 401);
+        });
+
         // Missing record (404) and forbidden record (403) are collapsed into a single
         // 404 + message so callers cannot infer whether a record exists.
         // ModelNotFoundException is wrapped into a NotFoundHttpException, and an
@@ -134,6 +145,43 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return response()->json(['message' => $message], 404);
+        });
+
+        // Rate limited (429).
+        $exceptions->render(function (\Throwable $e, Request $request) {
+            if (! $request->expectsJson()) {
+                return null;
+            }
+
+            if (! ($e instanceof HttpExceptionInterface && $e->getStatusCode() === 429)) {
+                return null;
+            }
+
+            return response()->json(['message' => __('errors.too_many_requests')], 429);
+        });
+
+        // Fallback for server errors (5xx) on JSON requests. Registered last so the
+        // specific handlers above win first. Skipped when debug is on, so local/staging
+        // still surface the real error detail. Framework-special exceptions (validation,
+        // auth, explicit responses) are left to their own handling.
+        $exceptions->render(function (\Throwable $e, Request $request) {
+            if (! $request->expectsJson() || config('app.debug')) {
+                return null;
+            }
+
+            if ($e instanceof \Illuminate\Validation\ValidationException
+                || $e instanceof AuthenticationException
+                || $e instanceof \Illuminate\Http\Exceptions\HttpResponseException) {
+                return null;
+            }
+
+            $status = $e instanceof HttpExceptionInterface ? $e->getStatusCode() : 500;
+
+            if ($status < 500 || $status === 503) {
+                return null;
+            }
+
+            return response()->json(['message' => __('errors.server_error')], $status);
         });
     })
     ->withSchedule(function (Schedule $schedule) {

@@ -97,6 +97,13 @@
         </div>
         <p v-if="v.disabled && !isLayout && field.input_type !== 'formula'" class="def-hint">フォームに表示されますが入力できません。ルックアップの自動入力は反映されます。</p>
 
+        <template v-if="field.input_type === 'password'">
+            <div class="divider"></div>
+            <div class="sec">暗号化について</div>
+            <p class="def-hint">値は暗号化して保存され、一覧・CSV出力・検索・PDF・計算式には表示されません。表示するには「表示」ボタンを押す必要があり、操作は監査ログに記録されます。</p>
+            <p class="def-hint">アクセス権を設定していない間は<strong>アプリの管理権限を持つ人だけ</strong>が表示できます。「アクセス権」タブでこの項目の閲覧を設定すると、<strong>そこで許可した人だけ</strong>が表示できるようになります（管理者も一覧に含める必要があります）。</p>
+        </template>
+
         <template v-if="field.input_type === 'spacer' || field.input_type === 'divider'">
             <div class="irow">
                 <label>幅</label>
@@ -329,18 +336,18 @@
 
         <template v-if="field.input_type === 'reference'">
             <div class="divider"></div>
-            <div class="sec">参照先アプリ</div>
+            <div class="sec">参照先</div>
             <div class="irow">
-                <label>アプリ</label>
+                <label>参照先</label>
                 <FlowSearchSelect
                     class="flex-1"
-                    :model-value="v.target_definition_id ?? null"
+                    :model-value="refSelectValue"
                     :options="refAppOptions"
-                    placeholder="アプリを選択"
+                    placeholder="アプリ / システムを選択"
                     @update:model-value="onRefAppChange"
                 />
             </div>
-            <div class="irow" v-if="v.target_definition_id">
+            <div class="irow" v-if="hasRefTarget">
                 <label>表示する項目</label>
                 <FlowSearchSelect
                     class="flex-1"
@@ -351,9 +358,9 @@
                     @update:model-value="(val) => v.label_field = val ? String(val) : null"
                 />
             </div>
-            <p v-if="v.target_definition_id" class="def-hint">レコードを選ぶと、そのレコードの「{{ refLabelName }}」が表示されます。</p>
+            <p v-if="hasRefTarget" class="def-hint">レコードを選ぶと、そのレコードの「{{ refLabelName }}」が表示されます。</p>
 
-            <template v-if="v.target_definition_id && refTargetFields.length">
+            <template v-if="hasRefTarget && refTargetFields.length">
                 <div class="divider"></div>
                 <div class="sec">フィールドのコピー（自動入力）</div>
                 <div v-for="(m, mi) in (v.field_mappings || [])" :key="mi" class="map-row">
@@ -386,7 +393,7 @@
 <script setup lang="ts">
 import 'styles/flow-shared.css'
 import { computed, ref, watch } from 'vue'
-import { FLOW_TYPE_LABEL, FLOW_FILE_ACCEPT, FLOW_FIELD_TYPES, isLayoutType } from '@/types/flow'
+import { FLOW_TYPE_LABEL, FLOW_FILE_ACCEPT, FLOW_FIELD_TYPES, isLayoutType, isSecretType } from '@/types/flow'
 import type { FlowField, FlowFieldValidation, TableColumn, FlowAppTool } from '@/types/flow'
 import { referencingFormulas, referencedDeleteMessage, renameFieldRefEverywhere, renameColumnRefInTable, pdfToolsReferencingColumn } from '@/utils/flowFormulaRefs'
 import { useApi } from '@/composables/api'
@@ -419,19 +426,35 @@ const commitColumnRename = (col: TableColumn) => {
     if (from && from !== col.label) renameColumnRefInTable(props.field, from, col.label)
 }
 
-/* ---- reference field: target app + label field ---- */
+/* ---- reference field: target app / system source + label field ---- */
 const refApps = ref<{ id: number; name: string }[]>([])
+// built-in system sources (e.g. offices) selectable as a reference target alongside Flow apps
+const refSystemSources = ref<{ key: string; label: string }[]>([])
 const refTargetFields = ref<{ key: string; label: string; input_type: string; result_type?: string | null }[]>([])
-const REF_LABEL_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'reference', 'file']
+const REF_LABEL_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'reference', 'file', 'password']
+// a reference targets either a Flow app (target_definition_id) or a system source (target_source)
+const hasRefTarget = computed(() => v.value.target_definition_id != null || !!v.value.target_source)
 const loadRefApps = async () => {
-    if (refApps.value.length) return
-    const data = await api.get('/flow_definitions')
-    refApps.value = (data ?? []).map((d: any) => ({ id: d.id, name: d.name }))
+    if (!refApps.value.length) {
+        const data = await api.get('/flow_definitions')
+        refApps.value = (data ?? []).map((d: any) => ({ id: d.id, name: d.name }))
+    }
+    if (!refSystemSources.value.length) {
+        const sys = await api.get('/flow_system_sources')
+        refSystemSources.value = sys?.sources ?? []
+    }
 }
-const loadRefFields = async (id: number | null | undefined) => {
+// load the target's fields for the label + field-copy pickers (system source or Flow app).
+// Reads props.field.validation (not `v`, which is declared below and would be in the TDZ when the
+// immediate watch invokes this during setup).
+const loadRefFields = async () => {
     refTargetFields.value = []
-    if (!id) return
-    const data = await api.get(`/flow_definition_fields/${id}`)
+    const val = (props.field?.validation ?? {}) as FlowFieldValidation
+    const url = val.target_source
+        ? `/flow_system_fields/${val.target_source}`
+        : (val.target_definition_id ? `/flow_definition_fields/${val.target_definition_id}` : null)
+    if (!url) return
+    const data = await api.get(url)
     refTargetFields.value = (data?.fields ?? []).filter((f: any) => !REF_LABEL_SKIP.includes(f.input_type))
 }
 
@@ -457,7 +480,7 @@ const hasRules = computed(() => RULE_TYPES.includes(props.field.input_type))
 
 // Other formula fields ARE referenceable (chains compute multi-pass server-side) — only self and layout parts are excluded.
 const referenceableFields = computed(() =>
-    (props.fields ?? []).filter((f) => f.key !== props.field.key && !isLayoutType(f.input_type))
+    (props.fields ?? []).filter((f) => f.key !== props.field.key && !isLayoutType(f.input_type) && !isSecretType(f.input_type))
 )
 
 watch(() => props.field, (f) => {
@@ -468,7 +491,7 @@ watch(() => props.field, (f) => {
     if (f.input_type === 'formula' && !f.result_type) f.result_type = 'number'
     if (f.input_type === 'reference') {
         loadRefApps()
-        loadRefFields(f.validation.target_definition_id ?? null)
+        loadRefFields()
         if (!Array.isArray(f.validation.field_mappings)) f.validation.field_mappings = []
     }
     if (f.input_type === 'table') {
@@ -493,15 +516,28 @@ const setDisabled = (val: boolean) => {
 
 const onRefTargetChange = () => {
     v.value.label_field = null
-    v.value.field_mappings = [] // previous mappings referenced the old app's fields
-    loadRefFields(v.value.target_definition_id ?? null)
+    v.value.field_mappings = [] // previous mappings referenced the old target's fields
+    loadRefFields()
 }
+// selector carries apps as their numeric id and system sources as 'sys:<key>'
 const onRefAppChange = (val: string | number | null) => {
-    v.value.target_definition_id = val === null || val === '' ? null : Number(val)
+    const s = val === null || val === '' ? '' : String(val)
+    if (s.startsWith('sys:')) {
+        v.value.target_source = s.slice(4)
+        v.value.target_definition_id = null
+    } else {
+        v.value.target_definition_id = s === '' ? null : Number(s)
+        v.value.target_source = null
+    }
     onRefTargetChange()
 }
-// option lists for the searchable selectors (app / label field / mapping fields)
-const refAppOptions = computed(() => refApps.value.map((a) => ({ value: a.id, label: a.name })))
+// option lists for the searchable selectors (app / system source / label field / mapping fields)
+const refSelectValue = computed(() => (v.value.target_source ? `sys:${v.value.target_source}` : (v.value.target_definition_id ?? null)))
+// normal apps first, then a divider, then system sources (grouped so FlowSearchSelect draws the line)
+const refAppOptions = computed(() => [
+    ...refApps.value.map((a) => ({ value: a.id as number | string, label: a.name, group: 'app' })),
+    ...refSystemSources.value.map((s) => ({ value: `sys:${s.key}`, label: `${s.label}（システム）`, group: 'system' })),
+])
 const refFieldOptions = computed(() => refTargetFields.value.map((f) => ({ value: f.key, label: f.label })))
 const labelFieldOptions = computed(() => [{ value: '', label: 'レコード番号' }, ...refFieldOptions.value])
 const destOptionsFor = (fromKey: string) => destFieldsFor(fromKey).map((f) => ({ value: f.key, label: f.label }))
@@ -513,7 +549,7 @@ const refLabelName = computed(() => {
 
 // Destination fields for lookup field-copy: writable fields in THIS app (exclude self, layout,
 // formula (computed), and container/reference/file types that can't take a copied scalar/value).
-const MAP_DEST_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'file', 'formula', 'reference']
+const MAP_DEST_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'file', 'formula', 'reference', 'password']
 const mappingDestFields = computed(() =>
     (props.fields ?? []).filter((f) => f.key !== props.field.key && !MAP_DEST_SKIP.includes(f.input_type))
 )

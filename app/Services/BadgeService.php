@@ -17,6 +17,8 @@ use App\Models\customFieldDataRecord;
 use App\Models\CustomfieldRead;
 use App\Models\ProjectRecordReadState;
 use App\Models\ProjectKintoneContractUpdateNotification;
+use App\Models\FlowDefinition;
+use App\Models\FlowNotification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -449,6 +451,38 @@ final class BadgeService
             ->where('user_id', $user->id)
             ->whereNull('read_at')
             ->count();
+    }
+
+    /**
+     * アプリ (Flow) attention counter for the side menu: unread notification events plus records
+     * waiting on this user's action, summed across every app they can see. Rides badge_summary so
+     * the number exists from first paint without loading the app list (and without extra requests).
+     *
+     * `pending` needs per-app evaluation in PHP (eligibility can be role/field-based), so it is the
+     * expensive half — apps with no explicit-subject actions skip the record scan, and the whole
+     * summary sits behind badge_summary's 60s cache. Measured ~10 queries / 14ms for 8 apps.
+     */
+    public function flow(User $user): array
+    {
+        $unread = FlowNotification::query()
+            ->where('user_id', $user->id)
+            ->whereNull('read_at')
+            ->count();
+
+        $flowService = app(FlowService::class);
+        $pending = FlowDefinition::query()
+            ->where('is_active', true)
+            ->where('use_status_flow', true)
+            ->with(['appPermissions', 'statuses', 'statusActions', 'recordPermissionSets'])
+            ->get()
+            ->filter(fn ($def) => $flowService->effectiveAppPermissions($user, $def)['view'])
+            ->sum(fn ($def) => $flowService->pendingActionRecords($user, $def)->count());
+
+        return [
+            'unread' => $unread,
+            'pending' => $pending,
+            'total' => $unread + $pending,
+        ];
     }
     public function todayReadable(User $user) {
         $now = Carbon::now()->format('Y-m-d');

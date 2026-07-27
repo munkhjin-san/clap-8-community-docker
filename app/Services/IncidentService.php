@@ -8,12 +8,14 @@ use App\Models\IncidentCategory;
 use App\Models\IncidentPunishment;
 use App\Models\IncidentReport;
 use App\Models\IncidentStatus;
+use App\Models\IncidentCandidate;
 use App\Models\FileRecord;
 use App\Models\ProjectRecord;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\Collection;
 
 class IncidentService
 {
@@ -745,5 +747,79 @@ class IncidentService
         }
 
         return Carbon::parse($value)->format('Y-m-d H:i');
+    }
+
+    public function pendingCandidates(?int $readUserId = null) : Collection
+    {
+        return IncidentCandidate::query()
+            ->where('status', IncidentCandidate::STATUS_PENDING)
+            ->with(['subject', 'project.manager'])
+            ->orderByDesc('created_at')
+            ->get();
+    }
+    public function dismissedCandidates(?int $readUserId = null) : Collection
+    {
+        return IncidentCandidate::query()
+            ->where('status', IncidentCandidate::STATUS_DISMISSED)
+            ->when($readUserId !== null, function ($query) use ($readUserId) {
+                $query->whereDoesntHave('readHistories', function ($query) use ($readUserId) {
+                    $query->where('user_id', $readUserId);
+                });
+            })
+            ->with(['subject', 'project', 'decidedByUser'])
+            ->orderByDesc('decided_at')
+            ->get();
+    }
+
+    /**
+     * Paginated + searchable candidate list for the fullscreen incident view.
+     * `dismissed` is the full history (no read filter); `pending` clears out as
+     * candidates get handled.
+     */
+    public function paginateCandidates(array $params)
+    {
+        $status = $params['status'];
+        $perPage = (int) ($params['per_page'] ?? 50);
+        $dateColumn = $status === IncidentCandidate::STATUS_DISMISSED ? 'decided_at' : 'created_at';
+
+        $query = IncidentCandidate::query()
+            ->where('status', $status)
+            ->with([
+                'subject',
+                'project.manager',
+                'decidedByUser',
+                'logs' => fn ($logQuery) => $logQuery->with('user')->orderBy('created_at'),
+            ]);
+
+        if (!empty($params['source_type'])) {
+            $query->whereIn('source_type', (array) $params['source_type']);
+        }
+        if (!empty($params['project_record_id'])) {
+            $query->whereIn('project_record_id', (array) $params['project_record_id']);
+        }
+        if (!empty($params['subject_user_id'])) {
+            $query->whereIn('subject_user_id', (array) $params['subject_user_id']);
+        }
+        if (!empty($params['decided_by'])) {
+            $query->whereIn('decided_by', (array) $params['decided_by']);
+        }
+        if (!empty($params['from'])) {
+            $query->whereDate($dateColumn, '>=', $params['from']);
+        }
+        if (!empty($params['to'])) {
+            $query->whereDate($dateColumn, '<=', $params['to']);
+        }
+        if (!empty($params['keyword'])) {
+            $keyword = $params['keyword'];
+            $query->where(function ($outer) use ($keyword, $status) {
+                $outer->whereHas('subject', fn ($q) => $q->where('name', 'like', "%{$keyword}%"))
+                    ->orWhereHas('project', fn ($q) => $q->where('name', 'like', "%{$keyword}%"));
+                if ($status === IncidentCandidate::STATUS_DISMISSED) {
+                    $outer->orWhere('decision_reason', 'like', "%{$keyword}%");
+                }
+            });
+        }
+
+        return $query->orderByDesc($dateColumn)->paginate($perPage);
     }
 }

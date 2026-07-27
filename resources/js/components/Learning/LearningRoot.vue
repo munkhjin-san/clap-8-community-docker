@@ -185,7 +185,7 @@ provide('providedMaterial', themeRecords)
     height: 100%;
     width: 100%;
     z-index: 8;
-    background: var(--background-color);
+    background: var(--bg3);
     color:var(--primary-color);
 }
 
@@ -193,13 +193,32 @@ provide('providedMaterial', themeRecords)
     color: gray;
 }
 
+/* The shared .post-search-wrap is 30% wide (for the Board search box); the learning
+   category bar should use the full header width instead of clipping early. */
+.learning .post-search-wrap{
+    width: auto;
+    flex: 1;
+    min-width: 0;
+    margin-right: 20px;
+}
+
 .learning__categories{
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.learning__categories::-webkit-scrollbar{
+    height: 0;
+    width: 0;
 }
 
 .learning__category{
+    flex: 0 0 auto;
+    white-space: nowrap;
     background: var(--background-color);
     color: var(--primary-color);
     cursor: pointer;
@@ -336,10 +355,6 @@ provide('providedMaterial', themeRecords)
     flex-direction: column;
     gap: 30px;
 }
-.section-inner{
-    background: var(--background-color);
-    padding: 20px;
-}
 .section-wrapper p:empty::after {
     content: "\00A0";
 }
@@ -355,9 +370,6 @@ provide('providedMaterial', themeRecords)
     display: flex;
 }
 @media screen and (max-width: 959px) {
-    .section-inner{
-        padding: 20px;
-    }
     .lesson-breadcumb{
         font-size: 14px;
         /* max-width: 190px; */

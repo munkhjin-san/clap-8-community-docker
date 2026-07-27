@@ -1,5 +1,5 @@
 import {
-    isLayoutType, isSystemColumn,
+    isLayoutType, isSecretType, isSystemColumn,
     FLOW_SYS_RECORD_NUMBER, FLOW_SYS_STATUS, FLOW_SYS_CREATED_AT, FLOW_SYS_UPDATED_AT,
 } from '@/types/flow'
 import type {
@@ -25,7 +25,7 @@ const SYS_LABEL: Record<string, string> = {
 export const allColumnRefs = (fields: FlowField[], hasStatus = false): (number | string)[] => [
     FLOW_SYS_RECORD_NUMBER,
     ...(hasStatus ? [FLOW_SYS_STATUS] : []),
-    ...fields.filter((f) => !isLayoutType(f.input_type)).map((f) => f.id!),
+    ...fields.filter((f) => !isLayoutType(f.input_type) && !isSecretType(f.input_type)).map((f) => f.id!),
     FLOW_SYS_CREATED_AT,
     FLOW_SYS_UPDATED_AT,
 ]
@@ -42,7 +42,7 @@ export const resolveColumns = (view: FlowViewApi | null | undefined, fields: Flo
             if (label) out.push({ key: ref, system: true, label, ref })
         } else {
             const f = byId.get(Number(ref))
-            if (f && !isLayoutType(f.input_type)) out.push({ key: 'f' + f.id, system: false, label: f.label, field: f, ref: f.id! })
+            if (f && !isLayoutType(f.input_type) && !isSecretType(f.input_type)) out.push({ key: 'f' + f.id, system: false, label: f.label, field: f, ref: f.id! })
         }
     }
     return out

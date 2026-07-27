@@ -44,13 +44,13 @@
                 <strong>読込中</strong>
             </div>
 
-            <div v-else-if="!filteredPosts.length" class="empty-state">
+            <div v-else-if="!posts.data.length" class="empty-state">
                 <strong>該当データなし</strong>
             </div>
 
             <div v-else class="application-list">
                 <article
-                    v-for="post in filteredPosts"
+                    v-for="post in posts.data"
                     :key="post.id"
                     class="application-card"
                     :class="{ pending: post.status_flag === 0 }"
@@ -256,26 +256,12 @@ const approvalAmountLabel = (post: RefreshApplicationPost) => {
     return `承認利用 ${formatCurrency(post.approved_refresh_amount)}`;
 };
 
-const filteredPosts = computed(() => {
-    if (!searchWord.value) return posts.value.data;
-    const keyword = searchWord.value.toLowerCase();
-
-    return posts.value.data.filter((post) => {
-        return [
-            post.user.name,
-            post.title,
-            post.content,
-            post.refresh_amount,
-        ].some((value) => String(value ?? '').toLowerCase().includes(keyword));
-    });
-});
-
 const visiblePendingCount = computed(() => {
-    return filteredPosts.value.filter((post) => post.status_flag === 0).length;
+    return posts.value.data.filter((post) => post.status_flag === 0).length;
 });
 
 const visibleAmount = computed(() => {
-    return filteredPosts.value.reduce((sum, post) => {
+    return posts.value.data.reduce((sum, post) => {
         return sum + numericAmount(post.refresh_amount);
     }, 0);
 });
@@ -300,9 +286,11 @@ const getRefreshPosts = async (page = 1) => {
         {
             status,
             page,
+            search: searchWord.value || undefined,
         },
         {
             loadingRef: loading,
+            cancel: true,
         },
     );
 
@@ -344,6 +332,12 @@ watch(selectedStatus, () => {
     getRefreshPosts();
 });
 
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+watch(searchWord, () => {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => getRefreshPosts(1), 300);
+});
+
 onMounted(() => {
     getRefreshPosts();
 });
@@ -363,7 +357,6 @@ input {
 }
 
 .overview-panel {
-    border-radius: 8px;
     background: var(--background-color);
     padding: 10px 12px;
 }
@@ -376,7 +369,6 @@ input {
 
 .metric-card {
     padding: 10px 12px;
-    border-radius: 6px;
     background: var(--bg3);
     display: flex;
     flex-direction: column;
@@ -385,7 +377,7 @@ input {
 
 .metric-card span {
     font-size: 11px;
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .metric-card strong {
@@ -399,7 +391,6 @@ input {
     gap: 8px;
     align-items: center;
     padding: 10px 12px;
-    border-radius: 8px;
     background: var(--background-color);
 }
 
@@ -410,7 +401,6 @@ input {
 .search-box input {
     width: 100%;
     height: 36px;
-    border-radius: 6px;
     border: 1px solid var(--formBorder);
     background: var(--background-color);
     color: var(--primary-color);
@@ -426,7 +416,6 @@ input {
 .status-pill {
     height: 32px;
     padding: 0 12px;
-    border-radius: 4px;
     border: 1px solid var(--formBorder);
     background: var(--background-color);
     color: var(--primary-color);
@@ -435,8 +424,8 @@ input {
 }
 
 .status-pill.active {
-    background: #4b4b4b;
-    border-color: #4b4b4b;
+    background: var(--primary-button);
+    border-color: var(--primary-button);
     color: #fff;
 }
 
@@ -455,7 +444,6 @@ input {
 
 .application-card {
     background: var(--background-color);
-    border-radius: 8px;
     padding: 12px;
     display: flex;
     flex-direction: column;
@@ -463,7 +451,7 @@ input {
 }
 
 .application-card.pending {
-    box-shadow: inset 3px 0 0 #4b4b4b;
+    box-shadow: inset 3px 0 0 var(--primary-button);
 }
 
 .card-top,
@@ -488,7 +476,7 @@ input {
 
 .meta-row {
     margin: 4px 0 0;
-    color: var(--text2);
+    color: var(--sub-color);
     font-size: 11px;
 }
 
@@ -511,14 +499,13 @@ input {
 .approval-note {
     margin: 0;
     font-size: 11px;
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .status-badge {
     min-width: 78px;
     text-align: center;
     padding: 4px 8px;
-    border-radius: 4px;
     font-size: 11px;
     font-weight: 700;
 }
@@ -550,7 +537,7 @@ input {
 
 .content-preview {
     margin: 0;
-    color: var(--text2);
+    color: var(--sub-color);
     font-size: 13px;
     line-height: 1.6;
 }
@@ -564,7 +551,6 @@ input {
 
 .info-box {
     padding: 9px 10px;
-    border-radius: 6px;
     background: var(--bg3);
     display: flex;
     flex-direction: column;
@@ -574,7 +560,7 @@ input {
 
 .info-box span {
     font-size: 11px;
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .info-box strong {
@@ -597,7 +583,6 @@ input {
 .primary-button,
 .danger-button {
     height: 34px;
-    border-radius: 6px;
     padding: 0 12px;
     border: 1px solid transparent;
     cursor: pointer;
@@ -611,8 +596,8 @@ input {
 }
 
 .primary-button {
-    background: #4b4b4b;
-    border-color: #4b4b4b;
+    background: var(--primary-button);
+    border-color: var(--primary-button);
     color: #fff;
 }
 
@@ -646,7 +631,7 @@ input {
 .detail-label {
     margin: 0 0 8px;
     font-size: 11px;
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .detail-text {
@@ -657,7 +642,7 @@ input {
 
 .attachment-empty {
     margin: 0;
-    color: var(--text2);
+    color: var(--sub-color);
     font-size: 12px;
 }
 
@@ -666,10 +651,9 @@ input {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
     background: var(--background-color);
     border: 1px dashed var(--formBorder);
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .pager {

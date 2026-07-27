@@ -2,7 +2,9 @@
 
 namespace App\Services\Learning;
 
+use App\Models\LessonExam;
 use App\Models\LessonMaterial;
+use App\Models\LessonMaterialVersion;
 use App\Models\LessonPortfolio;
 
 class LearningParticipantProgressService
@@ -59,6 +61,61 @@ class LearningParticipantProgressService
         unset($row);
 
         return $rows;
+    }
+
+    /**
+     * Per-section (per-material) exam summary for a portfolio theme.
+     *
+     * Material exams live on individual sections, and attempts are keyed by
+     * (exam, user) — not by portfolio attempt — so results are summarised once
+     * per user. Returns the master list of the default version's section exams
+     * plus a per-user results map (user_id => material_id => summary).
+     */
+    public function portfolioSectionExams(int $themeId): array
+    {
+        $defaultVersionId = LessonMaterialVersion::where('lesson_theme_id', $themeId)
+            ->where('is_default', true)
+            ->value('id');
+
+        $exams = LessonExam::whereNotNull('lesson_material_id')
+            ->whereHas('material', function ($q) use ($themeId, $defaultVersionId) {
+                $q->where('lesson_theme_id', $themeId);
+                if ($defaultVersionId) {
+                    $q->where('lesson_material_version_id', $defaultVersionId);
+                }
+            })
+            ->with(['material:id,title', 'attempts'])
+            ->orderBy('id')
+            ->get();
+
+        $sectionExams = [];
+        $results = [];
+
+        foreach ($exams as $exam) {
+            $materialId = (int) $exam->lesson_material_id;
+
+            $sectionExams[] = [
+                'material_id' => $materialId,
+                'title' => $exam->material?->title,
+                'passing_score' => (int) $exam->passing_score,
+                'max_attempts' => (int) $exam->max_attempts,
+            ];
+
+            foreach ($exam->attempts->groupBy('user_id') as $userId => $attempts) {
+                $latest = $attempts->sortByDesc('attempt_number')->first();
+                $results[(int) $userId][$materialId] = [
+                    'attempt_count' => $attempts->count(),
+                    'latest_score' => $latest?->score,
+                    'latest_status' => $latest?->status,
+                    'passed' => $attempts->contains(fn ($attempt) => $attempt->status === 'passed'),
+                ];
+            }
+        }
+
+        return [
+            'section_exams' => $sectionExams,
+            'results' => $results,
+        ];
     }
 
     public function portfolioRows(int $themeId)

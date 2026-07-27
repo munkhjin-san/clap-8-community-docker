@@ -7,6 +7,7 @@ use App\Models\FlowRecord;
 use App\Models\Incident;
 use App\Models\messageFile;
 use App\Models\User;
+use App\Services\FlowNotificationService;
 use App\Services\FlowService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -57,6 +58,16 @@ class AppCommentController extends Controller
 
         foreach ($validated['attached_temp_files'] ?? [] as $item) {
             $this->attachTempFile($comment, (int) $item['id']);
+        }
+
+        // flow badge event: record creator + past commenters hear about the new comment.
+        // Best-effort: a failure here must not 500 the already-saved comment.
+        if ($commentable instanceof FlowRecord) {
+            try {
+                app(FlowNotificationService::class)->notifyComment($commentable, $activeUser, $comment);
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         return $comment->load(['user', 'files']);

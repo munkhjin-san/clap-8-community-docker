@@ -8,7 +8,7 @@
                     <span v-if="record.created_at" class="text-[12px] text-[gray] ml-auto">{{ DateParser(record.created_at) }}</span>
                 </div>
                 <div class="text-[16px] my-4"><span class="w-2 h-2 inline-block bg-[tomato] rounded-full mr-2" v-if="!isRead && mustCheck"></span>{{ record.title }}</div>
-                <p v-if="record.summary" :class="{'line-clamp-2': !expanded}" class="whitespace-break-spaces leading-[1.7]">{{ record.summary }}</p>
+                <p v-if="record.summary" :class="{'line-clamp-2': !expanded}" class="whitespace-break-spaces leading-[1.7]" v-html="urlCheck(record.summary)"></p>
             </div>
             <div class="flex shrink-0 items-start gap-2">
                 <ItemMenu
@@ -49,7 +49,7 @@ import ItemMenu from '@/components/Global/ItemMenu.vue';
 import { SystemUpdateRecord } from '@/interface/supportInterface';
 import { categoryOptions, labelFromOptions, statusOptions } from './options';
 import SystemUpdateDetailItem from './SystemUpdateDetailItem.vue';
-import { DateParser } from '@/utils/tools';
+import { DateParser, urlCheck } from '@/utils/tools';
 import { useAuthUserStore } from '@/store/auth';
 import { useDialog } from '@/composables/dialog';
 import { useApi } from '@/composables/api';

@@ -11,6 +11,7 @@ class LessonExam extends Model
 
     protected $fillable = [
         'lesson_theme_id',
+        'lesson_material_id',
         'title',
         'description',
         'passing_score',
@@ -22,6 +23,11 @@ class LessonExam extends Model
     public function theme()
     {
         return $this->belongsTo(LessonTheme::class, 'lesson_theme_id');
+    }
+
+    public function material()
+    {
+        return $this->belongsTo(LessonMaterial::class, 'lesson_material_id');
     }
 
     public function questions()

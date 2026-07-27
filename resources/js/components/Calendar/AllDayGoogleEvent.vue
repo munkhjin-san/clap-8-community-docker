@@ -41,8 +41,8 @@ import { GoogleEventItem, NormalHourDay } from '@/interface/calendarInterface';
     const expanded = computed(() => {
         return menu.parent == unique.value
     })
+    const u = Math.floor(100000 + Math.random() * 900000).toString()
     const unique = computed(() => {
-        const u = Math.floor(100000 + Math.random() * 900000).toString()
         const r = props.record.id.toString()
         const d = props.day.full.replace(/-/g, '')
         return `cal_${r}_${d}_${u}`

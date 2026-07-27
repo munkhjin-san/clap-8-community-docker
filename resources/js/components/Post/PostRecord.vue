@@ -22,9 +22,13 @@
                             <Back class="rotate-[270deg]" size="10" />
                         </span>
                     </div>
-                    <div v-if="record.app_type == 7"
+                    <div v-if="nominateChargable"
                         class="whitespace-nowrap text-[12px] pl-4 pr-3 py-1 rounded-full bg-[var(--bg3)] mr-2">
                         {{ status }}
+                    </div>
+                    <div v-if="readableText" title="読み上げる"
+                        class="h-[25px] flex justify-center relative min-w-[25px] mr-2">
+                        <TTSPlayer :text="readableText" :key="`tts_post_${record.id}`" color="var(--kebab-icon)" />
                     </div>
                     <ItemMenu v-if="isOwner || auth.id === 516" :items="postMenu" />
                 </div>
@@ -96,10 +100,7 @@
                     <div class="flex items-center text-sm gap-2 whitespace-nowrap">
                         <PostDate :record="record" which="period" />
                     </div>
-                    <div v-if="record.app_type == 2 && record.status_flag == 0">
-                        <span class="text-sm inline-block mx-1">残り: {{ challengeProgressMeta?.leftdays }}日</span>
-                    </div>
-                    <!-- <div v-if="record.app_type == 2 && challengeProgressMeta"
+                    <div v-if="record.app_type == 2 && challengeProgressMeta"
                         class="w-full min-w-[160px] max-w-[160px] post-progress-block">
                         <div class="h-[13px] overflow-hidden border-[softgray] bg-[var(--bg3)] relative rounded-full">
                             <div class="h-full bg-[var(--check-inactive)] transition-[width] duration-500 ease-out"
@@ -107,7 +108,7 @@
                             <div class="absolute inset-0 flex items-center justify-center text-[10px]">{{
                                 challengeProgressMeta.progress }}%</div>
                         </div>
-                    </div> -->
+                    </div>
 
                     <span v-once v-if="badge.post.last_chargeable_ids.some(id => id === record.id)"
                         class="text-sm text-[tomato] inline-block mx-1">チャージする最終日</span>
@@ -199,7 +200,7 @@
                         </button>
                     </div> -->
                 </div>
-                <div v-if="(record.app_type == 2 && record.status_flag == 0) || (record.app_type == 7)"
+                <div v-if="(record.app_type == 2 && record.status_flag == 0) || nominateChargable"
                     class="text-[12px] flex-wrap justify-center flex w-fit mx-auto text-[gray] items-center gap-2 whitespace-nowrap">
                     <p>チャージ受付期間：</p>
                     <PostDate :record="record" class="!m-0" which="charge_period" />
@@ -214,7 +215,7 @@
                     <button id="glowlympicButton" class="chargeFormeAddButton cursor-pointer">参加期間は終了しました</button>
                 </div>
             </div>
-            <div class="post-footer mb-1 text-sm justify-end" v-if="record.app_type == 2 || record.app_type == 7">
+            <div class="post-footer mb-1 text-sm justify-end" v-if="record.app_type == 2 || nominateChargable">
                 <div>現在のチャージ総額 {{ totalChargeAmmount }}円</div>
             </div>
             <div class="post-footer">
@@ -341,6 +342,7 @@
 </template>
 <script setup lang="ts">
 import UserPanel from '@/components/Global/UserPanel.vue'
+import TTSPlayer from '@/components/Global/TTSPlayer.vue'
 import PostDate from './PostDate.vue'
 import PostTag from './PostTag.vue';
 import ClapButton from './ClapButton.vue';
@@ -587,8 +589,48 @@ const challengeProgressMeta = computed(() => {
     if (props.record.app_type !== 2) {
         return null
     }
-    const left = DateTime.fromISO(props.record.date_end).diffNow('days').days
-    return { leftdays: left ? Math.ceil(left) : 0 }
+    if (props.record.status_flag == 2 || props.record.status_flag == 3 || props.record.status_flag == 4) {
+        return {
+            progress: 0,
+            label: status.value
+        }
+    }
+    const start = DateTime.fromISO(props.record.date_start).set({ hour: 0, minute: 0, second: 0, millisecond: 0 })
+    const end = DateTime.fromISO(props.record.date_end).set({ hour: 23, minute: 59, second: 59, millisecond: 999 })
+    const now = DateTime.now()
+
+    const isBetween = now >= start && now <= end
+    if (!isBetween) {
+        return null
+    }
+
+    if (!start.isValid || !end.isValid || end <= start) {
+        return null
+    }
+
+    const totalMillis = end.toMillis() - start.toMillis()
+    const elapsedMillis = now.toMillis() - start.toMillis()
+    const rawProgress = (elapsedMillis / totalMillis) * 100
+    const progress = Math.max(0, Math.min(100, Math.round(rawProgress)))
+
+    if (now < start) {
+        return {
+            progress: 0,
+            label: `${Math.max(0, Math.ceil(start.diff(now, 'days').days ?? 0))}日後に開始`
+        }
+    }
+
+    if (now > end) {
+        return {
+            progress: 100,
+            label: '期間終了'
+        }
+    }
+
+    return {
+        progress,
+        label: `残り${Math.max(0, Math.ceil(end.diff(now, 'days').days ?? 0))}日`
+    }
 })
 const hasProgressReportBadge = computed(() => {
     return badge.post.progress_report_ids?.includes(props.record.id) ?? false
@@ -635,11 +677,16 @@ const canNotCharge = computed(() => {
     }
     return ''
 })
+const nominateChargable = computed(() => {
+    const created_at = DateTime.fromISO(props.record.created_at)
+    const twentieth = DateTime.now().set({ day: 20 }).endOf("day")
+    return created_at <= twentieth && props.record.app_type == 7
+})
 const challengeButtonView = computed(() => {
     if (props.record.app_type == 2) {
         return !props.record.to_users.some(obj => obj.id == auth.id)
     }
-    if (props.record.app_type == 7) {
+    if (nominateChargable.value) {
         const isRecipient = props.record.to_users.some(obj => obj.id == auth.id)
         const isAuthor = props.record.user_id == auth.id
         return !isRecipient && !isAuthor
@@ -661,6 +708,29 @@ const tags = computed(() => {
 })
 const title = computed(() => {
     return props.record && props.record.title ? props.record.title : ''
+})
+// Plain-text version of the post's content for text-to-speech.
+const htmlToText = (html: string | null | undefined) => {
+    if (!html) return ''
+    const div = document.createElement('div')
+    div.innerHTML = html
+        .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '$&\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+    return (div.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim()
+}
+const readableText = computed(() => {
+    const isChallenge = props.record.app_type == 2
+    const parts = [
+        htmlToText(title.value),
+        htmlToText(isChallenge ? props.record.content_rule : props.record.content),
+    ]
+    if (isChallenge) {
+        const g = htmlToText(props.record.content_goal)
+        if (g) parts.push('達成条件。\n' + g)
+    }
+    const r = htmlToText(props.record.result)
+    if (r) parts.push((props.record.status_flag == 5 ? '進捗状況。\n' : '結果発表。\n') + r)
+    return parts.filter(Boolean).join('\n\n').replace(/https?:\/\/[^\s]+/g, '')
 })
 const body = computed(() => {
     const text = props.record.app_type == 2 ? props.record.content_rule : props.record.content

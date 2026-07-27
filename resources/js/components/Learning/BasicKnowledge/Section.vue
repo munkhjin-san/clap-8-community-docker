@@ -3,7 +3,7 @@
         <template #main>        
             <div style="background:inherit">
                 <div class="relative">
-                    <div class="absolute right-[10px] top-[10px] bg-[var(--primary-button)] text-[#fff] px-[10px] h-[30px]">
+                    <div class="absolute right-0 top-0 bg-[var(--primary-button)] text-[#fff] px-[10px] h-[30px]">
                         <TTSPlayer 
                             v-if="material" 
                             :text="getTextContent(material.content ?? '')"
@@ -13,7 +13,6 @@
                     </div>
                     <LearningContentRenderer :content="material.content" />
                 </div>
-                <div class="post-separetor mt-6"></div>
                 <SummaryQuestions 
                     v-if="hasQuestions"
                     :material="material"
@@ -27,7 +26,7 @@
                     @updateAnswerStatus="updateAnswerStatus"
                     @close="showSummary = false"
                 />
-                <div v-if="sectionStatus != 2 && material.has_understand">
+                <div class="m-5 bg-[var(--background-color)] p-5" v-if="sectionStatus != 2 && material.has_understand">
                     <p><strong>内容を理解しましたか？</strong></p>
                     <div v-for="answer in list" style="display: flex;align-items: center;padding: 5px 0;">
                         <input class="fish-eye" v-model="selectedAnswer" type="radio" :id="String(answer.value)" name="answer" :value="answer.value" >
@@ -36,7 +35,7 @@
                     <span class="form-error" style="font-size: 11px;color:tomato">{{ selectedAnswer != null ? '' : radioError }}</span>
                 </div>
                 
-                <div v-if="selectedAnswer == 1 || sectionStatus == 2" class="si-box bg-[var(--bg3)] p-4" style="margin:0">
+                <div v-if="selectedAnswer == 1 || sectionStatus == 2" class="si-box bg-[var(--background-color)]">
                     <p :style="{marginBottom: sectionStatus != 2 ? '20px' : '0'}"><strong>{{ sectionStatus != 2 ? '特に重要だと理解した点を入力してください' : '特に重要だと理解した点'}}</strong></p>
                     <LongInput
                         v-if="sectionStatus != 2"
@@ -56,19 +55,25 @@
                     
                 </div>
                 <HasQuestion
-                    v-if="material.has_question" 
+                    v-if="material.has_question"
                     :material="material"
                     :selected-topic="selectedTopic"
+                />
+                <MaterialExam
+                    v-if="hasExam && sectionStatus != 2"
+                    :theme-id="route.params.lessonThemeId as string"
+                    :material-id="material.id"
+                    @finished="completeExamMaterial"
                 />
                 <div v-if="sectionStatus != 2 && material.has_understand" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
                     <div v-if="selectedAnswer == 1">
                         <LoaderButton @triggered="validate('save')" :loading="processing_save" :content="'一時保存'"/>
-                    </div> 
+                    </div>
                     <div>
                         <LoaderButton @triggered="nextStage" :loading="processing" :content="selectedAnswer == 0  ? '次へ' : '完了'"/>
                     </div>
                 </div>
-                <div v-else-if="!material.has_understand && !material.has_question && (!material.answer || (material.answer.status ?? 0) < 2)" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
+                <div v-else-if="!material.has_understand && !material.has_question && !hasExam && (!material.answer || (material.answer.status ?? 0) < 2)" style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
                     <LoaderButton @triggered="nextStage" :loading="processing" :content="filteredSummaries.length > 0 ? '次へ' : '完了'"/>
                 </div>
             </div>
@@ -91,6 +96,7 @@ import DraftLayout from './DraftLayout.vue';
 import EasySummary from './EasySummary.vue';
 import HasQuestion from './HasQuestion.vue';
 import SummaryQuestions from './SummaryQuestions.vue';
+import MaterialExam from '../Exam/MaterialExam.vue';
 import { useLearningApi } from '@/composables/learningApi';
 import { useDialog } from '@/composables/dialog';
 import TTSPlayer from '@/components/Global/TTSPlayer.vue';
@@ -137,6 +143,9 @@ import type { LearningMaterial, LearningSection, LearningSummaryAnswer, Learning
     })
     const sectionContent = computed(() => {
         return props.sections_status?.find((val) => val.material_id === material.value?.id)?.content ?? ''
+    })
+    const hasExam = computed(() => {
+        return material.value?.has_exam === 1 || material.value?.has_exam === true
     })
     const hasQuestions = computed(() => {
         return Boolean(material.value?.summaries?.length)
@@ -263,6 +272,12 @@ import type { LearningMaterial, LearningSection, LearningSummaryAnswer, Learning
         }
         
         
+    }
+    const completeExamMaterial = async() => {
+        const result = await sectionUpdate('next', sectionContent.value || '')
+        if(result){
+            router.push({name: 'basic'})
+        }
     }
     const saveSummaryAnswers = async() => {
         if(!summaryAnswers.value.length) return

@@ -29,7 +29,7 @@
           v-for="option in filteredOptions"
           :key="option.id"
           type="button"
-          class="w-full !box-border text-left px-3 py-2 text-sm hover:bg-[var(--bg3)]"
+          class="w-full !box-border text-left px-3 py-2 text-sm hover:bg-[var(--bg3)] text-[var(--primary-color)]"
           :class="{ 'bg-[var(--bg3)]': option.id === modelValue }"
           @click="selectOption(option.id)"
         >

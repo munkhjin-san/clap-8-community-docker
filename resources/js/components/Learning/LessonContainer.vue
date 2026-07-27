@@ -213,6 +213,8 @@ import type { LearningMaterial, LearningTheme } from '@/types/learning'
         return ''
     })
 
+    // Carry the theme-list filter (?category=…) through every in-lesson
+    // navigation so returning to /learning keeps the selected category.
     const goByName = (targetRoute: RouteLocationRaw) => {
         if (
             props.selectedTopic
@@ -222,35 +224,37 @@ import type { LearningMaterial, LearningTheme } from '@/types/learning'
             && isEnabled(props.selectedTopic.has_case_study)
             && !isEnabled(props.selectedTopic.portfolio)
         ) {
-            router.push({name : 'learning'})
+            router.push({ name: 'learning', query: route.query })
+        } else if (typeof targetRoute === 'object') {
+            router.push({ ...targetRoute, query: route.query })
         } else {
             router.push(targetRoute)
         }
     }
     const goBack = () => {
-        const { name } = route;
+        const { name, query } = route;
         const { has_case_study, portfolio } = props.selectedTopic || {};
 
         if (isEnabled(has_case_study) && !isEnabled(portfolio)) {
             if (name === 'basic') {
-                router.push({ name: 'learning' });
+                router.push({ name: 'learning', query });
                 return;
-            } 
+            }
             if (name === 'material') {
-                router.push({ name: 'basic' });
+                router.push({ name: 'basic', query });
                 return;
             }
         }
 
         switch (name) {
             case 'top':
-                router.push({ name: 'learning' });
+                router.push({ name: 'learning', query });
                 break;
             case 'basic':
-                router.push({ name: 'top' });
+                router.push({ name: 'top', query });
                 break;
             case 'material':
-                router.push({ name: 'basic' });
+                router.push({ name: 'basic', query });
                 break;
             default:
                 router.go(-1);

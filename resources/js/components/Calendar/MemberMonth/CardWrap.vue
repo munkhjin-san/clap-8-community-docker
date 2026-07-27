@@ -67,8 +67,8 @@ import { useCalendar } from '@/composables/calendar';
         );      
         return me && props.record.shift == 0
     })
+    const u = Math.floor(100000 + Math.random() * 900000).toString()
     const unique = computed(() => {
-        const u = Math.floor(100000 + Math.random() * 900000).toString()
         const r = props.record.id.toString()
         return `cal_${r}_${u}`
     })

@@ -6,14 +6,17 @@ use App\Models\FlowAppTool;
 use App\Models\FlowAuditLog;
 use App\Models\FlowDefinition;
 use App\Models\FlowField;
+use App\Models\FlowNotification;
 use App\Models\FlowRecord;
 use App\Models\positionRecord;
 use App\Models\ProjectRecord;
 use App\Models\User;
 use App\Services\FlowFormulaEvaluator;
 use App\Services\FlowService;
+use App\Services\FlowNotificationService;
 use App\Services\KintoneImportService;
 use App\Services\PdfRenderService;
+use App\Support\FlowSystemSources;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +26,10 @@ use Mpdf\Output\Destination;
 
 class FlowController extends Controller
 {
-    public function __construct(private FlowService $flowService) {}
+    public function __construct(
+        private FlowService $flowService,
+        private FlowNotificationService $flowNotifications,
+    ) {}
 
     private function active_user()
     {
@@ -46,23 +52,36 @@ class FlowController extends Controller
         $projectId = $request->input('project_id');
 
         $pinned = DB::table('flow_app_pins')->where('user_id', $user->id)->pluck('flow_definition_id')->flip();
+        $unread = $this->flowNotifications->unreadCounts($user);
 
         return FlowDefinition::query()
             ->when($projectId, fn ($q) => $q->where('project_record_id', $projectId))
             ->when(! $projectId, fn ($q) => $q->whereNull('project_record_id'))
             ->with(['creator', 'appPermissions'])
-            ->withCount(['fields', 'statuses', 'records'])
+            ->withCount('records')
             ->orderByDesc('created_at')
             ->get()
-            ->filter(fn ($d) => $this->flowService->effectiveAppPermissions($user, $d)['view'])
-            ->map(function ($d) use ($pinned) {
+            ->filter(function ($d) use ($user) {
+                $perms = $this->flowService->effectiveAppPermissions($user, $d);
+                // expose 管理 so the portal card menu only offers 設定/削除 to those who can use them
+                // (both are manage-gated server-side; this keeps the UI honest)
+                $d->setAttribute('can_manage', $perms['manage']);
+
+                return $perms['view'];
+            })
+            ->map(function ($d) use ($user, $pinned, $unread) {
                 // "全社員に公開" reflects actual permissions, not the vestigial visibility flag.
                 $d->setAttribute('is_public', $d->appPermissions->contains(
                     fn ($p) => $p->subject_type === 'everyone' && $p->can_view
                 ));
                 $d->setAttribute('pinned', $pinned->has($d->id));
+                // per-app bell badge (unread notification events for this user)
+                $d->setAttribute('unread_notifications', $unread[$d->id] ?? 0);
+                // 対応待ち: live count of records whose current status names this user as
+                // worker — no stored rows, no prefs; it drops only when the record moves on
+                $d->setAttribute('pending_actions', $this->flowService->pendingActionRecords($user, $d)->count());
 
-                return $d->makeHidden('appPermissions');
+                return $d->makeHidden(['appPermissions', 'statuses', 'statusActions', 'recordPermissionSets']);
             })
             ->values();
     }
@@ -235,7 +254,10 @@ class FlowController extends Controller
         return response()->json([
             'id' => $definition->id,
             'name' => $definition->name,
+            // secrets are not offerable as a lookup label or field-copy source — copying one into
+            // an ordinary field of another app would silently strip the encryption
             'fields' => $definition->fields
+                ->reject(fn ($f) => FlowService::isSecret($f->input_type))
                 ->map(fn ($f) => ['key' => $f->key, 'label' => $f->label, 'input_type' => $f->input_type, 'result_type' => $f->result_type])
                 ->values(),
         ]);
@@ -880,8 +902,8 @@ class FlowController extends Controller
             'users' => User::query()
                 ->inActiveCommunity()
                 ->where('retire', 0)
+                ->where('id', '>', 105)
                 ->select('id', 'name', 'position_id', 'icon_path', 'icon_bg')
-                ->orderBy('name')
                 ->get(),
             'positions' => positionRecord::query()
                 ->where('deleted_flag', 0)
@@ -946,7 +968,7 @@ class FlowController extends Controller
     public function getAppRecords(Request $request, $definitionId)
     {
         $user = $this->active_user();
-        $definition = FlowDefinition::with(['fields', 'statuses', 'appPermissions', 'recordPermissionSets', 'tools' => fn ($q) => $q->where('is_active', true)])->findOrFail($definitionId);
+        $definition = FlowDefinition::with(['fields', 'statuses', 'statusActions', 'appPermissions', 'recordPermissionSets', 'tools' => fn ($q) => $q->where('is_active', true)])->findOrFail($definitionId);
         $app = $this->flowService->effectiveAppPermissions($user, $definition);
         abort_unless($app['view'], 403);
 
@@ -959,18 +981,21 @@ class FlowController extends Controller
             'views' => $views,
         ];
 
+        // seeing the record list clears grouped CSV-import events (they have no single record to open)
+        $this->flowNotifications->markImportSeen($user, $definition);
+
         // Record-level permissions must be evaluated per record in PHP — can't be SQL-paginated
         // cleanly, so those apps return the full visible set and the front-end paginates.
         if ($definition->recordPermissionSets->isNotEmpty()) {
             $records = FlowRecord::where('flow_definition_id', $definition->id)
                 ->with($with)->orderByDesc('created_at')->get()
-                ->map(fn ($r) => ['rec' => $r, 'rp' => $this->flowService->recordPermissions($user, $r, $definition)])
+                ->map(fn ($r) => ['rec' => tap($r)->setRelation('definition', $definition), 'rp' => $this->flowService->recordPermissions($user, $r, $definition)])
                 ->filter(fn ($x) => $x['rp']['view'])
                 ->values();
 
             return response()->json($base + [
                 'mode' => 'client',
-                'records' => $records->map(fn ($x) => $this->serializeRecord($x['rec'], $fields, $x['rp']))->values(),
+                'records' => $records->map(fn ($x) => $this->serializeRecord($x['rec'], $fields, $x['rp'], $user))->values(),
                 'total' => $records->count(),
             ]);
         }
@@ -1001,12 +1026,13 @@ class FlowController extends Controller
             || collect($adhocFilter['conditions'] ?? [])->contains(fn ($f) => $isFormulaRef($f['field'] ?? null));
         if ($needsCompute) {
             $records = FlowRecord::where('flow_records.flow_definition_id', $definition->id)
-                ->with($with)->orderByDesc('created_at')->get();
+                ->with($with)->orderByDesc('created_at')->get()
+                ->each(fn ($r) => $r->setRelation('definition', $definition));
             $can = ['edit' => $app['edit'], 'delete' => $app['delete']];
 
             return response()->json($base + [
                 'mode' => 'client',
-                'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can))->values(),
+                'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can, $user))->values(),
                 'total' => $records->count(),
             ]);
         }
@@ -1014,13 +1040,14 @@ class FlowController extends Controller
         $query = $this->flowService->recordListQuery($definition, $filters, (string) $request->input('search', ''), $adhocFilter);
         $total = (clone $query)->count();
         $this->flowService->applyRecordSort($query, $sort, $definition);
-        $records = $query->with($with)->forPage($page, $perPage)->get();
+        $records = $query->with($with)->forPage($page, $perPage)->get()
+            ->each(fn ($r) => $r->setRelation('definition', $definition));
 
         $can = ['edit' => $app['edit'], 'delete' => $app['delete']];
 
         return response()->json($base + [
             'mode' => 'server',
-            'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can))->values(),
+            'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can, $user))->values(),
             'total' => $total,
             'page' => $page,
             'per_page' => $perPage,
@@ -1225,7 +1252,8 @@ class FlowController extends Controller
         $out = [];
         foreach ($wantKeys as $key) {
             $f = $byKey->get($key);
-            if (! $f || ! ($fp[$f->id]['view'] ?? true)) {
+            // secrets can never be copied out (defence in depth — the inspector already hides them)
+            if (! $f || FlowService::isSecret($f->input_type) || ! ($fp[$f->id]['view'] ?? true)) {
                 continue;
             }
             $out[$key] = $vals[(string) $f->id] ?? null;
@@ -1234,7 +1262,232 @@ class FlowController extends Controller
         return response()->json(['values' => $out]);
     }
 
-    private function serializeRecord(FlowRecord $record, $fields, ?array $can = null): array
+    /* ---- system reference sources (built-in masters, e.g. offices) ---------------------------------
+     * A reference field can point at a real master table instead of another Flow app. These mirror
+     * the app-reference endpoints above (list picker / label / field-copy) against the source's real
+     * model, so the master stays the single source of truth. See App\Support\FlowSystemSources. */
+
+    /** The available system sources ({key,label}) for the field inspector's source picker. */
+    public function systemReferenceSources()
+    {
+        return response()->json(['sources' => FlowSystemSources::options()]);
+    }
+
+    /** A system source's columns as text pseudo-fields — same shape as getDefinitionFields. */
+    public function systemReferenceFields($source)
+    {
+        $s = FlowSystemSources::get($source);
+        abort_unless($s !== null, 404);
+
+        return response()->json([
+            'id' => $source,
+            'name' => $s['label'],
+            'fields' => collect($s['columns'])
+                ->map(fn ($c) => ['key' => $c['key'], 'label' => $c['label'], 'input_type' => 'short', 'result_type' => null])
+                ->values(),
+        ]);
+    }
+
+    /** Search a system source (mirrors referenceSearch): returns {id, number, label} rows. */
+    public function systemReferenceSearch(Request $request, $source)
+    {
+        $s = FlowSystemSources::get($source);
+        abort_unless($s !== null, 404);
+
+        $q = trim((string) $request->input('q', ''));
+        $labelKey = (string) $request->input('label_field', '') ?: $s['label_column'];
+        $resolve = $s['value'] ?? fn ($m, $k) => $m->{$k} ?? null;
+
+        /** @var \Illuminate\Database\Eloquent\Builder $query */
+        $query = $s['model']::query();
+        if (isset($s['filter'])) {
+            ($s['filter'])($query);
+        }
+        if ($q !== '') {
+            $query->where(function ($w) use ($s, $q) {
+                foreach ($s['search'] as $col) {
+                    $w->orWhere($col, 'like', '%'.$q.'%');
+                }
+            });
+        }
+        $rows = $query->orderBy($s['label_column'])->limit(20)->get();
+
+        $out = $rows->map(function ($m) use ($resolve, $labelKey) {
+            $label = $resolve($m, $labelKey);
+            $label = is_scalar($label) ? (string) $label : '';
+
+            return ['id' => $m->id, 'number' => $m->id, 'label' => $label !== '' ? $label : ('#'.$m->id)];
+        });
+
+        return response()->json(['records' => $out->values()]);
+    }
+
+    /** A picked system-source row's column values (mirrors lookupRecord) for field-copy. */
+    public function systemReferenceRecord(Request $request, $source, $id)
+    {
+        $s = FlowSystemSources::get($source);
+        abort_unless($s !== null, 404);
+
+        $wantKeys = array_values(array_filter(array_map('trim', explode(',', (string) $request->input('fields', '')))));
+        if (! $wantKeys) {
+            return response()->json(['values' => (object) []]);
+        }
+
+        /** @var \Illuminate\Database\Eloquent\Builder $query */
+        $query = $s['model']::query();
+        if (isset($s['filter'])) {
+            ($s['filter'])($query);
+        }
+        $row = $query->whereKey($id)->first();
+        if (! $row) {
+            return response()->json(['values' => (object) []]);
+        }
+
+        $allowed = collect($s['columns'])->pluck('key')->flip();
+        $resolve = $s['value'] ?? fn ($m, $k) => $m->{$k} ?? null;
+
+        $out = [];
+        foreach ($wantKeys as $key) {
+            if (! $allowed->has($key)) {
+                continue;
+            }
+            $out[$key] = $resolve($row, $key);
+        }
+
+        return response()->json(['values' => $out]);
+    }
+
+    /**
+     * Notification events are best-effort side writes that run AFTER the main save committed —
+     * a failure here must never turn an already-successful save into a 500 for the user.
+     */
+    private function notifySafely(\Closure $fn): void
+    {
+        try {
+            $fn();
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    /** 対応待ち popup: records in this app currently awaiting the user's own action (live). */
+    public function getFlowPendingActions($definitionId)
+    {
+        $user = $this->active_user();
+        $definition = FlowDefinition::with('appPermissions')->findOrFail($definitionId);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['view'], 403);
+
+        $items = $this->flowService->pendingActionRecords($user, $definition)
+            ->map(fn ($r) => [
+                'record_id' => $r->id,
+                'record_number' => $r->record_number,
+                'status' => $r->currentStatus?->name,
+                'updated_at' => $r->updated_at,
+            ])
+            ->values();
+
+        return response()->json(['items' => $items]);
+    }
+
+    /**
+     * Reveal a stored secret's plaintext. Gated by app view ∩ record view ∩ field view (fail-closed
+     * to 管理 when the field has no permission rows) and ALWAYS audit-logged — for a credential
+     * store, "who took what, when" is the control that matters most.
+     */
+    public function revealFlowSecret(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate([
+            'record_id' => 'required|integer|exists:flow_records,id',
+            'field_id' => 'required|integer|exists:flow_fields,id',
+        ]);
+
+        $record = FlowRecord::with(['values', 'definition.fields', 'definition.appPermissions', 'definition.recordPermissionSets', 'definition.fieldPermissions'])
+            ->findOrFail($data['record_id']);
+        $def = $record->definition;
+        $field = $def->fields->firstWhere('id', (int) $data['field_id']);
+
+        abort_unless($field && $this->flowService->canRevealSecret($user, $record, $field, $def), 403);
+
+        try {
+            $plain = $this->flowService->revealSecret($record, $field);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            // surfaced, not swallowed: a key mismatch must not masquerade as "no password set"
+            report($e);
+
+            return response()->json(['message' => '保管された値を復号できませんでした。管理者にお問い合わせください。'], 500);
+        }
+
+        $this->flowService->logAudit($def, $user, 'secret_reveal', $record, [
+            'record_number' => $record->record_number,
+            'field_key' => $field->key,
+            'field_label' => $field->label,
+        ]);
+
+        return response()->json(['value' => $plain]);
+    }
+
+    /* ---- flow notifications (per-app bell badge + popup) --------------------------------------- */
+
+    /** The bell popup: latest events for this user on this app + their notification prefs. */
+    public function getFlowNotifications($definitionId)
+    {
+        $user = $this->active_user();
+        $definition = FlowDefinition::with('appPermissions')->findOrFail($definitionId);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['view'], 403);
+
+        $events = FlowNotification::where('user_id', $user->id)
+            ->where('flow_definition_id', $definition->id)
+            ->with(['actor', 'record:id,record_number'])
+            ->orderByDesc('id')
+            ->limit(30)
+            ->get()
+            ->map(fn ($n) => [
+                'id' => $n->id,
+                'type' => $n->type,
+                'actor' => $n->actor,
+                'record_number' => $n->record?->record_number,
+                'meta' => $n->meta,
+                'read' => $n->read_at !== null,
+                'created_at' => $n->created_at,
+            ]);
+
+        return response()->json([
+            'events' => $events,
+            'prefs' => $this->flowNotifications->prefsFor($user, (int) $definition->id),
+        ]);
+    }
+
+    /** Per-user per-app notification opt-in/out (the toggles inside the bell popup). */
+    public function saveFlowNotificationPref(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate([
+            'flow_definition_id' => 'required|integer|exists:flow_definitions,id',
+            'pref' => 'required|string',
+            'enabled' => 'required|boolean',
+        ]);
+        $definition = FlowDefinition::with('appPermissions')->findOrFail($data['flow_definition_id']);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['view'], 403);
+
+        $this->flowNotifications->savePref($user, (int) $definition->id, $data['pref'], (bool) $data['enabled']);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** The comment tab has actually been viewed (FE fires after ~5s visible) → clear comment badges. */
+    public function markFlowCommentsRead(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate(['record_id' => 'required|integer|exists:flow_records,id']);
+        $record = FlowRecord::findOrFail($data['record_id']);
+
+        $this->flowNotifications->markCommentsRead($user, $record);
+
+        return response()->json(['ok' => true]);
+    }
+
+    private function serializeRecord(FlowRecord $record, $fields, ?array $can = null, ?User $forUser = null): array
     {
         return [
             'id' => $record->id,
@@ -1251,6 +1504,9 @@ class FlowController extends Controller
             // per-record eligibility for the row shortcut buttons
             'can_edit' => (bool) ($can['edit'] ?? false),
             'can_delete' => (bool) ($can['delete'] ?? false),
+            // 要対応 marker (red dot on the list's status pill): an action on the record's
+            // current status explicitly names this user — same strict rule as the portal counter
+            'pending_action' => $forUser !== null && $this->flowService->hasExplicitPendingAction($forUser, $record),
         ];
     }
 
@@ -1291,6 +1547,9 @@ class FlowController extends Controller
 
         if ($logView) {
             $this->flowService->logAudit($def, $user, 'record_view', $record, ['record_number' => $record->record_number]);
+            // opening the record clears its new-record / status-change badges (comments clear
+            // separately, only after the comment tab has actually been viewed)
+            $this->flowNotifications->markRecordOpened($user, $record);
         }
 
         $statusNames = $def->statuses->pluck('name', 'id');
@@ -1302,6 +1561,27 @@ class FlowController extends Controller
             'to_status' => $statusNames[$a->to_status_id] ?? null,
             'can' => $this->flowService->canPressAction($user, $record, $a),
         ])->values();
+
+        // prev/next record numbers for the header nav arrows. Apps without record-level
+        // permission sets: adjacent number in one indexed query. With sets: walk outward
+        // to the first viewable neighbor (bounded — beyond that the arrow just disables).
+        $neighbor = function (bool $forward) use ($def, $record, $user) {
+            $q = FlowRecord::where('flow_definition_id', $def->id);
+            $forward
+                ? $q->where('record_number', '>', $record->record_number)->orderBy('record_number')
+                : $q->where('record_number', '<', $record->record_number)->orderByDesc('record_number');
+            if ($def->recordPermissionSets->isEmpty()) {
+                return $q->value('record_number');
+            }
+            foreach ($q->with('values')->limit(30)->get() as $cand) {
+                $cand->setRelation('definition', $def);
+                if ($this->flowService->recordPermissions($user, $cand, $def)['view']) {
+                    return $cand->record_number;
+                }
+            }
+
+            return null;
+        };
 
         $logs = $record->logs->sortByDesc('id')->values()->map(fn ($l) => [
             'id' => $l->id,
@@ -1318,11 +1598,14 @@ class FlowController extends Controller
         return response()->json([
             'definition' => $def->makeHidden(['appPermissions', 'recordPermissionSets']),
             'permissions' => $this->flowService->effectiveAppPermissions($user, $def),
-            'record' => $this->serializeRecord($record, $def->fields),
+            'record' => $this->serializeRecord($record, $def->fields, null, $user),
             'can' => $recordPerms,
             'status_actions' => $actions,
             'logs' => $logs,
             'mentionable_users' => $this->flowService->mentionableUsers($record, $def),
+            // unread comment events for THIS user on this record → comment-tab badge
+            'unread_comments' => $this->flowNotifications->unreadCommentCount($user, $record),
+            'nav' => ['prev' => $neighbor(false), 'next' => $neighbor(true)],
         ]);
     }
 
@@ -1376,6 +1659,9 @@ class FlowController extends Controller
 
         $record->load(['values', 'currentStatus', 'createdByUser']);
 
+        // badge event: everyone who can view the app hears about the new record (per prefs)
+        $this->notifySafely(fn () => $this->flowNotifications->notifyNewRecord($definition, $record, $user));
+
         return response()->json($this->serializeRecord($record, $definition->fields));
     }
 
@@ -1402,7 +1688,8 @@ class FlowController extends Controller
             $merged[(string) $k] = $v;
         }
         $checkFields = $def->fields->filter(fn ($f) => in_array((int) $f->id, $allowed, true));
-        $errors = $this->flowService->validateValues($checkFields, $merged);
+        // pass the record so a kept (blank) secret counts as "already set" for 必須
+        $errors = $this->flowService->validateValues($checkFields, $merged, $record);
         if (! empty($errors)) {
             return response()->json(['message' => '入力内容を確認してください。', 'errors' => $errors], 422);
         }
@@ -1421,6 +1708,19 @@ class FlowController extends Controller
             }
             $o = $old[(string) $f->id] ?? null;
             $n = $new[(string) $f->id] ?? null;
+            // Secrets read as an unchanged boolean when rotated (true → true), so a diff alone
+            // would hide the rotation. Detect the write intent from what was submitted instead —
+            // "when was this credential last changed?" is a question a vault has to answer.
+            if (FlowService::isSecret($f->input_type)) {
+                $raw = $merged[(string) $f->id] ?? null;
+                $wrote = (is_array($raw) && ! empty($raw['clear']))
+                    || (! is_bool($raw) && is_scalar($raw) && trim((string) $raw) !== '');
+                if ($wrote) {
+                    $changes[$f->key] = ['old' => $o, 'new' => $n];
+                }
+
+                continue;
+            }
             if (json_encode($o) !== json_encode($n)) {
                 $changes[$f->key] = ['old' => $o, 'new' => $n];
             }
@@ -1463,7 +1763,12 @@ class FlowController extends Controller
         abort_unless($action, 422, '現在のステータスでは実行できないアクションです。');
         abort_unless($this->flowService->canPressAction($user, $record, $action), 403);
 
+        $fromName = $record->currentStatus?->name;
+        $toName = $def->statuses->firstWhere('id', $action->to_status_id)?->name;
         $this->flowService->applyStatusAction($user, $record, $action);
+
+        // badge event: the record's creator hears their record moved (per prefs)
+        $this->notifySafely(fn () => $this->flowNotifications->notifyStatusChange($record, $user, $fromName, $toName));
 
         $record->load(self::RECORD_DETAIL_WITH);
 
@@ -1904,6 +2209,11 @@ class FlowController extends Controller
 
             return ['imported' => $imported, 'skipped' => count($parsed['groups']) - $imported];
         });
+
+        // badge event: ONE grouped notification for the whole import (never one per row)
+        if (($result['imported'] ?? 0) > 0) {
+            $this->notifySafely(fn () => $this->flowNotifications->notifyImport($definition, $user, (int) $result['imported']));
+        }
 
         return response()->json($result + ['invalid' => array_slice($validation['invalid'], 0, 50)]);
     }

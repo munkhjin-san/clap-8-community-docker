@@ -13,6 +13,9 @@
                     <PostSearchBar className="newChatMemberSearch" :customPlaceHolder="'アプリを検索'" @searchStart="onSearch" />
                 </div>
                 <!-- view toggle: stays next to the search on every breakpoint (req 8) -->
+                <router-link :to="{name: 'help-documentation', params: { docId: 'app'}}" title="使い方" class="box-border w-[30px] h-[30px] flex items-center justify-center bg-[var(--background-color)] rounded border border-solid border-[var(--formBorder)]">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="gray" width="13" height="13" viewBox="0 0 17.62061 24.71744"><path d="M2.14839,10.77084c-.45128-.33506-.90282-.78642-1.24432-1.26985-.34105-.48343-.5939-1.03215-.74115-1.59969C.01275,7.3334-.02548,6.75032.01521,6.19114c.02023-.28004.06465-.55335.1237-.81975.01578-.06656.02991-.1322.04769-.19921l.05792-.20267c.04273-.13293.08615-.26549.1377-.39342.19926-.51553.47134-.9886.79143-1.41457.6395-.85567,1.47276-1.51376,2.3618-1.98183.88976-.4738,1.83476-.76438,2.77326-.94295.47011-.08929.94077-.14648,1.40911-.18848C8.1862.01153,8.65291.00171,9.11548.00061c.11561-.00273.23267.00436.3491.00673.11665.00309.23308.004.35005.00927l.3516.02173.17603.01064.17675.01628c.4712.03473.94477.11511,1.41961.20894.47566.09383.94982.23512,1.4197.40824.46948.17503.93323.39469,1.37533.67028.88508.54572,1.67856,1.33437,2.20773,2.30524.06665.12065.12643.24585.18557.37096.05283.12847.11229.25404.15684.38651.10024.26013.17084.5329.23112.80839.05328.27813.09388.56026.10238.85012.00509.07165.00264.14538.00327.21812-.00014.07301.00023.14557-.00527.22049-.00436.07347-.00836.15075-.01432.22103l-.02168.19376c-.06315.51435-.17948,1.04906-.38751,1.57059-.20307.52135-.49794,1.0206-.84908,1.44503-.17471.21312-.35905.41206-.55331.59209-.19394.17984-.39347.34369-.59509.49671-.4051.30332-1.54672,1.04933-2.17066,1.43909-.61273.38276-1.34866.81205-1.82394,1.19535-.49207.39683-.98124.87391-1.26986,1.36607-.29223.49832-.43344,1.07136-.4933,1.68496-.06133.62861-.04009,1.53023-.04305,1.94118-.00283.39283-.13841.71484-.44347.78263-.31084.06907-.67792-.06891-.8135-.39036s-.25435-.79617-.31363-1.25669c-.05987-.46052-.08615-.92713-.06974-1.39711.01614-.46989.06674-.94441.17393-1.41975.05364-.23767.27069-.92306.51971-1.41575s.72215-1.06424.89877-1.25118c.35842-.36642.83606-.76527,1.22739-1.0354.38956-.27222,1.86154-1.17262,2.18586-1.40238.64855-.45916,1.20863-.96041,1.56591-1.4803.18107-.26122.31286-.5288.41492-.81975.10138-.29013.16821-.61045.20848-.95714l.01341-.12975.00664-.10374c.00373-.03319.00268-.06919.00291-.10474-.00059-.03564.00277-.07056-.00077-.1072-.00341-.1442-.02364-.29286-.04587-.44188-.05792-.29722-.14748-.59754-.28445-.88295-.2694-.57263-.69215-1.09579-1.24563-1.5194-.55322-.42388-1.23027-.74656-1.96628-.96014-.09024-.03091-.18594-.05001-.27927-.07383-.09392-.02282-.18735-.04719-.2839-.06392l-.28763-.05628-.29231-.04446c-.19389-.03491-.39456-.04455-.59213-.0661-.20003-.01209-.39997-.02555-.60177-.02809-.80966-.01564-1.60969.04573-2.3703.21776-.76066.16648-1.47867.44661-2.09698.83548-.308.19585-.59309.41542-.8443.65973-.24945.24549-.47161.51035-.65032.79411-.09179.14038-.17034.28668-.24013.43434-.07078.14738-.1297.29741-.17748.44779-.02555.07501-.04378.15057-.06355.2254l-.02441.1122-.022.11865c-.02641.15875-.04619.31577-.05069.46907-.02255.61536.14961,1.16608.48657,1.60396.33778.43788.88649.67407,1.48721.85254.87294.25935,1.21907,1.09764.88977,1.78339-.30443.63397-.64683.92582-1.38317.93032-.7356.00449-1.4316-.41156-1.88288-.74663Z"></path><path d="M8.03418,24.63315c-.12738.00687-.25876.00127-.39033-.02476-.1322-.02445-.26499-.06977-.38965-.14182-.24285-.1492-.47648-.38021-.63173-.67576-.15507-.29693-.2254-.62755-.20476-.97655.02237-.34585.13834-.68162.31141-.96828.17357-.28733.40138-.53189.66078-.71978.25863-.18947.54626-.32555.83944-.40919.14652-.04181.29491-.07211.4417-.0863.14516-.01526.29691-.01806.42738-.01286.26822.01245.52535.05747.77648.136.25049.07966.49675.18999.73133.35766.23176.16732.46729.38957.62905.71641.0801.16165.13752.34949.15948.54421.01114.09716.01455.19631.008.29295l-.00509.0719-.00746.06234c-.00468.04187-.01209.08229-.01941.12289-.06224.32338-.19171.61206-.36178.86969-.17202.25531-.38442.487-.64214.65996-.51567.34838-1.22513.36892-1.60532-.02722,0,0-.47225.19413-.72738.20852ZM8.85157,23.8876c.06081-.18697.20041-.30773.32155-.39455s.23839-.18061.29913-.25531c.06092-.07262.14714-.15299.17464-.28157.02669-.12477-.01359-.24203-.11602-.33664s-.27805-.15262-.4122-.17686c-.10308-.01862-.21193-.01938-.30482-.01305s-.16243.01556-.23064.03496-.17274.05336-.23917.0935-.12856.09296-.16984.14514c-.04182.05195-.06596.10151-.07778.14614-.01441.04117-.01441.10227-.00323.14606.01064.0461.04101.09867.10829.16219.05914.0708.2282.1873.33262.25726.15637.10477.27507.24118.31748.47272Z"></path></svg>
+                </router-link>
                 <div class="fc-viewtoggle">
                     <button class="fc-vt-btn" :class="{ on: viewMode === 'grid' }" title="グリッド表示" @click="setViewMode('grid')">
                         <Grid size="13" />
@@ -26,9 +29,9 @@
 
         <div class="fc-tabs">
             <button class="fc-tab" :class="{ on: tab === 'all' }" @click="tab = 'all'">全て</button>
-            <button class="fc-tab" :class="{ on: tab === 'waiting' }" @click="tab = 'waiting'">
+            <!-- <button class="fc-tab" :class="{ on: tab === 'waiting' }" @click="tab = 'waiting'">
                 対応待ち<Badge :count="waiting.length" />
-            </button>
+            </button> -->
             <!-- sort control lives at the right end of the tab bar (all breakpoints) -->
             <div v-if="tab === 'all' && definitions.length" class="fc-sort-wrap fc-tabs-sort">
                 <select v-model="sort" class="fc-sort" @change="savePrefs">
@@ -75,19 +78,22 @@
                                     <div class="fc-card-name" :title="def.name">{{ def.name }}</div>
                                     <div class="fc-card-flags">
                                         <span v-if="def.pinned" class="fc-flag-pin" title="ピン留め中">
-                                            <svg width="12" height="12" viewBox="0 0 32 32" fill="currentColor"><path d="M19.713 28.513c0.045-0.043 0.121-0.125 0.187-0.193 0.067-0.070 0.128-0.148 0.192-0.22 0.122-0.151 0.236-0.306 0.34-0.466 0.414-0.641 0.679-1.346 0.817-2.061 0.137-0.716 0.151-1.449 0.033-2.176-0.062-0.386-0.164-0.773-0.311-1.149-0.037-0.095-0.022-0.198 0.040-0.277l3.236-4.041 3.276-4.116c0.070-0.089 0.184-0.134 0.297-0.121 0.133 0.013 0.267 0.022 0.401 0.022 0.466 0.005 0.925-0.055 1.364-0.169 0.44-0.115 0.861-0.282 1.258-0.502 0.397-0.221 0.773-0.489 1.117-0.834l0.008-0.008 0.005-0.006c0.427-0.434 0.42-1.131-0.013-1.559l-10.277-10.307c-0.44-0.44-1.152-0.441-1.593-0.001l-0.005 0.006c-0.347 0.347-0.618 0.728-0.837 1.129-0.217 0.404-0.38 0.829-0.489 1.269-0.143 0.567-0.191 1.16-0.141 1.75 0.010 0.109-0.034 0.218-0.12 0.286l-4.122 3.291-4.038 3.237c-0.078 0.062-0.184 0.076-0.277 0.040-0.376-0.147-0.762-0.247-1.148-0.31-0.727-0.117-1.46-0.103-2.176 0.033-0.716 0.138-1.42 0.405-2.062 0.818-0.16 0.104-0.316 0.218-0.467 0.339-0.072 0.065-0.149 0.125-0.22 0.193-0.068 0.065-0.15 0.142-0.193 0.187l-0.622 0.621c-0.486 0.485-0.487 1.271-0.001 1.756l0.001 0.002 5.901 5.914c0.058 0.058 0.059 0.15 0.004 0.21-0.199 0.217-0.399 0.433-0.6 0.648-0.394 0.424-0.787 0.852-1.185 1.27-0.796 0.843-1.596 1.679-2.387 2.528l-1.179 1.279-1.167 1.288c-0.775 0.862-1.555 1.722-2.321 2.593-0.333 0.378-0.325 0.964 0.053 1.333 0.365 0.355 0.955 0.347 1.338 0.008 0.863-0.758 1.714-1.529 2.567-2.297l1.288-1.169 1.279-1.179c0.847-0.79 1.685-1.592 2.527-2.386 0.419-0.401 0.846-0.792 1.271-1.186 0.216-0.199 0.431-0.399 0.647-0.6 0.061-0.055 0.153-0.053 0.211 0.005l5.916 5.901c0.484 0.485 1.269 0.484 1.753-0.001l0.625-0.623z"></path></svg>
+                                            <svg width="15" height="15" viewBox="0 0 32 32" fill="currentColor"><path d="M19.713 28.513c0.045-0.043 0.121-0.125 0.187-0.193 0.067-0.070 0.128-0.148 0.192-0.22 0.122-0.151 0.236-0.306 0.34-0.466 0.414-0.641 0.679-1.346 0.817-2.061 0.137-0.716 0.151-1.449 0.033-2.176-0.062-0.386-0.164-0.773-0.311-1.149-0.037-0.095-0.022-0.198 0.040-0.277l3.236-4.041 3.276-4.116c0.070-0.089 0.184-0.134 0.297-0.121 0.133 0.013 0.267 0.022 0.401 0.022 0.466 0.005 0.925-0.055 1.364-0.169 0.44-0.115 0.861-0.282 1.258-0.502 0.397-0.221 0.773-0.489 1.117-0.834l0.008-0.008 0.005-0.006c0.427-0.434 0.42-1.131-0.013-1.559l-10.277-10.307c-0.44-0.44-1.152-0.441-1.593-0.001l-0.005 0.006c-0.347 0.347-0.618 0.728-0.837 1.129-0.217 0.404-0.38 0.829-0.489 1.269-0.143 0.567-0.191 1.16-0.141 1.75 0.010 0.109-0.034 0.218-0.12 0.286l-4.122 3.291-4.038 3.237c-0.078 0.062-0.184 0.076-0.277 0.040-0.376-0.147-0.762-0.247-1.148-0.31-0.727-0.117-1.46-0.103-2.176 0.033-0.716 0.138-1.42 0.405-2.062 0.818-0.16 0.104-0.316 0.218-0.467 0.339-0.072 0.065-0.149 0.125-0.22 0.193-0.068 0.065-0.15 0.142-0.193 0.187l-0.622 0.621c-0.486 0.485-0.487 1.271-0.001 1.756l0.001 0.002 5.901 5.914c0.058 0.058 0.059 0.15 0.004 0.21-0.199 0.217-0.399 0.433-0.6 0.648-0.394 0.424-0.787 0.852-1.185 1.27-0.796 0.843-1.596 1.679-2.387 2.528l-1.179 1.279-1.167 1.288c-0.775 0.862-1.555 1.722-2.321 2.593-0.333 0.378-0.325 0.964 0.053 1.333 0.365 0.355 0.955 0.347 1.338 0.008 0.863-0.758 1.714-1.529 2.567-2.297l1.288-1.169 1.279-1.179c0.847-0.79 1.685-1.592 2.527-2.386 0.419-0.401 0.846-0.792 1.271-1.186 0.216-0.199 0.431-0.399 0.647-0.6 0.061-0.055 0.153-0.053 0.211 0.005l5.916 5.901c0.484 0.485 1.269 0.484 1.753-0.001l0.625-0.623z"></path></svg>
                                         </span>
                                         <span class="fc-vis">{{ def.is_public ? '全社員' : '限定' }}</span>
                                     </div>
                                 </div>
-                                <div class="fc-card-menu" @click.stop>
-                                    <ItemMenu :items="menuItems(def)" />
+                                <div class="fc-card-menu" @click.stop>                                    
+                                    <ItemMenu :items="menuItems(def)" teleport />
                                 </div>
                             </div>
                             <div class="fc-card-foot">
                                 <span v-if="!def.is_active" class="fc-off">停止中</span>
                                 <span class="fc-fi"><span class="fc-num">{{ def.records_count ?? 0 }}</span>件</span>
-                                <span class="fc-fi">項目 <span class="fc-num">{{ def.fields_count ?? 0 }}</span></span>
+                                <div class="ml-auto flex items-center gap-[10px]" @click.stop>
+                                    <FlowPendingMenu :def-id="def.id" :count="def.pending_actions ?? 0" />
+                                    <FlowBellMenu :def-id="def.id" :count="def.unread_notifications ?? 0" />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -98,7 +104,6 @@
                             <div class="fc-tr fc-th">
                                 <div>アプリ名</div>
                                 <div class="ar">レコード</div>
-                                <div class="ar">項目</div>
                                 <div class="ac">公開範囲</div>
                                 <div></div>
                             </div>
@@ -112,10 +117,11 @@
                                     <span v-if="!def.is_active" class="fc-off">停止中</span>
                                 </div>
                                 <div class="ar"><span class="fc-num">{{ def.records_count ?? 0 }}</span><span class="fc-unit">件</span></div>
-                                <div class="ar fc-num">{{ def.fields_count ?? 0 }}</div>
                                 <div class="ac"><span class="fc-vis">{{ def.is_public ? '全社員' : '限定' }}</span></div>
                                 <div class="fc-td-menu" @click.stop>
-                                    <ItemMenu :items="menuItems(def)" />
+                                    <FlowPendingMenu :def-id="def.id" :count="def.pending_actions ?? 0" />
+                                    <FlowBellMenu :def-id="def.id" :count="def.unread_notifications ?? 0" />
+                                    <ItemMenu :items="menuItems(def)" teleport />
                                 </div>
                             </div>
                         </div>
@@ -152,6 +158,8 @@ import { useApi } from '@/composables/api'
 import { useResponsive } from '@/store/responsive'
 import FlowAppIcon from './FlowAppIcon.vue'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
+import FlowBellMenu from './FlowBellMenu.vue'
+import FlowPendingMenu from './FlowPendingMenu.vue'
 import type { FlowDefinitionListItem } from '@/types/flow'
 import type { MenuList } from '@/interface/globalInterface'
 import FloatButton from '@/components/Global/FloatButton.vue'
@@ -162,6 +170,7 @@ import Badge from '@/components/Global/Badge.vue'
 import Grid from '@/components/Icons/Grid.vue'
 import List from '@/components/Icons/List.vue'
 import { useAuthUserStore } from '@/store/auth'
+import { useBadgeStore } from '@/store/badge'
 
 interface WaitingItem { app_id: number; app_name: string; record_id: number; record_number: number; status: string | null; updated_at?: string }
 
@@ -169,6 +178,7 @@ const api = useApi()
 const router = useRouter()
 const responsive = useResponsive()
 const auth = useAuthUserStore()
+const badge = useBadgeStore()
 const definitions = ref<FlowDefinitionListItem[]>([])
 const waiting = ref<WaitingItem[]>([])
 const loading = ref(true)
@@ -185,11 +195,17 @@ const setViewMode = (m: ViewMode) => {
     try { localStorage.setItem(VIEW_KEY, m) } catch { /* private mode / quota — non-fatal */ }
 }
 
-const menuItems = (def: FlowDefinitionListItem): MenuList[] => [
-    { title: def.pinned ? 'ピン留めを外す' : 'ピン留め', action: () => togglePin(def) },
-    { title: '設定', action: () => openBuilder(def.id) },
-    { title: '削除', action: () => removeDefinition(def.id) },
-]
+const menuItems = (def: FlowDefinitionListItem): MenuList[] => {
+    // ピン留め is a per-user preference (anyone who can see the app); 設定/削除 need 管理 (manage)
+    const items: MenuList[] = [
+        { title: def.pinned ? 'ピン留めを外す' : 'ピン留め', action: () => togglePin(def) },
+    ]
+    if (def.can_manage) {
+        items.push({ title: '設定', action: () => openBuilder(def.id) })
+        items.push({ title: '削除', action: () => removeDefinition(def.id) })
+    }
+    return items
+}
 
 const onSearch = (kw: string) => { search.value = kw }
 const sortedDefinitions = computed(() => {
@@ -219,6 +235,12 @@ const getDefinitions = async () => {
     try {
         const data = await api.get('/flow_definitions')
         definitions.value = Array.isArray(data) ? data as FlowDefinitionListItem[] : []
+        // these are the authoritative live counts — correct the side-menu badge now rather than
+        // letting badge_summary's 60s cache serve a stale total
+        badge.setFlowBadge({
+            unread: definitions.value.reduce((n, d) => n + (d.unread_notifications ?? 0), 0),
+            pending: definitions.value.reduce((n, d) => n + (d.pending_actions ?? 0), 0),
+        })
     } finally {
         loading.value = false
     }
@@ -314,7 +336,7 @@ onMounted(() => {
 .fc-card-head { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
 .fc-card-name { font-size: 15px; line-height: 1.4; color: var(--primary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fc-card-flags { display: flex; align-items: center; gap: 8px; }
-.fc-card-menu { flex-shrink: 0; margin: -2px -4px 0 0; }
+.fc-card-menu { flex-shrink: 0; margin: -2px -4px 0 0; display: flex; align-items: center; gap: 2px; }
 .fc-card-foot { display: flex; align-items: center; gap: 14px; font-size: 12px; color: gray; border-top: 1px solid var(--calendarBorder); padding-top: 12px; }
 .fc-fi { display: inline-flex; align-items: baseline; gap: 3px; }
 .fc-num { font-size: 15px; color: var(--primary-color); }
@@ -325,7 +347,7 @@ onMounted(() => {
 /* table view */
 .fc-table-scroll { overflow-x: auto; }
 .fc-table { min-width: 620px; border: 1px solid var(--calendarBorder); background: var(--background-color); }
-.fc-tr { display: grid; grid-template-columns: 1fr 130px 130px 110px 46px; align-items: center; padding: 11px 18px; }
+.fc-tr { display: grid; grid-template-columns: 1fr 130px 110px 110px; align-items: center; padding: 11px 18px; }
 /* header shade is distinct from BOTH the white rows and the --bg3 page behind the table */
 .fc-th { font-size: 12px; color: gray; border-bottom: 1px solid var(--calendarBorder); background: color-mix(in srgb, var(--primary-color) 10%, var(--background-color)); }
 .fc-row { border-bottom: 1px solid var(--calendarBorder); cursor: pointer; transition: background-color .1s; }
@@ -335,9 +357,21 @@ onMounted(() => {
 .fc-td-name { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .fc-td-ico :deep(.fai-initial) { font-weight: 400; }
 .fc-td-nm { font-size: 14px; color: var(--primary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fc-td-menu { display: flex; justify-content: flex-end; }
+.fc-td-menu { display: flex; justify-content: flex-end; align-items: center; gap: 10px; }
 .fc-unit { font-size: 12px; color: gray; margin-left: 2px; }
 .fc-tr.fc-row .fc-num { font-size: 14px; }
+
+/* mobile: no horizontal scroll — everything fits the device width, the app name ellipsizes.
+   公開範囲 is secondary info and only crowds the right end → hidden. */
+@media (max-width: 640px) {
+    .fc-table { min-width: 0; }
+    .fc-tr { grid-template-columns: minmax(0, 1fr) 48px 96px; column-gap: 8px; padding: 11px 10px; }
+    .fc-tr .ac { display: none; }
+    .fc-td-name { gap: 7px; }
+    .fc-td-nm { font-size: 13px; }
+    .fc-td-menu { gap: 6px; }
+    .fc-th > div:nth-child(2), .fc-tr.fc-row .ar { font-size: 11px; }
+}
 
 /* empty */
 .fc-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 72px; color: gray; }

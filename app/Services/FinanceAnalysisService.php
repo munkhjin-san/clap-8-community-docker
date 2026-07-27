@@ -121,7 +121,8 @@ class FinanceAnalysisService
         $projectRows = $this->rangeProjectRows($snapshots, $periods, $resultBucket);
         $worstProjects = $this->worstProjects($projectRows, $resultBucket);
         $internalReferenceProjects = $this->internalReferenceProjects($projectRows, $resultBucket);
-        $dataStatus = $this->mergeDataStatus($snapshots);
+        $actualResultDrivers = $this->actualResultDriverContext($snapshots, $periods, $worstProjects, 16);
+        $dataStatus = $this->mergeDataStatus($snapshots, $periods);
         $commentContext = $this->financeCommentContext($projectIds, $periods, $snapshots);
 
         return [
@@ -132,7 +133,7 @@ class FinanceAnalysisService
                 'fiscal_years' => $fiscalYears,
                 'analysis_basis' => $resultBucket === 'forecast'
                     ? '着地見込み（実績反映済み月は実績、未反映月はKintone損益）'
-                    : 'Google Sheets実績のみ',
+                    : '実績のみ（保存済み実績優先、Google Sheets補完）',
                 'finance_comment_count' => $commentContext['comment_count'],
                 'actionable_project_count' => $this->actionableProjectCount($projectRows),
                 'internal_cost_center_policy' => $this->internalCostCenterPolicy(),
@@ -160,6 +161,7 @@ class FinanceAnalysisService
                 'monthly_totals' => $monthlyTotals,
                 'worst_projects' => $worstProjects,
                 'internal_reference_projects' => $internalReferenceProjects,
+                'actual_result_drivers' => $actualResultDrivers,
                 'data_status' => $dataStatus,
             ],
             'comment_context' => $commentContext,
@@ -180,6 +182,7 @@ class FinanceAnalysisService
                 999
             );
             $projectRows = $this->snapshotProjectRows($snapshot, 'forecast');
+            $riskProjects = $this->worstProjects($projectRows, 'forecast');
             $snapshots[$fiscalYear] = $snapshot;
             $yearFacts[$fiscalYear] = [
                 'fiscal_year' => $fiscalYear,
@@ -194,8 +197,14 @@ class FinanceAnalysisService
                     $snapshot['totals']['forecast'] ?? [],
                     $snapshot['totals']['yearly_plan'] ?? []
                 ),
-                'risk_projects' => $this->worstProjects($projectRows, 'forecast'),
+                'risk_projects' => $riskProjects,
                 'internal_reference_projects' => $this->internalReferenceProjects($projectRows, 'forecast'),
+                'actual_result_drivers' => $this->actualResultDriverContext(
+                    [$fiscalYear => $snapshot],
+                    $snapshot['period']['months'] ?? [],
+                    $riskProjects,
+                    12
+                ),
                 'data_status' => $snapshot['data_status'] ?? [],
             ];
         }
@@ -251,7 +260,7 @@ class FinanceAnalysisService
         }
 
         $client = OpenAI::client($apiKey);
-        $model = config('services.openai.chat_model', 'gpt-4.1-mini');
+        $model = config('services.openai.chat_model', 'gpt-5.6-luna');
         $factsForModel = $this->factsForModel($facts);
 
         $response = $client->chat()->create([
@@ -260,14 +269,19 @@ class FinanceAnalysisService
                 ['role' => 'system', 'content' => $this->systemPrompt()],
                 ['role' => 'user', 'content' => json_encode($factsForModel, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)],
             ],
-            'temperature' => 0.2,
-            'max_tokens' => 1200,
+            'max_completion_tokens' => 1200,
             'response_format' => ['type' => 'json_object'],
         ]);
 
         $content = $response->choices[0]->message->content ?? '';
 
-        return $this->normalizeAnalysisResponse($content);
+        $analysis = $this->enrichAnalysisWithVerifiedDrivers(
+            $this->normalizeAnalysisResponse($content),
+            $facts
+        );
+        $analysis = $this->enrichCommentInsights($analysis, $facts);
+
+        return $this->enrichDataNotesWithActualCoverage($analysis, $facts);
     }
 
     private function systemPrompt(): string
@@ -284,17 +298,30 @@ class FinanceAnalysisService
 - 「万円」として渡された金額を「億円」に言い換えない
 - 用語定義: 予算 = yearly_plan。PMが作成し取締役が承認した、年度開始時点の年間計画
 - 用語定義: 計画 = facts内の scenario/bucket 名 profit。予算を基準にしたKintone損益の月次修正計画で、人員退職・体制変更・見積更新などにより月次で変わる
-- 用語定義: 実績 = settlement。Google Sheets実績
+- 用語定義: 実績 = settlement。保存済み実績データを優先し、該当プロジェクト・月にない場合はGoogle Sheets実績を使う
 - 用語定義: 着地見込み = forecast。実績反映済み月は実績、未反映月は計画を見込みとして使う
 - 「予算差分」は着地見込み/実績と yearly_plan の差分、「計画差分」は着地見込み/実績と profit（計画）の差分として扱う
 - factsにない数値やプロジェクト名は推測しない
+- metrics.actual_result_drivers は保存済み実績がある月だけの詳細根拠。売上内訳、売上原価、販管費、間接費、積立金、上位費目を分析に使う
+- actual_result_drivers がないプロジェクト・月について、費用増減の内訳を推測しない
+- actual_result_drivers がある場合、単に「販管費が増加」と書かず、highlights または risks にプロジェクト名・費目名・金額を含む具体的な内訳を最低2件入れる。対象が1件だけなら1件でよい
+- top_expense_accounts は実績費用の構成であり、増減原因そのものではない。「主な費用内訳は」と表現し、コメントの裏付けなしに「この費目が差異の原因」と断定しない
+- 計画差分を説明するときは variance_vs_profit_plan、予算差分を説明するときは variance_vs_yearly_plan を使い、両者を混同しない
+- 予算費用が0円で実績費用があるだけでは「予算未計上が原因」と断定しない。「予算0円に対し実績費用が発生」と事実を示す
+- 推奨対応は根拠データに直接つながる確認事項にする。「営業戦略の見直し」などfactsから導けない一般論を追加しない
+- top_expense_accounts の「給与関連」は個別給与項目を集約した値であり、個人単位の情報ではない
+- internal_reference_projects は社内配賦・積立・振替の影響を持つ参考部門であり、通常案件のリスク順位として扱わない
+- 賞与などの社内振替は通常費用の急増として扱わず、会社全体で相殺される管理会計上の振替として扱う
 - comment_context.context_rows がある場合、コメントは対象プロジェクト・対象月の人間による記録として扱い、差異理由を説明する補助根拠にする
 - コメントを使う場合は「コメントでは」「記録では」など、コメント由来であることが分かる表現にする
 - actual_data_available=false の月について、実績差異の原因をコメントから断定しない
 - コメントがない差異については原因を推測せず、必要なら「理由コメントなし」「要確認」とする
 - comment_insights には、コメントで裏付けられる差異理由だけを最大4件入れる。コメントがない場合は空配列にする
 - include_forecast_settlement=false または analysis_basis が実績のみの場合、未反映月を含む年度計画との比較は進捗途中であることを明示する
+- data_status.actual_coverage を実績反映状況の正とする。actual_reflected_count は実績反映済み、not_expected_count は未開始・終了済み・月次財務活動なしの対象外、needs_review_count だけが要確認
+- actual_coverage がある場合、件数は「実績対象N件のうち、実績反映済みN件、対象外N件、要確認N件」の形式で扱い、対象外を欠損やリスクと表現しない
 - data_status に missing_settlement_periods または forecast_periods がある場合は data_notes に含める
+- 出力本文では英字の内部データ名や計算モード名を使わず、「保存済み実績」「実績」「予算」「CSV確定値」「システム計算値」の日本語表示を使う
 - 出力は必ずJSONオブジェクトのみ。Markdownやコードフェンスは禁止
 
 JSON schema:
@@ -330,6 +357,560 @@ TXT;
             'recommended_actions' => $this->stringList($decoded['recommended_actions'] ?? []),
             'data_notes' => $this->stringList($decoded['data_notes'] ?? []),
         ];
+    }
+
+    private function enrichAnalysisWithVerifiedDrivers(array $analysis, array $facts): array
+    {
+        $verifiedSummary = $this->verifiedExecutiveSummary($facts);
+        if ($verifiedSummary !== null) {
+            $analysis['summary'] = $verifiedSummary;
+        }
+
+        $overallHighlights = $this->verifiedOverallHighlights($facts);
+        $drivers = $this->analysisDriverRows($facts);
+        if ($drivers === []) {
+            $analysis['highlights'] = array_slice(array_merge(
+                $overallHighlights,
+                $analysis['highlights'] ?? []
+            ), 0, 4);
+
+            return $analysis;
+        }
+
+        $projectTokens = $this->analysisProjectTokens($facts, $drivers);
+        $analysis['summary'] = $this->withoutProjectClaims(
+            (string) ($analysis['summary'] ?? ''),
+            $projectTokens
+        );
+        foreach (['highlights', 'risks', 'recommended_actions'] as $section) {
+            $analysis[$section] = array_values(array_filter(
+                $analysis[$section] ?? [],
+                fn (string $item) => ! $this->mentionsProject($item, $projectTokens)
+            ));
+        }
+
+        $positiveDrivers = array_values(array_filter(
+            $drivers,
+            fn (array $driver) => (int) data_get($driver, 'variance_vs_profit_plan.profit_amount', 0) > 0
+        ));
+        usort($positiveDrivers, fn (array $left, array $right) =>
+            (int) data_get($right, 'variance_vs_profit_plan.profit_amount', 0)
+                <=> (int) data_get($left, 'variance_vs_profit_plan.profit_amount', 0)
+        );
+        $highlightDrivers = $positiveDrivers !== [] ? $positiveDrivers : $drivers;
+        $highlightDrivers = $this->distinctProjectDrivers($highlightDrivers, 2);
+        $verifiedHighlights = array_values(array_filter(array_map(
+            fn (array $driver) => $this->verifiedDriverHighlight($driver),
+            $highlightDrivers
+        )));
+
+        $riskDrivers = array_values(array_filter(
+            $drivers,
+            fn (array $driver) => (int) data_get($driver, 'variance_vs_profit_plan.profit_amount', 0) < 0
+        ));
+        usort($riskDrivers, fn (array $left, array $right) =>
+            (int) data_get($left, 'variance_vs_profit_plan.profit_amount', 0)
+                <=> (int) data_get($right, 'variance_vs_profit_plan.profit_amount', 0)
+        );
+        $riskDrivers = $this->distinctProjectDrivers($riskDrivers, 2);
+        $verifiedRisks = array_values(array_filter(array_map(
+            fn (array $driver) => $this->verifiedDriverRisk($driver),
+            $riskDrivers
+        )));
+        $verifiedActions = array_values(array_filter(array_map(
+            fn (array $driver) => $this->verifiedDriverAction($driver),
+            $riskDrivers
+        )));
+
+        $analysis['highlights'] = array_slice(array_merge(
+            $overallHighlights,
+            $verifiedHighlights,
+            $analysis['highlights']
+        ), 0, 4);
+        $analysis['risks'] = array_slice(array_merge(
+            $verifiedRisks,
+            $analysis['risks']
+        ), 0, 4);
+        $analysis['recommended_actions'] = array_slice(array_merge(
+            $verifiedActions,
+            $analysis['recommended_actions']
+        ), 0, 4);
+
+        return $analysis;
+    }
+
+    private function distinctProjectDrivers(array $drivers, int $limit): array
+    {
+        if ($limit <= 0) {
+            return [];
+        }
+
+        $selected = [];
+        $seen = [];
+
+        foreach ($drivers as $driver) {
+            $projectKey = FinanceSnapshotService::projectNameKey($driver['project_name'] ?? '');
+            if ($projectKey === '' || isset($seen[$projectKey])) {
+                continue;
+            }
+
+            $seen[$projectKey] = true;
+            $selected[] = $driver;
+
+            if (count($selected) >= $limit) {
+                break;
+            }
+        }
+
+        return $selected;
+    }
+
+    private function verifiedExecutiveSummary(array $facts): ?string
+    {
+        $result = $facts['metrics']['selected_totals']['analysis_result'] ?? null;
+        $yearlyPlanVariance = $facts['metrics']['analysis_vs_yearly_plan'] ?? null;
+        $profitPlanVariance = $facts['metrics']['analysis_vs_profit'] ?? null;
+        if (! is_array($result) || empty($result['has_data'])) {
+            return null;
+        }
+
+        $basis = str_contains((string) ($facts['scope']['analysis_basis'] ?? ''), '着地見込み')
+            ? '着地見込み'
+            : '実績';
+        $periodLabel = $this->executivePeriodLabel($facts['scope'] ?? []);
+        $subject = $periodLabel !== '' ? "{$periodLabel}の{$basis}" : $basis;
+        $profitRate = $result['profit_rate'] ?? null;
+        $rateText = $profitRate !== null ? sprintf('（利益率%s%%）', $this->formatPercentage((float) $profitRate)) : '';
+        $sentences = [sprintf(
+            '%sは売上%s、販管費%s、利益%s%sです。',
+            $subject,
+            (string) ($result['sales_display'] ?? $this->formatYen((float) ($result['sales'] ?? 0))),
+            (string) ($result['expense_display'] ?? $this->formatYen((float) ($result['expense'] ?? 0))),
+            (string) ($result['profit_display'] ?? $this->formatYen((float) ($result['profit'] ?? 0))),
+            $rateText
+        )];
+
+        if (is_array($yearlyPlanVariance)) {
+            $sentences[] = '予算比では' . $this->varianceNarrative($yearlyPlanVariance) . '。';
+        }
+
+        if (is_array($profitPlanVariance)) {
+            $planSentence = '計画比では' . $this->varianceNarrative($profitPlanVariance);
+            $coverageText = $this->executiveCoverageText($facts);
+            $sentences[] = $planSentence . ($coverageText !== '' ? "。{$coverageText}" : '。');
+        }
+
+        return implode('', array_slice($sentences, 0, 3));
+    }
+
+    private function executivePeriodLabel(array $scope): string
+    {
+        $start = (string) ($scope['period_start'] ?? ($scope['periods'][0] ?? ''));
+        $end = (string) ($scope['period_end'] ?? (Arr::last($scope['periods'] ?? []) ?? $start));
+        if (preg_match('/^(20\d{2})-(\d{2})$/', $start, $startParts) !== 1) {
+            return '';
+        }
+
+        if ($start === $end) {
+            return sprintf('%d年%d月', (int) $startParts[1], (int) $startParts[2]);
+        }
+
+        if (preg_match('/^(20\d{2})-(\d{2})$/', $end, $endParts) !== 1) {
+            return '';
+        }
+
+        if ($startParts[1] === $endParts[1]) {
+            return sprintf('%d年%d月〜%d月', (int) $startParts[1], (int) $startParts[2], (int) $endParts[2]);
+        }
+
+        return sprintf(
+            '%d年%d月〜%d年%d月',
+            (int) $startParts[1],
+            (int) $startParts[2],
+            (int) $endParts[1],
+            (int) $endParts[2]
+        );
+    }
+
+    private function varianceNarrative(array $variance): string
+    {
+        $parts = [];
+        foreach (['sales' => '売上', 'expense' => '販管費', 'profit' => '利益'] as $metric => $label) {
+            $amount = (int) ($variance[$metric . '_amount'] ?? 0);
+            if ($amount === 0) {
+                $parts[] = "{$label}は同額";
+                continue;
+            }
+
+            $amountText = $this->formatYen(abs($amount));
+            $percentage = $variance[$metric . '_pct'] ?? null;
+            $percentageText = is_numeric($percentage)
+                ? sprintf('（%s%%）', $this->formatPercentage(abs((float) $percentage)))
+                : '';
+            $direction = $metric === 'profit'
+                ? ($amount > 0 ? '改善' : '悪化')
+                : ($amount > 0 ? '増加' : '減少');
+            $parts[] = "{$label}が{$amountText}{$percentageText}{$direction}";
+        }
+
+        if (count($parts) <= 1) {
+            return $parts[0] ?? '';
+        }
+
+        $last = array_pop($parts);
+
+        return implode('、', $parts) . 'し、' . $last;
+    }
+
+    private function executiveCoverageText(array $facts): string
+    {
+        $coverage = $facts['metrics']['data_status']['actual_coverage'] ?? [];
+        if ($coverage === []) {
+            return '';
+        }
+
+        $totals = array_reduce($coverage, function (array $carry, array $row) {
+            $carry['selected'] += (int) ($row['selected_project_count'] ?? 0);
+            $carry['reflected'] += (int) ($row['actual_reflected_count'] ?? 0);
+            $carry['excluded'] += (int) ($row['not_expected_count'] ?? 0);
+            $carry['review'] += (int) ($row['needs_review_count'] ?? 0);
+
+            return $carry;
+        }, ['selected' => 0, 'reflected' => 0, 'excluded' => 0, 'review' => 0]);
+
+        return sprintf(
+            '実績対象%d件のうち、実績反映済み%d件、対象外%d件、要確認%d件です。',
+            $totals['selected'],
+            $totals['reflected'],
+            $totals['excluded'],
+            $totals['review']
+        );
+    }
+
+    private function formatPercentage(float $percentage): string
+    {
+        return rtrim(rtrim(number_format($percentage, 2, '.', ''), '0'), '.');
+    }
+
+    private function verifiedOverallHighlights(array $facts): array
+    {
+        $result = $facts['metrics']['selected_totals']['analysis_result'] ?? null;
+        if (! is_array($result) || empty($result['has_data'])) {
+            return [];
+        }
+
+        $basis = str_contains((string) ($facts['scope']['analysis_basis'] ?? ''), '着地見込み')
+            ? '着地見込み'
+            : '実績';
+        $profitRate = $result['profit_rate'] ?? null;
+        $rateText = $profitRate !== null ? sprintf('（利益率%s%%）', $profitRate) : '';
+        $highlights = [sprintf(
+            '%sは売上%s、販管費%s、利益%s%s。',
+            $basis,
+            (string) ($result['sales_display'] ?? $this->formatYen((float) ($result['sales'] ?? 0))),
+            (string) ($result['expense_display'] ?? $this->formatYen((float) ($result['expense'] ?? 0))),
+            (string) ($result['profit_display'] ?? $this->formatYen((float) ($result['profit'] ?? 0))),
+            $rateText
+        )];
+
+        $yearlyPlanVariance = $facts['metrics']['analysis_vs_yearly_plan'] ?? null;
+        $profitPlanVariance = $facts['metrics']['analysis_vs_profit'] ?? null;
+        if (is_array($yearlyPlanVariance) && is_array($profitPlanVariance)) {
+            $highlights[] = sprintf(
+                '予算差分は売上%s、販管費%s、利益%s。計画差分は売上%s、販管費%s、利益%s。',
+                $this->varianceMoney($yearlyPlanVariance, 'sales'),
+                $this->varianceMoney($yearlyPlanVariance, 'expense'),
+                $this->varianceMoney($yearlyPlanVariance, 'profit'),
+                $this->varianceMoney($profitPlanVariance, 'sales'),
+                $this->varianceMoney($profitPlanVariance, 'expense'),
+                $this->varianceMoney($profitPlanVariance, 'profit')
+            );
+        }
+
+        return $highlights;
+    }
+
+    private function varianceMoney(array $variance, string $metric): string
+    {
+        $amount = (int) ($variance[$metric . '_amount'] ?? 0);
+        $display = (string) ($variance[$metric . '_amount_display'] ?? $this->formatYen($amount));
+
+        return $amount > 0 ? '+' . $display : $display;
+    }
+
+    private function enrichCommentInsights(array $analysis, array $facts): array
+    {
+        $insights = array_values($analysis['comment_insights'] ?? []);
+
+        foreach ($facts['comment_context']['context_rows'] ?? [] as $row) {
+            if (count($insights) >= 4) {
+                break;
+            }
+            if (empty($row['actual_data_available'])) {
+                continue;
+            }
+
+            $projectName = trim((string) ($row['project_name'] ?? ''));
+            if ($projectName === '' || $this->mentionsProject(implode(' ', $insights), [$projectName])) {
+                continue;
+            }
+
+            $comment = $row['comments'][0]['comment'] ?? null;
+            if (! is_string($comment) || trim($comment) === '') {
+                continue;
+            }
+
+            $period = trim((string) ($row['period'] ?? ''));
+            $insights[] = sprintf(
+                '%s%sのコメントでは「%s」と記録されています。',
+                $projectName,
+                $period !== '' ? "（{$period}）" : '',
+                Str::limit(trim($comment), 140, '...')
+            );
+        }
+
+        $analysis['comment_insights'] = array_slice($insights, 0, 4);
+
+        return $analysis;
+    }
+
+    private function analysisDriverRows(array $facts): array
+    {
+        $rows = $facts['metrics']['actual_result_drivers'] ?? [];
+
+        foreach ($facts['metrics']['fiscal_years'] ?? [] as $fiscalYear) {
+            $rows = array_merge($rows, $fiscalYear['actual_result_drivers'] ?? []);
+        }
+
+        return array_values(array_filter($rows, fn ($row) => is_array($row)));
+    }
+
+    private function analysisProjectTokens(array $facts, array $drivers): array
+    {
+        $names = array_column($drivers, 'project_name');
+        $names = array_merge(
+            $names,
+            array_column($facts['metrics']['worst_projects'] ?? [], 'project_name'),
+            array_column($facts['metrics']['target_worst_projects'] ?? [], 'project_name')
+        );
+
+        foreach ($facts['metrics']['fiscal_years'] ?? [] as $fiscalYear) {
+            $names = array_merge($names, array_column($fiscalYear['risk_projects'] ?? [], 'project_name'));
+        }
+
+        $tokens = [];
+        foreach (array_unique(array_filter($names)) as $name) {
+            $name = trim((string) $name);
+            $baseName = trim((string) preg_split('/[（(]/u', $name, 2)[0]);
+
+            foreach ([$name, $baseName] as $token) {
+                if (mb_strlen($token) >= 3) {
+                    $tokens[$token] = true;
+                }
+            }
+        }
+
+        return array_keys($tokens);
+    }
+
+    private function mentionsProject(string $text, array $projectTokens): bool
+    {
+        $normalizedText = FinanceSnapshotService::projectNameKey($text);
+
+        foreach ($projectTokens as $token) {
+            if (str_contains($normalizedText, FinanceSnapshotService::projectNameKey($token))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function enrichDataNotesWithActualCoverage(array $analysis, array $facts): array
+    {
+        $coverage = $facts['metrics']['data_status']['actual_coverage'] ?? [];
+        if ($coverage === []) {
+            return $analysis;
+        }
+
+        $includePeriod = count($coverage) > 1;
+        $coverageNotes = array_map(function (array $row) use ($includePeriod) {
+            $prefix = $includePeriod ? ((string) ($row['period'] ?? '') . ': ') : '';
+
+            return sprintf(
+                '%s実績対象%d件のうち、実績反映済み%d件、対象外%d件、要確認%d件。',
+                $prefix,
+                (int) ($row['selected_project_count'] ?? 0),
+                (int) ($row['actual_reflected_count'] ?? 0),
+                (int) ($row['not_expected_count'] ?? 0),
+                (int) ($row['needs_review_count'] ?? 0)
+            );
+        }, $coverage);
+
+        $existingNotes = array_values(array_filter(
+            $analysis['data_notes'] ?? [],
+            fn (string $note) => preg_match('/実績.*(?:欠損|未反映|対象外|要確認)/u', $note) !== 1
+                && $this->dataNoteWithinPeriods($note, $facts['scope']['periods'] ?? [])
+        ));
+        $analysis['data_notes'] = array_slice(array_merge($coverageNotes, $existingNotes), 0, 3);
+
+        return $analysis;
+    }
+
+    private function dataNoteWithinPeriods(string $note, array $periods): bool
+    {
+        if ($periods === []) {
+            return true;
+        }
+
+        preg_match_all('/(20\d{2})年(\d{1,2})月/u', $note, $japaneseMatches, PREG_SET_ORDER);
+        preg_match_all('/20\d{2}-\d{2}/', $note, $isoMatches);
+        $referencedPeriods = array_map(
+            fn (array $match) => sprintf('%04d-%02d', (int) $match[1], (int) $match[2]),
+            $japaneseMatches
+        );
+        $referencedPeriods = array_merge($referencedPeriods, $isoMatches[0] ?? []);
+
+        return array_diff(array_unique($referencedPeriods), $periods) === [];
+    }
+
+    private function withoutProjectClaims(string $summary, array $projectTokens): string
+    {
+        $sentences = preg_split('/(?<=[。！？])/u', $summary, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $sentences = array_values(array_filter(
+            $sentences,
+            fn (string $sentence) => ! $this->mentionsProject($sentence, $projectTokens)
+        ));
+
+        $filtered = trim(implode('', $sentences));
+
+        return $filtered !== '' || trim($summary) === ''
+            ? $filtered
+            : '全体数値と確認済みのプロジェクト別内訳を以下に示します。';
+    }
+
+    private function verifiedDriverHighlight(array $driver): ?string
+    {
+        $projectName = trim((string) ($driver['project_name'] ?? ''));
+        if ($projectName === '') {
+            return null;
+        }
+
+        $period = (string) ($driver['period'] ?? '');
+        $expenseParts = $this->driverExpenseParts($driver);
+        $expenseText = $expenseParts === []
+            ? ''
+            : '主な実績費用内訳は' . implode('、', $expenseParts) . '。';
+
+        return sprintf(
+            '%s%sは計画利益差%s（予算比%s）。%s',
+            $projectName,
+            $period !== '' ? "（{$period}）" : '',
+            $this->driverProfitGap($driver, 'variance_vs_profit_plan'),
+            $this->driverProfitGap($driver, 'variance_vs_yearly_plan'),
+            $expenseText
+        );
+    }
+
+    private function verifiedDriverRisk(array $driver): ?string
+    {
+        $projectName = trim((string) ($driver['project_name'] ?? ''));
+        if ($projectName === '') {
+            return null;
+        }
+
+        $period = (string) ($driver['period'] ?? '');
+        $expenseParts = $this->driverExpenseParts($driver);
+        $expenseText = $expenseParts === []
+            ? ''
+            : '確認対象となる主な実績費用内訳は' . implode('、', $expenseParts) . '。';
+
+        return sprintf(
+            '%s%sは利益が計画比%s（予算比%s）。%s',
+            $projectName,
+            $period !== '' ? "（{$period}）" : '',
+            $this->driverProfitGap($driver, 'variance_vs_profit_plan'),
+            $this->driverProfitGap($driver, 'variance_vs_yearly_plan'),
+            $expenseText
+        );
+    }
+
+    private function verifiedDriverAction(array $driver): ?string
+    {
+        $projectName = trim((string) ($driver['project_name'] ?? ''));
+        if ($projectName === '') {
+            return null;
+        }
+
+        $expenseParts = $this->driverExpenseParts($driver);
+        $expenseText = $expenseParts === []
+            ? '実績費用内訳'
+            : '実績費用内訳（' . implode('、', $expenseParts) . '）';
+
+        return sprintf(
+            '%sの計画利益差%sについて、%sと月次計画の前提を照合する。',
+            $projectName,
+            $this->driverProfitGap($driver, 'variance_vs_profit_plan'),
+            $expenseText
+        );
+    }
+
+    private function driverExpenseParts(array $driver): array
+    {
+        $details = $driver['drivers'] ?? [];
+        $parts = [];
+
+        foreach ($details['top_expense_accounts'] ?? [] as $account) {
+            $name = trim((string) ($account['account_name'] ?? ''));
+            $amount = trim((string) ($account['amount'] ?? ''));
+            if ($name !== '' && $this->isNonZeroMoney($amount)) {
+                $parts[] = "{$name}{$amount}";
+            }
+            if (count($parts) >= 3) {
+                return $parts;
+            }
+        }
+
+        $components = [
+            'cost_of_goods_sold' => '売上原価',
+            'indirect_allocation_expense' => '間接費配賦',
+            'performance_bonus_reserve' => '業績賞与',
+            'reserve_expenses.basic_bonus' => '基本賞与',
+            'reserve_expenses.paid_leave' => '有給',
+            'reserve_expenses.welfare' => '福利厚生',
+            'reserve_expenses.refresh' => 'リフレッシュ',
+        ];
+
+        foreach ($components as $key => $label) {
+            $amount = trim((string) data_get($details, $key, ''));
+            if ($this->isNonZeroMoney($amount)) {
+                $parts[] = "{$label}{$amount}";
+            }
+            if (count($parts) >= 3) {
+                return $parts;
+            }
+        }
+
+        $sgAndA = trim((string) ($details['sg_and_a_expenses'] ?? ''));
+        if ($parts === [] && $this->isNonZeroMoney($sgAndA)) {
+            $parts[] = "販管費{$sgAndA}";
+        }
+
+        return $parts;
+    }
+
+    private function driverProfitGap(array $driver, string $varianceKey): string
+    {
+        $variance = $driver[$varianceKey] ?? [];
+        $amount = (int) ($variance['profit_amount'] ?? 0);
+        $display = (string) ($variance['profit_amount_display'] ?? $this->formatYen($amount));
+
+        return $amount > 0 ? '+' . $display : $display;
+    }
+
+    private function isNonZeroMoney(string $amount): bool
+    {
+        return $amount !== '' && ! in_array($amount, ['0円', '-0円'], true);
     }
 
     private function factsForModel(array $value): array
@@ -498,26 +1079,215 @@ TXT;
         ];
     }
 
-    private function mergeDataStatus(array $snapshots): array
+    private function actualResultDriverContext(
+        array $snapshots,
+        array $periods,
+        array $priorityProjects,
+        int $limit
+    ): array {
+        $priorityIds = array_fill_keys(array_map(
+            fn (array $project) => (int) ($project['project_id'] ?? 0),
+            $priorityProjects
+        ), true);
+        $rows = [];
+
+        foreach ($snapshots as $snapshot) {
+            foreach ($snapshot['projects'] ?? [] as $project) {
+                $projectId = (int) ($project['project_id'] ?? 0);
+                $projectName = (string) ($project['project_name'] ?? '');
+
+                if (FinanceSnapshotService::isInternalCostCenter($projectName)) {
+                    continue;
+                }
+
+                foreach ($periods as $period) {
+                    $month = $project['months'][$period] ?? null;
+                    $actual = $month['settlement'] ?? [];
+                    $details = $actual['actual_result_details'] ?? null;
+
+                    if (! is_array($details) || ! empty($details['internal_transfer_expense'])) {
+                        continue;
+                    }
+
+                    $profitPlan = $month['profit'] ?? [];
+                    $yearlyPlan = $month['yearly_plan'] ?? [];
+                    $varianceVsProfitPlan = $this->variance($actual, $profitPlan);
+                    $varianceVsYearlyPlan = $this->variance($actual, $yearlyPlan);
+
+                    $profitPlanScore = abs((int) ($varianceVsProfitPlan['profit_amount'] ?? 0));
+                    $yearlyPlanScore = abs((int) ($varianceVsYearlyPlan['profit_amount'] ?? 0));
+
+                    $rows[] = [
+                        '_priority' => isset($priorityIds[$projectId]) ? 1 : 0,
+                        '_score' => max($profitPlanScore, $yearlyPlanScore),
+                        '_expense' => abs((int) ($actual['expense'] ?? 0)),
+                        'project_id' => $projectId,
+                        'project_name' => $projectName,
+                        'period' => (string) $period,
+                        'selection_basis' => $profitPlanScore >= $yearlyPlanScore ? '計画差分' : '予算差分',
+                        'actual' => $this->compactUnit($actual),
+                        'profit_plan' => $this->compactUnit($profitPlan),
+                        'yearly_plan' => $this->compactUnit($yearlyPlan),
+                        'variance_vs_profit_plan' => $varianceVsProfitPlan,
+                        'variance_vs_yearly_plan' => $varianceVsYearlyPlan,
+                        'drivers' => $this->compactActualResultDetails($details),
+                    ];
+                }
+            }
+        }
+
+        usort($rows, function (array $left, array $right) {
+            return ($right['_score'] <=> $left['_score'])
+                ?: ($right['_priority'] <=> $left['_priority'])
+                ?: ($right['_expense'] <=> $left['_expense']);
+        });
+
+        return array_map(function (array $row) {
+            unset($row['_priority'], $row['_score'], $row['_expense']);
+
+            return $row;
+        }, array_slice($rows, 0, max(0, $limit)));
+    }
+
+    private function compactActualResultDetails(array $details): array
+    {
+        $money = fn (string $key) => $this->formatYen((float) ($details[$key] ?? 0));
+
+        return [
+            'data_source' => '保存済み実績',
+            'calculation_source' => $this->calculationSourceLabel($details['source_mode'] ?? null),
+            'manual_adjusted' => ! empty($details['manual_adjusted']),
+            'external_sales' => $money('external_sales'),
+            'internal_sales' => $money('internal_sales'),
+            'cost_of_goods_sold' => $money('cost_of_goods_sold'),
+            'sg_and_a_expenses' => $money('sg_and_a_expenses'),
+            'indirect_allocation_expense' => $money('indirect_allocation_expense'),
+            'performance_bonus_reserve' => $money('performance_bonus_reserve'),
+            'reserve_expenses' => [
+                'basic_bonus' => $money('basic_bonus_reserve'),
+                'paid_leave' => $money('paid_leave_reserve'),
+                'welfare' => $money('welfare_reserve'),
+                'refresh' => $money('refresh_reserve'),
+            ],
+            'top_expense_accounts' => array_map(fn (array $account) => [
+                'account_name' => (string) ($account['account_name'] ?? ''),
+                'amount' => $this->formatYen((float) ($account['amount'] ?? 0)),
+            ], $details['top_expense_accounts'] ?? []),
+        ];
+    }
+
+    private function mergeDataStatus(array $snapshots, array $periods = []): array
     {
         $missing = [];
         $forecast = [];
+        $actualResultPeriods = [];
+        $googleSheetPeriods = [];
         $summaryAdjustment = null;
         $forecastRule = null;
 
         foreach ($snapshots as $snapshot) {
             $missing = array_merge($missing, $snapshot['data_status']['missing_settlement_periods'] ?? []);
             $forecast = array_merge($forecast, $snapshot['data_status']['forecast_periods'] ?? []);
+            $actualResultPeriods = array_merge($actualResultPeriods, $snapshot['data_status']['actual_result_periods'] ?? []);
+            $googleSheetPeriods = array_merge($googleSheetPeriods, $snapshot['data_status']['google_sheet_periods'] ?? []);
             $summaryAdjustment ??= $snapshot['data_status']['summary_adjustment'] ?? null;
             $forecastRule ??= $snapshot['data_status']['forecast_rule'] ?? null;
         }
 
+        $periodSet = $periods !== [] ? array_fill_keys($periods, true) : null;
+        $filterPeriods = fn (array $values) => array_values(array_filter(
+            array_unique($values),
+            fn (string $period) => $periodSet === null || isset($periodSet[$period])
+        ));
+        $coverage = $this->actualCoverageForPeriods($snapshots, $periods);
+        $unexpectedMissingPeriods = array_values(array_map(
+            fn (array $row) => (string) $row['period'],
+            array_filter($coverage, fn (array $row) => (int) $row['needs_review_count'] > 0)
+        ));
+
         return [
-            'missing_settlement_periods' => array_values(array_unique($missing)),
-            'forecast_periods' => array_values(array_unique($forecast)),
+            'missing_settlement_periods' => $coverage !== [] ? $unexpectedMissingPeriods : $filterPeriods($missing),
+            'forecast_periods' => $filterPeriods($forecast),
+            'actual_result_periods' => $filterPeriods($actualResultPeriods),
+            'google_sheet_periods' => $filterPeriods($googleSheetPeriods),
+            'actual_coverage' => $coverage,
             'summary_adjustment' => $summaryAdjustment,
             'forecast_rule' => $forecastRule,
         ];
+    }
+
+    private function actualCoverageForPeriods(array $snapshots, array $periods = []): array
+    {
+        $periodSet = $periods !== [] ? array_fill_keys($periods, true) : null;
+        $coverage = [];
+
+        foreach ($snapshots as $snapshot) {
+            $latestActualPeriod = (string) ($snapshot['latest_actual_period'] ?? $snapshot['latest_closed_period'] ?? '');
+
+            foreach ($snapshot['projects'] ?? [] as $project) {
+                foreach ($project['months'] ?? [] as $period => $month) {
+                    if (($periodSet !== null && ! isset($periodSet[$period])) || ($latestActualPeriod !== '' && $period > $latestActualPeriod)) {
+                        continue;
+                    }
+
+                    $coverage[$period] ??= [
+                        'period' => (string) $period,
+                        'selected_project_count' => 0,
+                        'actual_reflected_count' => 0,
+                        'not_expected_count' => 0,
+                        'needs_review_count' => 0,
+                    ];
+                    $coverage[$period]['selected_project_count']++;
+
+                    if (! empty($month['settlement']['has_data'])) {
+                        $coverage[$period]['actual_reflected_count']++;
+                        continue;
+                    }
+
+                    if ($this->actualNotExpectedForProjectMonth($project, (string) $period, $month)) {
+                        $coverage[$period]['not_expected_count']++;
+                    } else {
+                        $coverage[$period]['needs_review_count']++;
+                    }
+                }
+            }
+        }
+
+        ksort($coverage);
+
+        return array_values($coverage);
+    }
+
+    private function actualNotExpectedForProjectMonth(array $project, string $period, array $month): bool
+    {
+        $periodStart = Carbon::createFromFormat('Y-m-d', $period . '-01')->startOfMonth();
+        $periodEnd = $periodStart->copy()->endOfMonth();
+        $dateStart = $this->projectPeriodDate($project['date_start'] ?? null);
+        $dateEnd = $this->projectPeriodDate($project['date_end'] ?? null);
+        $completedAt = $this->projectPeriodDate($project['completed_at'] ?? null);
+
+        if ($dateStart?->greaterThan($periodEnd)) {
+            return true;
+        }
+
+        if ($dateEnd?->lessThan($periodStart) || $completedAt?->lessThan($periodStart)) {
+            return true;
+        }
+
+        return empty($month['yearly_plan']['has_data']) && empty($month['profit']['has_data']);
+    }
+
+    private function projectPeriodDate(mixed $value): ?Carbon
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->startOfDay();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function snapshotProjectRows(array $snapshot, string $resultBucket): array
@@ -560,6 +1330,10 @@ TXT;
 
     private function monthUsesSummaryAdjustment(string $projectName, string $periodKey, array $month, string $resultBucket): bool
     {
+        if (! empty($month['settlement']['actual_result_details']['internal_transfer_expense'])) {
+            return true;
+        }
+
         $period = $this->periodFromKey($periodKey);
         if (! $period) {
             return FinanceSnapshotService::isInternalCostCenter($projectName);
@@ -620,8 +1394,8 @@ TXT;
     private function internalCostCenterPolicy(): array
     {
         return [
-            'totals' => 'Summary totals use the same netting rule as get_total_finance for internal cost-center projects.',
-            'risk_lists' => 'Summary-adjusted internal projects are excluded from prioritized risk/worst-project lists and returned only as reference projects.',
+            'totals' => '社内コストセンターはget_total_financeと同じ純額調整ルールで集計する。',
+            'risk_lists' => '集計調整対象の社内部門は優先リスク一覧から除外し、参考部門としてのみ扱う。',
         ];
     }
 
@@ -630,7 +1404,7 @@ TXT;
         return [
             'yearly_plan' => '予算: PMが作成し取締役が承認した年度開始時点の年間計画',
             'profit' => '計画: 予算を基準にしたKintone損益の月次修正計画。人員退職・体制変更・見積更新などで月次更新される',
-            'settlement' => '実績: Google Sheets実績',
+            'settlement' => '実績: 保存済み実績を優先し、ない場合はGoogle Sheets実績',
             'forecast' => '着地見込み: 実績反映済み月は実績、未反映月は計画を見込みとして使用',
         ];
     }
@@ -782,7 +1556,7 @@ TXT;
         $text = preg_replace('/\s*\[To:[^:\]\|]+(?:\|\d+)?:\]\s*/u', ' ', $text) ?? $text;
         $text = trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
 
-        if ($text === '' || $this->looksLikeSensitiveComment($text)) {
+        if ($text === '' || $this->looksLikeSensitiveComment($text) || $this->looksLikeLowInformationComment($text)) {
             return '';
         }
 
@@ -794,6 +1568,24 @@ TXT;
         return preg_match('/\b(pass|pw|password)\b/i', $comment) === 1
             || str_contains($comment, 'パスワード')
             || str_contains($comment, 'ﾊﾟｽﾜｰﾄﾞ');
+    }
+
+    private function looksLikeLowInformationComment(string $comment): bool
+    {
+        $normalized = mb_strtolower(preg_replace('/[\s\p{P}\p{S}]+/u', '', $comment) ?? '');
+        if (mb_strlen($normalized) < 4) {
+            return true;
+        }
+
+        if (in_array($normalized, ['test', 'testing', 'テスト', '確認', '確認済み', 'なし', '特になし'], true)) {
+            return true;
+        }
+
+        if (preg_match('/^[a-z]+$/i', $normalized) !== 1 || strlen($normalized) >= 20) {
+            return false;
+        }
+
+        return count(array_unique(str_split($normalized))) <= 2;
     }
 
     private function normalizeFiscalYears(array $values): array
@@ -946,9 +1738,55 @@ TXT;
         return $date->month >= 3 ? (int) $date->year : (int) $date->year - 1;
     }
 
+    private function calculationSourceLabel(mixed $sourceMode): ?string
+    {
+        return match ((string) $sourceMode) {
+            'csv_finalized' => 'CSV確定値',
+            'reserve_csv_uploaded' => '積立金CSV反映値',
+            'auto_calculated' => 'システム計算値',
+            default => null,
+        };
+    }
+
     private function stringValue(mixed $value): string
     {
-        return is_scalar($value) ? trim((string) $value) : '';
+        if (! is_scalar($value)) {
+            return '';
+        }
+
+        return str_ireplace(
+            [
+                '予算未計上費用が発生し、計画との差異要因',
+                '予算未計上の販管費',
+                '予算未計上の費用',
+                '予算未計上費用',
+                'Google Sheets settlement',
+                'reserve_csv_uploaded',
+                'auto_calculated',
+                'csv_finalized',
+                'profit_forecast',
+                'actual_result',
+                'ActualResult',
+                'yearly_plan',
+                'settlement',
+            ],
+            [
+                '予算0円に対する実績費用があり、予算差分の要因',
+                '予算0円に対して発生した販管費',
+                '予算0円に対して発生した費用',
+                '予算0円に対する実績費用',
+                'Google Sheets実績',
+                '積立金CSV反映値',
+                'システム計算値',
+                'CSV確定値',
+                'Kintone損益見込み',
+                '保存済み実績',
+                '保存済み実績',
+                '予算',
+                '実績',
+            ],
+            trim((string) $value)
+        );
     }
 
     private function stringList(mixed $value): array

@@ -6,8 +6,8 @@
                 @triggered="downloadCSV"
             />
         </div>
-        <PortfolioTraineeTable
-            :portfolios="portfolios"
+        <ParticipantTable
+            :rows="rows"
             @rollback-status="statusUpdate"
             @delete-portfolio="deletePortfolio"
         />
@@ -15,13 +15,23 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { mkConfig, generateCsv, download } from 'export-to-csv'
 import { useLearningApi } from '@/composables/learningApi'
-import type { LearningPortfolio, LearningTheme } from '@/types/learning'
+import type {
+    LearningParticipantProgress,
+    LearningPortfolio,
+    LearningTheme,
+    ParticipantRow,
+    PortfolioSectionExam,
+    PortfolioSectionExamResult,
+} from '@/types/learning'
+import { isEnabled } from '@/utils/learningProgress'
 import { buildPortfolioCsvRows } from '@/utils/learningPortfolioCsv'
-import PortfolioTraineeTable from './Participant/PortfolioTraineeTable.vue'
+import { buildCaseStudyParticipantCsvRows } from '@/utils/learningCaseStudyParticipants'
+import { caseStudyParticipantRows, portfolioParticipantRows } from '@/utils/participantTable'
+import ParticipantTable from './Participant/ParticipantTable.vue'
 import LoaderButton from '@/components/Global/LoaderButton.vue'
 
 const props = defineProps<{
@@ -29,26 +39,52 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
-const portfolios = ref<LearningPortfolio[]>([])
 const learningApi = useLearningApi()
 
-onMounted(() => {
-    getPortfolios()
+const isCaseStudy = computed(() => isEnabled(props.theme?.has_case_study))
+
+const portfolios = ref<LearningPortfolio[]>([])
+const sectionExams = ref<PortfolioSectionExam[]>([])
+const examResults = ref<Record<number, Record<number, PortfolioSectionExamResult>>>({})
+const participants = ref<LearningParticipantProgress[]>([])
+
+const themeId = computed(() => {
+    const id = Array.isArray(route.params.themeId) ? route.params.themeId[0] : route.params.themeId
+    return id ?? null
 })
 
-const getPortfolios = async() => {
-    const themeId = Array.isArray(route.params.themeId) ? route.params.themeId[0] : route.params.themeId
-    if (!themeId) return
+// Both theme models normalise into the same unified table rows.
+const rows = computed<ParticipantRow[]>(() => {
+    return isCaseStudy.value
+        ? caseStudyParticipantRows(participants.value)
+        : portfolioParticipantRows(portfolios.value, sectionExams.value, examResults.value)
+})
 
-    portfolios.value = await learningApi.getAdminPortfolios(themeId)
+const getData = async() => {
+    if (!themeId.value || !props.theme) return
+
+    if (isCaseStudy.value) {
+        participants.value = await learningApi.getMaterialProgressList(themeId.value)
+        return
+    }
+
+    const progress = await learningApi.getPortfolioProgress(themeId.value)
+    portfolios.value = progress.portfolios
+    sectionExams.value = progress.sectionExams
+    examResults.value = progress.examResults
 }
+
+watch(() => props.theme, getData, { immediate: true })
 
 const downloadCSV = () => {
     const csvConfig = mkConfig({
         useKeysAsHeaders: true,
         filename: props.theme?.title ?? 'CSVデータ',
     })
-    const csv = generateCsv(csvConfig)(buildPortfolioCsvRows(portfolios.value))
+    const csvRows = isCaseStudy.value
+        ? buildCaseStudyParticipantCsvRows(participants.value)
+        : buildPortfolioCsvRows(portfolios.value)
+    const csv = generateCsv(csvConfig)(csvRows)
     download(csvConfig)(csv)
 }
 
@@ -56,14 +92,14 @@ const statusUpdate = async(id: number | undefined, value: number) => {
     if (!id) return
 
     await learningApi.updatePortfolioStatus(id, value)
-    getPortfolios()
+    getData()
 }
 
 const deletePortfolio = async(id: number | undefined) => {
     if (!id) return
 
     await learningApi.deleteAdminPortfolio(id)
-    getPortfolios()
+    getData()
 }
 </script>
 
@@ -80,5 +116,4 @@ const deletePortfolio = async(id: number | undefined) => {
     right: 0;
     top: -45px;
 }
-
 </style>

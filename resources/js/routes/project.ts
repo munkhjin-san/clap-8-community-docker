@@ -127,8 +127,14 @@ export const projectRoutes: RouteRecordRaw[] = [
                     {
                         path: 'finance',
                         name: 'finance',
-                        component: () => import('@/components/Project/ProjectTabs/Finance.vue'),
+                        component: () => import('@/components/Project/ProjectTabs/FinanceRoot.vue'),
+                        redirect: { name: 'income-expense' },
                         children: [
+                            {
+                                name: 'income-expense',
+                                path: 'income-expense',
+                                component: () => import('@/components/Project/ProjectTabs/Finance/Finance.vue'),
+                            },
                             {
                                 name: 'plan',
                                 path: 'plan',

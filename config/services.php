@@ -43,8 +43,10 @@ return [
             'spreadsheet_id' => env('GOOGLE_SHEETS_SPREADSHEET_ID'),
             'gemini_api_key' => env('GEMINI_API_KEY'),
             'gemini_url' => env('GEMINI_URL'),
-            'receipt_ocr_model' => env('GEMINI_RECEIPT_OCR_MODEL', 'models/gemini-3-flash-preview'),
-            'contract_ocr_model' => env('GEMINI_CONTRACT_OCR_MODEL', env('GEMINI_RECEIPT_OCR_MODEL', 'models/gemini-3-flash-preview')),
+            'receipt_ocr_model' => env('GEMINI_RECEIPT_OCR_MODEL', 'models/gemini-3.6-flash'),
+            'contact_enrich_model' => env('GEMINI_CONTACT_ENRICH_MODEL', 'models/gemini-3.6-flash'),
+            'contact_scan_model' => env('GEMINI_CONTACT_SCAN_MODEL', 'models/gemini-3.6-flash'),
+            'contract_ocr_model' => env('GEMINI_CONTRACT_OCR_MODEL', env('GEMINI_RECEIPT_OCR_MODEL', 'models/gemini-3.6-flash')),
             'contract_ocr_timeout' => env('GEMINI_CONTRACT_OCR_TIMEOUT', 120),
             'contract_ocr_page_timeout' => env('GEMINI_CONTRACT_OCR_PAGE_TIMEOUT', 90),
             'contract_ocr_chunk_pages' => env('GEMINI_CONTRACT_OCR_CHUNK_PAGES', true),
@@ -54,14 +56,15 @@ return [
             'contract_ocr_max_output_tokens' => env('GEMINI_CONTRACT_OCR_MAX_OUTPUT_TOKENS', 32768),
             'contract_pdf_parser_timeout' => env('CONTRACT_PDF_PARSER_TIMEOUT', 15),
             'contract_extract_cache_ttl' => env('CONTRACT_EXTRACT_CACHE_TTL', 60 * 60 * 24 * 30),
-            'contact_card_split_model' => env('GEMINI_CONTACT_CARD_SPLIT_MODEL', 'models/gemini-3-flash-preview'),
+            'contact_card_split_model' => env('GEMINI_CONTACT_CARD_SPLIT_MODEL', 'models/gemini-3.6-flash'),
     ],
     'php_cli_binary' => env('PHP_CLI_BINARY'),
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
         'chatkit_workflow_id' => env('OPENAI_CHATKIT_WORKFLOW_ID'),
+        'support_chat_model' => env('OPENAI_SUPPORT_CHAT_MODEL', 'gpt-5.6-terra'),
         'organization' => env('OPENAI_ORGANIZATION'),
-        'compare_model' => env('OPENAI_COMPARE_SUMMARY_MODEL', 'gpt-4.1-mini'),
+        'compare_model' => env('OPENAI_COMPARE_SUMMARY_MODEL', 'gpt-5.6-luna'),
         'prompts' => [
             'message_correction' => env('OPENAI_PROMPT_MESSAGE_CORRECTION_ID', ''),
             'project_description_generation' => env('OPENAI_PROMPT_PROJECT_DESCRIPTION_GENERATION_ID', ''),
@@ -79,6 +82,12 @@ return [
             'normal_challenge_suggestion' => env('OPENAI_PROMPT_NORMAL_CHALLENGE_SUGGESTION'),
             'project_member_assign_evaluation' => env('OPENAI_PROMPT_PROJECT_MEMBER_ASSIGN_EVALUATION'),
         ]
+    ],
+    'learning_presentation' => [
+        'model' => env('LEARNING_PRESENTATION_MODEL', 'gpt-5.6-sol'),
+        'max_output_tokens' => env('LEARNING_PRESENTATION_MAX_OUTPUT_TOKENS', 20000),
+        'node_binary' => env('NODE_BINARY', 'node'),
+        'render_timeout' => env('LEARNING_PRESENTATION_RENDER_TIMEOUT', 60),
     ],
     'VAPID' => [
         'public_key' => env('VAPID_PUBLIC_KEY'),

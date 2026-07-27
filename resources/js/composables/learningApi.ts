@@ -11,6 +11,8 @@ import type {
     LearningPersonalMaterial,
     LearningPortfolio,
     LearningPreviousExperiencePayload,
+    PortfolioSectionExam,
+    PortfolioSectionExamResult,
     LearningSummaryAnswer,
     LearningTheme,
     LearningThemeAiConfig,
@@ -45,6 +47,7 @@ export interface LearningAnswerSaveRequest {
 
 export interface LearningExamSubmitRequest {
     lesson_theme_id: number | string | string[]
+    lesson_material_id?: number | null
     answers: Array<{
         question_id: number
         option_id: number
@@ -53,6 +56,7 @@ export interface LearningExamSubmitRequest {
 
 export interface LearningAdminExamSaveRequest {
     lesson_theme_id: number
+    lesson_material_id?: number | null
     exam_id: number | null
     title: string | null
     description: string | null
@@ -311,6 +315,20 @@ export function useLearningApi() {
         return response.portfolio_participants ?? []
     }
 
+    const getPortfolioProgress = async(themeId: number | string) => {
+        const response = await api.get(`/admin/learning/themes/${themeId}/progress`, { section: 'portfolio' }) as {
+            portfolio_participants?: LearningPortfolio[]
+            section_exams?: PortfolioSectionExam[]
+            section_exam_results?: Record<number, Record<number, PortfolioSectionExamResult>>
+        }
+
+        return {
+            portfolios: response.portfolio_participants ?? [],
+            sectionExams: response.section_exams ?? [],
+            examResults: response.section_exam_results ?? {},
+        }
+    }
+
     const getLegacyPortfolios = async(themeId: number | string) => {
         return await api.get('/get_portfolios_list', { theme_id: themeId }) as LearningPortfolio[]
     }
@@ -351,8 +369,10 @@ export function useLearningApi() {
         return Object.values(response ?? {}) as LearningParticipantProgress[]
     }
 
-    const getLearningExam = async(themeId: number | string) => {
-        return await api.get('/learning_exam', { lesson_theme_id: themeId }) as LearningExamPayload
+    const getLearningExam = async(themeId: number | string, materialId?: number | null) => {
+        const params: Record<string, number | string> = { lesson_theme_id: themeId }
+        if (materialId) params.lesson_material_id = materialId
+        return await api.get('/learning_exam', params) as LearningExamPayload
     }
 
     const submitLearningExam = async(payload: LearningExamSubmitRequest) => {
@@ -361,8 +381,10 @@ export function useLearningApi() {
         }) as LearningExamAttempt
     }
 
-    const getAdminExam = async(themeId: number | string) => {
-        return await api.get('/lesson_exam', { lesson_theme_id: themeId }) as {
+    const getAdminExam = async(themeId: number | string, materialId?: number | null) => {
+        const params: Record<string, number | string> = { lesson_theme_id: themeId }
+        if (materialId) params.lesson_material_id = materialId
+        return await api.get('/lesson_exam', params) as {
             exists: boolean
             exam: LearningExam | null
         }
@@ -392,10 +414,17 @@ export function useLearningApi() {
         return await api.get('/get_previous_experience', { lesson_theme_id: themeId }) as LearningPreviousExperiencePayload
     }
 
-    const savePersonalMaterialFeedback = async(themeId: number | string, payload: LearningPersonalMaterialFeedbackRequest) => {
-        return await api.post(`/lesson_theme/${themeId}/personal_materials/portfolio_recurring_trainee/feedback`, payload, {
-            toast: '保存しました。',
-        }) as LearningPersonalMaterial
+    const generatePersonalMaterial = async(themeId: number | string) => {
+        return await api.post(
+            `/lesson_theme/${themeId}/personal_materials/portfolio_recurring_trainee/generate`,
+            {},
+            { silent: true },
+        ) as LearningPersonalMaterial
+    }
+
+    const savePersonalMaterialFeedback = async(themeId: number | string, payload: LearningPersonalMaterialFeedbackRequest, options?: { silent?: boolean }) => {
+        return await api.post(`/lesson_theme/${themeId}/personal_materials/portfolio_recurring_trainee/feedback`, payload,
+            options?.silent ? {} : { toast: '保存しました。' }) as LearningPersonalMaterial
     }
 
     return {
@@ -434,6 +463,7 @@ export function useLearningApi() {
         saveSummaryAnswers,
         getPortfolios,
         getAdminPortfolios,
+        getPortfolioProgress,
         getLegacyPortfolios,
         getPortfolioView,
         updatePortfolioStatus,
@@ -448,6 +478,7 @@ export function useLearningApi() {
         getExamAttempts,
         getSupportAccountId,
         getPreviousExperience,
+        generatePersonalMaterial,
         savePersonalMaterialFeedback,
     }
 }

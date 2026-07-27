@@ -6,7 +6,7 @@
         </div>
 
         <div>
-            <p v-if="detail.content" class="whitespace-break-spaces leading-[1.7]">{{ detail.content }}</p>
+            <p v-if="detail.content" class="whitespace-break-spaces leading-[1.7]" v-html="urlCheck(detail.content)"></p>
             <SystemUpdateFiles v-if="detail.files?.length" :list="detail.files" />
         </div>
     </section>
@@ -16,6 +16,7 @@
 import { SystemUpdateDetail } from '@/interface/supportInterface';
 import SystemUpdateFiles from './SystemUpdateFiles.vue';
 import SystemUpdateTypeChip from './SystemUpdateTypeChip.vue';
+import { urlCheck } from '@/utils/tools.js';
 
 defineProps<{
     detail: SystemUpdateDetail;

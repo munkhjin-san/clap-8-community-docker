@@ -2,6 +2,7 @@ export type FlowInputType =
     | 'short' | 'long' | 'number' | 'date' | 'time' | 'datetime'
     | 'select' | 'radio' | 'checkbox' | 'toggle'
     | 'user' | 'member' | 'formula' | 'file' | 'table' | 'reference' | 'project'
+    | 'password'
     | 'heading' | 'label' | 'spacer' | 'divider'
 
 export type FlowRule = 'edit' | 'read' | 'hide'
@@ -39,6 +40,9 @@ export interface FlowFieldValidation {
     columns?: TableColumn[]
     /** reference: the target app to link records from. */
     target_definition_id?: number | null
+    /** reference: a built-in system source (e.g. 'office') to link from instead of an app. Mutually
+     *  exclusive with target_definition_id — set one or the other. See App\Support\FlowSystemSources. */
+    target_source?: string | null
     /** reference: which field key of the target app to show as the label (falls back to record number). */
     label_field?: string | null
     /**
@@ -495,9 +499,13 @@ export interface FlowDefinitionListItem {
     created_at?: string
     updated_at?: string
     pinned?: boolean
+    /** current user has 管理 on this app → may open 設定 / 削除 (both manage-gated server-side) */
+    can_manage?: boolean
+    /** unread notification events for the current user (per-app bell badge) */
+    unread_notifications?: number
+    /** 対応待ち — live count of records whose current status names this user as worker */
+    pending_actions?: number
     creator?: FlowOptionUser | null
-    fields_count?: number
-    statuses_count?: number
     records_count?: number
 }
 
@@ -526,6 +534,8 @@ export interface FlowRecordDto {
     updated_at?: string
     can_edit?: boolean
     can_delete?: boolean
+    /** 要対応 — an action on the record's current status explicitly names the viewer */
+    pending_action?: boolean
 }
 
 export interface FlowRecordsResponse {
@@ -560,6 +570,7 @@ export const FLOW_FIELD_TYPES: FlowTypeMeta[] = [
     { type: 'formula', label: '計算', icon: 'formula', group: '高度' },
     { type: 'reference', label: 'ルックアップ', icon: 'reference', group: '高度' },
     { type: 'project', label: 'プロジェクト', icon: 'project', group: '高度' },
+    { type: 'password', label: 'パスワード（暗号化）', icon: 'password', group: '高度' },
     { type: 'file', label: 'ファイル', icon: 'file', group: 'その他' },
     { type: 'table', label: 'テーブル', icon: 'table', group: 'その他' },
     { type: 'heading', label: '見出し', icon: 'heading', group: 'レイアウト' },
@@ -571,6 +582,15 @@ export const FLOW_FIELD_TYPES: FlowTypeMeta[] = [
 /** Layout/decoration types that hold no record value. */
 export const FLOW_LAYOUT_TYPES: FlowInputType[] = ['heading', 'label', 'spacer', 'divider']
 export const isLayoutType = (t: FlowInputType) => FLOW_LAYOUT_TYPES.includes(t)
+
+/**
+ * Encrypted-at-rest field types (server-side AccountVault). Their record value is only ever a
+ * boolean "is one stored?" — the plaintext comes from the audited reveal endpoint alone. Keep them
+ * out of anything that moves values around: CSV export, search, view columns/filters/sort,
+ * formulas, lookup copy, PDF tools, record duplicate, change-history values.
+ */
+export const FLOW_SECRET_TYPES: FlowInputType[] = ['password']
+export const isSecretType = (t: FlowInputType) => FLOW_SECRET_TYPES.includes(t)
 
 export const FLOW_TYPE_LABEL: Record<string, string> = Object.fromEntries(
     FLOW_FIELD_TYPES.map((t) => [t.type, t.label])

@@ -51,7 +51,7 @@ class ContactCardSplitService
         }
 
         $baseUrl = rtrim(config('services.google.gemini_url') ?: 'https://generativelanguage.googleapis.com/v1beta', '/');
-        $model = config('services.google.contact_card_split_model', 'models/gemini-3-flash-preview');
+        $model = config('services.google.contact_card_split_model', 'models/gemini-3.6-flash');
         $mime = $file->getMimeType() ?: 'image/jpeg';
         $imageData = base64_encode((string) file_get_contents($file->getRealPath()));
 

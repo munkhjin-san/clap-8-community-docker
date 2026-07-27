@@ -26,11 +26,6 @@ const activeTab = computed(() => route.name as string);
 <template>
     <div class="admin-window refresh-shell">
         <div class="refresh-topbar">
-            <!-- <div class="topbar-copy">
-                <h1>リフレッシュ</h1>
-                <p>付与管理と利用申請確認</p>
-            </div> -->
-
             <div class="sub-tab-container refresh-tabs">
                 <button
                     v-for="tab in tabs"
@@ -63,19 +58,6 @@ const activeTab = computed(() => route.name as string);
     margin: 14px 18px 10px;
 }
 
-.topbar-copy h1 {
-    margin: 0;
-    font-size: 24px;
-    line-height: 1.2;
-    color: var(--primary-color);
-}
-
-.topbar-copy p {
-    margin: 4px 0 0;
-    font-size: 12px;
-    color: var(--text2);
-}
-
 .refresh-tabs {
     gap: 0;
     padding: 0 4px;
@@ -87,16 +69,15 @@ const activeTab = computed(() => route.name as string);
     padding: 10px 14px;
     border: none;
     border-bottom: 2px solid transparent;
-    border-radius: 0;
     background: transparent;
-    color: var(--text2);
+    color: var(--sub-color);
     font-size: 13px;
     transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .refresh-tab-item.selected-sub-tab {
     color: var(--primary-color);
-    border-bottom-color: #4b4b4b;
+    border-bottom-color: var(--primary-button);
     background: transparent;
 }
 

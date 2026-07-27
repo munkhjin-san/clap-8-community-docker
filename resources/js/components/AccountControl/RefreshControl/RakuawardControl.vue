@@ -4,14 +4,6 @@
             <div class="topbar-left">
                 <MonthPickerNew v-model:year="year" v-model:month="month" left="0px" @setDate="onSetDate" />
                 <span class="granted-counter">選択済み: {{ grantedCount }} / {{ limit }}</span>
-                <!-- <button
-                    type="button"
-                    class="refund-all-button"
-                    :disabled="!refundableCount || refunding || saving"
-                    @click="refundRest"
-                >
-                    未選出を返金{{ refundableCount ? `（${refundableCount}件）` : '' }}
-                </button> -->
             </div>
             <p class="topbar-note">上位5名に選ばれなかったノミネートは、チャージした金額がメンバーへ返金されます。</p>
         </section>
@@ -220,14 +212,13 @@ onMounted(() => {
 .granted-counter {
     font-size: 13px;
     padding: 6px 10px;
-    border-radius: 4px;
     background: var(--bg3);
 }
 
 .topbar-note {
     margin: 0;
     font-size: 11px;
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .rakuaward-list {
@@ -241,9 +232,8 @@ onMounted(() => {
     align-items: center;
     justify-content: center;
     min-height: 120px;
-    border-radius: 8px;
     background: var(--bg3);
-    color: var(--text2);
+    color: var(--sub-color);
     font-size: 13px;
 }
 
@@ -252,7 +242,6 @@ onMounted(() => {
     grid-template-columns: minmax(0, 1fr) 200px;
     gap: 16px;
     padding: 14px 16px;
-    border-radius: 8px;
     background: var(--background-color);
     box-shadow: inset 0 0 0 1px var(--formBorder);
 }
@@ -284,7 +273,7 @@ onMounted(() => {
 
 .people-label {
     font-size: 10px;
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .people-user {
@@ -295,13 +284,13 @@ onMounted(() => {
 }
 
 .people-user.muted {
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .people-arrow {
     width: 26px;
     height: auto;
-    fill: var(--text2);
+    fill: var(--sub-color);
     flex-shrink: 0;
 }
 
@@ -315,7 +304,7 @@ onMounted(() => {
     margin: 0;
     font-size: 13px;
     line-height: 1.5;
-    color: var(--text2);
+    color: var(--sub-color);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -325,7 +314,7 @@ onMounted(() => {
 .card-meta {
     margin: 2px 0 0;
     font-size: 11px;
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .card-side {
@@ -346,7 +335,7 @@ onMounted(() => {
 
 .charged-amount span {
     font-size: 11px;
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 .charged-amount strong {
@@ -357,9 +346,8 @@ onMounted(() => {
 .grant-button {
     height: 34px;
     padding: 0 14px;
-    border-radius: 6px;
-    border: 1px solid #4b4b4b;
-    background: #4b4b4b;
+    border: 1px solid var(--primary-button);
+    background: var(--primary-button);
     color: #fff;
     font-size: 12px;
     cursor: pointer;
@@ -373,7 +361,6 @@ onMounted(() => {
 
 .granted-badge {
     padding: 4px 10px;
-    border-radius: 4px;
     font-size: 12px;
     font-weight: 700;
     background: rgba(55, 121, 104, 0.18);
@@ -382,7 +369,6 @@ onMounted(() => {
 
 .refunded-badge {
     padding: 4px 10px;
-    border-radius: 4px;
     font-size: 12px;
     font-weight: 700;
     background: rgba(184, 74, 74, 0.14);
@@ -392,7 +378,6 @@ onMounted(() => {
 .refund-all-button {
     height: 32px;
     padding: 0 12px;
-    border-radius: 4px;
     border: 1px solid var(--formBorder);
     background: var(--background-color);
     color: var(--primary-color);
@@ -408,7 +393,7 @@ onMounted(() => {
 .side-note {
     margin: 0;
     font-size: 10px;
-    color: var(--text2);
+    color: var(--sub-color);
 }
 
 @media screen and (max-width: 720px) {

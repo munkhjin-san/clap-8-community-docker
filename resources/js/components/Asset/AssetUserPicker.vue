@@ -27,7 +27,7 @@
                     <div class="px-3 pb-3">
                         <div>
                             <div v-if="searchResult.length">
-                                <button class="text-[12px] px-2 py-1 bg-[var(--bg3)] mb-2" @click="user = []">リセット</button>
+                                <button class="text-[12px] px-2 py-1 bg-[var(--bg3)] text-[var(--primary-color)] mb-2" @click="user = []">リセット</button>
                                 <label v-for="resultUser in searchResult" :key="resultUser.id" class="cursor-pointer hover:bg-[var(--secondary-background)] p-2 flex items-center gap-2 rounded-md" >
                                     <input type="checkbox" id="assetMemberSelect" name="assetMemberSelect" class="custom-f-checkbox" :value="resultUser.id" v-model="user" />
                                     <UserPanel size="25" disable-instant :user="resultUser" with-name/>

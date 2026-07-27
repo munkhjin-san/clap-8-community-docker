@@ -328,8 +328,8 @@ class FinanceChatController extends Controller
         };
 
         $toolGuide = match ($role) {
-            'director', 'admin' => "利用可能なデータ: 予算（yearly_plan）、計画（Kintone損益）、Google Sheets実績、着地見込み、財務データ品質、差異理由コメント、月次トレンド、健全度マトリクス、売上集中リスク、年度比較、PM別財務",
-            'manager'           => "利用可能なデータ: 予算（yearly_plan）、計画（Kintone損益）、Google Sheets実績、着地見込み、財務データ品質、差異理由コメント、月次トレンド、健全度マトリクス、PM別財務",
+            'director', 'admin' => "利用可能なデータ: 予算（yearly_plan）、計画（Kintone損益）、実績（保存済み実績優先・Google Sheets補完）、着地見込み、財務データ品質、差異理由コメント、月次トレンド、健全度マトリクス、売上集中リスク、年度比較、PM別財務",
+            'manager'           => "利用可能なデータ: 予算（yearly_plan）、計画（Kintone損益）、実績（保存済み実績優先・Google Sheets補完）、着地見込み、財務データ品質、差異理由コメント、月次トレンド、健全度マトリクス、PM別財務",
             default             => "利用可能なデータ: なし",
         };
 
@@ -340,7 +340,7 @@ class FinanceChatController extends Controller
 - 日時: {$nowStr}
 - 現在の財務年度: FY{$financeFiscalYear}（3月開始、翌2月終了）
 - 現在の財務四半期: {$qMonths}（Q{$qNum}）※Q1=3-5月, Q2=6-8月, Q3=9-11月, Q4=12-2月
-- 最新の実績反映月: {$latestActualPeriod}（Google Sheets実績は毎月20日ごろ前月分が反映）
+- 最新の実績基準月: {$latestActualPeriod}（保存済み実績を優先し、未保存のプロジェクト・月はGoogle Sheets実績で補完）
 - ログインユーザー: {$user->name}（ID: {$user->id}、役割: {$role}）
 - {$toolGuide}
 
@@ -350,15 +350,15 @@ class FinanceChatController extends Controller
 - 「必要であれば取得します」「詳細をお求めなら」「その旨をお知らせください」のように、財務データ取得をユーザーに再依頼してはいけない。必要な財務データはこの場でツールから取得する
 - 数値は具体的に引用し、視点を添えて説明する（例: 「利益が計画比-15%、2,300万円下回り。年間目標の23%分のラグ」）
 - 財務以外（目標、勤怠、承認、雑談）の質問には、このチャットは財務専用だと短く伝える
-- 財務の「今期」「年度」「着地」「経営状況」は、月次ではなく財務年度（3月-翌2月）の予算・計画・Google Sheets実績・着地見込みで回答する
-- 用語定義: 予算=yearly_plan、計画=Kintone損益（profit）、実績=Google Sheets settlement、着地見込み=実績がある月は実績・該当月シートがない月はKintone損益で補完したforecast
-- Google Sheets実績は毎月20日ごろ前月分が反映される。ユーザーが明示しない限り、この反映済み月を基準に回答する
-- 着地見込みは get_total_finance の予測ONと同じく、Google Sheets実績がある月は実績を使い、該当月シートがない月はKintone損益を見込み値として使う。予算は比較対象であり、見込み値としては使わない
-- Google Sheets実績がない月をKintone損益で補完した場合は、実績ではなく見込みとして扱う。完了済みプロジェクトの完了後月は予測補完しない
+- 財務の「今期」「年度」「着地」「経営状況」は、月次ではなく財務年度（3月-翌2月）の予算・計画・実績・着地見込みで回答する
+- 用語定義: 予算=yearly_plan、計画=Kintone損益（profit）、実績=settlement（保存済み実績を優先し、該当プロジェクト・月にない場合はGoogle Sheetsを使用）、着地見込み=実績がある月は実績・実績がない月はKintone損益で補完したforecast
+- ユーザーが明示しない限り、最新の実績基準月を基準に回答する
+- 着地見込みは get_total_finance の予測ONと同じく、保存済み実績またはGoogle Sheets実績がある月は実績を使い、実績がない月はKintone損益を見込み値として使う。予算は比較対象であり、見込み値としては使わない
+- 保存済み実績とGoogle Sheetsのどちらにも実績がない月をKintone損益で補完した場合は、実績ではなく見込みとして扱う。完了済みプロジェクトの完了後月は予測補完しない
 - 年度財務サマリーでは、予算=yearly_plan_totals、計画=profit_plan_totals、最新実績（単月）=latest_actual_month_totals、実績累計=actual_to_date_totals、着地見込み=forecast_totals、予算差分=forecast_vs_yearly_plan、計画差分=forecast_vs_profit_plan を使う
 - 年度財務サマリーを回答する場合、売上・販管費・利益の予算、計画、実績累計、着地見込み、予算差分、計画差分を具体的な数値で示す
 - 「最新実績（YYYY-MM）」と書く場合は、財務年度合計・実績累計・着地見込みではなく latest_actual_month_totals だけを使う
-- 月次の「乖離」は単月のGoogle Sheets実績 vs Kintone損益として扱う。年度合計として説明しない
+- 月次の「乖離」は単月の実績（保存済み実績優先・Google Sheets補完）vs Kintone損益として扱う。年度合計として説明しない
 - get_variance_summary の結果は単月データ。年度合計として説明しない
 - 特定プロジェクトの「なぜ実績が計画と違う」「差異理由」「コメントに理由があるか」という質問では get_project_variance_explanation を使う
 - 3月と4月など複数月の差異理由を聞かれた場合、対象月ごとに get_project_variance_explanation を呼び出す
@@ -438,7 +438,7 @@ TXT;
         $forcedFirstTool = $this->forcedFirstFinanceTool($latestUserContent, $history);
 
         $client = OpenAI::client($apiKey);
-        $model  = config('services.openai.chat_model', 'gpt-4.1-mini');
+        $model  = config('services.openai.chat_model', 'gpt-5.6-luna');
         $tools  = self::toolsForRole($role);
 
         $financeMcp = app(FinanceToolController::class);
@@ -1574,14 +1574,24 @@ TXT;
     {
         $sourceCounts = is_array($row['forecast_sources'] ?? null) ? $row['forecast_sources'] : [];
         if ($sourceCounts !== []) {
-            $hasActual = ! empty($sourceCounts['settlement']);
+            $hasActualResult = ! empty($sourceCounts['actual_result']);
+            $hasGoogleActual = ! empty($sourceCounts['settlement']);
+            $hasActual = $hasActualResult || $hasGoogleActual;
             $hasForecast = ! empty($sourceCounts['profit_forecast']);
 
             if ($hasActual && $hasForecast) {
                 return '実績・見込み混在';
             }
 
-            if ($hasActual) {
+            if ($hasActualResult && $hasGoogleActual) {
+                return '保存済み実績・Google Sheets実績混在';
+            }
+
+            if ($hasActualResult) {
+                return '保存済み実績';
+            }
+
+            if ($hasGoogleActual) {
                 return 'Google Sheets実績';
             }
 
@@ -1599,13 +1609,14 @@ TXT;
         $forecastSource = (string) ($row['forecast_source'] ?? '');
 
         return match ($forecastSource) {
+            'actual_result' => '保存済み実績',
             'settlement' => 'Google Sheets実績',
             'profit_forecast' => 'Kintone損益見込み',
             'project_completed' => '完了後月',
             'missing_released_actual', 'missing_actual_and_profit' => 'データなし',
             default => ! empty($row['is_forecast_month'])
                 ? '見込み'
-                : (! empty($row['is_actual']) ? 'Google Sheets実績' : 'データなし'),
+                : (! empty($row['is_actual']) ? '実績' : 'データなし'),
         };
     }
 

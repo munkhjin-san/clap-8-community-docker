@@ -24,6 +24,16 @@
                     <div class="rd-title truncate">{{ recordTitle }}</div>
                 </div>
             </div>
+            <!-- up/down record navigation, matching the list's newest-first order:
+                 ↑ = newer (higher #), ↓ = older (lower #) -->
+            <div v-if="mode === 'view' && !isNew" class="rd-nav">
+                <button class="rd-navbtn" :disabled="!nav.next" :title="nav.next ? `一つ上のレコード #${nav.next}` : '上のレコードはありません'" @click="goToRecord(nav.next)">
+                    <Back fill="currentColor" :size="12" class="rotate-90" />
+                </button>
+                <button class="rd-navbtn" :disabled="!nav.prev" :title="nav.prev ? `一つ下のレコード #${nav.prev}` : '下のレコードはありません'" @click="goToRecord(nav.prev)">
+                    <Back fill="currentColor" :size="12" class="-rotate-90" />
+                </button>
+            </div>
             <!-- app settings: top-right of the title bar; hidden while editing a record and on mobile
                  (mobile consolidates it, along with the PDF/削除/編集 tools, into the ⋮ menu below) -->
             <button v-if="mode === 'view' && permissions?.manage && !isNarrow" class="rd-settings" title="アプリ設定" @click="editApp">
@@ -56,6 +66,7 @@
                 <!-- desktop only: on mobile these consolidate into the ⋮ menu in the title bar -->
                 <template v-if="mode === 'view' && !isNarrow">
                     <button v-for="t in pdfTools" :key="t.id" class="rd-tool" @click="downloadPdf(t)" :title="t.name"><FileIcon ext="unknown" class="rd-tool-file" />{{ t.name }}</button>
+                    <button v-if="canDuplicate" class="rd-tool" title="このレコードを複製して新規作成" @click="duplicate"><Copy size="13" />複製</button>
                     <button v-if="!isNew && can.delete" class="rd-tool danger" @click="remove"><Trash size="13" />削除</button>
                     <button v-if="can.edit" class="rd-tool primary" @click="mode = 'edit'"><Edit size="13" />編集</button>
                 </template>
@@ -92,6 +103,7 @@
                                     :projects="projects"
                                     :readonly="isReadonly(field)"
                                     :preview="true"
+                                    :record-id="record?.id ?? null"
                                     v-model="values[field.id!]"
                                     @update:model-value="errors[field.id!] = null"
                                     @lookup="onLookup"
@@ -107,7 +119,7 @@
             <div v-if="!isNew" class="rd-side" :class="{ mobile: isNarrow, open: sheetOpen, collapsed: !isNarrow && sideCollapsed }">
                 <div class="rd-side-inner">
                 <div class="rd-tabs">
-                    <button v-if="!isNarrow" class="rd-collapse" @click="toggleSide" title="パネルを隠す"><ChevronDouble :size="16" /></button>
+                    <button v-if="!isNarrow" class="rd-collapse" @click="toggleSide" title="パネルを隠す"><Back fill="currentColor" :size="11" class="rotate-180"/></button>
                     <div class="rd-tabseg">
                         <button
                             v-for="t in sideTabs"
@@ -117,9 +129,20 @@
                             :title="t.label"
                             :aria-label="t.label"
                             @click="selectTab(t.k)"
-                        ><component :is="t.icon" :size="16" /></button>
+                        >
+                            <component :is="t.icon" :size="16" />
+                            <!-- unread comments: cleared only after the tab has actually been viewed (~5s) -->
+                            <span v-if="t.k === 'comment' && unreadComments" class="rd-tab-badge">{{ unreadComments }}</span>
+                        </button>
                     </div>
-                    <button v-if="isNarrow" class="rd-sheet-toggle" @click="sheetOpen = !sheetOpen">{{ sheetOpen ? '▼ 閉じる' : '▲ 開く' }}</button>
+                    <button
+                        v-if="isNarrow"
+                        class="rd-sheet-toggle"
+                        :title="sheetOpen ? 'パネルを閉じる' : 'パネルを開く'"
+                        @click="sheetOpen = !sheetOpen"
+                    >
+                        <Back fill="currentColor" :size="11" :class="sheetOpen ? '-rotate-90' : 'rotate-90'" />
+                    </button>
                 </div>
                 <div class="rd-side-content" v-show="!isNarrow || sheetOpen">
                     <AppCommentSection
@@ -143,9 +166,13 @@
                             <div v-if="lg.changes && Object.keys(lg.changes).length" class="rd-log-rows">
                                 <div v-for="(chg, key) in lg.changes" :key="key" class="rd-log-row">
                                     <span class="rd-log-label">{{ changeLabel(key) }}</span>
-                                    <span class="rd-log-old">{{ fmtChange(key, chg.old) }}</span>
-                                    <span class="rd-log-arrow">→</span>
-                                    <span class="rd-log-new">{{ fmtChange(key, chg.new) }}</span>
+                                    <!-- secrets never show values; a rotation reads true→true, so state the action -->
+                                    <span v-if="isSecretChange(key)" class="rd-log-new">{{ secretChangeText(chg) }}</span>
+                                    <template v-else>
+                                        <span class="rd-log-old">{{ fmtChange(key, chg.old) }}</span>
+                                        <span class="rd-log-arrow">→</span>
+                                        <span class="rd-log-new">{{ fmtChange(key, chg.new) }}</span>
+                                    </template>
                                 </div>
                             </div>
                             <div v-if="lg.note" class="rd-log-note">{{ lg.note }}</div>
@@ -161,14 +188,17 @@
                     class="rd-reveal"
                     @click="toggleSide"
                     title="パネルを表示"
-                ><ChevronDouble :size="15" /></button>
+                >
+                    <Back :size="11" fill="currentColor" />
+                    <span v-if="unreadComments" class="rd-tab-badge rd-reveal-badge">{{ unreadComments }}</span>
+                </button>
             </Transition>
         </div>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useApi } from '@/composables/api'
@@ -182,21 +212,21 @@ import { useTheme } from '@/store/theme'
 import { pageTitleOverride } from '@/composables/pageTitle'
 import { useAuthUserStore } from '@/store/auth'
 import FlowFieldInput from './FlowFieldInput.vue'
-import Back from '@/components/Icons/Back.vue'
 import FlowAppIcon from './FlowAppIcon.vue'
 import Trash from '@/components/Icons/Trash.vue'
 import Edit from '@/components/Icons/Edit.vue'
+import Copy from '@/components/Icons/Copy.vue'
 import Gear from '@/components/Icons/Gear.vue'
 import Comment from '@/components/Icons/Comment.vue'
 import ChangeLog from '@/components/Icons/ChangeLog.vue'
-import ChevronDouble from '@/components/Icons/ChevronDouble.vue'
 import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
 import AppCommentSection from '@/components/Global/AppCommentSection.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
-import { isLayoutType } from '@/types/flow'
+import { isLayoutType, isSecretType } from '@/types/flow'
 import type { FlowField, FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowAppTool } from '@/types/flow'
 import type { MenuList } from '@/interface/globalInterface'
+import Back from '@/components/Icons/Back.vue'
 
 const api = useApi()
 const route = useRoute()
@@ -239,6 +269,21 @@ const errors = reactive<Record<string, string | null>>({})
 
 interface StatusActionDto { id: number; label: string; color?: string | null; to_status_id: number | null; to_status?: string | null; can: boolean }
 const statusActions = ref<StatusActionDto[]>([])
+// prev/next record numbers (record-number order, view-permission aware) for the header arrows
+const nav = reactive<{ prev: number | null; next: number | null }>({ prev: null, next: null })
+// list context riding on the record URL (?view/?sf/?sd/?f) — carried across up/down shifts and
+// handed back to the records list on 戻る so view, sort and ad-hoc filter all survive
+const LIST_CONTEXT_KEYS = ['view', 'sf', 'sd', 'f'] as const
+const listContext = () => {
+    const q: Record<string, any> = {}
+    for (const k of LIST_CONTEXT_KEYS) if (route.query[k] != null) q[k] = route.query[k]
+    return q
+}
+const goToRecord = (n: number | null) => {
+    if (n == null) return
+    // never carry ?edit= — arriving on the next record mid-edit would be a surprise
+    router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: n }, query: listContext() })
+}
 const transitioning = ref(false)
 
 interface LogDto { id: number; user?: any; action?: string; field?: string | null; old_value?: any; new_value?: any; changes?: Record<string, any> | null; note?: string | null; created_at?: string }
@@ -268,6 +313,10 @@ const selectTab = (k: 'comment' | 'history') => {
 const flowId = computed(() => route.params.flowId)
 const recordId = computed(() => route.params.recordId as string | undefined)
 const isNew = computed(() => !recordId.value)
+// duplicate ("複製"): new-record screen opened as ?from={sourceRecordId} — seed the form with that
+// record's values instead of plain defaults. Holds the fetched source values while seeding.
+const dupFrom = computed(() => (route.query.from ? String(route.query.from) : null))
+const dupValues = ref<Record<string, any> | null>(null)
 const visibleFields = computed(() => (definition.value?.fields ?? []).filter((f) => !f.hidden))
 
 const fieldRows = computed<FlowField[][]>(() => {
@@ -283,7 +332,30 @@ const fieldRows = computed<FlowField[][]>(() => {
 
 const isReadonly = (f: FlowField) => mode.value === 'view' || f.input_type === 'formula' || !!f.validation?.disabled
 
-const recordTitle = computed(() => (isNew.value ? '新規レコード' : `#${record.value?.record_number ?? recordId.value ?? ''}`))
+/* ---- unread-comment badge: clears only after the comment tab has really been viewed ---- */
+const unreadComments = ref(0)
+// "viewed" = comment tab active AND its content actually on screen (panel expanded / sheet open)
+const commentVisible = computed(() =>
+    !isNew.value && !!record.value && activeTab.value === 'comment'
+    && (isNarrow.value ? sheetOpen.value : !sideCollapsed.value))
+let commentReadTimer: ReturnType<typeof setTimeout> | null = null
+watch([commentVisible, unreadComments], () => {
+    if (commentReadTimer) { clearTimeout(commentReadTimer); commentReadTimer = null }
+    if (!commentVisible.value || unreadComments.value === 0) return
+    // ~5s of the tab being visible counts as "read" — then clear the badge server-side
+    commentReadTimer = setTimeout(async () => {
+        const id = record.value?.id
+        if (!id || !commentVisible.value) return
+        await api.post('/flow_notification_comments_read', { record_id: id }, { silent: true })
+        unreadComments.value = 0
+    }, 5000)
+}, { immediate: true })
+onBeforeUnmount(() => { if (commentReadTimer) clearTimeout(commentReadTimer) })
+
+const recordTitle = computed(() => (isNew.value ? (dupFrom.value ? '新規レコード（複製）' : '新規レコード') : `#${record.value?.record_number ?? recordId.value ?? ''}`))
+// 複製: open the new-record screen pre-filled from this record (needs 追加 permission)
+const canDuplicate = computed(() => !isNew.value && !!permissions.value?.add && !!record.value?.id)
+const duplicate = () => router.push({ name: 'flow-record-new', params: { flowId: flowId.value }, query: { from: record.value!.id } })
 const showFlow = computed(() => !!definition.value?.use_status_flow && !isNew.value)
 // Show the status area only when the app uses the flow AND this record actually has a status.
 const showStatus = computed(() => showFlow.value && !!record.value?.current_status)
@@ -301,6 +373,7 @@ const downloadPdf = (tool: FlowAppTool) => {
 const mobileMenuItems = computed<MenuList[]>(() => {
     const items: MenuList[] = []
     pdfTools.value.forEach((t) => items.push({ title: t.name, action: () => downloadPdf(t) }))
+    if (canDuplicate.value) items.push({ title: '複製', action: () => duplicate() })
     if (!isNew.value && can.delete) items.push({ title: '削除', action: () => remove() })
     if (can.edit) items.push({ title: '編集', action: () => { mode.value = 'edit' } })
     if (permissions.value?.manage) items.push({ title: 'アプリ設定', action: () => editApp() })
@@ -327,11 +400,23 @@ const fieldByKey = computed<Record<string, FlowField>>(() => {
 const userName = (id: any) => users.value.find((u) => u.id === Number(id))?.name ?? `#${id}`
 const logHeader = (lg: LogDto) => (lg.action === 'created' ? '作成' : '更新')
 const changeLabel = (key: string) => (key === 'status' ? 'ステータス' : (fieldLabelByKey.value[key] ?? key))
+// history rows for encrypted fields: state what happened, never a value (and never a bare
+// "設定あり → 設定あり", which is what a rotation would otherwise look like)
+const isSecretChange = (key: string) => {
+    const t = fieldByKey.value[key]?.input_type
+    return !!t && isSecretType(t)
+}
+const secretChangeText = (chg: { old?: any; new?: any }) => {
+    if (chg.new !== true) return '削除されました'
+    return chg.old === true ? '変更されました' : '設定されました'
+}
 const fmtChange = (key: string, val: any): string => {
     if (key === 'status') return (val ?? '') === '' ? '未設定' : String(val)
     if (val === null || val === undefined || val === '' || (Array.isArray(val) && !val.length)) return '未設定'
     const f = fieldByKey.value[key]
     const t = f?.input_type
+    if (t === 'password') return val === true ? '設定あり' : '未設定'
+    // (secret rows are rendered via secretChangeText, not old→new — see the history template)
     if (t === 'user' || t === 'member') return (Array.isArray(val) ? val : [val]).map(userName).join('、')
     if (t === 'file') return (Array.isArray(val) ? val : [val]).map((x: any) => x?.name ?? x).join('、')
     if (t === 'checkbox') return (Array.isArray(val) ? val : [val]).join(' / ')
@@ -362,11 +447,21 @@ const onLookup = (payload: { mappings: { from: string; to: string }[]; source: R
     }
 }
 
+// duplicate copies every editable field EXCEPT formula (recomputed), layout (no value), and file
+// (attachments aren't re-uploaded — copying the refs would share storage between records)
+const canDuplicateField = (f: FlowField) => !isLayoutType(f.input_type) && f.input_type !== 'formula' && f.input_type !== 'file' && !isSecretType(f.input_type)
+const cloneVal = (v: any) => (v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v)
+
 const initValues = () => {
-    (definition.value?.fields ?? []).forEach((f) => {
-        values[f.id!] = isNew.value
-            ? resolveFieldDefault(f, auth.id)
-            : (record.value?.values?.[f.id!] ?? emptyValue(f))
+    const dup = isNew.value ? dupValues.value : null
+    ;(definition.value?.fields ?? []).forEach((f) => {
+        if (!isNew.value) {
+            values[f.id!] = record.value?.values?.[f.id!] ?? emptyValue(f)
+            return
+        }
+        // duplicate: use the source value when present, else fall back to the field's default
+        const src = dup && canDuplicateField(f) ? dup[f.id!] : undefined
+        values[f.id!] = src !== undefined && src !== null ? cloneVal(src) : resolveFieldDefault(f, auth.id)
     })
 }
 
@@ -385,12 +480,21 @@ const load = async () => {
                 statusActions.value = data.status_actions ?? []
                 logs.value = data.logs ?? []
                 mentionableUsers.value = data.mentionable_users ?? []
+                unreadComments.value = data.unread_comments ?? 0
+                nav.prev = data.nav?.prev ?? null
+                nav.next = data.nav?.next ?? null
             }
         } else {
             const data = await api.get(`/flow_app_records/${flowId.value}`)
             if (data) {
                 definition.value = data.definition
                 permissions.value = data.permissions
+                // duplicate: pull the source record's values to pre-fill the form (view perm enforced server-side)
+                dupValues.value = null
+                if (dupFrom.value) {
+                    const src = await api.get(`/flow_app_record/${dupFrom.value}`)
+                    dupValues.value = src?.record?.values ?? null
+                }
             }
         }
         initValues()
@@ -417,6 +521,17 @@ const save = async () => {
     for (const f of visibleFields.value) {
         // disabled fields can't be edited by the user, so don't block save on their validation
         if (f.input_type === 'formula' || isLayoutType(f.input_type) || f.validation?.disabled) continue
+        // secrets: a blank submit keeps the stored value, so 必須 asks "will one exist after save?"
+        if (isSecretType(f.input_type)) {
+            const v = values[f.id!]
+            const clearing = !!(v && typeof v === 'object' && (v as any).clear)
+            const incoming = typeof v === 'string' ? v.trim() : ''
+            const stored = record.value?.values?.[f.id!] === true
+            const err = f.is_required && (clearing || (incoming === '' && !stored)) ? '必須項目です。' : null
+            errors[f.id!] = err
+            if (err) ok = false
+            continue
+        }
         const err = validateFlowField(f, values[f.id!])
         errors[f.id!] = err
         if (err) ok = false
@@ -465,7 +580,11 @@ const transition = async (a: StatusActionDto) => {
     }
 }
 
-const back = () => router.push({ name: 'flow-records', params: { flowId: flowId.value } })
+const back = () => {
+    // always land on the app's record list (history-back would step through every record the
+    // up/down arrows visited); the carried list context restores view, sort and ad-hoc filter
+    router.push({ name: 'flow-records', params: { flowId: flowId.value }, query: listContext() })
+}
 const editApp = () => router.push({ name: 'flow-builder', params: { flowId: flowId.value } })
 
 load()
@@ -480,6 +599,11 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-screen { display: flex; flex-direction: column; align-items: stretch; color: var(--primary-color); }
 .rd-screen.overlay { position: fixed; inset: 0; z-index: 30; background: var(--bg3); }
 .rd-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--calendarBorder); background: var(--background-color); }
+/* prev/next record arrows: borderless, hover chip like the other bar icons */
+.rd-nav { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; flex-shrink: 0; }
+.rd-navbtn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; background: none; border-radius: 7px; color: gray; fill: currentColor; cursor: pointer; transition: background .12s, color .12s; }
+.rd-navbtn:hover:not(:disabled) { background: var(--bg3); color: var(--primary-color); }
+.rd-navbtn:disabled { opacity: .3; cursor: default; }
 .rd-settings { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 12px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); fill: var(--primary-color); cursor: pointer; transition: background .12s, border-color .12s; }
 .rd-settings:hover { background: var(--bg3); border-color: var(--primary-color); }
 .rd-settings-label { font-size: 13px; color: var(--primary-color); white-space: nowrap; }
@@ -529,22 +653,29 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-side.collapsed { width: 0; border-left: none; }
 .rd-collapse { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: none; background: none; border-radius: 6px; color: gray; cursor: pointer; flex-shrink: 0; transition: background .12s, color .12s; }
 .rd-collapse:hover { background: var(--bg3); color: var(--primary-color); }
-.rd-reveal { position: absolute; right: 0; top: 8px; z-index: 41; display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 30px; padding: 0; border: 1px solid var(--calendarBorder); border-right: none; border-radius: 7px 0 0 7px; background: var(--background-color); color: gray; cursor: pointer; box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08); transition: color .12s, background .12s; }
+.rd-reveal { position: absolute; right: 0; top: 8px; z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: auto; min-width: 34px; height: 30px; padding: 0 9px 0 8px; border: 1px solid var(--calendarBorder); border-right: none; border-radius: 7px 0 0 7px; background: var(--background-color); color: gray; cursor: pointer; box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08); transition: color .12s, background .12s; }
 .rd-reveal:hover { background: var(--bg3); color: var(--primary-color); }
-.rd-reveal :deep(svg) { transform: rotate(180deg); }
 .chipFade-enter-active, .chipFade-leave-active { transition: opacity .2s ease, transform .2s ease; }
 .chipFade-enter-from, .chipFade-leave-to { opacity: 0; transform: translateX(10px); }
 .rd-tabs { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--calendarBorder); position: relative; }
 .rd-tabseg { display: inline-flex; gap: 4px; }
-.rd-tabbtn { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 28px; border: none; background: none; border-radius: 7px; color: gray; fill: currentColor; cursor: pointer; transition: background .12s, color .12s; }
+.rd-tabbtn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 28px; border: none; background: none; border-radius: 7px; color: gray; fill: currentColor; cursor: pointer; transition: background .12s, color .12s; }
+/* unread-comment count riding on the comment tab (or the collapsed reveal chevron) */
+.rd-tab-badge { position: absolute; top: -4px; right: 2px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px; background: tomato; color: #fff; font-size: 10px; line-height: 15px; text-align: center; box-sizing: border-box !important; }
+/* inline next to the Back icon (the shared .rd-tab-badge is absolute for the tab variant) */
+.rd-reveal-badge { position: static; top: auto; right: auto; left: auto; flex-shrink: 0; }
 .rd-tabbtn:hover { color: var(--primary-color); }
 .rd-tabbtn.on { background: var(--bg3); color: var(--primary-color); }
 .rd-side-content { flex: 1; overflow: auto; padding: 14px; }
 .rd-placeholder { font-size: 13px; color: gray; text-align: center; padding: 30px 10px; }
-.rd-sheet-toggle { position: absolute; right: 8px; top: 8px; border: none; background: none; cursor: pointer; color: gray; font-size: 11px; }
+/* mobile sheet toggle: same chip as the desktop .rd-collapse, arrow points up to open /
+   down to close. position+inset pinned — a global button rule leaks absolute/top:50px here */
+.rd-sheet-toggle { position: relative; inset: auto; margin-left: auto; box-sizing: border-box !important; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: none; background: none; border-radius: 6px; color: gray; fill: currentColor; cursor: pointer; flex-shrink: 0; transition: background .12s, color .12s; }
+.rd-sheet-toggle:hover { background: var(--bg3); color: var(--primary-color); }
 .rd-side.mobile { position: fixed; left: 0; right: 0; bottom: 0; width: auto; border-left: none; border-top: 1px solid var(--calendarBorder); box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.12); z-index: 40; max-height: 72vh; }
 .rd-side.mobile .rd-side-inner { width: 100%; }
-.rd-side.mobile .rd-tabs { padding-right: 60px; background: var(--background-color); }
+/* no reserved right gap: the sheet toggle is a flex child now, not an absolute overlay */
+.rd-side.mobile .rd-tabs { background: var(--background-color); }
 .rd-side.mobile .rd-side-content { max-height: 58vh; }
 /* --sub-color = theme-aware muted text (light #666 / dark #b0b3b8): readable in dark without the
    near-white glare of --primary-color, and not the too-dim fixed gray. */

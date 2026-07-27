@@ -28,7 +28,13 @@ class ContactBatchSubmissionService
             return;
         }
 
-        $this->submitScan($batch, $apiKey);
+        try {
+            $this->submitScan($batch, $apiKey);
+        } catch (\Throwable $e) {
+            // A failed batch submission must not leave the batch stuck at "queued".
+            report($e);
+            $this->markBatchFailed($batch, '取り込みの開始に失敗しました。もう一度お試しください。');
+        }
     }
 
     protected function submitScan(ContactBatch $batch, string $apiKey): void
@@ -39,10 +45,11 @@ class ContactBatchSubmissionService
             'responseMimeType' => 'application/json',
             'responseSchema' => [
                 'type' => 'OBJECT',
-                'required' => ['company_name', 'name', 'position', 'address', 'phone', 'email', 'fax', 'url'],
+                'required' => ['company_name', 'name', 'department', 'position', 'address', 'phone', 'email', 'fax', 'url'],
                 'properties' => [
                     'company_name' => ['type' => 'STRING'],
                     'name' => ['type' => 'STRING'],
+                    'department' => ['type' => 'STRING'],
                     'position' => ['type' => 'STRING'],
                     'address' => ['type' => 'STRING'],
                     'phone' => ['type' => 'STRING'],
@@ -67,7 +74,7 @@ class ContactBatchSubmissionService
         $payload = [
             'batch' => [
                 'displayName' => 'contact-scan-' . now()->format('YmdHis'),
-                'model' => 'models/gemini-3-flash-preview',
+                'model' => 'models/gemini-3.6-flash',
                 'inputConfig' => [
                     'requests' => [
                         'requests' => $requests,
@@ -76,9 +83,9 @@ class ContactBatchSubmissionService
             ],
         ];
 
-        $this->logEntry($batch, 'scan_submit', 'Submitting scan batch.', ['request_count' => count($requests)], 'models/gemini-3-flash-preview');
+        $this->logEntry($batch, 'scan_submit', 'Submitting scan batch.', ['request_count' => count($requests)], 'models/gemini-3.6-flash');
 
-        $operation = $this->startGeminiBatch($batch, $apiKey, 'models/gemini-3-flash-preview', $payload);
+        $operation = $this->startGeminiBatch($batch, $apiKey, 'models/gemini-3.6-flash', $payload);
 
         $batch->update([
             'status' => ContactBatch::STATUS_SCANNING,
@@ -100,6 +107,7 @@ class ContactBatchSubmissionService
             {
               "name": "氏名",
               "company_name": "会社名",
+              "department": "部署",
               "position": "役職",
               "address": "住所",
               "phone": "電話番号",
@@ -113,10 +121,11 @@ class ContactBatchSubmissionService
             - すべての値は文字列にしてください。
             - 見つからない項目は空文字 "" にしてください。
             - 電話番号、FAX、メール、URLは画像に見える内容を優先して返してください。
-            - 役職や部署が複数行にまたがる場合は、自然な1つの文字列にまとめてください。
+            - 部署（例: 営業部, 開発部）と役職（例: 部長, 主任）は別項目として分けてください。部署は department、役職は position に入れてください。
+            - 役職や部署が複数行にまたがる場合は、それぞれ自然な1つの文字列にまとめてください。
             - 住所は郵便番号を含め、同じ住所情報として自然な1つの文字列にまとめてください。
             - メールアドレスは小文字で返してください。
-            - 会社名、氏名、役職、住所、電話番号、FAX、URLを取り違えないでください。
+            - 会社名、氏名、部署、役職、住所、電話番号、FAX、URLを取り違えないでください。
         EOD;
     }
 }

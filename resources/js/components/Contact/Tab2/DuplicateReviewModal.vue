@@ -165,7 +165,7 @@
                                     </div>
                                     <div
                                         v-else
-                                        class="border border-dashed border-gray-700 rounded-md p-3 text-xs text-gray-400 flex items-center gap-2"
+                                        class="border border-dashed border-gray-700 p-3 text-xs text-gray-400 flex items-center gap-2"
                                     >
                                         <svg width="16" height="16" viewBox="0 0 24 24" class="opacity-70"><path fill="currentColor" d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10s10-4.48 10-10S17.52 2 12 2"/></svg>
                                         該当する既存コンタクトは見つかりませんでした。
@@ -184,14 +184,14 @@
                                     ]"
                                 />
                                 <!-- <button
-                                    class="px-3 py-1.5 text-xs rounded bg-gray-700 hover:bg-gray-600 text-gray-100 disabled:opacity-40"
+                                    class="px-3 py-1.5 text-xs bg-gray-700 hover:bg-gray-600 text-gray-100 disabled:opacity-40"
                                     :disabled="isResolvingCurrent || !currentContactId"
                                     @click="emitResolve('keep')"
                                 >
                                     重複ではない
                                 </button>
                                 <button
-                                    class="px-3 py-1.5 text-xs rounded bg-[var(--primary-color)] hover:brightness-110 text-[var(--background-color)] disabled:opacity-40 flex items-center gap-2"
+                                    class="px-3 py-1.5 text-xs bg-[var(--primary-color)] hover:brightness-110 text-[var(--background-color)] disabled:opacity-40 flex items-center gap-2"
                                     :disabled="isResolvingCurrent || !currentSelection || !currentContactId"
                                     @click="emitResolve('merge')"
                                 >

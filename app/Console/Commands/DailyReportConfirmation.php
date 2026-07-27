@@ -25,7 +25,7 @@ class DailyReportConfirmation extends Command
     public function handle(ReportService $reportService)
     {
         $yesterday         = Carbon::now()->subDay()->toDateString();
-        $dayBeforeYesterday = Carbon::now()->subDays(2)->toDateString();
+        $dayBeforeYesterday = Carbon::now()->subDays(4)->toDateString();
 
         $shifts = shiftRecord::query()
             ->join('users', function ($join) {

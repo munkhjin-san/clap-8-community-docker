@@ -2,68 +2,83 @@
     <div class="section-wrapper">
         <div class="section-inner" v-if="selectedTopic && isEnabled(selectedTopic.active)">
         
-            <div>
-                <p><strong>ポートフォリオ</strong></p>
-                <div class="markdown-content" v-html="portfolioContentHtml"></div>
-            </div>
-            <div class="si-box">
-                <p :style="{marginBottom: portfolio && portfolio.status == 1 ? '20px' : '0'}"><strong>どのようなフィードバックをもらいましたか。</strong></p>
-                <LongInput
-                    v-if="portfolio && portfolio.status == 1"
-                    :initialValue="portfolio?.positive_feedback ?? p_feedBack"
-                    :placeHolder="`ポジティブフィードバックの内容`"
-                    :key="portfolio?.positive_feedback ?? 0"
-                    ref="p_feedbackBody"
-                    name="recordBody"
-                    label="タイトル"
-                    v-model="p_feedBack"
-                />
-                <div v-else>
-                    <p>ポジティブフィードバック</p>
-                    <p>{{ portfolio?.positive_feedback }}</p>
+            <div v-if="isSalaryChallenge">
+                <!-- Studied AI material as the shared collapse card; salary challengers
+                     start collapsed since it's reference they've already read. -->
+                <LearningCollapseCard label="個人専用研修資料">
+                    <div class="markdown-content" v-html="aiMaterialHtml"></div>
+                </LearningCollapseCard>
+
+                <div class="si-box gd-theme">
+                    <p><strong>グループディスカッション用テーマ</strong></p>
+                    <p class="gd-theme__value">{{ portfolio?.discussion_theme || '（未選択）' }}</p>
                 </div>
             </div>
-            <div class="si-box">
-                <LongInput
-                    v-if="portfolio && portfolio.status == 1 "
-                    :initialValue="portfolio?.negative_feedback ?? n_feedBack"
-                    :placeHolder="`ネガティブフィードバックの内容`"
-                    :key="portfolio.negative_feedback ?? 0"
-                    ref="n_feedbackBody"
-                    name="recordBody"
-                    label="タイトル"
-                    v-model="n_feedBack"
-                />
-                <div v-else>
-                    <p>ネガティブフィードバック</p>
-                    <p>{{ portfolio?.negative_feedback }}</p>
-                </div>
+            <div v-else>
+                <!-- First-timer's portfolio in its own collapse card, open by default. -->
+                <LearningCollapseCard label="ポートフォリオ" :default-open="true">
+                    <div class="markdown-content" v-html="portfolioContentHtml"></div>
+                </LearningCollapseCard>
             </div>
-            <div class="si-box">
-                <p :style="{marginBottom: portfolio && portfolio.status == 1 ? '20px' : '0'}"><strong>フィードバックから得た発見と成長</strong></p>
-                <LongInput
-                    v-if="portfolio && portfolio.status == 1 "
-                    :initialValue="portfolio?.noticed ?? noticed"
-                    :placeHolder="`発見と成長の内容`"
-                    :key="portfolio.noticed ?? 0"
-                    ref="noticedBody"
-                    name="recordBody"
-                    label="タイトル"
-                    v-model="noticed"
-                />
-                <div v-else>
-                    <p>{{ portfolio?.noticed }}</p>
-                </div>
-            </div>
-            <div v-if="portfolio && portfolio.status == 1 " style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
+            <div class="m-5 p-5 bg-[var(--background-color)] ">
                 <div>
-                    <LoaderButton @triggered="saveContent('save')" :loading="processing_save" :content="'一時保存'"/>
+                    <p :style="{marginBottom: portfolio && portfolio.status == 1 ? '20px' : '0'}"><strong>どのようなフィードバックをもらいましたか。</strong></p>
+                    <LongInput
+                        v-if="portfolio && portfolio.status == 1"
+                        :initialValue="portfolio?.positive_feedback ?? p_feedBack"
+                        :placeHolder="`ポジティブフィードバックの内容`"
+                        :key="portfolio?.positive_feedback ?? 0"
+                        ref="p_feedbackBody"
+                        name="recordBody"
+                        label="タイトル"
+                        v-model="p_feedBack"
+                    />
+                    <div v-else>
+                        <p>ポジティブフィードバック</p>
+                        <p>{{ portfolio?.positive_feedback }}</p>
+                    </div>
                 </div>
-                <div>
-                    <LoaderButton @triggered="nextStage" :loading="processing" :content="'ディスカッション完了'"/>
+                <div class="si-box">
+                    <LongInput
+                        v-if="portfolio && portfolio.status == 1 "
+                        :initialValue="portfolio?.negative_feedback ?? n_feedBack"
+                        :placeHolder="`ネガティブフィードバックの内容`"
+                        :key="portfolio.negative_feedback ?? 0"
+                        ref="n_feedbackBody"
+                        name="recordBody"
+                        label="タイトル"
+                        v-model="n_feedBack"
+                    />
+                    <div v-else>
+                        <p>ネガティブフィードバック</p>
+                        <p>{{ portfolio?.negative_feedback }}</p>
+                    </div>
+                </div>
+                <div class="si-box">
+                    <p :style="{marginBottom: portfolio && portfolio.status == 1 ? '20px' : '0'}"><strong>フィードバックから得た発見と成長</strong></p>
+                    <LongInput
+                        v-if="portfolio && portfolio.status == 1 "
+                        :initialValue="portfolio?.noticed ?? noticed"
+                        :placeHolder="`発見と成長の内容`"
+                        :key="portfolio.noticed ?? 0"
+                        ref="noticedBody"
+                        name="recordBody"
+                        label="タイトル"
+                        v-model="noticed"
+                    />
+                    <div v-else>
+                        <p>{{ portfolio?.noticed }}</p>
+                    </div>
+                </div>
+                <div v-if="portfolio && portfolio.status == 1 " style="display:flex; justify-content: center; gap:20px;flex-wrap: wrap;margin-top: 25px;">
+                    <div>
+                        <LoaderButton @triggered="saveContent('save')" :loading="processing_save" :content="'一時保存'"/>
+                    </div>
+                    <div>
+                        <LoaderButton @triggered="nextStage" :loading="processing" :content="'ディスカッション完了'"/>
+                    </div>
                 </div>
             </div>
-            
             
         </div>
     </div>
@@ -72,6 +87,7 @@
 <script setup lang="ts">
 import LongInput from '../../Form/LongInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue';
+import LearningCollapseCard from '@/components/Learning/shared/LearningCollapseCard.vue';
 import { computed, ref, inject, watch, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router';
 import { useDialog } from '@/composables/dialog';
@@ -101,6 +117,9 @@ import type { LearningPortfolio, LearningTheme } from '@/types/learning';
     const { ask, toast } = useDialog()
     const themeId = computed(() => route.params.lessonThemeId)
     const portfolioContentHtml = computed(() => renderMarkdown(portfolio?.value?.content))
+    // Path 3 (salary challenge): studied AI material is collapsible; the chosen theme is highlighted.
+    const isSalaryChallenge = computed(() => Boolean(portfolio?.value?.salary_issue_id))
+    const aiMaterialHtml = computed(() => renderMarkdown(portfolio?.value?.ai_material))
 
     watch(portfolio ?? ref(null), (record) => {
         p_feedBack.value = record?.positive_feedback ?? ''
@@ -196,5 +215,16 @@ import type { LearningPortfolio, LearningTheme } from '@/types/learning';
     .markdown-content ul,
     .markdown-content ol {
         padding-left: 1.4em;
+    }
+
+    .gd-theme {
+        margin: 20px;
+        padding: 20px;
+        background: var(--background-color);
+    }
+    .gd-theme__value {
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.8;
     }
 </style>

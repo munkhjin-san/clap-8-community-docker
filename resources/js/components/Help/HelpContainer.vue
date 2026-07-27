@@ -40,7 +40,6 @@ const isDocumentation = computed(() => route.path.includes('/help/documentation'
     display: flex;
     height: 100%;
     width: 100%;
-    padding: 20px;
     color: var(--primary-color);
     box-sizing: border-box;
 }
@@ -51,8 +50,6 @@ const isDocumentation = computed(() => route.path.includes('/help/documentation'
     width: 100%;
     min-height: 0;
     overflow: hidden;
-    border: 1px solid var(--formBorder);
-    border-radius: 10px;
 }
 .help-container-bar {
     flex-shrink: 0;
@@ -69,10 +66,6 @@ const isDocumentation = computed(() => route.path.includes('/help/documentation'
 @media (max-width: 720px) {
     .help-container {
         padding: 0;
-    }
-    .help-container-inner {
-        border: 0;
-        border-radius: 0;
     }
 }
 </style>

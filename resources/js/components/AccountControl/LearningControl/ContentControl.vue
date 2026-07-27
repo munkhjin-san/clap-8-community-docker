@@ -86,10 +86,19 @@
             />
         </Transition>
         <Transition name="modalFade">
-            <ExamAttempts 
+            <ExamAttempts
                 v-if="examAttemptsModal"
                 :themeId="Number(route.params.themeId)"
                 @close="examAttemptsModal = false"
+            />
+        </Transition>
+        <Transition name="modalFade">
+            <ExamCreate
+                v-if="materialExamModal && materialExamMaterial"
+                :theme-id="Number(route.params.themeId)"
+                :material-id="materialExamMaterial.id"
+                :exam-data="materialExamData"
+                @close="closeMaterialExam"
             />
         </Transition>
 
@@ -292,7 +301,26 @@ const lessonMenuItems = (lesson: LearningMaterial) => {
     if(lesson.priority === LESSON_MATERIAL_PRIORITY.SECTION && !isEnabled(lesson.has_question)){
         items.push({title: '理解チェックを追加', action: () => summary(lesson.id)})
     }
+    if(lesson.priority === LESSON_MATERIAL_PRIORITY.SECTION && isEnabled(lesson.has_exam)){
+        items.push({title: '試験を作成/編集', action: () => openMaterialExam(lesson)})
+    }
     return items
+}
+const materialExamModal = ref(false)
+const materialExamMaterial = ref<LearningMaterial | null>(null)
+const materialExamData = ref<LearningExam | null>(null)
+const openMaterialExam = async(lesson: LearningMaterial) => {
+    if(!themeId.value) return
+    const res = await learningApi.getAdminExam(themeId.value, lesson.id)
+    materialExamData.value = res.exam
+    materialExamMaterial.value = lesson
+    materialExamModal.value = true
+}
+const closeMaterialExam = (refresh?: boolean) => {
+    materialExamModal.value = false
+    materialExamMaterial.value = null
+    materialExamData.value = null
+    if(refresh) getLesson()
 }
 const summaryMenuItems = (summary: LearningSummary): MenuList[] => [
     {title: '編集する', action: () => editSummary(summary)},

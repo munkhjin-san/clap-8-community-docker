@@ -20,14 +20,26 @@ use Illuminate\Support\Facades\Storage;
 
 class FlowService
 {
-    private const ADMIN_USER_IDS = [608, 610];
-
     /** Layout/decoration field types that hold no record value. */
     public const LAYOUT_TYPES = ['heading', 'label', 'spacer', 'divider'];
 
     public static function isLayoutType(?string $type): bool
     {
         return in_array($type, self::LAYOUT_TYPES, true);
+    }
+
+    /**
+     * Secret field types: stored encrypted (AccountVault) and deliberately excluded from every
+     * value-bearing pipeline — CSV export, search, view columns/filters/sort, formulas, lookup
+     * field-copy, PDF tools, record duplicate, and change-history values. readFieldValue() yields
+     * a BOOLEAN "has value" for these, never the ciphertext, so anything that forgets to check
+     * still cannot leak the credential. Reveal is a separate, audited endpoint.
+     */
+    public const SECRET_TYPES = ['password'];
+
+    public static function isSecret(?string $type): bool
+    {
+        return in_array($type, self::SECRET_TYPES, true);
     }
 
     /* ----------------------------------------------------------------
@@ -191,6 +203,64 @@ class FlowService
         }
 
         return false;
+    }
+
+    /**
+     * True if an action on the record's current status EXPLICITLY names this user
+     * (user / position / field / project-role subject). Strict counterpart of
+     * hasPendingAction: 'everyone', empty eligible and the manage safety net don't
+     * count — a duty needs the user's name on it. Drives the 対応待ち counter.
+     */
+    public function hasExplicitPendingAction(User $user, FlowRecord $record): bool
+    {
+        foreach ($this->statusActionsFor($record) as $action) {
+            foreach (($action->eligible ?? []) as $subj) {
+                $type = $subj['subject_type'] ?? null;
+                if ($type && $type !== 'everyone'
+                    && $this->matchesSubject($type, $subj['subject_id'] ?? null, $user, $record->definition, $record)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Records in this app awaiting the user's action (strict 対応待ち). Live data — nothing
+     * is stored: the count exists exactly as long as the record sits on a status whose
+     * actions name the user, and drops the moment they (or anyone) move it on.
+     */
+    public function pendingActionRecords(User $user, FlowDefinition $definition)
+    {
+        if (! $definition->use_status_flow || ! $definition->is_active) {
+            return collect();
+        }
+        $definition->loadMissing(['statuses', 'statusActions', 'recordPermissionSets']);
+        // only actions with explicit subjects can flag anything — apps without them skip the
+        // record scan entirely (this runs on every portal load, once per status-flow app)
+        $isExplicit = fn ($s) => ($s['subject_type'] ?? null) && $s['subject_type'] !== 'everyone';
+        $actions = $definition->statusActions->filter(
+            fn ($a) => collect($a->eligible ?? [])->contains($isExplicit)
+        );
+        $statusIds = $actions->pluck('flow_status_id')->unique()->values();
+        if ($statusIds->isEmpty()) {
+            return collect();
+        }
+        // 'field' subjects resolve against record values — eager-load them only when needed
+        // (otherwise fieldUserIds lazy-loads per record → N+1)
+        $needsValues = $actions->contains(fn ($a) => collect($a->eligible ?? [])
+            ->contains(fn ($s) => ($s['subject_type'] ?? null) === 'field'));
+
+        return FlowRecord::where('flow_definition_id', $definition->id)
+            ->whereIn('current_status_id', $statusIds)
+            ->with($needsValues ? ['currentStatus:id,name', 'values'] : ['currentStatus:id,name'])
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(fn ($rec) => tap($rec)->setRelation('definition', $definition))
+            ->filter(fn ($rec) => $this->recordPermissions($user, $rec, $definition)['view']
+                && $this->hasExplicitPendingAction($user, $rec))
+            ->values();
     }
 
     /** Users who may VIEW this record (app-level ∩ record-level) — the mentionable set for comments. */
@@ -549,8 +619,9 @@ class FlowService
      */
     public function resolveExportColumns(FlowDefinition $definition, ?FlowView $view, bool $hasStatus): array
     {
+        // secrets are never exported — a CSV is the easiest way for a credential to walk out
         $fields = ($definition->relationLoaded('fields') ? $definition->fields : $definition->fields()->get())
-            ->filter(fn ($f) => ! self::isLayoutType($f->input_type))
+            ->filter(fn ($f) => ! self::isLayoutType($f->input_type) && ! self::isSecret($f->input_type))
             ->values();
         $fieldsById = $fields->keyBy('id');
 
@@ -633,11 +704,19 @@ class FlowService
         $kw = trim($search);
         if ($kw !== '') {
             $like = '%'.mb_strtolower($kw).'%';
-            $q->where(function ($w) use ($like) {
+            // secrets hold ciphertext — matching it is meaningless and would only ever be a
+            // (very slow) way to confirm someone guessed a stored value; skip those rows
+            $secretIds = $fieldsById->filter(fn ($f) => self::isSecret($f->input_type))->keys()->all();
+            $q->where(function ($w) use ($like, $secretIds) {
                 $w->whereRaw('CAST(record_number AS CHAR) LIKE ?', [$like])
-                    ->orWhereHas('values', function ($vq) use ($like) {
-                        $vq->whereRaw('LOWER(value_text) LIKE ?', [$like])
-                            ->orWhereRaw('CAST(value_numeric AS CHAR) LIKE ?', [$like]);
+                    ->orWhereHas('values', function ($vq) use ($like, $secretIds) {
+                        if ($secretIds) {
+                            $vq->whereNotIn('flow_field_id', $secretIds);
+                        }
+                        $vq->where(function ($m) use ($like) {
+                            $m->whereRaw('LOWER(value_text) LIKE ?', [$like])
+                                ->orWhereRaw('CAST(value_numeric AS CHAR) LIKE ?', [$like]);
+                        });
                     });
             });
         }
@@ -820,6 +899,24 @@ class FlowService
         ]);
 
         switch ($field->input_type) {
+            case 'password':
+                // ['clear' => true] wipes it; a blank submit KEEPS the stored secret (returning
+                // early leaves the row untouched — the nulls filled above are never persisted),
+                // so editing a record doesn't require reading the credential first.
+                if (is_array($raw) && ! empty($raw['clear'])) {
+                    break;
+                }
+                // a bare boolean is the "is one stored?" marker we handed out on read — echoing it
+                // back means "unchanged", never a new value (otherwise true would be saved as "1")
+                if (is_bool($raw)) {
+                    return;
+                }
+                $plain = is_scalar($raw) ? trim((string) $raw) : '';
+                if ($plain === '') {
+                    return;
+                }
+                $value->value_text = app(AccountVault::class)->encrypt($plain);
+                break;
             case 'number':
                 $value->value_numeric = $this->numberValue($raw);
                 break;
@@ -922,10 +1019,14 @@ class FlowService
     {
         $multi = in_array($field->input_type, ['checkbox', 'file', 'user', 'member', 'table'], true);
         if (! $value) {
-            return $multi ? [] : null;
+            // secrets read as "is one stored?" — never the value, not even when absent
+            return self::isSecret($field->input_type) ? false : ($multi ? [] : null);
         }
 
         return match ($field->input_type) {
+            // NEVER return the ciphertext: every consumer (lists, detail payloads, history diffs)
+            // gets a boolean. Plaintext is only ever produced by the audited reveal endpoint.
+            'password' => $value->value_text !== null && $value->value_text !== '',
             'number' => $value->value_numeric === null ? null : (float) $value->value_numeric,
             'date' => $value->value_date?->toDateString(),
             'datetime' => $value->value_datetime?->format('Y-m-d\TH:i'),
@@ -1088,7 +1189,10 @@ class FlowService
                 continue;
             }
             $this->saveFieldValue($record, $field, $raw);
-            $changes[$field->key] = ['new' => is_array($raw) ? $raw : (string) $raw];
+            // never let a secret's plaintext into the change log — record only that it was set
+            $changes[$field->key] = self::isSecret($field->input_type)
+                ? ['new' => true]
+                : ['new' => is_array($raw) ? $raw : (string) $raw];
         }
 
         return $changes;
@@ -1227,7 +1331,7 @@ class FlowService
      |================================================================ */
 
     /** Returns field_id(string) => error message for invalid values. */
-    public function validateValues($fields, array $values): array
+    public function validateValues($fields, array $values, ?FlowRecord $record = null): array
     {
         $errors = [];
         foreach ($fields as $field) {
@@ -1235,6 +1339,22 @@ class FlowService
                 continue;
             }
             $value = $values[$field->id] ?? ($values[(string) $field->id] ?? null);
+            // a blank secret means "keep what's stored", so 必須 is about the value that will
+            // EXIST after the save — not about what was submitted
+            if (self::isSecret($field->input_type)) {
+                $clearing = is_array($value) && ! empty($value['clear']);
+                $incoming = is_scalar($value) ? trim((string) $value) : '';
+                $stored = $record !== null && $this->readFieldValue(
+                    ($record->relationLoaded('values') ? $record->values : $record->values()->get())
+                        ->firstWhere('flow_field_id', $field->id),
+                    $field
+                ) === true;
+                if ($field->is_required && ($clearing || ($incoming === '' && ! $stored))) {
+                    $errors[(string) $field->id] = '必須項目です。';
+                }
+
+                continue;
+            }
             $error = $this->validateOne($field, $value);
             if ($error) {
                 $errors[(string) $field->id] = $error;
@@ -1587,6 +1707,47 @@ class FlowService
         }
 
         return $out;
+    }
+
+    /**
+     * May this user reveal a secret field's plaintext on this record?
+     *
+     * Full chain: app view ∩ record view ∩ field view. The twist is the DEFAULT — fieldPermissions()
+     * grants view+edit to everyone when a field has no permission rows, which is right for ordinary
+     * fields but the wrong failure mode for a credential: whoever adds the field would expose it to
+     * every record viewer until they remember to configure it. So secret fields FAIL CLOSED —
+     * unconfigured means 管理 only.
+     */
+    public function canRevealSecret(User $user, FlowRecord $record, FlowField $field, FlowDefinition $def): bool
+    {
+        if (! self::isSecret($field->input_type) || (int) $field->flow_definition_id !== (int) $def->id) {
+            return false;
+        }
+        $app = $this->effectiveAppPermissions($user, $def);
+        if (! $app['view'] || ! $this->recordPermissions($user, $record, $def)['view']) {
+            return false;
+        }
+
+        $rows = ($def->relationLoaded('fieldPermissions') ? $def->fieldPermissions : $def->fieldPermissions()->get())
+            ->where('field_id', $field->id);
+
+        return $rows->isEmpty()
+            ? (bool) $app['manage']
+            : (bool) ($this->fieldPermissions($user, $def, $record)[$field->id]['view'] ?? false);
+    }
+
+    /**
+     * Plaintext of a stored secret, or null when the field is empty.
+     * Throws DecryptException on a key mismatch — callers must NOT swallow that into "no value",
+     * or a broken/rotated key looks exactly like an empty credential.
+     */
+    public function revealSecret(FlowRecord $record, FlowField $field): ?string
+    {
+        $row = ($record->relationLoaded('values') ? $record->values : $record->values()->get())
+            ->firstWhere('flow_field_id', $field->id);
+        $cipher = $row->value_text ?? null;
+
+        return ($cipher === null || $cipher === '') ? null : app(AccountVault::class)->decrypt($cipher);
     }
 
     /** Field ids the user may edit on a record now: record.edit ∩ field-perm edit ∩ status-rule editable. */

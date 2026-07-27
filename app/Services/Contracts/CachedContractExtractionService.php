@@ -87,6 +87,17 @@ class CachedContractExtractionService
         return $this->lastExtractionMetadata;
     }
 
+    public function hasCachedExtraction(string $absolutePath, string $extension, bool $allowOcr): bool
+    {
+        if ($this->cacheTtl() <= 0) {
+            return false;
+        }
+
+        return $this->isValidCachedExtraction(
+            Cache::get($this->cacheKey($absolutePath, strtolower($extension), $allowOcr))
+        );
+    }
+
     public function buildIndexFromPages(array $pages): array
     {
         return $this->contractExtractionService->buildIndexFromPages($pages);

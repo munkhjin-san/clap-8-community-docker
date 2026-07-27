@@ -11,7 +11,7 @@
                 >
                 <button
                     type="button"
-                    class="px-[15px] border border-solid border-[var(--normalBorder)]"
+                    class="px-[15px] border border-solid border-[var(--normalBorder)] text-[var(--primary-color)]"
                     @click="save"
                 >
                     保存
@@ -25,7 +25,7 @@
                 class="flex items-center gap-[10px] bg-[var(--background-color)] border border-solid border-[var(--calendarBorder)] px-[15px] py-[12px]"
             >
                 <span>{{ category.label }}</span>
-                <button class="ml-auto text-[12px]" @click="edit(category)">編集</button>
+                <button class="ml-auto text-[12px] text-[var(--primary-color)]" @click="edit(category)">編集</button>
                 <button
                     class="text-[12px] text-red-500"
                     @click="remove(category.id)"

@@ -661,12 +661,6 @@ class PostController extends Controller
                         'rakuaward' => '今月の楽アワードノミネート既に作成してます',
                     ]);
                 }
-                $todayDay = Carbon::now()->day;
-                if ($todayDay > 20) {
-                    throw ValidationException::withMessages([
-                        'rakuaward' => '20日を過ぎてしまったため、楽アワードノミネートすることはできません',
-                    ]);
-                }
             }
             $record->user_id = Auth::id();
             $record->title = $request->title;
