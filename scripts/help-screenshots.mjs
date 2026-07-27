@@ -10,6 +10,12 @@
  *  - php artisan serve running on :8000 and vite dev server (or a built bundle)
  *  - APP_ENV=local (uses the /dev_screenshot_login/{user} route, local-only)
  *  - the docs demo app 備品購入申請 (created for the help docs; keep it around)
+ *  - demo state for the portal badges, else those shots come out empty:
+ *      · 対応待ち — the 承認待ち actions must name SHOT_USER explicitly in `eligible`
+ *        (durable: already configured on the demo app; the icon hides at count 0)
+ *      · 通知 — unread flow_notifications rows for SHOT_USER on the demo app. These are
+ *        TRANSIENT: this very run clears some (opening the list/record marks them read),
+ *        so re-seed before each run. Portal shots run first, so the badge still captures.
  */
 import puppeteer from 'puppeteer-core'
 import { mkdirSync } from 'node:fs'
@@ -31,6 +37,24 @@ const SHOTS = [
         prep: async (p) => {
             await p.click('::-p-xpath(//div[contains(@class,"fc-card")][.//div[contains(@class,"fc-card-name")][contains(text(),"備品購入申請")]]//div[contains(@class,"boardMenuContainer")])')
             await sleep(400)
+        },
+    },
+    {
+        // bell popup — needs unread events for SHOT_USER on the demo app (see the header note)
+        file: 'portal-bell', url: '/apps', waitFor: '.fc-card',
+        prep: async (p) => {
+            await p.click('::-p-xpath(//div[contains(@class,"fc-card")][.//div[contains(@class,"fc-card-name")][contains(text(),"備品購入申請")]]//button[contains(@class,"fbell-btn")])')
+            await p.waitForSelector('.fbell-menu')
+            await sleep(500)
+        },
+    },
+    {
+        // 対応待ち popup — icon only renders when the user has explicit pending actions
+        file: 'portal-pending', url: '/apps', waitFor: '.fc-card',
+        prep: async (p) => {
+            await p.click('::-p-xpath(//div[contains(@class,"fc-card")][.//div[contains(@class,"fc-card-name")][contains(text(),"備品購入申請")]]//button[contains(@class,"fpend-btn")])')
+            await p.waitForSelector('.fpend-menu')
+            await sleep(500)
         },
     },
     { file: 'records', url: `/apps/records/${APP_ID}`, waitFor: '.rv-row' },

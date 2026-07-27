@@ -1,7 +1,7 @@
 # HANDOFF — Flow (カスタムアプリ) + Smart Notifications
 
 > Session handoff for resuming work on the Flow feature. Read this first, then drill into the
-> referenced files. Last updated: 2026-07-24.
+> referenced files. Last updated: 2026-07-27.
 
 ## 1. What Flow is
 
@@ -31,10 +31,17 @@ everything.
   `FlowToolsTab` (PDF designer), `FlowPermissionTab`, `FlowAuditLogTab`. Tab = route param
   (`/apps/builder/:flowId?/:tab?`); edit lands on Form tab, tab switches use `router.replace`.
 - `FlowRecordsView.vue` — record list (server-mode SQL pagination unless the app has record-level
-  permission sets → client mode). Selected view persists via `?view=` (seeded into `activeViewId`
-  BEFORE the first fetch — do not regress this race fix).
+  permission sets → client mode). **List state lives in the URL** so it survives open→back:
+  `?view=` (view id) + `?sf=`/`?sd=` (sort field/direction) + `?f=` (ad-hoc filter, base64url of a
+  compact array form — `encodeAdhoc`/`decodeAdhoc` in the SFC). All of it is seeded into the refs at
+  declaration time, BEFORE the first fetch — do not regress that race fix (otherwise the first query
+  goes out with the default view and the rows contradict the selector). `listQuery()` builds the
+  param bag that record links carry.
 - `FlowRecordDetail.vue` — record view/edit (`/apps/records/:flowId/edit/:recordId` by record_number,
   `/new`, duplicate = `/new?from={id}`). Comment/history side panel; unread-comment badge (§3).
+  Header has ↑/↓ **neighbour navigation** (`nav.prev`/`nav.next` ride the detail payload — adjacent
+  record_number in one indexed query, bounded walk as fallback); back returns to the list with the
+  full `listQuery()` state intact.
 - `FlowFieldInput.vue` — every field input incl. lookup picker (app target or system source).
 - `FlowSearchSelect.vue` — reusable searchable select (IME-aware, keyboard nav, `group` option draws
   a divider between option groups). Used everywhere a long list needs picking.
@@ -74,10 +81,14 @@ import (mapping UI, grouped rows), PDF tools, kintone import, per-app audit log 
 exports w/ archived file, settings diffs, downloads), lookup incl. **field mappings** (copy source
 values into real fields, strict type compat + scalar→text) and **system sources** (営業所), portal
 polish (pin/sort/view toggle, 使い方 link), help documentation hub (`/help/documentation/app`,
-27 articles + screenshots; regenerate via `node scripts/help-screenshots.mjs` — needs demo app 37
+28 articles + 18 screenshots; regenerate via `node scripts/help-screenshots.mjs` — needs demo app 37
 and the local-only `/dev_screenshot_login/{user}` route, both must stay), 対応待ち counter (§3),
 portal popup hardening 2026-07-25 (bell/対応待ち/ItemMenu dropdowns → teleport+fixed, Badge digit
-centering — see §1 conventions; bell moved to card foot, pin icon 15px).
+centering — see §1 conventions; bell moved to card foot, pin icon 15px),
+list state in the URL + record ↑/↓ navigation (§1 FlowRecordsView/FlowRecordDetail),
+app-list perf (dropped `fields_count`/`statuses_count` — cards show 件 only),
+mobile fixes (portal table width + name ellipsis, sheet toggle flush at the row edge),
+docs refresh 2026-07-27 (see §6.3).
 
 ## 3. CURRENT WORK — smart notifications + 対応待ち counter (built & verified)
 
@@ -161,22 +172,45 @@ prefs round-trip → event tap-through → each clearing rule incl. collapsed-pa
   reformat them wholesale.
 - After adding routes: `php artisan route:clear` (dev server caches; new routes 404 otherwise).
   `php artisan route:list` errors on a missing `AdminCostMasterController` — pre-existing, ignore.
-- Verify via tinker scripts (write to a file, `php artisan tinker <file>`) + browser preview.
-  **Shared host (xs954629.xsrv.jp)**: no dev servers — every FE change needs `npm run build` to show
-  at `https://xs954629.xsrv.jp`. Browser testing via the Claude-in-Chrome extension on the owner's
-  machine (they switch linked accounts to test different users).
-- **This dev DB is NOT the environment §5 describes**: only a handful of apps exist here (2026-07-25:
-  1=システム資産 w/ status-flow test config eligible→user 604, 2=労使協定, 3=re). App ids in §5
-  (15/37/1) belong to the original environment — verify with tinker before assuming either way.
+- Verify via tinker scripts (write to a file, `php artisan tinker <file>`) + browser.
+
+### ⚠️ TWO environments exist — detect which one you're on before anything else
+
+Sessions have run against both. They differ in workflow AND in data, so **check first**:
+
+```bash
+grep -E '^APP_ENV|^APP_URL' .env
+lsof -nP -iTCP:8000 -sTCP:LISTEN   # local dev server?
+php artisan tinker --execute="echo config('database.connections.'.config('database.default').'.database');"
+php artisan tinker --execute="App\Models\FlowDefinition::orderBy('id')->get(['id','name'])->each(fn(\$d)=>print(\$d->id.' '.\$d->name.PHP_EOL));"
+```
+
+- **Local dev (this machine, verified 2026-07-27)** — `APP_ENV=local`, DB `g4_prod_test` @ localhost,
+  **dev servers running** on `:8000` (artisan serve) + `:5173` (vite). Apps 1/12/13/14/15/21/37 —
+  i.e. the §5 data. FE changes hot-reload; no build needed. Browser via the in-app preview tools;
+  `/dev_screenshot_login/{user}` logs a session in (local-only route). This is where the docs
+  screenshot pipeline runs.
+- **Shared host (`xs954629.xsrv.jp`)** — no dev servers: every FE change needs `npm run build` to
+  show at `https://xs954629.xsrv.jp`. Browser testing via the Claude-in-Chrome extension on the
+  owner's machine (they switch linked accounts to test different users). A 2026-07-25 session saw a
+  near-empty app set there (1=システム資産 w/ status-flow test config eligible→user 604, 2=労使協定,
+  3=re) — **§5's app ids do NOT apply there**.
+
+Never assume the app ids in §5 without running the check above.
 - Commit style: `type(flow): summary` + body; work stays on `main`; push only when asked. Remote
   sometimes gains commits between sessions (user commits from elsewhere) — fetch/rebase, never force.
 
 ## 5. Data hygiene (IMPORTANT)
 
+> App ids below are the **local dev DB** (`g4_prod_test`) — confirmed 2026-07-27. On the shared host
+> they mean nothing; run the §4 detection first.
+
 - **App 15 (送付状-NEW) holds real client PII** — never dump its records into logs/screenshots.
   It currently carries a test lookup field "office" (reference → 営業所, mapping 住所→発送・返送場所)
   that the owner chose to keep; confirm before touching.
 - **App 37 (備品購入申請)** = docs/demo app, fabricated data — KEEP (screenshot pipeline + testing).
+  Its 承認待ち actions (承認する / 差し戻す) deliberately name **user 608** in `eligible` so the
+  対応待ち icon has something to show in the docs screenshots — don't "clean" that back to empty.
   App 1 (取引先マスタ) holds ~101 fabricated dummy records — keep.
 - Test apps you create: fabricated data only, delete afterwards (records → values → fields → perms → app).
 - Do NOT commit the pre-existing WIP in the tree: `.env.example`, `tsconfig.json`, `package.json`
@@ -186,5 +220,16 @@ prefs round-trip → event tap-through → each clearing rule incl. collapsed-pa
 
 1. Notification phase 2 (pruning job, socket counts, notification center) — see §3 gaps.
 2. システム更新情報 notice draft for the アプリ release was generated (SystemUpdateCreate format)
-   but not yet entered/published — owner has the text.
-3. Docs articles exist for all topics; screenshots regenerate via the pipeline when UI changes.
+   but not yet entered/published — owner has the text. It predates the 対応待ち/通知 icons, so add
+   a line about them before publishing.
+3. **Docs ↔ UI drift is a recurring tax.** Fixed 2026-07-27 (項目数 claim removed, 対応待ちタブ
+   article rewritten for the per-app icon, new 通知を受け取る article, URL-state + ↑/↓ nav noted,
+   all 18 screenshots regenerated). Whenever portal/list/detail UI changes, re-check
+   `resources/assets/help/help.documentation.ts` and re-run the pipeline — screenshots go stale
+   silently. Regenerating the notification badge shots needs transient seeded events (see the
+   script header).
+4. ⚠️ **Uncommitted debug leftover, owner to rule on** (present 2026-07-27):
+   `FlowController::getFlowOptions()` has `->where('id', '>', 105)` added and `->orderBy('name')`
+   removed. That feeds every Flow user picker / mention list — on the local DB it hides 4 active
+   users and leaves the other ~194 unsorted. Looks like a test filter; confirm intent before it
+   ships. (Also uncommitted: cosmetic `.fbell-btn` width and `.fpend-btn` hover `--bg2`.)
