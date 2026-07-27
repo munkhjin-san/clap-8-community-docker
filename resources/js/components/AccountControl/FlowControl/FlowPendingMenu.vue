@@ -139,8 +139,8 @@ const openRecord = (it: PendingItem) => {
 <style scoped>
 .fpend { position: relative; display: inline-flex; }
 .fpend-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: none; background: none; border-radius: 6px; cursor: pointer; color: var(--primary-color); }
-.fpend-btn:hover, .fpend-btn.on { background: var(--bg3); }
-.fpend-badge { position: absolute; top: -4px; right: -5px; left: auto; }
+.fpend-btn:hover, .fpend-btn.on { background: var(--bg2); }
+.fpend-badge { position: absolute; top: -4px; right: -4px; left: auto; }
 /* fixed + teleported to body: immune to overflow-clipping ancestors and stacking-context traps */
 .fpend-menu { position: fixed; z-index: 1000; width: 300px; box-sizing: border-box !important; background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .14); padding: 6px; cursor: default; }
 .fpend-head { display: flex; align-items: baseline; gap: 8px; padding: 4px 8px 6px; border-bottom: 1px solid var(--formBorder); }

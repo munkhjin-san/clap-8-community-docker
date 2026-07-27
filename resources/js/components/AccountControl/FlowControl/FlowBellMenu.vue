@@ -195,10 +195,10 @@ const openEvent = (ev: BellEvent) => {
 
 <style scoped>
 .fbell { position: relative; display: inline-flex; }
-.fbell-btn { position: relative; gap: 3px; display: inline-flex; align-items: center; justify-content: center; padding: 0 10px; height: 26px; border: none; background: none; border-radius: 6px; cursor: pointer; }
+.fbell-btn {margin-bottom: -3px; position: relative; gap: 3px; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: none; background: none; border-radius: 6px; cursor: pointer; }
 .fbell-btn:hover, .fbell-btn.on { background: var(--bg2); }
 /* left:auto — Badge.vue's base style hardcodes left:33px, which otherwise beats our right anchor */
-.fbell-badge { position: absolute; top: -4px; right: 0px; left: auto; }
+.fbell-badge { position: absolute; top: -5px; right: -3px; left: auto; }
 /* fixed + teleported to body: immune to overflow-clipping ancestors and stacking-context traps */
 .fbell-menu { position: fixed; z-index: 1000; width: 300px; box-sizing: border-box !important; background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .14); padding: 6px; cursor: default; }
 .fbell-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px 6px; border-bottom: 1px solid var(--formBorder); }

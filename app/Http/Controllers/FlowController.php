@@ -900,8 +900,8 @@ class FlowController extends Controller
         return response()->json([
             'users' => User::query()
                 ->where('retire', 0)
+                ->where('id', '>', 105)
                 ->select('id', 'name', 'position_id', 'icon_path', 'icon_bg')
-                ->orderBy('name')
                 ->get(),
             'positions' => positionRecord::query()
                 ->where('deleted_flag', 0)
