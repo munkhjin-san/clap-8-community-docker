@@ -1074,6 +1074,7 @@ class RemindController extends Controller
                 'project_report' => $this->badgeService->getProjectUnreadCount($user),
                 'check_item_confirm' => $this->badgeService->checkItemConfirm($user),
                 'kintone_contract_changes' => $this->badgeService->kintoneContractChanges($user),
+                'flow' => $this->badgeService->flow($user),
             ];
         });
         return response()->json($data);

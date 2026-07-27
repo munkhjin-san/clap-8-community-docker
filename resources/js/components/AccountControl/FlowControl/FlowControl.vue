@@ -170,6 +170,7 @@ import Badge from '@/components/Global/Badge.vue'
 import Grid from '@/components/Icons/Grid.vue'
 import List from '@/components/Icons/List.vue'
 import { useAuthUserStore } from '@/store/auth'
+import { useBadgeStore } from '@/store/badge'
 
 interface WaitingItem { app_id: number; app_name: string; record_id: number; record_number: number; status: string | null; updated_at?: string }
 
@@ -177,6 +178,7 @@ const api = useApi()
 const router = useRouter()
 const responsive = useResponsive()
 const auth = useAuthUserStore()
+const badge = useBadgeStore()
 const definitions = ref<FlowDefinitionListItem[]>([])
 const waiting = ref<WaitingItem[]>([])
 const loading = ref(true)
@@ -233,6 +235,12 @@ const getDefinitions = async () => {
     try {
         const data = await api.get('/flow_definitions')
         definitions.value = Array.isArray(data) ? data as FlowDefinitionListItem[] : []
+        // these are the authoritative live counts — correct the side-menu badge now rather than
+        // letting badge_summary's 60s cache serve a stale total
+        badge.setFlowBadge({
+            unread: definitions.value.reduce((n, d) => n + (d.unread_notifications ?? 0), 0),
+            pending: definitions.value.reduce((n, d) => n + (d.pending_actions ?? 0), 0),
+        })
     } finally {
         loading.value = false
     }
