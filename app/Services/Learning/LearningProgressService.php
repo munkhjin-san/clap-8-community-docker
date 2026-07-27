@@ -69,6 +69,7 @@ class LearningProgressService
             ->keyBy('user_id');
 
         $exam = LessonExam::where('lesson_theme_id', $themeId)
+            ->whereNull('lesson_material_id')
             ->with(['attempts' => fn ($q) => $q->whereIn('user_id', $userIds)->orderByDesc('attempt_number')])
             ->first();
 
@@ -96,15 +97,21 @@ class LearningProgressService
     ): array {
         $sectionStatuses = $portfolio?->lesson_sections ?? collect();
 
+        // Answer-based sections: completion is recorded on the material's answer
+        // (plain 基礎知識 sections with no 理解度 check and no exam).
         $basicMaterials = $materials->filter(function ($material) {
             return $material->material_type === self::MATERIAL_TYPE_BASIC
                 && (int) $material->priority === self::MATERIAL_PRIORITY_SECTION
-                && ! $this->enabled($material->has_understand);
+                && ! $this->enabled($material->has_understand)
+                && ! $this->enabled($material->has_exam);
         });
 
+        // Section-status-based sections: completion is recorded in lesson_sections.
+        // This covers 理解度チェック (has_understand) sections and exam sections
+        // (has_exam) — both are marked complete via updateSection, not the answer.
         $understandingMaterials = $materials->filter(function ($material) {
             return (int) $material->priority === self::MATERIAL_PRIORITY_SECTION
-                && $this->enabled($material->has_understand);
+                && ($this->enabled($material->has_understand) || $this->enabled($material->has_exam));
         });
 
         $caseStudyMaterials = $materials->filter(fn ($material) => $material->material_type === self::MATERIAL_TYPE_CASE_STUDY);
@@ -146,6 +153,7 @@ class LearningProgressService
                 'completed' => $caseCompleted,
             ],
             'exam' => $exam,
+            'material_exams' => $this->materialExamsProgress($materials, $userId),
             'survey' => $survey,
             'portfolio' => $portfolioProgress,
             'theme_completed' => $themeCompleted,
@@ -236,7 +244,11 @@ class LearningProgressService
 
     private function examProgress(int $themeId, int $userId, ?LessonExam $loadedExam = null, bool $examWasPreloaded = false): array
     {
-        $exam = $examWasPreloaded ? $loadedExam : LessonExam::where('lesson_theme_id', $themeId)->first();
+        // Theme exam only: a row with lesson_material_id set is a per-section
+        // exam and must not be treated as the theme's exam.
+        $exam = $examWasPreloaded
+            ? $loadedExam
+            : LessonExam::where('lesson_theme_id', $themeId)->whereNull('lesson_material_id')->first();
 
         if (! $exam) {
             return [
@@ -267,6 +279,50 @@ class LearningProgressService
             'latest_score' => $latestAttempt?->score,
             'latest_status' => $latestAttempt?->status,
         ];
+    }
+
+    /**
+     * Per-section exam progress, keyed by material id. Only materials that have
+     * their own exam (lesson_material_id) appear; the theme exam is handled
+     * separately by examProgress().
+     */
+    private function materialExamsProgress(Collection $materials, int $userId): array
+    {
+        $materialIds = $materials->pluck('id')->filter()->map(fn ($id) => (int) $id)->unique()->values();
+
+        if ($materialIds->isEmpty()) {
+            return [];
+        }
+
+        $exams = LessonExam::whereIn('lesson_material_id', $materialIds)
+            ->with(['attempts' => fn ($q) => $q->where('user_id', $userId)->orderByDesc('attempt_number')])
+            ->get()
+            ->keyBy('lesson_material_id');
+
+        return $materialIds
+            ->mapWithKeys(function (int $materialId) use ($exams) {
+                $exam = $exams->get($materialId);
+
+                if (! $exam) {
+                    return [];
+                }
+
+                $attempts = $exam->attempts; // already scoped to the user, desc by attempt_number
+                $latestAttempt = $attempts->first();
+
+                return [
+                    $materialId => [
+                        'available' => true,
+                        'passed' => $attempts->contains(fn ($attempt) => $attempt->status === self::EXAM_STATUS_PASSED),
+                        'exhausted' => $attempts->count() >= (int) $exam->max_attempts,
+                        'attempts_count' => $attempts->count(),
+                        'remaining_attempts' => max((int) $exam->max_attempts - $attempts->count(), 0),
+                        'latest_score' => $latestAttempt?->score,
+                        'latest_status' => $latestAttempt?->status,
+                    ],
+                ];
+            })
+            ->all();
     }
 
     private function surveyProgress(LessonTheme $theme, int $userId, bool $basicCompleted, bool $caseCompleted, array $exam): array

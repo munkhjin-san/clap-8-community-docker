@@ -53,6 +53,7 @@ import {
     areCaseStudiesCompletedByAnswer,
     areMaterialsCompletedByAnswer,
     getBasicLearningStatus,
+    getCaseStudyMaterials,
     isEnabled,
     isPortfolioComplete,
 } from '@/utils/learningProgress'
@@ -84,6 +85,14 @@ const basicTone = computed<StatusTone | undefined>(() => {
 
     if (!fallbackBasicStatus.value) return undefined
     return fallbackBasicStatus.value === 'completed' ? 'complete' : 'warning'
+})
+// A theme can flag has_case_study without actually having any ケーススタディ
+// materials. Only surface the step when case-study content exists, otherwise
+// it would sit permanently grey with nothing to complete.
+const caseStudyHasContent = computed(() => {
+    return props.theme.progress
+        ? props.theme.progress.case_study.total > 0
+        : getCaseStudyMaterials(materials.value).length > 0
 })
 const caseStudyCompleted = computed(() => {
     return props.theme.progress
@@ -140,7 +149,7 @@ const stageItems = computed<StageItem[]>(() => {
         },
     ]
 
-    if (isEnabled(props.theme.has_case_study)) {
+    if (isEnabled(props.theme.has_case_study) && caseStudyHasContent.value) {
         steps.push({
             label: 'ケーススタディ',
             tone: caseStudyCompleted.value ? 'complete' : undefined,

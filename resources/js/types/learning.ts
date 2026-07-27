@@ -108,6 +108,16 @@ export interface LearningThemeCategory {
     updated_at?: string | null
 }
 
+export interface LearningExamProgress {
+    available: boolean
+    passed: boolean
+    exhausted: boolean
+    attempts_count: number
+    remaining_attempts: number
+    latest_score: number | null
+    latest_status: string | null
+}
+
 export interface LearningThemeProgress {
     basic: {
         total: number
@@ -120,15 +130,10 @@ export interface LearningThemeProgress {
         total: number
         completed: boolean
     }
-    exam: {
-        available: boolean
-        passed: boolean
-        exhausted: boolean
-        attempts_count: number
-        remaining_attempts: number
-        latest_score: number | null
-        latest_status: string | null
-    }
+    exam: LearningExamProgress
+    // Per-section exams, keyed by material id. Only sections with their own
+    // exam appear here; the theme exam stays in `exam` above.
+    material_exams: Record<number, LearningExamProgress>
     survey: {
         available: boolean
         completed: boolean

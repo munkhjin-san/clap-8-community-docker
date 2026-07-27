@@ -210,6 +210,19 @@ import type { LearningBasicItemContext, LearningValidatableRef } from '@/composa
         if (sectionStatus(material.id) === LESSON_SECTION_STATUS.DRAFT || Number(material.answer?.status ?? 0) < 0) return 'warning'
         return undefined
     }
+    // Per-section exam status lines (残り受験回数 / 前回スコア). These belong to
+    // the section's own exam — the theme exam is shown separately below.
+    const materialExamMeta = (materialId: number): string[] => {
+        const exam = progress.value?.material_exams?.[materialId]
+        if (!exam?.available) return []
+        if (exam.passed) return ['試験：合格済み']
+
+        const lines = [`試験 残り受験回数：${exam.remaining_attempts}回`]
+        if (exam.latest_status) {
+            lines.push(`前回 ${exam.latest_score}% / ${exam.latest_status === 'passed' ? '合格' : '不合格'}`)
+        }
+        return lines
+    }
     const basicMenuItems = computed<LearningTopicMenuItem[]>(() => {
         const items: LearningTopicMenuItem[] = props.filteredMaterials.map((section) => ({
             id: `material-${section.id}`,
@@ -217,9 +230,12 @@ import type { LearningBasicItemContext, LearningValidatableRef } from '@/composa
             disabled: !basicStatus.value && section.material_type === LEARNING_MATERIAL_TYPES.CASE_STUDY,
             completed: materialTone(section) === 'complete',
             tone: materialTone(section) === 'warning' ? 'warning' : undefined,
-            meta: section.answer?.status === LESSON_ANSWER_STATUS.COMPLETED && section.answer.updated_at
-                ? [`完了日:${dateFormat(section.answer.updated_at)}`]
-                : [],
+            meta: [
+                ...(section.answer?.status === LESSON_ANSWER_STATUS.COMPLETED && section.answer.updated_at
+                    ? [`完了日:${dateFormat(section.answer.updated_at)}`]
+                    : []),
+                ...materialExamMeta(section.id),
+            ],
         }))
 
         if (examAvailable.value) {
