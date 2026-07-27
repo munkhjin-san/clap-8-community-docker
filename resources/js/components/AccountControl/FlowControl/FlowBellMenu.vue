@@ -1,7 +1,7 @@
 <template>
     <div ref="rootEl" class="fbell">
         <button class="fbell-btn" :class="{ on: open }" :title="count ? `通知 ${count}件` : '通知'" @click.stop="toggle">
-            <Bell :size="18" />
+            <Bell :size="16" />
             <Badge v-if="count" class="fbell-badge" :count="count" />
         </button>
 
@@ -195,7 +195,7 @@ const openEvent = (ev: BellEvent) => {
 
 <style scoped>
 .fbell { position: relative; display: inline-flex; }
-.fbell-btn {margin-bottom: -3px; position: relative; gap: 3px; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: none; background: none; border-radius: 6px; cursor: pointer; }
+.fbell-btn {margin-bottom: -1px; position: relative; gap: 3px; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border: none; background: none; border-radius: 6px; cursor: pointer; }
 .fbell-btn:hover, .fbell-btn.on { background: var(--bg2); }
 /* left:auto — Badge.vue's base style hardcodes left:33px, which otherwise beats our right anchor */
 .fbell-badge { position: absolute; top: -5px; right: -3px; left: auto; }
