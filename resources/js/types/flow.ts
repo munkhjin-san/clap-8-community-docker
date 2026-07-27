@@ -2,6 +2,7 @@ export type FlowInputType =
     | 'short' | 'long' | 'number' | 'date' | 'time' | 'datetime'
     | 'select' | 'radio' | 'checkbox' | 'toggle'
     | 'user' | 'member' | 'formula' | 'file' | 'table' | 'reference' | 'project'
+    | 'password'
     | 'heading' | 'label' | 'spacer' | 'divider'
 
 export type FlowRule = 'edit' | 'read' | 'hide'
@@ -569,6 +570,7 @@ export const FLOW_FIELD_TYPES: FlowTypeMeta[] = [
     { type: 'formula', label: '計算', icon: 'formula', group: '高度' },
     { type: 'reference', label: 'ルックアップ', icon: 'reference', group: '高度' },
     { type: 'project', label: 'プロジェクト', icon: 'project', group: '高度' },
+    { type: 'password', label: 'パスワード（暗号化）', icon: 'password', group: '高度' },
     { type: 'file', label: 'ファイル', icon: 'file', group: 'その他' },
     { type: 'table', label: 'テーブル', icon: 'table', group: 'その他' },
     { type: 'heading', label: '見出し', icon: 'heading', group: 'レイアウト' },
@@ -580,6 +582,15 @@ export const FLOW_FIELD_TYPES: FlowTypeMeta[] = [
 /** Layout/decoration types that hold no record value. */
 export const FLOW_LAYOUT_TYPES: FlowInputType[] = ['heading', 'label', 'spacer', 'divider']
 export const isLayoutType = (t: FlowInputType) => FLOW_LAYOUT_TYPES.includes(t)
+
+/**
+ * Encrypted-at-rest field types (server-side AccountVault). Their record value is only ever a
+ * boolean "is one stored?" — the plaintext comes from the audited reveal endpoint alone. Keep them
+ * out of anything that moves values around: CSV export, search, view columns/filters/sort,
+ * formulas, lookup copy, PDF tools, record duplicate, change-history values.
+ */
+export const FLOW_SECRET_TYPES: FlowInputType[] = ['password']
+export const isSecretType = (t: FlowInputType) => FLOW_SECRET_TYPES.includes(t)
 
 export const FLOW_TYPE_LABEL: Record<string, string> = Object.fromEntries(
     FLOW_FIELD_TYPES.map((t) => [t.type, t.label])

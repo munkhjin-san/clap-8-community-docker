@@ -103,6 +103,7 @@
                                     :projects="projects"
                                     :readonly="isReadonly(field)"
                                     :preview="true"
+                                    :record-id="record?.id ?? null"
                                     v-model="values[field.id!]"
                                     @update:model-value="errors[field.id!] = null"
                                     @lookup="onLookup"
@@ -165,9 +166,13 @@
                             <div v-if="lg.changes && Object.keys(lg.changes).length" class="rd-log-rows">
                                 <div v-for="(chg, key) in lg.changes" :key="key" class="rd-log-row">
                                     <span class="rd-log-label">{{ changeLabel(key) }}</span>
-                                    <span class="rd-log-old">{{ fmtChange(key, chg.old) }}</span>
-                                    <span class="rd-log-arrow">→</span>
-                                    <span class="rd-log-new">{{ fmtChange(key, chg.new) }}</span>
+                                    <!-- secrets never show values; a rotation reads true→true, so state the action -->
+                                    <span v-if="isSecretChange(key)" class="rd-log-new">{{ secretChangeText(chg) }}</span>
+                                    <template v-else>
+                                        <span class="rd-log-old">{{ fmtChange(key, chg.old) }}</span>
+                                        <span class="rd-log-arrow">→</span>
+                                        <span class="rd-log-new">{{ fmtChange(key, chg.new) }}</span>
+                                    </template>
                                 </div>
                             </div>
                             <div v-if="lg.note" class="rd-log-note">{{ lg.note }}</div>
@@ -218,7 +223,7 @@ import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
 import AppCommentSection from '@/components/Global/AppCommentSection.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
-import { isLayoutType } from '@/types/flow'
+import { isLayoutType, isSecretType } from '@/types/flow'
 import type { FlowField, FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowAppTool } from '@/types/flow'
 import type { MenuList } from '@/interface/globalInterface'
 import Back from '@/components/Icons/Back.vue'
@@ -395,11 +400,23 @@ const fieldByKey = computed<Record<string, FlowField>>(() => {
 const userName = (id: any) => users.value.find((u) => u.id === Number(id))?.name ?? `#${id}`
 const logHeader = (lg: LogDto) => (lg.action === 'created' ? '作成' : '更新')
 const changeLabel = (key: string) => (key === 'status' ? 'ステータス' : (fieldLabelByKey.value[key] ?? key))
+// history rows for encrypted fields: state what happened, never a value (and never a bare
+// "設定あり → 設定あり", which is what a rotation would otherwise look like)
+const isSecretChange = (key: string) => {
+    const t = fieldByKey.value[key]?.input_type
+    return !!t && isSecretType(t)
+}
+const secretChangeText = (chg: { old?: any; new?: any }) => {
+    if (chg.new !== true) return '削除されました'
+    return chg.old === true ? '変更されました' : '設定されました'
+}
 const fmtChange = (key: string, val: any): string => {
     if (key === 'status') return (val ?? '') === '' ? '未設定' : String(val)
     if (val === null || val === undefined || val === '' || (Array.isArray(val) && !val.length)) return '未設定'
     const f = fieldByKey.value[key]
     const t = f?.input_type
+    if (t === 'password') return val === true ? '設定あり' : '未設定'
+    // (secret rows are rendered via secretChangeText, not old→new — see the history template)
     if (t === 'user' || t === 'member') return (Array.isArray(val) ? val : [val]).map(userName).join('、')
     if (t === 'file') return (Array.isArray(val) ? val : [val]).map((x: any) => x?.name ?? x).join('、')
     if (t === 'checkbox') return (Array.isArray(val) ? val : [val]).join(' / ')
@@ -432,7 +449,7 @@ const onLookup = (payload: { mappings: { from: string; to: string }[]; source: R
 
 // duplicate copies every editable field EXCEPT formula (recomputed), layout (no value), and file
 // (attachments aren't re-uploaded — copying the refs would share storage between records)
-const canDuplicateField = (f: FlowField) => !isLayoutType(f.input_type) && f.input_type !== 'formula' && f.input_type !== 'file'
+const canDuplicateField = (f: FlowField) => !isLayoutType(f.input_type) && f.input_type !== 'formula' && f.input_type !== 'file' && !isSecretType(f.input_type)
 const cloneVal = (v: any) => (v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v)
 
 const initValues = () => {
@@ -504,6 +521,17 @@ const save = async () => {
     for (const f of visibleFields.value) {
         // disabled fields can't be edited by the user, so don't block save on their validation
         if (f.input_type === 'formula' || isLayoutType(f.input_type) || f.validation?.disabled) continue
+        // secrets: a blank submit keeps the stored value, so 必須 asks "will one exist after save?"
+        if (isSecretType(f.input_type)) {
+            const v = values[f.id!]
+            const clearing = !!(v && typeof v === 'object' && (v as any).clear)
+            const incoming = typeof v === 'string' ? v.trim() : ''
+            const stored = record.value?.values?.[f.id!] === true
+            const err = f.is_required && (clearing || (incoming === '' && !stored)) ? '必須項目です。' : null
+            errors[f.id!] = err
+            if (err) ok = false
+            continue
+        }
         const err = validateFlowField(f, values[f.id!])
         errors[f.id!] = err
         if (err) ok = false

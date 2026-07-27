@@ -255,7 +255,10 @@ class FlowController extends Controller
         return response()->json([
             'id' => $definition->id,
             'name' => $definition->name,
+            // secrets are not offerable as a lookup label or field-copy source — copying one into
+            // an ordinary field of another app would silently strip the encryption
             'fields' => $definition->fields
+                ->reject(fn ($f) => FlowService::isSecret($f->input_type))
                 ->map(fn ($f) => ['key' => $f->key, 'label' => $f->label, 'input_type' => $f->input_type, 'result_type' => $f->result_type])
                 ->values(),
         ]);
@@ -1245,7 +1248,8 @@ class FlowController extends Controller
         $out = [];
         foreach ($wantKeys as $key) {
             $f = $byKey->get($key);
-            if (! $f || ! ($fp[$f->id]['view'] ?? true)) {
+            // secrets can never be copied out (defence in depth — the inspector already hides them)
+            if (! $f || FlowService::isSecret($f->input_type) || ! ($fp[$f->id]['view'] ?? true)) {
                 continue;
             }
             $out[$key] = $vals[(string) $f->id] ?? null;
@@ -1379,6 +1383,44 @@ class FlowController extends Controller
             ->values();
 
         return response()->json(['items' => $items]);
+    }
+
+    /**
+     * Reveal a stored secret's plaintext. Gated by app view ∩ record view ∩ field view (fail-closed
+     * to 管理 when the field has no permission rows) and ALWAYS audit-logged — for a credential
+     * store, "who took what, when" is the control that matters most.
+     */
+    public function revealFlowSecret(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate([
+            'record_id' => 'required|integer|exists:flow_records,id',
+            'field_id' => 'required|integer|exists:flow_fields,id',
+        ]);
+
+        $record = FlowRecord::with(['values', 'definition.fields', 'definition.appPermissions', 'definition.recordPermissionSets', 'definition.fieldPermissions'])
+            ->findOrFail($data['record_id']);
+        $def = $record->definition;
+        $field = $def->fields->firstWhere('id', (int) $data['field_id']);
+
+        abort_unless($field && $this->flowService->canRevealSecret($user, $record, $field, $def), 403);
+
+        try {
+            $plain = $this->flowService->revealSecret($record, $field);
+        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+            // surfaced, not swallowed: a key mismatch must not masquerade as "no password set"
+            report($e);
+
+            return response()->json(['message' => '保管された値を復号できませんでした。管理者にお問い合わせください。'], 500);
+        }
+
+        $this->flowService->logAudit($def, $user, 'secret_reveal', $record, [
+            'record_number' => $record->record_number,
+            'field_key' => $field->key,
+            'field_label' => $field->label,
+        ]);
+
+        return response()->json(['value' => $plain]);
     }
 
     /* ---- flow notifications (per-app bell badge + popup) --------------------------------------- */
@@ -1642,7 +1684,8 @@ class FlowController extends Controller
             $merged[(string) $k] = $v;
         }
         $checkFields = $def->fields->filter(fn ($f) => in_array((int) $f->id, $allowed, true));
-        $errors = $this->flowService->validateValues($checkFields, $merged);
+        // pass the record so a kept (blank) secret counts as "already set" for 必須
+        $errors = $this->flowService->validateValues($checkFields, $merged, $record);
         if (! empty($errors)) {
             return response()->json(['message' => '入力内容を確認してください。', 'errors' => $errors], 422);
         }
@@ -1661,6 +1704,19 @@ class FlowController extends Controller
             }
             $o = $old[(string) $f->id] ?? null;
             $n = $new[(string) $f->id] ?? null;
+            // Secrets read as an unchanged boolean when rotated (true → true), so a diff alone
+            // would hide the rotation. Detect the write intent from what was submitted instead —
+            // "when was this credential last changed?" is a question a vault has to answer.
+            if (FlowService::isSecret($f->input_type)) {
+                $raw = $merged[(string) $f->id] ?? null;
+                $wrote = (is_array($raw) && ! empty($raw['clear']))
+                    || (! is_bool($raw) && is_scalar($raw) && trim((string) $raw) !== '');
+                if ($wrote) {
+                    $changes[$f->key] = ['old' => $o, 'new' => $n];
+                }
+
+                continue;
+            }
             if (json_encode($o) !== json_encode($n)) {
                 $changes[$f->key] = ['old' => $o, 'new' => $n];
             }

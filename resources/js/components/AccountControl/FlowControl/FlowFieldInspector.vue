@@ -97,6 +97,13 @@
         </div>
         <p v-if="v.disabled && !isLayout && field.input_type !== 'formula'" class="def-hint">フォームに表示されますが入力できません。ルックアップの自動入力は反映されます。</p>
 
+        <template v-if="field.input_type === 'password'">
+            <div class="divider"></div>
+            <div class="sec">暗号化について</div>
+            <p class="def-hint">値は暗号化して保存され、一覧・CSV出力・検索・PDF・計算式には表示されません。表示するには「表示」ボタンを押す必要があり、操作は監査ログに記録されます。</p>
+            <p class="def-hint">アクセス権を設定していない間は<strong>アプリの管理権限を持つ人だけ</strong>が表示できます。「アクセス権」タブでこの項目の閲覧を設定すると、<strong>そこで許可した人だけ</strong>が表示できるようになります（管理者も一覧に含める必要があります）。</p>
+        </template>
+
         <template v-if="field.input_type === 'spacer' || field.input_type === 'divider'">
             <div class="irow">
                 <label>幅</label>
@@ -386,7 +393,7 @@
 <script setup lang="ts">
 import 'styles/flow-shared.css'
 import { computed, ref, watch } from 'vue'
-import { FLOW_TYPE_LABEL, FLOW_FILE_ACCEPT, FLOW_FIELD_TYPES, isLayoutType } from '@/types/flow'
+import { FLOW_TYPE_LABEL, FLOW_FILE_ACCEPT, FLOW_FIELD_TYPES, isLayoutType, isSecretType } from '@/types/flow'
 import type { FlowField, FlowFieldValidation, TableColumn, FlowAppTool } from '@/types/flow'
 import { referencingFormulas, referencedDeleteMessage, renameFieldRefEverywhere, renameColumnRefInTable, pdfToolsReferencingColumn } from '@/utils/flowFormulaRefs'
 import { useApi } from '@/composables/api'
@@ -424,7 +431,7 @@ const refApps = ref<{ id: number; name: string }[]>([])
 // built-in system sources (e.g. offices) selectable as a reference target alongside Flow apps
 const refSystemSources = ref<{ key: string; label: string }[]>([])
 const refTargetFields = ref<{ key: string; label: string; input_type: string; result_type?: string | null }[]>([])
-const REF_LABEL_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'reference', 'file']
+const REF_LABEL_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'reference', 'file', 'password']
 // a reference targets either a Flow app (target_definition_id) or a system source (target_source)
 const hasRefTarget = computed(() => v.value.target_definition_id != null || !!v.value.target_source)
 const loadRefApps = async () => {
@@ -473,7 +480,7 @@ const hasRules = computed(() => RULE_TYPES.includes(props.field.input_type))
 
 // Other formula fields ARE referenceable (chains compute multi-pass server-side) — only self and layout parts are excluded.
 const referenceableFields = computed(() =>
-    (props.fields ?? []).filter((f) => f.key !== props.field.key && !isLayoutType(f.input_type))
+    (props.fields ?? []).filter((f) => f.key !== props.field.key && !isLayoutType(f.input_type) && !isSecretType(f.input_type))
 )
 
 watch(() => props.field, (f) => {
@@ -542,7 +549,7 @@ const refLabelName = computed(() => {
 
 // Destination fields for lookup field-copy: writable fields in THIS app (exclude self, layout,
 // formula (computed), and container/reference/file types that can't take a copied scalar/value).
-const MAP_DEST_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'file', 'formula', 'reference']
+const MAP_DEST_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'file', 'formula', 'reference', 'password']
 const mappingDestFields = computed(() =>
     (props.fields ?? []).filter((f) => f.key !== props.field.key && !MAP_DEST_SKIP.includes(f.input_type))
 )

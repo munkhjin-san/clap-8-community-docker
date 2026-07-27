@@ -257,6 +257,7 @@ const previewText = (f: FlowField) => {
     if (f.input_type === 'user' || f.input_type === 'member') return 'ユーザーを選択'
     if (f.input_type === 'reference') return (f.validation?.target_definition_id || f.validation?.target_source) ? 'レコードを検索' : '参照先未設定'
     if (f.input_type === 'formula') return f.formula ? '= ' + f.formula : '計算結果'
+    if (f.input_type === 'password') return '••••••••（暗号化して保存）'
     return 'テキストを入力'
 }
 

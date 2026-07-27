@@ -199,7 +199,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { BuilderDefinition, FlowAppTool, PdfElement, PdfElementType } from '@/types/flow'
-import { isLayoutType } from '@/types/flow'
+import { isLayoutType, isSecretType } from '@/types/flow'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import FlowSearchSelect from './FlowSearchSelect.vue'
 import { useApi } from '@/composables/api'
@@ -219,7 +219,7 @@ const selectedId = ref<string | null>(null)
 const elements = computed(() => props.tool.config.elements)
 const sel = computed<PdfElement | null>(() => elements.value.find((e) => e.id === selectedId.value) ?? null)
 
-const valueFields = computed(() => props.def.fields.filter((f) => !isLayoutType(f.input_type)))
+const valueFields = computed(() => props.def.fields.filter((f) => !isLayoutType(f.input_type) && !isSecretType(f.input_type)))
 const tableFields = computed(() => props.def.fields.filter((f) => f.input_type === 'table'))
 const sourceColumns = computed(() => {
     const f = props.def.fields.find((x) => x.key === sel.value?.sourceFieldKey)

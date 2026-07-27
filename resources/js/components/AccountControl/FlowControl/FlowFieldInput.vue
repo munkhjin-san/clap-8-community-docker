@@ -35,6 +35,23 @@
         @click.stop="openRefRecord"
     >{{ refSelected ? (refSelected.label || ('#' + refSelected.number)) : '—' }}</a>
 
+    <!-- read-only secret: masked; the reveal affordance only exists on the record detail (preview),
+         never in table cells. The plaintext is fetched per click and never rides the record payload. -->
+    <span v-else-if="readonly && field.input_type === 'password'" class="fi-ro fi-pw-ro">
+        <template v-if="!val">—</template>
+        <template v-else>
+            <span class="fi-pw-mask">{{ pwShown ?? '••••••••' }}</span>
+            <template v-if="preview">
+                <button type="button" class="fi-pw-btn" :disabled="pwLoading" @click.stop="toggleReveal">
+                    {{ pwShown ? '隠す' : '表示' }}
+                </button>
+                <button v-if="pwShown" type="button" class="fi-pw-btn" @click.stop="copySecret">
+                    {{ pwCopied ? 'コピーしました' : 'コピー' }}
+                </button>
+            </template>
+        </template>
+    </span>
+
     <!-- read-only display (table cells, locked fields) -->
     <span v-else-if="readonly" class="fi-ro">
         <template v-if="isEmpty">—</template>
@@ -74,7 +91,55 @@
 
     <!-- editable -->
     <template v-else>
-        <input v-if="field.input_type === 'short'" type="text" v-model="val" class="fi-input" :placeholder="field.label">
+        <!-- editable secret: an existing value is kept unless you explicitly change or clear it,
+             so editing the rest of the record never requires reading the credential -->
+        <div v-if="field.input_type === 'password'" class="fi-pw">
+            <template v-if="pwMode === 'keep'">
+                <span class="fi-pw-set">設定済み</span>
+                <button type="button" class="fi-pw-btn" @click="pwMode = 'set'">変更</button>
+                <button type="button" class="fi-pw-btn danger" @click="pwMode = 'clear'">クリア</button>
+            </template>
+            <template v-else-if="pwMode === 'clear'">
+                <span class="fi-pw-set warn">保存すると削除されます</span>
+                <button type="button" class="fi-pw-btn" @click="pwMode = hadValue ? 'keep' : 'set'">取消</button>
+            </template>
+            <template v-else>
+                <span class="fi-pw-wrap">
+                    <input
+                        :type="pwPlain ? 'text' : 'password'"
+                        class="fi-input fi-pw-input"
+                        autocomplete="new-password"
+                        :placeholder="hadValue ? '新しい値を入力（空欄なら変更しません）' : '値を入力'"
+                        :value="pwInput"
+                        @input="onPwInput"
+                    >
+                    <!-- unmasks only what's being typed right now (a value the user already knows),
+                         never the stored secret — so no permission check / audit entry here -->
+                    <button
+                        type="button"
+                        class="fi-pw-eye"
+                        :title="pwPlain ? '入力を隠す' : '入力を表示'"
+                        :aria-label="pwPlain ? '入力を隠す' : '入力を表示'"
+                        @click="pwPlain = !pwPlain"
+                    >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                            <template v-if="pwPlain">
+                                <path d="M3 3l18 18" />
+                                <path d="M10.6 5.2A9.9 9.9 0 0 1 12 5c5.5 0 9 6.2 9 6.2a17 17 0 0 1-3.1 3.9" />
+                                <path d="M6.8 7.1A16.7 16.7 0 0 0 3 11.2S6.5 17.4 12 17.4a9.6 9.6 0 0 0 4-.86" />
+                                <path d="M9.9 9.4a3 3 0 0 0 4.2 4.2" />
+                            </template>
+                            <template v-else>
+                                <path d="M3 11.2S6.5 5 12 5s9 6.2 9 6.2-3.5 6.2-9 6.2-9-6.2-9-6.2z" />
+                                <circle cx="12" cy="11.2" r="2.9" />
+                            </template>
+                        </svg>
+                    </button>
+                </span>
+                <button v-if="hadValue" type="button" class="fi-pw-btn" @click="cancelPwEdit">取消</button>
+            </template>
+        </div>
+        <input v-else-if="field.input_type === 'short'" type="text" v-model="val" class="fi-input" :placeholder="field.label">
         <textarea v-else-if="field.input_type === 'long'" v-model="val" class="fi-input fi-area"></textarea>
         <input v-else-if="field.input_type === 'number'" type="number" v-model.number="val" class="fi-input">
         <input v-else-if="field.input_type === 'date'" type="date" v-model="val" class="fi-input" :style="{ colorScheme: nativeScheme }">
@@ -209,7 +274,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import 'styles/flow-shared.css'
 import { useApi } from '@/composables/api'
@@ -228,6 +293,8 @@ const props = defineProps<{
     projects?: FlowOptionProject[]
     readonly?: boolean
     preview?: boolean
+    /** record id — only needed so a password field can call the reveal endpoint */
+    recordId?: number | null
 }>()
 const projectName = (id: any) => {
     if (id === null || id === undefined || id === '') return '—'
@@ -295,6 +362,76 @@ const val = computed({
     set: (v) => emit('update:modelValue', v),
 })
 const arrayVal = computed<any[]>(() => (Array.isArray(props.modelValue) ? props.modelValue : []))
+
+/* ---- password (encrypted) field ---------------------------------------------------------------
+ * modelValue is a BOOLEAN from the server ("is a secret stored?") — never the value. What we emit
+ * is the write instruction: '' = keep as-is, a string = set it, { clear: true } = delete it. */
+const hadValue = ref(props.modelValue === true)
+const pwMode = ref<'keep' | 'set' | 'clear'>(props.modelValue === true ? 'keep' : 'set')
+const pwInput = ref('')
+const pwShown = ref<string | null>(null)
+const pwLoading = ref(false)
+const pwCopied = ref(false)
+/** unmask the value being typed (input only — unrelated to revealing the stored secret) */
+const pwPlain = ref(false)
+let pwHideTimer: ReturnType<typeof setTimeout> | null = null
+
+// declared before syncPwFromModel — that runs during setup, so anything it calls must already
+// be initialised (a const defined further down is still in its temporal dead zone)
+const hideSecret = () => {
+    pwShown.value = null
+    pwCopied.value = false
+    if (pwHideTimer) { clearTimeout(pwHideTimer); pwHideTimer = null }
+}
+
+// Replace the incoming boolean marker with the "keep" instruction ('') straight away, so a save
+// that never touches this field can't echo the marker back and overwrite the secret with "1".
+const syncPwFromModel = () => {
+    hadValue.value = props.modelValue === true
+    pwMode.value = props.modelValue === true ? 'keep' : 'set'
+    pwInput.value = ''
+    pwPlain.value = false
+    hideSecret()
+    if (typeof props.modelValue === 'boolean') emit('update:modelValue', '')
+}
+if (props.field.input_type === 'password' && !props.readonly) syncPwFromModel()
+// the record can change under a reused component (prev/next navigation) — resync
+watch(() => [props.modelValue, props.recordId], () => {
+    if (typeof props.modelValue === 'boolean') syncPwFromModel()
+})
+watch(pwMode, (m) => {
+    if (m === 'keep') emit('update:modelValue', '')
+    else if (m === 'clear') emit('update:modelValue', { clear: true })
+    else emit('update:modelValue', pwInput.value)
+})
+const onPwInput = (e: Event) => {
+    pwInput.value = (e.target as HTMLInputElement).value
+    emit('update:modelValue', pwInput.value)
+}
+const cancelPwEdit = () => { pwInput.value = ''; pwPlain.value = false; pwMode.value = 'keep' }
+
+const toggleReveal = async () => {
+    if (pwShown.value) { hideSecret(); return }
+    if (!props.recordId || !props.field.id) return
+    pwLoading.value = true
+    try {
+        const data = await api.post('/flow_secret_reveal', { record_id: props.recordId, field_id: props.field.id })
+        pwShown.value = data?.value ?? ''
+        // don't let a credential sit on a shared screen indefinitely
+        pwHideTimer = setTimeout(hideSecret, 30000)
+    } finally {
+        pwLoading.value = false
+    }
+}
+const copySecret = async () => {
+    if (!pwShown.value) return
+    try {
+        await navigator.clipboard.writeText(pwShown.value)
+        pwCopied.value = true
+        setTimeout(() => { pwCopied.value = false }, 1500)
+    } catch { /* clipboard blocked (insecure context) — the value is on screen to copy by hand */ }
+}
+onBeforeUnmount(hideSecret)
 const isEmpty = computed(() => {
     const v = props.modelValue
     return v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)
@@ -529,6 +666,20 @@ const formatFormula = (v: any) => {
 }
 .fi-opt input:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 25%, transparent); }
 .fi-ro { font-size: 13px; }
+/* password (encrypted) */
+.fi-pw, .fi-pw-ro { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.fi-pw { width: 100%; }
+.fi-pw-wrap { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; }
+.fi-pw-input { flex: 1; min-width: 0; padding-right: 34px; }
+.fi-pw-eye { position: absolute; right: 4px; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: none; background: none; border-radius: 5px; color: var(--sub-color); cursor: pointer; }
+.fi-pw-eye:hover { background: var(--bg3); color: var(--primary-color); }
+.fi-pw-mask { font-size: 13px; letter-spacing: 1px; color: var(--primary-color); word-break: break-all; }
+.fi-pw-set { font-size: 12.5px; color: var(--sub-color); }
+.fi-pw-set.warn { color: #e2574c; }
+.fi-pw-btn { box-sizing: border-box !important; flex-shrink: 0; padding: 3px 10px; border: 1px solid var(--formBorder); border-radius: 5px; background: var(--background-color); color: var(--primary-color); font-size: 11.5px; letter-spacing: normal; cursor: pointer; }
+.fi-pw-btn:hover:not(:disabled) { background: var(--bg3); border-color: var(--primary-color); }
+.fi-pw-btn:disabled { opacity: .5; cursor: default; }
+.fi-pw-btn.danger { color: #e2574c; border-color: rgba(226, 87, 76, .4); }
 .fi-formula { color: var(--primary-color); font-weight: 500; }
 .fi-chip { display: inline-block; font-size: 11.5px; padding: 2px 8px; margin: 1px 3px 1px 0; border-radius: 4px; background: color-mix(in srgb, var(--app-accent, var(--bg3)) 50%, var(--background-color)); color: color-mix(in srgb, var(--app-accent, var(--primary-color)) 45%, var(--primary-color)); }
 .fi-pill { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 4px; font-size: 12px; font-weight: 500; background: color-mix(in srgb, var(--app-accent, var(--bg3)) 50%, var(--background-color)); color: color-mix(in srgb, var(--app-accent, var(--primary-color)) 45%, var(--primary-color)); }

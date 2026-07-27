@@ -1046,6 +1046,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/flow_app_record_by_number/{definition}/{number}', [FlowController::class, 'getAppRecordByNumber']);
         Route::get('/flow_reference_search/{definition}', [FlowController::class, 'referenceSearch']);
         Route::get('/flow_lookup_record/{definition}/{record}', [FlowController::class, 'lookupRecord']);
+        // reveal an encrypted password field's plaintext (permission-gated + audit-logged)
+        Route::post('/flow_secret_reveal', [FlowController::class, 'revealFlowSecret']);
         // flow notifications (per-app bell badge + popup + prefs + comment read)
         Route::get('/flow_pending_actions/{definition}', [FlowController::class, 'getFlowPendingActions']);
         Route::get('/flow_notifications/{definition}', [FlowController::class, 'getFlowNotifications']);
