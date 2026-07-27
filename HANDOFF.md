@@ -81,14 +81,17 @@ import (mapping UI, grouped rows), PDF tools, kintone import, per-app audit log 
 exports w/ archived file, settings diffs, downloads), lookup incl. **field mappings** (copy source
 values into real fields, strict type compat + scalar→text) and **system sources** (営業所), portal
 polish (pin/sort/view toggle, 使い方 link), help documentation hub (`/help/documentation/app`,
-28 articles + 18 screenshots; regenerate via `node scripts/help-screenshots.mjs` — needs demo app 37
+29 articles + 22 screenshots; regenerate via `node scripts/help-screenshots.mjs` — needs demo app 37
 and the local-only `/dev_screenshot_login/{user}` route, both must stay), 対応待ち counter (§3),
 portal popup hardening 2026-07-25 (bell/対応待ち/ItemMenu dropdowns → teleport+fixed, Badge digit
 centering — see §1 conventions; bell moved to card foot, pin icon 15px),
 list state in the URL + record ↑/↓ navigation (§1 FlowRecordsView/FlowRecordDetail),
 app-list perf (dropped `fields_count`/`statuses_count` — cards show 件 only),
 mobile fixes (portal table width + name ellipsis, sheet toggle flush at the row edge),
-docs refresh 2026-07-27 (see §6.3).
+docs refresh 2026-07-27 (see §6.3),
+**encrypted `password` field type** (AccountVault; boolean-only payloads, audited fail-closed
+reveal, excluded from export/search/views/formula/lookup/PDF/duplicate — see §7),
+アプリ attention badge in the side menu (badge_summary → `BadgeService::flow()`).
 
 ## 3. CURRENT WORK — smart notifications + 対応待ち counter (built & verified)
 
@@ -211,6 +214,8 @@ Never assume the app ids in §5 without running the check above.
 - **App 37 (備品購入申請)** = docs/demo app, fabricated data — KEEP (screenshot pipeline + testing).
   Its 承認待ち actions (承認する / 差し戻す) deliberately name **user 608** in `eligible` so the
   対応待ち icon has something to show in the docs screenshots — don't "clean" that back to empty.
+  It also carries a `password` field (発注サイトのパスワード, value on record #3) for the
+  password-field screenshots — same deal, keep it.
   App 1 (取引先マスタ) holds ~101 fabricated dummy records — keep.
 - Test apps you create: fabricated data only, delete afterwards (records → values → fields → perms → app).
 - Do NOT commit the pre-existing WIP in the tree: `.env.example`, `tsconfig.json`, `package.json`
@@ -228,8 +233,39 @@ Never assume the app ids in §5 without running the check above.
    `resources/assets/help/help.documentation.ts` and re-run the pipeline — screenshots go stale
    silently. Regenerating the notification badge shots needs transient seeded events (see the
    script header).
-4. ⚠️ **Uncommitted debug leftover, owner to rule on** (present 2026-07-27):
-   `FlowController::getFlowOptions()` has `->where('id', '>', 105)` added and `->orderBy('name')`
-   removed. That feeds every Flow user picker / mention list — on the local DB it hides 4 active
-   users and leaves the other ~194 unsorted. Looks like a test filter; confirm intent before it
-   ships. (Also uncommitted: cosmetic `.fbell-btn` width and `.fpend-btn` hover `--bg2`.)
+4. ~~getFlowOptions debug leftover~~ — **resolved**: the owner committed it deliberately in
+   `1039e5e8 feat(flow): filter users by ID`. `FlowController::getFlowOptions()` intentionally
+   restricts the Flow user pickers / mention lists to `id > 105` and no longer sorts by name.
+   Treat it as intended behaviour, not a leftover.
+
+## 7. Encrypted `password` field (2026-07-27)
+
+Credentials stored inside an app, encrypted at rest via the pre-existing **`AccountVault`**
+(unchanged — same `ACCOUNT_VAULT_KEY` the asset vault uses, deliberately separate from `APP_KEY`).
+
+**The load-bearing decision:** `FlowService::readFieldValue()` returns a **boolean** for secret types
+("is one stored?"), never the ciphertext. Lists, record payloads, history diffs and formula context
+are therefore safe by construction — a pipeline that forgets to check still cannot leak. Plaintext
+exists in exactly one place: `POST /flow_secret_reveal`.
+
+- **Reveal** = app view ∩ record view ∩ field view, and secret fields **fail closed**:
+  `fieldPermissions()` grants view+edit to everyone when a field has no rows, which for a credential
+  is the wrong default, so unconfigured ⇒ 管理 only (`FlowService::canRevealSecret`). Every reveal
+  writes a `secret_reveal` audit entry; the value auto-hides after 30s.
+  Note: once ANY field-permission row exists, managers lose reveal unless listed — consistent with
+  ordinary fields, and a manager self-granting shows up in the settings audit diff.
+- **Write contract** (`saveFieldValue`): `''`/absent = keep, a string = set, `['clear' => true]` =
+  delete, and a bare **boolean = keep** (it's the marker we handed out on read).
+- **必須** means "will a value exist after this save?" — `validateValues($fields, $values, $record)`.
+- **Excluded** from CSV export, search, view columns/filters/sort, formulas, lookup copy (both ends),
+  PDF, duplicate — via `FlowService::isSecret()` / `isSecretType()` in `types/flow.ts`. **CSV import
+  is allowed** (encrypts on the way in) — product decision: the CSV file is the user's risk.
+- **変更履歴** logs the action only (設定/変更/削除されました). A rotation reads true→true, so the write
+  intent is taken from the submitted payload, not the diff.
+
+Two bugs worth not reintroducing: echoing the boolean marker back on save encrypted the string `"1"`
+(silently destroying the credential, with no diff to show for it), and rotations produced no history
+entry at all.
+
+Known follow-up: `ACCOUNT_VAULT_KEY` is missing from `.env.example`, and `AccountVault::decodeKey()`
+type-hints `string`, so a fresh deploy TypeErrors on a null key rather than failing at boot.

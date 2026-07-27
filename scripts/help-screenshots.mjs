@@ -105,6 +105,40 @@ const SHOTS = [
             await sleep(500)
         },
     },
+    {
+        // password field, read-only state: masked + the 表示 button (needs a stored value on #3)
+        file: 'password-view', url: `/apps/records/${APP_ID}/edit/3`, waitFor: '.fi-pw-ro',
+        prep: async (p) => {
+            await p.$eval('.fi-pw-ro', (el) => el.closest('.rd-block').scrollIntoView({ block: 'center' }))
+            await sleep(400)
+        },
+    },
+    {
+        // revealed state — the endpoint is permission-gated and writes an audit entry
+        file: 'password-revealed', url: `/apps/records/${APP_ID}/edit/3`, waitFor: '.fi-pw-ro',
+        prep: async (p) => {
+            await p.$eval('.fi-pw-ro', (el) => el.closest('.rd-block').scrollIntoView({ block: 'center' }))
+            await p.click('.fi-pw-ro .fi-pw-btn')
+            await sleep(900)
+        },
+    },
+    {
+        // edit state: 設定済み / 変更 / クリア
+        file: 'password-edit', url: `/apps/records/${APP_ID}/edit/3?edit=1`, waitFor: '.fi-pw',
+        prep: async (p) => {
+            await p.$eval('.fi-pw', (el) => el.closest('.rd-block').scrollIntoView({ block: 'center' }))
+            await sleep(400)
+        },
+    },
+    {
+        // inspector: the encryption + who-can-reveal explanation
+        file: 'password-settings', url: `/apps/builder/${APP_ID}/form`, waitFor: '.field',
+        prep: async (p) => {
+            await p.click('::-p-xpath(//div[contains(@class,"field")][.//span[contains(@class,"lbl")][contains(text(),"発注サイトのパスワード")]])')
+            await p.waitForSelector('.insp-col')
+            await sleep(500)
+        },
+    },
     { file: 'builder-status', url: `/apps/builder/${APP_ID}/status`, waitFor: '::-p-text(ステータス)' },
     { file: 'builder-view', url: `/apps/builder/${APP_ID}/view`, waitFor: '::-p-text(ビュー)' },
     { file: 'builder-permission', url: `/apps/builder/${APP_ID}/permission`, waitFor: '::-p-text(アクセス権)' },
