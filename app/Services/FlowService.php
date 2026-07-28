@@ -188,12 +188,19 @@ class FlowService
                 return true;
             }
         }
-        // Nobody configured → treat as open to anyone who can edit the record; plus managers always.
+        // Nobody configured → open to anyone who can edit the record (matches the builder's
+        // 「未設定 = 編集権限を持つ全員が押せます」 hint).
         if (empty($action->eligible)) {
             return $this->recordPermissions($user, $record, $def)['edit'];
         }
 
-        return $this->effectiveAppPermissions($user, $def)['manage'];
+        // Configured but no subject matched → NOT pressable. 管理 deliberately grants no override
+        // here: once someone has said who may press a button, that list is the whole answer, or
+        // "承認は部長だけ" would silently mean "部長とアプリ管理者だけ". An app manager who needs to
+        // unstick a record edits the action's 押せる人 instead — a change that lands in the audit log
+        // rather than a silent press. (This also keeps 対応待ち honest: hasExplicitPendingAction has
+        // never counted the manage override, so the counter and the button now agree.)
+        return false;
     }
 
     /** True if the user can act on the record's current status (drives 自分待ち). */
@@ -1550,7 +1557,15 @@ class FlowService
 
         return match ($type) {
             'everyone' => true,
-            'creator' => $def->created_by !== null && (int) $def->created_by === (int) $user->id,
+            // 作成者 means the creator of the thing being judged. With a record in context
+            // (status actions, record permissions, field permissions) that is the person who
+            // SUBMITTED the record — 申請者 — which is what the builder's 作成者 checkbox promises,
+            // and what its neighbour 作成者のPM already resolves against. Without a record we are
+            // evaluating app-level permissions, where 作成者 correctly means whoever built the app
+            // (this is the subject seedAppPermissions writes for the creator row).
+            'creator' => $record !== null
+                ? ($record->created_by !== null && (int) $record->created_by === (int) $user->id)
+                : ($def->created_by !== null && (int) $def->created_by === (int) $user->id),
             'user' => (int) $subjectId === (int) $user->id,
             'position' => $user->position_id !== null && (int) $subjectId === (int) $user->position_id,
             'project_member' => $projectId !== null && $this->isProjectMember($projectId, $user),

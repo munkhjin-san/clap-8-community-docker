@@ -1,7 +1,7 @@
 # HANDOFF — Flow (カスタムアプリ) + Smart Notifications
 
 > Session handoff for resuming work on the Flow feature. Read this first, then drill into the
-> referenced files. Last updated: 2026-07-27.
+> referenced files. Last updated: 2026-07-28.
 
 ## 1. What Flow is
 
@@ -109,8 +109,8 @@ re-add an `assigned` event type.
   count badge) —
   **live-computed, no stored rows, no read state, NO prefs** (you can't opt out of your job).
   Count = records whose current status has an action whose `eligible` EXPLICITLY names the user
-  (`FlowService::hasExplicitPendingAction` — `everyone`/empty-eligible/manage-safety-net do NOT
-  count; own records DO). Drops only when the record leaves the status. Piggybacked as
+  (`FlowService::hasExplicitPendingAction` — `everyone`/empty-eligible do NOT count; own records DO).
+  (There is no longer a manage safety net anywhere — see §8.) Drops only when the record leaves the status. Piggybacked as
   `pending_actions` on `getFlowDefinitions`; popup list = `GET /flow_pending_actions/{definition}`.
   Same rule per record: `pending_action` on list rows (`serializeRecord` w/ user) → red dot inside
   the status pill in `FlowRecordsView` (`.rv-pdot`, white-ringed for colored pills).
@@ -269,3 +269,25 @@ entry at all.
 
 Known follow-up: `ACCOUNT_VAULT_KEY` is missing from `.env.example`, and `AccountVault::decodeKey()`
 type-hints `string`, so a fresh deploy TypeErrors on a null key rather than failing at boot.
+
+## 8. Status-flow authority (2026-07-27)
+
+Owner's rule: **an action's 押せる人 config is the whole answer. Nothing overrides it.**
+
+- **Removed the 管理 safety net.** `canPressAction()` used to end with
+  `return effectiveAppPermissions(...)['manage']`, so a configured-but-unmatched action was still
+  pressable by anyone with app 管理 — i.e. 「承認は部長だけ」 silently meant 「部長とアプリ管理者だけ」.
+  Now: eligible configured + nobody matched ⇒ `false`. Empty eligible still means "anyone with
+  record edit" (matching the builder's 「未設定 = 編集権限を持つ全員が押せます」 hint).
+  A manager who must unstick a record edits the action's 押せる人 — a change that lands in the audit
+  log instead of a silent press. This also made the button agree with 対応待ち, which never counted
+  the override.
+- **`creator` now means the RECORD's creator when a record is in context.** `matchesSubject('creator')`
+  resolved against `$def->created_by` (the app builder) even for status actions, record permissions
+  and field permissions — while its UI neighbour 作成者のPM already used `$record->created_by`. In a
+  申請・承認 flow 作成者 can only mean 申請者. It now resolves `$record !== null ? record creator :
+  app creator`; the no-record branch keeps app-level permissions (and the seeded creator row) correct.
+  Only `effectiveAppPermissions` calls `matchesSubject` without a record, so the split is exact.
+  Blast radius when changed: 32 app-permission rows (unaffected) and 1 status action on test app 13.
+- **Un-pressable actions are hidden, not disabled** (`pressableActions` in FlowRecordDetail). The →
+  separator hides with them, so a read-only viewer just sees the current status.

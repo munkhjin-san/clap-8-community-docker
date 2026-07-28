@@ -47,16 +47,17 @@
                 <template v-if="showStatus">
                     <span class="rd-flow-cur" :style="currentStatusStyle">{{ record?.current_status }}</span>
                     <!-- status transitions are hidden while editing — you can't move status mid-edit -->
-                    <template v-if="statusActions.length && mode === 'view'">
+                    <!-- only the actions this user may actually press are shown; the separator
+                         goes with them, so a read-only viewer just sees the current status -->
+                    <template v-if="pressableActions.length && mode === 'view'">
                         <span class="rd-flow-sep">→</span>
                         <button
-                            v-for="a in statusActions"
+                            v-for="a in pressableActions"
                             :key="a.id"
                             class="rd-act"
-                            :class="{ off: !a.can }"
                             :style="actionStyle(a)"
-                            :disabled="!a.can || transitioning"
-                            :title="a.can ? `${a.to_status ?? ''}へ移動` : 'あなたはこのアクションを実行できません'"
+                            :disabled="transitioning"
+                            :title="`${a.to_status ?? ''}へ移動`"
                             @click="transition(a)"
                         >{{ a.label }}</button>
                     </template>
@@ -285,6 +286,9 @@ const goToRecord = (n: number | null) => {
     router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: n }, query: listContext() })
 }
 const transitioning = ref(false)
+// buttons the user can't press are hidden rather than greyed out — a disabled button invites a
+// click and then explains why not; absence is quieter and matches 対応待ち, which never listed them
+const pressableActions = computed(() => statusActions.value.filter((a) => a.can))
 
 interface LogDto { id: number; user?: any; action?: string; field?: string | null; old_value?: any; new_value?: any; changes?: Record<string, any> | null; note?: string | null; created_at?: string }
 const logs = ref<LogDto[]>([])
