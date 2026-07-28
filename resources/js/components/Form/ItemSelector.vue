@@ -1,6 +1,12 @@
 <template>
     <div>
-        <div ref="selectorRef" class="item-selector-shell">
+        <div
+            ref="selectorRef"
+            class="item-selector-shell"
+            @compositionstart="isComposing = true"
+            @compositionend="isComposing = false"
+            @keydown.capture="handleKeydown"
+        >
             <v-autocomplete
                 v-model="selectedItems"
                 :chips="multiple"
@@ -46,6 +52,7 @@
                         density="compact"
                         rounded="0"
                         variant="flat"
+                        @keydown.enter.capture="handleOptionEnterKeydown"
                     ></v-list-item>
                 </template>
                 <template #no-data>
@@ -99,6 +106,7 @@ import 'styles/selector.css';
         search: [keyword: string]
     }>()
     const focus = ref(false)
+    const isComposing = ref(false)
     const api = useApi()
     const selectedItems = defineModel<any>()
     const selectorRef = useTemplateRef<HTMLElement>('selectorRef')
@@ -147,6 +155,32 @@ import 'styles/selector.css';
 
     const handleSearch = (keyword: string) => {
         emit('search', keyword)
+    }
+
+    /* ---- IME (Japanese input) -------------------------------------------------------------
+     * While an IME composition is open, Enter confirms the candidate and the arrows move through
+     * the candidate list — they are not selector input. Vuetify's autocomplete listens on the same
+     * keys, so without this the first Enter (meant to confirm 漢字) also picked whatever option was
+     * highlighted. Capture the keys on the way down and stop them before Vuetify sees them.
+     * Same fix as MemberSelector — keep the two in step if either changes. */
+    const isImeComposing = (event: KeyboardEvent) => {
+        // keyCode 229 is the "IME is handling this" marker; isComposing alone is unreliable across browsers
+        return isComposing.value || event.isComposing || event.keyCode === 229
+    }
+
+    const isImeControlKey = (event: KeyboardEvent) => {
+        return ['Enter', 'ArrowUp', 'ArrowDown'].includes(event.key)
+    }
+
+    const handleKeydown = (event: KeyboardEvent) => {
+        if (isImeComposing(event) && isImeControlKey(event)) {
+            event.stopPropagation()
+        }
+    }
+
+    // an option can hold focus while composing (arrow-keyed into the list, then typed)
+    const handleOptionEnterKeydown = (event: KeyboardEvent) => {
+        if (isImeComposing(event)) event.stopPropagation()
     }
 
     defineExpose({ validate })
