@@ -21,7 +21,7 @@
                     <span class="fbell-pref-label">{{ p.label }}</span>
                     <span
                         class="flow-sw fbell-sw"
-                        :class="{ on: prefs[p.key] !== false }"
+                        :class="{ on: prefs[p.key] === true }"
                         @click="togglePref(p.key)"
                     ></span>
                 </div>
@@ -152,7 +152,7 @@ const toggle = async () => {
 onBeforeUnmount(close)
 
 const togglePref = async (key: string) => {
-    prefs[key] = prefs[key] === false
+    prefs[key] = prefs[key] !== true
     await api.post('/flow_notification_pref', { flow_definition_id: props.defId, pref: key, enabled: prefs[key] }, { silent: true })
 }
 

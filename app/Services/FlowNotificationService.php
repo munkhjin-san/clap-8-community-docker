@@ -18,12 +18,24 @@ use Illuminate\Support\Facades\DB;
  * status change) — the portal badge is then a single indexed count. Read rules differ
  * by type: new_record & status_change clear when the record is opened; comment clears
  * only after the comment tab has actually been viewed (FE calls markCommentsRead).
- * Own actions never notify. Per-user per-app opt-outs live in flow_notification_prefs
- * (sparse rows; everything defaults ON).
+ * Own actions never notify. Per-user per-app overrides live in flow_notification_prefs
+ * (sparse rows = deviations from PREF_DEFAULTS; new_record is opt-IN, the rest opt-OUT).
  */
 class FlowNotificationService
 {
-    /** Pref keys (all default enabled). */
+    /**
+     * Pref keys and their DEFAULT state (sparse rows in flow_notification_prefs store only the
+     * deviations). `new_record` is opt-IN: on a busy app every added record would otherwise ping
+     * everyone who can see the app, which is the fastest way to make people mute the whole thing.
+     * The other three are about something the user is already involved in, so they default on.
+     */
+    public const PREF_DEFAULTS = [
+        'comment_own' => true,
+        'comment_participated' => true,
+        'new_record' => false,
+        'status_change' => true,
+    ];
+
     public const PREFS = ['comment_own', 'comment_participated', 'new_record', 'status_change'];
 
     public function __construct(private FlowService $flowService) {}
@@ -144,10 +156,10 @@ class FlowNotificationService
 
     /* ---------------------------------------------------------------- prefs */
 
-    /** The user's resolved prefs for an app (defaults ON, overridden by stored rows). */
+    /** The user's resolved prefs for an app (PREF_DEFAULTS, overridden by stored rows). */
     public function prefsFor(User $user, int $definitionId): array
     {
-        $prefs = array_fill_keys(self::PREFS, true);
+        $prefs = self::PREF_DEFAULTS;
         $rows = FlowNotificationPref::where('user_id', $user->id)
             ->where('flow_definition_id', $definitionId)
             ->pluck('enabled', 'pref');
@@ -216,13 +228,20 @@ class FlowNotificationService
         if (! $recipientPrefKeys) {
             return [];
         }
-        $disabled = FlowNotificationPref::where('flow_definition_id', $definitionId)
+        // Read every stored row (not just the disabled ones): with per-key defaults, "no row" can
+        // mean either notify or don't, so each recipient resolves to explicit-setting ?? default.
+        $rows = FlowNotificationPref::where('flow_definition_id', $definitionId)
             ->whereIn('user_id', array_keys($recipientPrefKeys))
-            ->where('enabled', false)
-            ->get(['user_id', 'pref']);
-        foreach ($disabled as $row) {
-            if (($recipientPrefKeys[(int) $row->user_id] ?? null) === $row->pref) {
-                unset($recipientPrefKeys[(int) $row->user_id]);
+            ->get(['user_id', 'pref', 'enabled']);
+        $explicit = [];
+        foreach ($rows as $row) {
+            $explicit[(int) $row->user_id][$row->pref] = (bool) $row->enabled;
+        }
+
+        foreach ($recipientPrefKeys as $userId => $pref) {
+            $on = $explicit[(int) $userId][$pref] ?? (self::PREF_DEFAULTS[$pref] ?? true);
+            if (! $on) {
+                unset($recipientPrefKeys[$userId]);
             }
         }
 

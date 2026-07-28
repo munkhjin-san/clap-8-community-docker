@@ -117,8 +117,10 @@ re-add an `assigned` event type.
   NB: the `flow_statuses.assignment_type` / `flow_record_assignees` snapshot subsystem is dead code
   (`waitingForUserQuery` too); the portal 対応待ち tab remains commented out.
 - Prefs: `flow_notification_prefs`, keys `comment_own / comment_participated / new_record /
-  status_change`, **all default ON**, sparse rows (only deviations). Any viewer can toggle their own,
-  per app, from the bell popup gear.
+  status_change`, sparse rows (only deviations from `PREF_DEFAULTS`). **`new_record` defaults OFF
+  (opt-in) — the other three default ON.** A default-off key means "no row = don't notify", so
+  `filterByPrefs` resolves explicit-setting ?? default rather than only dropping `enabled = false`
+  rows. Any viewer can toggle their own, per app, from the bell popup gear.
 - Bell popup is **view-only** (never marks read). Tap event → record detail.
 - Clearing rules:
   - `new_record` / `status_change` → cleared when the record is opened
