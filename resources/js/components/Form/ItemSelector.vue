@@ -18,7 +18,7 @@
                 :item-value="itemValue"
                 :items="itemOptions"
                 :label="placeHolder"
-                :menu-props="{ scrollStrategy: 'close', maxWidth: selectorRef ? selectorRef.clientWidth : undefined }"
+                :menu-props="{ scrollStrategy: 'reposition', maxWidth: selectorRef ? selectorRef.clientWidth : undefined }"
                 :multiple="multiple"
                 :disabled="disabled"
                 auto-select-first
