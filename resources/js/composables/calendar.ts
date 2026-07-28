@@ -18,6 +18,8 @@ const myGroupData = ref<{
 
 const selectedDepartmentIds = ref<number[]>([])
 
+const extraUserIds = ref<number[]>([])
+
 const dragItem = ref<CalendarRecord | null>(null)
 
 const departments = ref<Project[]>([])
@@ -63,6 +65,14 @@ export function useCalendar() {
         }
     }
 
+    const toggleExtraUser = (id: number) => {
+        if (extraUserIds.value.includes(id)) {
+            extraUserIds.value = extraUserIds.value.filter((userId) => userId !== id)
+        } else {
+            extraUserIds.value.push(id)
+        }
+    }
+
     const draggingCalendar = computed(() => {
         return dragItem.value
     })
@@ -82,7 +92,9 @@ export function useCalendar() {
         draggingCalendar,
         setDraggingCalendar,
         getMyGroupData,
-        myGroupData
+        myGroupData,
+        extraUserIds,
+        toggleExtraUser
     }
 
 }
