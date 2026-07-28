@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\FlowDefinition;
 use App\Models\FlowRecord;
 use Carbon\Carbon;
+use Mpdf\Config\ConfigVariables;
+use Mpdf\Config\FontVariables;
 use Mpdf\Mpdf;
 
 /**
@@ -34,6 +36,43 @@ class PdfRenderService
 
     public function __construct(private FlowService $flow) {}
 
+    /**
+     * Base mPDF config, with Noto Sans JP registered as the default font.
+     *
+     * Without a Japanese font mPDF falls back to `sun-exta` (see FontVariables::backupSubsFont),
+     * which is a CHINESE face — kanji came out in Simplified-Chinese shapes (直/骨/令/産 etc.) and
+     * in a serif style that matched nothing else in the product. Noto Sans JP is what the web UI
+     * uses, so PDFs now look like the app.
+     *
+     * The TTFs are static instances cut from the upstream variable font (mPDF cannot embed the
+     * OTF/CFF builds of Noto — it needs TrueType glyf outlines). mPDF subsets on output, so a
+     * 5.5 MB face still yields ~18 KB pages; the one-off font cache lands in tempDir (~80 ms cold,
+     * ~15 ms warm).
+     *
+     * autoScriptToLang/autoLangToFont stay OFF: their only job here was to pick a CJK fallback,
+     * and leaving them on lets mPDF swap our font back out for sun-exta on some runs.
+     */
+    private function mpdfConfig(): array
+    {
+        return [
+            'mode' => 'utf-8',
+            'tempDir' => storage_path('app/mpdf'),
+            'fontDir' => array_merge(
+                (new ConfigVariables())->getDefaults()['fontDir'],
+                [resource_path('fonts')],
+            ),
+            'fontdata' => (new FontVariables())->getDefaults()['fontdata'] + [
+                'notosansjp' => [
+                    'R' => 'NotoSansJP-Regular.ttf',
+                    'B' => 'NotoSansJP-Bold.ttf',
+                ],
+            ],
+            'default_font' => 'notosansjp',
+            'autoScriptToLang' => false,
+            'autoLangToFont' => false,
+        ];
+    }
+
     public function render(FlowDefinition $definition, FlowRecord $record, array $template): Mpdf
     {
         $fields = $definition->relationLoaded('fields') ? $definition->fields : $definition->fields()->get();
@@ -46,17 +85,15 @@ class PdfRenderService
         }
 
         $landscape = ($template['paper']['orientation'] ?? 'portrait') === 'landscape';
-        $mpdf = new Mpdf([
-            'mode' => 'utf-8',
+        // array_merge (not +) so per-render keys win over the base config
+        $mpdf = new Mpdf(array_merge($this->mpdfConfig(), [
             'format' => $landscape ? 'A4-L' : 'A4',
-            'autoScriptToLang' => true,
-            'autoLangToFont' => true,
             'margin_left' => 0,
             'margin_right' => 0,
             'margin_top' => 0,
             'margin_bottom' => 12,
             'margin_footer' => 5,
-        ]);
+        ]));
         $mpdf->SetHTMLFooter('<div style="text-align:center; font-size:8pt; color:#9aa1ac;">{PAGENO} / {nbpg}</div>');
 
         $elements = array_values($template['elements'] ?? []);

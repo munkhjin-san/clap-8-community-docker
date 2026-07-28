@@ -66,6 +66,14 @@ everything.
   context beats any z-index trapped in a card). Pattern: `<Teleport to="body">` + `position:fixed`
   coords from the trigger's rect, viewport clamp, close-on-scroll (see FlowBellMenu/FlowPendingMenu;
   `ItemMenu` has an opt-in `teleport` prop — pass it inside any scrolling container).
+- **PDF fonts (mPDF)**: mPDF has no Japanese font of its own — its `backupSubsFont` ends at
+  `sun-exta`, a *Chinese* face, so kanji silently came out in Simplified-Chinese shapes. PDFs now
+  register **Noto Sans JP** (`resources/fonts/NotoSansJP-{Regular,Bold}.ttf`) as `default_font` in
+  `PdfRenderService::mpdfConfig()`, with `autoScriptToLang`/`autoLangToFont` OFF (they exist to pick
+  a CJK fallback and will swap our font back out). Those TTFs are static instances cut from the
+  upstream variable font — mPDF cannot embed the OTF/CFF builds of Noto that also sit in
+  `public/fonts/`, and the `NotoSansJP-Regular.ttf` there is a 55-glyph stub, not a real font.
+  Cost: ~80 ms cold / ~15 ms warm, ~20 KB pages (mPDF subsets), cache in `storage/app/mpdf`.
 - `Badge.vue` digit centering is deliberate: `line-height/letter-spacing` pinned with `!important`
   (global sheet leaks 15px/1px), Arial for digits (Noto Sans JP's CJK ascent sinks them ~0.7px),
   `text-box: trim-both cap alphabetic` where supported. Consumers overriding position must reset
