@@ -60,8 +60,31 @@
                 <div id="checkUserSelecter" style=" max-height: 50vh; overflow-y: auto;color: var(--primary-color);">   
                     <div @click="createWindow = true, addUsersWindow = true" class="groupCreateButton">
                         <AddIcon :size="12"/>
-                        <p>グループ追加</p>                        
-                    </div> 
+                        <p>グループ追加</p>
+                    </div>
+                    <div class="c-group-item" @click="allUsersOpen = !allUsersOpen" style="cursor: pointer;">
+                        <label class="cal-member-check" style="cursor: pointer;">
+                            <Back size="12" :class="allUsersOpen ? '-rotate-90' : 'rotate-180'"/>
+                            全ユーザー<span v-if="extraUserIds.length" style="margin-left: 5px;">({{ extraUserIds.length }})</span>
+                        </label>
+                    </div>
+                    <div class="active-group-members" v-if="allUsersOpen">
+                        <div class="searchBarInner" style="width: auto;margin-left: inherit;">
+                            <PostSearchBar
+                                className="newChatMemberSearch"
+                                :customPlaceHolder="'メンバー検索'"
+                                @search-start="(word) => {userKeyword = word}"
+                            />
+                        </div>
+                        <label :key="user.id" v-for="user in filteredAllMembers" class="cal-member-check">
+                            <input @change="toggleAllUser(user)" :checked="extraUserIds.includes(user.id)" :value="user.id" name="allUserCheckBox" type="checkbox">
+                            <span class="cal-check-mark" style="top: 10px;"></span>
+                            <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">
+                                <UserPanel :disableInstant="true" size="25" :title="user.name" :user="user" imgClass="userMidIcon"/>
+                                <p class="userName">{{user.name}}</p>
+                            </div>
+                        </label>
+                    </div>
                     <div v-if="myGroups.length">
                         <div v-for="group in myGroups">  
                             <div class="c-group-item">
@@ -238,15 +261,29 @@ import { User } from '@/interface/globalInterface'
     const groupTitle = useTemplateRef('groupTitle')
     const groupUsers = useTemplateRef('groupUsers')
     const keywords = ref('')
-    const { facilitiesList, setFacility, departmentsList, setSelectedDepartment, selectedDepartment, getMyGroupData, myGroupData } = useCalendar()
+    const { facilitiesList, setFacility, departmentsList, setSelectedDepartment, selectedDepartment, getMyGroupData, myGroupData, extraUserIds, toggleExtraUser } = useCalendar()
     const myGroups = computed(() => {
         return list.value ? list.value : []
     })        
     const selectedGroups = ref<number[]>([])
+    const allUsersOpen = ref(false)
+    const userKeyword = ref('')
 
     onMounted(() => {
         getMyGroup()        
     })
+    const filteredAllMembers = computed(() => {
+        const keyword = userKeyword.value.toLowerCase();
+        if (keyword) {
+            return allMembers.value.filter(user => user.name && user.name.toLowerCase().includes(keyword))
+        }
+        return allMembers.value
+    })
+    const toggleAllUser = (user: User) => {
+        toggleExtraUser(user.id)
+        emitActiveMembers()
+        emit('refresh')
+    }
     const searchDepartment = computed(() => {
         const keyword = keywords.value.toLowerCase();
         
@@ -342,20 +379,31 @@ import { User } from '@/interface/globalInterface'
         list.value = myGroupData.value?.my_groups ? myGroupData.value.my_groups : []
         selectedUsers.value = myGroupData.value?.my_groups ? myGroupData.value.my_groups : []
         allMembers.value = myGroupData.value?.all_members ? myGroupData.value.all_members : []
+        emitActiveMembers()
+        if(flag){
+            loading.value = false
+        }
+    }
+    const emitActiveMembers = () => {
         const uniqueUserIds = new Set();
-        const memberList:CalendarGroupUser[] = [];
+        const memberList:(CalendarGroupUser | User)[] = [];
         selectedUsers.value.forEach((group: CalendarGroup) => {
             group.users.forEach((user: CalendarGroupUser) => {
                 if (!uniqueUserIds.has(user.id) && user.pivot && user.pivot.selected_as_calendar_member) {
                     uniqueUserIds.add(user.id);
                     memberList.push(user);
                 }
-            });                 
+            });
         });
+        extraUserIds.value.forEach(id => {
+            if (uniqueUserIds.has(id)) return
+            const user = allMembers.value.find(ob => ob.id === id)
+            if (user) {
+                uniqueUserIds.add(id)
+                memberList.push(user)
+            }
+        })
         emit('setActiveMembers', memberList)
-        if(flag){
-            loading.value = false                    
-        }
     }
     const update = (event: Event, group: CalendarGroup) => {
         const target = event.target as HTMLInputElement

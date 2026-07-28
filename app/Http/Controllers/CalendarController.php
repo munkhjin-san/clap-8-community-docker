@@ -259,7 +259,9 @@ class CalendarController extends Controller
         
         $my_group_ids = $gr ?? [];
 
-        $list = array_merge($my_group_ids, $work_group_users_id);
+        $extra_users = is_array($request->extra_users) ? array_map('intval', $request->extra_users) : [];
+
+        $list = array_merge($my_group_ids, $work_group_users_id, $extra_users);
         $date = $request["day"];
 
         $carbonDate = Carbon::parse($date);
