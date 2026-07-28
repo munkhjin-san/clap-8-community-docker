@@ -60,7 +60,14 @@
             </div>
 
             <div class="vt-divider"></div>
-            <div class="vt-sec">フィルター（すべての条件に一致）</div>
+            <div class="vt-sec">フィルター</div>
+            <div class="vt-logic">
+                <span class="vt-logic-label">条件の一致</span>
+                <div class="vt-seg">
+                    <button type="button" :class="{ on: filterLogic === 'and' }" @click="filterLogic = 'and'">すべて一致（AND）</button>
+                    <button type="button" :class="{ on: filterLogic === 'or' }" @click="filterLogic = 'or'">いずれかに一致（OR）</button>
+                </div>
+            </div>
             <div v-for="(f, fi) in current.filters" :key="fi" class="vt-cond">
                 <FlowSearchSelect class="vt-cond-field" :model-value="f.field" :options="refOptions" :clearable="false" @update:model-value="(val) => onFilterField(f, val as number | string)" />
                 <select v-model="f.operator" class="custom-a-input !box-border vt-cond-op">
@@ -155,6 +162,14 @@ const moveColumn = (ci: number, dir: number) => {
 }
 
 /* ---- filters / sort ---- */
+/** AND/OR for the selected view's own conditions. Written straight onto the view object so it
+ *  travels with the rest of the builder payload; older views arrive without it, hence the 'and'
+ *  fallback (matches the column default). */
+const filterLogic = computed({
+    get: () => (current.value?.filter_logic === 'or' ? 'or' : 'and'),
+    set: (v: 'and' | 'or') => { if (current.value) current.value.filter_logic = v },
+})
+
 const onFilterField = (f: { field: number | string; operator: FlowViewOperator; values: any[] }, val: number | string) => {
     f.field = val
     const ops = operatorsFor(f.field)
@@ -174,7 +189,7 @@ const addSort = () => {
 
 /* ---- view list ops ---- */
 const addView = () => {
-    props.def.views.push({ name: 'ビュー' + (props.def.views.length + 1), is_default: false, columns: [], filters: [], sort: [] })
+    props.def.views.push({ name: 'ビュー' + (props.def.views.length + 1), is_default: false, columns: [], filters: [], filter_logic: 'and', sort: [] })
     selected.value = props.def.views.length - 1
 }
 /** Copy a view's columns/filters/sort into a new one. Deep-cloned so editing the copy can't
@@ -186,6 +201,7 @@ const duplicateView = (i: number) => {
         is_default: false,
         columns: [...src.columns],
         filters: src.filters.map((f) => ({ ...f, values: [...f.values] })),
+        filter_logic: src.filter_logic === 'or' ? 'or' : 'and',
         sort: src.sort.map((s) => ({ ...s })),
     })
     selected.value = i + 1
@@ -227,6 +243,13 @@ watch(() => props.def.views.length, () => {
 .vt-row label { font-size: 12px; color: gray; width: 96px; flex-shrink: 0; }
 .vt-hint { font-size: 11px; color: gray; }
 .vt-sec { font-size: 13px; font-weight: 500; margin-bottom: 10px; color: var(--primary-color); }
+/* same segmented control as the ad-hoc filter modal, so AND/OR reads identically in both places */
+.vt-logic { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.vt-logic-label { font-size: 12px; color: gray; flex-shrink: 0; }
+.vt-seg { display: inline-flex; border: 1px solid var(--formBorder); border-radius: 7px; overflow: hidden; }
+.vt-seg button { border: none; background: var(--background-color); color: var(--primary-color); font-size: 12px; padding: 7px 14px; cursor: pointer; }
+.vt-seg button + button { border-left: 1px solid var(--formBorder); }
+.vt-seg button.on { background: var(--primary-button, var(--primary-color)); color: #fff; }
 .vt-divider { height: 1px; background: var(--calendarBorder); margin: 16px 0; }
 .vt-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .vt-col-panel { border: 1px solid var(--calendarBorder); border-radius: 8px; overflow: hidden; }

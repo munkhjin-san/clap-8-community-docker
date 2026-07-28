@@ -306,6 +306,7 @@ export interface FlowViewApi {
     view_mode?: string
     columns?: (number | string)[] | null
     filters?: FlowViewFilter[] | null
+    filter_logic?: 'and' | 'or' | null
     sort?: FlowViewSort[] | null
 }
 export interface BuilderView {
@@ -314,6 +315,7 @@ export interface BuilderView {
     is_default: boolean
     columns: (number | string)[]
     filters: FlowViewFilter[]
+    filter_logic?: 'and' | 'or'
     sort: FlowViewSort[]
 }
 

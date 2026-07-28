@@ -235,7 +235,7 @@ const newDefinition = (): BuilderDefinition => ({
 })
 
 const defaultView = (): BuilderView => ({
-    name: 'すべて', is_default: true, columns: [], filters: [], sort: [],
+    name: 'すべて', is_default: true, columns: [], filters: [], filter_logic: 'and', sort: [],
 })
 
 const def = ref<BuilderDefinition>(newDefinition())
@@ -446,6 +446,7 @@ const toBuilder = (api: FlowDefinitionApi): BuilderDefinition => {
             ? (api.views ?? []).map((v) => ({
                 id: v.id, name: v.name, is_default: !!v.is_default,
                 columns: v.columns ?? [], filters: v.filters ?? [], sort: v.sort ?? [],
+                filter_logic: v.filter_logic === 'or' ? 'or' : 'and',
             }))
             : [defaultView()],
         tools: (api.tools ?? []).map((t: any) => ({
@@ -501,6 +502,7 @@ const buildPayload = () => ({
         // view was configured). System columns ($record_number 等) and live field ids are kept.
         columns: (v.columns ?? []).filter(liveRef),
         filters: (v.filters ?? []).filter((f) => liveRef(f.field)),
+        filter_logic: v.filter_logic === 'or' ? 'or' : 'and',
         sort: (v.sort ?? []).filter((s) => liveRef(s.field)),
     })),
     tools: def.value.tools.map((t) => ({

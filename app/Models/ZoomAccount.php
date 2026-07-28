@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ZoomAccount extends Model
 {
@@ -38,6 +39,11 @@ class ZoomAccount extends Model
             'selected' => false,
             'selectable' => $this->active,
         ];
+    }
+
+    public function transcripts(): HasMany
+    {
+        return $this->hasMany(CalendarMeetingTranscript::class);
     }
 
     public function adminPayload(): array

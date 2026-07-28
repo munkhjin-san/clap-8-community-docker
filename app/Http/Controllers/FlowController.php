@@ -355,6 +355,7 @@ class FlowController extends Controller
             'views.*.is_default' => 'boolean',
             'views.*.columns' => 'nullable|array',
             'views.*.filters' => 'nullable|array',
+            'views.*.filter_logic' => 'nullable|in:and,or',
             'views.*.sort' => 'nullable|array',
             'tools' => 'array',
             'tools.*.id' => 'nullable|integer',
@@ -559,6 +560,7 @@ class FlowController extends Controller
                 'is_default' => $default,
                 'columns' => $v['columns'] ?? null,
                 'filters' => $v['filters'] ?? null,
+                'filter_logic' => ($v['filter_logic'] ?? 'and') === 'or' ? 'or' : 'and',
                 'sort' => $v['sort'] ?? null,
             ]);
             if (! $model->created_by) {
@@ -792,7 +794,7 @@ class FlowController extends Controller
             // Nested conditions/grants aren't worth a fine-grained diff (rare to change, hard to
             // summarize usefully) — a changed/unchanged flag on the whole structure is enough.
             'record_permissions' => $definition->recordPermissionSets()->with('conditions', 'grants')->get()->toArray(),
-            'views' => $definition->views()->get(['id', 'name', 'is_default', 'columns', 'filters', 'sort'])->toArray(),
+            'views' => $definition->views()->get(['id', 'name', 'is_default', 'columns', 'filters', 'filter_logic', 'sort'])->toArray(),
             'tools' => $definition->tools()->get(['id', 'tool_type', 'name', 'config', 'is_active', 'sort_order'])->toArray(),
         ];
     }
@@ -824,7 +826,7 @@ class FlowController extends Controller
             'status_actions' => $byId(['flow_status_id', 'to_status_id', 'name', 'label', 'color', 'eligible', 'sort_order']),
             'app_permissions' => $byIdentity(['subject_type', 'subject_id'], ['can_view', 'can_add', 'can_edit', 'can_delete', 'can_manage', 'can_import', 'can_export', 'can_bulk', 'sort_order']),
             'field_permissions' => $byIdentity(['field_id', 'subject_type', 'subject_id'], ['can_view', 'can_edit', 'sort_order']),
-            'views' => $byId(['name', 'is_default', 'columns', 'filters', 'sort']),
+            'views' => $byId(['name', 'is_default', 'columns', 'filters', 'filter_logic', 'sort']),
             'tools' => $byId(['tool_type', 'name', 'config', 'is_active']),
         ];
         foreach ($concerns as $key => $fn) {
@@ -1002,6 +1004,7 @@ class FlowController extends Controller
         $view = $views->firstWhere('id', (int) $request->input('view_id'))
             ?? $views->firstWhere('is_default', true) ?? $views->first();
         $filters = is_array($view?->filters) ? $view->filters : [];
+        $filterLogic = $view?->filter_logic === 'or' ? 'or' : 'and';
         $sort = $request->filled('sort_field')
             ? [['field' => $request->input('sort_field'), 'direction' => $request->input('sort_dir') === 'desc' ? 'desc' : 'asc']]
             : (is_array($view?->sort) ? $view->sort : []);
@@ -1033,7 +1036,7 @@ class FlowController extends Controller
             ]);
         }
 
-        $query = $this->flowService->recordListQuery($definition, $filters, (string) $request->input('search', ''), $adhocFilter);
+        $query = $this->flowService->recordListQuery($definition, $filters, (string) $request->input('search', ''), $adhocFilter, $filterLogic);
         $total = (clone $query)->count();
         $this->flowService->applyRecordSort($query, $sort, $definition);
         $records = $query->with($with)->forPage($page, $perPage)->get()
@@ -1932,7 +1935,7 @@ class FlowController extends Controller
         // the live records view — see the class doc above)
         $filtersForQuery = $adhocFilter ? [] : (is_array($view?->filters) ? $view->filters : []);
 
-        $query = $this->flowService->recordListQuery($definition, $filtersForQuery, '', $adhocFilter);
+        $query = $this->flowService->recordListQuery($definition, $filtersForQuery, '', $adhocFilter, $view?->filter_logic === 'or' ? 'or' : 'and');
         $this->flowService->applyRecordSort($query, $sort, $definition);
         $records = $query->with(['values', 'currentStatus:id,name'])->get();
 

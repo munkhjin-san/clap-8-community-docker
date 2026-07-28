@@ -1,13 +1,39 @@
 <template>
     <Modal @close="emit('close')" :loader="initialLoader">
         <template #title>
-            <p>要約 : {{ calendarRecord.title }}</p>
+            <p>会議記録 : {{ calendarRecord.title }}</p>
         </template>
         
         <template #content>
-            <div class="leading-normal whitespace-break-spaces">
-                
-                <div v-for="(summary, index) in summariesData" class="mb-[30px] flex flex-col gap-[20px]">
+            <div class="meeting-record-tabs" role="tablist" aria-label="会議記録の種類">
+                <button
+                    class="meeting-record-tab"
+                    :class="{ active: activeTab === 'summary' }"
+                    role="tab"
+                    :aria-selected="activeTab === 'summary'"
+                    @click="activeTab = 'summary'"
+                >
+                    AIコンパニオン要約
+                    <span>{{ summariesData.length }}</span>
+                </button>
+                <button
+                    class="meeting-record-tab"
+                    :class="{ active: activeTab === 'transcript' }"
+                    role="tab"
+                    :aria-selected="activeTab === 'transcript'"
+                    @click="activeTab = 'transcript'"
+                >
+                    文字起こし
+                    <span>{{ transcriptsData.length }}</span>
+                </button>
+            </div>
+
+            <div v-if="activeTab === 'summary'" class="leading-normal whitespace-break-spaces">
+                <p v-if="summariesData.length === 0" class="meeting-record-empty">
+                    AIコンパニオン要約はありません。
+                </p>
+
+                <div v-for="(summary, index) in summariesData" :key="summary.id" class="mb-[30px] flex flex-col gap-[20px]">
                     <div class="flex justify-between sticky top-20 bg-[var(--background-color)]" :style="{zIndex: menuRef && menuRef.length && menuRef[index].active ? 7 : 6}">
                         <label class="flex items-center gap-[20px] cursor-pointer">
                             <div :style="{ transition: 'transform 0.2s', transform: expandedSummaries.includes(summary.id) ? 'rotate(270deg)' : 'rotate(180deg)' }">
@@ -62,7 +88,7 @@
                         <div v-else class="flex flex-col gap-[20px] ml-[15px]">
                             <p>{{ summary.overview }}</p>
 
-                            <div v-for="detail in summary.details" class="mb-[20px]">
+                            <div v-for="detail in summary.details" :key="`${summary.id}-${detail.label}`" class="mb-[20px]">
                                 <h4>{{ detail.label }}</h4>
                                 <p class="text-[15px] leading-[1.6] mt-[10px]">{{ detail.summary }}</p>
 
@@ -70,14 +96,61 @@
                             <div v-if="summary.steps.length > 0">
                                 <h4>次のステップ </h4>
                                 <ul class="list-disc pl-[20px]">
-                                    <li v-for="step in summary.steps">{{ step.content }}</li>
+                                    <li v-for="step in summary.steps" :key="step.content">{{ step.content }}</li>
                                 </ul>
                             </div>
                         </div>
                     </div>
-                    
-
                 </div>
+            </div>
+
+            <div v-else class="meeting-transcripts">
+                <p v-if="transcriptsData.length === 0" class="meeting-record-empty">
+                    文字起こしはありません。
+                </p>
+
+                <section
+                    v-for="(transcript, index) in transcriptsData"
+                    :key="transcript.id"
+                    class="meeting-transcript"
+                >
+                    <div class="meeting-transcript__header">
+                        <button
+                            class="meeting-transcript__toggle"
+                            :aria-expanded="expandedTranscripts.includes(transcript.id)"
+                            @click="toggleTranscript(transcript.id)"
+                        >
+                            <span
+                                class="meeting-transcript__arrow"
+                                :class="{ active: expandedTranscripts.includes(transcript.id) }"
+                            >
+                                <Back size="12"/>
+                            </span>
+                            <span>
+                                <strong>文字起こし{{ transcriptsData.length > 1 ? ` ${index + 1}` : '' }}</strong>
+                                <small>{{ formatDateTime(transcript.meeting_start_time) }}</small>
+                            </span>
+                        </button>
+                        <button class="meeting-transcript__copy" @click="copyTranscript(transcript)">
+                            コピー
+                        </button>
+                    </div>
+
+                    <div v-if="expandedTranscripts.includes(transcript.id)" class="meeting-transcript__cues">
+                        <div
+                            v-for="(cue, cueIndex) in transcript.cues"
+                            :key="`${transcript.id}-${cue.start}-${cueIndex}`"
+                            class="meeting-transcript__cue"
+                        >
+                            <time>{{ formatCueTime(cue.start) }}</time>
+                            <strong v-if="cue.speaker">{{ cue.speaker }}</strong>
+                            <p>{{ cue.text }}</p>
+                        </div>
+                        <p v-if="transcript.cues.length === 0" class="meeting-record-empty">
+                            表示できる文字起こしデータがありません。
+                        </p>
+                    </div>
+                </section>
             </div>
             
             <div class="si-box">
@@ -107,8 +180,11 @@ const api = useApi()
 const props = defineProps(['calendarRecord']);
 const emit = defineEmits(['close']);
 const summariesData = ref<SummaryData[]>([])
+const transcriptsData = ref<TranscriptData[]>([])
 const initialLoader = ref(true)
+const activeTab = ref<'summary' | 'transcript'>('summary')
 const expandedSummaries = ref<number[]>([])
+const expandedTranscripts = ref<number[]>([])
 const summaryRef = useTemplateRef<HTMLElement[]>('summaryRef')
 const summaryEditor = useTemplateRef('summaryEditor')
 const sharingData = useSharingDataStore()
@@ -124,7 +200,7 @@ const combinedSummary = ref<{
 })
 
 onMounted(() => {
-    getSummareis(0)
+    getMeetingRecords(0)
 })
 interface SummaryData {
     id: number;
@@ -140,15 +216,49 @@ interface SummaryData {
         content: string;
     }[];
 }
+interface TranscriptCue {
+    start: string;
+    end: string;
+    speaker: string | null;
+    text: string;
+}
+interface TranscriptData {
+    id: number;
+    meeting_id: string;
+    meeting_uuid: string;
+    meeting_start_time: string | null;
+    downloaded_at: string | null;
+    cues: TranscriptCue[];
+}
+interface MeetingRecordResponse {
+    summaries: SummaryData[];
+    transcripts: TranscriptData[];
+}
 const fixedHtml = (html: string) => {
     return html.replace(/<p>\s*<\/p>/g, '<p>&nbsp;</p>')
 }
-const getSummareis = async(counter:number) => {        
-    summariesData.value = await api.get('/get_schedule_summaries',  { id: props.calendarRecord.id })
-    if(counter == 0 && summariesData.value.length > 0){
-        expandedSummaries.value.push(summariesData.value[0].id)
+const getMeetingRecords = async(counter: number) => {
+    try {
+        const response = await api.get('/get_schedule_summaries', {
+            id: props.calendarRecord.id
+        }) as MeetingRecordResponse
+        summariesData.value = response.summaries
+        transcriptsData.value = response.transcripts
+
+        if (counter === 0) {
+            if (summariesData.value.length > 0) {
+                expandedSummaries.value.push(summariesData.value[0].id)
+            } else if (transcriptsData.value.length > 0) {
+                activeTab.value = 'transcript'
+            }
+
+            if (transcriptsData.value.length > 0) {
+                expandedTranscripts.value.push(transcriptsData.value[0].id)
+            }
+        }
+    } finally {
+        initialLoader.value = false
     }
-    initialLoader.value = false
 }
 const editSummary = (summary: SummaryData) => {
     if (!expandedSummaries.value.includes(summary.id)) {
@@ -201,7 +311,7 @@ const saveEditedVersion = async(id: number) => {
     }, {
         toast: '保存しました。'
     })
-    getSummareis(1)
+    getMeetingRecords(1)
     combinedSummary.value = { id: null, html: '' }
 }
 const copySummary = (summary: SummaryData) => {
@@ -216,7 +326,7 @@ const copySummary = (summary: SummaryData) => {
 }
 const deleteSummary = async(summary: SummaryData) => {
     await api.del('/delete_schedule_summary', { id: summary.id }, { toast: '削除しました。', ask: '削除しますか？' })  
-    getSummareis(1)     
+    getMeetingRecords(1)
 }
 const shareSummary = (summary: SummaryData) => {
     let textToShare = prepareText(summary)
@@ -254,4 +364,168 @@ const prepareText = (summary: SummaryData) => {
     }
     return text
 }
+const toggleTranscript = (id: number) => {
+    expandedTranscripts.value = expandedTranscripts.value.includes(id)
+        ? expandedTranscripts.value.filter(transcriptId => transcriptId !== id)
+        : [...expandedTranscripts.value, id]
+}
+const prepareTranscriptText = (transcript: TranscriptData) => {
+    return transcript.cues.map(cue => {
+        const speaker = cue.speaker ? `${cue.speaker}: ` : ''
+        return `[${formatCueTime(cue.start)}] ${speaker}${cue.text}`
+    }).join('\n')
+}
+const copyTranscript = async(transcript: TranscriptData) => {
+    try {
+        await navigator.clipboard.writeText(prepareTranscriptText(transcript))
+        toast('コピーしました。')
+    } catch (error) {
+        console.error('Unable to copy transcript text to clipboard:', error)
+    }
+}
+const formatDateTime = (value: string | null) => {
+    if (!value) return ''
+
+    return DateTime.fromISO(value).toLocaleString(DateTime.DATETIME_MED)
+}
+const formatCueTime = (value: string) => {
+    return value.replace(/^00:/, '').replace(/\.\d{3}$/, '')
+}
 </script>
+<style scoped>
+.meeting-record-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-bottom: 28px;
+    background: var(--bg-3);
+}
+
+.meeting-record-tab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 13px 10px;
+    color: var(--text-color);
+    border: 1px solid transparent;
+}
+
+.meeting-record-tab.active {
+    border-color: var(--primary-color);
+    background: var(--background-color);
+}
+
+.meeting-record-tab span {
+    min-width: 20px;
+    padding: 1px 6px;
+    font-size: 11px;
+    text-align: center;
+    background: var(--bg-3);
+}
+
+.meeting-record-empty {
+    padding: 28px 12px;
+    color: gray;
+    text-align: center;
+}
+
+.meeting-transcripts {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.meeting-transcript {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.meeting-transcript__header {
+    position: sticky;
+    top: 80px;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    background: var(--background-color);
+}
+
+.meeting-transcript__toggle {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 16px;
+    text-align: left;
+}
+
+.meeting-transcript__toggle small {
+    display: block;
+    margin-top: 3px;
+    color: gray;
+    font-size: 12px;
+}
+
+.meeting-transcript__arrow {
+    display: inline-flex;
+    transition: transform 0.2s;
+    transform: rotate(180deg);
+}
+
+.meeting-transcript__arrow.active {
+    transform: rotate(270deg);
+}
+
+.meeting-transcript__copy {
+    flex: none;
+    padding: 6px 12px;
+    font-size: 12px;
+    background: var(--bg-3);
+}
+
+.meeting-transcript__cues {
+    padding: 8px 0 24px 28px;
+}
+
+.meeting-transcript__cue {
+    display: grid;
+    grid-template-columns: 54px minmax(90px, 150px) minmax(0, 1fr);
+    gap: 12px;
+    padding: 10px 0;
+    line-height: 1.6;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.meeting-transcript__cue time {
+    color: gray;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.meeting-transcript__cue p {
+    min-width: 0;
+    white-space: break-spaces;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+    .meeting-record-tab {
+        padding-inline: 6px;
+        font-size: 12px;
+    }
+
+    .meeting-transcript__cues {
+        padding-left: 0;
+    }
+
+    .meeting-transcript__cue {
+        grid-template-columns: 48px minmax(0, 1fr);
+        gap: 6px 10px;
+    }
+
+    .meeting-transcript__cue p {
+        grid-column: 2;
+    }
+}
+</style>

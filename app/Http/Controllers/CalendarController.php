@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\CalendarMeetingSummary;
+use App\Models\CalendarMeetingTranscript;
 use App\Models\CalendarFacility;
 use App\Models\ProjectRecord;
 use App\Models\ZoomAccount;
 use App\Services\ZoomApiService;
+use App\Services\ZoomVttParser;
 use Illuminate\Http\Request;
 use App\Models\CalendarRecord;
 use App\Models\CalendarGroup;
@@ -23,6 +25,7 @@ use Carbon\CarbonPeriod;
 use App\Mail\Calendar;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\GoogleController;
 class CalendarController extends Controller
 {
@@ -31,6 +34,7 @@ class CalendarController extends Controller
     public function __construct(
         GoogleController $googleController,
         private readonly ZoomApiService $zoomApi,
+        private readonly ZoomVttParser $zoomVttParser,
     ) {
         $this->googleController = $googleController;
     }
@@ -315,7 +319,11 @@ class CalendarController extends Controller
             'calendar_view_users',
    
         ])
-        ->withCount('summaries')
+        ->withCount([
+            'summaries',
+            'transcripts as transcripts_count' => fn ($query) => $query
+                ->where('status', CalendarMeetingTranscript::STATUS_DOWNLOADED),
+        ])
         ->get();
 
 
@@ -1329,7 +1337,33 @@ class CalendarController extends Controller
             ->with(['details', 'steps'])
             ->orderBy('created_at', 'desc')
             ->get();
-        return response()->json($summaries);
+
+        $transcripts = $record->transcripts()
+            ->where('status', CalendarMeetingTranscript::STATUS_DOWNLOADED)
+            ->whereNotNull('storage_path')
+            ->orderBy('meeting_start_time')
+            ->get()
+            ->map(function (CalendarMeetingTranscript $transcript): array {
+                $disk = Storage::disk('local');
+                $content = $disk->exists($transcript->storage_path)
+                    ? $disk->get($transcript->storage_path)
+                    : '';
+
+                return [
+                    'id' => $transcript->id,
+                    'meeting_id' => $transcript->meeting_id,
+                    'meeting_uuid' => $transcript->meeting_uuid,
+                    'meeting_start_time' => $transcript->meeting_start_time?->toISOString(),
+                    'downloaded_at' => $transcript->downloaded_at?->toISOString(),
+                    'cues' => $this->zoomVttParser->parse($content),
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'summaries' => $summaries,
+            'transcripts' => $transcripts,
+        ]);
     }
 
     public function save_edited_summary(Request $request){

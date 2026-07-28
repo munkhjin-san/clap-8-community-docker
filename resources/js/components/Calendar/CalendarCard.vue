@@ -55,8 +55,8 @@
                 <p>ミーティングID : <span class="zoom-info-item">{{ record.zoom_id ? record.zoom_id : '' }}</span></p>
                 <p>ミーティングPASS :<span class="zoom-info-item">{{ record.zoom_pass ? record.zoom_pass : '' }}</span> </p>
                 <p>URL : <a target="_blank" :href="record.zoom_url ? record.zoom_url : ''">{{ record.zoom_url ? record.zoom_url : '' }}</a></p> 
-                <div class="mt-[15px]" v-if="record.summaries_count">
-                    <button class="px-[10px] py-[5px] bg-black text-white text-[12px]" @click="setSummaryViewing(record)">AIコンパニオン要約</button>
+                <div class="mt-[15px]" v-if="record.summaries_count || record.transcripts_count">
+                    <button class="px-[10px] py-[5px] bg-black text-white text-[12px]" @click="setSummaryViewing(record)">会議記録</button>
                 </div>              
             </div>
             <div @click="expanded ? $event.stopPropagation() : false" @mousedown="expanded ? $event.stopPropagation() : false"  v-if="record.files && record.files.length" style="margin-top: 10px;width: fit-content;max-width: 100%;overflow: hidden;">

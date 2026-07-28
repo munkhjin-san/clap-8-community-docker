@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class ZoomApiService
 {
@@ -127,9 +128,89 @@ class ZoomApiService
         ];
     }
 
+    public function meetingTranscriptMetadata(ZoomAccount $account, string $meetingUuid): array
+    {
+        $token = $this->accessToken($account);
+        $encodedMeetingUuid = $this->encodeMeetingUuid($meetingUuid);
+
+        try {
+            return Http::withToken($token)
+                ->acceptJson()
+                ->timeout(30)
+                ->retry(3, 1000)
+                ->get("https://api.zoom.us/v2/meetings/{$encodedMeetingUuid}/transcript")
+                ->throw()
+                ->json();
+        } catch (RequestException $exception) {
+            Log::warning('Zoom transcript metadata request failed.', [
+                'zoom_account_id' => $account->id,
+                'status' => $exception->response?->status(),
+            ]);
+
+            throw new RuntimeException(
+                $this->zoomErrorMessage($exception, '文字起こし取得'),
+                previous: $exception,
+            );
+        } catch (ConnectionException $exception) {
+            Log::warning('Zoom transcript metadata connection failed.', [
+                'zoom_account_id' => $account->id,
+            ]);
+
+            throw new RuntimeException(
+                'Zoom文字起こし接続エラー：'.$this->cleanErrorDetail($exception->getMessage()),
+                previous: $exception,
+            );
+        }
+    }
+
+    public function downloadMeetingTranscript(ZoomAccount $account, string $downloadUrl): string
+    {
+        $token = $this->accessToken($account);
+
+        try {
+            return Http::withToken($token)
+                ->accept('text/vtt, text/plain')
+                ->timeout(120)
+                ->retry(3, 1000)
+                ->get($downloadUrl)
+                ->throw()
+                ->body();
+        } catch (RequestException $exception) {
+            Log::warning('Zoom transcript download failed.', [
+                'zoom_account_id' => $account->id,
+                'status' => $exception->response?->status(),
+            ]);
+
+            throw new RuntimeException(
+                $this->zoomErrorMessage($exception, '文字起こしダウンロード'),
+                previous: $exception,
+            );
+        } catch (ConnectionException $exception) {
+            Log::warning('Zoom transcript download connection failed.', [
+                'zoom_account_id' => $account->id,
+            ]);
+
+            throw new RuntimeException(
+                'Zoom文字起こしダウンロード接続エラー：'.$this->cleanErrorDetail($exception->getMessage()),
+                previous: $exception,
+            );
+        }
+    }
+
     public function forgetToken(ZoomAccount $account): void
     {
         Cache::forget("zoom:access-token:{$account->id}:".hash('sha256', (string) $account->client_id));
+    }
+
+    private function encodeMeetingUuid(string $meetingUuid): string
+    {
+        $encoded = rawurlencode($meetingUuid);
+
+        if (str_starts_with($meetingUuid, '/') || str_contains($meetingUuid, '//')) {
+            return rawurlencode($encoded);
+        }
+
+        return $encoded;
     }
 
     private function zoomErrorMessage(RequestException $exception, string $operation): string

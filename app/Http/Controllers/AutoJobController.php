@@ -7,6 +7,7 @@ use App\Models\boardToUser;
 use App\Models\CalendarMeetingSummary;
 use App\Models\CalendarRecord;
 use App\Models\ZoomAccount;
+use App\Services\ZoomTranscriptIngestService;
 use App\Models\ChallengeRecord;
 use App\Models\KnowledgeRecord;
 use App\Models\NiceRecord;
@@ -82,6 +83,7 @@ class AutoJobController extends Controller
         SharedService $sharedService,
         private KintoneClient $kintoneClient,
         private KintoneContractUpdateNotificationService $kintoneContractUpdateNotificationService,
+        private readonly ZoomTranscriptIngestService $zoomTranscriptIngest,
     )
     {
         $this->sharedService = $sharedService;
@@ -281,6 +283,23 @@ class AutoJobController extends Controller
                 'encryptedToken' => $encryptedToken,
             ];            
             return response()->json($response, 200);
+        }
+
+        if (($data['event'] ?? null) === 'meeting.aic_transcript_completed') {
+            $transcript = $this->zoomTranscriptIngest->ingest(
+                $zoomAccount,
+                (array) ($data['payload'] ?? []),
+            );
+
+            Log::channel('zoom')->info('Zoom AI Companion transcript accepted.', [
+                'zoom_account_id' => $zoomAccount->id,
+                'transcript_id' => $transcript->id,
+                'meeting_id' => $transcript->meeting_id,
+                'meeting_uuid' => $transcript->meeting_uuid,
+                'calendar_record_id' => $transcript->calendar_record_id,
+            ]);
+
+            return response()->json(['message' => 'data_received'], 200);
         }
 
         if(($data['event'] ?? null) === 'meeting.summary_completed'){

@@ -694,22 +694,22 @@ class FlowService
 
     /**
      * Base query: definition scope + view filters + ad-hoc filter + keyword search (no ordering).
+     * $filterLogic: how the view's own conditions combine ('and'|'or').
      * $adhocFilter (optional): ['logic' => 'and'|'or', 'conditions' => [same shape as $filters]] —
-     * the search bar's quick filter. Unlike the view's own filters (always AND), its conditions
-     * combine via the chosen logic, applied as one extra AND-ed group alongside everything else.
+     * the search bar's quick filter, applied as one extra AND-ed group alongside everything else.
+     * So an OR view filtered by an OR ad-hoc reads as (a OR b) AND (c OR d), and each group stays
+     * self-contained rather than the two OR-ing into each other.
      */
-    public function recordListQuery(FlowDefinition $definition, array $filters, string $search, ?array $adhocFilter = null)
+    public function recordListQuery(FlowDefinition $definition, array $filters, string $search, ?array $adhocFilter = null, string $filterLogic = 'and')
     {
         $fieldsById = ($definition->relationLoaded('fields') ? $definition->fields : $definition->fields()->get())->keyBy('id');
         // Qualify the column — a sort on the $status column left-joins flow_statuses,
         // which also has a flow_definition_id (otherwise "ambiguous column" in SQL).
         $q = FlowRecord::where('flow_records.flow_definition_id', $definition->id);
 
-        foreach ($filters as $f) {
-            $this->applyFilterToQuery($q, $f, $fieldsById);
-        }
+        $this->applyConditionGroup($q, $filters, $filterLogic, $fieldsById);
         if ($adhocFilter) {
-            $this->applyAdhocFilterToQuery($q, $adhocFilter, $fieldsById);
+            $this->applyConditionGroup($q, $adhocFilter['conditions'] ?? [], $adhocFilter['logic'] ?? 'and', $fieldsById);
         }
 
         $kw = trim($search);
@@ -778,19 +778,22 @@ class FlowService
     }
 
     /**
-     * Ad-hoc filter (search bar's quick filter): its conditions combine via a single chosen
-     * AND/OR, applied as one grouped clause so it AND-composes cleanly with the view's own
-     * (always-AND) filters and the keyword search built elsewhere in recordListQuery().
+     * One list of conditions combined by a single AND/OR, wrapped in its own grouped clause.
+     *
+     * The wrapping is what makes OR safe: without it an orWhere would escape the group and OR
+     * itself against the definition scope and keyword search, matching records from other apps.
+     * Used for both a view's saved filters and the search bar's ad-hoc filter, so the two read
+     * identically.
      */
-    private function applyAdhocFilterToQuery($q, array $adhoc, $fieldsById): void
+    private function applyConditionGroup($q, $conditions, string $logic, $fieldsById): void
     {
-        $conditions = is_array($adhoc['conditions'] ?? null) ? $adhoc['conditions'] : [];
+        $conditions = is_array($conditions) ? array_values($conditions) : [];
         if (! $conditions) {
             return;
         }
-        $isOr = ($adhoc['logic'] ?? 'and') === 'or';
+        $isOr = $logic === 'or';
         $q->where(function ($outer) use ($conditions, $fieldsById, $isOr) {
-            foreach (array_values($conditions) as $i => $f) {
+            foreach ($conditions as $i => $f) {
                 $method = ($isOr && $i > 0) ? 'orWhere' : 'where';
                 $outer->$method(function ($sub) use ($f, $fieldsById) {
                     $this->applyFilterToQuery($sub, $f, $fieldsById);

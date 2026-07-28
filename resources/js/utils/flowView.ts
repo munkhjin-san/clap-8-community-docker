@@ -99,8 +99,17 @@ export const matchesFilter = (rec: FlowRecordDto, f: FlowViewFilter): boolean =>
     }
 }
 
-export const applyFilters = (records: FlowRecordDto[], filters?: FlowViewFilter[] | null): FlowRecordDto[] =>
-    !filters?.length ? records : records.filter((r) => filters.every((f) => matchesFilter(r, f)))
+/** A view's saved filters, combined by the view's own AND/OR — mirrors FlowService::applyConditionGroup. */
+export const applyFilters = (
+    records: FlowRecordDto[],
+    filters?: FlowViewFilter[] | null,
+    logic: 'and' | 'or' = 'and',
+): FlowRecordDto[] =>
+    !filters?.length
+        ? records
+        : logic === 'or'
+            ? records.filter((r) => filters.some((f) => matchesFilter(r, f)))
+            : records.filter((r) => filters.every((f) => matchesFilter(r, f)))
 
 /** Ad-hoc filter (from the search bar's ⚲ icon): same per-condition semantics as a view's filters,
  *  but the conditions combine via a single chosen AND/OR rather than always-AND. */

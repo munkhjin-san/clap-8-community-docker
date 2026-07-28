@@ -314,7 +314,7 @@ const page = ref(1)
 
 // Client mode only (apps with record-level perms return the full visible set): filter+search+sort locally.
 const filteredClient = computed(() => {
-    let list = applyFilters(records.value, activeView.value?.filters)
+    let list = applyFilters(records.value, activeView.value?.filters, activeView.value?.filter_logic === 'or' ? 'or' : 'and')
     list = applyAdhocFilter(list, adhocFilter)
     const kw = search.value.trim().toLowerCase()
     if (kw) {
