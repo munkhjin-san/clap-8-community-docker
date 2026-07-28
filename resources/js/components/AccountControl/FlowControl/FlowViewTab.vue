@@ -12,6 +12,7 @@
             >
                 <span class="vt-item-name">{{ v.name || '(名称未設定)' }}</span>
                 <span v-if="v.is_default" class="vt-badge">既定</span>
+                <button class="vt-dup" @click.stop="duplicateView(i)" title="複製"><Duplicate :size="9" /></button>
                 <button v-if="def.views.length > 1" class="vt-del" @click.stop="removeView(i)" title="削除"><CloseIcon size="9" /></button>
             </div>
             <button class="vt-add" @click="addView">＋ ビューを追加</button>
@@ -96,6 +97,7 @@ import {
 import type { BuilderDefinition, BuilderView, FlowViewOperator, FlowOptionUser } from '@/types/flow'
 import { operatorsForType, allColumnRefs } from '@/utils/flowView'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
+import Duplicate from '@/components/Icons/Duplicate.vue'
 import FilterValue from './FlowViewFilterValue.vue'
 import FlowSearchSelect from './FlowSearchSelect.vue'
 
@@ -175,6 +177,20 @@ const addView = () => {
     props.def.views.push({ name: 'ビュー' + (props.def.views.length + 1), is_default: false, columns: [], filters: [], sort: [] })
     selected.value = props.def.views.length - 1
 }
+/** Copy a view's columns/filters/sort into a new one. Deep-cloned so editing the copy can't
+ *  mutate the source's nested filter/sort objects; never inherits 既定 (only one view holds it). */
+const duplicateView = (i: number) => {
+    const src = props.def.views[i]
+    props.def.views.splice(i + 1, 0, {
+        name: `${src.name || 'ビュー'} のコピー`,
+        is_default: false,
+        columns: [...src.columns],
+        filters: src.filters.map((f) => ({ ...f, values: [...f.values] })),
+        sort: src.sort.map((s) => ({ ...s })),
+    })
+    selected.value = i + 1
+}
+
 const removeView = (i: number) => {
     const wasDefault = props.def.views[i].is_default
     props.def.views.splice(i, 1)
@@ -202,6 +218,8 @@ watch(() => props.def.views.length, () => {
 .vt-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vt-badge { font-size: 10px; color: var(--primary-color); background: var(--bg3); border: 1px solid var(--primary-color); padding: 0 5px; border-radius: 8px; }
 .vt-del { border: none; background: none; color: gray; cursor: pointer; padding: 2px; display: flex; }
+.vt-dup { border: none; background: none; color: gray; cursor: pointer; padding: 2px; display: flex; fill: currentColor; }
+.vt-dup:hover { color: var(--primary-color); }
 .vt-add { width: 100%; box-sizing: border-box !important; margin-top: 6px; background: none; border: 1px dashed var(--formBorder); border-radius: 7px; padding: 8px; font-size: 12px; color: var(--primary-color); cursor: pointer; }
 
 .vt-editor { background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 10px; padding: 16px; }

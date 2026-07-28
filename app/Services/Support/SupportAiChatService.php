@@ -216,7 +216,7 @@ class SupportAiChatService
             'include' => ['file_search_call.results'],
             'store' => false,
             'metadata' => [
-                'feature' => 'support_ai_test',
+                'feature' => 'support_ai_chat',
                 'local_conversation_id' => (string) $conversation->id,
             ],
             'safety_identifier' => hash_hmac('sha256', (string) $user->id, (string) config('app.key')),
@@ -285,7 +285,7 @@ class SupportAiChatService
         SupportConversation $conversation,
         User $user,
     ): void {
-        Log::error('Support AI test chat request failed.', [
+        Log::error('Support AI chat request failed.', [
             'conversation_id' => $conversation->id,
             'user_id' => $user->id,
             'exception' => $exception->getMessage(),

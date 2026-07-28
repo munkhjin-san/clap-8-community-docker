@@ -24,7 +24,7 @@
                 </button>
                 <div class="support-ai-chat__header-copy">
                     <div class="support-ai-chat__title">
-                        <h1>{{ activeConversation?.title || 'AIチャット（BETA）' }}</h1>
+                        <h1>{{ activeConversation?.title || 'AIチャット' }}</h1>
                         <button
                             v-if="activeConversation"
                             type="button"
@@ -129,13 +129,13 @@ const starterPrompts = computed(() => {
 })
 
 /**
- * Load application-owned test conversations.
+ * Load application-owned support conversations.
  */
 const loadConversations = async () => {
     loadingHistory.value = true
 
     try {
-        const data = await api.get('/support/ai-test/conversations', null, { silent: true })
+        const data = await api.get('/support/ai/conversations', null, { silent: true })
 
         if (!Array.isArray(data)) {
             throw new Error('The conversation history response is not an array.')
@@ -264,7 +264,7 @@ const deleteConversation = async (conversation: Conversation) => {
         })
         if (!decision.value) return
 
-        await api.del(`/support/ai-test/conversations/${conversation.id}`, null, { silent: true })
+        await api.del(`/support/ai/conversations/${conversation.id}`, null, { silent: true })
         conversations.value = conversations.value.filter(item => item.id !== conversation.id)
 
         if (activeConversation.value?.id === conversation.id) {

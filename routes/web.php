@@ -188,7 +188,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
     Route::get('/notice/{id}', function ($id) {return redirect("/dashboard/notice?notice_id={$id}");});
 
     // API routes under /support must be registered before the SPA catch-all below.
-    Route::get('/support/ai-test/conversations', [SupportAiChatController::class, 'index']);
+    Route::get('/support/ai/conversations', [SupportAiChatController::class, 'index']);
 
     Route::get('/{name}/{any?}',[BoardController::class, "index"])
     ->whereIn('name', [
@@ -979,12 +979,11 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/openai/models', [OpenAiController::class, 'models']);
         Route::post('/suggest_challenge', [OpenAiController::class, 'suggest_challenge']);
         Route::get('/lunch_challenge_popup', [OpenAiController::class, 'lunch_challenge_popup']);
-        Route::post('/chatkit/session', [OpenAiController::class, 'session']);
-        Route::post('/support/ai-test/messages', [SupportAiChatController::class, 'send'])
+        Route::post('/support/ai/messages', [SupportAiChatController::class, 'send'])
             ->middleware('throttle:20,1');
-        Route::post('/support/ai-test/messages/stream', [SupportAiChatController::class, 'stream'])
+        Route::post('/support/ai/messages/stream', [SupportAiChatController::class, 'stream'])
             ->middleware('throttle:20,1');
-        Route::delete('/support/ai-test/conversations/{conversation}', [SupportAiChatController::class, 'destroy']);
+        Route::delete('/support/ai/conversations/{conversation}', [SupportAiChatController::class, 'destroy']);
 
         Route::get('/goal_issue_comment_badge', [ProjectController::class, 'goal_issue_comment_badge']);
         Route::post('/clear_goal_issue_badge', [ProjectController::class, 'clear_goal_issue_badge']);

@@ -5,6 +5,7 @@ import {
 import type {
     FlowField, FlowRecordDto, FlowViewApi, FlowViewFilter, FlowViewSort, FlowViewOperator, FlowAdhocFilter,
 } from '@/types/flow'
+import { isDynamicDate, matchesDynamicDate, resolveDynamicDate } from './flowDynamicDate'
 
 export interface ResolvedColumn {
     key: string          // unique key for v-for / sort tracking
@@ -73,6 +74,12 @@ export const matchesFilter = (rec: FlowRecordDto, f: FlowViewFilter): boolean =>
     const v = refValue(rec, f.field)
     const target = f.values ?? []
     const first = target[0]
+    // dynamic dates (今日/今月/…) resolve to a range, so they need range comparison rather than
+    // the scalar cases below — mirrors FlowService::applyDynamicDateOp on the server
+    if (isDynamicDate(first) && f.operator !== 'is_empty' && f.operator !== 'not_empty') {
+        const range = resolveDynamicDate(first, String(v ?? '').length > 10)
+        if (range) return matchesDynamicDate(v, f.operator, range)
+    }
     switch (f.operator) {
         case 'is_empty': return isBlank(v)
         case 'not_empty': return !isBlank(v)

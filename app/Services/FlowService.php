@@ -12,6 +12,7 @@ use App\Models\FlowStatus;
 use App\Models\FlowStatusAction;
 use App\Models\FlowView;
 use App\Models\User;
+use App\Support\FlowDynamicDate;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -807,6 +808,11 @@ class FlowService
 
         if (in_array($ref, ['$record_number', '$created_at', '$updated_at'], true)) {
             $col = $ref === '$record_number' ? 'record_number' : ($ref === '$created_at' ? 'created_at' : 'updated_at');
+            if ($col !== 'record_number' && FlowDynamicDate::isDynamic($first)) {
+                $this->applyDynamicDateOp($q, $col, $op, FlowDynamicDate::resolve($first, true));
+
+                return;
+            }
             $this->applyScalarOp($q, $col, $op, $first);
 
             return;
@@ -843,9 +849,36 @@ class FlowService
                     }
                 });
             });
+        } elseif (in_array($field->input_type, ['date', 'datetime'], true) && FlowDynamicDate::isDynamic($first)) {
+            $range = FlowDynamicDate::resolve($first, $field->input_type === 'datetime');
+            $q->whereHas('values', fn ($v) => $this->applyDynamicDateOp($v->where('flow_field_id', $fid), $col, $op, $range));
         } else {
             $q->whereHas('values', fn ($v) => $this->applyScalarOp($v->where('flow_field_id', $fid), $col, $op, $first));
         }
+    }
+
+    /**
+     * Comparison against a resolved dynamic-date [start, end] range.
+     *
+     * A period is a span, so the operators read against its edges: "以上 今月" means from the 1st
+     * onwards, while "より大きい 今月" means strictly after the month ends. equals = falls anywhere
+     * inside it, which is what 「今月」 means in a filter.
+     */
+    private function applyDynamicDateOp($q, string $col, string $op, ?array $range)
+    {
+        if (! $range) {
+            return $q;
+        }
+        [$start, $end] = $range;
+
+        return match ($op) {
+            'not_equals' => $q->where(fn ($w) => $w->whereNotBetween($col, [$start, $end])->orWhereNull($col)),
+            'gt' => $q->where($col, '>', $end),
+            'gte' => $q->where($col, '>=', $start),
+            'lt' => $q->where($col, '<', $start),
+            'lte' => $q->where($col, '<=', $end),
+            default => $q->whereBetween($col, [$start, $end]),
+        };
     }
 
     private function applyScalarOp($q, string $col, string $op, $first)

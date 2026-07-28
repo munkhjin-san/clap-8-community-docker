@@ -15,8 +15,21 @@
 
     <!-- typed inputs -->
     <input v-else-if="type === 'number' || type === '$number'" type="number" v-model="single" class="custom-a-input !box-border w-full">
-    <input v-else-if="type === 'date'" type="date" v-model="single" class="custom-a-input !box-border w-full" :style="{ colorScheme: nativeScheme }">
-    <input v-else-if="type === 'datetime' || type === '$datetime'" type="datetime-local" v-model="single" class="custom-a-input !box-border w-full" :style="{ colorScheme: nativeScheme }">
+    <!-- date/datetime: pick a moving target (今日/今月/…) or a fixed date. A saved view with 今月
+         keeps meaning "this month" next month; a fixed date would silently go stale. -->
+    <div v-else-if="isDateType" class="fv-date">
+        <select :value="dateMode" class="custom-a-input !box-border w-full" @change="onDateModeChange">
+            <option value="fixed">日付を指定</option>
+            <option v-for="(label, token) in DYNAMIC_DATE_TOKENS" :key="token" :value="token">{{ label }}</option>
+        </select>
+        <input
+            v-if="dateMode === 'fixed'"
+            :type="type === 'date' ? 'date' : 'datetime-local'"
+            v-model="single"
+            class="custom-a-input !box-border w-full"
+            :style="{ colorScheme: nativeScheme }"
+        >
+    </div>
     <input v-else-if="type === 'time'" type="time" v-model="single" class="custom-a-input !box-border w-full" :style="{ colorScheme: nativeScheme }">
     <select v-else-if="type === 'toggle'" v-model="single" class="custom-a-input !box-border w-full">
         <option value="true">オン</option>
@@ -31,6 +44,7 @@ import { isSystemColumn, FLOW_SYS_STATUS } from '@/types/flow'
 import type { FlowField, FlowOptionUser, FlowViewOperator } from '@/types/flow'
 import FlowSearchSelect from './FlowSearchSelect.vue'
 import { useTheme } from '@/store/theme'
+import { DYNAMIC_DATE_PREFIX, DYNAMIC_DATE_TOKENS, isDynamicDate } from '@/utils/flowDynamicDate'
 
 const props = defineProps<{
     fieldRef: number | string
@@ -61,6 +75,17 @@ const userOptions = computed(() => (props.users || []).map((u) => ({ value: u.id
 const optionChoices = computed(() => options.value.map((o) => ({ value: o, label: o })))
 const multiMode = computed(() => props.operator === 'includes_any')
 
+/* ---- date / datetime: fixed value vs dynamic token ---- */
+const isDateType = computed(() => ['date', 'datetime', '$datetime'].includes(type.value))
+// the stored value IS the mode: "@today" => dynamic, anything else => a fixed date
+const dateMode = computed(() => (isDynamicDate(props.modelValue?.[0]) ? String(props.modelValue[0]).slice(1) : 'fixed'))
+const onDateModeChange = (e: Event) => {
+    const mode = (e.target as HTMLSelectElement).value
+    // switching to a token replaces the value outright; switching back clears it so the
+    // date input starts empty rather than showing a stale "@today"
+    emit('update:modelValue', mode === 'fixed' ? [] : [DYNAMIC_DATE_PREFIX + mode])
+}
+
 const single = computed({
     get: () => (props.modelValue?.[0] ?? '') as any,
     set: (v: any) => emit('update:modelValue', v === '' || v == null ? [] : [v]),
@@ -84,6 +109,14 @@ const toggle = (o: string) => {
 </script>
 
 <style scoped>
+/* mode + date sit side by side. The minimums are floors, not guesses at a split: a native date
+   input needs ~135px to show 2026/07/28 plus its picker icon, and squeezing it below that clips
+   the day silently. Where the cell can't seat both (the ad-hoc filter modal), they wrap instead. */
+.fv-date { display: flex; flex-wrap: wrap; gap: 6px; }
+/* explicit bases, not auto: both children carry w-full, and `flex-basis: auto` would resolve to
+   that 100% and push each onto its own row even in a cell with room for the pair */
+.fv-date > select { flex: 1 1 100px; min-width: 100px; }
+.fv-date > input { flex: 1 1 135px; min-width: 135px; }
 .fv-multi { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0; }
 .fv-opt { font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .fv-userlist { min-height: 64px; }
