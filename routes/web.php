@@ -445,6 +445,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/calendar_more_users', [CalendarController::class, 'calendar_more_users']);
         Route::get('/get_possible_groups', [CalendarController::class, 'get_possible_groups']);
         Route::post('/set_more_members', [CalendarController::class, 'set_more_members']);
+        Route::post('/select_my_group', [CalendarController::class, 'select_my_group']);
+        Route::post('/update_calendar_extra_users', [CalendarController::class, 'update_calendar_extra_users']);
         Route::post('/delete_my_group', [CalendarController::class, 'delete_my_group']);
         Route::post('/get_calendar_search', [CalendarController::class, 'get_calendar_search']);
         Route::post('/get_all_facilities', [CalendarController::class, 'get_all_facilities']);
@@ -452,6 +454,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/calendar_delete_record', [CalendarController::class, 'calendar_delete_record']);
         Route::get('/get_departments_calendar', [CalendarController::class, 'get_departments_calendar']);
         Route::get('/get_schedule_summaries', [CalendarController::class, 'get_schedule_summaries']);
+        Route::post('/generate_transcript_ai_summary', [CalendarController::class, 'generate_transcript_ai_summary']);
         Route::put('/save_edited_summary', [CalendarController::class, 'save_edited_summary']);
         Route::delete('/delete_schedule_summary', [CalendarController::class, 'delete_schedule_summary']);
         Route::post('/calendar_temp_reserve', [CalendarController::class, 'calendar_temp_reserve']);

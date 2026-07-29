@@ -11,7 +11,8 @@ const list = ref<FacilityData>({
 
 const myGroupData = ref<{
     all_members: User[],
-    my_groups: CalendarGroup[]
+    my_groups: CalendarGroup[],
+    extra_users: number[]
 }>()
 
 
@@ -31,7 +32,11 @@ export function useCalendar() {
 
     const getMyGroupData = async () => {
         try {
-            await axios.post('/get_my_groups').then(res => myGroupData.value = res.data)
+            await axios.post('/get_my_groups').then(res => {
+                myGroupData.value = res.data
+                // 追加ユーザーはサーバー保存なので、取得のたびに同期する
+                extraUserIds.value = Array.isArray(res.data?.extra_users) ? res.data.extra_users : []
+            })
         } catch (e) {}
     }
 
@@ -65,14 +70,6 @@ export function useCalendar() {
         }
     }
 
-    const toggleExtraUser = (id: number) => {
-        if (extraUserIds.value.includes(id)) {
-            extraUserIds.value = extraUserIds.value.filter((userId) => userId !== id)
-        } else {
-            extraUserIds.value.push(id)
-        }
-    }
-
     const draggingCalendar = computed(() => {
         return dragItem.value
     })
@@ -93,8 +90,7 @@ export function useCalendar() {
         setDraggingCalendar,
         getMyGroupData,
         myGroupData,
-        extraUserIds,
-        toggleExtraUser
+        extraUserIds
     }
 
 }

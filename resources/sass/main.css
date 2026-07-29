@@ -5916,7 +5916,7 @@ input:-webkit-autofill:active {
   left: 0;
   top: 35px;
   z-index: 20;
-  background: var(--bg3);
+  background: var(--background-color);
   left: 15px;
   box-shadow: rgba(0, 0, 0, 0.24) 0px 3px 8px;
 }

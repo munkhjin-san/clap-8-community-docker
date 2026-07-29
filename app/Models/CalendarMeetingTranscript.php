@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class CalendarMeetingTranscript extends Model
 {
@@ -33,5 +34,10 @@ class CalendarMeetingTranscript extends Model
     public function zoomAccount(): BelongsTo
     {
         return $this->belongsTo(ZoomAccount::class);
+    }
+
+    public function aiSummary(): HasOne
+    {
+        return $this->hasOne(CalendarMeetingTranscriptSummary::class);
     }
 }

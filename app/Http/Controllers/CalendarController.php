@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\GenerateTranscriptAiSummary;
 use App\Models\CalendarMeetingSummary;
 use App\Models\CalendarMeetingTranscript;
+use App\Models\CalendarMeetingTranscriptSummary;
 use App\Models\CalendarFacility;
 use App\Models\ProjectRecord;
 use App\Models\ZoomAccount;
@@ -13,6 +15,7 @@ use Illuminate\Http\Request;
 use App\Models\CalendarRecord;
 use App\Models\CalendarGroup;
 use App\Models\User;
+use App\Models\CalendarExtraUser;
 use App\Models\MyGroup;
 use App\Models\MyWorkGroup;
 use App\Models\boardRecord;
@@ -45,6 +48,20 @@ class CalendarController extends Controller
         }else{
             return Auth::user();
         }
+    }
+    private function authorizeMeetingRecordView(CalendarRecord $record): User
+    {
+        $activeUser = $this->active_user();
+        $members = $record->calendar_users()->pluck('id')->toArray();
+        $viewUsers = $record->calendar_view_users()->pluck('id')->toArray();
+        $override = [608, 610];
+        $allowedUsers = array_merge($members, $viewUsers, $override);
+
+        if (! in_array($activeUser->id, $allowedUsers)) {
+            throw ValidationException::withMessages(['message' => '閲覧権限がありません。']);
+        }
+
+        return $activeUser;
     }
     private function zoom_account($index){
         $account = $this->zoomApi->accountForSlot((int) $index);
@@ -239,19 +256,10 @@ class CalendarController extends Controller
             'day' => 'required',
         ]);
         $active_user = $this->active_user();
-        $myGroupCheck = MyGroup::where('user_id', $active_user->id)->exists();
-        
-        if(!$myGroupCheck){
-            
-            $newMyGroup = MyGroup::create([
-                'user_id' => $active_user->id,
-                'name' =>  'マイグループ',
-                'selected' => true
-            ]);
-            $newMyGroup->users()->syncWithPivotValues([$active_user->id], ['selected_as_calendar_member' => 1, "created_at" => now()]); 
-        }        
-        $gr = MyGroup::where('user_id', $active_user->id)
-                    // ->where('selected', true)
+        $this->ensure_active_my_group($active_user);
+
+        $gr = $this->my_groups_query($active_user)
+                    ->where('selected', true)
                     ->with('selected_users')
                     ->get()
                     ->pluck('selected_users.*.id')
@@ -263,7 +271,10 @@ class CalendarController extends Controller
         
         $my_group_ids = $gr ?? [];
 
-        $extra_users = is_array($request->extra_users) ? array_map('intval', $request->extra_users) : [];
+        // 保存済みの追加ユーザーとリクエスト分を合わせる。
+        // （トグル直後の再取得がPOST完了前に走っても表示が欠けないように両方見る）
+        $requested_extras = is_array($request->extra_users) ? array_map('intval', $request->extra_users) : [];
+        $extra_users = array_unique(array_merge($this->calendar_extra_user_ids($active_user), $requested_extras));
 
         $list = array_merge($my_group_ids, $work_group_users_id, $extra_users);
         $date = $request["day"];
@@ -788,7 +799,61 @@ class CalendarController extends Controller
         foreach($targetUsersMail as $to){
             Mail::to($to)->send(new Calendar( $details, $title, $type, $rec['temp_flag']));
         }
+
+        // 新規作成のときだけ「よく一緒の人」スコアを進める（編集・削除は追わない）
+        if(!$has_prev_date){
+            $this->bump_calendar_favourites($targetIds);
+        }
+
         return $records;
+    }
+    /**
+     * ユーザー一覧の並び順に使うスコアを、新しく作られた予定の分だけ進める。
+     * 正確さは求めない：窓（直近N ヶ月）のスライドや編集・削除の反映は
+     * calendar:rebuild-favourites の作り直しに任せる。
+     */
+    private function bump_calendar_favourites($user_ids): void
+    {
+        try {
+            $ids = User::whereIn('id', collect(is_array($user_ids) ? $user_ids : [])->map(fn($id) => (int) $id)->unique()->all())
+                    ->where('retire', 0)
+                    ->where('deleted_flag', 0)
+                    ->orderBy('id')
+                    ->pluck('id')
+                    ->map(fn($id) => (int) $id)
+                    ->all();
+
+            // 1人だけの予定と、11人以上の大きい会議は並び順の参考にならないので無視する
+            $count = count($ids);
+            if($count < 2 || $count > 10){
+                return;
+            }
+
+            $weight = 1 / ($count - 1);
+            $now = now()->toDateTimeString();
+            $rows = [];
+            for($i = 0; $i < $count; $i++){
+                for($j = $i + 1; $j < $count; $j++){
+                    $rows[] = [$ids[$i], $ids[$j], $weight, 1, $now, $now, $now];
+                    $rows[] = [$ids[$j], $ids[$i], $weight, 1, $now, $now, $now];
+                }
+            }
+
+            $placeholders = implode(',', array_fill(0, count($rows), '(?,?,?,?,?,?,?)'));
+            DB::statement("
+                INSERT INTO calendar_favourite_users
+                    (owner_id, member_id, score, shared_count, last_together_at, created_at, updated_at)
+                VALUES {$placeholders} AS new
+                ON DUPLICATE KEY UPDATE
+                    score = calendar_favourite_users.score + new.score,
+                    shared_count = calendar_favourite_users.shared_count + new.shared_count,
+                    last_together_at = GREATEST(COALESCE(calendar_favourite_users.last_together_at, new.last_together_at), new.last_together_at),
+                    updated_at = new.updated_at
+            ", array_merge(...$rows));
+        } catch (\Throwable $e) {
+            // 並び順のためだけの処理なので、失敗しても予定作成は通す
+            \Illuminate\Support\Facades\Log::warning('bump_calendar_favourites failed', ['error' => $e->getMessage()]);
+        }
     }
     private function time_parser($instance, $time){               
         list($hour, $minute) = explode(':', $time);
@@ -991,22 +1056,120 @@ class CalendarController extends Controller
 
         return response()->json($items);       
     }
-    public function get_my_groups(Request $request){
+    private function my_groups_query($active_user){
+        return MyGroup::where('user_id', $active_user->id)->where('deleted_flag', 0);
+    }
+    /**
+     * カレンダーのマイグループは常に1つだけが選択中。
+     * グループが無ければ既定グループを作り、選択中が0件/2件以上なら1件に正す。
+     */
+    private function ensure_active_my_group($active_user){
+        $groups = $this->my_groups_query($active_user)->orderBy('id')->get();
 
-        $members = User::where('retire', 0)
-                        ->where('deleted_flag', 0)
-                        ->select('id', 'name', 'icon_path', 'icon_bg')
-                        ->where('id', '>', 105)
+        if($groups->isEmpty()){
+            $newMyGroup = MyGroup::create([
+                'user_id' => $active_user->id,
+                'name' =>  'マイグループ',
+                'selected' => true
+            ]);
+            $newMyGroup->users()->attach([$active_user->id], ['selected_as_calendar_member' => 1, 'created_at' => now(), 'updated_at' => now()]);
+            return $newMyGroup;
+        }
+
+        $selected = $groups->where('selected', 1);
+
+        // 既に1件だけ選択されていれば何も書き換えない（読み取り系から呼ばれても副作用なし）
+        if($selected->count() === 1){
+            return $selected->first();
+        }
+
+        // 0件/2件以上のときだけ修復する。updated_at が新しい方＝ユーザーが最後に選んだ物を残すので、
+        // 同時リクエストが選択を書き換えても、それを id 順で踏み潰さない。
+        $candidates = $selected->isNotEmpty() ? $selected : $groups;
+        $active = $candidates->sortByDesc(fn($group) => $group->updated_at)->first();
+
+        $this->my_groups_query($active_user)->whereNot('id', $active->id)->update(['selected' => false]);
+        if(!$active->selected){
+            $active->selected = true;
+            $active->save();
+        }
+
+        return $active;
+    }
+    public function get_my_groups(Request $request){
+        $active_user = $this->active_user();
+        $this->ensure_active_my_group($active_user);
+
+        // よく一緒に予定を入れる人を先に出す（全ユーザータブが数百件あって探しづらいため）
+        $members = User::where('users.retire', 0)
+                        ->where('users.deleted_flag', 0)
+                        ->where('users.id', '>', 105)
+                        ->leftJoin('calendar_favourite_users as fav', function($join) use ($active_user) {
+                            $join->on('fav.member_id', '=', 'users.id')
+                                 ->where('fav.owner_id', '=', $active_user->id);
+                        })
+                        ->select('users.id', 'users.name', 'users.icon_path', 'users.icon_bg')
+                        ->orderByDesc('fav.score')
+                        // スコアが無い人は社員→協力会社の順、その中は名前順にする
+                        ->orderBy('users.partner_flag')
+                        ->orderBy('users.name')
                         ->get();
-        $groups = MyGroup::where('user_id', $this->active_user()->id)->where('deleted_flag', 0)->with('users')->get();
+        $groups = $this->my_groups_query($active_user)->orderBy('id')->with('users')->get();
         $res = [
             "my_groups" => $groups,
             "all_members" => $members,
-            "work_groups" => [],
-            "my_work_groups" => []
+            "extra_users" => $this->calendar_extra_user_ids($active_user),
         ];
-        
-        return response()->json($res); 
+
+        return response()->json($res);
+    }
+    private function calendar_extra_user_ids($active_user){
+        return CalendarExtraUser::where('user_id', $active_user->id)
+                ->pluck('member_id')
+                ->map(fn($id) => (int) $id)
+                ->values()
+                ->all();
+    }
+    /**
+     * マイグループ外から一時的に足した表示メンバーの追加・削除。
+     * member_id = -1 かつ value=false で全解除。
+     */
+    public function update_calendar_extra_users(Request $request){
+        $active_user = $this->active_user();
+        $add = filter_var($request->value, FILTER_VALIDATE_BOOLEAN);
+        $member_id = (int) $request->member_id;
+
+        if($member_id === -1){
+            if(!$add){
+                CalendarExtraUser::where('user_id', $active_user->id)->delete();
+            }
+            return response()->json($this->calendar_extra_user_ids($active_user));
+        }
+
+        if($add){
+            $exists = User::where('id', $member_id)->where('retire', 0)->where('deleted_flag', 0)->exists();
+            if(!$exists){
+                return response()->json(['message' => '対象のユーザーが見つかりません。'], 422);
+            }
+            CalendarExtraUser::firstOrCreate([
+                'user_id' => $active_user->id,
+                'member_id' => $member_id
+            ]);
+        }else{
+            CalendarExtraUser::where('user_id', $active_user->id)->where('member_id', $member_id)->delete();
+        }
+
+        return response()->json($this->calendar_extra_user_ids($active_user));
+    }
+    public function select_my_group(Request $request){
+        $active_user = $this->active_user();
+        $group = $this->my_groups_query($active_user)->findOrFail($request->id);
+
+        $this->my_groups_query($active_user)->update(['selected' => false]);
+        $group->selected = true;
+        $group->save();
+
+        return response()->json($group);
     }
     public function select_work_group(Request $request){
         $active_user = $this->active_user();
@@ -1019,39 +1182,48 @@ class CalendarController extends Controller
         return response()->json($create); 
     }
     public function update_selected_calendar_members(Request $request){
-        if($request->user_id == -1){
-            $user = MyGroup::findOrFail($request->group_id);
-            $rec = $user->users()->update([
-                'updated_at' => now(),
-                'selected_as_calendar_member' => $request->value
-            ]);
-           
-            if($request->by == 'byGroup'){
-                $user->update(['selected' => $request->value]);
-                // $unselect = MyGroup::where('user_id', $this->active_user()->id)->whereNot('id', $request->group_id)->update(['selected' => false]);
-            }
-            
-            return response()->json($user);
-        }else{
-            $user = MyGroup::findOrFail($request->group_id);
-            $rec = $user->users()->where('user_id', $request->user_id)->update([
-                'updated_at' => now(),
-                'selected_as_calendar_member' => $request->value
-            ]);
-            // $unselect = MyGroup::where('user_id', $this->active_user()->id)->whereNot('id', $request->group_id)->update(['selected' => false]);
-            return response()->json($rec); 
+        $active_user = $this->active_user();
+        $group = $this->my_groups_query($active_user)->findOrFail($request->group_id);
+        $value = filter_var($request->value, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+
+        $pivots = DB::table('my_group_users')
+                    ->where('record_id', $group->id)
+                    ->whereNull('deleted_at');
+
+        // user_id = -1 はグループ全員が対象
+        if($request->user_id != -1){
+            $pivots->where('user_id', (int) $request->user_id);
         }
-        
-    } 
+
+        $rec = $pivots->update([
+            'selected_as_calendar_member' => $value,
+            'updated_at' => now()
+        ]);
+
+        return response()->json($rec);
+    }
     public function delete_my_group(Request $request){
-        $groups = MyGroup::findOrFail($request->id);
-        $groups->users()->detach();
-        $groups->delete();
-        return response()->json($groups); 
+        $active_user = $this->active_user();
+        $group = $this->my_groups_query($active_user)->findOrFail($request->id);
+        $was_selected = (bool) $group->selected;
+
+        $group->users()->detach();
+        $group->deleted_flag = 1;
+        $group->save();
+        $group->delete();
+
+        // 選択中グループを消した場合は別のグループへ選択を移す（0件なら既定グループを再作成）
+        if($was_selected){
+            $this->ensure_active_my_group($active_user);
+        }
+
+        return response()->json($group);
     }
     public function calendar_more_users(Request $request){
-        $user = MyGroup::where('user_id', $this->active_user()->id)->latest()->first();
-        $rec = $user->users()->pluck('id')->toArray();        
+        $active_user = $this->active_user();
+        $user = $this->my_groups_query($active_user)->where('selected', 1)->first()
+                ?? $this->my_groups_query($active_user)->latest()->first();
+        $rec = $user ? $user->users()->pluck('id')->toArray() : [];
         $close_users = User::whereIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_path', 'icon_bg')->get();
         $other_users = User::whereNotIn('id', $rec)->where('retire', 0)->where('deleted_flag', 0)->where('id', '>', 105)->select('id', 'name', 'icon_path', 'icon_bg')->get();
         $merged_users = $close_users->concat($other_users)->toArray();
@@ -1060,19 +1232,38 @@ class CalendarController extends Controller
     public function set_more_members(Request $request){
         $active_user = $this->active_user();
         if($request->id){
-            $group = MyGroup::findOrFail($request->id);
-          
+            $group = $this->my_groups_query($active_user)->findOrFail($request->id);
         }else{
             $group = new MyGroup;
             $group->user_id = $active_user->id;
-            
         }
         $group->selected = true;
         $group->name = $request->title;
         $group->save();
-        $group->users()->syncWithPivotValues($request->users, ['selected_as_calendar_member' => 1, "created_at" => now()]);  
-        $unselect = MyGroup::where('user_id', $active_user->id)->whereNot('id', $group->id)->update(['selected' => false]);
-        return response()->json($request->users); 
+
+        $requested = collect($request->users ?? [])->map(fn($id) => (int) $id)->unique()->values();
+        $current = collect(
+                        DB::table('my_group_users')
+                            ->where('record_id', $group->id)
+                            ->whereNull('deleted_at')
+                            ->pluck('selected_as_calendar_member', 'user_id')
+                    )->mapWithKeys(fn($selected, $user_id) => [(int) $user_id => (int) $selected]);
+
+        $removed = $current->keys()->reject(fn($id) => $requested->contains($id))->values();
+        $added   = $requested->reject(fn($id) => $current->has($id))->values();
+
+        if($removed->isNotEmpty()){
+            $group->users()->detach($removed->all());
+        }
+        // 新しく追加したメンバーだけ表示ONで始める。
+        // 既存メンバーには触らないので、個別に外した表示設定はそのまま残る。
+        if($added->isNotEmpty()){
+            $group->users()->attach($added->all(), ['selected_as_calendar_member' => 1, 'created_at' => now(), 'updated_at' => now()]);
+        }
+
+        $this->my_groups_query($active_user)->whereNot('id', $group->id)->update(['selected' => false]);
+
+        return response()->json($group->load('users'));
     }
     public function get_calendar_search(Request $request){
         $active_user = $this->active_user();
@@ -1317,18 +1508,8 @@ class CalendarController extends Controller
         return response()->json($sortedProjects);
     }
     public function get_schedule_summaries(Request $request){
-        $active_user = $this->active_user();
-
         $record = CalendarRecord::findOrFail($request->id);
-
-        $members = $record->calendar_users()->pluck('id')->toArray();
-        $view_users = $record->calendar_view_users()->pluck('id')->toArray();
-        $override = [608, 610];
-        $all_users = array_merge($members, $view_users, $override);
-        $hasPrivilage = in_array($active_user->id, $all_users);
-        if(!$hasPrivilage){
-            throw ValidationException::withMessages(['message' => '閲覧権限がありません。']);
-        }
+        $this->authorizeMeetingRecordView($record);
         $recordDate = Carbon::parse($record->date_start, config('app.timezone'));
         $summaryDayStart = $recordDate->copy()->startOfDay();
         $summaryDayEnd = $recordDate->copy()->endOfDay();
@@ -1341,6 +1522,7 @@ class CalendarController extends Controller
         $transcripts = $record->transcripts()
             ->where('status', CalendarMeetingTranscript::STATUS_DOWNLOADED)
             ->whereNotNull('storage_path')
+            ->with('aiSummary')
             ->orderBy('meeting_start_time')
             ->get()
             ->map(function (CalendarMeetingTranscript $transcript): array {
@@ -1356,6 +1538,7 @@ class CalendarController extends Controller
                     'meeting_start_time' => $transcript->meeting_start_time?->toISOString(),
                     'downloaded_at' => $transcript->downloaded_at?->toISOString(),
                     'cues' => $this->zoomVttParser->parse($content),
+                    'ai_summary' => $this->serializeTranscriptAiSummary($transcript->aiSummary),
                 ];
             })
             ->values();
@@ -1364,6 +1547,121 @@ class CalendarController extends Controller
             'summaries' => $summaries,
             'transcripts' => $transcripts,
         ]);
+    }
+
+    public function generate_transcript_ai_summary(Request $request)
+    {
+        $validated = $request->validate([
+            'transcript_id' => ['required', 'integer'],
+            'regenerate' => ['sometimes', 'boolean'],
+        ]);
+
+        $transcript = CalendarMeetingTranscript::query()
+            ->with('calendarRecord')
+            ->findOrFail($validated['transcript_id']);
+        $record = $transcript->calendarRecord;
+
+        if (! $record) {
+            throw ValidationException::withMessages([
+                'message' => 'この文字起こしに対応するスケジュールがありません。',
+            ]);
+        }
+
+        $activeUser = $this->authorizeMeetingRecordView($record);
+        if (
+            $transcript->status !== CalendarMeetingTranscript::STATUS_DOWNLOADED
+            || ! $transcript->storage_path
+            || ! Storage::disk('local')->exists($transcript->storage_path)
+        ) {
+            throw ValidationException::withMessages([
+                'message' => '要約できる文字起こしファイルがありません。',
+            ]);
+        }
+
+        $regenerate = (bool) ($validated['regenerate'] ?? false);
+        $transcriptHash = hash('sha256', Storage::disk('local')->get($transcript->storage_path));
+
+        $result = DB::transaction(function () use (
+            $transcript,
+            $activeUser,
+            $regenerate,
+            $transcriptHash,
+        ): array {
+            $summary = CalendarMeetingTranscriptSummary::query()
+                ->where('calendar_meeting_transcript_id', $transcript->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (
+                $summary
+                && in_array($summary->status, [
+                    CalendarMeetingTranscriptSummary::STATUS_PENDING,
+                    CalendarMeetingTranscriptSummary::STATUS_PROCESSING,
+                ], true)
+            ) {
+                return ['summary' => $summary, 'dispatch' => false, 'status' => 202];
+            }
+
+            if ($summary?->content && ! $regenerate) {
+                return ['summary' => $summary, 'dispatch' => false, 'status' => 409];
+            }
+
+            if (! $summary) {
+                $summary = new CalendarMeetingTranscriptSummary([
+                    'calendar_meeting_transcript_id' => $transcript->id,
+                    'generation' => 0,
+                ]);
+            }
+
+            $summary->forceFill([
+                'requested_by' => $activeUser->id,
+                'status' => CalendarMeetingTranscriptSummary::STATUS_PENDING,
+                'prompt_version' => (string) config(
+                    'services.openai.transcript_summary_prompt_version',
+                    'v1'
+                ),
+                'transcript_hash' => $transcriptHash,
+                'generation' => $summary->generation + 1,
+                'last_error' => null,
+                'requested_at' => now(),
+            ])->save();
+
+            return ['summary' => $summary, 'dispatch' => true, 'status' => 202];
+        });
+
+        /** @var CalendarMeetingTranscriptSummary $summary */
+        $summary = $result['summary'];
+        if ($result['dispatch']) {
+            GenerateTranscriptAiSummary::dispatch($summary->id, $summary->generation)->afterResponse();
+        }
+
+        return response()->json([
+            'ai_summary' => $this->serializeTranscriptAiSummary($summary),
+            'message' => $result['status'] === 409
+                ? '既存のAI要約を再生成するには確認が必要です。'
+                : 'AI要約の作成を開始しました。',
+        ], $result['status']);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function serializeTranscriptAiSummary(
+        ?CalendarMeetingTranscriptSummary $summary,
+    ): ?array {
+        if (! $summary) {
+            return null;
+        }
+
+        return [
+            'status' => $summary->status,
+            'content' => $summary->content,
+            'model' => $summary->model,
+            'prompt_version' => $summary->prompt_version,
+            'last_error' => $summary->last_error,
+            'requested_at' => $summary->requested_at?->toISOString(),
+            'completed_at' => $summary->completed_at?->toISOString(),
+        ];
     }
 
     public function save_edited_summary(Request $request){

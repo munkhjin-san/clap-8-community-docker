@@ -62,6 +62,10 @@ return [
     'openai' => [
         'api_key' => env('OPENAI_API_KEY'),
         'support_chat_model' => env('OPENAI_SUPPORT_CHAT_MODEL', 'gpt-5.6-terra'),
+        'transcript_summary_model' => env('OPENAI_TRANSCRIPT_SUMMARY_MODEL', 'gpt-5.6-terra'),
+        'transcript_summary_prompt_version' => env('OPENAI_TRANSCRIPT_SUMMARY_PROMPT_VERSION', 'v1'),
+        'transcript_summary_max_chunk_chars' => env('OPENAI_TRANSCRIPT_SUMMARY_MAX_CHUNK_CHARS', 60000),
+        'transcript_summary_max_output_tokens' => env('OPENAI_TRANSCRIPT_SUMMARY_MAX_OUTPUT_TOKENS', 7000),
         'organization' => env('OPENAI_ORGANIZATION'),
         'compare_model' => env('OPENAI_COMPARE_SUMMARY_MODEL', 'gpt-5.6-luna'),
         'prompts' => [
