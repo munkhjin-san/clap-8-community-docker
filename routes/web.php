@@ -1043,6 +1043,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/flow_definition_delete', [FlowController::class, 'deleteFlowDefinition']);
         Route::post('/flow_kintone_preview', [FlowController::class, 'kintonePreview']);
         Route::get('/flow_options', [FlowController::class, 'getFlowOptions']);
+        Route::get('/flow_record_search', [FlowController::class, 'searchFlowRecords']);
         Route::get('/flow_dashboard', [FlowController::class, 'getFlowDashboard']);
         // app runtime (records / views / actions / formula)
         Route::get('/flow_app_records/{definition}', [FlowController::class, 'getAppRecords']);

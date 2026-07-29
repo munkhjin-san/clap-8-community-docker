@@ -917,6 +917,22 @@ class FlowController extends Controller
         ]);
     }
 
+    /**
+     * 「レコードから検索」— keyword search over stored values in every app the user may view.
+     * Permission-scoped in the service (app view, record-level sets, per-field view; secrets and
+     * formulas excluded). `truncated` tells the UI the candidate cap was hit so it can say so
+     * rather than presenting a partial result as complete.
+     */
+    public function searchFlowRecords(Request $request)
+    {
+        $user = $this->active_user();
+        $kw = trim((string) $request->input('q', ''));
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = min(50, max(1, (int) $request->input('per_page', 20)));
+
+        return response()->json($this->flowService->searchRecordsAcrossApps($user, $kw, $page, $perPage));
+    }
+
     /** 自分待ち: records at a status where the current user can press a button. */
     public function getFlowDashboard()
     {
@@ -1909,6 +1925,8 @@ class FlowController extends Controller
      *  - scope: 'all' (default — the view's columns, table field included as a kintone-style
      *    multi-row block if present) | 'table' (only one chosen Table field's rows, merged across
      *    every record in range, with a leading ID + New-record-flag column for traceability)
+     *    | 'no_table' (the view's columns with Table fields dropped, so every record is exactly one
+     *    row — 'all' emits one row per subtable row, which is awkward to pivot on)
      *  - table_field_id: required when scope=table
      *
      * Export range (fields/filter/sort) follows the currently open view, UNLESS the caller passes
@@ -1943,7 +1961,7 @@ class FlowController extends Controller
             $records = $records->filter(fn ($r) => $this->flowService->recordPermissions($user, $r, $definition)['view'])->values();
         }
 
-        $scope = $request->input('scope') === 'table' ? 'table' : 'all';
+        $scope = in_array($request->input('scope'), ['table', 'no_table'], true) ? $request->input('scope') : 'all';
         $encoding = $request->input('encoding') === 'sjis' ? 'sjis' : 'utf8';
 
         if ($scope === 'table') {
@@ -1952,6 +1970,14 @@ class FlowController extends Controller
             [$headers, $rows] = $this->buildTableOnlyExportRows($definition, $tableField, $records);
         } else {
             $columns = $this->flowService->resolveExportColumns($definition, $view, $hasStatus);
+            if ($scope === 'no_table') {
+                // dropping the Table columns is all it takes: the row builder already emits a single
+                // row per record when no table column is present, so no separate code path is needed
+                $columns = array_values(array_filter(
+                    $columns,
+                    fn ($c) => $c['system'] || ($c['field']->input_type ?? null) !== 'table'
+                ));
+            }
             [$headers, $rows] = $this->buildAllFieldsExportRows($definition, $columns, $records);
         }
 

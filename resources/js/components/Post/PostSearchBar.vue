@@ -1,7 +1,7 @@
 <template>
     <div :class="className">
         <div class="w-full flex">
-            <div class="searchBarInner" :style="{width: responsive.mobile || className == 'newChatMemberSearch' ? '100%' : '25%', marginLeft: 'auto'}">   
+            <div class="searchBarInner" :style="innerStyle">   
                 <input
                     name="postSearchBar"
                     @keydown.enter.prevent
@@ -37,7 +37,7 @@
 <script setup lang="ts">
 import { useResponsive } from '@/store/responsive';
 import { useDebouncedRef } from '@/utils/tools';
-import { watch } from 'vue';
+import { computed, watch } from 'vue';
     const props = withDefaults(defineProps<{
         searching?: number
         className?: string
@@ -50,6 +50,17 @@ import { watch } from 'vue';
         initialValue: ''
     })
     const responsive = useResponsive()
+    /** Full-bleed placements (mobile, and the newChatMemberSearch variant) stretch to their
+     *  container; on a wide desktop that produced a search box several hundred px wider than it
+     *  needs to be, so cap it. `margin-left` has to go back to 0 for those: it was only ever 'auto'
+     *  to right-align the 25% variant, and was a no-op at width 100% — with a cap it would suddenly
+     *  push the box to the right edge. */
+    const fill = computed(() => responsive.mobile || props.className == 'newChatMemberSearch')
+    const innerStyle = computed(() => ({
+        width: fill.value ? '100%' : '25%',
+        maxWidth: '400px',
+        marginLeft: fill.value ? '0' : 'auto',
+    }))
     const emit = defineEmits<{
         searchStart: [keyword: string] 
         focus: []

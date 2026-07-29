@@ -1842,4 +1842,311 @@ class FlowService
 
         return $ids;
     }
+
+    /* ================================================================
+     | Cross-app record search (kintone-style「レコードから検索」)
+     |================================================================ */
+
+    /**
+     * Search stored record values across every app the user may view.
+     *
+     * Two stages on purpose. SQL narrows to candidate value rows with a coarse LIKE (plus id
+     * matches for people/projects, whose names live in other tables); PHP then decides what
+     * actually matched. The split exists because a raw LIKE over value_json would hit JSON *keys*
+     * as well as values — searching a column key like "c1" would return every subtable row — and
+     * because the per-record and per-field permission checks can only run in PHP anyway.
+     *
+     * Excluded by design: password fields (matching ciphertext is meaningless and would let
+     * someone confirm a guessed value) and formula fields (never persisted, so nothing to match).
+     */
+    public function searchRecordsAcrossApps(User $user, string $kw, int $page = 1, int $perPage = 20, int $candidateCap = 4000): array
+    {
+        $kw = trim($kw);
+        $empty = ['hits' => [], 'total' => 0, 'page' => 1, 'per_page' => $perPage, 'truncated' => false];
+        if ($kw === '') {
+            return $empty;
+        }
+
+        $defs = FlowDefinition::with(['fields', 'appPermissions', 'recordPermissionSets', 'fieldPermissions'])
+            ->get()
+            ->filter(fn ($d) => $this->effectiveAppPermissions($user, $d)['view']);
+        if ($defs->isEmpty()) {
+            return $empty;
+        }
+
+        // field-permission verdicts are per (app, user) and reused for every hit in that app
+        $defsById = $defs->keyBy('id');
+        $fieldPerms = [];
+        $searchable = [];   // field id => field, across all eligible apps
+        foreach ($defs as $def) {
+            $fieldPerms[$def->id] = $this->fieldPermissions($user, $def);
+            foreach ($def->fields as $f) {
+                if (self::isSecret($f->input_type) || self::isLayoutType($f->input_type) || $f->input_type === 'formula') {
+                    continue;
+                }
+                $searchable[$f->id] = $f;
+            }
+        }
+        if (! $searchable) {
+            return $empty;
+        }
+
+        $like = '%'.mb_strtolower($kw).'%';
+        // people and projects are stored as ids, so "田中" has to become an id list before SQL can match
+        $userIds = User::whereRaw('LOWER(name) LIKE ?', [$like])->pluck('id')->map(fn ($i) => (int) $i)->all();
+        $projectIds = DB::table('project_records')->whereRaw('LOWER(name) LIKE ?', [$like])
+            ->pluck('id')->map(fn ($i) => (int) $i)->all();
+
+        $rows = FlowRecordValue::query()
+            ->whereIn('flow_field_id', array_keys($searchable))
+            ->where(function ($w) use ($like, $userIds, $projectIds) {
+                $w->whereRaw('LOWER(value_text) LIKE ?', [$like])
+                    ->orWhereRaw('CAST(value_numeric AS CHAR) LIKE ?', [$like])
+                    ->orWhereRaw('LOWER(CAST(value_json AS CHAR)) LIKE ?', [$like])
+                    ->orWhereRaw("DATE_FORMAT(value_date, '%Y-%m-%d') LIKE ?", [$like])
+                    ->orWhereRaw("DATE_FORMAT(value_datetime, '%Y-%m-%d %H:%i') LIKE ?", [$like]);
+                foreach ($userIds as $id) {
+                    $w->orWhereRaw('JSON_CONTAINS(value_json, ?)', [json_encode($id)]);
+                }
+                if ($projectIds) {
+                    $w->orWhereIn('value_numeric', $projectIds);
+                }
+            })
+            ->orderByDesc('id')
+            ->limit($candidateCap + 1)
+            ->get();
+
+        $truncated = $rows->count() > $candidateCap;
+        if ($truncated) {
+            $rows = $rows->take($candidateCap);
+        }
+
+        // record ids also match on their own number (「#12」 style lookups)
+        $recordIds = $rows->pluck('flow_record_id')->unique()->all();
+        $records = FlowRecord::whereIn('id', $recordIds)->get()->keyBy('id');
+
+        $names = $this->searchNameMaps($userIds, $projectIds, $kw);
+
+        $hits = [];
+        foreach ($rows as $row) {
+            $record = $records->get($row->flow_record_id);
+            $field = $searchable[$row->flow_field_id] ?? null;
+            if (! $record || ! $field || (int) $record->flow_definition_id !== (int) $field->flow_definition_id) {
+                continue;
+            }
+            $def = $defsById->get($record->flow_definition_id);
+            if (! $def) {
+                continue;
+            }
+            // a hit on a field the user cannot view must be dropped, not merely hidden — field
+            // permissions default to allow-all, so this only bites on apps that configure them
+            if (($fieldPerms[$def->id][$field->id]['view'] ?? true) !== true) {
+                continue;
+            }
+            $matched = $this->matchedValueFor($field, $row, $kw, $names);
+            if ($matched === null) {
+                continue;
+            }
+            $hits[] = [
+                'definition_id' => (int) $def->id,
+                'definition_name' => $def->name,
+                'record_id' => (int) $record->id,
+                'record_number' => (int) $record->record_number,
+                'field_label' => $matched['label'],
+                'value' => $matched['value'],
+                'updated_at' => optional($record->updated_at)->toIso8601String(),
+                '_sort' => optional($record->updated_at)->getTimestamp() ?? 0,
+            ];
+        }
+
+        // record-level permission sets can only be judged per record in PHP, so they are applied
+        // after matching (and before pagination, or the page counts would lie)
+        $hits = $this->filterHitsByRecordPermission($user, $hits, $defsById, $records);
+
+        usort($hits, fn ($a, $b) => $b['_sort'] <=> $a['_sort'] ?: $b['record_number'] <=> $a['record_number']);
+        $total = count($hits);
+        $slice = array_slice($hits, ($page - 1) * $perPage, $perPage);
+        foreach ($slice as &$h) {
+            unset($h['_sort']);
+        }
+
+        // app identity (name + icon) is sent once per app rather than repeated on every hit — the
+        // modal can't source it locally because search spans apps outside the portal's project scope
+        $apps = [];
+        foreach ($slice as $h) {
+            $id = $h['definition_id'];
+            if (isset($apps[$id])) {
+                continue;
+            }
+            $def = $defsById->get($id);
+            $apps[$id] = [
+                'id' => (int) $id,
+                'name' => $def->name ?? '',
+                'icon_svg' => $def->icon_svg ?? null,
+                'icon_image' => $def->icon_image ?? null,
+                'color_id' => $def->color_id ?? null,
+            ];
+        }
+
+        return [
+            'hits' => array_values($slice),
+            'apps' => $apps,
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage,
+            'truncated' => $truncated,
+        ];
+    }
+
+    /** id => name lookups for the field types that store ids (people, projects). */
+    private function searchNameMaps(array $userIds, array $projectIds, string $kw): array
+    {
+        return [
+            'kw' => mb_strtolower($kw),
+            'users' => User::whereIn('id', $userIds)->pluck('name', 'id')->all(),
+            'projects' => DB::table('project_records')->whereIn('id', $projectIds)->pluck('name', 'id')->all(),
+        ];
+    }
+
+    /** Drop hits whose record the user may not view (apps with record-level permission sets). */
+    private function filterHitsByRecordPermission(User $user, array $hits, $defsById, $records): array
+    {
+        $verdict = [];   // record id => bool
+
+        return array_values(array_filter($hits, function ($h) use ($user, $defsById, $records, &$verdict) {
+            $def = $defsById->get($h['definition_id']);
+            if (! $def || $def->recordPermissionSets->isEmpty()) {
+                return true;
+            }
+            $rid = $h['record_id'];
+            if (! array_key_exists($rid, $verdict)) {
+                $rec = $records->get($rid);
+                $verdict[$rid] = $rec ? (bool) $this->recordPermissions($user, $rec, $def)['view'] : false;
+            }
+
+            return $verdict[$rid];
+        }));
+    }
+
+    /**
+     * What in this value row actually matched, as {label, value} — or null if nothing did.
+     * The SQL prefilter is deliberately loose (a JSON LIKE also hits keys), so this is where a
+     * candidate becomes a real hit.
+     */
+    private function matchedValueFor(FlowField $field, FlowRecordValue $row, string $kw, array $names): ?array
+    {
+        $needle = mb_strtolower($kw);
+        $hit = fn ($value, $suffix = '') => ['label' => $field->label.$suffix, 'value' => (string) $value];
+        $contains = fn ($hay) => $hay !== null && $hay !== '' && str_contains(mb_strtolower((string) $hay), $needle);
+
+        switch ($field->input_type) {
+            case 'number':
+                return $contains($row->value_numeric) || $contains(rtrim(rtrim((string) $row->value_numeric, '0'), '.'))
+                    ? $hit(rtrim(rtrim((string) $row->value_numeric, '0'), '.')) : null;
+            case 'project':
+                $id = $row->value_numeric === null ? null : (int) $row->value_numeric;
+                $name = $id !== null ? ($names['projects'][$id] ?? null) : null;
+
+                return $name !== null ? $hit($name) : null;
+            case 'user':
+            case 'member':
+                $ids = is_array($row->value_json) ? $row->value_json : [];
+                $matchedNames = [];
+                foreach ($ids as $id) {
+                    if (isset($names['users'][(int) $id])) {
+                        $matchedNames[] = $names['users'][(int) $id];
+                    }
+                }
+
+                return $matchedNames ? $hit(implode('、', $matchedNames)) : null;
+            case 'checkbox':
+                $picked = array_values(array_filter(is_array($row->value_json) ? $row->value_json : [], $contains));
+
+                return $picked ? $hit(implode('、', $picked)) : null;
+            case 'reference':
+                $label = is_array($row->value_json) ? ($row->value_json['label'] ?? null) : null;
+
+                return $contains($label) ? $hit($label) : null;
+            case 'date':
+                $s = optional($row->value_date)->toDateString();
+
+                return $contains($s) ? $hit($s) : null;
+            case 'datetime':
+                $s = optional($row->value_datetime)->format('Y-m-d H:i');
+
+                return $contains($s) ? $hit($s) : null;
+            case 'table':
+                return $this->matchedTableCell($field, $row, $needle, $names);
+            case 'toggle':
+            case 'file':
+                return null;   // オン/オフ and attachments carry no searchable text
+            default:
+                return $contains($row->value_text) ? $hit($row->value_text) : null;
+        }
+    }
+
+    /** First matching cell inside a subtable, labelled 「テーブル名 > 列名（N行目）」. */
+    private function matchedTableCell(FlowField $field, FlowRecordValue $row, string $needle, array $names): ?array
+    {
+        $rows = is_array($row->value_json) ? $row->value_json : [];
+        $columns = collect($field->validation['columns'] ?? [])->keyBy('key');
+
+        foreach (array_values($rows) as $i => $r) {
+            if (! is_array($r)) {
+                continue;
+            }
+            foreach ($r as $key => $cell) {
+                $col = $columns->get($key);
+                if (! $col || self::isSecret($col['input_type'] ?? null) || ($col['input_type'] ?? null) === 'formula') {
+                    continue;
+                }
+                $text = $this->flattenCellText($cell, $names);
+                if ($text !== '' && str_contains(mb_strtolower($text), $needle)) {
+                    return [
+                        'label' => $field->label.' › '.($col['label'] ?? $key).'（'.($i + 1).'行目）',
+                        'value' => $text,
+                    ];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /** Subtable cells are raw JSON — flatten to searchable text (resolving people/projects). */
+    private function flattenCellText($cell, array $names): string
+    {
+        if ($cell === null || is_bool($cell)) {
+            return '';
+        }
+        if (is_scalar($cell)) {
+            // a bare id may be a person or a project; surface the name so it is matchable
+            $asInt = (int) $cell;
+            if ((string) $asInt === (string) $cell) {
+                foreach (['users', 'projects'] as $k) {
+                    if (isset($names[$k][$asInt])) {
+                        return (string) $names[$k][$asInt];
+                    }
+                }
+            }
+
+            return (string) $cell;
+        }
+        if (is_array($cell)) {
+            if (isset($cell['label'])) {
+                return (string) $cell['label'];   // reference cell
+            }
+            $parts = [];
+            foreach ($cell as $v) {
+                $t = $this->flattenCellText($v, $names);
+                if ($t !== '') {
+                    $parts[] = $t;
+                }
+            }
+
+            return implode('、', $parts);
+        }
+
+        return '';
+    }
 }

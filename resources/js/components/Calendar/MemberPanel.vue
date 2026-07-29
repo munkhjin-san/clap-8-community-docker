@@ -591,6 +591,7 @@ const removeGroup = async (group: CalendarGroup) => {
     white-space: nowrap;
     font-size: 12px;
     max-width: 20ch;
+    line-height: 1.5;
 }
 .cmp__tab-count {
     flex: 0 0 auto;

@@ -397,7 +397,7 @@ const toggleSort = (ref: number | string) => {
 }
 
 const exportModalOpen = ref(false)
-const buildExportUrl = (opts: { encoding: 'utf8' | 'sjis'; scope: 'all' | 'table'; tableFieldId: number | null }) => {
+const buildExportUrl = (opts: { encoding: 'utf8' | 'sjis'; scope: 'all' | 'no_table' | 'table'; tableFieldId: number | null }) => {
     const params = new URLSearchParams({ encoding: opts.encoding, scope: opts.scope })
     if (activeViewId.value) params.set('view_id', String(activeViewId.value))
     if (sortRef.value !== null) { params.set('sort_field', String(sortRef.value)); params.set('sort_dir', sortDir.value) }
