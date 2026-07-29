@@ -2,16 +2,20 @@
     <div :class="className">
         <div class="w-full flex">
             <div class="searchBarInner" :style="{width: responsive.mobile || className == 'newChatMemberSearch' ? '100%' : '25%', marginLeft: 'auto'}">   
-                <input 
-                    name="postSearchBar" 
-                    @keydown.enter.prevent 
-                    @keydown.up.prevent 
-                    @keydown.down.prevent 
-                    v-model="keyword" 
-                    @focus="emit('focus')" 
-                    class="searchBarArea searchInputArea memberSearch !m-0 !w-full" 
-                    :placeholder="customPlaceHolder" 
-                    type="search" 
+                <input
+                    name="postSearchBar"
+                    @keydown.enter.prevent
+                    @keydown.up.prevent
+                    @keydown.down.prevent
+                    v-model="keyword"
+                    @focus="emit('focus')"
+                    class="searchBarArea searchInputArea memberSearch !m-0 !w-full"
+                    :placeholder="customPlaceHolder"
+                    type="search"
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="off"
+                    spellcheck="false"
                 />
                 <div class="absolute left-[10px] flex h-[30px]">
                     <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 32 32" style="margin: 7px auto auto auto;fill:#767676">
