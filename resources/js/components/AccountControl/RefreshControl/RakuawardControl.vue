@@ -42,6 +42,13 @@
                     <h3 class="card-title">{{ nomination.title }}</h3>
                     <p class="card-content">{{ nomination.content }}</p>
                     <p class="card-meta">{{ formatDate(nomination.created_at) }} ・ サポーター {{ nomination.supporter_count }}人 ・ 採点者 {{ nomination.scorer_count }}人</p>
+                    <div v-if="nomination.scores.length" class="score-breakdown">
+                        <div v-for="(s, idx) in nomination.scores" :key="idx" class="score-breakdown-item">
+                            <UserPanel :user="s.user" :disableInstant="true" size="20" />
+                            <span class="score-breakdown-name">{{ s.user?.name ?? '—' }}</span>
+                            <span class="score-breakdown-points">{{ s.score }}点</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="card-side">
@@ -81,6 +88,7 @@ type RakuawardNomination = {
     supporter_count: number;
     total_score: number;
     scorer_count: number;
+    scores: { user: User; score: number }[];
     granted: boolean;
     granted_at: string | null;
     refunded: boolean;
@@ -271,6 +279,29 @@ onMounted(() => {
     margin: 2px 0 0;
     font-size: 11px;
     color: var(--sub-color);
+}
+
+.score-breakdown {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    margin-top: 8px;
+}
+
+.score-breakdown-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--primary-color);
+}
+
+.score-breakdown-name {
+    color: var(--sub-color);
+}
+
+.score-breakdown-points {
+    font-weight: 700;
 }
 
 .card-side {
