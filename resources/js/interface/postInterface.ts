@@ -72,6 +72,8 @@ export interface Post{
     mini?: boolean;
     rakuaward_granted_at?: string | null;
     rakuaward_refunded_at?: string | null;
+    rakuaward_rank?: number | null;
+    rakuaward_scores?: PostRakuawardScore[];
     post_relays?: PostRelay[];
     accepted_post_relay?: PostRelay | null;
     relay_chain?: RelayChainNode[];
@@ -90,6 +92,13 @@ interface PostAward extends User {
     pivot: {
         award_bet: number;
     }
+}
+export interface PostRakuawardScore {
+    id: number;
+    post_id: number;
+    user_id: number;
+    score: number;
+    user: User;
 }
 interface Clap {
     from_user: number;

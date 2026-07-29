@@ -401,6 +401,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/challenge_relay_close', [PostController::class, 'challenge_relay_close']);
         Route::post('/nice_follow_up_dismiss', [PostController::class, 'nice_follow_up_dismiss']);
         Route::put('/save_relay_prize', [PostController::class, 'save_relay_prize']);
+        Route::post('/rakuaward_score', [PostController::class, 'rakuaward_score']);
+        Route::get('/rakuaward_mvps', [PostController::class, 'rakuaward_mvps']);
         Route::post('/post_get_post_users', [PostController::class, 'post_get_post_users']);
         Route::post('/post_get_all_possible_users', [PostController::class, 'post_get_all_possible_users']);
         Route::post('/post_get_challenge_users', [PostController::class, 'post_get_challenge_users']);

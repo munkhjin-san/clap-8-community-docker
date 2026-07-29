@@ -52,6 +52,9 @@ class PostRecord extends Model
     public function awards(){
         return $this->belongsToMany(User::class, 'post_awards', 'record_id', 'user_id')->withPivot('award_bet')->select(['users.id as id', 'users.name','users.icon_path','users.icon_bg', 'users.email']);
     }
+    public function rakuawardScores(){
+        return $this->hasMany(PostRakuawardScore::class, 'post_id');
+    }
     public function emotedUsers()
     {
         return $this->morphToMany(User::class, 'stampable', 'stamps', 'stampable_id', 'user_id')

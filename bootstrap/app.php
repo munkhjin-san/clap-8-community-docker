@@ -203,6 +203,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('alerts:variance --period='.now()->toDateString())->monthlyOn(20, '18:00');
         $schedule->command('logs:prune-activity-logs')->quarterly();
         $schedule->command('goals:check-alert-streak')->dailyAt('02:00');
+        // $schedule->command('goals:freeze')->dailyAt('02:30');
         $schedule->command('goals:report-outcome-incidents')->weeklyOn(3, '08:00')->withoutOverlapping()->appendOutputTo(storage_path('logs/incidents/outcome-goal-incidents.log'));
         $schedule->command('refresh:expire')->monthlyOn(2, '08:00');
         $schedule->command('paid-leave:grant')->dailyAt('02:00');
@@ -210,6 +211,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('paid-leave:reconcile-usages')->dailyAt('04:00');
         $schedule->command('app:auto-attendance-confirm')->monthlyOn(3, '08:00');
         $schedule->command('app:refresh-automation')->monthlyOn(1, '08:00');
+        $schedule->command('rakuaward:settle-monthly')->monthlyOn(1, '05:00');
         $schedule->command('contact-batches:poll')->everyFifteenMinutes();
         $schedule->command('app:seal-audit-daily-digest')->dailyAt('03:00')->appendOutputTo(storage_path('logs/timecard-audit-seal.log'));
         $schedule->command('app:verify-timecard-audit-integrity --require-digest --date='.now()->subDay()->toDateString())->dailyAt('04:00')->appendOutputTo(storage_path('logs/timecard-audit-integrity.log'));

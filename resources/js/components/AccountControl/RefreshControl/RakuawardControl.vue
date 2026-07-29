@@ -3,9 +3,9 @@
         <section class="rakuaward-topbar">
             <div class="topbar-left">
                 <MonthPickerNew v-model:year="year" v-model:month="month" left="0px" @setDate="onSetDate" />
-                <span class="granted-counter">選択済み: {{ grantedCount }} / {{ limit }}</span>
+                <span class="granted-counter">MVP: {{ grantedCount }}人</span>
             </div>
-            <p class="topbar-note">上位5名に選ばれなかったノミネートは、チャージした金額がメンバーへ返金されます。</p>
+            <p class="topbar-note">毎月自動で、評価スコアの高い上位{{ limit }}名がMVPに選ばれます。</p>
         </section>
 
         <div class="rakuaward-list">
@@ -41,27 +41,21 @@
 
                     <h3 class="card-title">{{ nomination.title }}</h3>
                     <p class="card-content">{{ nomination.content }}</p>
-                    <p class="card-meta">{{ formatDate(nomination.created_at) }} ・ サポーター {{ nomination.supporter_count }}人</p>
+                    <p class="card-meta">{{ formatDate(nomination.created_at) }} ・ サポーター {{ nomination.supporter_count }}人 ・ 採点者 {{ nomination.scorer_count }}人</p>
                 </div>
 
                 <div class="card-side">
                     <div class="charged-amount">
+                        <span>スコア</span>
+                        <strong>{{ nomination.total_score }}点</strong>
+                    </div>
+                    <div class="charged-amount">
                         <span>チャージ総額</span>
                         <strong>{{ formatCurrency(nomination.charged_amount) }}</strong>
                     </div>
-                    <span v-if="nomination.granted" class="granted-badge">付与済み</span>
-                    <span v-else-if="nomination.refunded" class="refunded-badge">返金済み</span>
-                    <button
-                        v-else
-                        type="button"
-                        class="grant-button"
-                        :disabled="!canGrant(nomination) || saving"
-                        @click="grant(nomination)"
-                    >
-                        リフレッシュへ付与
-                    </button>
-                    <p v-if="!nomination.granted && !nomination.refunded && nomination.charged_amount <= 0" class="side-note">チャージなし</p>
-                    <p v-else-if="!nomination.granted && !nomination.refunded && grantedCount >= limit" class="side-note">今月の上限に達しました</p>
+                    <span v-if="nomination.granted" class="mvp-badge">MVP</span>
+                    <span v-else-if="grantedCount > 0" class="not-mvp-badge">選外</span>
+                    <span v-if="nomination.refunded" class="refunded-badge">返金済み</span>
                 </div>
             </article>
         </div>
@@ -85,6 +79,8 @@ type RakuawardNomination = {
     nominee: User | null;
     charged_amount: number;
     supporter_count: number;
+    total_score: number;
+    scorer_count: number;
     granted: boolean;
     granted_at: string | null;
     refunded: boolean;
@@ -96,19 +92,15 @@ type RakuawardResponse = {
     month: number;
     limit: number;
     granted_count: number;
-    refundable_count: number;
     nominations: RakuawardNomination[];
 };
 
 const api = useApi();
 const loading = ref(false);
-const saving = ref(false);
-const refunding = ref(false);
 const year = ref<number>(DateTime.now().year);
 const month = ref<MonthNumbers>(DateTime.now().month);
 const limit = ref(5);
 const grantedCount = ref(0);
-const refundableCount = ref(0);
 const nominations = ref<RakuawardNomination[]>([]);
 
 const fetchNominations = async () => {
@@ -124,7 +116,6 @@ const fetchNominations = async () => {
 
     limit.value = data.limit;
     grantedCount.value = data.granted_count;
-    refundableCount.value = data.refundable_count;
     nominations.value = data.nominations ?? [];
 };
 
@@ -132,41 +123,6 @@ const onSetDate = (val: { year: number; month: MonthNumbers }) => {
     year.value = val.year;
     month.value = val.month;
     fetchNominations();
-};
-
-const canGrant = (nomination: RakuawardNomination) => {
-    return !nomination.granted && nomination.charged_amount > 0 && grantedCount.value < limit.value;
-};
-
-const grant = async (nomination: RakuawardNomination) => {
-    if (!canGrant(nomination)) return;
-
-    const result = await api.post(`/refresh/rakuaward/${nomination.id}/grant`, null, {
-        loadingRef: saving,
-        ask: `${nomination.nominee?.name ?? '対象メンバー'}さんのリフレッシュに ${formatCurrency(nomination.charged_amount)} を付与しますか？`,
-        toast: 'リフレッシュへ付与しました。',
-    });
-
-    if (!result) return;
-
-    await fetchNominations();
-};
-
-const refundRest = async () => {
-    if (!refundableCount.value) return;
-
-    const result = await api.post('/refresh/rakuaward/refund', {
-        year: year.value,
-        month: month.value,
-    }, {
-        loadingRef: refunding,
-        ask: `上位5名に選ばれなかった${refundableCount.value}件のチャージを、チャージしたメンバーへ返金します。よろしいですか？`,
-        toast: 'チャージを返金しました。',
-    });
-
-    if (!result) return;
-
-    await fetchNominations();
 };
 
 const formatCurrency = (value: number) => {
@@ -343,28 +299,21 @@ onMounted(() => {
     line-height: 1;
 }
 
-.grant-button {
-    height: 34px;
-    padding: 0 14px;
-    border: 1px solid var(--primary-button);
-    background: var(--primary-button);
-    color: #fff;
-    font-size: 12px;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.grant-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.granted-badge {
-    padding: 4px 10px;
+.mvp-badge {
+    padding: 4px 12px;
     font-size: 12px;
     font-weight: 700;
-    background: rgba(55, 121, 104, 0.18);
-    color: #4c957c;
+    letter-spacing: 0.05em;
+    background: rgba(214, 158, 6, 0.18);
+    color: #b8860b;
+}
+
+.not-mvp-badge {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--bg3);
+    color: var(--sub-color);
 }
 
 .refunded-badge {
@@ -373,27 +322,6 @@ onMounted(() => {
     font-weight: 700;
     background: rgba(184, 74, 74, 0.14);
     color: #a33d3d;
-}
-
-.refund-all-button {
-    height: 32px;
-    padding: 0 12px;
-    border: 1px solid var(--formBorder);
-    background: var(--background-color);
-    color: var(--primary-color);
-    font-size: 12px;
-    cursor: pointer;
-}
-
-.refund-all-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.side-note {
-    margin: 0;
-    font-size: 10px;
-    color: var(--sub-color);
 }
 
 @media screen and (max-width: 720px) {

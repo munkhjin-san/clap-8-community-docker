@@ -149,6 +149,33 @@
                     </div>
                 </template>
             </div>
+            <div v-if="getQuery?.app_type == '7' && rakuawardMvps.length" class="rakuaward-mvp-banner">
+                <p class="rakuaward-mvp-title">{{DateTime.fromFormat(rakuawardMvpMonth, 'yyyy-MM').month}}月度結果発表</p>
+                <div class="rakuaward-mvp-list">
+                    <div
+                        v-for="(mvp, i) in visibleMvps"
+                        :key="mvp.id"
+                        class="rakuaward-mvp-item group"
+                        @click="jumpToPost(mvp.id)"
+                    >
+                        <span class="rakuaward-mvp-rank">{{ mvpRankLabel(i) }}</span>
+                        <span class="rakuaward-mvp-name">{{ mvp.nominee?.name ?? '—' }}</span>
+                        <span class="rakuaward-mvp-post">{{ mvp.title }}</span>
+                        <span v-if="isRakuawardDirector" class="rakuaward-mvp-score">{{ mvp.total_score }}点</span>
+                        <div>
+                            <Back size="9" class="rotate-180 transition-transform duration-200 ease-out group-hover:scale-125"/>
+                        </div>
+                    </div>
+                </div>
+                <button
+                    v-if="rakuawardMvps.length > 5 && isRakuawardDirector"
+                    type="button"
+                    class="jump-link p-2"
+                    @click="mvpShowAll = !mvpShowAll"
+                >
+                    {{ mvpShowAll ? '閉じる' : '詳細' }}
+                </button>
+            </div>
             <TransitionGroup
                 v-if="postNoticeRows.length"
                 name="slidePop"
@@ -267,6 +294,8 @@ import PostEntryCreate from './PostEntryCreate.vue';
 import PostEntryRanking from './PostEntryRanking.vue';
 import CloseIcon from '../Form/CloseIcon.vue';
 import { challengeCategories } from '@/utils/challengeCategory';
+import Back from '../Icons/Back.vue';
+import { DateTime } from 'luxon';
 type PostNoticeType = 'changed' | 'progress_report' | 'last_chargeable'
 type PostNoticeRow = {
     id: number
@@ -304,6 +333,29 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
     const queryRefreshing = ref(false)
     const apps = ['ナイス', 'ナレッジ','チャレンジ', 'ニュース', 'ヘルプ', 'グラリンピック', 'リフレッシュ', 'ノミネート']
     const api = useApi()
+    const rakuawardMvps = ref<{ id: number; title: string; total_score: number; granted?: boolean; nominee: { id: number; name: string; icon_path: string | null; icon_bg: string | null } | null }[]>([])
+    const rakuawardMvpMonth = ref('')
+    const mvpShowAll = ref(false)
+    const visibleMvps = computed(() => mvpShowAll.value ? rakuawardMvps.value : rakuawardMvps.value.slice(0, 5))
+    const fetchRakuawardMvps = async () => {
+        const data = await api.get('/rakuaward_mvps', null, { silent: true })
+        if (data) {
+            rakuawardMvps.value = data.mvps ?? []
+            rakuawardMvpMonth.value = data.month ?? ''
+        }
+    }
+    const jumpToPost = (id: number) => {
+        router.push({ name: appName.value, query: { app_type: '7', id: String(id) } })
+        fetchPosts({ ...getQuery.value, app_type: '7', id: String(id) }, id)
+    }
+    const isRakuawardDirector = computed(() => {
+        const pid = auth.user?.position_id
+        return pid != null && Number(pid) < 6
+    })
+    const mvpRankLabel = (index: number) => {
+        if (index === 0) return 'MVP'
+        return `${index + 1}位`
+    }
     const viewFullRanking = ref(false)
     const entryData = ref({
         record: <Post | null>null,
@@ -536,7 +588,13 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
         }
         return query
     })
-    
+
+    watch(() => getQuery.value.app_type, (type) => {
+        if (type === '7') {
+            fetchRakuawardMvps()
+        }
+    }, { immediate: true })
+
     const openTagPicker = () => {}
     const closeTagPicker = () => {}
     
@@ -735,6 +793,85 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
     margin: 0px 20px;
     background: var(--bg3);
     padding: 10px;
+}
+
+.rakuaward-mvp-banner {
+    margin: 0 20px 10px;
+    padding: 12px 14px;
+    background: var(--background-color);
+}
+
+.rakuaward-mvp-title {
+    font-size: 13px;
+    margin: 0 0 8px;
+    color: var(--primary-color);
+}
+
+.rakuaward-mvp-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rakuaward-mvp-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--primary-color);
+}
+
+.rakuaward-mvp-item:hover {
+    background: var(--bg2);
+}
+
+.rakuaward-mvp-rank {
+    min-width: 36px;
+    height: 20px;
+    padding: 0 8px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    background: var(--primary-color);
+    color: var(--background-color);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.rakuaward-mvp-name {
+    white-space: nowrap;
+}
+
+.rakuaward-mvp-post {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--sub-color);
+}
+
+.rakuaward-mvp-score {
+    flex-shrink: 0;
+}
+
+.rakuaward-mvp-detail {
+    margin-top: 8px;
+    padding: 4px 12px;
+    border: 1px solid var(--formBorder);
+    border-radius: 9999px;
+    background: transparent;
+    color: var(--primary-color);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.rakuaward-mvp-detail:hover {
+    background: var(--bg2);
 }
 
 .post-notice-row {

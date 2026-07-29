@@ -16,6 +16,7 @@ use App\Models\SearchHistoryRecord;
 use App\Models\CommentRecord;
 use App\Models\PostRelay;
 use App\Models\PostRelayPrize;
+use App\Models\PostRakuawardScore;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\Comment;
 use Illuminate\Support\Facades\File; 
@@ -179,6 +180,7 @@ class PostController extends Controller
             'grants',
             'entries' => fn ($query) => $query->withCount('comments')->withCount('claps')->with('claps')->orderBy('created_at', 'desc'),    
             'awards',
+            'rakuawardScores.user',
             'result_files',
             'emotedUsers',
             'postRelays' => fn ($query) => $query
@@ -212,6 +214,7 @@ class PostController extends Controller
             'to_users',
             'grants',
             'awards',
+            'rakuawardScores.user',
             'result_files',
             'emotedUsers',
             'postRelays' => function ($query) {
@@ -800,6 +803,76 @@ class PostController extends Controller
         $this->badgeService->invalidateBadgeSummaryCache();
         return response()->json();
 
+    }
+    public function rakuaward_score(Request $request)
+    {
+        $request->validate([
+            'record_id' => 'required|integer|exists:post_records,id',
+            'score' => 'required|integer|min:1|max:10',
+        ]);
+
+        $user = Auth::user();
+        // Only directors/executives (position_id 1-5) may score.
+        if ($user->position_id === null || (int) $user->position_id >= 6) {
+            throw ValidationException::withMessages(['score' => 'スコアを付ける権限がありません。']);
+        }
+
+        $record = PostRecord::findOrFail($request->record_id);
+        if ((int) $record->app_type !== 7) {
+            throw ValidationException::withMessages(['record_id' => 'この投稿にはスコアを付けられません。']);
+        }
+
+        if (! is_null($record->rakuaward_granted_at)
+            || ! is_null($record->rakuaward_refunded_at)
+            || Carbon::now()->gt(Carbon::parse($record->created_at)->endOfMonth())) {
+            throw ValidationException::withMessages(['score' => 'スコア受付期間が終了しました。']);
+        }
+
+        PostRakuawardScore::updateOrCreate(
+            ['post_id' => $record->id, 'user_id' => $user->id],
+            ['score' => (int) $request->score]
+        );
+        $this->badgeService->invalidateBadgeSummaryCache();
+
+        $scores = PostRakuawardScore::where('post_id', $record->id)->with('user')->get();
+
+        return response()->json(['scores' => $scores]);
+    }
+    public function rakuaward_mvps()
+    {
+        $lastMonth = Carbon::now()->subMonthNoOverflow();
+        $start = $lastMonth->copy()->startOfMonth();
+        $end = $lastMonth->copy()->endOfMonth();
+
+        $posts = PostRecord::where('app_type', 7)
+            ->whereBetween('created_at', [$start, $end])
+            ->with(['to_users:id,name,icon_path,icon_bg', 'rakuawardScores'])
+            ->get();
+
+        $mvps = $posts
+            ->map(function (PostRecord $post) {
+                $nominee = $post->to_users->first();
+
+                return [
+                    'id' => $post->id,
+                    'title' => $post->title,
+                    'total_score' => (int) $post->rakuawardScores->sum('score'),
+                    'granted' => ! is_null($post->rakuaward_granted_at),
+                    'nominee' => $nominee ? [
+                        'id' => $nominee->id,
+                        'name' => $nominee->name,
+                        'icon_path' => $nominee->icon_path,
+                        'icon_bg' => $nominee->icon_bg,
+                    ] : null,
+                ];
+            })
+            ->sortByDesc('total_score')
+            ->values();
+
+        return response()->json([
+            'month' => $lastMonth->format('Y-m'),
+            'mvps' => $mvps,
+        ]);
     }
     public function get_post_comments(Request $request){
         $validatedData = $request->validate([
