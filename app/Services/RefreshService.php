@@ -1306,7 +1306,7 @@ class RefreshService
                 'user:id,name,icon_path,icon_bg',
                 'to_users:id,name,icon_path,icon_bg',
                 'awards',
-                'rakuawardScores',
+                'rakuawardScores.user',
             ])
             ->orderByDesc('created_at')
             ->get();
@@ -1326,6 +1326,14 @@ class RefreshService
                 'supporter_count' => $post->awards->count(),
                 'total_score' => (int) $post->rakuawardScores->sum('score'),
                 'scorer_count' => $post->rakuawardScores->count(),
+                'scores' => $post->rakuawardScores
+                    ->sortByDesc('score')
+                    ->map(fn ($s) => [
+                        'user' => $this->rakuawardUserPayload($s->user),
+                        'score' => (int) $s->score,
+                    ])
+                    ->values()
+                    ->all(),
                 'granted' => ! is_null($post->rakuaward_granted_at),
                 'granted_at' => optional($post->rakuaward_granted_at)->toIso8601String(),
                 'refunded' => ! is_null($post->rakuaward_refunded_at),
