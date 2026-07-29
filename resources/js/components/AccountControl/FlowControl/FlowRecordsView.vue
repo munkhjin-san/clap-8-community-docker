@@ -67,6 +67,13 @@
 
                 <div v-if="definition.description" class="rv-desc" v-html="definition.description"></div>
 
+                <div v-for="slot in topSlots" :key="`t${slot.id}`" class="rv-slot">
+                    <span v-for="(it, i) in slot.items" :key="i" class="rv-slot-item">
+                        <span class="rv-slot-label">{{ it.label }}</span>
+                        <span class="rv-slot-value">{{ formatSlotItem(it) }}</span>
+                    </span>
+                </div>
+
                 <table class="rv-table">
                     <thead>
                         <tr>
@@ -112,6 +119,13 @@
                         </tr>
                     </tbody>
                 </table>
+
+                <div v-for="slot in bottomSlots" :key="`b${slot.id}`" class="rv-slot">
+                    <span v-for="(it, i) in slot.items" :key="i" class="rv-slot-item">
+                        <span class="rv-slot-label">{{ it.label }}</span>
+                        <span class="rv-slot-value">{{ formatSlotItem(it) }}</span>
+                    </span>
+                </div>
             </div>
 
             <div v-if="pageCount > 1" class="rv-pager">
@@ -159,6 +173,7 @@ import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 import { useFlowOptionsStore } from '@/store/flowOptions'
 import FlowFieldInput from './FlowFieldInput.vue'
+import { fillSlotValues, formatSlotItem, type SlotDto } from '@/utils/flowSlots'
 import FlowCsvImportModal from './FlowCsvImportModal.vue'
 import FlowRecordFilterModal from './FlowRecordFilterModal.vue'
 import FlowCsvExportModal from './FlowCsvExportModal.vue'
@@ -310,6 +325,7 @@ const sysTime = (rec: FlowRecordDto, ref: number | string) => fmtDateTime(system
 const PER_PAGE = 50
 const mode = ref<'server' | 'client'>('server')
 const total = ref(0)
+const rawSlots = ref<SlotDto[]>([])
 const page = ref(1)
 
 // Client mode only (apps with record-level perms return the full visible set): filter+search+sort locally.
@@ -351,6 +367,7 @@ const load = async () => {
             mode.value = data.mode === 'client' ? 'client' : 'server'
             records.value = data.records ?? []
             total.value = data.total ?? records.value.length
+            rawSlots.value = (data as any).slots ?? []
             // no view yet, or a stale ?view= id that isn't one of this app's views (the server
             // falls back to the default view in that case) → sync the selector to the default
             if (!activeViewId.value || !views.value.some((v) => v.id === activeViewId.value)) {
@@ -397,6 +414,21 @@ const toggleSort = (ref: number | string) => {
 }
 
 const exportModalOpen = ref(false)
+/**
+ * Slot values: the server fills them in server mode (it knows the whole filtered set); in client mode
+ * it defers, because only here do we know what the local search/ad-hoc filter left on screen.
+ */
+const slots = computed<SlotDto[]>(() => {
+    if (!rawSlots.value.length) return []
+    const needsLocal = rawSlots.value.some((s) => s.items.some((it) => !it.computed))
+    if (!needsLocal) return rawSlots.value
+    const fields = definition.value?.fields ?? []
+    return fillSlotValues(rawSlots.value, filteredClient.value, fields)
+})
+const visibleSlots = computed(() => slots.value.filter((s) => s.items.length))
+const topSlots = computed(() => visibleSlots.value.filter((s) => s.position === 'top'))
+const bottomSlots = computed(() => visibleSlots.value.filter((s) => s.position === 'bottom'))
+
 const buildExportUrl = (opts: { encoding: 'utf8' | 'sjis'; scope: 'all' | 'no_table' | 'table'; tableFieldId: number | null }) => {
     const params = new URLSearchParams({ encoding: opts.encoding, scope: opts.scope })
     if (activeViewId.value) params.set('view_id', String(activeViewId.value))
@@ -547,6 +579,15 @@ onMounted(async () => {
 }
 .rv-check:disabled { opacity: 0.45; cursor: not-allowed; }
 .rv-check:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 25%, transparent); }
+/* Slot strip: a free row above/below the table, deliberately not aligned to the columns.
+   sticky keeps it in place while the table scrolls horizontally underneath — the strip is only as
+   wide as the scrollport (the table is much wider), so pinning its left edge is enough.
+   `left` must match margin-left: when stuck, the offset is measured to the border box, so left:0
+   would drop the inset and slide the strip 12px toward the edge on scroll. */
+.rv-slot { position: sticky; left: 12px; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 10px 12px; background: var(--bg3); border: 1px solid var(--calendarBorder); border-radius: 8px; margin: 8px 12px; }
+.rv-slot-item { display: inline-flex; align-items: baseline; gap: 8px; }
+.rv-slot-label { font-size: 11.5px; color: gray; }
+.rv-slot-value { font-size: 14px; color: var(--primary-color); font-variant-numeric: tabular-nums; }
 .rv-row { cursor: pointer; }
 .rv-row:hover { background: var(--selected-background); }
 .rv-td { font-size: 13.5px; padding: 13px 14px; border-bottom: 1px solid var(--calendarBorder); vertical-align: middle; white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }

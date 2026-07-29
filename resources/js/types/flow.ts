@@ -399,17 +399,83 @@ export interface PdfTemplate {
     filename?: string
 }
 
-export interface FlowAppTool {
-    id?: number
-    tool_type: 'pdf'
-    name: string
-    is_active: boolean
-    config: PdfTemplate
+/**
+ * A「スロット」is a free area pinned above or below the record table. Unlike a view it belongs to the
+ * app, so every view shows it; the numbers still follow whatever view/filter is active.
+ * `feature` names the built-in that fills the slot — only 集計 (aggregation) so far.
+ */
+export type SlotAggFn = 'sum' | 'avg' | 'max' | 'min'
+
+export interface SlotAggItem {
+    /** "<fieldId>" for a 数値/計算 field, or "<tableFieldId>:<columnKey>" for a subtable number column */
+    source: string
+    fn: SlotAggFn
+    /** overrides the generated「項目 の 合計」caption */
+    label?: string
+    /** wrap the number for display — e.g. prefix「￥」or suffix「件」. Never affects the arithmetic. */
+    prefix?: string
+    suffix?: string
 }
 
-export const TOOL_META: Record<string, { label: string; icon: string }> = {
-    pdf: { label: 'PDF帳票', icon: 'file' },
+export interface SlotConfig {
+    position: 'top' | 'bottom'
+    feature: 'aggregation'
+    items: SlotAggItem[]
 }
+
+export interface FlowAppTool {
+    id?: number
+    tool_type: 'pdf' | 'slot'
+    name: string
+    is_active: boolean
+    config: PdfTemplate | SlotConfig
+}
+
+/** Narrowing helpers — `config` shape follows `tool_type`, which TS can't infer at every call site. */
+export const isSlotTool = (t: FlowAppTool): boolean => t.tool_type === 'slot'
+export const pdfConfig = (t: FlowAppTool): PdfTemplate => t.config as PdfTemplate
+export const slotConfig = (t: FlowAppTool): SlotConfig => t.config as SlotConfig
+
+export const emptySlot = (): SlotConfig => ({ position: 'bottom', feature: 'aggregation', items: [] })
+
+export const SLOT_AGG_FN_LABEL: Record<SlotAggFn, string> = {
+    sum: '合計', avg: '平均', max: '最大', min: '最小',
+}
+
+/**
+ * The tool kinds the ツール tab offers, one screen each.
+ *
+ * `route` is the URL segment under /apps/builder/:id/tools/, so each kind is linkable
+ * (…/tools/pdf-template, …/tools/aggregation). Adding a future tool means one entry here plus its
+ * own screen — the root grid and the routing are both driven off this list.
+ */
+export interface ToolKind {
+    type: 'pdf' | 'slot'
+    route: string
+    label: string
+    desc: string
+    icon: string
+}
+
+export const TOOL_KINDS: ToolKind[] = [
+    {
+        type: 'pdf',
+        route: 'pdf-template',
+        label: 'PDF帳票',
+        desc: 'テンプレートをデザインして、レコードの内容を差し込んだPDFを出力します。',
+        icon: 'file',
+    },
+    {
+        type: 'slot',
+        route: 'aggregation',
+        label: '集計スロット',
+        desc: 'レコード一覧の表の上または下に、合計・平均・最大・最小を表示します。',
+        icon: 'formula',
+    },
+]
+
+export const toolKindByRoute = (route?: string | null): ToolKind | undefined =>
+    TOOL_KINDS.find((k) => k.route === route)
 
 export const emptyPdfTemplate = (): PdfTemplate => ({
     paper: { orientation: 'portrait' },

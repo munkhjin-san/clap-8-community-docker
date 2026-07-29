@@ -995,6 +995,10 @@ class FlowController extends Controller
             'views' => $views,
         ];
 
+        // 集計スロット configs live on the app (tool_type=slot), so every view shows them
+        $slotTools = $definition->tools->where('tool_type', 'slot')->values()->all();
+        $deferredSlots = fn () => $this->flowService->computeSlotAggregates($definition, [], $user, $slotTools, false);
+
         // seeing the record list clears grouped CSV-import events (they have no single record to open)
         $this->flowNotifications->markImportSeen($user, $definition);
 
@@ -1011,6 +1015,7 @@ class FlowController extends Controller
                 'mode' => 'client',
                 'records' => $records->map(fn ($x) => $this->serializeRecord($x['rec'], $fields, $x['rp'], $user))->values(),
                 'total' => $records->count(),
+                'slots' => $deferredSlots(),
             ]);
         }
 
@@ -1049,6 +1054,7 @@ class FlowController extends Controller
                 'mode' => 'client',
                 'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can, $user))->values(),
                 'total' => $records->count(),
+                'slots' => $deferredSlots(),
             ]);
         }
 
@@ -1060,12 +1066,25 @@ class FlowController extends Controller
 
         $can = ['edit' => $app['edit'], 'delete' => $app['delete']];
 
+        // Aggregates cover the whole filtered set, not the page on screen — so this re-runs the
+        // query without pagination. Only when the app actually has a slot: otherwise every list
+        // load would pay for a full fetch it never uses.
+        $slots = [];
+        if ($slotTools) {
+            $allForSlots = $this->flowService
+                ->recordListQuery($definition, $filters, (string) $request->input('search', ''), $adhocFilter, $filterLogic)
+                ->with('values')->get()
+                ->each(fn ($r) => $r->setRelation('definition', $definition));
+            $slots = $this->flowService->computeSlotAggregates($definition, $allForSlots, $user, $slotTools);
+        }
+
         return response()->json($base + [
             'mode' => 'server',
             'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can, $user))->values(),
             'total' => $total,
             'page' => $page,
             'per_page' => $perPage,
+            'slots' => $slots,
         ]);
     }
 

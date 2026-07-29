@@ -2153,4 +2153,147 @@ class FlowService
 
         return '';
     }
+
+    /* ================================================================
+     | Slots — free areas above/below the record table. Only 集計 so far.
+     |================================================================ */
+
+    /**
+     * Compute a slot's aggregates over an entire record set.
+     *
+     * Deliberately not SQL. Two of the three allowed sources cannot be aggregated by the database:
+     * 計算 fields hold no stored value (they are evaluated on read) and subtable columns live inside
+     * a JSON blob. So the caller hands over every record matching the active view/filter and this
+     * walks them — which also means the numbers always agree with the list the user is looking at.
+     *
+     * $records must already be permission-filtered by the caller: a SUM over rows the user may not
+     * open would leak their contents in aggregate. Field-level permission is applied here, since
+     * that is per item rather than per record.
+     */
+    public function computeSlotAggregates(FlowDefinition $definition, $records, User $user, array $slots, bool $withValues = true): array
+    {
+        if (! $slots) {
+            return [];
+        }
+        $fields = $definition->relationLoaded('fields') ? $definition->fields : $definition->fields()->get();
+        $fieldsById = $fields->keyBy('id');
+        $fieldPerms = $this->fieldPermissions($user, $definition);
+
+        // recordValues() evaluates 計算 fields, so do it once per record and share across every item
+        $valuesByRecord = [];
+        if ($withValues) {
+            foreach ($records as $rec) {
+                $valuesByRecord[$rec->id] = $this->recordValues($rec, $fields);
+            }
+        }
+
+        $out = [];
+        foreach ($slots as $slot) {
+            $config = is_array($slot->config) ? $slot->config : [];
+            $items = [];
+            foreach (($config['items'] ?? []) as $item) {
+                $resolved = $this->resolveSlotSource($item['source'] ?? '', $fieldsById);
+                if (! $resolved) {
+                    continue;
+                }
+                // a hidden field's total is still information about that field — drop the item
+                if (($fieldPerms[$resolved['field']->id]['view'] ?? true) !== true) {
+                    continue;
+                }
+                $fn = in_array($item['fn'] ?? '', ['sum', 'avg', 'max', 'min'], true) ? $item['fn'] : 'sum';
+                // client mode: the front end holds every visible record and narrows it further with
+                // its own search/ad-hoc filter, so a value computed here would describe a different
+                // set than the list shows. Ship the resolved item and let it do the arithmetic.
+                $numbers = $withValues ? $this->slotNumbers($resolved, $valuesByRecord) : [];
+                $items[] = [
+                    'source' => $item['source'],
+                    'fn' => $fn,
+                    'label' => $item['label'] ?: $resolved['label'].' の '.self::SLOT_FN_LABELS[$fn],
+                    // display-only: the affixes wrap the rendered number, never the arithmetic
+                    'prefix' => (string) ($item['prefix'] ?? ''),
+                    'suffix' => (string) ($item['suffix'] ?? ''),
+                    'value' => $withValues ? $this->applySlotFn($fn, $numbers) : null,
+                    'count' => $withValues ? count($numbers) : null,
+                    'computed' => $withValues,
+                ];
+            }
+            $out[] = [
+                'id' => (int) $slot->id,
+                'name' => $slot->name,
+                'position' => ($config['position'] ?? 'bottom') === 'top' ? 'top' : 'bottom',
+                'items' => $items,
+            ];
+        }
+
+        return $out;
+    }
+
+    private const SLOT_FN_LABELS = ['sum' => '合計', 'avg' => '平均', 'max' => '最大', 'min' => '最小'];
+
+    /** "<fieldId>" => a 数値/計算 field; "<tableFieldId>:<colKey>" => a number column inside a テーブル. */
+    private function resolveSlotSource(string $source, $fieldsById): ?array
+    {
+        if ($source === '') {
+            return null;
+        }
+        if (! str_contains($source, ':')) {
+            $field = $fieldsById->get((int) $source);
+            if (! $field || ! in_array($field->input_type, ['number', 'formula'], true)) {
+                return null;
+            }
+
+            return ['kind' => 'field', 'field' => $field, 'label' => $field->label];
+        }
+
+        [$tableId, $colKey] = explode(':', $source, 2);
+        $field = $fieldsById->get((int) $tableId);
+        if (! $field || $field->input_type !== 'table') {
+            return null;
+        }
+        $col = collect($field->validation['columns'] ?? [])->firstWhere('key', $colKey);
+        if (! $col || ! in_array($col['input_type'] ?? '', ['number', 'formula'], true)) {
+            return null;
+        }
+
+        return ['kind' => 'column', 'field' => $field, 'column' => $colKey, 'label' => $field->label.' › '.($col['label'] ?? $colKey)];
+    }
+
+    /** Every numeric value the source contributes across the record set (blanks skipped, not zeroed). */
+    private function slotNumbers(array $resolved, array $valuesByRecord): array
+    {
+        $numbers = [];
+        foreach ($valuesByRecord as $vals) {
+            $raw = $vals[(string) $resolved['field']->id] ?? null;
+            if ($resolved['kind'] === 'field') {
+                if (is_numeric($raw)) {
+                    $numbers[] = (float) $raw;
+                }
+
+                continue;
+            }
+            foreach (is_array($raw) ? $raw : [] as $row) {
+                $cell = is_array($row) ? ($row[$resolved['column']] ?? null) : null;
+                if (is_numeric($cell)) {
+                    $numbers[] = (float) $cell;
+                }
+            }
+        }
+
+        return $numbers;
+    }
+
+    /** null for an empty set — a 平均 of nothing is not 0, and neither is a 最大. */
+    private function applySlotFn(string $fn, array $numbers): ?float
+    {
+        if (! $numbers) {
+            return $fn === 'sum' ? 0.0 : null;
+        }
+
+        return match ($fn) {
+            'avg' => array_sum($numbers) / count($numbers),
+            'max' => max($numbers),
+            'min' => min($numbers),
+            default => array_sum($numbers),
+        };
+    }
 }

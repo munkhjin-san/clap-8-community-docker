@@ -1,4 +1,4 @@
-import type { FlowField, TableColumn, FlowAppTool } from '@/types/flow'
+import type { FlowField, TableColumn, FlowAppTool, PdfTemplate } from '@/types/flow'
 
 /**
  * Builder-side detection of formulas that reference a field/column about to be deleted.
@@ -122,7 +122,8 @@ export const renameColumnRefInTable = (tableField: FlowField, oldName: string, n
 export const pdfToolsReferencingField = (tools: FlowAppTool[] | undefined, fieldKey: string): string[] => {
     const hits: string[] = []
     for (const t of tools ?? []) {
-        const els = t.config?.elements ?? []
+        if (t.tool_type !== 'pdf') continue
+        const els = (t.config as PdfTemplate)?.elements ?? []
         if (els.some((e) => (e.type === 'field' && e.fieldKey === fieldKey) || (e.type === 'table' && e.sourceFieldKey === fieldKey))) {
             hits.push(t.name || 'PDF帳票')
         }
@@ -134,7 +135,8 @@ export const pdfToolsReferencingField = (tools: FlowAppTool[] | undefined, field
 export const pdfToolsReferencingColumn = (tools: FlowAppTool[] | undefined, tableKey: string, colKey: string): string[] => {
     const hits: string[] = []
     for (const t of tools ?? []) {
-        const els = t.config?.elements ?? []
+        if (t.tool_type !== 'pdf') continue
+        const els = (t.config as PdfTemplate)?.elements ?? []
         if (els.some((e) => e.type === 'table' && e.sourceFieldKey === tableKey && (e.columns ?? []).some((c) => c.colKey === colKey))) {
             hits.push(t.name || 'PDF帳票')
         }

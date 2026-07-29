@@ -183,7 +183,13 @@ const tabFromRoute = (): BuilderTab => {
 const tab = ref<BuilderTab>(tabFromRoute())
 const setTab = (key: BuilderTab) => {
     tab.value = key
-    router.replace({ name: 'flow-builder', params: { ...route.params, tab: key === 'general' ? undefined : key }, query: route.query })
+    // `sub` belongs to whichever tab owns it (ツール), so drop it when leaving — spreading
+    // route.params without this carries /tools/aggregation's suffix onto the next tab's URL.
+    router.replace({
+        name: 'flow-builder',
+        params: { ...route.params, tab: key === 'general' ? undefined : key, sub: undefined },
+        query: route.query,
+    })
 }
 watch(() => route.params.tab, () => { if (route.name === 'flow-builder') tab.value = tabFromRoute() })
 // lazy-mount the audit tab: it fetches from the server (unlike the other tabs, which just edit the

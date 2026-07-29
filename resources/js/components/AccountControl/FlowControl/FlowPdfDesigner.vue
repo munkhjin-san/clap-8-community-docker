@@ -6,10 +6,10 @@
                 <input v-model="tool.name" class="pd-name" placeholder="帳票名">
                 <div class="pd-top-right">
                     <div class="pd-orient" title="用紙の向き">
-                        <button :class="{ on: tool.config.paper.orientation === 'portrait' }" @click="tool.config.paper.orientation = 'portrait'" title="縦">
+                        <button :class="{ on: cfg.paper.orientation === 'portrait' }" @click="cfg.paper.orientation = 'portrait'" title="縦">
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3.5" y="1.5" width="7" height="11" rx="1"/></svg>
                         </button>
-                        <button :class="{ on: tool.config.paper.orientation === 'landscape' }" @click="tool.config.paper.orientation = 'landscape'" title="横">
+                        <button :class="{ on: cfg.paper.orientation === 'landscape' }" @click="cfg.paper.orientation = 'landscape'" title="横">
                             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="3.5" width="11" height="7" rx="1"/></svg>
                         </button>
                     </div>
@@ -177,7 +177,7 @@
                     <template v-else>
                         <div class="pd-insp-h">ページ設定</div>
                         <label class="pd-f">ファイル名パターン
-                            <input v-model="tool.config.filename" placeholder="請求書_{seq}">
+                            <input v-model="cfg.filename" placeholder="請求書_{seq}">
                         </label>
                         <p class="pd-hint">{seq}=レコード番号 / {id}=ID / {app}=アプリ名</p>
                         <p class="pd-hint">要素を選択すると、その設定が表示されます。</p>
@@ -198,7 +198,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { BuilderDefinition, FlowAppTool, PdfElement, PdfElementType } from '@/types/flow'
+import type { BuilderDefinition, FlowAppTool, PdfElement, PdfElementType, PdfTemplate } from '@/types/flow'
 import { isLayoutType, isSecretType } from '@/types/flow'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import FlowSearchSelect from './FlowSearchSelect.vue'
@@ -206,17 +206,19 @@ import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 
 const props = defineProps<{ tool: FlowAppTool; def: BuilderDefinition }>()
+// only ever opened for a PDF tool; narrow once instead of casting at every use
+const cfg = computed<PdfTemplate>(() => props.tool.config as PdfTemplate)
 const emit = defineEmits<{ close: [] }>()
 
 const api = useApi()
 const dialog = useDialog()
 
-const pageW = computed(() => (props.tool.config.paper.orientation === 'landscape' ? 1123 : 794))
-const pageH = computed(() => (props.tool.config.paper.orientation === 'landscape' ? 794 : 1123))
+const pageW = computed(() => (cfg.value.paper.orientation === 'landscape' ? 1123 : 794))
+const pageH = computed(() => (cfg.value.paper.orientation === 'landscape' ? 794 : 1123))
 const scale = ref(0.62)
 const selectedId = ref<string | null>(null)
 
-const elements = computed(() => props.tool.config.elements)
+const elements = computed(() => cfg.value.elements)
 const sel = computed<PdfElement | null>(() => elements.value.find((e) => e.id === selectedId.value) ?? null)
 
 const valueFields = computed(() => props.def.fields.filter((f) => !isLayoutType(f.input_type) && !isSecretType(f.input_type)))
@@ -428,7 +430,7 @@ const doPreview = async () => {
     previewing.value = true
     try {
         const res: any = await api.post('/flow_tool_pdf_preview',
-            { flow_definition_id: props.def.id, config: props.tool.config },
+            { flow_definition_id: props.def.id, config: cfg.value },
             { rawResponse: true, silent: true },
             { responseType: 'blob' })
         previewUrl.value = URL.createObjectURL(res.data)

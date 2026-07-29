@@ -1,50 +1,111 @@
 <template>
     <div class="flow-tools-tab">
-        <div class="tt-intro">
-            <b>ツール</b>
-            <p>アプリのレコードから帳票を作成するなどの拡張機能です。PDF帳票では、テンプレートをデザインしてレコードのPDFを出力できます。</p>
-        </div>
-
-        <div v-if="def.tools.length" class="tt-list">
-            <div v-for="(tool, i) in def.tools" :key="i" class="tt-row" :class="{ off: !tool.is_active }">
-                <span class="tt-ico"><FlowFieldIcon :type="'file'" :size="18" /></span>
-                <div class="tt-main">
-                    <div class="tt-name">{{ tool.name }}</div>
-                    <div class="tt-meta">PDF帳票 · {{ (tool.config.elements || []).length }} 要素</div>
-                </div>
-                <span class="flow-sw" :class="{ on: tool.is_active }" @click="tool.is_active = !tool.is_active" title="有効/無効"></span>
-                <button class="tt-btn" @click="openDesigner(i)">デザイン</button>
-                <button class="tt-del" @click="def.tools.splice(i, 1)" title="削除"><CloseIcon size="10" /></button>
+        <!-- root: one block per tool kind. Kinds come from TOOL_KINDS, so a future tool needs an
+             entry there plus its own screen — nothing here changes. -->
+        <template v-if="!kind">
+            <div class="tt-intro">
+                <b>ツール</b>
+                <p>アプリに追加できる拡張機能です。使いたいツールを選んでください。</p>
             </div>
-        </div>
-        <p v-else class="tt-empty">まだツールがありません。「＋ PDF帳票を追加」から作成してください。</p>
+            <div class="tt-grid">
+                <button v-for="k in TOOL_KINDS" :key="k.route" type="button" class="tt-card" @click="openKind(k.route)">
+                    <span class="tt-card-ico"><FlowFieldIcon :type="k.icon" :size="22" /></span>
+                    <span class="tt-card-name">{{ k.label }}</span>
+                    <span class="tt-card-desc">{{ k.desc }}</span>
+                    <span class="tt-card-count">{{ countOf(k.type) ? `${countOf(k.type)} 件設定済み` : '未設定' }}</span>
+                </button>
+            </div>
+        </template>
 
-        <button class="tt-add" @click="addPdf">＋ PDF帳票を追加</button>
+        <!-- one kind's own screen -->
+        <template v-else>
+            <div class="tt-head">
+                <button type="button" class="tt-back" @click="openKind(null)">&lsaquo; ツール</button>
+                <b class="tt-title">{{ kind.label }}</b>
+            </div>
+            <div class="tt-intro">
+                <p>{{ kind.desc }}</p>
+            </div>
 
-        <FlowPdfDesigner
-            v-if="editingIndex !== null && def.tools[editingIndex]"
-            :tool="def.tools[editingIndex]"
-            :def="def"
-            @close="editingIndex = null"
-        />
+            <div v-if="rows.length" class="tt-list">
+                <div v-for="row in rows" :key="row.i" class="tt-row" :class="{ off: !row.tool.is_active }">
+                    <span class="tt-ico"><FlowFieldIcon :type="kind.icon" :size="18" /></span>
+                    <div class="tt-main">
+                        <div class="tt-name">{{ row.tool.name }}</div>
+                        <div class="tt-meta">{{ metaOf(row.tool) }}</div>
+                    </div>
+                    <span class="flow-sw" :class="{ on: row.tool.is_active }" @click="row.tool.is_active = !row.tool.is_active" title="有効/無効"></span>
+                    <button class="tt-btn" @click="openDesigner(row.i)">{{ kind.type === 'slot' ? '設定' : 'デザイン' }}</button>
+                    <button class="tt-del" @click="def.tools.splice(row.i, 1)" title="削除"><CloseIcon size="10" /></button>
+                </div>
+            </div>
+            <p v-else class="tt-empty">まだありません。下のボタンから追加してください。</p>
+
+            <button class="tt-add" @click="addOfKind">＋ {{ kind.label }}を追加</button>
+        </template>
+
+        <template v-if="editingIndex !== null && def.tools[editingIndex]">
+            <FlowSlotEditor
+                v-if="def.tools[editingIndex].tool_type === 'slot'"
+                :tool="def.tools[editingIndex]"
+                :def="def"
+                @close="editingIndex = null"
+            />
+            <FlowPdfDesigner v-else :tool="def.tools[editingIndex]" :def="def" @close="editingIndex = null" />
+        </template>
     </div>
 </template>
 
 <script setup lang="ts">
 import 'styles/flow-shared.css'
-import { ref } from 'vue'
-import type { BuilderDefinition, FlowOptionUser } from '@/types/flow'
-import { emptyPdfTemplate } from '@/types/flow'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import type { BuilderDefinition, FlowAppTool, FlowOptionUser } from '@/types/flow'
+import { TOOL_KINDS, emptyPdfTemplate, emptySlot, pdfConfig, slotConfig, toolKindByRoute } from '@/types/flow'
 import FlowFieldIcon from './FlowFieldIcon.vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import FlowPdfDesigner from './FlowPdfDesigner.vue'
+import FlowSlotEditor from './FlowSlotEditor.vue'
 
 const props = defineProps<{ def: BuilderDefinition; users: FlowOptionUser[] }>()
 
+const route = useRoute()
+const router = useRouter()
 const editingIndex = ref<number | null>(null)
 
-const addPdf = () => {
-    props.def.tools.push({ tool_type: 'pdf', name: '新しいPDF帳票', is_active: true, config: emptyPdfTemplate() })
+/** Which kind's screen is open — driven by the URL, so a screen is linkable and back/forward work. */
+const kind = computed(() => toolKindByRoute(route.params.sub as string | undefined))
+const openKind = (sub: string | null) => {
+    editingIndex.value = null
+    router.replace({
+        name: 'flow-builder',
+        params: { ...route.params, tab: 'tools', sub: sub ?? undefined },
+        query: route.query,
+    })
+}
+// an unknown …/tools/xxx renders the root, so normalise the URL to match. immediate: true because
+// a watcher alone misses the case where the bad segment was in the address on first load.
+watch(kind, (k) => { if (!k && route.params.sub) openKind(null) }, { immediate: true })
+
+/** Tools of the open kind, carrying their index in def.tools so edit/delete still address the real row. */
+const rows = computed(() =>
+    props.def.tools
+        .map((tool, i) => ({ tool, i }))
+        .filter((r) => r.tool.tool_type === kind.value?.type),
+)
+const countOf = (type: string) => props.def.tools.filter((t) => t.tool_type === type).length
+
+const metaOf = (tool: FlowAppTool) =>
+    tool.tool_type === 'slot'
+        ? `${slotConfig(tool).position === 'top' ? '表の上' : '表の下'} · ${(slotConfig(tool).items || []).length} 項目`
+        : `${(pdfConfig(tool).elements || []).length} 要素`
+
+const addOfKind = () => {
+    if (kind.value?.type === 'slot') {
+        props.def.tools.push({ tool_type: 'slot', name: '集計', is_active: true, config: emptySlot() })
+    } else {
+        props.def.tools.push({ tool_type: 'pdf', name: '新しいPDF帳票', is_active: true, config: emptyPdfTemplate() })
+    }
     editingIndex.value = props.def.tools.length - 1
 }
 const openDesigner = (i: number) => { editingIndex.value = i }
@@ -55,6 +116,19 @@ const openDesigner = (i: number) => { editingIndex.value = i }
 .tt-intro { background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 10px; padding: 14px 16px; }
 .tt-intro b { font-size: 14px; }
 .tt-intro p { font-size: 12px; color: gray; margin: 4px 0 0; line-height: 1.6; }
+/* root: one card per tool kind */
+.tt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.tt-card { box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 10px; padding: 16px; cursor: pointer; letter-spacing: normal; }
+.tt-card:hover { border-color: var(--primary-color); }
+.tt-card-ico { display: flex; margin-bottom: 2px; }
+.tt-card-name { font-size: 14px; color: var(--primary-color); }
+.tt-card-desc { font-size: 12px; color: gray; line-height: 1.6; }
+.tt-card-count { font-size: 11.5px; color: gray; margin-top: 4px; }
+/* a kind's own screen */
+.tt-head { display: flex; align-items: center; gap: 12px; }
+.tt-back { border: none; background: none; color: gray; font-size: 12px; cursor: pointer; padding: 0; letter-spacing: normal; }
+.tt-back:hover { color: var(--primary-color); }
+.tt-title { font-size: 14px; }
 .tt-list { display: flex; flex-direction: column; gap: 8px; }
 .tt-row { display: flex; align-items: center; gap: 12px; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 10px; padding: 12px 14px; }
 .tt-row.off { opacity: .6; }
