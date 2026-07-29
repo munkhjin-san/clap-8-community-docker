@@ -845,10 +845,24 @@ class FlowService
         } elseif ($op === 'not_empty') {
             $q->whereHas('values', fn ($v) => $v->where('flow_field_id', $fid)->whereNotNull($col)->where($col, '!=', ''));
         } elseif ($op === 'includes_any') {
-            $q->whereHas('values', function ($v) use ($fid, $col, $vals) {
-                $v->where('flow_field_id', $fid)->where(function ($w) use ($col, $vals) {
+            // includes_any spans two storage shapes: a JSON array (checkbox option labels, user/member
+            // ids) and a plain scalar (select/radio in value_text). For the JSON case, match on
+            // JSON_CONTAINS rather than a LIKE for '"val"' — ids are stored as JSON *numbers*
+            // (`[604]`, no quotes), so the quoted LIKE matched option labels but silently missed
+            // every user/member id, i.e. filtering by user never returned anything.
+            $isJson = $col === 'value_json';
+            $q->whereHas('values', function ($v) use ($fid, $col, $vals, $isJson) {
+                $v->where('flow_field_id', $fid)->where(function ($w) use ($col, $vals, $isJson) {
                     foreach ($vals as $val) {
-                        $w->orWhere($col, 'like', '%"'.$val.'"%')->orWhere($col, $val);
+                        if (! $isJson) {
+                            $w->orWhere($col, $val);
+
+                            continue;
+                        }
+                        $w->orWhereRaw("JSON_CONTAINS({$col}, ?)", [json_encode((string) $val)]);
+                        if (is_numeric($val)) {
+                            $w->orWhereRaw("JSON_CONTAINS({$col}, ?)", [json_encode((int) $val)]);
+                        }
                     }
                 });
             });
