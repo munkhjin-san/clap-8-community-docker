@@ -149,6 +149,11 @@ export const operatorsForType = (type: string | undefined): FlowViewOperator[] =
             return ['equals', 'not_equals', 'includes_any', 'is_empty', 'not_empty']
         case 'checkbox': case 'user': case 'member':
             return ['includes_any', 'is_empty', 'not_empty']
+        // a project cell holds an id, so the text operators the default branch offers could never
+        // match what the user typed — pick by id instead. One project per condition; combine
+        // several with extra conditions and the filter's AND/OR.
+        case 'project':
+            return ['equals', 'not_equals', 'is_empty', 'not_empty']
         case 'toggle':
             return ['equals']
         default:

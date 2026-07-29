@@ -7,11 +7,12 @@
     </div>
     <FlowSearchSelect v-else-if="options.length" :model-value="single || null" :options="optionChoices" placeholder="選択" @update:model-value="(val) => single = val" />
 
-    <!-- user / member -->
-    <select v-else-if="isUser && multiMode" multiple v-model="arrModel" class="custom-a-input !box-border w-full fv-userlist">
-        <option v-for="u in users || []" :key="u.id" :value="u.id">{{ u.name }}</option>
-    </select>
-    <FlowSearchSelect v-else-if="isUser" :model-value="singleNum || null" :options="userOptions" placeholder="ユーザーを選択" @update:model-value="(val) => singleNum = val" />
+    <!-- user / member / project: all three store ids, so all three need a picker rather than a text
+         box. Project used to fall through to the free-text input at the bottom, which compared typed
+         text against a stored id and so never matched anything.
+         One pick per condition — several users/projects are expressed as several conditions plus the
+         filter's AND/OR, which keeps this the same single searchable control everywhere. -->
+    <FlowSearchSelect v-else-if="isPicker" :model-value="singleNum || null" :options="pickerOptions" :placeholder="pickerPlaceholder" @update:model-value="(val) => singleNum = val" />
 
     <!-- typed inputs -->
     <input v-else-if="type === 'number' || type === '$number'" type="number" v-model="single" class="custom-a-input !box-border w-full">
@@ -43,7 +44,9 @@ import { computed } from 'vue'
 import { isSystemColumn, FLOW_SYS_STATUS } from '@/types/flow'
 import type { FlowField, FlowOptionUser, FlowViewOperator } from '@/types/flow'
 import FlowSearchSelect from './FlowSearchSelect.vue'
+import { storeToRefs } from 'pinia'
 import { useTheme } from '@/store/theme'
+import { useFlowOptionsStore } from '@/store/flowOptions'
 import { DYNAMIC_DATE_PREFIX, DYNAMIC_DATE_TOKENS, isDynamicDate } from '@/utils/flowDynamicDate'
 
 const props = defineProps<{
@@ -71,7 +74,16 @@ const options = computed<string[]>(() => {
     return ['select', 'radio', 'checkbox'].includes(type.value) ? (field.value?.options ?? []) : []
 })
 const isUser = computed(() => type.value === 'user' || type.value === 'member')
+const isProject = computed(() => type.value === 'project')
+/** user/member/project all filter by id through the same picker UI */
+const isPicker = computed(() => isUser.value || isProject.value)
 const userOptions = computed(() => (props.users || []).map((u) => ({ value: u.id, label: u.name })))
+// projects come straight from the session-cached options store (loaded by both the builder and the
+// records view) rather than being threaded as a prop through two different parents
+const { projects } = storeToRefs(useFlowOptionsStore())
+const projectOptions = computed(() => (projects.value || []).map((p) => ({ value: p.id, label: p.name })))
+const pickerOptions = computed(() => (isProject.value ? projectOptions.value : userOptions.value))
+const pickerPlaceholder = computed(() => (isProject.value ? 'プロジェクトを選択' : 'ユーザーを選択'))
 const optionChoices = computed(() => options.value.map((o) => ({ value: o, label: o })))
 const multiMode = computed(() => props.operator === 'includes_any')
 
@@ -94,11 +106,8 @@ const singleNum = computed({
     get: () => (props.modelValue?.[0] ?? '') as any,
     set: (v: any) => emit('update:modelValue', v === '' || v == null ? [] : [Number(v)]),
 })
+// still needed by the option-field checkbox list (select/radio/checkbox いずれかを含む)
 const arr = computed<any[]>(() => (Array.isArray(props.modelValue) ? props.modelValue : []))
-const arrModel = computed({
-    get: () => arr.value,
-    set: (v: any[]) => emit('update:modelValue', v.map(Number)),
-})
 const toggle = (o: string) => {
     const next = arr.value.slice()
     const i = next.indexOf(o)
@@ -119,5 +128,4 @@ const toggle = (o: string) => {
 .fv-date > input { flex: 1 1 135px; min-width: 135px; }
 .fv-multi { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0; }
 .fv-opt { font-size: 12px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
-.fv-userlist { min-height: 64px; }
 </style>
