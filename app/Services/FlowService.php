@@ -1965,10 +1965,14 @@ class FlowService
 
         usort($hits, fn ($a, $b) => $b['_sort'] <=> $a['_sort'] ?: $b['record_number'] <=> $a['record_number']);
         $total = count($hits);
-        $slice = array_slice($hits, ($page - 1) * $perPage, $perPage);
-        foreach ($slice as &$h) {
+        // array_map, not `foreach ($slice as &$h)`: that leaves $h bound to the last element, and the
+        // plain `foreach ($slice as $h)` below then writes through it on every pass — which silently
+        // replaced the last hit of every page with a copy of the one before it.
+        $slice = array_map(function ($h) {
             unset($h['_sort']);
-        }
+
+            return $h;
+        }, array_slice($hits, ($page - 1) * $perPage, $perPage));
 
         // app identity (name + icon) is sent once per app rather than repeated on every hit — the
         // modal can't source it locally because search spans apps outside the portal's project scope
