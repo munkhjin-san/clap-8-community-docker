@@ -16,7 +16,7 @@
                     <tbody>
                         <tr v-for="(row, ri) in tableRows" :key="ri">
                             <td v-for="col in tableColumns" :key="col.key">
-                                <FlowFieldInput :field="cellField(col)" :model-value="row[col.key]" :users="users" :projects="projects" readonly />
+                                <FlowFieldInput :field="cellField(col)" :model-value="row[col.key]" :users="users" :projects="projects" readonly cell-preview />
                             </td>
                         </tr>
                     </tbody>
@@ -71,14 +71,31 @@
                     <span class="fi-fname"><span class="fi-fname-base">{{ fileBase(f) }}</span><span class="fi-fname-ext">{{ fileExt(f) }}</span></span>
                 </button>
             </template>
-            <!-- table: first file + a "+N" badge for the rest -->
+            <!-- table: first file + a "+N" badge for the rest. Inside a subtable on the record detail
+                 (cellPreview) these stay compact but open the preview modal like a top-level file
+                 field; the modal receives the whole cell's files, so "+N" is the way in to the rest.
+                 In a record-list cell there is nothing to open into, so they render as plain spans
+                 and the click keeps bubbling up to open the record. -->
             <template v-else>
-                <span class="fi-fileitem">
+                <component
+                    :is="cellPreview ? 'button' : 'span'"
+                    :type="cellPreview ? 'button' : undefined"
+                    class="fi-fileitem"
+                    :class="{ 'fi-file-btn': cellPreview }"
+                    @click="openCellPreview(0, $event)"
+                >
                     <img v-if="arrayVal[0]?.mime_type === 'image' && arrayVal[0]?.url" :src="arrayVal[0].url" class="fi-thumb" alt="">
                     <FileIcon v-else class="fi-fileicon" :ext="arrayVal[0]?.extension" />
                     <span class="fi-fname"><span class="fi-fname-base">{{ fileBase(arrayVal[0]) }}</span><span class="fi-fname-ext">{{ fileExt(arrayVal[0]) }}</span></span>
-                </span>
-                <span v-if="arrayVal.length > 1" class="fi-filemore">+{{ arrayVal.length - 1 }}</span>
+                </component>
+                <component
+                    :is="cellPreview ? 'button' : 'span'"
+                    v-if="arrayVal.length > 1"
+                    :type="cellPreview ? 'button' : undefined"
+                    class="fi-filemore"
+                    :class="{ 'fi-filemore-btn': cellPreview }"
+                    @click="openCellPreview(1, $event)"
+                >+{{ arrayVal.length - 1 }}</component>
             </template>
         </template>
         <template v-else-if="field.input_type === 'select' || field.input_type === 'radio'"><span class="fi-pill">{{ val }}</span></template>
@@ -293,6 +310,9 @@ const props = defineProps<{
     projects?: FlowOptionProject[]
     readonly?: boolean
     preview?: boolean
+    /** compact cell rendering (as in a table) but clicks may still open the file preview modal —
+     *  set for subtable cells, which are only ever rendered on the record detail */
+    cellPreview?: boolean
     /** record id — only needed so a password field can call the reveal endpoint */
     recordId?: number | null
 }>()
@@ -327,6 +347,13 @@ const openPreview = (i: number) => {
     const clicked = src[i]
     const idx = clicked?.id != null ? files.findIndex((f: any) => f.id === clicked.id) : 0
     filePreview.setFilePreview({ active: true, files, target: files[idx] ?? files[0], source: 'flow', index: idx < 0 ? 0 : idx, message: null })
+}
+/** Compact-cell file click. A record-list cell has no modal to open into, so the click is left to
+ *  bubble (it opens the record); a subtable cell on the detail opens the preview and stops there. */
+const openCellPreview = (i: number, e: MouseEvent) => {
+    if (!props.cellPreview) return
+    e.stopPropagation()
+    openPreview(i)
 }
 const acceptAttr = computed(() => (props.field.validation?.accept?.length ? props.field.validation.accept.join(',') : undefined))
 
@@ -699,6 +726,8 @@ const formatFormula = (v: any) => {
 .fi-fname-base { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fi-fname-ext { flex-shrink: 0; white-space: nowrap; }
 .fi-filemore { font-size: 11px; color: gray; background: var(--bg3); border-radius: 8px; padding: 1px 7px; margin-left: 2px; align-self: center; flex-shrink: 0; }
+.fi-filemore-btn { border: none; cursor: pointer; font-family: inherit; }
+.fi-filemore-btn:hover { color: var(--primary-color); text-decoration: underline; }
 .fi-fileremove { border: none; background: none; color: gray; cursor: pointer; font-size: 15px; line-height: 1; padding: 0 2px; flex-shrink: 0; }
 .fi-fileadd { display: inline-flex; align-items: center; align-self: flex-start; font-size: 12px; padding: 5px 12px; border: 1px dashed var(--formBorder); border-radius: 6px; color: var(--primary-color); cursor: pointer; }
 .fi-fileadd:hover { background: var(--bg3); }
