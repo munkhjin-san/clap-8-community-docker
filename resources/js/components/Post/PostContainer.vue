@@ -167,14 +167,18 @@
                         </div>
                     </div>
                 </div>
-                <button
-                    v-if="rakuawardMvps.length > 5 && isRakuawardDirector"
-                    type="button"
-                    class="jump-link p-2"
-                    @click="mvpShowAll = !mvpShowAll"
-                >
-                    {{ mvpShowAll ? '閉じる' : '詳細' }}
-                </button>
+                <div class="flex mt-2">
+                    <button
+                        v-if="rakuawardMvps.length > 5 && isRakuawardDirector"
+                        type="button"
+                        class="jump-link p-2"
+                        @click="mvpShowAll = !mvpShowAll"
+                    >
+                        {{ mvpShowAll ? '閉じる' : '詳細' }}
+                    </button>
+                    <PrivateChip />
+                </div>
+                
             </div>
             <TransitionGroup
                 v-if="postNoticeRows.length"
@@ -296,6 +300,7 @@ import CloseIcon from '../Form/CloseIcon.vue';
 import { challengeCategories } from '@/utils/challengeCategory';
 import Back from '../Icons/Back.vue';
 import { DateTime } from 'luxon';
+import PrivateChip from '../Global/PrivateChip.vue';
 type PostNoticeType = 'changed' | 'progress_report' | 'last_chargeable'
 type PostNoticeRow = {
     id: number

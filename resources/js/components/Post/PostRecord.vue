@@ -213,6 +213,7 @@
                 </div>
                 <div v-if="isRakuawardDirector" class="rakuaward-score-panel">
                     <p class="text-[13px] mb-2">この投稿を採点（1〜10）</p>
+
                     <div class="flex flex-wrap gap-1.5">
                         <button
                             v-for="n in 10"
@@ -222,6 +223,7 @@
                             :class="['rakuaward-score-chip', { active: myRakuawardScore === n }]"
                             @click="submitScore(n)"
                         >{{ n }}</button>
+                        <PrivateChip class="ml-2"/>
                     </div>
                     <p v-if="scoreLocked" class="text-[11px] text-[gray] mt-2">採点期間は終了しました</p>
                     <div v-if="rakuawardScores.length" class="mt-3">
@@ -395,6 +397,7 @@ import { useModal } from '@/composables/modal';
 import { PostMethods, PostMethodsKey } from '@/interface/keys';
 import Back from '../Icons/Back.vue';
 import { useTheme } from '@/store/theme.js';
+import PrivateChip from '../Global/PrivateChip.vue';
 const messageUsers = useMessageUsers()
 const menu = useMenuStore()
 const auth = useAuthUserStore()
