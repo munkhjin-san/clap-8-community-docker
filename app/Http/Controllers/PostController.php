@@ -840,16 +840,25 @@ class PostController extends Controller
     }
     public function rakuaward_mvps()
     {
-        $lastMonth = Carbon::now()->subMonthNoOverflow();
-        $start = $lastMonth->copy()->startOfMonth();
-        $end = $lastMonth->copy()->endOfMonth();
+        $now = Carbon::now();
+        $lastMonth = $now->copy()->subMonthNoOverflow();
 
-        $posts = PostRecord::where('app_type', 7)
+        return response()->json([
+            'month' => $lastMonth->format('Y-m'),
+            'mvps' => $this->rakuawardMonthRanking($lastMonth),
+            'current_month' => $now->format('Y-m'),
+            'current' => $this->rakuawardMonthRanking($now),
+        ]);
+    }
+    private function rakuawardMonthRanking(Carbon $month): array
+    {
+        $start = $month->copy()->startOfMonth();
+        $end = $month->copy()->endOfMonth();
+
+        return PostRecord::where('app_type', 7)
             ->whereBetween('created_at', [$start, $end])
             ->with(['to_users:id,name,icon_path,icon_bg', 'rakuawardScores'])
-            ->get();
-
-        $mvps = $posts
+            ->get()
             ->map(function (PostRecord $post) {
                 $nominee = $post->to_users->first();
 
@@ -867,12 +876,8 @@ class PostController extends Controller
                 ];
             })
             ->sortByDesc('total_score')
-            ->values();
-
-        return response()->json([
-            'month' => $lastMonth->format('Y-m'),
-            'mvps' => $mvps,
-        ]);
+            ->values()
+            ->all();
     }
     public function get_post_comments(Request $request){
         $validatedData = $request->validate([

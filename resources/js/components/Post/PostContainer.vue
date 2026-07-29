@@ -149,6 +149,28 @@
                     </div>
                 </template>
             </div>
+            <div v-if="getQuery?.app_type == '7' && isRakuawardDirector && rakuawardCurrent.length" class="rakuaward-mvp-banner rakuaward-mvp-banner--provisional">
+                <p class="rakuaward-mvp-title rakuaward-mvp-title--provisional">
+                    <PrivateChip />
+                    <span>{{ DateTime.fromFormat(rakuawardCurrentMonth, 'yyyy-MM').month }}月 暫定順位（確定前・社外秘）</span>
+                </p>
+                <div class="rakuaward-mvp-list">
+                    <div
+                        v-for="(row, i) in rakuawardCurrent"
+                        :key="row.id"
+                        class="rakuaward-mvp-item group"
+                        @click="jumpToPost(row.id)"
+                    >
+                        <span class="rakuaward-mvp-rank">{{ i + 1 }}</span>
+                        <span class="rakuaward-mvp-name">{{ row.nominee?.name ?? '—' }}</span>
+                        <span class="rakuaward-mvp-post">{{ row.title }}</span>
+                        <span class="rakuaward-mvp-score">{{ row.total_score }}点</span>
+                        <div>
+                            <Back size="9" class="rotate-180 transition-transform duration-200 ease-out group-hover:scale-125"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div v-if="getQuery?.app_type == '7' && rakuawardMvps.length" class="rakuaward-mvp-banner">
                 <p class="rakuaward-mvp-title">{{DateTime.fromFormat(rakuawardMvpMonth, 'yyyy-MM').month}}月度結果発表</p>
                 <div class="rakuaward-mvp-list">
@@ -167,9 +189,9 @@
                         </div>
                     </div>
                 </div>
-                <div class="flex mt-2">
+                <div v-if="rakuawardMvps.length > 5 && isRakuawardDirector" class="flex mt-2">
                     <button
-                        v-if="rakuawardMvps.length > 5 && isRakuawardDirector"
+                        
                         type="button"
                         class="jump-link p-2"
                         @click="mvpShowAll = !mvpShowAll"
@@ -282,6 +304,7 @@ import Charge from './Charge.vue';
 import Status from './Status.vue';
 import PostSearchWindow from './PostSearchWindow.vue'
 import PostIcon from './PostIcon.vue';
+import PrivateChip from '../Global/PrivateChip.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { LocationQueryValue, onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { provide } from 'vue';
@@ -300,7 +323,6 @@ import CloseIcon from '../Form/CloseIcon.vue';
 import { challengeCategories } from '@/utils/challengeCategory';
 import Back from '../Icons/Back.vue';
 import { DateTime } from 'luxon';
-import PrivateChip from '../Global/PrivateChip.vue';
 type PostNoticeType = 'changed' | 'progress_report' | 'last_chargeable'
 type PostNoticeRow = {
     id: number
@@ -338,8 +360,11 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
     const queryRefreshing = ref(false)
     const apps = ['ナイス', 'ナレッジ','チャレンジ', 'ニュース', 'ヘルプ', 'グラリンピック', 'リフレッシュ', 'ノミネート']
     const api = useApi()
-    const rakuawardMvps = ref<{ id: number; title: string; total_score: number; granted?: boolean; nominee: { id: number; name: string; icon_path: string | null; icon_bg: string | null } | null }[]>([])
+    type RakuawardRankRow = { id: number; title: string; total_score: number; granted?: boolean; nominee: { id: number; name: string; icon_path: string | null; icon_bg: string | null } | null }
+    const rakuawardMvps = ref<RakuawardRankRow[]>([])
     const rakuawardMvpMonth = ref('')
+    const rakuawardCurrent = ref<RakuawardRankRow[]>([])
+    const rakuawardCurrentMonth = ref('')
     const mvpShowAll = ref(false)
     const visibleMvps = computed(() => mvpShowAll.value ? rakuawardMvps.value : rakuawardMvps.value.slice(0, 5))
     const fetchRakuawardMvps = async () => {
@@ -347,6 +372,8 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
         if (data) {
             rakuawardMvps.value = data.mvps ?? []
             rakuawardMvpMonth.value = data.month ?? ''
+            rakuawardCurrent.value = data.current ?? []
+            rakuawardCurrentMonth.value = data.current_month ?? ''
         }
     }
     const jumpToPost = (id: number) => {
@@ -810,6 +837,13 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
     font-size: 13px;
     margin: 0 0 8px;
     color: var(--primary-color);
+}
+
+
+.rakuaward-mvp-title--provisional {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .rakuaward-mvp-list {
