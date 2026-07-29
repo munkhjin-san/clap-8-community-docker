@@ -857,7 +857,7 @@ class PostController extends Controller
 
         return PostRecord::where('app_type', 7)
             ->whereBetween('created_at', [$start, $end])
-            ->with(['to_users:id,name,icon_path,icon_bg', 'rakuawardScores'])
+            ->with(['user:id,name,icon_path,icon_bg', 'to_users:id,name,icon_path,icon_bg', 'rakuawardScores'])
             ->get()
             ->map(function (PostRecord $post) {
                 $nominee = $post->to_users->first();
@@ -872,6 +872,12 @@ class PostController extends Controller
                         'name' => $nominee->name,
                         'icon_path' => $nominee->icon_path,
                         'icon_bg' => $nominee->icon_bg,
+                    ] : null,
+                    'creator' => $post->user ? [
+                        'id' => $post->user->id,
+                        'name' => $post->user->name,
+                        'icon_path' => $post->user->icon_path,
+                        'icon_bg' => $post->user->icon_bg,
                     ] : null,
                 ];
             })
