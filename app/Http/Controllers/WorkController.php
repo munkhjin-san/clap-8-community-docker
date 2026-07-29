@@ -548,7 +548,6 @@ class WorkController extends Controller
         }
 
         return $activeUser->isAdmin()
-            || (int) $activeUser->work_authority === 1
             || $activeUser->isProjectManager($segment->project_id);
     }
 
