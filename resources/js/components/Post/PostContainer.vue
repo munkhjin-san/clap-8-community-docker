@@ -162,7 +162,13 @@
                         @click="jumpToPost(row.id)"
                     >
                         <span class="rakuaward-mvp-rank">{{ i + 1 }}</span>
-                        <span class="rakuaward-mvp-name">{{ row.nominee?.name ?? '—' }}</span>
+                        <span class="rakuaward-mvp-people">
+                            <UserPanel v-if="row.creator" :user="row.creator" :disableInstant="true" size="18" />
+                            <span class="rakuaward-mvp-name">{{ row.creator?.name ?? '—' }}</span>
+                            <svg class="rakuaward-mvp-arrow" viewBox="0 0 47 32" xmlns="http://www.w3.org/2000/svg"><path d="M46.75 13.96c-1.286-1.149-2.572-2.298-3.869-3.435-1.292-1.144-2.595-2.274-3.895-3.409-1.297-1.138-2.607-2.261-3.913-3.389-1.31-1.122-2.629-2.24-3.956-3.343-0.652-0.542-1.621-0.512-2.238 0.105-0.64 0.645-0.61 1.699 0.020 2.357 1.179 1.236 2.371 2.458 3.567 3.674 1.214 1.227 2.426 2.455 3.65 3.669 0.888 0.887 1.777 1.775 2.667 2.659 0.221 0.219 0.064 0.59-0.244 0.587-1.406-0.018-2.813-0.030-4.221-0.038-3.599-0.027-7.198-0.002-10.796 0.011l-5.399 0.034-5.399 0.064c-3.599 0.052-7.198 0.11-10.796 0.221-1.068 0.035-1.94 0.916-1.928 2.010 0.012 1.076 0.914 1.934 1.99 1.966 3.578 0.107 7.156 0.165 10.734 0.219l5.399 0.064 5.399 0.034c3.598 0.012 7.197 0.035 10.796 0.011 1.397-0.009 2.793-0.021 4.19-0.038 0.308-0.003 0.465 0.369 0.244 0.587-0.887 0.875-1.771 1.755-2.659 2.633-1.227 1.213-2.44 2.44-3.659 3.662l-1.815 1.844-1.806 1.858c-0.646 0.67-0.66 1.766 0.043 2.444 0.643 0.622 1.669 0.614 2.35 0.037l1.935-1.635 1.966-1.684c1.301-1.132 2.609-2.258 3.904-3.398s2.597-2.274 3.884-3.422c1.292-1.141 3.235-2.764 4.046-3.634 0.808-0.872 0.777-2.458-0.19-3.322z"/></svg>
+                            <UserPanel v-if="row.nominee" :user="row.nominee" :disableInstant="true" size="18" />
+                            <span class="rakuaward-mvp-name">{{ row.nominee?.name ?? '—' }}</span>
+                        </span>
                         <span class="rakuaward-mvp-post">{{ row.title }}</span>
                         <span class="rakuaward-mvp-score">{{ row.total_score }}点</span>
                         <div>
@@ -181,7 +187,13 @@
                         @click="jumpToPost(mvp.id)"
                     >
                         <span class="rakuaward-mvp-rank">{{ mvpRankLabel(i) }}</span>
-                        <span class="rakuaward-mvp-name">{{ mvp.nominee?.name ?? '—' }}</span>
+                        <span class="rakuaward-mvp-people">
+                            <UserPanel v-if="mvp.creator" :user="mvp.creator" :disableInstant="true" size="18" />
+                            <span class="rakuaward-mvp-name">{{ mvp.creator?.name ?? '—' }}</span>
+                            <svg class="rakuaward-mvp-arrow" viewBox="0 0 47 32" xmlns="http://www.w3.org/2000/svg"><path d="M46.75 13.96c-1.286-1.149-2.572-2.298-3.869-3.435-1.292-1.144-2.595-2.274-3.895-3.409-1.297-1.138-2.607-2.261-3.913-3.389-1.31-1.122-2.629-2.24-3.956-3.343-0.652-0.542-1.621-0.512-2.238 0.105-0.64 0.645-0.61 1.699 0.020 2.357 1.179 1.236 2.371 2.458 3.567 3.674 1.214 1.227 2.426 2.455 3.65 3.669 0.888 0.887 1.777 1.775 2.667 2.659 0.221 0.219 0.064 0.59-0.244 0.587-1.406-0.018-2.813-0.030-4.221-0.038-3.599-0.027-7.198-0.002-10.796 0.011l-5.399 0.034-5.399 0.064c-3.599 0.052-7.198 0.11-10.796 0.221-1.068 0.035-1.94 0.916-1.928 2.010 0.012 1.076 0.914 1.934 1.99 1.966 3.578 0.107 7.156 0.165 10.734 0.219l5.399 0.064 5.399 0.034c3.598 0.012 7.197 0.035 10.796 0.011 1.397-0.009 2.793-0.021 4.19-0.038 0.308-0.003 0.465 0.369 0.244 0.587-0.887 0.875-1.771 1.755-2.659 2.633-1.227 1.213-2.44 2.44-3.659 3.662l-1.815 1.844-1.806 1.858c-0.646 0.67-0.66 1.766 0.043 2.444 0.643 0.622 1.669 0.614 2.35 0.037l1.935-1.635 1.966-1.684c1.301-1.132 2.609-2.258 3.904-3.398s2.597-2.274 3.884-3.422c1.292-1.141 3.235-2.764 4.046-3.634 0.808-0.872 0.777-2.458-0.19-3.322z"/></svg>
+                            <UserPanel v-if="mvp.nominee" :user="mvp.nominee" :disableInstant="true" size="18" />
+                            <span class="rakuaward-mvp-name">{{ mvp.nominee?.name ?? '—' }}</span>
+                        </span>
                         <span class="rakuaward-mvp-post">{{ mvp.title }}</span>
                         <span v-if="isRakuawardDirector" class="rakuaward-mvp-score">{{ mvp.total_score }}点</span>
                         <div>
@@ -305,6 +317,7 @@ import Status from './Status.vue';
 import PostSearchWindow from './PostSearchWindow.vue'
 import PostIcon from './PostIcon.vue';
 import PrivateChip from '../Global/PrivateChip.vue';
+import UserPanel from '../Global/UserPanel.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { LocationQueryValue, onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { provide } from 'vue';
@@ -316,6 +329,7 @@ import { instance } from '@/utils/broadcaster';
 import { onUnmounted } from 'vue';
 import { useApi } from '@/composables/api';
 import { Post, PostEntry, PostQuery, TopEntryUser } from '@/interface/postInterface';
+import { User } from '@/interface/globalInterface';
 import { PostMethodsKey } from '@/interface/keys';
 import PostEntryCreate from './PostEntryCreate.vue';
 import PostEntryRanking from './PostEntryRanking.vue';
@@ -360,7 +374,7 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
     const queryRefreshing = ref(false)
     const apps = ['ナイス', 'ナレッジ','チャレンジ', 'ニュース', 'ヘルプ', 'グラリンピック', 'リフレッシュ', 'ノミネート']
     const api = useApi()
-    type RakuawardRankRow = { id: number; title: string; total_score: number; granted?: boolean; nominee: { id: number; name: string; icon_path: string | null; icon_bg: string | null } | null }
+    type RakuawardRankRow = { id: number; title: string; total_score: number; granted?: boolean; nominee: User | null; creator: User | null }
     const rakuawardMvps = ref<RakuawardRankRow[]>([])
     const rakuawardMvpMonth = ref('')
     const rakuawardCurrent = ref<RakuawardRankRow[]>([])
@@ -860,6 +874,7 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
     cursor: pointer;
     font-size: 13px;
     color: var(--primary-color);
+    min-width: 0;
 }
 
 .rakuaward-mvp-item:hover {
@@ -882,7 +897,26 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
 }
 
 .rakuaward-mvp-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.rakuaward-mvp-people {
+    flex-shrink: 1;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    overflow: hidden;
+}
+
+.rakuaward-mvp-arrow {
+    width: 14px;
+    height: 10px;
+    flex-shrink: 0;
+    fill: var(--sub-color);
 }
 
 .rakuaward-mvp-post {
@@ -896,6 +930,36 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
 
 .rakuaward-mvp-score {
     flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+    .rakuaward-mvp-banner {
+        margin: 0 12px 10px;
+        padding: 10px;
+    }
+
+    .rakuaward-mvp-item {
+        gap: 6px;
+        padding: 6px 4px;
+    }
+
+    /* Post title is secondary on small screens; keep rank + people + score readable. */
+    .rakuaward-mvp-post {
+        display: none;
+    }
+
+    .rakuaward-mvp-people {
+        flex: 1;
+    }
+
+    .rakuaward-mvp-name {
+        max-width: 96px;
+    }
+
+    .rakuaward-mvp-rank {
+        min-width: 30px;
+        padding: 0 6px;
+    }
 }
 
 .rakuaward-mvp-detail {
