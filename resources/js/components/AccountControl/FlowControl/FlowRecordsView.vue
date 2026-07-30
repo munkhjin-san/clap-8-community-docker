@@ -119,10 +119,7 @@
                                 />
                             </td>
                             <td class="rv-td rv-td-action" @click.stop>
-                                <div v-if="editingId === rec.id" class="rv-actions rv-rowedit">
-                                    <button class="rv-editbtn" :disabled="savingInline" @click="cancelInlineEdit">キャンセル</button>
-                                    <LoaderButton class="rv-editbtn primary" :loading="savingInline" content="保存" @triggered="saveInline(rec)" />
-                                </div>
+                                <div v-if="editingId === rec.id" class="rv-actions"></div>
                                 <div v-else class="rv-actions">
                                     <button v-if="rec.can_edit" class="rv-actbtn" title="この行で編集" @click="startInlineEdit(rec)">
                                         <Edit size="13" />
@@ -134,6 +131,18 @@
                                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                                     </button>
                                     <span v-if="!rec.can_edit && !rec.can_delete" class="rv-detail">詳細</span>
+                                </div>
+                            </td>
+                        </tr>
+                        <!-- 保存/キャンセル live under the row, not in its last cell: pinned to the right edge
+                             they covered whichever column happened to be there. Sticky left like the
+                             集計スロット, so they stay put however far the table is scrolled. -->
+                        <tr v-if="editingId === rec.id" class="rv-editbar">
+                            <td :colspan="columns.length + 1 + (canBulk ? 1 : 0)" class="rv-editbartd">
+                                <div class="rv-editbarwrap">
+                                    <span class="rv-editbarhint">Enter で保存 / Esc で取消</span>
+                                    <button class="rv-editbtn" :disabled="savingInline" @click="cancelInlineEdit">キャンセル</button>
+                                    <LoaderButton class="rv-editbtn primary" :loading="savingInline" content="保存" @triggered="saveInline(rec)" />
                                 </div>
                             </td>
                         </tr>
@@ -773,18 +782,20 @@ watch([page, activeViewId, search, () => JSON.stringify(adhocFilter)], () => { e
 /* a read-only cell in an editing row: dimmed so it reads as "not yours to change", with a reason on hover */
 .rv-row.editing .rv-td:not(.edit):not(.rv-td-check):not(.rv-td-action) { opacity: .55; }
 
-/* The action cell is the last column, so on a table wider than the screen 保存 would sit off to the
-   right — unreachable without scrolling away from the fields you just typed in. Pin it to the right
-   edge for the row being edited (opaque, or the cells underneath show through). */
-.rv-row.editing .rv-td-action { position: sticky; right: 0; z-index: 3; background: var(--selected-background); box-shadow: -6px 0 8px -6px rgba(0, 0, 0, .25); }
-.rv-rowedit { flex-wrap: nowrap; justify-content: flex-end; }
+/* Save bar under the editing row. The <td> spans the whole table (which can be far wider than the
+   screen), so the strip inside is pinned with position:sticky — the same approach as .rv-slot, and
+   `left` matches the margin because a sticky offset is measured to the border box. */
+.rv-editbar { background: var(--selected-background); }
+.rv-editbartd { padding: 0 0 8px; border-bottom: 1px solid var(--calendarBorder); }
+.rv-editbarwrap { position: sticky; left: 12px; z-index: 3; display: inline-flex; align-items: center; gap: 8px; margin-left: 12px; }
+.rv-editbarhint { font-size: 11px; color: gray; margin-right: 4px; }
 .rv-editbtn { box-sizing: border-box; font-size: 12px; padding: 6px 12px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); cursor: pointer; letter-spacing: normal; white-space: nowrap; }
 .rv-editbtn:hover:not(:disabled) { background: var(--bg3); }
 .rv-editbtn:disabled { opacity: .6; cursor: default; }
 .rv-td { font-size: 13.5px; padding: 13px 14px; border-bottom: 1px solid var(--calendarBorder); vertical-align: middle; white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
 .rv-td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .rv-td-action { text-align: right; width: 72px; }
-.rv-row.editing .rv-td-action { width: auto; white-space: nowrap; }
+.rv-row.editing .rv-td { border-bottom-color: transparent; }
 .rv-detail { font-size: 12px; color: gray; }
 .rv-row:hover .rv-detail { color: var(--primary-color); }
 .rv-actions { display: inline-flex; align-items: center; gap: 4px; justify-content: flex-end; }

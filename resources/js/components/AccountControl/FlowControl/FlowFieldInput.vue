@@ -702,6 +702,32 @@ const formatFormula = (v: any) => {
 .fi-picker :deep(.v-input:not(.v-autocomplete--multiple) .v-field__input) { flex-wrap: nowrap; }
 .fi-picker :deep(.v-input:not(.v-autocomplete--multiple) .v-field__input input) { min-width: 0; }
 .fi-picker :deep(.v-autocomplete__selection) { align-self: center; min-height: 0; margin-inline-end: 2px; }
+
+/* The selected value itself. Vuetify renders it as a v-chip sized for a roomy form — 14px text,
+   35px tall, square corners, 10px side padding — which towers over the 13px inputs beside it. */
+.fi-picker :deep(.v-chip) {
+    height: 22px !important; min-height: 0 !important;
+    font-size: 11.5px !important;
+    /* one less than the shell's 6px, so the chip nests inside the corner instead of fighting it */
+    border-radius: 5px !important;
+    padding-inline: 8px 4px !important;
+}
+.fi-picker :deep(.v-chip__content) { font-size: 11.5px !important; line-height: 1.5; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fi-picker :deep(.v-chip__close) { width: 15px !important; height: 15px !important; margin-inline-start: 3px; }
+.fi-picker :deep(.v-chip__close svg) { width: 7px !important; height: 7px !important; }
+/* User rows: MemberSelector hard-codes UserPanel size=25, so from out here CSS is the only lever.
+   The <img> carries an inline width/height and the fallback icon plain SVG attributes — !important
+   beats both. Applies to the multi-select chip and to the single-select .member-selector-single. */
+.fi-picker :deep(.member-selector-user) { gap: 4px !important; font-size: 11.5px !important; min-width: 0; }
+.fi-picker :deep(.member-selector-user .v-img),
+.fi-picker :deep(.member-selector-user > *:first-child),
+.fi-picker :deep(.member-selector-user svg) { width: 16px !important; height: 16px !important; min-width: 16px !important; }
+.fi-picker :deep(.member-selector-user p) { font-size: 11.5px !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* NOT attempted from here: making a single selection fill the box to kill the dead strip beside it.
+   The selection and the search input are competing flex children of Vuetify's own .v-field__input —
+   growing one shrinks the other, and `flex: 1 1 0` made the chip narrower (95px → 49px) rather than
+   wider. That needs control of the markup, not another override. */
 .fi-multi { min-height: 80px; }
 .fi-opts { display: flex; flex-wrap: wrap; gap: 11px 18px; }
 .fi-opt { font-size: 13px; display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; line-height: 1.5; }
