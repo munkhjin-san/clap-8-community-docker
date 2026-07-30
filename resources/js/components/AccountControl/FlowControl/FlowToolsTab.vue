@@ -118,7 +118,10 @@ const openDesigner = (i: number) => { editingIndex.value = i }
 .tt-intro p { font-size: 12px; color: gray; margin: 4px 0 0; line-height: 1.6; }
 /* root: one card per tool kind */
 .tt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
-.tt-card { box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 10px; padding: 16px; cursor: pointer; letter-spacing: normal; }
+/* `color` matters here, not just as text colour: the card icons are stroke="currentColor", and a
+   <button> does NOT inherit colour — the UA gives it its own (black), so in dark mode the icons were
+   black on a near-black card while the label beside them looked fine from its own explicit rule. */
+.tt-card { box-sizing: border-box; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; text-align: left; color: var(--primary-color); background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 10px; padding: 16px; cursor: pointer; letter-spacing: normal; }
 .tt-card:hover { border-color: var(--primary-color); }
 .tt-card-ico { display: flex; margin-bottom: 2px; }
 .tt-card-name { font-size: 14px; color: var(--primary-color); }
