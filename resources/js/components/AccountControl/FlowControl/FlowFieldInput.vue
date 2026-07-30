@@ -177,14 +177,15 @@
             </label>
         </div>
         <span v-else-if="field.input_type === 'toggle'" class="flow-sw" :class="{ on: !!val }" @click="val = !val"></span>
-        <div v-else-if="field.input_type === 'user' || field.input_type === 'member'" class="fi-picker">
-            <MemberSelector
-                v-model="selectedUsers"
-                :options="(users as any)"
-                :multiple="userMultiple"
-                compact
-            />
-        </div>
+        <FlowListPicker
+            v-else-if="field.input_type === 'user' || field.input_type === 'member'"
+            :model-value="val"
+            :options="(users as any)"
+            :multiple="userMultiple"
+            avatar
+            placeholder="ユーザーを選択"
+            @update:model-value="val = $event"
+        />
         <div v-else-if="field.input_type === 'file'" class="fi-files">
             <div v-for="(f, i) in arrayVal" :key="f?.id ?? i" class="fi-fileitem fi-file-edit">
                 <button type="button" class="fi-file-open" @click="openPreview(i)">
@@ -274,17 +275,13 @@
                 </div>
             </div>
         </div>
-        <div v-else-if="field.input_type === 'project'" class="fi-picker">
-            <ItemSelector
-                :multiple="false"
-                :options="(projects as any)"
-                :reduce="(o: any) => o.id"
-                label="name"
-                v-model="val"
-                :clearable="true"
-                :close-on-select="true"
-            />
-        </div>
+        <FlowListPicker
+            v-else-if="field.input_type === 'project'"
+            :model-value="val"
+            :options="(projects as any)"
+            placeholder="プロジェクトを選択"
+            @update:model-value="val = $event"
+        />
         <input v-else type="text" v-model="val" class="fi-input">
     </template>
 </template>
@@ -298,8 +295,7 @@ import { useFloatingMenu } from '@/composables/floatingMenu'
 import { useFilePreview } from '@/store/filePreview'
 import { useTheme } from '@/store/theme'
 import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
-import MemberSelector from '@/components/Form/MemberSelector.vue'
-import ItemSelector from '@/components/Form/ItemSelector.vue'
+import FlowListPicker from './FlowListPicker.vue'
 import { isSecretType } from '@/types/flow'
 import type { FlowField, FlowOptionUser, FlowOptionProject } from '@/types/flow'
 
@@ -509,24 +505,8 @@ const linkify = (raw: any): { text: string; href?: string }[] => {
     return parts.length ? parts : [{ text }]
 }
 
-// user/member field: flow stores ID arrays; MemberSelector wants full User objects (return-object). Bridge both ways.
+// FlowListPicker speaks ids in both directions, so the old object<->id bridge for MemberSelector is gone
 const userMultiple = computed(() => props.field.validation?.multiple !== false) // default = multiple (existing behavior)
-const usersById = computed<Record<number, FlowOptionUser>>(() => {
-    const m: Record<number, FlowOptionUser> = {}
-    ;(props.users ?? []).forEach((u) => { m[u.id] = u })
-    return m
-})
-const selectedUsers = computed<any>({
-    get() {
-        const ids = Array.isArray(props.modelValue) ? props.modelValue : (props.modelValue != null && props.modelValue !== '' ? [props.modelValue] : [])
-        const objs = ids.map((id: number) => usersById.value[id] ?? ({ id, name: `#${id}` } as any))
-        return userMultiple.value ? objs : (objs[0] ?? null)
-    },
-    set(v: any) {
-        const arr = Array.isArray(v) ? v : (v ? [v] : [])
-        emit('update:modelValue', arr.map((u: any) => u.id))
-    },
-})
 /* ---- table field: rows of cells, each cell a nested FlowFieldInput ---- */
 const tableColumns = computed<any[]>(() => props.field.validation?.columns || [])
 const tableRows = computed<any[]>(() => (Array.isArray(props.modelValue) ? props.modelValue : []))
@@ -612,6 +592,11 @@ const onRefInput = (e: Event) => {
 }
 const onRefKeydown = (e: KeyboardEvent) => {
     if (e.isComposing || e.keyCode === 229) return // don't hijack Enter/arrows while an IME is composing
+    // The record list saves the row on Enter and cancels on Escape from a document listener, so while
+    // this menu owns those keys they must stop here — picking a record must not also save the row.
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || ((e.key === 'Enter' || e.key === 'Escape') && refOpen.value)) {
+        e.stopPropagation()
+    }
     if (e.key === 'ArrowDown') {
         e.preventDefault()
         if (!refOpen.value) { openRef(); return }
@@ -670,64 +655,6 @@ const formatFormula = (v: any) => {
 /* global main.css forces `box-sizing: unset !important` on *, so re-assert border-box here (class beats * even with !important) or width:100% + padding overflows the block */
 .fi-input { width: 100%; box-sizing: border-box !important; font-size: 13px; padding: 6px 9px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); }
 .fi-area { min-height: 64px; resize: vertical; }
-/* --- プロジェクト / ユーザー pickers -------------------------------------------------------------
-   ItemSelector and MemberSelector are shared app-wide components built for roomy modal forms, so
-   they arrive ~100px tall with a Vuetify floating label. In a flow field the label is already
-   printed above the input (and in a record-list cell, in the column header), so the inner one is
-   dropped — and with it the 25px of top padding Vuetify reserves to float it into.
-   Scoped here on purpose: every other screen keeps the tall variant.
-
-   !important throughout because Vuetify's own density rules are more specific than a :deep()
-   selector; without it the padding measured 25px however the component's `compact` prop was set. */
-.fi-picker { max-width: 100%; }
-.fi-picker :deep(.item-selector-shell), .fi-picker :deep(.member-selector-shell) {
-    border: 1px solid var(--formBorder) !important; border-radius: 6px !important;
-    box-sizing: border-box !important; overflow: hidden; background: transparent !important;
-}
-/* match .fi-input's box exactly (33px, border-box) so a picker sits level with the plain inputs */
-.fi-picker :deep(.v-field__input) {
-    min-height: 31px !important; padding-top: 2px !important; padding-bottom: 2px !important;
-    padding-inline-start: 8px !important; font-size: 13px !important; row-gap: 2px;
-}
-.fi-picker :deep(.v-field), .fi-picker :deep(.v-field__field), .fi-picker :deep(.v-field__overlay) { background: transparent !important; }
-/* the label is gone, but Vuetify still renders the (empty) element — keep it from claiming a line */
-.fi-picker :deep(.v-field-label) { display: none !important; }
-/* the raw <input> keeps a white UA background, which shows as a white strip on any tinted parent
-   (a selected record row, the striped subtable) — the shell's own background is the one that counts */
-.fi-picker :deep(.v-field__input input) { background: transparent !important; color: var(--primary-color); }
-.fi-picker :deep(.v-field__append-inner) { padding-top: 0 !important; align-items: center; }
-/* Single-select: the chosen value and the search input are siblings in a wrapping flex row, so in a
-   column-width box they stacked and doubled the height. A multi-select must keep wrapping — that is
-   how several chips get their lines — hence the :not(--multiple). */
-.fi-picker :deep(.v-input:not(.v-autocomplete--multiple) .v-field__input) { flex-wrap: nowrap; }
-.fi-picker :deep(.v-input:not(.v-autocomplete--multiple) .v-field__input input) { min-width: 0; }
-.fi-picker :deep(.v-autocomplete__selection) { align-self: center; min-height: 0; margin-inline-end: 2px; }
-
-/* The selected value itself. Vuetify renders it as a v-chip sized for a roomy form — 14px text,
-   35px tall, square corners, 10px side padding — which towers over the 13px inputs beside it. */
-.fi-picker :deep(.v-chip) {
-    height: 22px !important; min-height: 0 !important;
-    font-size: 11.5px !important;
-    /* one less than the shell's 6px, so the chip nests inside the corner instead of fighting it */
-    border-radius: 5px !important;
-    padding-inline: 8px 4px !important;
-}
-.fi-picker :deep(.v-chip__content) { font-size: 11.5px !important; line-height: 1.5; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fi-picker :deep(.v-chip__close) { width: 15px !important; height: 15px !important; margin-inline-start: 3px; }
-.fi-picker :deep(.v-chip__close svg) { width: 7px !important; height: 7px !important; }
-/* User rows: MemberSelector hard-codes UserPanel size=25, so from out here CSS is the only lever.
-   The <img> carries an inline width/height and the fallback icon plain SVG attributes — !important
-   beats both. Applies to the multi-select chip and to the single-select .member-selector-single. */
-.fi-picker :deep(.member-selector-user) { gap: 4px !important; font-size: 11.5px !important; min-width: 0; }
-.fi-picker :deep(.member-selector-user .v-img),
-.fi-picker :deep(.member-selector-user > *:first-child),
-.fi-picker :deep(.member-selector-user svg) { width: 16px !important; height: 16px !important; min-width: 16px !important; }
-.fi-picker :deep(.member-selector-user p) { font-size: 11.5px !important; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* NOT attempted from here: making a single selection fill the box to kill the dead strip beside it.
-   The selection and the search input are competing flex children of Vuetify's own .v-field__input —
-   growing one shrinks the other, and `flex: 1 1 0` made the chip narrower (95px → 49px) rather than
-   wider. That needs control of the markup, not another override. */
 .fi-multi { min-height: 80px; }
 .fi-opts { display: flex; flex-wrap: wrap; gap: 11px 18px; }
 .fi-opt { font-size: 13px; display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; line-height: 1.5; }
