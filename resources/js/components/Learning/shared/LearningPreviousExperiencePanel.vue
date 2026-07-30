@@ -39,7 +39,7 @@
                 </div>
             </LearningCollapseCard>
 
-            <LearningCollapseCard label="完成したポートフォリオ">
+            <LearningCollapseCard label="前回のポートフォリオ">
                 <h3 v-if="portfolio.public_title" class="prev-box__title">{{ portfolio.public_title }}</h3>
                 <p class="prev-portfolio__text prev-portfolio__text--large" :class="{ 'prev-portfolio__empty': !hasText(portfolio.public_content) }">
                     {{ hasText(portfolio.public_content) ? portfolio.public_content : '記録なし' }}

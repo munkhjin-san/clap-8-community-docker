@@ -75,7 +75,7 @@
                     </div>
                 </div>
             </template>
-            <LearningCollapseCard v-else label="完成したポートフォリオ" :default-open="true">
+            <LearningCollapseCard v-else label="今回のポートフォリオ" :default-open="true">
                 <h3 v-if="portfolio?.public_title" class="cp-title">{{ portfolio?.public_title }}</h3>
                 <p class="cp-text">{{ portfolio?.public_content }}</p>
             </LearningCollapseCard>
