@@ -52,9 +52,7 @@ export interface LearningPersonalMaterial {
     lesson_theme_ai_config_id: number | null
     config_key: string
     content: string | null
-    presentation_spec: LearningPresentationSpec | null
-    presentation_theme: string | null
-    presentation_available: boolean
+    presentation_spec: LearningSlideDeckSpec | null
     understand: boolean | null
     important_point: string | null
     source_snapshot: Record<string, unknown> | null
@@ -64,40 +62,57 @@ export interface LearningPersonalMaterial {
     updated_at?: string | null
 }
 
-export type LearningPresentationLayout =
-    | 'hero'
-    | 'key_points'
-    | 'comparison'
-    | 'action_plan'
-    | 'reflection'
-    | 'discussion'
+// ---- Structured slide-deck spec (fixed 8-slide format, cloned from the
+// client's pptx). The AI fills the content; our SlideDeck component renders it.
+export type LearningFigureType = 'flow' | 'list' | 'concept'
 
-export interface LearningPresentationSlide {
-    layout: LearningPresentationLayout
-    eyebrow: string
-    title: string
-    body: string
-    bullets: string[]
-    callout: string
+export interface LearningFigureItem {
+    label: string
+    detail: string | null
 }
 
-export interface LearningSlidePresentationSpec {
-    title: string
-    subtitle: string
-    summary: string
-    slides: LearningPresentationSlide[]
-    discussion_topics: string[]
+export interface LearningSlideFigure {
+    type: LearningFigureType
+    // Small heading above the figure (e.g. 視点の切り替え / 注意バランス). null when unused.
+    title: string | null
+    // flow: steps joined by arrows; list: stacked labeled boxes. Empty for concept.
+    items: LearningFigureItem[]
+    // concept: a short explanatory paragraph. null otherwise.
+    note: string | null
 }
 
-export interface LearningHtmlPresentationSpec {
-    html: string
-    title: string
-    summary: string
+export interface LearningSlideSection {
+    // Left-column bullet lines.
+    body: string[]
+    // Optional full-width summary line under the columns. null when unused.
+    summary: string | null
+    figure: LearningSlideFigure
 }
 
-export type LearningPresentationSpec =
-    | LearningSlidePresentationSpec
-    | LearningHtmlPresentationSpec
+export interface LearningDiscussionTheme {
+    name: string
+    talk_script: string
+    landing: string
+}
+
+export interface LearningSlideDeckSpec {
+    format: 'slide_deck_v1'
+    selected_theme: string
+    goal_title: string
+    sections: {
+        section1: LearningSlideSection
+        section2: LearningSlideSection
+        section3: LearningSlideSection
+        section4: LearningSlideSection
+        section5: LearningSlideSection
+    }
+    discussion: {
+        intro: string
+        theme1: LearningDiscussionTheme
+        theme2: LearningDiscussionTheme
+        theme3: LearningDiscussionTheme
+    }
+}
 
 export interface LearningThemeCategory {
     id: number

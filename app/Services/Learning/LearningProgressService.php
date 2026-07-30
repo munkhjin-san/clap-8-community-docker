@@ -73,15 +73,30 @@ class LearningProgressService
             ->with(['attempts' => fn ($q) => $q->whereIn('user_id', $userIds)->orderByDesc('attempt_number')])
             ->first();
 
+        // Preload every section exam once (with all users' attempts) so the
+        // per-user progress build never issues a query-per-user. Skip entirely
+        // when no material has its own exam.
+        $examMaterialIds = $theme->materials
+            ->filter(fn ($material) => $this->enabled($material->has_exam))
+            ->pluck('id')
+            ->filter();
+        $materialExams = $examMaterialIds->isEmpty()
+            ? collect()
+            : LessonExam::whereIn('lesson_material_id', $examMaterialIds->all())
+                ->with(['attempts' => fn ($q) => $q->whereIn('user_id', $userIds)->orderByDesc('attempt_number')])
+                ->get()
+                ->keyBy('lesson_material_id');
+
         return $userIds
-            ->mapWithKeys(function (int $userId) use ($theme, $portfolios, $exam) {
+            ->mapWithKeys(function (int $userId) use ($theme, $portfolios, $exam, $materialExams) {
                 return [
                     $userId => $this->buildProgress(
                         $theme,
                         $userId,
                         $theme->materials,
                         $portfolios->get($userId),
-                        $this->examProgress($theme->id, $userId, $exam, true)
+                        $this->examProgress($theme->id, $userId, $exam, true),
+                        $materialExams
                     ),
                 ];
             })
@@ -93,7 +108,8 @@ class LearningProgressService
         int $userId,
         Collection $materials,
         ?LessonPortfolio $portfolio,
-        ?array $examProgress = null
+        ?array $examProgress = null,
+        ?Collection $materialExams = null
     ): array {
         $sectionStatuses = $portfolio?->lesson_sections ?? collect();
 
@@ -116,7 +132,7 @@ class LearningProgressService
 
         $caseStudyMaterials = $materials->filter(fn ($material) => $material->material_type === self::MATERIAL_TYPE_CASE_STUDY);
 
-        $recurringMaterial = $this->recurringPersonalMaterial($theme, $userId);
+        $recurringMaterial = $this->recurringPersonalMaterial($theme, $userId, $portfolio);
         $recurringBasicCompleted = (bool) $recurringMaterial?->understand;
         $recurringBasicNotUnderstood = $recurringMaterial && $recurringMaterial->understand === false;
 
@@ -153,7 +169,7 @@ class LearningProgressService
                 'completed' => $caseCompleted,
             ],
             'exam' => $exam,
-            'material_exams' => $this->materialExamsProgress($materials, $userId),
+            'material_exams' => $this->materialExamsProgress($materials, $userId, $materialExams),
             'survey' => $survey,
             'portfolio' => $portfolioProgress,
             'theme_completed' => $themeCompleted,
@@ -188,16 +204,25 @@ class LearningProgressService
             ->first();
     }
 
-    private function recurringPersonalMaterial(LessonTheme $theme, int $userId): ?LessonPersonalMaterial
-    {
-        if (empty($theme->previous_version)) {
+    /**
+     * On AI attempts (attempt_no > 1: plain repeater or salary challenge) the
+     * 知識研修 stage is the generated 個別研修資料, not the basic sections. Its
+     * completion lives on the personal material for THIS attempt, keyed
+     * `repeater_attempt_{portfolioId}` (see LessonController::repeaterConfigKey).
+     */
+    private function recurringPersonalMaterial(
+        LessonTheme $theme,
+        int $userId,
+        ?LessonPortfolio $portfolio
+    ): ?LessonPersonalMaterial {
+        if (! $portfolio || (int) $portfolio->attempt_no <= 1) {
             return null;
         }
 
         return LessonPersonalMaterial::query()
             ->where('lesson_theme_id', $theme->id)
             ->where('user_id', $userId)
-            ->where('config_key', 'portfolio_recurring_trainee')
+            ->where('config_key', 'repeater_attempt_'.$portfolio->id)
             ->first();
     }
 
@@ -286,28 +311,40 @@ class LearningProgressService
      * their own exam (lesson_material_id) appear; the theme exam is handled
      * separately by examProgress().
      */
-    private function materialExamsProgress(Collection $materials, int $userId): array
+    private function materialExamsProgress(Collection $materials, int $userId, ?Collection $preloadedExams = null): array
     {
-        $materialIds = $materials->pluck('id')->filter()->map(fn ($id) => (int) $id)->unique()->values();
+        // Only materials that carry their own exam (has_exam) are relevant; this
+        // also keeps the fallback query from running when none do.
+        $materialIds = $materials
+            ->filter(fn ($material) => $this->enabled($material->has_exam))
+            ->pluck('id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
 
         if ($materialIds->isEmpty()) {
             return [];
         }
 
-        $exams = LessonExam::whereIn('lesson_material_id', $materialIds)
+        $exams = $preloadedExams ?? LessonExam::whereIn('lesson_material_id', $materialIds->all())
             ->with(['attempts' => fn ($q) => $q->where('user_id', $userId)->orderByDesc('attempt_number')])
             ->get()
             ->keyBy('lesson_material_id');
 
         return $materialIds
-            ->mapWithKeys(function (int $materialId) use ($exams) {
+            ->mapWithKeys(function (int $materialId) use ($exams, $userId) {
                 $exam = $exams->get($materialId);
 
                 if (! $exam) {
                     return [];
                 }
 
-                $attempts = $exam->attempts; // already scoped to the user, desc by attempt_number
+                // Filter to this user (preloaded exams carry every user's attempts).
+                $attempts = $exam->attempts
+                    ->where('user_id', $userId)
+                    ->sortByDesc('attempt_number')
+                    ->values();
                 $latestAttempt = $attempts->first();
 
                 return [

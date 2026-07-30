@@ -6,6 +6,7 @@ use App\Models\LessonAnswer;
 use App\Models\LessonExam;
 use App\Models\LessonExamAttempt;
 use App\Models\LessonMaterial;
+use App\Models\LessonPersonalMaterial;
 use App\Models\LessonPortfolio;
 use App\Models\LessonSection;
 use App\Models\LessonTheme;
@@ -64,6 +65,55 @@ class LearningProgressServiceTest extends LearningDatabaseTestCase
         $progress = app(LearningProgressService::class)->forThemeIdUser($theme->id, 7);
 
         $this->assertTrue($progress['portfolio']['completed']);
+        $this->assertTrue($progress['theme_completed']);
+    }
+
+    public function test_ai_attempt_completes_basic_from_the_personal_material(): void
+    {
+        // On an AI attempt (attempt_no > 1) the 知識研修 stage is the generated
+        // 個別研修資料, not the basic sections. Its completion lives on the
+        // personal material keyed repeater_attempt_{portfolioId}.
+        $theme = LessonTheme::create([
+            'title' => 'Salary Challenge Theme',
+            'portfolio' => 1,
+            'has_case_study' => 0,
+        ]);
+        LessonMaterial::create([
+            'lesson_theme_id' => $theme->id,
+            'title' => 'Basic',
+            'priority' => 1,
+            'has_understand' => 1,
+            'material_type' => '基礎知識',
+        ]);
+        LessonPortfolio::create([
+            'lesson_theme_id' => $theme->id,
+            'user_id' => 7,
+            'status' => 3,
+            'attempt_no' => 1,
+        ]);
+        $current = LessonPortfolio::create([
+            'lesson_theme_id' => $theme->id,
+            'user_id' => 7,
+            'status' => 3,
+            'attempt_no' => 2,
+            'salary_issue_id' => 42,
+        ]);
+
+        // No personal material yet → basic not complete.
+        $progress = app(LearningProgressService::class)->forThemeIdUser($theme->id, 7);
+        $this->assertFalse($progress['basic_completed']);
+
+        LessonPersonalMaterial::create([
+            'lesson_theme_id' => $theme->id,
+            'user_id' => 7,
+            'config_key' => 'repeater_attempt_'.$current->id,
+            'content' => '# 個別研修資料',
+            'understand' => true,
+        ]);
+
+        $progress = app(LearningProgressService::class)->forThemeIdUser($theme->id, 7);
+
+        $this->assertTrue($progress['basic_completed']);
         $this->assertTrue($progress['theme_completed']);
     }
 

@@ -63,8 +63,8 @@
             <article v-if="personalMaterialRaw" class="prev-portfolio__card prev-portfolio__ai-card">
                 <div v-if="personalMaterialPresentation" class="prev-portfolio__presentation-card">
                     <div>
-                        <h3>{{ personalMaterialPresentation.title }}</h3>
-                        <p>{{ personalMaterialPresentation.summary }}</p>
+                        <h3>個別研修資料</h3>
+                        <p>「{{ personalMaterialPresentation.goal_title }}」を達成するために</p>
                     </div>
                     <div>
                         <button class="prev-portfolio__presentation-button" @click="presentationOpen = true">
@@ -179,7 +179,7 @@
         <LearningPresentationPreview
             v-if="presentationOpen && personalMaterialPresentation"
             :presentation="personalMaterialPresentation"
-            :accent-color="personalMaterialAccentColor"
+            :selectable="!isPersonalMaterialCompleted"
             @close="presentationOpen = false"
             @select-discussion-theme="selectDiscussionTheme"
         />
@@ -200,9 +200,9 @@ import AiIcon from '@/components/Icons/AiIcon.vue'
 import LearningCollapseCard from '@/components/Learning/shared/LearningCollapseCard.vue'
 import LearningPresentationPreview from '@/components/Learning/shared/LearningPresentationPreview.vue'
 import type {
-    LearningHtmlPresentationSpec,
     LearningPersonalMaterial,
     LearningPortfolio,
+    LearningSlideDeckSpec,
     LearningTheme,
 } from '@/types/learning'
 
@@ -245,15 +245,12 @@ const canGeneratePersonalMaterial = computed(() => Boolean(props.canGeneratePers
 const personalMaterialHtml = computed(() => {
     return renderMarkdown(personalMaterialRaw.value)
 })
-const personalMaterialPresentation = computed<LearningHtmlPresentationSpec | null>(() => {
+const personalMaterialPresentation = computed<LearningSlideDeckSpec | null>(() => {
     const presentation = currentPersonalMaterial.value?.presentation_spec
 
-    return presentation && 'html' in presentation && typeof presentation.html === 'string'
+    return presentation && presentation.format === 'slide_deck_v1'
         ? presentation
         : null
-})
-const personalMaterialAccentColor = computed(() => {
-    return currentPersonalMaterial.value?.presentation_theme ?? null
 })
 const personalMaterialButtonLabel = computed(() => {
     return hasText(personalMaterialRaw.value) ? '個人専用研修資料再生成' : '個人専用研修資料生成'

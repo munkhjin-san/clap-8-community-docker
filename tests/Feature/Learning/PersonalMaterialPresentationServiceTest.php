@@ -60,20 +60,6 @@ class PersonalMaterialPresentationServiceTest extends LearningDatabaseTestCase
         ], $context);
     }
 
-    public function test_it_parses_generated_html_and_preserves_a_markdown_copy(): void
-    {
-        $service = app(PersonalMaterialPresentationService::class);
-        $presentation = $service->parseHtmlResponse($this->presentationHtml());
-        $markdown = $service->toMarkdown($presentation);
-
-        $this->assertSame('経験を次の行動へ', $presentation['title']);
-        $this->assertSame('前回の経験を、新しい実践へつなげるための研修です。', $presentation['summary']);
-        $this->assertStringContainsString('<style>', $presentation['html']);
-        $this->assertStringContainsString('# 経験を次の行動へ', $markdown);
-        $this->assertStringContainsString('## グループディスカッション', $markdown);
-        $this->assertStringContainsString('- 明日から変える行動は何か', $markdown);
-    }
-
     public function test_it_removes_unsupported_sampling_settings_for_gpt_56_luna(): void
     {
         $settings = app(PersonalMaterialPresentationService::class)->compatibleRequestSettings(
@@ -102,157 +88,104 @@ class PersonalMaterialPresentationServiceTest extends LearningDatabaseTestCase
         $this->assertSame(['top_p' => 0.9, 'temperature' => 0.5], $settings);
     }
 
-    public function test_it_selects_a_light_accent_color_from_the_shared_palette(): void
+    public function test_the_schema_is_strict_and_declares_the_fixed_structure(): void
     {
-        $colors = json_decode(
-            (string) file_get_contents(resource_path('assets/colors.json')),
-            true,
-            512,
-            JSON_THROW_ON_ERROR
+        $schema = app(PersonalMaterialPresentationService::class)->slideDeckSchema();
+
+        $this->assertSame('json_schema', $schema['type']);
+        $this->assertTrue($schema['strict']);
+
+        $sections = $schema['schema']['properties']['sections']['properties'];
+        $this->assertSame(
+            ['section1', 'section2', 'section3', 'section4', 'section5'],
+            array_keys($sections)
         );
-        $lightColors = collect($colors)->pluck('light')->all();
 
-        $accentColor = app(PersonalMaterialPresentationService::class)->randomAccentColor();
+        $discussion = $schema['schema']['properties']['discussion']['properties'];
+        $this->assertArrayHasKey('theme1', $discussion);
+        $this->assertArrayHasKey('theme2', $discussion);
+        $this->assertArrayHasKey('theme3', $discussion);
 
-        $this->assertContains($accentColor, $lightColors);
+        $figure = $sections['section1']['properties']['figure']['properties'];
+        $this->assertSame(['flow', 'list', 'concept'], $figure['type']['enum']);
     }
 
-    public function test_it_rejects_an_incomplete_html_response(): void
+    public function test_it_builds_a_slide_deck_spec_and_markdown(): void
+    {
+        $service = app(PersonalMaterialPresentationService::class);
+        $spec = $service->buildSlideDeckSpec($this->validContent(), 'ミッション・ビジョン・バリュー', '採用計画の第1版構築');
+
+        $this->assertSame('slide_deck_v1', $spec['format']);
+        $this->assertSame('ミッション・ビジョン・バリュー', $spec['selected_theme']);
+        $this->assertSame('採用計画の第1版構築', $spec['goal_title']);
+        $this->assertArrayHasKey('section5', $spec['sections']);
+        $this->assertSame('テーマ①', $spec['discussion']['theme1']['name']);
+
+        $markdown = $service->toMarkdown($spec);
+        $this->assertStringContainsString('# 個別研修資料', $markdown);
+        $this->assertStringContainsString('選択テーマ：ミッション・ビジョン・バリュー', $markdown);
+        $this->assertStringContainsString('## このテーマを今回の成果目標にどう活かせるか', $markdown);
+        $this->assertStringContainsString('## グループディスカッションテーマ', $markdown);
+        $this->assertStringContainsString('着地の方向：まとめる', $markdown);
+    }
+
+    public function test_it_rejects_content_missing_sections(): void
     {
         $this->expectException(RuntimeException::class);
 
-        app(PersonalMaterialPresentationService::class)->parseHtmlResponse(
-            '<html><body><h1>途中で切れた資料'
-        );
+        app(PersonalMaterialPresentationService::class)
+            ->buildSlideDeckSpec(['discussion' => []], 'テーマ', '目標');
     }
 
-    public function test_it_rejects_a_presentation_without_exactly_three_discussion_themes(): void
+    public function test_it_rejects_a_discussion_theme_without_a_name(): void
     {
+        $content = $this->validContent();
+        $content['discussion']['theme2']['name'] = '';
+
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('ちょうど3つ');
 
-        $html = str_replace(
-            $this->discussionThemeHtml(3),
-            '',
-            $this->presentationHtml()
-        );
-
-        app(PersonalMaterialPresentationService::class)->parseHtmlResponse($html);
+        app(PersonalMaterialPresentationService::class)
+            ->buildSlideDeckSpec($content, 'テーマ', '目標');
     }
 
-    public function test_it_rejects_a_discussion_section_without_its_fixed_selector_attributes(): void
+    /**
+     * @return array<string, mixed>
+     */
+    private function validContent(): array
     {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('固定IDとclass');
-
-        $html = str_replace(
-            '<section id="group-discussion" class="scene">',
-            '<section id="discussion" class="scene">',
-            $this->presentationHtml()
-        );
-
-        app(PersonalMaterialPresentationService::class)->parseHtmlResponse($html);
-    }
-
-    public function test_it_rejects_a_discussion_theme_without_its_fixed_class(): void
-    {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('ちょうど3つ');
-
-        $html = str_replace(
-            '<article class="discussion-theme" data-theme-number="2">',
-            '<article class="theme" data-theme-number="2">',
-            $this->presentationHtml()
-        );
-
-        app(PersonalMaterialPresentationService::class)->parseHtmlResponse($html);
-    }
-
-    public function test_it_rejects_a_discussion_theme_without_its_fixed_number(): void
-    {
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('連番、見出し、問い');
-
-        $html = str_replace(
-            'data-theme-number="2"',
-            'data-theme-number="9"',
-            $this->presentationHtml()
-        );
-
-        app(PersonalMaterialPresentationService::class)->parseHtmlResponse($html);
-    }
-
-    private function presentationHtml(): string
-    {
-        $discussionTheme1 = $this->discussionThemeHtml(1);
-        $discussionTheme2 = $this->discussionThemeHtml(2);
-        $discussionTheme3 = $this->discussionThemeHtml(3);
-
-        return <<<HTML
-<!doctype html>
-<html lang="ja">
-<head>
-    <meta charset="utf-8">
-    <title>経験を次の行動へ</title>
-    <style>
-        :root { --accent: #cee4d2; }
-        body { margin: 0; color: #151515; background: #f1f1f1; font-family: sans-serif; }
-        section { min-height: 80vh; padding: 4rem; border-bottom: 1rem solid var(--accent); }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
-    </style>
-</head>
-<body>
-    <main class="story">
-        <section class="scene">
-            <p>PERSONAL LEARNING</p>
-            <h1>経験を次の行動へ</h1>
-            <p>前回の経験を、新しい実践へつなげるための研修です。</p>
-        </section>
-        <section class="scene">
-            <h2>経験を言語化する</h2>
-            <p>うまくいった理由を、再現可能な行動として整理します。</p>
-            <ul><li>目的を書く</li><li>前提を確認する</li></ul>
-        </section>
-        <section class="scene">
-            <h2>視点を変える</h2>
-            <div class="grid"><p>感覚だけで判断しない。</p><p>根拠を確認して相談する。</p></div>
-        </section>
-        <section class="scene">
-            <h2>次の実践</h2>
-            <blockquote>変えるのは結果ではなく、結果につながる行動です。</blockquote>
-        </section>
-        <section class="scene">
-            <h2>実践の振り返り</h2>
-            <p>試した行動と結果を記録し、次の改善へつなげます。</p>
-        </section>
-        <section id="group-discussion" class="scene">
-            <h2>グループディスカッション</h2>
-            {$discussionTheme1}
-            {$discussionTheme2}
-            {$discussionTheme3}
-        </section>
-    </main>
-</body>
-</html>
-HTML;
-    }
-
-    private function discussionThemeHtml(int $number): string
-    {
-        $themes = [
-            1 => ['明日から変える行動', '明日から変える行動は何か'],
-            2 => ['経験の再現性', '経験を再現可能にするには何が必要か'],
-            3 => ['相談のタイミング', '相談するタイミングをどう決めるか'],
+        $section = fn (string $type): array => [
+            'body' => ['ポイント1', 'ポイント2'],
+            'summary' => null,
+            'figure' => [
+                'type' => $type,
+                'title' => '図解',
+                'items' => [
+                    ['label' => 'A', 'detail' => '説明A'],
+                    ['label' => 'B', 'detail' => null],
+                ],
+                'note' => null,
+            ],
         ];
-        [$title, $question] = $themes[$number];
+        $theme = fn (string $name): array => [
+            'name' => $name,
+            'talk_script' => '話し言葉の本文。',
+            'landing' => 'まとめる',
+        ];
 
-        return <<<HTML
-<article class="discussion-theme" data-theme-number="{$number}">
-    <h3>テーマ{$number}：{$title}</h3>
-    <p>過去の経験と次の実践を接続して考えます。</p>
-    <p class="discussion-question">{$question}</p>
-    <ul><li>{$question}</li></ul>
-</article>
-HTML;
+        return [
+            'sections' => [
+                'section1' => $section('flow'),
+                'section2' => $section('flow'),
+                'section3' => $section('list'),
+                'section4' => $section('list'),
+                'section5' => $section('concept'),
+            ],
+            'discussion' => [
+                'intro' => '3つから1つを選んでください。',
+                'theme1' => $theme('テーマ①'),
+                'theme2' => $theme('テーマ②'),
+                'theme3' => $theme('テーマ③'),
+            ],
+        ];
     }
 }

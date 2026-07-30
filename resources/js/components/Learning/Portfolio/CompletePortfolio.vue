@@ -4,8 +4,23 @@
 
             <!-- <div v-if="selectedTopic && selectedTopic.guidance" v-html="selectedTopic?.guidance"></div> -->
 
-            <!-- Path 3: studied AI material as the shared collapse card (reference, collapsed). -->
-            <LearningCollapseCard v-if="hasAiMaterial" label="個人専用研修資料">
+            <!-- Path 3: same 個別研修資料 as the basic / discussion stages —
+                 slide presentation + text version. Reference only (read-only). -->
+            <template v-if="presentationSpec">
+                <div class="cp-presentation-card">
+                    <div>
+                        <h3>個別研修資料</h3>
+                        <p>「{{ presentationSpec.goal_title }}」を達成するために</p>
+                    </div>
+                    <button type="button" class="cp-presentation-button" @click="presentationOpen = true">
+                        研修資料を見る
+                    </button>
+                </div>
+                <LearningCollapseCard label="テキスト版を見る">
+                    <div class="markdown-content" v-html="materialTextHtml"></div>
+                </LearningCollapseCard>
+            </template>
+            <LearningCollapseCard v-else-if="hasAiMaterial" label="個人専用研修資料">
                 <div class="markdown-content" v-html="aiMaterialHtml"></div>
             </LearningCollapseCard>
 
@@ -83,6 +98,12 @@
                 </div>
             </div>
         </div>
+        <LearningPresentationPreview
+            v-if="presentationOpen && presentationSpec"
+            :presentation="presentationSpec"
+            :selectable="false"
+            @close="presentationOpen = false"
+        />
     </div>
 </template>
 <script setup lang="ts">
@@ -91,6 +112,7 @@ import LongInput from '../../Form/LongInput.vue';
 import ShortInput from '../../Form/ShortInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue';
 import LearningCollapseCard from '@/components/Learning/shared/LearningCollapseCard.vue';
+import LearningPresentationPreview from '@/components/Learning/shared/LearningPresentationPreview.vue';
 import { computed, ref, onBeforeMount, inject, watch, type Ref } from 'vue'
 import OpenAiReview from '../../Global/OpenAiReview.vue'
 import { useLearningApi } from '@/composables/learningApi';
@@ -98,7 +120,7 @@ import { useDialog } from '@/composables/dialog';
 import { LESSON_PORTFOLIO_STATUS } from '@/config/learning';
 import { isEnabled } from '@/utils/learningProgress';
 import { renderMarkdown } from '@/utils/markdown';
-import type { LearningPortfolio, LearningTheme } from '@/types/learning';
+import type { LearningPersonalMaterial, LearningPortfolio, LearningSlideDeckSpec, LearningTheme } from '@/types/learning';
 
     const PORTFOLIO_AFTER_DISCUSSION_CONFIG_KEY = 'portfolio_after_discussion'
     const props = defineProps<{
@@ -125,6 +147,30 @@ import type { LearningPortfolio, LearningTheme } from '@/types/learning';
     // Path 3: the AI-generated study material (markdown-rendered) in a collapse card.
     const hasAiMaterial = computed(() => Boolean(portfolio?.value?.ai_material))
     const aiMaterialHtml = computed(() => renderMarkdown(portfolio?.value?.ai_material))
+
+    // Same 個別研修資料 as the basic / discussion stages (slide + text), read-only.
+    const personalMaterial = ref<LearningPersonalMaterial | null>(null)
+    const presentationOpen = ref(false)
+    const presentationSpec = computed<LearningSlideDeckSpec | null>(() => {
+        const spec = personalMaterial.value?.presentation_spec
+        return spec && spec.format === 'slide_deck_v1' ? spec : null
+    })
+    const materialTextHtml = computed(() =>
+        renderMarkdown(personalMaterial.value?.content ?? portfolio?.value?.ai_material),
+    )
+    const loadPersonalMaterial = async() => {
+        const id = props.selectedTopic?.id ?? route.params.lessonThemeId
+        if (!id) return
+        try {
+            const prev = await learningApi.getPreviousExperience(id as number | string)
+            personalMaterial.value = prev?.personal_material ?? null
+        } catch {
+            personalMaterial.value = null
+        }
+    }
+    watch(() => [props.selectedTopic?.id, hasAiMaterial.value], () => {
+        if (hasAiMaterial.value) loadPersonalMaterial()
+    }, { immediate: true })
     watch(portfolio ?? ref(null), (record) => {
         portfolioContent.value = record?.public_content ?? ''
         portfolio_title.value = record?.public_title ?? ''
@@ -201,6 +247,38 @@ import type { LearningPortfolio, LearningTheme } from '@/types/learning';
     }
 </script>
 <style scoped>
+/* 20px matches LearningCollapseCard's own m-[20px] so both cards align. */
+.cp-presentation-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin: 20px;
+    padding: 24px;
+    background: var(--background-color);
+    border: 1px solid var(--formBorder);
+}
+.cp-presentation-card h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+    line-height: 1.5;
+}
+.cp-presentation-card p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.8;
+}
+.cp-presentation-button {
+    padding: 11px 16px;
+    border: 1px solid rgb(255 255 255 / 70%);
+    background: gray;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
 .cp-block { margin-bottom: 22px; }
 .cp-block:last-child { margin-bottom: 0; }
 .cp-label { margin: 0 0 6px; font-size: 13px; color: var(--third-color); }

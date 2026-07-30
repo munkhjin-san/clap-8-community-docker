@@ -642,7 +642,6 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/lesson_theme/{theme}/ai_config', [LessonController::class, 'save_lesson_theme_ai_config']);
         Route::post('/lesson_theme/{theme}/personal_materials/portfolio_recurring_trainee/generate', [LessonController::class, 'generate_personal_material']);
         Route::post('/lesson_theme/{theme}/personal_materials/portfolio_recurring_trainee/feedback', [LessonController::class, 'save_personal_material_feedback']);
-        Route::get('/lesson_theme/{theme}/personal_materials/{personalMaterial}/presentation', [LessonController::class, 'download_personal_material_presentation']);
         Route::get('/lesson_theme_categories', [LessonController::class, 'get_lesson_categories']);
         Route::post('/lesson_theme_category', [LessonController::class, 'save_lesson_category']);
         Route::delete('/lesson_theme_category', [LessonController::class, 'delete_lesson_category']);

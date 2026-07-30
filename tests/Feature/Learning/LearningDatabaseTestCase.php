@@ -128,8 +128,6 @@ abstract class LearningDatabaseTestCase extends TestCase
             $table->string('config_key');
             $table->longText('content')->nullable();
             $table->text('presentation_spec')->nullable();
-            $table->string('presentation_theme')->nullable();
-            $table->string('presentation_path')->nullable();
             $table->text('source_snapshot')->nullable();
             $table->boolean('understand')->nullable();
             $table->longText('important_point')->nullable();
@@ -155,6 +153,7 @@ abstract class LearningDatabaseTestCase extends TestCase
         Schema::create('lesson_exams', function ($table) {
             $table->increments('id');
             $table->integer('lesson_theme_id');
+            $table->integer('lesson_material_id')->nullable();
             $table->string('title')->nullable();
             $table->integer('passing_score')->default(80);
             $table->integer('max_attempts')->default(1);

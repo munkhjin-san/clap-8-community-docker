@@ -3,11 +3,25 @@
         <div class="section-inner" v-if="selectedTopic && isEnabled(selectedTopic.active)">
         
             <div v-if="isSalaryChallenge">
-                <!-- Studied AI material as the shared collapse card; salary challengers
-                     start collapsed since it's reference they've already read. -->
-                <LearningCollapseCard label="個人専用研修資料">
-                    <div class="markdown-content" v-html="aiMaterialHtml"></div>
-                </LearningCollapseCard>
+                <!-- Same 個別研修資料 as the basic stage: slide presentation + text
+                     version. Reference only here (read-only, no theme picker). -->
+                <div class="gd-material">
+                    <div v-if="presentationSpec" class="gd-presentation-card">
+                        <div>
+                            <h3>個別研修資料</h3>
+                            <p>「{{ presentationSpec.goal_title }}」を達成するために</p>
+                        </div>
+                        <button type="button" class="gd-presentation-button" @click="presentationOpen = true">
+                            研修資料を見る
+                        </button>
+                    </div>
+                    <LearningCollapseCard v-if="presentationSpec" label="テキスト版を見る">
+                        <div class="markdown-content" v-html="materialTextHtml"></div>
+                    </LearningCollapseCard>
+                    <LearningCollapseCard v-else label="個人専用研修資料">
+                        <div class="markdown-content" v-html="aiMaterialHtml"></div>
+                    </LearningCollapseCard>
+                </div>
 
                 <div class="si-box gd-theme">
                     <p><strong>グループディスカッション用テーマ</strong></p>
@@ -81,13 +95,20 @@
             </div>
             
         </div>
+        <LearningPresentationPreview
+            v-if="presentationOpen && presentationSpec"
+            :presentation="presentationSpec"
+            :selectable="false"
+            @close="presentationOpen = false"
+        />
     </div>
-    
+
 </template>
 <script setup lang="ts">
 import LongInput from '../../Form/LongInput.vue';
 import LoaderButton from '../../Global/LoaderButton.vue';
 import LearningCollapseCard from '@/components/Learning/shared/LearningCollapseCard.vue';
+import LearningPresentationPreview from '@/components/Learning/shared/LearningPresentationPreview.vue';
 import { computed, ref, inject, watch, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router';
 import { useDialog } from '@/composables/dialog';
@@ -95,7 +116,7 @@ import { useLearningApi } from '@/composables/learningApi';
 import { LESSON_PORTFOLIO_STATUS } from '@/config/learning';
 import { isEnabled } from '@/utils/learningProgress';
 import { renderMarkdown } from '@/utils/markdown';
-import type { LearningPortfolio, LearningTheme } from '@/types/learning';
+import type { LearningPersonalMaterial, LearningPortfolio, LearningSlideDeckSpec, LearningTheme } from '@/types/learning';
 
     const props = defineProps<{
         selectedTopic?: LearningTheme | null
@@ -120,6 +141,30 @@ import type { LearningPortfolio, LearningTheme } from '@/types/learning';
     // Path 3 (salary challenge): studied AI material is collapsible; the chosen theme is highlighted.
     const isSalaryChallenge = computed(() => Boolean(portfolio?.value?.salary_issue_id))
     const aiMaterialHtml = computed(() => renderMarkdown(portfolio?.value?.ai_material))
+
+    // Same 個別研修資料 as the basic stage (slide presentation + text), read-only here.
+    const personalMaterial = ref<LearningPersonalMaterial | null>(null)
+    const presentationOpen = ref(false)
+    const presentationSpec = computed<LearningSlideDeckSpec | null>(() => {
+        const spec = personalMaterial.value?.presentation_spec
+        return spec && spec.format === 'slide_deck_v1' ? spec : null
+    })
+    const materialTextHtml = computed(() =>
+        renderMarkdown(personalMaterial.value?.content ?? portfolio?.value?.ai_material),
+    )
+    const loadPersonalMaterial = async() => {
+        const id = props.selectedTopic?.id ?? themeId.value
+        if (!id) return
+        try {
+            const prev = await learningApi.getPreviousExperience(id as number | string)
+            personalMaterial.value = prev?.personal_material ?? null
+        } catch {
+            personalMaterial.value = null
+        }
+    }
+    watch(() => [props.selectedTopic?.id, isSalaryChallenge.value], () => {
+        if (isSalaryChallenge.value) loadPersonalMaterial()
+    }, { immediate: true })
 
     watch(portfolio ?? ref(null), (record) => {
         p_feedBack.value = record?.positive_feedback ?? ''
@@ -215,6 +260,39 @@ import type { LearningPortfolio, LearningTheme } from '@/types/learning';
     .markdown-content ul,
     .markdown-content ol {
         padding-left: 1.4em;
+    }
+
+    /* No margin here: LearningCollapseCard carries its own m-[20px], so a
+       wrapper margin would double-inset it. The card below matches that 20px. */
+    .gd-presentation-card {
+        margin: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+        padding: 24px;
+        background: var(--background-color);
+        border: 1px solid var(--formBorder);
+    }
+    .gd-presentation-card h3 {
+        margin: 0 0 8px;
+        font-size: 18px;
+        line-height: 1.5;
+    }
+    .gd-presentation-card p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.8;
+    }
+    .gd-presentation-button {
+        padding: 11px 16px;
+        border: 1px solid rgb(255 255 255 / 70%);
+        background: gray;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
     }
 
     .gd-theme {
