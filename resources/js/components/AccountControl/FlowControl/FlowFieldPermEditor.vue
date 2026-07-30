@@ -1,7 +1,7 @@
 <template>
     <div class="flex flex-col gap-[12px] max-w-[900px]">
         <p class="text-[12px] text-gray-500">
-            フィールドごとに閲覧・編集できる対象を指定します。未設定のフィールドは全員が閲覧・編集できます（上位権限の範囲内）。
+            フィールドごとに閲覧・編集できる対象を指定します。未設定のフィールドは全員が閲覧・編集できます（上位権限の範囲内）。指定が細かい対象が優先されます（全員 ＜ 役職 ＜ 個人指定）。個人指定を追加すると、その人には役職の指定は適用されません。
         </p>
         <div v-for="f in fields" :key="f.id" class="flow-card">
             <div class="flex items-center gap-[6px] mb-[8px]">

@@ -1638,20 +1638,81 @@ class FlowService
         return is_array($json) ? array_map('intval', $json) : [];
     }
 
-    /** App-level: first-match-wins over flow_app_permissions; returns the 7 flags. */
-    public function effectiveAppPermissions(User $user, FlowDefinition $def): array
-    {
-        $perms = array_fill_keys(self::APP_PERMS, false);
+    /**
+     * How specific a subject is. The most specific tier that matches a user decides their
+     * permissions outright; broader tiers are then ignored for that person.
+     *
+     * 全員 < 役職・ロール < 個人指定. Anything unrecognised counts as a role rather than an
+     * individual, so a subject type added later cannot silently outrank someone's own row.
+     */
+    private const SUBJECT_RANK = [
+        'everyone' => 0,
+        // roles: a group of people, however small
+        'position' => 1,
+        'project_member' => 1,
+        'project_manager' => 1,
+        'project_director' => 1,
+        'creator_project_manager' => 1,
+        'field_project_manager' => 1,
+        // individuals: this person, by name or by being named in the record
+        'creator' => 2,
+        'user' => 2,
+        'field' => 2,
+    ];
 
-        $rows = $def->relationLoaded('appPermissions') ? $def->appPermissions : $def->appPermissions()->get();
+    /**
+     * Resolve subject-scoped permission rows for one user: the most specific matching tier wins,
+     * and rows inside that tier are unioned.
+     *
+     * Shared by all three layers (app / record-set grants / field) so that "who gets what" reads the
+     * same everywhere — an individual entry overrides a role entry, which overrides 全員.
+     *
+     * @param  string[]  $flags  the can_* suffixes to resolve
+     * @return array<string, bool>
+     */
+    private function resolveSubjectRows($rows, array $flags, User $user, FlowDefinition $def, ?FlowRecord $record = null): array
+    {
+        $out = array_fill_keys($flags, false);
+        $bestRank = -1;
+        $winning = [];
+
         foreach ($rows as $row) {
-            if ($this->matchesSubject($row->subject_type, $row->subject_id, $user, $def)) {
-                foreach (self::APP_PERMS as $p) {
-                    $perms[$p] = (bool) $row->{'can_'.$p};
-                }
-                break;
+            if (! $this->matchesSubject($row->subject_type, $row->subject_id, $user, $def, $record)) {
+                continue;
+            }
+            $rank = self::SUBJECT_RANK[$row->subject_type] ?? 1;
+            if ($rank > $bestRank) {
+                $bestRank = $rank;
+                $winning = [$row];
+            } elseif ($rank === $bestRank) {
+                $winning[] = $row;
             }
         }
+        foreach ($winning as $row) {
+            foreach ($flags as $f) {
+                $out[$f] = $out[$f] || (bool) $row->{'can_'.$f};
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * App-level: the most specific matching tier wins — 個人指定 over 役職 over 全員.
+     *
+     * Row order used to decide this, which made the same two rows mean different things depending on
+     * an ordering whose effect was invisible. Specificity is both order-independent and the way
+     * people already read these tables: "everyone gets this, except this role, except this person".
+     *
+     * Rows within the winning tier are unioned, so two matching role rows still combine — it is only
+     * across tiers that the narrower one takes over. A consequence worth knowing: an individual row
+     * REPLACES the person's 役職 row rather than adding to it, so an unchecked box on their own row
+     * removes an ability their 役職 would have given them. The builder flags exactly that case.
+     */
+    public function effectiveAppPermissions(User $user, FlowDefinition $def): array
+    {
+        $rows = $def->relationLoaded('appPermissions') ? $def->appPermissions : $def->appPermissions()->get();
+        $perms = $this->resolveSubjectRows($rows, self::APP_PERMS, $user, $def);
 
         // Safety: the app creator never loses control of their own app (lockout guard).
         // Note: this is per-app (the creator of THIS app), not a global role — app-level
@@ -1690,14 +1751,10 @@ class FlowService
             return $base; // unmatched record → app-level fallback
         }
 
-        $rl = ['view' => false, 'edit' => false, 'delete' => false];
-        foreach (($matched->relationLoaded('grants') ? $matched->grants : $matched->grants()->get()) as $g) {
-            if ($this->matchesSubject($g->subject_type, $g->subject_id, $user, $def, $record)) {
-                $rl['view'] = $rl['view'] || $g->can_view;
-                $rl['edit'] = $rl['edit'] || $g->can_edit;
-                $rl['delete'] = $rl['delete'] || $g->can_delete;
-            }
-        }
+        // which SET applies is still decided by record conditions in order (above); WHO gets what
+        // inside it follows the same subject hierarchy as everywhere else
+        $grants = $matched->relationLoaded('grants') ? $matched->grants : $matched->grants()->get();
+        $rl = $this->resolveSubjectRows($grants, ['view', 'edit', 'delete'], $user, $def, $record);
 
         return [
             'view' => $app['view'] && $rl['view'],
@@ -1765,14 +1822,7 @@ class FlowService
 
                 continue;
             }
-            $fp = ['view' => false, 'edit' => false];
-            foreach ($frows as $r) {
-                if ($this->matchesSubject($r->subject_type, $r->subject_id, $user, $def, $record)) {
-                    $fp['view'] = $fp['view'] || $r->can_view;
-                    $fp['edit'] = $fp['edit'] || $r->can_edit;
-                }
-            }
-            $out[$f->id] = $fp;
+            $out[$f->id] = $this->resolveSubjectRows($frows, ['view', 'edit'], $user, $def, $record);
         }
 
         return $out;

@@ -469,7 +469,10 @@ class FlowController extends Controller
                 'can_import' => ! empty($r['can_import']),
                 'can_export' => ! empty($r['can_export']),
                 'can_bulk' => ! empty($r['can_bulk']),
-                'sort_order' => $r['sort_order'] ?? $i,
+                // the payload order IS the intent, so index wins. Honouring an incoming sort_order
+                // meant a reordered row kept the number it was loaded with, and the relation
+                // (ordered by sort_order) put it straight back where it was on the next load.
+                'sort_order' => $i,
             ]);
         }
     }
