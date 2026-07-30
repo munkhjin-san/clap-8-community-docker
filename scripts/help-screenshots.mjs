@@ -165,6 +165,19 @@ const SHOTS = [
             await sleep(600)
         },
     },
+    // ツール root: the grid of tool kinds
+    { file: 'builder-tools', url: `/apps/builder/${APP_ID}/tools`, waitFor: '.tt-card' },
+    {
+        // the 集計スロット editor, opened on the demo app's existing slot
+        file: 'slot-editor', url: `/apps/builder/${APP_ID}/tools/aggregation`, waitFor: '.tt-row',
+        prep: async (p) => {
+            await p.click('.tt-row .tt-btn')
+            await p.waitForSelector('.se-item')
+            await sleep(500)
+        },
+    },
+    // record list with the slot strip (the demo app has 合計/平均 configured)
+    { file: 'records-slot', url: `/apps/records/${APP_ID}`, waitFor: '.rv-slot' },
     { file: 'builder-status', url: `/apps/builder/${APP_ID}/status`, waitFor: '::-p-text(ステータス)' },
     { file: 'builder-view', url: `/apps/builder/${APP_ID}/view`, waitFor: '::-p-text(ビュー)' },
     { file: 'builder-permission', url: `/apps/builder/${APP_ID}/permission`, waitFor: '::-p-text(アクセス権)' },
