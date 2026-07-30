@@ -301,6 +301,7 @@ import { useTheme } from '@/store/theme'
 import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
 import MemberSelector from '@/components/Form/MemberSelector.vue'
 import ItemSelector from '@/components/Form/ItemSelector.vue'
+import { isSecretType } from '@/types/flow'
 import type { FlowField, FlowOptionUser, FlowOptionProject } from '@/types/flow'
 
 const props = defineProps<{
@@ -421,10 +422,18 @@ const syncPwFromModel = () => {
     hideSecret()
     if (typeof props.modelValue === 'boolean') emit('update:modelValue', '')
 }
-if (props.field.input_type === 'password' && !props.readonly) syncPwFromModel()
-// the record can change under a reused component (prev/next navigation) — resync
+if (isSecretType(props.field.input_type) && !props.readonly) syncPwFromModel()
+/**
+ * The record can change under a reused component (prev/next navigation) — resync.
+ *
+ * Scoped to secret fields, and that guard is the whole point: a secret's stored value arrives as a
+ * boolean meaning "one is set", which syncPwFromModel() rewrites to '' for "keep it". Unscoped, this
+ * fired for EVERY field type, so a 切り替え (toggle) — whose value is legitimately a boolean — had its
+ * value clobbered to '' the moment it changed. Switching a toggle on was impossible: the click emitted
+ * true, this watcher emitted '' straight after, and the switch rendered off again.
+ */
 watch(() => [props.modelValue, props.recordId], () => {
-    if (typeof props.modelValue === 'boolean') syncPwFromModel()
+    if (isSecretType(props.field.input_type) && typeof props.modelValue === 'boolean') syncPwFromModel()
 })
 watch(pwMode, (m) => {
     if (m === 'keep') emit('update:modelValue', '')
