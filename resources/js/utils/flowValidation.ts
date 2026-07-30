@@ -1,3 +1,4 @@
+import { isLayoutType, isSecretType } from '@/types/flow'
 import type { FlowField } from '@/types/flow'
 
 const isEmpty = (v: any): boolean =>
@@ -65,4 +66,63 @@ function matchFormat(format: string, value: string): boolean {
 
 function formatLabel(format: string): string {
     return ({ email: 'メールアドレス', tel: '電話番号', url: 'URL' } as Record<string, string>)[format] ?? format
+}
+
+
+/**
+ * Locked by the server: updateAppRecord() filters writes through editableFieldIdsForRecord(), so a
+ * field missing from `ids` cannot be written no matter what the client submits. `ids` of null means
+ * the payload didn't resolve it — fall back to the field definition alone rather than locking
+ * everything. A record being created has no per-record locks yet.
+ */
+export const lockedByServer = (f: FlowField, ids: number[] | null | undefined, isNew?: boolean): boolean =>
+    !isNew && Array.isArray(ids) && !ids.includes(Number(f.id))
+
+/** A field the user could never have typed into, so a save must neither validate nor submit it. */
+export const isUnsubmittable = (f: FlowField, ids: number[] | null | undefined, isNew?: boolean): boolean =>
+    f.input_type === 'formula' || isLayoutType(f.input_type) || !!f.validation?.disabled
+    || lockedByServer(f, ids, isNew)
+
+/**
+ * Save-time validation for a whole record. Shared by the record screen and the list's inline row
+ * editor so the two can't drift on what counts as valid.
+ *
+ * `stored` is the record's current server-side values (null when creating): a secret field submitted
+ * blank keeps whatever is stored, so 必須 has to ask "will a value exist after this save?" rather
+ * than "was one typed?".
+ */
+export function validateRecordValues(
+    fields: FlowField[],
+    values: Record<string, any>,
+    opts: { editableFieldIds?: number[] | null; isNew?: boolean; stored?: Record<string, any> | null } = {},
+): Record<string, string | null> {
+    const errors: Record<string, string | null> = {}
+    for (const f of fields) {
+        if (f.hidden || isUnsubmittable(f, opts.editableFieldIds, opts.isNew)) continue
+        if (isSecretType(f.input_type)) {
+            const v = values[f.id!]
+            const clearing = !!(v && typeof v === 'object' && (v as any).clear)
+            const incoming = typeof v === 'string' ? v.trim() : ''
+            const alreadySet = opts.stored?.[f.id!] === true
+            errors[f.id!] = f.is_required && (clearing || (incoming === '' && !alreadySet)) ? '必須項目です。' : null
+            continue
+        }
+        errors[f.id!] = validateFlowField(f, values[f.id!])
+    }
+    return errors
+}
+
+/** The values a save may actually send: everything the user could edit, formulas and locks excluded. */
+export function submittableValues(
+    fields: FlowField[],
+    values: Record<string, any>,
+    opts: { editableFieldIds?: number[] | null; isNew?: boolean } = {},
+): Record<string, any> {
+    const payload: Record<string, any> = {}
+    for (const f of fields) {
+        if (f.hidden || f.input_type === 'formula' || isLayoutType(f.input_type)) continue
+        if (lockedByServer(f, opts.editableFieldIds, opts.isNew)) continue
+        payload[f.id!] = values[f.id!]
+    }
+    return payload
 }

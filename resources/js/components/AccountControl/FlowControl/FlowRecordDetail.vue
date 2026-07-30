@@ -80,41 +80,18 @@
 
         <div class="rd-body">
             <div class="rd-main">
-            <div class="rd-canvas">
-                <div v-for="(row, ri) in fieldRows" :key="ri" class="rd-row">
-                    <div
-                        v-for="field in row"
-                        :key="field.id"
-                        class="rd-block"
-                        :class="{ 'rd-heading-block': isLayoutType(field.input_type) }"
-                        :style="{ width: field.input_type === 'heading' ? '100%' : field.width + 'px' }"
-                    >
-                        <template v-if="isLayoutType(field.input_type)">
-                            <FlowFieldInput :field="field" :model-value="null" />
-                        </template>
-                        <template v-else>
-                            <label class="rd-label truncate" :title="field.label">
-                                {{ field.label }}
-                                <span v-if="field.is_required" class="rd-req">*</span>
-                            </label>
-                            <div :class="{ 'rd-disabled': mode === 'edit' && (field.validation?.disabled || lockedByServer(field)) }" :title="mode === 'edit' ? lockHint(field) : undefined">
-                                <FlowFieldInput
-                                    :field="field"
-                                    :users="users"
-                                    :projects="projects"
-                                    :readonly="isReadonly(field)"
-                                    :preview="true"
-                                    :record-id="record?.id ?? null"
-                                    v-model="values[field.id!]"
-                                    @update:model-value="errors[field.id!] = null"
-                                    @lookup="onLookup"
-                                />
-                            </div>
-                            <div v-if="errors[field.id!]" class="rd-err">{{ errors[field.id!] }}</div>
-                        </template>
-                    </div>
-                </div>
-            </div>
+            <FlowRecordForm
+                :fields="definition?.fields ?? []"
+                :values="values"
+                :errors="errors"
+                :readonly="mode === 'view'"
+                :editable-field-ids="record?.editable_field_ids ?? null"
+                :is-new="isNew"
+                :users="users"
+                :projects="projects"
+                :record-id="record?.id ?? null"
+                :stacked="isNarrow"
+            />
             </div>
 
             <div v-if="!isNew" class="rd-side" :class="{ mobile: isNarrow, open: sheetOpen, collapsed: !isNarrow && sideCollapsed }">
@@ -206,14 +183,14 @@ import { useApi } from '@/composables/api'
 import { useFlowOptionsStore } from '@/store/flowOptions'
 import { useFilePreview } from '@/store/filePreview'
 import { useResponsive } from '@/store/responsive'
-import { validateFlowField } from '@/utils/flowValidation'
+import { submittableValues, validateRecordValues } from '@/utils/flowValidation'
 import { resolveFieldDefault } from '@/utils/flowDefaults'
 import { readableTextColor } from '@/utils/flowColor'
 import { flowColorValue } from '@/utils/flowColors'
 import { useTheme } from '@/store/theme'
 import { pageTitleOverride } from '@/composables/pageTitle'
 import { useAuthUserStore } from '@/store/auth'
-import FlowFieldInput from './FlowFieldInput.vue'
+import FlowRecordForm from './FlowRecordForm.vue'
 import FlowAppIcon from './FlowAppIcon.vue'
 import Trash from '@/components/Icons/Trash.vue'
 import Edit from '@/components/Icons/Edit.vue'
@@ -366,36 +343,8 @@ const isNew = computed(() => !recordId.value)
 // record's values instead of plain defaults. Holds the fetched source values while seeding.
 const dupFrom = computed(() => (route.query.from ? String(route.query.from) : null))
 const dupValues = ref<Record<string, any> | null>(null)
-const visibleFields = computed(() => (definition.value?.fields ?? []).filter((f) => !f.hidden))
 
-const fieldRows = computed<FlowField[][]>(() => {
-    const map = new Map<number, FlowField[]>()
-    for (const f of visibleFields.value) {
-        const r = f.layout_row ?? 0
-        if (!map.has(r)) map.set(r, [])
-        map.get(r)!.push(f)
-    }
-    return [...map.keys()].sort((a, b) => a - b)
-        .map((k) => map.get(k)!.slice().sort((a, b) => (a.order_number ?? 0) - (b.order_number ?? 0)))
-})
 
-/**
- * A field the server won't accept must not render as an input: the update endpoint filters writes
- * through editableFieldIdsForRecord(), so an editable-looking locked field would take the user's
- * typing and then silently drop it on save. `editable_field_ids` is that same server-side answer
- * (field permissions ∩ the current status's field rules); null means the payload didn't resolve it,
- * so fall back to the field definition alone rather than locking the whole form.
- */
-const lockedByServer = (f: FlowField) => {
-    const ids = record.value?.editable_field_ids
-    return !isNew.value && Array.isArray(ids) && !ids.includes(Number(f.id))
-}
-const lockHint = (f: FlowField) => {
-    if (f.validation?.disabled) return '入力できません（自動入力のみ）'
-    if (lockedByServer(f)) return '現在のステータスまたは権限では編集できません。'
-    return undefined
-}
-const isReadonly = (f: FlowField) => mode.value === 'view' || f.input_type === 'formula' || !!f.validation?.disabled || lockedByServer(f)
 
 /* ---- unread-comment badge: clears only after the comment tab has really been viewed ---- */
 const unreadComments = ref(0)
@@ -498,19 +447,6 @@ const emptyValue = (f: FlowField) => {
     if (f.input_type === 'number' || f.input_type === 'reference') return null
     return ''
 }
-// Lookup field copy (kintone-style): the reference field emits its picked record's values keyed by
-// source field key; fill each mapped destination field here. Empty `source` (lookup cleared) blanks
-// them. Formula/layout destinations are skipped defensively (they can't take a copied value).
-const onLookup = (payload: { mappings: { from: string; to: string }[]; source: Record<string, any> }) => {
-    const fields = definition.value?.fields ?? []
-    const cleared = Object.keys(payload.source).length === 0
-    for (const m of payload.mappings) {
-        const dest = fields.find((f) => f.key === m.to)
-        if (!dest?.id || dest.input_type === 'formula' || isLayoutType(dest.input_type)) continue
-        values[dest.id] = cleared ? emptyValue(dest) : (payload.source[m.from] ?? emptyValue(dest))
-        errors[dest.id] = null
-    }
-}
 
 // duplicate copies every editable field EXCEPT formula (recomputed), layout (no value), and file
 // (attachments aren't re-uploaded — copying the refs would share storage between records)
@@ -582,36 +518,15 @@ const cancelEdit = () => {
 }
 
 const save = async () => {
-    let ok = true
-    for (const f of visibleFields.value) {
-        // disabled fields can't be edited by the user, so don't block save on their validation
-        if (f.input_type === 'formula' || isLayoutType(f.input_type) || f.validation?.disabled) continue
-        // locked server-side: its stored value stands, so it is neither validated nor submitted
-        if (lockedByServer(f)) continue
-        // secrets: a blank submit keeps the stored value, so 必須 asks "will one exist after save?"
-        if (isSecretType(f.input_type)) {
-            const v = values[f.id!]
-            const clearing = !!(v && typeof v === 'object' && (v as any).clear)
-            const incoming = typeof v === 'string' ? v.trim() : ''
-            const stored = record.value?.values?.[f.id!] === true
-            const err = f.is_required && (clearing || (incoming === '' && !stored)) ? '必須項目です。' : null
-            errors[f.id!] = err
-            if (err) ok = false
-            continue
-        }
-        const err = validateFlowField(f, values[f.id!])
-        errors[f.id!] = err
-        if (err) ok = false
-    }
-    if (!ok) return
+    const opts = { editableFieldIds: record.value?.editable_field_ids ?? null, isNew: isNew.value }
+    const found = validateRecordValues(definition.value?.fields ?? [], values, { ...opts, stored: record.value?.values ?? null })
+    Object.keys(errors).forEach((k) => (errors[k] = null))
+    Object.assign(errors, found)
+    if (Object.values(found).some(Boolean)) return
 
     saving.value = true
     try {
-        const payload: Record<string, any> = {}
-        visibleFields.value.forEach((f) => {
-            if (f.input_type === 'formula' || isLayoutType(f.input_type) || lockedByServer(f)) return
-            payload[f.id!] = values[f.id!]
-        })
+        const payload = submittableValues(definition.value?.fields ?? [], values, opts)
         if (isNew.value) {
             const data = await api.post('/flow_app_record_create', { flow_definition_id: definition.value?.id, values: payload }, { toast: '作成しました。' })
             if (data) back()
@@ -704,14 +619,7 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-act:disabled { cursor: not-allowed; }
 .rd-body { flex: 1; display: flex; min-height: 0; overflow: hidden; position: relative; }
 .rd-main { flex: 1; min-width: 0; overflow: auto; padding: 20px; }
-.rd-canvas { width: max-content; min-width: 100%; }
-.rd-row { display: flex; gap: 20px; margin-bottom: 20px; align-items: stretch; }
-.rd-block { flex: 0 0 auto; box-sizing: border-box !important; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 5px; padding: 15px; }
-.rd-heading-block { border: none; background: none; padding: 4px 0; }
 /* narrow screens: ignore builder-set pixel widths and stack fields full-width */
-.rd-screen.overlay .rd-canvas { width: 100%; }
-.rd-screen.overlay .rd-row { flex-direction: column; align-items: stretch; }
-.rd-screen.overlay .rd-block { width: 100% !important; }
 /* mobile: status row and action/tool buttons stack onto their own lines instead of being crushed */
 .rd-screen.overlay .rd-flow { flex-wrap: wrap; }
 .rd-screen.overlay .rd-flow-status { width: 100%; }
@@ -747,12 +655,7 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-side.mobile .rd-side-content { max-height: 58vh; }
 /* --sub-color = theme-aware muted text (light #666 / dark #b0b3b8): readable in dark without the
    near-white glare of --primary-color, and not the too-dim fixed gray. */
-.rd-label { display: block; font-size: 13px; color: var(--sub-color); margin-bottom: 15px; }
-.rd-req { color: #e2574c; }
-.rd-err { font-size: 11px; color: #e2574c; margin-top: 3px; }
 /* disabled field (edit mode): muted + not-allowed cursor so it reads as locked; inner ignores pointer events */
-.rd-disabled { cursor: not-allowed; opacity: 0.6; }
-.rd-disabled > * { pointer-events: none; }
 .rd-sec { font-size: 12px; color: gray; margin-bottom: 10px; }
 .rd-log { background: var(--bg3); border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
 .rd-log-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
