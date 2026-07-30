@@ -46,7 +46,8 @@
                             </span>{{ p.l }}
                         </span>
                     </div>
-                    <button class="flow-ghost-btn ml-auto" :disabled="addDisabled(f.id!)" @click="add(f.id!)">＋ 追加</button>
+                    <span v-if="pendingFor(f.id!)" class="perm-unadded ml-auto">未追加</span>
+                    <button class="flow-ghost-btn" :class="{ 'is-pending': pendingFor(f.id!), 'ml-auto': !pendingFor(f.id!) }" :disabled="addDisabled(f.id!)" @click="add(f.id!)">＋ 追加</button>
                 </div>
             </div>
         </div>
@@ -62,9 +63,24 @@ import MemberSelector from '@/components/Form/MemberSelector.vue'
 import ItemSelector from '@/components/Form/ItemSelector.vue'
 import FlowFieldIcon from './FlowFieldIcon.vue'
 import { subjectLabelFor } from '@/utils/flowSubject'
+import { useFlowDraft } from '@/composables/flowDrafts'
 import type { BuilderDefinition, FieldPermRow, FlowOptionUser, FlowOptionPosition } from '@/types/flow'
 
-const props = defineProps<{ def: BuilderDefinition; users: FlowOptionUser[]; positions: FlowOptionPosition[] }>()
+const props = defineProps<{ def: BuilderDefinition; users: FlowOptionUser[]; positions: FlowOptionPosition[]; reveal?: () => void }>()
+
+/**
+ * Picks staged against a field but not committed by ＋追加. Unlike the app-level form this one is
+ * inline (one block per field, so a modal per field would be worse), so 保存 stays reachable — the
+ * builder blocks the save and points here instead. Only real picks count: the subject types with
+ * nothing to pick commit in a single press and cannot be left half-done.
+ */
+const pendingFor = (id: number) => (userPicks[id]?.length ?? 0) > 0 || (posPicks[id]?.length ?? 0) > 0
+useFlowDraft({
+    pending: () => props.def.fields.some((f) => f.id != null && pendingFor(f.id)),
+    label: '項目ごとの権限',
+    tab: 'permission',
+    reveal: () => props.reveal?.(),
+})
 
 const PERMS = [
     { k: 'can_view', l: '閲覧' },
@@ -129,4 +145,7 @@ const remove = (row: FieldPermRow) => {
 .rec-sel :deep(.item-selector-shell) { border: 1px solid var(--formBorder) !important; border-radius: 6px !important; box-sizing: border-box !important; }
 .rec-sel :deep(.one-selector .v-field__input) { min-height: 38px; padding-top: 2px; padding-bottom: 2px; }
 .ml-auto { margin-left: auto; }
+/* staged-but-not-added: visible here, and the builder refuses to save past it */
+.perm-unadded { font-size: 11px; color: #e2574c; }
+.flow-ghost-btn.is-pending { border-color: #e2574c; color: #e2574c; }
 </style>

@@ -112,6 +112,7 @@ import 'styles/flow-shared.css'
 import { computed, onMounted, ref, nextTick, watch } from 'vue'
 import { useUnsavedGuard } from '@/composables/unsavedGuard'
 import { builderFingerprint } from '@/utils/flowDirty'
+import { provideFlowDrafts } from '@/composables/flowDrafts'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useApi } from '@/composables/api'
@@ -555,6 +556,15 @@ const save = async () => {
         dialog.toast(fErr)
         return
     }
+    // A composed-but-not-added permission row looks finished on screen, so saving over it read as
+    // "it saved" while the row was thrown away. Blocked, shown, and told what to press.
+    const draft = drafts.firstPending()
+    if (draft) {
+        setTab(draft.tab as BuilderTab)
+        draft.reveal?.()
+        dialog.toast(`${draft.label}に未追加の設定があります。「＋追加」を押すか、選択を解除してください。`)
+        return
+    }
     saving.value = true
     try {
         const data = await api.post('/flow_definition_save', buildPayload(), { toast: '保存しました。' })
@@ -586,9 +596,11 @@ const truncateRecords = async () => {
  * "unsaved": every difference it reports is something that would be lost, down to a status node
  * nudged on the canvas (ui_x/ui_y ride along in the payload). Re-baselined on load and on save.
  */
+const drafts = provideFlowDrafts()
 const savedPayload = ref('')
 const snapshotDefinition = () => { savedPayload.value = builderFingerprint(buildPayload()) }
-useUnsavedGuard(() => !loading.value && builderFingerprint(buildPayload()) !== savedPayload.value)
+useUnsavedGuard(() => !loading.value
+    && (builderFingerprint(buildPayload()) !== savedPayload.value || !!drafts.firstPending()))
 
 const back = () => {
     // return to wherever settings was opened from (app list / records / a record)

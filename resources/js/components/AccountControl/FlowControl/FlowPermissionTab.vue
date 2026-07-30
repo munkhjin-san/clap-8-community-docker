@@ -64,7 +64,12 @@
                 </div>
             </div>
 
-            <div class="perm-add mt-[14px]">
+            <button class="flow-ghost-btn flow-ghost-btn-lg mt-[14px]" @click="openAdd">＋ 権限を追加</button>
+        </div>
+        </div>
+        <Modal v-if="addOpen" persist @close="closeAdd">
+            <template #title>権限を追加</template>
+            <template #content>
                 <div class="flex items-center gap-[8px] flex-wrap">
                     <div class="flow-seg">
                         <button :class="{ on: addType === 'user' }" @click="addType = 'user'">ユーザー</button>
@@ -81,21 +86,24 @@
                     <MemberSelector v-if="addType === 'user'" :multiple="true" :options="(users as any)" v-model="userPicks" compact place-holder="ユーザーを検索（複数選択可）" />
                     <ItemSelector v-else :multiple="true" :options="positions" v-model="positionPicks" label="name" :clearable="true" :close-on-select="false" place-holder="役職を検索（複数選択可）" />
                 </div>
-                <div class="flex items-center gap-[12px] mt-[10px] flex-wrap">
-                    <div class="flow-perm-flags">
-                        <span v-for="p in PERMS" :key="p.k" class="flow-perm-flag" @click="addFlags[p.k] = !addFlags[p.k]">
-                            <span class="flow-cbox" :class="{ on: addFlags[p.k] }">
-                                <svg v-if="addFlags[p.k]" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5,12 10,17 19,7"></polyline></svg>
-                            </span>{{ p.l }}
-                        </span>
-                    </div>
-                    <button class="flow-ghost-btn flow-ghost-btn-lg" :disabled="!hasPicks" @click="addRow">＋ 追加</button>
+                <div class="flow-perm-flags mt-[12px]">
+                    <span v-for="p in PERMS" :key="p.k" class="flow-perm-flag" @click="addFlags[p.k] = !addFlags[p.k]">
+                        <span class="flow-cbox" :class="{ on: addFlags[p.k] }">
+                            <svg v-if="addFlags[p.k]" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="5,12 10,17 19,7"></polyline></svg>
+                        </span>{{ p.l }}
+                    </span>
                 </div>
-            </div>
-        </div>
-        </div>
-        <FlowRecordPermEditor v-show="sub === 'record'" :def="def" :users="users" :positions="positions" />
-        <FlowFieldPermEditor v-show="sub === 'field'" :def="def" :users="users" :positions="positions" />
+                <div class="perm-modal-actions">
+                    <button class="flow-ghost-btn flow-ghost-btn-lg" @click="closeAdd">キャンセル</button>
+                    <!-- 適用, not 追加: the dialog is already titled 権限を追加, and this button's job is to
+                         apply what has been composed to the list behind it -->
+                    <button class="flow-ghost-btn flow-ghost-btn-lg perm-add-primary" :disabled="!hasPicks" @click="addRow">適用</button>
+                </div>
+            </template>
+        </Modal>
+
+        <FlowRecordPermEditor v-show="sub === 'record'" :def="def" :users="users" :positions="positions" :reveal="() => (sub = 'record')" />
+        <FlowFieldPermEditor v-show="sub === 'field'" :def="def" :users="users" :positions="positions" :reveal="() => (sub = 'field')" />
     </div>
 </template>
 
@@ -105,6 +113,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import MemberSelector from '@/components/Form/MemberSelector.vue'
 import ItemSelector from '@/components/Form/ItemSelector.vue'
+import Modal from '@/components/Global/Modal.vue'
 import FlowRecordPermEditor from './FlowRecordPermEditor.vue'
 import FlowFieldPermEditor from './FlowFieldPermEditor.vue'
 import type { BuilderDefinition, AppPermissionRow, FlowSubjectType, FlowOptionUser, FlowOptionPosition } from '@/types/flow'
@@ -144,6 +153,21 @@ const addFlags = reactive({
     can_view: true, can_add: false, can_edit: false, can_delete: false,
     can_manage: false, can_import: false, can_export: false, can_bulk: false,
 })
+/**
+ * The add form lives in a modal, which is the whole point: 保存 sits behind the overlay, so a row
+ * that has been composed but not added can no longer be left on screen and silently dropped by a
+ * save. Closing the modal is the only way out, and that is an explicit discard.
+ */
+const addOpen = ref(false)
+const openAdd = () => {
+    addType.value = 'user'
+    userPicks.value = []
+    positionPicks.value = []
+    PERMS.forEach((p) => { addFlags[p.k] = false })
+    addOpen.value = true
+}
+const closeAdd = () => { addOpen.value = false }
+
 const hasPicks = computed(() =>
     addType.value === 'user' ? userPicks.value.length > 0
     : addType.value === 'position' ? positionPicks.value.length > 0
@@ -226,6 +250,7 @@ const addRow = () => {
         positionPicks.value = []
     }
     pinEveryoneLast()
+    closeAdd()
 }
 </script>
 
@@ -248,6 +273,9 @@ const addRow = () => {
 .td-actions button { border: none; background: none; color: gray; cursor: pointer; font-size: 12px; padding: 2px; }
 .td-actions button:disabled { opacity: 0.25; cursor: default; }
 .perm-add { padding: 12px; border-radius: 8px; background: var(--bg3); }
+/* staged-but-not-added: make it visible here so the block at 保存 is the safety net, not the notice */
+.perm-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--calendarBorder); }
+.perm-add-primary:not(:disabled) { border-color: var(--primary-color); }
 .perm-picker { width: 100%; max-width: 520px; }
 /* ItemSelector has no compact variant — match the thin, rounded inline-input look (like MemberSelector compact) */
 .perm-picker :deep(.item-selector-shell) { border: 1px solid var(--formBorder); border-radius: 6px; }
