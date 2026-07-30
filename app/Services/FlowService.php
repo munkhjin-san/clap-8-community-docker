@@ -6,7 +6,6 @@ use App\Models\FlowAuditLog;
 use App\Models\FlowDefinition;
 use App\Models\FlowField;
 use App\Models\FlowRecord;
-use App\Models\FlowRecordAssignee;
 use App\Models\FlowRecordValue;
 use App\Models\FlowStatus;
 use App\Models\FlowStatusAction;
@@ -48,97 +47,6 @@ class FlowService
     /* ----------------------------------------------------------------
      | Permissions
      |---------------------------------------------------------------- */
-
-    /** Admins, 上長 (position_id < 6) and PM (position_id == 6) can build & manage flows. */
-    public function canManageFlows(User $user): bool
-    {
-        return ($user->position_id && $user->position_id <= 6)
-            || in_array($user->id, self::ADMIN_USER_IDS, true);
-    }
-
-    public function canCreateRecord(User $user, FlowDefinition $definition): bool
-    {
-        if (! $definition->is_active) {
-            return false;
-        }
-
-        if ($this->canManageFlows($user) || $definition->created_by === $user->id) {
-            return true;
-        }
-
-        if ($definition->visibility === 'all_staff') {
-            return true;
-        }
-
-        return $this->sharesForUser($definition, $user)
-            ->contains(fn ($share) => $share->access_level === 'use');
-    }
-
-    public function canViewRecord(User $user, FlowRecord $record): bool
-    {
-        if ($this->canManageFlows($user) || $record->created_by === $user->id) {
-            return true;
-        }
-
-        if ($this->isAssignee($record, $user, false)) {
-            return true;
-        }
-
-        $definition = $record->relationLoaded('definition')
-            ? $record->definition
-            : $record->definition()->with('shares')->first();
-
-        if (! $definition) {
-            return false;
-        }
-
-        if ($definition->visibility === 'all_staff') {
-            return true;
-        }
-
-        return $this->sharesForUser($definition, $user)->isNotEmpty();
-    }
-
-    /** May act (advance / send back) on the record's current status. */
-    public function canActOnRecord(User $user, FlowRecord $record): bool
-    {
-        if ($this->isCompleted($record)) {
-            return false;
-        }
-
-        if ($this->canManageFlows($user)) {
-            return true;
-        }
-
-        return $this->isAssignee($record, $user, true);
-    }
-
-    private function sharesForUser(FlowDefinition $definition, User $user)
-    {
-        $shares = $definition->relationLoaded('shares')
-            ? $definition->shares
-            : $definition->shares()->get();
-
-        return $shares->filter(function ($share) use ($user) {
-            return ($share->user_id && $share->user_id === $user->id)
-                || ($share->position_id && $share->position_id === $user->position_id);
-        });
-    }
-
-    /** $currentOnly = only assignees of the record's current status who haven't completed. */
-    public function isAssignee(FlowRecord $record, User $user, bool $currentOnly): bool
-    {
-        $query = FlowRecordAssignee::query()
-            ->where('flow_record_id', $record->id)
-            ->where('user_id', $user->id);
-
-        if ($currentOnly) {
-            $query->where('flow_status_id', $record->current_status_id)
-                ->whereNull('completed_at');
-        }
-
-        return $query->exists();
-    }
 
     /* ----------------------------------------------------------------
      | Status helpers
@@ -327,130 +235,13 @@ class FlowService
         $this->logStatusChange($record, $user, 'status', $from, $to, $action->label);
     }
 
-    public function nextStatus(FlowRecord $record): ?FlowStatus
-    {
-        $statuses = $this->orderedStatuses($record->definition);
-        $index = $statuses->search(fn ($s) => $s->id === $record->current_status_id);
-
-        return $index === false ? null : $statuses->get($index + 1);
-    }
-
-    public function previousStatus(FlowRecord $record): ?FlowStatus
-    {
-        $statuses = $this->orderedStatuses($record->definition);
-        $index = $statuses->search(fn ($s) => $s->id === $record->current_status_id);
-
-        return ($index === false || $index === 0) ? null : $statuses->get($index - 1);
-    }
-
-    public function isCompleted(FlowRecord $record): bool
-    {
-        $status = $record->relationLoaded('currentStatus') ? $record->currentStatus : $record->currentStatus()->first();
-
-        return $status && $status->is_locked === 'end';
-    }
-
     /* ----------------------------------------------------------------
      | Assignee snapshot (resolved when a record enters a status)
      |---------------------------------------------------------------- */
 
-    public function resolveAssigneeUserIds(FlowStatus $status, FlowRecord $record): array
-    {
-        switch ($status->assignment_type) {
-            case 'user':
-                return $status->assignment_target_id ? [(int) $status->assignment_target_id] : [];
-            case 'position':
-                if (! $status->assignment_target_id) {
-                    return [];
-                }
-
-                return User::query()
-                    ->where('position_id', $status->assignment_target_id)
-                    ->where('retire', 0)
-                    ->pluck('id')
-                    ->map(fn ($id) => (int) $id)
-                    ->all();
-            case 'creator':
-            default:
-                return $record->created_by ? [(int) $record->created_by] : [];
-        }
-    }
-
-    public function snapshotAssignees(FlowRecord $record, FlowStatus $status): void
-    {
-        $userIds = $this->resolveAssigneeUserIds($status, $record);
-        $now = now();
-        $source = $status->assignment_type;
-        $sourceId = $status->assignment_target_id;
-
-        foreach (array_unique($userIds) as $userId) {
-            FlowRecordAssignee::updateOrCreate(
-                [
-                    'flow_record_id' => $record->id,
-                    'flow_status_id' => $status->id,
-                    'user_id' => $userId,
-                ],
-                [
-                    'source' => $source,
-                    'source_id' => $sourceId,
-                    'completed_at' => null,
-                ]
-            );
-        }
-    }
-
-    public function completeAssignees(FlowRecord $record, int $statusId): void
-    {
-        FlowRecordAssignee::query()
-            ->where('flow_record_id', $record->id)
-            ->where('flow_status_id', $statusId)
-            ->whereNull('completed_at')
-            ->update(['completed_at' => now()]);
-    }
-
     /* ----------------------------------------------------------------
      | Transitions
      |---------------------------------------------------------------- */
-
-    public function advance(FlowRecord $record, User $user, ?string $comment = null): FlowStatus
-    {
-        $next = $this->nextStatus($record);
-        abort_if(! $next, 422, '次のステータスがありません。');
-
-        DB::transaction(function () use ($record, $next, $user, $comment) {
-            $from = $record->currentStatus;
-            $this->completeAssignees($record, $record->current_status_id);
-            $record->update(['current_status_id' => $next->id]);
-            $this->snapshotAssignees($record, $next);
-            $this->logStatusChange($record, $user, 'advanced', $from?->name, $next->name, $comment);
-            $this->markRecordComplete($record, $next);
-        });
-
-        return $next;
-    }
-
-    public function sendBack(FlowRecord $record, User $user, string $reason): FlowStatus
-    {
-        $previous = $this->previousStatus($record);
-        abort_if(! $previous, 422, '差し戻し先のステータスがありません。');
-
-        DB::transaction(function () use ($record, $previous, $user, $reason) {
-            $from = $record->currentStatus;
-            $this->completeAssignees($record, $record->current_status_id);
-            $record->update(['current_status_id' => $previous->id]);
-            $this->snapshotAssignees($record, $previous);
-            $this->logStatusChange($record, $user, 'returned', $from?->name, $previous->name, $reason);
-        });
-
-        return $previous;
-    }
-
-    private function markRecordComplete(FlowRecord $record, FlowStatus $status): void
-    {
-        if ($status->is_locked === 'end') {
-            $this->completeAssignees($record, $status->id);
-        }
-    }
 
     private function logStatusChange(FlowRecord $record, User $user, string $action, ?string $old, ?string $new, ?string $note): void
     {
@@ -589,20 +380,6 @@ class FlowService
     /* ----------------------------------------------------------------
      | Dashboard — records awaiting this user's action
      |---------------------------------------------------------------- */
-
-    public function waitingForUserQuery(User $user)
-    {
-        return FlowRecord::query()
-            ->whereExists(function ($sub) use ($user) {
-                $sub->select(DB::raw(1))
-                    ->from('flow_record_assignees')
-                    ->whereColumn('flow_record_assignees.flow_record_id', 'flow_records.id')
-                    ->whereColumn('flow_record_assignees.flow_status_id', 'flow_records.current_status_id')
-                    ->where('flow_record_assignees.user_id', $user->id)
-                    ->whereNull('flow_record_assignees.completed_at');
-            })
-            ->with(['definition:id,name', 'currentStatus:id,name,flow_definition_id']);
-    }
 
     /* ----------------------------------------------------------------
      | Record creation (enters the start status)
@@ -917,31 +694,6 @@ class FlowService
             'lte' => $q->where($col, '<=', $first),
             default => $q->where($col, $first),
         };
-    }
-
-    public function createRecord(FlowDefinition $definition, User $user, array $values): FlowRecord
-    {
-        $start = $this->startStatus($definition);
-        abort_if(! $start, 422, 'このフローには開始ステータスがありません。');
-
-        return DB::transaction(function () use ($definition, $user, $values, $start) {
-            $record = FlowRecord::create([
-                'flow_definition_id' => $definition->id,
-                'record_number' => $this->nextRecordNumber($definition),
-                'current_status_id' => $start->id,
-                'created_by' => $user->id,
-            ]);
-
-            $fields = $definition->fields;
-            $allowed = $this->editableFieldIds($start, $fields);
-            $changes = $this->writeValues($record, $values, $fields, $allowed);
-
-            $this->snapshotAssignees($record, $start);
-            $this->logStatusChange($record, $user, 'created', null, $start->name, null);
-            $this->logValueChanges($record, $user, $changes);
-
-            return $record;
-        });
     }
 
     /* ----------------------------------------------------------------

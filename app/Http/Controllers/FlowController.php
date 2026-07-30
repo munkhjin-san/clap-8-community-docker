@@ -41,11 +41,6 @@ class FlowController extends Controller
         return $sub ?: Auth::user();
     }
 
-    private function ensureCanManageFlows(): void
-    {
-        abort_unless($this->flowService->canManageFlows($this->active_user()), 403);
-    }
-
     /* ================================================================
      | Builder — flow definitions
      |================================================================ */
@@ -169,7 +164,6 @@ class FlowController extends Controller
             $n = $ids->count();
             if ($ids->isNotEmpty()) {
                 DB::table('flow_record_values')->whereIn('flow_record_id', $ids)->delete();
-                DB::table('flow_record_assignees')->whereIn('flow_record_id', $ids)->delete();
                 DB::table('app_comments')
                     ->whereIn('commentable_id', $ids)
                     ->whereIn('commentable_type', [FlowRecord::class, 'flow_record'])

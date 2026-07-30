@@ -28,12 +28,6 @@ class FlowRecord extends Model
         return $this->hasMany(FlowRecordValue::class, 'flow_record_id', 'id');
     }
 
-    public function assignees()
-    {
-        return $this->hasMany(FlowRecordAssignee::class, 'flow_record_id', 'id')
-            ->with('user');
-    }
-
     public function logs()
     {
         return $this->morphMany(UpdateLog::class, 'loggable')
