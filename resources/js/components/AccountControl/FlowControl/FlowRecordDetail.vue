@@ -184,6 +184,8 @@ import { useFlowOptionsStore } from '@/store/flowOptions'
 import { useFilePreview } from '@/store/filePreview'
 import { useResponsive } from '@/store/responsive'
 import { submittableValues, validateRecordValues } from '@/utils/flowValidation'
+import { recordFingerprint } from '@/utils/flowDirty'
+import { useUnsavedGuard } from '@/composables/unsavedGuard'
 import { emptyFieldValue, resolveFieldDefault } from '@/utils/flowDefaults'
 import { readableTextColor } from '@/utils/flowColor'
 import { flowColorValue } from '@/utils/flowColors'
@@ -447,6 +449,17 @@ const fmtChange = (key: string, val: any): string => {
 const canDuplicateField = (f: FlowField) => !isLayoutType(f.input_type) && f.input_type !== 'formula' && f.input_type !== 'file' && !isSecretType(f.input_type)
 const cloneVal = (v: any) => (v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v)
 
+/* ---- unsaved-changes guard -------------------------------------------------------------------
+ * The baseline is re-taken whenever the form is (re)seeded, so "dirty" means "differs from what is
+ * on the server", not "was touched". View mode is never dirty: nothing there can be edited, and
+ * cancelEdit re-seeds, which clears it.
+ */
+const savedFingerprint = ref('')
+const snapshotValues = () => { savedFingerprint.value = recordFingerprint(definition.value?.fields ?? [], values) }
+const isRecordDirty = () => mode.value === 'edit'
+    && recordFingerprint(definition.value?.fields ?? [], values) !== savedFingerprint.value
+useUnsavedGuard(isRecordDirty)
+
 const initValues = () => {
     const dup = isNew.value ? dupValues.value : null
     ;(definition.value?.fields ?? []).forEach((f) => {
@@ -458,6 +471,9 @@ const initValues = () => {
         const src = dup && canDuplicateField(f) ? dup[f.id!] : undefined
         values[f.id!] = src !== undefined && src !== null ? cloneVal(src) : resolveFieldDefault(f, auth.id)
     })
+    // a secret rewrites its own value to the "keep" instruction as it mounts; the fingerprint folds
+    // that into the same state as the marker, so the baseline can be taken right here
+    snapshotValues()
 }
 
 const load = async () => {
@@ -523,7 +539,9 @@ const save = async () => {
         const payload = submittableValues(definition.value?.fields ?? [], values, opts)
         if (isNew.value) {
             const data = await api.post('/flow_app_record_create', { flow_definition_id: definition.value?.id, values: payload }, { toast: '作成しました。' })
-            if (data) back()
+            // the work is on the server now, so re-baseline BEFORE navigating — otherwise the guard
+            // asks whether to discard the record it just created
+            if (data) { snapshotValues(); back() }
         } else {
             const data = await api.post('/flow_app_record_update', { id: record.value?.id, values: payload }, { toast: '保存しました。' })
             if (data) await load()

@@ -110,6 +110,8 @@
 <script setup lang="ts">
 import 'styles/flow-shared.css'
 import { computed, onMounted, ref, nextTick, watch } from 'vue'
+import { useUnsavedGuard } from '@/composables/unsavedGuard'
+import { builderFingerprint } from '@/utils/flowDirty'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useApi } from '@/composables/api'
@@ -558,6 +560,7 @@ const save = async () => {
         const data = await api.post('/flow_definition_save', buildPayload(), { toast: '保存しました。' })
         if (data) {
             def.value = toBuilder(data as FlowDefinitionApi)
+            snapshotDefinition() // saved: nothing to warn about on the way out
             // land inside the app itself (both edit and newly created)
             router.push({ name: 'flow-records', params: { flowId: (data as FlowDefinitionApi).id } })
         }
@@ -577,6 +580,15 @@ const truncateRecords = async () => {
         truncating.value = false
     }
 }
+
+/* ---- unsaved-changes guard -------------------------------------------------------------------
+ * buildPayload() is the exact state a save would send, which makes it the honest definition of
+ * "unsaved": every difference it reports is something that would be lost, down to a status node
+ * nudged on the canvas (ui_x/ui_y ride along in the payload). Re-baselined on load and on save.
+ */
+const savedPayload = ref('')
+const snapshotDefinition = () => { savedPayload.value = builderFingerprint(buildPayload()) }
+useUnsavedGuard(() => !loading.value && builderFingerprint(buildPayload()) !== savedPayload.value)
 
 const back = () => {
     // return to wherever settings was opened from (app list / records / a record)
@@ -604,6 +616,8 @@ onMounted(async () => {
         }
     } finally {
         loading.value = false
+        // baseline whatever we ended up with: a loaded app, a new one, or a project-scoped new one
+        snapshotDefinition()
     }
 })
 </script>

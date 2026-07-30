@@ -228,6 +228,7 @@ import { pageTitleOverride } from '@/composables/pageTitle'
 import { resolveColumns, applyFilters, applyAdhocFilter, applySort, systemColumnValue, type ResolvedColumn } from '@/utils/flowView'
 import { applyLookupCopy, lockedByServer, validateRecordValues } from '@/utils/flowValidation'
 import { emptyFieldValue } from '@/utils/flowDefaults'
+import { useUnsavedGuard } from '@/composables/unsavedGuard'
 import type { FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowViewApi, FlowRecordsResponse, FlowAdhocFilter } from '@/types/flow'
 import type { MenuList } from '@/interface/globalInterface'
 
@@ -554,6 +555,9 @@ const onRowClick = (rec: FlowRecordDto) => {
 }
 
 const isInlineDirty = () => JSON.stringify(editValues) !== editBaseline.value
+// leaving the list mid-edit loses the row just as surely as closing the tab does, so the same
+// question gets asked for a soft back, a browser back and a tab close
+useUnsavedGuard(() => editingId.value !== null && isInlineDirty())
 
 /**
  * Enter saves, Escape cancels — the row behaves like the small form it is. Enter is ignored in a
@@ -792,7 +796,7 @@ watch([page, activeViewId, search, () => JSON.stringify(adhocFilter)], () => { e
    off-screen on a wide table. `position: sticky; right` then pulls them back to the screen's right
    edge and holds them there while scrolling (sticky can only pull a box toward the scrollport, which
    is why they have to start out at the far right rather than at the left). */
-.rv-editbarrow { display: flex; justify-content: flex-end; padding-right: 12px; }
+.rv-editbarrow { display: flex; justify-content: flex-end; padding-right: 12px;margin-top: 10px; }
 /* the 12px gutter has to live on the sticky offset, not on the row's padding: once pinned, the box
    is held that far from the scrollport edge and the parent's padding no longer has any say */
 .rv-editbarwrap { position: sticky; right: 12px; z-index: 3; display: inline-flex; align-items: center; gap: 8px; }
