@@ -182,6 +182,7 @@
             :model-value="val"
             :options="(users as any)"
             :multiple="userMultiple"
+            array-value
             avatar
             placeholder="ユーザーを選択"
             @update:model-value="val = $event"

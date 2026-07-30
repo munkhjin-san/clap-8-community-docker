@@ -69,6 +69,12 @@ const props = withDefaults(defineProps<{
     modelValue: any
     options: Option[]
     multiple?: boolean
+    /**
+     * Store as an array even when only one may be picked. That is a separate question from
+     * `multiple`: a ユーザー field always persists an id array (value_json / userIdArrayValue) whether
+     * or not it accepts several, while a プロジェクト field persists a single scalar id.
+     */
+    arrayValue?: boolean
     /** render each row with the person's avatar (user / member fields) */
     avatar?: boolean
     placeholder?: string
@@ -91,11 +97,18 @@ const byId = computed<Record<number, Option>>(() => {
     return m
 })
 
-/** Selected ids, normalised — a single-select still reads as a one-item list here. */
+/**
+ * Selected ids, normalised — a single-select still reads as a one-item list here.
+ *
+ * The filter is not paranoia: an empty ユーザー field arrives as [], and `Number([])` is 0, so
+ * treating a single-select value as a scalar invented a chip for user #0 on every empty field.
+ * Ids are always positive, so anything else is noise from an empty or half-migrated value.
+ */
 const selectedIds = computed<number[]>(() => {
     const v = props.modelValue
-    if (props.multiple) return Array.isArray(v) ? v.map(Number) : []
-    return v === null || v === undefined || v === '' ? [] : [Number(v)]
+    const raw = Array.isArray(v) ? v : (v === null || v === undefined || v === '' ? [] : [v])
+    const ids = raw.map(Number).filter((n) => Number.isFinite(n) && n > 0)
+    return props.multiple ? ids : ids.slice(0, 1)
 })
 
 const chips = computed(() => selectedIds.value.map((id) => ({
@@ -115,7 +128,10 @@ const filtered = computed(() => {
         .slice(0, 50)
 })
 
-const emitIds = (ids: number[]) => emit('update:modelValue', props.multiple ? ids : (ids[0] ?? null))
+const emitIds = (ids: number[]) => {
+    const next = props.multiple ? ids : ids.slice(0, 1)
+    emit('update:modelValue', props.arrayValue ? next : (next[0] ?? null))
+}
 
 const open = () => { if (!props.disabled) { isOpen.value = true; highlighted.value = 0 } }
 const close = () => { setTimeout(() => { isOpen.value = false }, 120) }
@@ -167,12 +183,12 @@ const onKeydown = (e: KeyboardEvent) => {
 <style scoped>
 /* Sized a little taller than .fi-input's 33px: the chips and avatars inside need room to breathe,
    and a picker that is flush to its own border reads as cramped next to a plain text input. */
-.lp { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; box-sizing: border-box !important; min-height: 36px; padding: 5px 8px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); }
+.lp { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; box-sizing: border-box !important; min-height: 36px; padding: 5px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); }
 .lp:focus-within { border-color: var(--primary-color); }
 
 /* The chip is the width of its label — no stretching to fill the field. Filling made the whole field
    look like one grey pill, and a single-select chip that grows with its container reads as a bug. */
-.lp-chip { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; box-sizing: border-box !important; padding: 3px 4px 3px 9px; border-radius: 5px; background: var(--bg3); }
+.lp-chip { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; box-sizing: border-box !important; padding: 5px; border-radius: 5px; background: var(--bg3); }
 .lp-chiplabel { font-size: 12px; color: var(--primary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .lp-avatar { flex-shrink: 0; }
 .lp-clear { flex-shrink: 0; border: none; background: none; color: gray; cursor: pointer; font-size: 13px; line-height: 1; padding: 0 4px; }
