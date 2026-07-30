@@ -1490,7 +1490,9 @@ class CalendarController extends Controller
     public function get_departments_calendar(){
         $departments = ProjectRecord::whereHas('members')
                                     ->orWhereHas('manager')
+                                    ->whereNull('completed_at')
                                     ->with(['members', 'manager', 'director'])
+                                    ->select('id', 'name')
                                     ->get();
         $sortedProjects = $departments->sortByDesc(function ($project) {
             $isMember = in_array(Auth::id(), $project->members->pluck('id')->toArray());

@@ -96,13 +96,21 @@
                     </div>               
                     <div>
                             
-                        <div style="padding: 0 15px;">                                                
-                            <label v-for="department in searchDepartment" class="cal-member-check" style="align-self: center;padding-bottom: 0;margin-bottom: 0;display: flex;margin: 5px 0;">
+                        <div style="padding: 5px 15px;">                                                
+                            <label v-for="department in searchDepartment"
+                            :class="{
+                                'facility-filter-option--selected': selectedDepartment.map(d => d.id).includes(department.id),
+                            }"
+                            class="facility-filter-option">
                             <input :value="department.id" :checked="selectedDepartment.map(d => d.id).includes(department.id)" @input="updateDepartment(department.id)" name="memberCheckBox" type="checkbox">
-                            <span class="cal-check-mark" style="top: 5px;"></span>
-                                <div class="left-panel-items" style="width: auto;padding:5px 0;margin:0;user-select: none;cursor:pointer;background: inherit;">                    
-                                    <p class="userName">{{department.name}}</p>                                    
-                                </div>
+                            <span class="facility-filter-option__check">
+                                <svg viewBox="0 0 12 12" fill="none">
+                                    <path d="M2.2 6.2L4.8 8.6L9.8 3.4" />
+                                </svg>
+                            </span>
+                            <span class="facility-filter-option__label">{{ department.name }}</span>
+
+                            
                             </label>  
                         </div>     
                     </div>                             
