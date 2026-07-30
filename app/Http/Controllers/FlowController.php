@@ -12,11 +12,14 @@ use App\Models\positionRecord;
 use App\Models\ProjectRecord;
 use App\Models\User;
 use App\Services\FlowFormulaEvaluator;
-use App\Services\FlowService;
 use App\Services\FlowNotificationService;
+use App\Services\FlowService;
 use App\Services\KintoneImportService;
 use App\Services\PdfRenderService;
 use App\Support\FlowSystemSources;
+use Carbon\Carbon;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -327,6 +330,7 @@ class FlowController extends Controller
             'status_actions.*.label' => 'required|string|max:255',
             'status_actions.*.color' => 'nullable|string|max:32',
             'status_actions.*.eligible' => 'nullable|array',
+            'status_actions.*.notify' => 'boolean',
             'app_permissions' => 'array',
             'app_permissions.*.subject_type' => 'required|string',
             'app_permissions.*.subject_id' => 'nullable|integer',
@@ -741,6 +745,8 @@ class FlowController extends Controller
                 'label' => $a['label'],
                 'color' => $a['color'] ?? null,
                 'eligible' => $a['eligible'] ?? [],
+                // absent in older payloads -> keep notifying, which is the existing behaviour
+                'notify' => $a['notify'] ?? true,
                 'sort_order' => $i,
             ];
             $model = ! empty($a['id']) ? $definition->statusActions()->whereKey($a['id'])->first() : null;
@@ -1335,7 +1341,7 @@ class FlowController extends Controller
         $labelKey = (string) $request->input('label_field', '') ?: $s['label_column'];
         $resolve = $s['value'] ?? fn ($m, $k) => $m->{$k} ?? null;
 
-        /** @var \Illuminate\Database\Eloquent\Builder $query */
+        /** @var Builder $query */
         $query = $s['model']::query();
         if (isset($s['filter'])) {
             ($s['filter'])($query);
@@ -1370,7 +1376,7 @@ class FlowController extends Controller
             return response()->json(['values' => (object) []]);
         }
 
-        /** @var \Illuminate\Database\Eloquent\Builder $query */
+        /** @var Builder $query */
         $query = $s['model']::query();
         if (isset($s['filter'])) {
             ($s['filter'])($query);
@@ -1448,7 +1454,7 @@ class FlowController extends Controller
 
         try {
             $plain = $this->flowService->revealSecret($record, $field);
-        } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+        } catch (DecryptException $e) {
             // surfaced, not swallowed: a key mismatch must not masquerade as "no password set"
             report($e);
 
@@ -1698,6 +1704,9 @@ class FlowController extends Controller
 
         // badge event: everyone who can view the app hears about the new record (per prefs)
         $this->notifySafely(fn () => $this->flowNotifications->notifyNewRecord($definition, $record, $user));
+        // the initial status may already name someone — the first step of a flow should not be the
+        // one step nobody is told about
+        $this->notifySafely(fn () => $this->flowNotifications->syncPendingAction($record, $user));
 
         return response()->json($this->serializeRecord($record, $definition->fields));
     }
@@ -1735,8 +1744,12 @@ class FlowController extends Controller
         $record->save();
         $this->flowService->syncFieldValues($record, $def->fields, $data['values'], $allowed);
 
-        // Diff old→new per field (raw values; the front-end formats by field type) for 変更履歴.
+        // A ユーザー field can BE the 押せる人 ('field' subject), so editing the record can hand the
+        // duty to someone else — re-resolve. syncPendingAction keeps existing recipients' read state.
         $record->load('values');
+        $this->notifySafely(fn () => $this->flowNotifications->syncPendingAction($record, $user));
+
+        // Diff old→new per field (raw values; the front-end formats by field type) for 変更履歴.
         $new = $this->flowService->recordValues($record, $def->fields);
         $changes = [];
         foreach ($def->fields as $f) {
@@ -1778,6 +1791,7 @@ class FlowController extends Controller
         $record = FlowRecord::with(['definition.appPermissions', 'definition.recordPermissionSets', 'values', 'currentStatus'])
             ->findOrFail($data['id']);
         abort_unless($this->flowService->recordPermissions($user, $record, $record->definition)['delete'], 403);
+        $this->notifySafely(fn () => $this->flowNotifications->withdrawPendingAction($record));
         $record->values()->delete();
         $record->delete();
 
@@ -1806,6 +1820,9 @@ class FlowController extends Controller
 
         // badge event: the record's creator hears their record moved (per prefs)
         $this->notifySafely(fn () => $this->flowNotifications->notifyStatusChange($record, $user, $fromName, $toName));
+        // the duty moves with the record: whoever was named on the old status is released, whoever is
+        // named on the new one is told. syncPendingAction does both.
+        $this->notifySafely(fn () => $this->flowNotifications->syncPendingAction($record, $user));
 
         $record->load(self::RECORD_DETAIL_WITH);
 
@@ -2486,6 +2503,7 @@ class FlowController extends Controller
             if ($target === '__created_at__' || $target === '__updated_at__') {
                 $slot = $target === '__created_at__' ? 'created_at' : 'updated_at';
                 $system[$slot] ??= $header; // first column mapped to a slot wins
+
                 continue;
             }
 
@@ -2674,7 +2692,7 @@ class FlowController extends Controller
     private function parsableDateTime(string $v): bool
     {
         try {
-            \Carbon\Carbon::parse($v);
+            Carbon::parse($v);
 
             return true;
         } catch (\Throwable) {
@@ -2931,7 +2949,7 @@ class FlowController extends Controller
                 continue;
             }
             try {
-                $stamps[$slot] = \Carbon\Carbon::parse($val)->toDateTimeString();
+                $stamps[$slot] = Carbon::parse($val)->toDateTimeString();
             } catch (\Throwable) {
             }
         }

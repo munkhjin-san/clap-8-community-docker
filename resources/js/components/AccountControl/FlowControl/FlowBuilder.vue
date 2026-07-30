@@ -359,7 +359,7 @@ const onKintoneImport = (preview: any) => {
             const from = statuses.find((s) => s.key === nameToKey[a.from])
             const toKey = nameToKey[a.to]
             if (from && toKey) {
-                from.actions.push({ name: a.name, label: a.name, color: '#3b6df5', to_status_key: toKey, eligible: [] })
+                from.actions.push({ name: a.name, label: a.name, color: '#3b6df5', to_status_key: toKey, eligible: [], notify: true })
             }
         })
         // Importing a flow implies wanting it — enable it (the admin can toggle off). kintone's own enable is shown in the preview.
@@ -426,6 +426,7 @@ const toBuilder = (api: FlowDefinitionApi): BuilderDefinition => {
                     color: a.color ?? '#3b6df5',
                     to_status_key: a.to_status_id ? `s${a.to_status_id}` : null,
                     eligible: (a.eligible ?? []).map((e) => ({ subject_type: e.subject_type, subject_id: e.subject_id ?? null })),
+                    notify: (a as any).notify === undefined ? true : !!(a as any).notify,
                 }))
             return {
                 id: s.id,
@@ -497,6 +498,7 @@ const buildPayload = () => ({
             label: a.label,
             color: a.color,
             eligible: a.eligible,
+            notify: a.notify !== false,
         })).filter((a) => a.to_status_key && a.label)
     ),
     app_permissions: def.value.appPermissions,

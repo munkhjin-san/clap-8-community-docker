@@ -34,9 +34,11 @@ class FlowNotificationService
         'comment_participated' => true,
         'new_record' => false,
         'status_change' => true,
+        // a duty someone assigned you by name — the one event you would not want to miss
+        'pending_action' => true,
     ];
 
-    public const PREFS = ['comment_own', 'comment_participated', 'new_record', 'status_change'];
+    public const PREFS = ['comment_own', 'comment_participated', 'new_record', 'status_change', 'pending_action'];
 
     public function __construct(private FlowService $flowService) {}
 
@@ -97,14 +99,88 @@ class FlowNotificationService
         $this->insert(array_keys($recipients), $record->flow_definition_id, $record->id, 'status_change', $actor->id, ['from' => $from, 'to' => $to]);
     }
 
+    /**
+     * The record now sits on a status whose actions name specific people → tell them it is theirs.
+     *
+     * Mirrors the 対応待ち counter exactly (hasExplicitPendingAction): an action with 押せる人 left
+     * blank is pressable by anyone and therefore nobody's duty, so it notifies no one.
+     *
+     * Idempotent, because it also runs on edits: whoever is still responsible keeps the row they
+     * already have (and its read state), anyone no longer responsible loses theirs. That matters for
+     * `field`-type eligibility, where editing a ユーザー field changes who is on the hook.
+     */
+    public function syncPendingAction(FlowRecord $record, ?User $actor = null): void
+    {
+        $definition = $record->relationLoaded('definition') ? $record->definition : $record->definition;
+        if (! $definition || ! $definition->use_status_flow || ! $definition->is_active) {
+            $this->withdrawPendingAction($record);
+
+            return;
+        }
+
+        $responsible = $this->pendingActionRecipientIds($record, $definition, $actor);
+
+        // drop rows for anyone who is no longer responsible (status moved on, or eligibility changed)
+        FlowNotification::where('flow_record_id', $record->id)
+            ->where('type', 'pending_action')
+            ->when($responsible, fn ($q) => $q->whereNotIn('user_id', $responsible))
+            ->delete();
+
+        if (! $responsible) {
+            return;
+        }
+        // keep existing rows (and their read state) so an unrelated edit does not re-flag everyone
+        $already = FlowNotification::where('flow_record_id', $record->id)
+            ->where('type', 'pending_action')
+            ->whereIn('user_id', $responsible)
+            ->pluck('user_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $fresh = array_values(array_diff($responsible, $already));
+        $this->insert($fresh, $definition->id, $record->id, 'pending_action', (int) ($actor->id ?? 0), [
+            'status' => $record->relationLoaded('currentStatus') ? $record->currentStatus?->name : null,
+        ]);
+    }
+
+    /** The duty is over (record moved on, deleted, or the app stopped using statuses). */
+    public function withdrawPendingAction(FlowRecord $record): void
+    {
+        FlowNotification::where('flow_record_id', $record->id)
+            ->where('type', 'pending_action')
+            ->delete();
+    }
+
+    /** Users explicitly named by an action on the current status, who may view the record. */
+    private function pendingActionRecipientIds(FlowRecord $record, FlowDefinition $definition, ?User $actor): array
+    {
+        $definition->loadMissing(['statuses', 'statusActions', 'recordPermissionSets', 'appPermissions', 'fields']);
+        $record->loadMissing(['values', 'currentStatus']);
+
+        $ids = $this->newRecipientCandidates($definition)
+            ->filter(fn ($u) => (int) $u->id !== (int) ($actor->id ?? 0)
+                && $this->flowService->hasExplicitPendingAction($u, $record)
+                && $this->flowService->recordPermissions($u, $record, $definition)['view'])
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return array_keys($this->filterByPrefs($definition->id, array_fill_keys($ids, 'pending_action')));
+    }
+
     /* ---------------------------------------------------------------- reads */
 
-    /** Record opened → new_record / status_change events for it are considered seen. */
+    /**
+     * Record opened → new_record / status_change / pending_action events for it are considered seen.
+     * pending_action is marked read but NOT removed: the duty outlives the glance, and the row is
+     * withdrawn only when the record actually moves on. The live 対応待ち counter stays the
+     * authority on "you still have to act".
+     */
     public function markRecordOpened(User $user, FlowRecord $record): void
     {
         FlowNotification::where('user_id', $user->id)
             ->where('flow_record_id', $record->id)
-            ->whereIn('type', ['new_record', 'status_change'])
+            ->whereIn('type', ['new_record', 'status_change', 'pending_action'])
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
     }

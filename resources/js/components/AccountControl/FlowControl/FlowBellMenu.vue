@@ -66,7 +66,7 @@ import Badge from '@/components/Global/Badge.vue'
 
 interface BellEvent {
     id: number
-    type: 'comment' | 'new_record' | 'status_change'
+    type: 'comment' | 'new_record' | 'status_change' | 'pending_action'
     actor?: { id: number; name: string } | null
     record_number?: number | null
     meta?: Record<string, any> | null
@@ -96,6 +96,7 @@ const PREF_ITEMS = [
     { key: 'comment_participated', label: 'コメントしたレコードへのコメント' },
     { key: 'new_record', label: '新しいレコードの追加' },
     { key: 'status_change', label: '自分のレコードのステータス変更' },
+    { key: 'pending_action', label: '自分が対応する番になったとき' },
 ] as const
 
 const onOutside = (e: MouseEvent) => {
@@ -162,6 +163,10 @@ const eventText = (ev: BellEvent): string => {
     if (ev.type === 'status_change') {
         const to = ev.meta?.to ? `「${ev.meta.to}」` : ''
         return `ステータスが${to}になりました`
+    }
+    if (ev.type === 'pending_action') {
+        const at = ev.meta?.status ? `「${ev.meta.status}」で` : ''
+        return `${at}あなたの対応をお待ちしています`
     }
     // new_record: grouped import rows carry meta.count and no record link
     if (ev.meta?.count) return `CSVで${ev.meta.count}件のレコードが追加されました`

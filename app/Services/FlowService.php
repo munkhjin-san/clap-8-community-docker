@@ -221,10 +221,17 @@ class FlowService
      * (user / position / field / project-role subject). Strict counterpart of
      * hasPendingAction: 'everyone', empty eligible and the manage safety net don't
      * count — a duty needs the user's name on it. Drives the 対応待ち counter.
+     *
+     * Actions with 通知バッジを表示する turned off are skipped entirely: they remain pressable by the
+     * same people, they just stop being anybody's outstanding task.
      */
     public function hasExplicitPendingAction(User $user, FlowRecord $record): bool
     {
         foreach ($this->statusActionsFor($record) as $action) {
+            // 通知バッジを表示する = off → this action chases nobody (it stays pressable)
+            if (! $action->notify) {
+                continue;
+            }
             foreach (($action->eligible ?? []) as $subj) {
                 $type = $subj['subject_type'] ?? null;
                 if ($type && $type !== 'everyone'
@@ -252,7 +259,7 @@ class FlowService
         // record scan entirely (this runs on every portal load, once per status-flow app)
         $isExplicit = fn ($s) => ($s['subject_type'] ?? null) && $s['subject_type'] !== 'everyone';
         $actions = $definition->statusActions->filter(
-            fn ($a) => collect($a->eligible ?? [])->contains($isExplicit)
+            fn ($a) => $a->notify && collect($a->eligible ?? [])->contains($isExplicit)
         );
         $statusIds = $actions->pluck('flow_status_id')->unique()->values();
         if ($statusIds->isEmpty()) {

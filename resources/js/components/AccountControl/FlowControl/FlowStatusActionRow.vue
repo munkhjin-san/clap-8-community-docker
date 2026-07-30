@@ -60,6 +60,14 @@
             </div>
 
             <p v-if="!eligibleConfigured" class="elig-hint">未設定 = 編集権限を持つ全員が押せます</p>
+
+            <!-- only meaningful once someone is named: with 押せる人 empty the button is nobody's
+                 duty, so there is no badge to switch off in the first place -->
+            <label v-if="eligibleConfigured" class="chk act-notify">
+                <input type="checkbox" :checked="action.notify !== false" @change="toggleNotify">
+                通知バッジを表示する
+                <small>押せる人に対応待ちの件数と通知を出します</small>
+            </label>
         </div>
     </div>
 </template>
@@ -117,6 +125,11 @@ const setFieldPmField = () => {
 const eligibleConfigured = computed(() =>
     creatorChecked.value || members.value.length > 0 || hasType('creator_project_manager') || hasType('field_project_manager'),
 )
+
+/** off = the named people keep the button but stop being chased (no 対応待ち count, no notification) */
+const toggleNotify = (e: Event) => {
+    props.action.notify = (e.target as HTMLInputElement).checked
+}
 
 /* creator = a toggle; stored as a {creator} eligible subject */
 const creatorChecked = computed(() => props.action.eligible.some((e) => e.subject_type === 'creator'))
@@ -204,5 +217,7 @@ watch(members, (list) => {
 .pk :deep(.member-selector-compact .v-field__input) { min-height: 32px; padding-top: 1px; padding-bottom: 1px; }
 .pk :deep(.v-field__input) { --v-input-chips-margin-top: 2px; --v-input-chips-margin-bottom: 2px; }
 
+.act-notify { margin-top: 10px; }
+.act-notify small { color: gray; margin-left: 6px; }
 .elig-hint { font-size: 11px; color: gray; }
 </style>

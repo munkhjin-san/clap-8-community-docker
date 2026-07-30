@@ -284,7 +284,7 @@ const otherStatuses = (st: BuilderStatus) =>
 const addActionTo = (st: BuilderStatus) => {
     const target = otherStatuses(st)[0]?.key ?? null
     // empty color → the button inherits the app's theme color (see FlowRecordDetail .rd-act)
-    st.actions.push({ name: '', label: '新しいボタン', color: '', to_status_key: target, eligible: [] })
+    st.actions.push({ name: '', label: '新しいボタン', color: '', to_status_key: target, eligible: [], notify: true })
 }
 
 const editingAction = ref<BuilderStatusAction | null>(null)

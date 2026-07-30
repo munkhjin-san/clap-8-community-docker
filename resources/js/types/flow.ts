@@ -180,6 +180,8 @@ export interface BuilderStatusAction {
     color: string
     to_status_key: string | null
     eligible: ActionSubject[]
+    /** 通知バッジを表示する — off means the named people stop being chased (button still works) */
+    notify?: boolean
 }
 
 /** Builder-side status: rules held as a fieldKey -> rule map; actions held inline. */
