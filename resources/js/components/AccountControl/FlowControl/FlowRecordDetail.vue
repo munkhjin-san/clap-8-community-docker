@@ -97,7 +97,7 @@
                                 {{ field.label }}
                                 <span v-if="field.is_required" class="rd-req">*</span>
                             </label>
-                            <div :class="{ 'rd-disabled': mode === 'edit' && field.validation?.disabled }" :title="mode === 'edit' && field.validation?.disabled ? '入力できません（自動入力のみ）' : undefined">
+                            <div :class="{ 'rd-disabled': mode === 'edit' && (field.validation?.disabled || lockedByServer(field)) }" :title="mode === 'edit' ? lockHint(field) : undefined">
                                 <FlowFieldInput
                                     :field="field"
                                     :users="users"
@@ -379,7 +379,23 @@ const fieldRows = computed<FlowField[][]>(() => {
         .map((k) => map.get(k)!.slice().sort((a, b) => (a.order_number ?? 0) - (b.order_number ?? 0)))
 })
 
-const isReadonly = (f: FlowField) => mode.value === 'view' || f.input_type === 'formula' || !!f.validation?.disabled
+/**
+ * A field the server won't accept must not render as an input: the update endpoint filters writes
+ * through editableFieldIdsForRecord(), so an editable-looking locked field would take the user's
+ * typing and then silently drop it on save. `editable_field_ids` is that same server-side answer
+ * (field permissions ∩ the current status's field rules); null means the payload didn't resolve it,
+ * so fall back to the field definition alone rather than locking the whole form.
+ */
+const lockedByServer = (f: FlowField) => {
+    const ids = record.value?.editable_field_ids
+    return !isNew.value && Array.isArray(ids) && !ids.includes(Number(f.id))
+}
+const lockHint = (f: FlowField) => {
+    if (f.validation?.disabled) return '入力できません（自動入力のみ）'
+    if (lockedByServer(f)) return '現在のステータスまたは権限では編集できません。'
+    return undefined
+}
+const isReadonly = (f: FlowField) => mode.value === 'view' || f.input_type === 'formula' || !!f.validation?.disabled || lockedByServer(f)
 
 /* ---- unread-comment badge: clears only after the comment tab has really been viewed ---- */
 const unreadComments = ref(0)
@@ -570,6 +586,8 @@ const save = async () => {
     for (const f of visibleFields.value) {
         // disabled fields can't be edited by the user, so don't block save on their validation
         if (f.input_type === 'formula' || isLayoutType(f.input_type) || f.validation?.disabled) continue
+        // locked server-side: its stored value stands, so it is neither validated nor submitted
+        if (lockedByServer(f)) continue
         // secrets: a blank submit keeps the stored value, so 必須 asks "will one exist after save?"
         if (isSecretType(f.input_type)) {
             const v = values[f.id!]
@@ -591,7 +609,8 @@ const save = async () => {
     try {
         const payload: Record<string, any> = {}
         visibleFields.value.forEach((f) => {
-            if (f.input_type !== 'formula' && !isLayoutType(f.input_type)) payload[f.id!] = values[f.id!]
+            if (f.input_type === 'formula' || isLayoutType(f.input_type) || lockedByServer(f)) return
+            payload[f.id!] = values[f.id!]
         })
         if (isNew.value) {
             const data = await api.post('/flow_app_record_create', { flow_definition_id: definition.value?.id, values: payload }, { toast: '作成しました。' })

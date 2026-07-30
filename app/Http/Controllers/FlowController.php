@@ -985,13 +985,16 @@ class FlowController extends Controller
     public function getAppRecords(Request $request, $definitionId)
     {
         $user = $this->active_user();
-        $definition = FlowDefinition::with(['fields', 'statuses', 'statusActions', 'appPermissions', 'recordPermissionSets', 'tools' => fn ($q) => $q->where('is_active', true)])->findOrFail($definitionId);
+        // fieldPermissions + statuses.fieldRules feed editable_field_ids per row (see serializeRecord)
+        $definition = FlowDefinition::with(['fields', 'statuses.fieldRules', 'statusActions', 'appPermissions', 'recordPermissionSets', 'fieldPermissions', 'tools' => fn ($q) => $q->where('is_active', true)])->findOrFail($definitionId);
         $app = $this->flowService->effectiveAppPermissions($user, $definition);
         abort_unless($app['view'], 403);
 
         $fields = $definition->fields;
         $views = $definition->views()->with('creator')->get();
-        $with = ['values', 'currentStatus:id,name', 'createdByUser'];
+        // currentStatus.fieldRules: a record's status is a different instance from definition.statuses,
+        // so without this editable_field_ids would re-query the rules for every row
+        $with = ['values', 'currentStatus:id,name', 'currentStatus.fieldRules', 'createdByUser'];
         $base = [
             'definition' => $definition->makeHidden('appPermissions'),
             'permissions' => $app,
@@ -1016,7 +1019,7 @@ class FlowController extends Controller
 
             return response()->json($base + [
                 'mode' => 'client',
-                'records' => $records->map(fn ($x) => $this->serializeRecord($x['rec'], $fields, $x['rp'], $user))->values(),
+                'records' => $records->map(fn ($x) => $this->serializeRecord($x['rec'], $fields, $x['rp'], $user, $definition))->values(),
                 'total' => $records->count(),
                 'slots' => $deferredSlots(),
             ]);
@@ -1055,7 +1058,7 @@ class FlowController extends Controller
 
             return response()->json($base + [
                 'mode' => 'client',
-                'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can, $user))->values(),
+                'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can, $user, $definition))->values(),
                 'total' => $records->count(),
                 'slots' => $deferredSlots(),
             ]);
@@ -1083,7 +1086,7 @@ class FlowController extends Controller
 
         return response()->json($base + [
             'mode' => 'server',
-            'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can, $user))->values(),
+            'records' => $records->map(fn ($r) => $this->serializeRecord($r, $fields, $can, $user, $definition))->values(),
             'total' => $total,
             'page' => $page,
             'per_page' => $perPage,
@@ -1524,7 +1527,13 @@ class FlowController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    private function serializeRecord(FlowRecord $record, $fields, ?array $can = null, ?User $forUser = null): array
+    /**
+     * $def turns on 'editable_field_ids' — the per-record intersection of record-edit, field
+     * permissions and the current status's field rules. Without it the front-end can only guess at
+     * editability from the field definition, so it renders an input for a field the server will
+     * refuse to write and the value is silently discarded on save.
+     */
+    private function serializeRecord(FlowRecord $record, $fields, ?array $can = null, ?User $forUser = null, ?FlowDefinition $def = null): array
     {
         return [
             'id' => $record->id,
@@ -1544,11 +1553,16 @@ class FlowController extends Controller
             // 要対応 marker (red dot on the list's status pill): an action on the record's
             // current status explicitly names this user — same strict rule as the portal counter
             'pending_action' => $forUser !== null && $this->flowService->hasExplicitPendingAction($forUser, $record),
+            // which of this record's fields THIS user may actually write (null = not resolved here)
+            'editable_field_ids' => $def !== null && $forUser !== null
+                ? $this->flowService->editableFieldIdsForRecord($forUser, $record, $def, $can)
+                : null,
         ];
     }
 
     private const RECORD_DETAIL_WITH = [
-        'definition.fields', 'definition.statuses', 'definition.appPermissions', 'definition.recordPermissionSets', 'definition.statusActions', 'definition.tools',
+        'definition.fields', 'definition.statuses.fieldRules', 'definition.appPermissions', 'definition.recordPermissionSets',
+        'definition.statusActions', 'definition.tools', 'definition.fieldPermissions',
         'currentStatus', 'values', 'createdByUser', 'logs.user',
     ];
 
@@ -1635,7 +1649,7 @@ class FlowController extends Controller
         return response()->json([
             'definition' => $def->makeHidden(['appPermissions', 'recordPermissionSets']),
             'permissions' => $this->flowService->effectiveAppPermissions($user, $def),
-            'record' => $this->serializeRecord($record, $def->fields, null, $user),
+            'record' => $this->serializeRecord($record, $def->fields, $recordPerms, $user, $def),
             'can' => $recordPerms,
             'status_actions' => $actions,
             'logs' => $logs,
@@ -1718,9 +1732,10 @@ class FlowController extends Controller
             'currentStatus', 'values',
         ])->findOrFail($data['id']);
         $def = $record->definition;
-        abort_unless($this->flowService->recordPermissions($user, $record, $def)['edit'], 403);
+        $recordPerms = $this->flowService->recordPermissions($user, $record, $def);
+        abort_unless($recordPerms['edit'], 403);
 
-        $allowed = $this->flowService->editableFieldIdsForRecord($user, $record, $def);
+        $allowed = $this->flowService->editableFieldIdsForRecord($user, $record, $def, $recordPerms);
 
         $old = $this->flowService->recordValues($record, $def->fields);
         $merged = $old;
@@ -1775,7 +1790,7 @@ class FlowController extends Controller
 
         $record->load(['values', 'currentStatus', 'createdByUser']);
 
-        return response()->json($this->serializeRecord($record, $def->fields));
+        return response()->json($this->serializeRecord($record, $def->fields, $recordPerms, $user, $def));
     }
 
     public function deleteAppRecord(Request $request)

@@ -606,6 +606,12 @@ export interface FlowRecordDto {
     can_delete?: boolean
     /** 要対応 — an action on the record's current status explicitly names the viewer */
     pending_action?: boolean
+    /**
+     * Field ids THIS user may write on THIS record — record-edit ∩ field permissions ∩ the current
+     * status's field rules, resolved server-side. null means the endpoint didn't resolve it, in
+     * which case fall back to the field definition alone; [] genuinely means "nothing is editable".
+     */
+    editable_field_ids?: number[] | null
 }
 
 export interface FlowRecordsResponse {

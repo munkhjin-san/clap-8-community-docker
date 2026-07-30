@@ -1629,21 +1629,31 @@ class FlowService
     }
 
     /** Field ids the user may edit on a record now: record.edit ∩ field-perm edit ∩ status-rule editable. */
-    public function editableFieldIdsForRecord(User $user, FlowRecord $record, FlowDefinition $def): array
+    /**
+     * $recordPerms lets a caller that already resolved recordPermissions() pass it in — the record
+     * list resolves it per row, and re-deriving it here would double that work on every row.
+     */
+    public function editableFieldIdsForRecord(User $user, FlowRecord $record, FlowDefinition $def, ?array $recordPerms = null): array
     {
-        if (! $this->recordPermissions($user, $record, $def)['edit']) {
+        $perms = $recordPerms ?? $this->recordPermissions($user, $record, $def);
+        if (! ($perms['edit'] ?? false)) {
             return [];
         }
         $fp = $this->fieldPermissions($user, $def, $record);
         $status = $record->relationLoaded('currentStatus') ? $record->currentStatus : $record->currentStatus()->first();
         $fields = $def->relationLoaded('fields') ? $def->fields : $def->fields()->get();
 
+        // Resolve the status's rules ONCE. ruleForField() re-reads them per call, and when the
+        // record's currentStatus was loaded without its fieldRules that is a query per field —
+        // which the record list multiplies by every row.
+        $rules = $status ? $this->statusFieldRules($status) : [];
+
         $ids = [];
         foreach ($fields as $f) {
             if ($f->input_type === 'formula' || self::isLayoutType($f->input_type)) {
                 continue;
             }
-            $statusOk = $status ? ($this->ruleForField($status, $f->id) === 'edit') : true;
+            $statusOk = ! $status || (($rules[$f->id] ?? 'edit') === 'edit');
             if (($fp[$f->id]['edit'] ?? true) && $statusOk) {
                 $ids[] = (int) $f->id;
             }
