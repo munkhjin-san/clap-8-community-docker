@@ -139,10 +139,11 @@
                              集計スロット, so they stay put however far the table is scrolled. -->
                         <tr v-if="editingId === rec.id" class="rv-editbar">
                             <td :colspan="columns.length + 1 + (canBulk ? 1 : 0)" class="rv-editbartd">
-                                <div class="rv-editbarwrap">
-                                    <span class="rv-editbarhint">Enter で保存 / Esc で取消</span>
-                                    <button class="rv-editbtn" :disabled="savingInline" @click="cancelInlineEdit">キャンセル</button>
-                                    <LoaderButton class="rv-editbtn primary" :loading="savingInline" content="保存" @triggered="saveInline(rec)" />
+                                <div class="rv-editbarrow">
+                                    <div class="rv-editbarwrap">
+                                        <button class="rv-editbtn" :disabled="savingInline" @click="cancelInlineEdit">キャンセル</button>
+                                        <LoaderButton class="rv-editbtn primary" :loading="savingInline" content="保存" @triggered="saveInline(rec)" />
+                                    </div>
                                 </div>
                             </td>
                         </tr>
@@ -787,11 +788,21 @@ watch([page, activeViewId, search, () => JSON.stringify(adhocFilter)], () => { e
    `left` matches the margin because a sticky offset is measured to the border box. */
 .rv-editbar { background: var(--selected-background); }
 .rv-editbartd { padding: 0 0 8px; border-bottom: 1px solid var(--calendarBorder); }
-.rv-editbarwrap { position: sticky; left: 12px; z-index: 3; display: inline-flex; align-items: center; gap: 8px; margin-left: 12px; }
-.rv-editbarhint { font-size: 11px; color: gray; margin-right: 4px; }
-.rv-editbtn { box-sizing: border-box; font-size: 12px; padding: 6px 12px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); cursor: pointer; letter-spacing: normal; white-space: nowrap; }
-.rv-editbtn:hover:not(:disabled) { background: var(--bg3); }
-.rv-editbtn:disabled { opacity: .6; cursor: default; }
+/* The row spans the whole table, so flex-end puts the buttons at the table's right edge — which is
+   off-screen on a wide table. `position: sticky; right` then pulls them back to the screen's right
+   edge and holds them there while scrolling (sticky can only pull a box toward the scrollport, which
+   is why they have to start out at the far right rather than at the left). */
+.rv-editbarrow { display: flex; justify-content: flex-end; padding-right: 12px; }
+/* the 12px gutter has to live on the sticky offset, not on the row's padding: once pinned, the box
+   is held that far from the scrollport edge and the parent's padding no longer has any say */
+.rv-editbarwrap { position: sticky; right: 12px; z-index: 3; display: inline-flex; align-items: center; gap: 8px; }
+/* .l-button (global, from LoaderButton) brings min-height:35px / font-size:14px / min-width:100px,
+   so 保存 stood taller than a plain <button> next to it. Two classes deep beats it without
+   !important; the fill stays LoaderButton's, so the primary action still reads as primary. */
+.rv-editbarwrap .rv-editbtn { box-sizing: border-box !important; height: 30px; min-height: 0; min-width: 0; margin: 0; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 12.5px; border-radius: 6px; letter-spacing: normal; white-space: nowrap; cursor: pointer; }
+.rv-editbarwrap button.rv-editbtn { border: 1px solid var(--formBorder); background: var(--background-color); color: var(--primary-color); }
+.rv-editbarwrap button.rv-editbtn:hover:not(:disabled) { background: var(--bg3); }
+.rv-editbarwrap button.rv-editbtn:disabled { opacity: .6; cursor: default; }
 .rv-td { font-size: 13.5px; padding: 13px 14px; border-bottom: 1px solid var(--calendarBorder); vertical-align: middle; white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
 .rv-td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .rv-td-action { text-align: right; width: 72px; }
