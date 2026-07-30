@@ -177,14 +177,14 @@
             </label>
         </div>
         <span v-else-if="field.input_type === 'toggle'" class="flow-sw" :class="{ on: !!val }" @click="val = !val"></span>
-        <MemberSelector
-            v-else-if="field.input_type === 'user' || field.input_type === 'member'"
-            v-model="selectedUsers"
-            :options="(users as any)"
-            :multiple="userMultiple"
-            compact
-            :place-holder="field.label || 'ユーザーを選択'"
-        />
+        <div v-else-if="field.input_type === 'user' || field.input_type === 'member'" class="fi-picker">
+            <MemberSelector
+                v-model="selectedUsers"
+                :options="(users as any)"
+                :multiple="userMultiple"
+                compact
+            />
+        </div>
         <div v-else-if="field.input_type === 'file'" class="fi-files">
             <div v-for="(f, i) in arrayVal" :key="f?.id ?? i" class="fi-fileitem fi-file-edit">
                 <button type="button" class="fi-file-open" @click="openPreview(i)">
@@ -274,7 +274,7 @@
                 </div>
             </div>
         </div>
-        <div v-else-if="field.input_type === 'project'" class="fi-project">
+        <div v-else-if="field.input_type === 'project'" class="fi-picker">
             <ItemSelector
                 :multiple="false"
                 :options="(projects as any)"
@@ -283,7 +283,6 @@
                 v-model="val"
                 :clearable="true"
                 :close-on-select="true"
-                place-holder="プロジェクトを選択"
             />
         </div>
         <input v-else type="text" v-model="val" class="fi-input">
@@ -671,10 +670,38 @@ const formatFormula = (v: any) => {
 /* global main.css forces `box-sizing: unset !important` on *, so re-assert border-box here (class beats * even with !important) or width:100% + padding overflows the block */
 .fi-input { width: 100%; box-sizing: border-box !important; font-size: 13px; padding: 6px 9px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); }
 .fi-area { min-height: 64px; resize: vertical; }
-/* project picker: match the thin, rounded look of .fi-input (ItemSelector ships a bolder/square shell) */
-.fi-project { max-width: 100%; }
-.fi-project :deep(.item-selector-shell) { border: 1px solid var(--formBorder) !important; border-radius: 6px !important; box-sizing: border-box !important; overflow: hidden; }
-.fi-project :deep(.one-selector .v-field__input) { min-height: 34px; padding-top: 2px; padding-bottom: 2px; font-size: 13px; }
+/* --- プロジェクト / ユーザー pickers -------------------------------------------------------------
+   ItemSelector and MemberSelector are shared app-wide components built for roomy modal forms, so
+   they arrive ~100px tall with a Vuetify floating label. In a flow field the label is already
+   printed above the input (and in a record-list cell, in the column header), so the inner one is
+   dropped — and with it the 25px of top padding Vuetify reserves to float it into.
+   Scoped here on purpose: every other screen keeps the tall variant.
+
+   !important throughout because Vuetify's own density rules are more specific than a :deep()
+   selector; without it the padding measured 25px however the component's `compact` prop was set. */
+.fi-picker { max-width: 100%; }
+.fi-picker :deep(.item-selector-shell), .fi-picker :deep(.member-selector-shell) {
+    border: 1px solid var(--formBorder) !important; border-radius: 6px !important;
+    box-sizing: border-box !important; overflow: hidden; background: transparent !important;
+}
+/* match .fi-input's box exactly (33px, border-box) so a picker sits level with the plain inputs */
+.fi-picker :deep(.v-field__input) {
+    min-height: 31px !important; padding-top: 2px !important; padding-bottom: 2px !important;
+    padding-inline-start: 8px !important; font-size: 13px !important; row-gap: 2px;
+}
+.fi-picker :deep(.v-field), .fi-picker :deep(.v-field__field), .fi-picker :deep(.v-field__overlay) { background: transparent !important; }
+/* the label is gone, but Vuetify still renders the (empty) element — keep it from claiming a line */
+.fi-picker :deep(.v-field-label) { display: none !important; }
+/* the raw <input> keeps a white UA background, which shows as a white strip on any tinted parent
+   (a selected record row, the striped subtable) — the shell's own background is the one that counts */
+.fi-picker :deep(.v-field__input input) { background: transparent !important; color: var(--primary-color); }
+.fi-picker :deep(.v-field__append-inner) { padding-top: 0 !important; align-items: center; }
+/* Single-select: the chosen value and the search input are siblings in a wrapping flex row, so in a
+   column-width box they stacked and doubled the height. A multi-select must keep wrapping — that is
+   how several chips get their lines — hence the :not(--multiple). */
+.fi-picker :deep(.v-input:not(.v-autocomplete--multiple) .v-field__input) { flex-wrap: nowrap; }
+.fi-picker :deep(.v-input:not(.v-autocomplete--multiple) .v-field__input input) { min-width: 0; }
+.fi-picker :deep(.v-autocomplete__selection) { align-self: center; min-height: 0; margin-inline-end: 2px; }
 .fi-multi { min-height: 80px; }
 .fi-opts { display: flex; flex-wrap: wrap; gap: 11px 18px; }
 .fi-opt { font-size: 13px; display: inline-flex; align-items: flex-start; gap: 9px; cursor: pointer; line-height: 1.5; }
