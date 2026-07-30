@@ -48,7 +48,7 @@
 import { computed } from 'vue'
 import FlowFieldInput from './FlowFieldInput.vue'
 import { isLayoutType } from '@/types/flow'
-import { lockedByServer } from '@/utils/flowValidation'
+import { applyLookupCopy, lockedByServer } from '@/utils/flowValidation'
 import type { FlowField, FlowOptionUser, FlowOptionProject } from '@/types/flow'
 
 const props = defineProps<{
@@ -98,29 +98,9 @@ const onInput = (f: FlowField, v: any) => {
     props.errors[f.id!] = null
 }
 
-const emptyValue = (f: FlowField) => {
-    if (['checkbox', 'user', 'member', 'file', 'table'].includes(f.input_type)) return []
-    if (f.input_type === 'toggle') return false
-    if (f.input_type === 'number' || f.input_type === 'reference') return null
-    return ''
-}
-
-/**
- * Lookup field copy (kintone-style): the reference field emits its picked record's values keyed by
- * source field key; fill each mapped destination field here. Empty `source` (lookup cleared) blanks
- * them. Formula/layout destinations are skipped defensively (they can't take a copied value), and so
- * are server-locked ones — a lookup must not write what a direct edit isn't allowed to.
- */
-const onLookup = (payload: { mappings: { from: string; to: string }[]; source: Record<string, any> }) => {
-    const cleared = Object.keys(payload.source).length === 0
-    for (const m of payload.mappings) {
-        const dest = props.fields.find((f) => f.key === m.to)
-        if (!dest?.id || dest.input_type === 'formula' || isLayoutType(dest.input_type)) continue
-        if (lockedByServer(dest, props.editableFieldIds, props.isNew)) continue
-        props.values[dest.id] = cleared ? emptyValue(dest) : (payload.source[m.from] ?? emptyValue(dest))
-        props.errors[dest.id] = null
-    }
-}
+const onLookup = (payload: { mappings: { from: string; to: string }[]; source: Record<string, any> }) =>
+    applyLookupCopy(props.fields, props.values, props.errors, payload,
+        { editableFieldIds: props.editableFieldIds, isNew: props.isNew })
 </script>
 
 <style scoped>

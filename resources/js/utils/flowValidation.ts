@@ -1,4 +1,5 @@
 import { isLayoutType, isSecretType } from '@/types/flow'
+import { emptyFieldValue } from './flowDefaults'
 import type { FlowField } from '@/types/flow'
 
 const isEmpty = (v: any): boolean =>
@@ -125,4 +126,32 @@ export function submittableValues(
         payload[f.id!] = values[f.id!]
     }
     return payload
+}
+
+
+/**
+ * Lookup field copy (kintone-style): a reference field hands over its picked record's values keyed by
+ * source field key, and each mapping fills a destination field *of this record*. Empty `source` means
+ * the lookup was cleared, which blanks the destinations.
+ *
+ * Shared because the destinations are other fields — the record form and the list's inline cells both
+ * need to write across the whole record, not just the field that was touched. Formula and layout
+ * destinations can't hold a copied value, and a server-locked one is skipped: a lookup must not write
+ * what a direct edit isn't allowed to.
+ */
+export function applyLookupCopy(
+    fields: FlowField[],
+    values: Record<string, any>,
+    errors: Record<string, string | null>,
+    payload: { mappings: { from: string; to: string }[]; source: Record<string, any> },
+    opts: { editableFieldIds?: number[] | null; isNew?: boolean } = {},
+): void {
+    const cleared = Object.keys(payload.source).length === 0
+    for (const m of payload.mappings) {
+        const dest = fields.find((f) => f.key === m.to)
+        if (!dest?.id || dest.input_type === 'formula' || isLayoutType(dest.input_type)) continue
+        if (lockedByServer(dest, opts.editableFieldIds, opts.isNew)) continue
+        values[dest.id] = cleared ? emptyFieldValue(dest) : (payload.source[m.from] ?? emptyFieldValue(dest))
+        errors[dest.id] = null
+    }
 }

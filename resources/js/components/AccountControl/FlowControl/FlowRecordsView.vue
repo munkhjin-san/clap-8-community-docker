@@ -87,21 +87,44 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="rec in displayRecords" :key="rec.id" class="rv-row" @click="openRecord(rec)">
+                        <template v-for="rec in displayRecords" :key="rec.id">
+                        <tr class="rv-row" :class="{ editing: editingId === rec.id }" @click="onRowClick(rec)" @dblclick="startInlineEdit(rec)">
                             <td v-if="canBulk" class="rv-td rv-td-check" @click.stop>
                                 <input type="checkbox" class="rv-check" :checked="selected.has(rec.id)" :disabled="!rec.can_delete" @change="toggleSelect(rec.id)">
                             </td>
-                            <td v-for="c in columns" :key="c.key" class="rv-td" :class="{ num: isNumericCol(c) }">
+                            <td v-for="c in columns" :key="c.key" class="rv-td" :class="{ num: isNumericCol(c), edit: isCellEditable(rec, c) }" @click="isCellEditable(rec, c) && $event.stopPropagation()">
                                 <template v-if="c.system">
                                     <span v-if="c.ref === '$record_number'" class="rv-idcell">{{ rec.record_number }}</span>
                                     <span v-else-if="c.ref === '$status'"><span v-if="rec.current_status" class="rv-statuscell" :style="statusStyle(rec)"><span v-if="rec.pending_action" class="rv-pdot" title="あなたの対応待ちです"></span>{{ rec.current_status }}</span></span>
                                     <span v-else class="rv-datecell">{{ sysDate(rec, c.ref) }} <span class="rv-time">{{ sysTime(rec, c.ref) }}</span></span>
                                 </template>
-                                <FlowFieldInput v-else :field="c.field!" :model-value="rec.values[c.field!.id!]" :users="users" :projects="projects" readonly />
+                                <template v-else-if="isCellEditable(rec, c)">
+                                    <FlowFieldInput
+                                        :field="c.field!"
+                                        :users="users"
+                                        :projects="projects"
+                                        :record-id="rec.id"
+                                        :model-value="editValues[c.field!.id!]"
+                                        @update:model-value="onCellInput(c.field!, $event)"
+                                        @lookup="onCellLookup(rec, $event)"
+                                    />
+                                    <div v-if="editErrors[c.field!.id!]" class="rv-cellerr">{{ editErrors[c.field!.id!] }}</div>
+                                </template>
+                                <FlowFieldInput
+                                    v-else
+                                    :field="c.field!"
+                                    :model-value="editingId === rec.id ? editValues[c.field!.id!] : rec.values[c.field!.id!]"
+                                    :users="users" :projects="projects" readonly
+                                    :title="editingId === rec.id ? uneditableReason(rec, c) : undefined"
+                                />
                             </td>
                             <td class="rv-td rv-td-action" @click.stop>
-                                <div class="rv-actions">
-                                    <button v-if="rec.can_edit" class="rv-actbtn" title="編集" @click="editRecord(rec)">
+                                <div v-if="editingId === rec.id" class="rv-actions rv-rowedit">
+                                    <button class="rv-editbtn" :disabled="savingInline" @click="cancelInlineEdit">キャンセル</button>
+                                    <LoaderButton class="rv-editbtn primary" :loading="savingInline" content="保存" @triggered="saveInline(rec)" />
+                                </div>
+                                <div v-else class="rv-actions">
+                                    <button v-if="rec.can_edit" class="rv-actbtn" title="この行で編集" @click="startInlineEdit(rec)">
                                         <Edit size="13" />
                                     </button>
                                     <button v-if="permissions?.add" class="rv-actbtn" title="複製して新規作成" @click="duplicateRecord(rec)">
@@ -114,6 +137,7 @@
                                 </div>
                             </td>
                         </tr>
+                        </template>
                         <tr v-if="!displayRecords.length && !loading">
                             <td :colspan="columns.length + 1 + (canBulk ? 1 : 0)" class="rv-empty">レコードがありません。</td>
                         </tr>
@@ -166,13 +190,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 import { useFlowOptionsStore } from '@/store/flowOptions'
 import FlowFieldInput from './FlowFieldInput.vue'
+import LoaderButton from '@/components/Global/LoaderButton.vue'
 import { fillSlotValues, formatSlotItem, type SlotDto } from '@/utils/flowSlots'
 import FlowCsvImportModal from './FlowCsvImportModal.vue'
 import FlowRecordFilterModal from './FlowRecordFilterModal.vue'
@@ -191,6 +216,8 @@ import FlowAppIcon from './FlowAppIcon.vue'
 import { readableTextColor } from '@/utils/flowColor'
 import { pageTitleOverride } from '@/composables/pageTitle'
 import { resolveColumns, applyFilters, applyAdhocFilter, applySort, systemColumnValue, type ResolvedColumn } from '@/utils/flowView'
+import { applyLookupCopy, lockedByServer, validateRecordValues } from '@/utils/flowValidation'
+import { emptyFieldValue } from '@/utils/flowDefaults'
 import type { FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowViewApi, FlowRecordsResponse, FlowAdhocFilter } from '@/types/flow'
 import type { MenuList } from '@/interface/globalInterface'
 
@@ -455,10 +482,143 @@ const openNew = () => router.push({ name: 'flow-record-new', params: { flowId: f
 // the record route carries the list's URL state (?view/?sf/?sd/?f) so its back button — and any
 // amount of up/down record shifting — can return to the list with view, sort and filter intact
 const openRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number }, query: listQuery() })
-// quick-edit shortcut: open the record already in edit mode
-const editRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-detail', params: { flowId: flowId.value, recordId: rec.record_number }, query: { edit: '1', ...listQuery() } })
+
 // 複製: open a new record pre-filled with this record's values
 const duplicateRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-new', params: { flowId: flowId.value }, query: { from: rec.id } })
+
+/* ---- クイック編集: the row's own cells become inputs, kintone-style ---- */
+
+const editingId = ref<number | null>(null)
+const editValues = reactive<Record<string, any>>({})
+const editErrors = reactive<Record<string, string | null>>({})
+const savingInline = ref(false)
+/** JSON of the values as seeded, so leaving the row can tell edits from an untouched open. */
+const editBaseline = ref('')
+
+/**
+ * A テーブル can't be edited in one grid cell (it is a table of its own), and a 計算 field has no
+ * stored value to edit. Everything else the server says is writable becomes a real input.
+ */
+const INLINE_BLOCKED = ['table', 'formula']
+const isInlineEditable = (rec: FlowRecordDto, c: ResolvedColumn) =>
+    !c.system && !!c.field && !INLINE_BLOCKED.includes(c.field.input_type)
+    && !c.field.validation?.disabled
+    && !lockedByServer(c.field, rec.editable_field_ids ?? null)
+
+const isCellEditable = (rec: FlowRecordDto, c: ResolvedColumn) => editingId.value === rec.id && isInlineEditable(rec, c)
+
+/** Why a cell stayed read-only while the rest of the row is editable — shown as its tooltip. */
+const uneditableReason = (rec: FlowRecordDto, c: ResolvedColumn) => {
+    const f = c.field
+    if (!f || c.system) return undefined
+    if (f.input_type === 'table') return 'テーブルはこの行では編集できません。詳細画面で編集してください。'
+    if (f.input_type === 'formula') return '計算項目は自動で求められます。'
+    if (f.validation?.disabled) return '入力できません（自動入力のみ）'
+    if (lockedByServer(f, rec.editable_field_ids ?? null)) return '現在のステータスまたは権限では編集できません。'
+    return undefined
+}
+
+/** The fields this row can actually submit — only what the view shows, so a save is a partial update. */
+const inlineFields = (rec: FlowRecordDto) =>
+    columns.value.filter((c) => isInlineEditable(rec, c)).map((c) => c.field!)
+
+const onCellInput = (f: { id?: number }, v: any) => {
+    editValues[f.id!] = v
+    editErrors[f.id!] = null
+}
+const onCellLookup = (rec: FlowRecordDto, payload: { mappings: { from: string; to: string }[]; source: Record<string, any> }) =>
+    applyLookupCopy(definition.value?.fields ?? [], editValues, editErrors, payload,
+        { editableFieldIds: rec.editable_field_ids ?? null })
+
+/**
+ * Single click opens the record, double click edits it in place — so the open has to wait long enough
+ * to tell which gesture it was. 250ms is the usual dblclick threshold; it only ever delays navigation.
+ */
+let clickTimer: ReturnType<typeof setTimeout> | null = null
+const clearClickTimer = () => { if (clickTimer) { clearTimeout(clickTimer); clickTimer = null } }
+const onRowClick = (rec: FlowRecordDto) => {
+    // while a row is open for editing, a stray click must not navigate away from unsaved input
+    if (editingId.value !== null) return
+    clearClickTimer()
+    clickTimer = setTimeout(() => { clickTimer = null; openRecord(rec) }, 250)
+}
+
+const isInlineDirty = () => JSON.stringify(editValues) !== editBaseline.value
+
+/**
+ * Enter saves, Escape cancels — the row behaves like the small form it is. Enter is ignored in a
+ * textarea (a 複数行 field needs its newlines) and while an IME is composing, which on a Japanese
+ * keyboard is what Enter is usually doing.
+ */
+const onInlineKey = (e: KeyboardEvent) => {
+    if (editingId.value === null) return
+    const rec = displayRecords.value.find((r) => r.id === editingId.value)
+    if (!rec) return
+    if (e.key === 'Escape') { e.preventDefault(); cancelInlineEdit(); return }
+    if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return
+    if ((e.target as HTMLElement | null)?.tagName === 'TEXTAREA') return
+    e.preventDefault()
+    if (!savingInline.value) saveInline(rec)
+}
+
+/** Seeds every field, not just the visible columns: a lookup can copy into a field off-screen. */
+const seedEditValues = (rec: FlowRecordDto) => {
+    Object.keys(editValues).forEach((k) => delete editValues[k])
+    Object.keys(editErrors).forEach((k) => delete editErrors[k])
+    for (const f of definition.value?.fields ?? []) {
+        if (f.id) editValues[f.id] = rec.values?.[f.id] ?? emptyFieldValue(f)
+    }
+    editBaseline.value = JSON.stringify(editValues)
+}
+
+const startInlineEdit = async (rec: FlowRecordDto) => {
+    clearClickTimer() // a double-click fires click first; don't let the deferred open land
+    if (!rec.can_edit) { dialog.ping('このレコードを編集する権限がありません。'); return }
+    if (editingId.value !== null && editingId.value !== rec.id && isInlineDirty()) {
+        const answer = await dialog.ask('編集中の内容が保存されていません。破棄して別の行を編集しますか？')
+        if (!answer?.value) return
+    }
+    editingId.value = rec.id
+    seedEditValues(rec)
+    if (!inlineFields(rec).length) dialog.ping('この表示中の列にはこの行で編集できる項目がありません。')
+}
+
+const cancelInlineEdit = async () => {
+    if (isInlineDirty()) {
+        const answer = await dialog.ask('編集中の内容を破棄しますか？')
+        if (!answer?.value) return
+    }
+    editingId.value = null
+}
+
+const saveInline = async (rec: FlowRecordDto) => {
+    // Only the columns on screen are editable here, so only those are validated and sent — the
+    // endpoint merges onto the stored record, so untouched fields (and their 必須) are unaffected.
+    const fields = inlineFields(rec)
+    const found = validateRecordValues(fields, editValues, { stored: rec.values ?? null })
+    Object.keys(editErrors).forEach((k) => delete editErrors[k])
+    Object.assign(editErrors, found)
+    if (Object.values(found).some(Boolean)) return
+
+    const payload: Record<string, any> = {}
+    for (const f of fields) payload[f.id!] = editValues[f.id!]
+
+    savingInline.value = true
+    try {
+        const fresh = await api.post('/flow_app_record_update', { id: rec.id, values: payload }, { toast: '保存しました。' }) as FlowRecordDto | null
+        if (!fresh) return
+        // patch the row in place — the response carries recomputed formulas, the current status and a
+        // re-resolved editable_field_ids, so the row stays truthful without a full reload
+        const i = records.value.findIndex((r) => r.id === rec.id)
+        if (i !== -1) records.value[i] = fresh
+        editingId.value = null
+        // server mode computes the 集計スロット over the whole filtered set, so an edited number leaves
+        // them stale; client mode recomputes from `records` by itself.
+        if (mode.value === 'server' && rawSlots.value.length) await load()
+    } finally {
+        savingInline.value = false
+    }
+}
 
 /* ---- row shortcuts (edit / delete) + bulk delete (一括処理) ---- */
 const deleteRecord = async (rec: FlowRecordDto) => {
@@ -502,6 +662,15 @@ onMounted(async () => {
     await flowOptionsStore.load()
     await load()
 })
+onMounted(() => document.addEventListener('keydown', onInlineKey))
+onBeforeUnmount(() => {
+    document.removeEventListener('keydown', onInlineKey)
+    clearClickTimer()
+})
+
+// The open editor belongs to one row of one page. Changing page, view, filter or search rebuilds the
+// list under it, so close it rather than leave it attached to a row that may no longer be there.
+watch([page, activeViewId, search, () => JSON.stringify(adhocFilter)], () => { editingId.value = null })
 </script>
 
 <style scoped>
@@ -590,9 +759,32 @@ onMounted(async () => {
 .rv-slot-value { font-size: 14px; color: var(--primary-color); font-variant-numeric: tabular-nums; }
 .rv-row { cursor: pointer; }
 .rv-row:hover { background: var(--selected-background); }
+/* --- クイック編集 row ---------------------------------------------------------------------------
+   A normal cell is a single clipped line (nowrap + overflow:hidden + max-width). An input needs the
+   opposite of all three, and `overflow: visible` is what lets a picker's dropdown — positioned
+   absolute inside the field, never teleported — escape the cell instead of being cut off at it.
+   The .rv-scroll container still bounds it, which is fine: useFloatingMenu already flips a menu
+   above its input when there isn't room below. */
+.rv-row.editing { background: var(--selected-background); }
+.rv-row.editing .rv-td { vertical-align: top; }
+.rv-td.edit { position: relative; white-space: normal; overflow: visible; max-width: none; min-width: 170px; padding: 8px 10px; }
+.rv-td.edit :deep(.fi-input), .rv-td.edit :deep(input), .rv-td.edit :deep(select), .rv-td.edit :deep(textarea) { box-sizing: border-box; max-width: 100%; }
+.rv-cellerr { font-size: 11px; color: #e2574c; margin-top: 3px; white-space: normal; }
+/* a read-only cell in an editing row: dimmed so it reads as "not yours to change", with a reason on hover */
+.rv-row.editing .rv-td:not(.edit):not(.rv-td-check):not(.rv-td-action) { opacity: .55; }
+
+/* The action cell is the last column, so on a table wider than the screen 保存 would sit off to the
+   right — unreachable without scrolling away from the fields you just typed in. Pin it to the right
+   edge for the row being edited (opaque, or the cells underneath show through). */
+.rv-row.editing .rv-td-action { position: sticky; right: 0; z-index: 3; background: var(--selected-background); box-shadow: -6px 0 8px -6px rgba(0, 0, 0, .25); }
+.rv-rowedit { flex-wrap: nowrap; justify-content: flex-end; }
+.rv-editbtn { box-sizing: border-box; font-size: 12px; padding: 6px 12px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--primary-color); cursor: pointer; letter-spacing: normal; white-space: nowrap; }
+.rv-editbtn:hover:not(:disabled) { background: var(--bg3); }
+.rv-editbtn:disabled { opacity: .6; cursor: default; }
 .rv-td { font-size: 13.5px; padding: 13px 14px; border-bottom: 1px solid var(--calendarBorder); vertical-align: middle; white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
 .rv-td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .rv-td-action { text-align: right; width: 72px; }
+.rv-row.editing .rv-td-action { width: auto; white-space: nowrap; }
 .rv-detail { font-size: 12px; color: gray; }
 .rv-row:hover .rv-detail { color: var(--primary-color); }
 .rv-actions { display: inline-flex; align-items: center; gap: 4px; justify-content: flex-end; }

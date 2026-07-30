@@ -184,7 +184,7 @@ import { useFlowOptionsStore } from '@/store/flowOptions'
 import { useFilePreview } from '@/store/filePreview'
 import { useResponsive } from '@/store/responsive'
 import { submittableValues, validateRecordValues } from '@/utils/flowValidation'
-import { resolveFieldDefault } from '@/utils/flowDefaults'
+import { emptyFieldValue, resolveFieldDefault } from '@/utils/flowDefaults'
 import { readableTextColor } from '@/utils/flowColor'
 import { flowColorValue } from '@/utils/flowColors'
 import { useTheme } from '@/store/theme'
@@ -441,12 +441,6 @@ const fmtChange = (key: string, val: any): string => {
     return String(val)
 }
 
-const emptyValue = (f: FlowField) => {
-    if (['checkbox', 'user', 'member', 'file', 'table'].includes(f.input_type)) return []
-    if (f.input_type === 'toggle') return false
-    if (f.input_type === 'number' || f.input_type === 'reference') return null
-    return ''
-}
 
 // duplicate copies every editable field EXCEPT formula (recomputed), layout (no value), and file
 // (attachments aren't re-uploaded — copying the refs would share storage between records)
@@ -457,7 +451,7 @@ const initValues = () => {
     const dup = isNew.value ? dupValues.value : null
     ;(definition.value?.fields ?? []).forEach((f) => {
         if (!isNew.value) {
-            values[f.id!] = record.value?.values?.[f.id!] ?? emptyValue(f)
+            values[f.id!] = record.value?.values?.[f.id!] ?? emptyFieldValue(f)
             return
         }
         // duplicate: use the source value when present, else fall back to the field's default
