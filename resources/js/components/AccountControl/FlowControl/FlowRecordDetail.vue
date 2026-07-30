@@ -69,7 +69,7 @@
                     <button v-for="t in pdfTools" :key="t.id" class="rd-tool" @click="downloadPdf(t)" :title="t.name"><FileIcon ext="unknown" class="rd-tool-file" />{{ t.name }}</button>
                     <button v-if="canDuplicate" class="rd-tool" title="このレコードを複製して新規作成" @click="duplicate"><Copy size="13" />複製</button>
                     <button v-if="!isNew && can.delete" class="rd-tool danger" @click="remove"><Trash size="13" />削除</button>
-                    <button v-if="can.edit" class="rd-tool primary" @click="mode = 'edit'"><Edit size="13" />編集</button>
+                    <button v-if="can.edit" class="rd-tool primary" title="編集（E）" @click="mode = 'edit'"><Edit size="13" />編集</button>
                 </template>
                 <template v-else-if="mode === 'edit'">
                     <button class="rd-tool" @click="cancelEdit">キャンセル</button>
@@ -199,11 +199,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useApi } from '@/composables/api'
 import { useFlowOptionsStore } from '@/store/flowOptions'
+import { useFilePreview } from '@/store/filePreview'
 import { useResponsive } from '@/store/responsive'
 import { validateFlowField } from '@/utils/flowValidation'
 import { resolveFieldDefault } from '@/utils/flowDefaults'
@@ -263,8 +264,52 @@ const actionStyle = (a: { can: boolean; color?: string | null }) => {
     return { background: c, borderColor: c, color: readableTextColor(c) }
 }
 const can = reactive({ view: true, edit: true, delete: false })
+
+const filePreview = useFilePreview()
 const flowOptionsStore = useFlowOptionsStore()
 const { users, projects } = storeToRefs(flowOptionsStore)
+
+/**
+ * Anything that owns the keyboard while it is on screen: .chatCreate is the app-wide dialog panel
+ * (Modal.vue and the hand-rolled overlays alike), .cu-toast-mask the global confirm/prompt from
+ * dialog.ts — the one behind api.post({ ask }) — and .md-window the file preview.
+ *
+ * Deliberately NOT .overlay: this screen puts that class on its own root when narrow, so matching
+ * it would silently kill the shortcut on mobile. .mini-info is out too — a toast blocks nothing.
+ */
+const BLOCKING_LAYERS = '.chatCreate, .cu-toast-mask, .md-window'
+
+const isTypingTarget = (el: EventTarget | null): boolean => {
+    const node = el as HTMLElement | null
+    if (!node || !node.tagName) return false
+    if (node.isContentEditable) return true
+
+    return ['INPUT', 'TEXTAREA', 'SELECT'].includes(node.tagName)
+}
+
+/**
+ * "E" opens edit mode — only when the 編集 button is genuinely available.
+ *
+ * The guards are the whole feature: a bare letter shortcut is one careless keystroke away from
+ * hijacking normal typing, so it bails out when focus is in a field (typing "e" into 件名 or the
+ * comment box must not flip the record), when an IME is mid-composition, when a modifier is held
+ * (Cmd+E / Ctrl+E belong to the browser), and when a dialog or the file preview is on top.
+ */
+const onEditHotkey = (e: KeyboardEvent) => {
+    if (e.key !== 'e' && e.key !== 'E') return
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+    if (e.isComposing || e.keyCode === 229) return
+    if (isTypingTarget(e.target) || isTypingTarget(document.activeElement)) return
+    if (filePreview.active || document.querySelector(BLOCKING_LAYERS)) return
+    if (mode.value !== 'view' || !can.edit) return
+
+    e.preventDefault()
+    mode.value = 'edit'
+}
+
+onMounted(() => document.addEventListener('keydown', onEditHotkey))
+onBeforeUnmount(() => document.removeEventListener('keydown', onEditHotkey))
+
 const values = reactive<Record<string, any>>({})
 const errors = reactive<Record<string, string | null>>({})
 
