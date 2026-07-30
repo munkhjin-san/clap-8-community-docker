@@ -1,45 +1,46 @@
 <template>
     <div class="lp" :class="{ 'lp-multi': multiple }">
-        <!-- chips for what's chosen; a single-select chip fills the field, a multi-select one hugs its label -->
-        <div v-if="chips.length" class="lp-chips">
-            <span v-for="c in chips" :key="c.id" class="lp-chip">
-                <UserPanel v-if="avatar" :user="(c.raw as any)" :size="16" :disable-instant="true" class="lp-avatar" />
-                <span class="lp-chiplabel">{{ c.label }}</span>
-                <button type="button" class="lp-clear" title="解除" @click.stop="remove(c.id)">×</button>
-            </span>
-        </div>
+        <!-- chips sit in the field's own flex flow (no wrapper): a wrapper that grew to the full width
+             pushed the search box away from the last chip and left a gap between them -->
+        <span v-for="c in chips" :key="c.id" class="lp-chip">
+            <UserPanel v-if="avatar" :user="(c.raw as any)" :size="18" :disable-instant="true" class="lp-avatar" />
+            <span class="lp-chiplabel">{{ c.label }}</span>
+            <button type="button" class="lp-clear" title="解除" @click.stop="remove(c.id)">×</button>
+        </span>
 
-        <!-- the search box disappears once a single-select has its value: there is nothing more to pick,
-             and leaving it behind is what left a dead strip next to the chip -->
-        <div v-if="multiple || !chips.length" class="lp-search">
-            <input
-                ref="inputEl"
-                type="text"
-                class="lp-input"
-                :value="query"
-                :placeholder="chips.length ? '' : placeholder"
-                :disabled="disabled"
-                @focus="open"
-                @input="onInput"
-                @keydown="onKeydown"
-                @blur="close"
+        <!-- the search box disappears once a single-select has its value: there is nothing more to pick
+             until the chip is cleared (the same contract as the reference field's picker) -->
+        <input
+            v-if="multiple || !chips.length"
+            ref="inputEl"
+            type="text"
+            class="lp-input"
+            :value="query"
+            :placeholder="chips.length ? '' : placeholder"
+            :disabled="disabled"
+            @focus="open"
+            @input="onInput"
+            @keydown="onKeydown"
+            @blur="close"
+        >
+
+        <!-- a child of the field, not of the input, so it lines up with the field's edges rather than
+             starting wherever the search box happens to have been pushed to -->
+        <div v-if="isOpen" ref="menuEl" class="lp-menu" :class="placement">
+            <button
+                v-for="(o, i) in filtered"
+                :key="o.id"
+                type="button"
+                class="lp-opt"
+                :class="{ hl: i === highlighted }"
+                @mousedown.prevent
+                @click="pick(o)"
+                @mousemove="highlighted = i"
             >
-            <div v-if="isOpen" ref="menuEl" class="lp-menu" :class="placement">
-                <button
-                    v-for="(o, i) in filtered"
-                    :key="o.id"
-                    type="button"
-                    class="lp-opt"
-                    :class="{ hl: i === highlighted }"
-                    @mousedown.prevent
-                    @click="pick(o)"
-                    @mousemove="highlighted = i"
-                >
-                    <UserPanel v-if="avatar" :user="(o as any)" :size="18" :disable-instant="true" class="lp-avatar" />
-                    <span class="lp-optlabel">{{ o.name }}</span>
-                </button>
-                <div v-if="!filtered.length" class="lp-empty">{{ options.length ? '該当がありません' : '選択できる項目がありません' }}</div>
-            </div>
+                <UserPanel v-if="avatar" :user="(o as any)" :size="20" :disable-instant="true" class="lp-avatar" />
+                <span class="lp-optlabel">{{ o.name }}</span>
+            </button>
+            <div v-if="!filtered.length" class="lp-empty">{{ options.length ? '該当がありません' : '選択できる項目がありません' }}</div>
         </div>
     </div>
 </template>
@@ -81,7 +82,7 @@ const isOpen = ref(false)
 const highlighted = ref(0)
 const inputEl = ref<HTMLInputElement | null>(null)
 const menuEl = ref<HTMLElement | null>(null)
-// the menu is absolute inside .lp-search; this only decides open-above vs open-below
+// the menu is absolute inside the field; this only decides open-above vs open-below
 const { placement } = useFloatingMenu(isOpen, inputEl)
 
 const byId = computed<Record<number, Option>>(() => {
@@ -164,29 +165,29 @@ const onKeydown = (e: KeyboardEvent) => {
 </script>
 
 <style scoped>
-/* Sized against .fi-input (33px, 13px text) so a picker sits level with the plain inputs. */
-.lp { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; box-sizing: border-box !important; min-height: 33px; padding: 3px 5px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); }
-/* single-select: the chip is the field's content, so it takes the whole width instead of leaving a
-   strip beside itself — the thing the Vuetify version couldn't do */
-.lp-chips { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; flex: 1 1 auto; }
-.lp-chip { display: inline-flex; align-items: center; gap: 5px; min-width: 0; max-width: 100%; box-sizing: border-box !important; padding: 2px 3px 2px 7px; border-radius: 5px; background: var(--bg3); }
-.lp:not(.lp-multi) .lp-chip { flex: 1 1 auto; }
-.lp-chiplabel { font-size: 11.5px; color: var(--primary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* Sized a little taller than .fi-input's 33px: the chips and avatars inside need room to breathe,
+   and a picker that is flush to its own border reads as cramped next to a plain text input. */
+.lp { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; box-sizing: border-box !important; min-height: 36px; padding: 5px 8px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); }
+.lp:focus-within { border-color: var(--primary-color); }
+
+/* The chip is the width of its label — no stretching to fill the field. Filling made the whole field
+   look like one grey pill, and a single-select chip that grows with its container reads as a bug. */
+.lp-chip { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; box-sizing: border-box !important; padding: 3px 4px 3px 9px; border-radius: 5px; background: var(--bg3); }
+.lp-chiplabel { font-size: 12px; color: var(--primary-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .lp-avatar { flex-shrink: 0; }
-.lp-clear { flex-shrink: 0; border: none; background: none; color: gray; cursor: pointer; font-size: 13px; line-height: 1; padding: 0 3px; }
+.lp-clear { flex-shrink: 0; border: none; background: none; color: gray; cursor: pointer; font-size: 13px; line-height: 1; padding: 0 4px; }
 .lp-clear:hover { color: #e2574c; }
 
-.lp-search { position: relative; flex: 1 1 60px; min-width: 60px; }
-/* the field's own border is the box; the input just sits in it */
-.lp-input { width: 100%; box-sizing: border-box !important; border: none; background: transparent; color: var(--primary-color); font-size: 13px; padding: 3px 4px; outline: none; }
+/* the field's border is the box; the input just lives in it, taking the rest of its line */
+.lp-input { flex: 1 1 70px; min-width: 70px; box-sizing: border-box !important; border: none; background: transparent; color: var(--primary-color); font-size: 13px; padding: 2px 2px; outline: none; }
 .lp-input::placeholder { color: gray; }
 
-.lp-menu { position: absolute; left: 0; right: 0; z-index: 50; min-width: 160px; max-height: 220px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box !important; padding: 4px; background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .12); }
+.lp-menu { position: absolute; left: 0; right: 0; z-index: 50; min-width: 170px; max-height: 240px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box !important; padding: 5px; background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .12); }
 .lp-menu.bottom { top: calc(100% + 4px); }
 .lp-menu.top { bottom: calc(100% + 4px); }
-/* compact rows — the shared component's list was 48px tall with 16px text */
-.lp-opt { display: flex; align-items: center; gap: 7px; width: 100%; box-sizing: border-box !important; text-align: left; border: none; background: none; padding: 5px 8px; border-radius: 6px; cursor: pointer; font-size: 12.5px; color: var(--primary-color); }
+/* compact, but not cramped — the shared component's rows were 48px tall with 16px text */
+.lp-opt { display: flex; align-items: center; gap: 8px; width: 100%; box-sizing: border-box !important; text-align: left; border: none; background: none; padding: 7px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--primary-color); }
 .lp-opt.hl { background: var(--bg3); }
 .lp-optlabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.lp-empty { padding: 8px; font-size: 12px; color: gray; text-align: center; }
+.lp-empty { padding: 10px; font-size: 12px; color: gray; text-align: center; }
 </style>
