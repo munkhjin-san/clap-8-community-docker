@@ -298,6 +298,8 @@ import { useTheme } from '@/store/theme'
 import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
 import FlowListPicker from './FlowListPicker.vue'
 import { isSecretType } from '@/types/flow'
+import { resolveFieldDefault } from '@/utils/flowDefaults'
+import { useAuthUserStore } from '@/store/auth'
 import type { FlowField, FlowOptionUser, FlowOptionProject } from '@/types/flow'
 
 const props = defineProps<{
@@ -325,6 +327,7 @@ const emit = defineEmits<{
 defineOptions({ name: 'FlowFieldInput' }) // explicit name so table cells can recurse into this component
 
 const api = useApi()
+const auth = useAuthUserStore()
 const filePreview = useFilePreview()
 const theme = useTheme()
 // native date/time pickers render their icon per `color-scheme`; follow the app theme so it's visible in dark mode
@@ -529,11 +532,12 @@ const cellFields = computed<Record<string, FlowField>>(() => {
     return m
 })
 const cellField = (col: any): FlowField => cellFields.value[col.key]
-const defaultCell = (c: any) => {
-    if (['checkbox', 'file', 'user', 'member'].includes(c.input_type)) return []
-    if (c.input_type === 'toggle') return false
-    return null
-}
+/**
+ * A new table row honours each column's 初期値, the same way a new record honours a field's — the
+ * column carries the identical validation object, so the shared resolver does the work. Without this
+ * a default could be configured on a column and never appear, which is worse than not offering it.
+ */
+const defaultCell = (c: any) => resolveFieldDefault(cellField(c), auth.id)
 const addRow = () => {
     const row: Record<string, any> = {}
     for (const c of tableColumns.value) row[c.key] = defaultCell(c)
@@ -593,9 +597,9 @@ const onRefInput = (e: Event) => {
 }
 const onRefKeydown = (e: KeyboardEvent) => {
     if (e.isComposing || e.keyCode === 229) return // don't hijack Enter/arrows while an IME is composing
-    // The record list saves the row on Enter and cancels on Escape from a document listener, so while
-    // this menu owns those keys they must stop here — picking a record must not also save the row.
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || ((e.key === 'Enter' || e.key === 'Escape') && refOpen.value)) {
+    // The record list cancels an inline row edit on Escape from a document listener, so while this
+    // menu is open Escape has to stop here — closing the menu must not also abandon the row.
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || (e.key === 'Escape' && refOpen.value)) {
         e.stopPropagation()
     }
     if (e.key === 'ArrowDown') {
@@ -670,7 +674,11 @@ const formatFormula = (v: any) => {
 .fi-opt input[type="checkbox"] { border-radius: 5px; }
 .fi-opt input[type="radio"] { border-radius: 50%; }
 .fi-opt:hover input:not(:checked) { border-color: var(--primary-color); }
-.fi-opt input:checked { background: var(--primary-color); border-color: var(--primary-color); }
+/* --primary-button, not --primary-color: the tick and the dot below are white, and --primary-color
+   flips with the theme (#000 light, #e4e6eb dark) — so in dark mode a checked box was a white mark on
+   a near-white fill. --primary-button stays dark in both themes (#000 / #4b4b4b), which is why the
+   record list's .rv-check and the permission tabs' .flow-cbox never had this problem. */
+.fi-opt input:checked { background: var(--primary-button, var(--primary-color)); border-color: var(--primary-button, var(--primary-color)); }
 .fi-opt input[type="checkbox"]:checked::after {
     content: ""; position: absolute; left: 5px; top: 2px;
     width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
