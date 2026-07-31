@@ -91,7 +91,7 @@
                                             <button
                                                 v-if="it.status !== 'pending' && auth.isAdmin"
                                                 type="button"
-                                                class="px-2 py-1 rounded border border-[var(--normalBorder)] opacity-80 hover:opacity-100 transition text-[11px] break-keep"
+                                                class="px-2 py-1 rounded !border !border-[var(--normalBorder)] border-solid text-[var(--primary-color)] opacity-80 hover:opacity-100 transition text-[11px] break-keep"
                                                 :disabled="!canEditStatus(it)"
                                                 @click="toggleCheck(it, 'pending')"
                                             >

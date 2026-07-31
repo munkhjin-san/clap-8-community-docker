@@ -168,6 +168,7 @@ $secondary: #fff;
   padding: 8px 12px;
   outline: none;
   transition: border-color .15s, box-shadow .15s;
+  box-sizing: border-box;
 }
 .cu-text-input::placeholder { color: #999; }
 
