@@ -931,7 +931,10 @@ class FlowService
                     if (! $ck) {
                         continue;
                     }
-                    $cell = $row[$ck] ?? null;
+                    // through formulaDisplayValue for the same reason top-level fields are: a プロジェクト
+                    // or ユーザー column stores an id, so a calc column reading it printed "173" instead
+                    // of the project's name.
+                    $cell = $this->formulaDisplayValue($c['input_type'] ?? null, $row[$ck] ?? null);
                     $rowContext[$ck] = $cell;
                     if (! empty($c['label'])) {
                         $rowContext[$c['label']] = $cell;
@@ -977,7 +980,7 @@ class FlowService
             if (self::isLayoutType($field->input_type)) {
                 continue;
             }
-            $v = $this->formulaDisplayValue($field, $values[(string) $field->id] ?? null);
+            $v = $this->formulaDisplayValue($field->input_type, $values[(string) $field->id] ?? null);
             $context[(string) $field->id] = $v;
             $context[$field->key] = $v;
             $context[$field->label] = $v;
@@ -995,15 +998,19 @@ class FlowService
      * for a project, and "1159, 東京工業株式会社, 2" for a reference — castFormulaResult() flattens an
      * array by imploding it, so even the label came out buried in punctuation.
      *
+     * Takes the input type rather than a field: テーブル columns are plain arrays out of the parent
+     * field's validation JSON, never field objects, and they need this same treatment — a calc column
+     * reading a プロジェクト column beside it was printing the raw id.
+     *
      * Arrays stay arrays (castFormulaResult joins them) so a multi-user field still reads as a list.
      *
      * Trade-off worth knowing: a formula comparing a user field against a numeric id — [担当] == 487 —
      * compares against the name now. Nobody can read an id off the screen to write such a formula in
      * the first place, and the same expression against a name is the one people can actually author.
      */
-    private function formulaDisplayValue($field, mixed $v): mixed
+    private function formulaDisplayValue(?string $inputType, mixed $v): mixed
     {
-        switch ($field->input_type) {
+        switch ($inputType) {
             case 'user':
             case 'member':
                 $names = $this->userNameMap();
