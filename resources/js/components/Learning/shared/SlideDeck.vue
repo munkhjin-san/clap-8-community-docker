@@ -71,7 +71,10 @@
             <p v-if="spec.discussion.intro" class="disc__intro">{{ spec.discussion.intro }}</p>
             <div class="disc__cols">
                 <div v-for="t in discussionThemes" :key="t.number" class="tcard">
-                    <div class="tcard__name">{{ t.theme.name }}</div>
+                    <div class="tcard__name">
+                        <span class="tcard__chip">テーマ{{ t.number }}</span>
+                        <span class="tcard__title">{{ t.theme.name }}</span>
+                    </div>
                     <div class="tcard__talk">
                         <div class="tlabel">話し言葉</div>
                         <p class="ttext">{{ t.theme.talk_script }}</p>
@@ -344,6 +347,21 @@ const discussionThemes = computed(() => [
     line-height: 1.5;
     padding: 12px 14px;
     border-bottom: 2px solid var(--navy);
+}
+/* Numbering is structural (theme1-3), so the chip is rendered, not generated. */
+.tcard__chip {
+    display: inline-block;
+    margin-bottom: 8px;
+    padding: 3px 9px;
+    background: var(--navy);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: 0.04em;
+}
+.tcard__title {
+    display: block;
 }
 .tcard__talk {
     padding: 12px 14px;
