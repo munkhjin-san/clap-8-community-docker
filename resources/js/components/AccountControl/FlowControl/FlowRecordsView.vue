@@ -74,7 +74,14 @@
                     </span>
                 </div>
 
-                <table class="rv-table">
+                <table class="rv-table" :class="{ 'rv-fixed': fixedLayout }" @mouseover="onCellOver" @mouseout="onCellOut">
+                    <colgroup>
+                        <!-- the check and action columns are measured like any other: hardcoding them meant
+                             switching to fixed layout resized them, which shifted every column along -->
+                        <col v-if="canBulk" :style="{ width: (widthOf('$check') ?? 34) + 'px' }">
+                        <col v-for="c in columns" :key="c.key" :style="colWidth(c) ? { width: colWidth(c) + 'px' } : undefined">
+                        <col :style="{ width: (widthOf('$action') ?? 72) + 'px' }">
+                    </colgroup>
                     <thead>
                         <tr>
                             <th v-if="canBulk" class="rv-th rv-th-check" @click.stop>
@@ -82,6 +89,7 @@
                             </th>
                             <th v-for="c in columns" :key="c.key" class="rv-th" :class="{ num: isNumericCol(c) }" @click="toggleSort(c.ref)">
                                 <span class="rv-thlabel">{{ c.label }}<span v-if="String(sortRef) === String(c.ref)" class="rv-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></span>
+                                <span class="rv-colgrip" title="ドラッグで列幅を変更" @mousedown="startResize(c, $event)" @click.stop></span>
                             </th>
                             <th class="rv-th rv-th-action"></th>
                         </tr>
@@ -189,6 +197,22 @@
             @apply="onApplyFilter"
             @close="filterModalOpen = false"
         />
+
+        <!-- Truncated-cell peek. Lives outside .rv-scroll and is position:fixed, or the scroll
+             container would clip it. -->
+        <div
+            v-if="peek.open"
+            class="rv-peek"
+            :class="{ 'rv-peek-lefthand': peek.side === 'left' }"
+            :style="peek.style"
+            @mouseenter="cancelPeekHide"
+            @mouseleave="hidePeek"
+        >
+            <button class="rv-peek-copy" :title="peek.copied ? 'コピーしました' : 'コピー'" @click="copyPeek">
+                <Copy size="12" />
+            </button>
+            <div class="rv-peek-body">{{ peek.text }}</div>
+        </div>
 
         <FlowCsvExportModal
             v-if="exportModalOpen && definition"
@@ -497,6 +521,206 @@ const openRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-deta
 // 複製: open a new record pre-filled with this record's values
 const duplicateRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record-new', params: { flowId: flowId.value }, query: { from: rec.id } })
 
+/* ---- column widths ------------------------------------------------------------------------------
+ * Entering edit mode used to move the whole table: the edit cells asked for a min-width, and because
+ * a table shares column widths across every row, that re-laid out all of them. Measured on a
+ * 40-column app: 5270px → 7349px, 25 columns resized, and the cell that had just been double-clicked
+ * jumped 298px sideways — so the field the user aimed at was no longer under the cursor.
+ *
+ * The fix is to make widths explicit rather than to chase the cell afterwards. Two sources:
+ *  - `userWidths`, from dragging a column edge, kept per user (see the storage note below)
+ *  - `lockWidths`, a snapshot taken when a row opens for editing, so the layout is pinned to exactly
+ *    what was on screen at that moment. Dropped again on exit, so the table goes back to sizing
+ *    itself to its content when nobody has resized anything.
+ * Either one switches the table to `table-layout: fixed`, which is what makes the numbers binding.
+ */
+const MIN_COL_W = 56
+const userWidths = ref<Record<string, number>>({})
+const lockWidths = ref<Record<string, number>>({})
+const fixedLayout = computed(() => !!Object.keys(lockWidths.value).length || !!Object.keys(userWidths.value).length)
+const widthOf = (key: string): number | undefined => lockWidths.value[key] ?? userWidths.value[key]
+const colWidth = (c: ResolvedColumn) => widthOf(c.key)
+
+/**
+ * Stored per user, not on the view. Column width is a display preference and screens differ, the app
+ * already keeps this kind of state in localStorage (theme, dismissed warnings, tour), and views can
+ * only be written through the builder's save — which needs manage permission and would apply one
+ * person's drag to everyone using the app.
+ */
+const widthKey = () => `flowColW:${flowId.value}:${activeViewId.value ?? 'default'}`
+const loadWidths = () => {
+    lockWidths.value = {}
+    try { userWidths.value = JSON.parse(localStorage.getItem(widthKey()) || '{}') } catch { userWidths.value = {} }
+}
+const saveWidths = () => {
+    try { localStorage.setItem(widthKey(), JSON.stringify(userWidths.value)) } catch { /* private mode / quota — widths just won't persist */ }
+}
+
+/** The widths currently on screen, keyed by column — including the check and action columns. */
+const measureColumns = (): Record<string, number> => {
+    const ths = [...document.querySelectorAll<HTMLElement>('.rv-table thead th')]
+    const offset = canBulk.value ? 1 : 0
+    const out: Record<string, number> = {}
+    const px = (el?: HTMLElement) => (el ? Math.round(el.getBoundingClientRect().width) : 0)
+    if (canBulk.value && px(ths[0])) out.$check = px(ths[0])
+    columns.value.forEach((c, i) => {
+        const w = px(ths[i + offset])
+        if (w) out[c.key] = w
+    })
+    const act = px(ths[columns.value.length + offset])
+    if (act) out.$action = act
+    return out
+}
+
+const startResize = (c: ResolvedColumn, e: MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation() // the header itself toggles the sort
+    // pin every column on the first drag, so dragging one edge moves only that edge
+    if (!Object.keys(userWidths.value).length) userWidths.value = { ...lockWidths.value, ...measureColumns() }
+    const startX = e.clientX
+    const startW = userWidths.value[c.key] ?? Math.round(measureColumns()[c.key] ?? 120)
+    hidePeek()
+
+    const onMove = (ev: MouseEvent) => {
+        userWidths.value = { ...userWidths.value, [c.key]: Math.max(MIN_COL_W, Math.round(startW + ev.clientX - startX)) }
+    }
+    const onUp = () => {
+        document.removeEventListener('mousemove', onMove)
+        document.removeEventListener('mouseup', onUp)
+        document.body.classList.remove('rv-resizing')
+        saveWidths()
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+    document.body.classList.add('rv-resizing')
+}
+
+/* ---- truncated-cell peek -----------------------------------------------------------------------
+ * A list cell is one clipped line (nowrap + overflow:hidden + max-width), so long text and long
+ * multi-line text both end in an ellipsis with no way to read them short of opening the record.
+ * Hovering a *clipped* cell opens the full value next to the cursor, after a delay so it never
+ * flickers past while the pointer crosses the table.
+ */
+const PEEK_DELAY = 450      // long enough that sweeping across cells shows nothing
+const PEEK_W = 420
+const PEEK_GAP = 14
+const PEEK_MIN_H = 120
+
+const peek = reactive<{ open: boolean; text: string; copied: boolean; side: 'right' | 'left'; style: Record<string, string> }>({
+    open: false, text: '', copied: false, side: 'right', style: {},
+})
+let peekTimer: ReturnType<typeof setTimeout> | null = null
+let peekHideTimer: ReturnType<typeof setTimeout> | null = null
+let peekCell: HTMLElement | null = null
+
+/** Only a cell whose content is actually cut off has anything to reveal. */
+const cellClipped = (td: HTMLElement) => td.scrollWidth > td.clientWidth + 1
+
+/**
+ * The cell's text. Chips (users, checkbox choices) are separate elements, so textContent would run
+ * them together — "田中佐藤" — hence the explicit join.
+ */
+const cellText = (td: HTMLElement): string => {
+    const chips = td.querySelectorAll('.fi-chip, .fi-pill')
+    if (chips.length > 1) return [...chips].map((c) => (c.textContent ?? '').trim()).filter(Boolean).join('、')
+    return (td.textContent ?? '').trim()
+}
+
+/**
+ * Bottom-right of the cursor by default, flipped when that would run off screen. Height is bounded
+ * by the space actually available (and never taller than the table area), with the overflow scrolling
+ * inside — a 200-line note must not become a popup taller than the window.
+ */
+const peekStyleFor = (x: number, y: number) => {
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const scroll = document.getElementById('rvScroll')?.getBoundingClientRect()
+    const topLimit = Math.max(8, scroll?.top ?? 8)
+    const bottomLimit = Math.min(vh - 8, scroll?.bottom ?? vh - 8)
+
+    const spaceBelow = bottomLimit - y - PEEK_GAP
+    const spaceAbove = y - PEEK_GAP - topLimit
+    const below = spaceBelow >= PEEK_MIN_H || spaceBelow >= spaceAbove
+    const maxH = Math.max(PEEK_MIN_H, Math.floor(below ? spaceBelow : spaceAbove))
+
+    // right of the cursor unless the popup wouldn't fit there
+    const fitsRight = x + PEEK_GAP + PEEK_W <= vw - 8
+    const left = fitsRight ? x + PEEK_GAP : Math.max(8, x - PEEK_GAP - PEEK_W)
+
+    const style: Record<string, string> = {
+        left: `${Math.round(left)}px`,
+        width: `${PEEK_W}px`,
+        maxHeight: `${maxH}px`,
+    }
+    if (below) style.top = `${Math.round(y + PEEK_GAP)}px`
+    else style.bottom = `${Math.round(vh - (y - PEEK_GAP))}px`
+
+    // which side of the cursor the popup ended up on — the copy button goes on the edge nearest the
+    // cursor, so reaching it is the shortest possible move
+    return { style, side: (fitsRight ? 'right' : 'left') as 'right' | 'left' }
+}
+
+const clearPeekTimers = () => {
+    if (peekTimer) { clearTimeout(peekTimer); peekTimer = null }
+    if (peekHideTimer) { clearTimeout(peekHideTimer); peekHideTimer = null }
+}
+const hidePeek = () => {
+    clearPeekTimers()
+    peek.open = false
+    peek.copied = false
+    peekCell = null
+}
+/** The pointer has to cross a gap to reach the copy button, which means leaving the cell — so the
+ *  hide is deferred and cancelled when the pointer lands on the popup itself. */
+const cancelPeekHide = () => { if (peekHideTimer) { clearTimeout(peekHideTimer); peekHideTimer = null } }
+
+const onCellOver = (e: MouseEvent) => {
+    const td = (e.target as HTMLElement | null)?.closest?.('.rv-td') as HTMLElement | null
+    if (!td) return
+    // Same cell: the pointer is moving among the spans its content is built from, which fires
+    // mouseout/mouseover pairs the whole time. Cancel any pending hide rather than returning early —
+    // returning left the hide scheduled, so the peek closed while the pointer was still on the cell
+    // and nothing re-armed it (no fresh mouseover comes once the pointer is already inside).
+    if (td === peekCell) { cancelPeekHide(); return }
+    clearPeekTimers()
+    peek.open = false
+    peekCell = null
+    // nothing to preview in an input, a checkbox or the action buttons
+    if (td.classList.contains('edit') || td.classList.contains('rv-td-check') || td.classList.contains('rv-td-action')) return
+    if (!cellClipped(td)) return
+
+    peekCell = td
+    const { clientX, clientY } = e
+    peekTimer = setTimeout(() => {
+        const text = cellText(td)
+        if (!text) return
+        const placed = peekStyleFor(clientX, clientY)
+        peek.text = text
+        peek.copied = false
+        peek.style = placed.style
+        peek.side = placed.side
+        peek.open = true
+    }, PEEK_DELAY)
+}
+
+const onCellOut = (e: MouseEvent) => {
+    const to = e.relatedTarget as HTMLElement | null
+    if (to?.closest?.('.rv-peek')) return // moving onto the popup, not away
+    if (peekCell && to && peekCell.contains(to)) return // still within the same cell
+    clearPeekTimers()
+    peekHideTimer = setTimeout(hidePeek, 140)
+}
+
+const copyPeek = async () => {
+    try {
+        await navigator.clipboard.writeText(peek.text)
+        peek.copied = true
+        setTimeout(() => { peek.copied = false }, 1500)
+    } catch {
+        dialog.toast('コピーできませんでした。')
+    }
+}
+
 /* ---- クイック編集: the row's own cells become inputs, kintone-style ---- */
 
 const editingId = ref<number | null>(null)
@@ -560,19 +784,16 @@ const isInlineDirty = () => JSON.stringify(editValues) !== editBaseline.value
 useUnsavedGuard(() => editingId.value !== null && isInlineDirty())
 
 /**
- * Enter saves, Escape cancels — the row behaves like the small form it is. Enter is ignored in a
- * textarea (a 複数行 field needs its newlines) and while an IME is composing, which on a Japanese
- * keyboard is what Enter is usually doing.
+ * Escape cancels. Deliberately NOT Enter-to-save: Enter already means something inside the row —
+ * a newline in a 複数行 field, committing an IME composition, choosing an option in a picker — so
+ * binding it to "save the record" turns an ordinary keystroke into a write. Saving stays an explicit
+ * press of 保存.
  */
 const onInlineKey = (e: KeyboardEvent) => {
     if (editingId.value === null) return
-    const rec = displayRecords.value.find((r) => r.id === editingId.value)
-    if (!rec) return
-    if (e.key === 'Escape') { e.preventDefault(); cancelInlineEdit(); return }
-    if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return
-    if ((e.target as HTMLElement | null)?.tagName === 'TEXTAREA') return
+    if (e.key !== 'Escape') return
     e.preventDefault()
-    if (!savingInline.value) saveInline(rec)
+    cancelInlineEdit()
 }
 
 /** Seeds every field, not just the visible columns: a lookup can copy into a field off-screen. */
@@ -592,10 +813,15 @@ const startInlineEdit = async (rec: FlowRecordDto) => {
         const answer = await dialog.ask('編集中の内容が保存されていません。破棄して別の行を編集しますか？')
         if (!answer?.value) return
     }
+    // pin the layout to what is on screen before the inputs appear (no-op once the user has resized:
+    // those widths are already explicit, so nothing can reflow)
+    if (!Object.keys(userWidths.value).length) lockWidths.value = measureColumns()
     editingId.value = rec.id
     seedEditValues(rec)
     if (!inlineFields(rec).length) dialog.ping('この表示中の列にはこの行で編集できる項目がありません。')
 }
+
+const releaseWidthLock = () => { lockWidths.value = {} }
 
 const cancelInlineEdit = async () => {
     if (isInlineDirty()) {
@@ -603,6 +829,7 @@ const cancelInlineEdit = async () => {
         if (!answer?.value) return
     }
     editingId.value = null
+    releaseWidthLock()
 }
 
 const saveInline = async (rec: FlowRecordDto) => {
@@ -626,6 +853,7 @@ const saveInline = async (rec: FlowRecordDto) => {
         const i = records.value.findIndex((r) => r.id === rec.id)
         if (i !== -1) records.value[i] = fresh
         editingId.value = null
+        releaseWidthLock()
         // server mode computes the 集計スロット over the whole filtered set, so an edited number leaves
         // them stale; client mode recomputes from `records` by itself.
         if (mode.value === 'server' && rawSlots.value.length) await load()
@@ -676,15 +904,24 @@ onMounted(async () => {
     await flowOptionsStore.load()
     await load()
 })
-onMounted(() => document.addEventListener('keydown', onInlineKey))
+onMounted(() => {
+    document.addEventListener('keydown', onInlineKey)
+    // the popup is anchored to a viewport position, so anything that moves the cell invalidates it
+    document.getElementById('rvScroll')?.addEventListener('scroll', hidePeek, { passive: true })
+    window.addEventListener('resize', hidePeek)
+})
 onBeforeUnmount(() => {
     document.removeEventListener('keydown', onInlineKey)
+    document.getElementById('rvScroll')?.removeEventListener('scroll', hidePeek)
+    window.removeEventListener('resize', hidePeek)
     clearClickTimer()
+    clearPeekTimers()
 })
 
 // The open editor belongs to one row of one page. Changing page, view, filter or search rebuilds the
 // list under it, so close it rather than leave it attached to a row that may no longer be there.
-watch([page, activeViewId, search, () => JSON.stringify(adhocFilter)], () => { editingId.value = null })
+watch([page, activeViewId, search, () => JSON.stringify(adhocFilter)], () => { editingId.value = null; releaseWidthLock() })
+watch([flowId, activeViewId], loadWidths, { immediate: true })
 </script>
 
 <style scoped>
@@ -737,6 +974,16 @@ watch([page, activeViewId, search, () => JSON.stringify(adhocFilter)], () => { e
 .rv-scroll { flex: 1; min-height: 0; overflow: auto; }
 .rv-pager { flex: none; padding: 10px 0; border-top: 1px solid var(--calendarBorder); background: var(--background-color) }
 .rv-table { width: 100%; border-collapse: collapse; }
+/* Only once widths are explicit — otherwise columns would share the space equally instead of sizing
+   to their content.
+   Named rv-fixed, not `fixed`: Tailwind ships a global `.fixed { position: fixed }`, and a scoped
+   block gives no protection against that — the utility matches the same element. Adding `fixed` to
+   the table took it out of the flow, so a bottom 集計スロット floated up under the toolbar and the
+   out-of-flow table covered the column headers. */
+.rv-table.rv-fixed { table-layout: fixed; }
+.rv-colgrip { position: absolute; top: 0; right: 0; width: 9px; height: 100%; cursor: col-resize; user-select: none; }
+.rv-colgrip:hover::after, :global(body.rv-resizing) .rv-colgrip::after { content: ""; position: absolute; top: 4px; bottom: 4px; right: 4px; width: 2px; background: var(--primary-color); border-radius: 1px; }
+:global(body.rv-resizing) { cursor: col-resize; user-select: none; }
 .rv-th { text-align: left; font-size: 12px; font-weight: normal; color: gray; letter-spacing: .02em; padding: 12px 14px; white-space: nowrap; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--bg3); border-bottom: 1px solid var(--calendarBorder); z-index: 1; }
 .rv-th:hover { color: var(--primary-color); }
 .rv-th.num { text-align: right; }
@@ -781,8 +1028,10 @@ watch([page, activeViewId, search, () => JSON.stringify(adhocFilter)], () => { e
    above its input when there isn't room below. */
 .rv-row.editing { background: var(--selected-background); }
 .rv-row.editing .rv-td { vertical-align: top; }
-.rv-td.edit { position: relative; white-space: normal; overflow: visible; max-width: none; min-width: 170px; padding: 8px 10px; }
-.rv-td.edit :deep(.fi-input), .rv-td.edit :deep(input), .rv-td.edit :deep(select), .rv-td.edit :deep(textarea) { box-sizing: border-box; max-width: 100%; }
+/* No min-width here: that is what re-laid out the table when a row opened for editing. The cell keeps
+   its column's width and the inputs fit into it (min-width:0 below), so nothing moves. */
+.rv-td.edit { position: relative; white-space: normal; overflow: visible; padding: 8px 10px; }
+.rv-td.edit :deep(.fi-input), .rv-td.edit :deep(input), .rv-td.edit :deep(select), .rv-td.edit :deep(textarea) { box-sizing: border-box; max-width: 100%; min-width: 0; }
 .rv-cellerr { font-size: 11px; color: #e2574c; margin-top: 3px; white-space: normal; }
 /* a read-only cell in an editing row: dimmed so it reads as "not yours to change", with a reason on hover */
 .rv-row.editing .rv-td:not(.edit):not(.rv-td-check):not(.rv-td-action) { opacity: .55; }
@@ -790,6 +1039,23 @@ watch([page, activeViewId, search, () => JSON.stringify(adhocFilter)], () => { e
 /* Save bar under the editing row. The <td> spans the whole table (which can be far wider than the
    screen), so the strip inside is pinned with position:sticky — the same approach as .rv-slot, and
    `left` matches the margin because a sticky offset is measured to the border box. */
+/* Truncated-cell peek. position:fixed against the viewport, since the coordinates come from the
+   cursor; the height is capped inline (see peekStyleFor) and the body scrolls inside it. */
+/* align-items stays at its default `stretch` — with flex-start the body is sized by its content, so
+   nothing bounds it, overflow:auto has nothing to act on, and a 400-line value spills straight past
+   the popup's border while the box itself looks correctly capped. The button gets align-self instead.
+   overflow:hidden on the container is the backstop that keeps anything inside the rounded corners. */
+.rv-peek { position: fixed; z-index: 60; box-sizing: border-box; display: flex; gap: 8px; padding: 10px 12px; overflow: hidden; background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
+/* min-height:0 lets a flex item shrink below its content height — without it the scroll never starts */
+.rv-peek-body { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; font-size: 13px; line-height: 1.7; color: var(--primary-color); white-space: pre-wrap; overflow-wrap: break-word; }
+/* In the flow beside the first line, not floating over a corner: its 22px box matches the 13px/1.7
+   line box, so it sits level with that line. Which side it takes follows where the popup opened —
+   row-reverse when the popup is left of the cursor — so the button is always on the edge the cursor
+   is already next to. */
+.rv-peek-copy { flex: none; align-self: flex-start; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; padding: 0; border: 1px solid var(--formBorder); border-radius: 5px; background: var(--background-color); color: var(--primary-color); cursor: pointer; }
+.rv-peek-copy:hover { background: var(--bg3); border-color: var(--primary-color); }
+.rv-peek.rv-peek-lefthand { flex-direction: row-reverse; }
+
 .rv-editbar { background: var(--selected-background); }
 .rv-editbartd { padding: 0 0 8px; border-bottom: 1px solid var(--calendarBorder); }
 /* The row spans the whole table, so flex-end puts the buttons at the table's right edge — which is
