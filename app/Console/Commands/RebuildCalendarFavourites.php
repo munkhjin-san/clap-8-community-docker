@@ -73,10 +73,10 @@ class RebuildCalendarFavourites extends Command
      */
     private function collectPairs(int $months, int $maxAttendees): array
     {
-        return DB::select('
+        $sql = <<<'SQL'
             WITH ev AS (
                 SELECT
-                    COALESCE(NULLIF(r.r_group_id, ""), CONCAT("rec-", r.id)) AS event_key,
+                    COALESCE(NULLIF(r.r_group_id, ''), CONCAT('rec-', r.id)) AS event_key,
                     cu.user_id,
                     MAX(r.date_start) AS last_at
                 FROM calendar_records r
@@ -106,7 +106,9 @@ class RebuildCalendarFavourites extends Command
             JOIN sz ON sz.event_key = a.event_key
             JOIN ev b ON b.event_key = a.event_key AND b.user_id > a.user_id
             GROUP BY u1, u2
-        ', [$months, $maxAttendees]);
+        SQL;
+
+        return DB::select($sql, [$months, $maxAttendees]);
     }
 
     private function preview(array $pairs): void

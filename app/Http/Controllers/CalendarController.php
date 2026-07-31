@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\BumpCalendarFavourites;
 use App\Jobs\GenerateTranscriptAiSummary;
+use App\Jobs\SendCalendarMails;
 use App\Models\CalendarMeetingSummary;
 use App\Models\CalendarMeetingTranscript;
 use App\Models\CalendarMeetingTranscriptSummary;
@@ -20,12 +22,10 @@ use App\Models\MyGroup;
 use App\Models\MyWorkGroup;
 use App\Models\boardRecord;
 use App\Models\workGroup;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
-use App\Mail\Calendar;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -778,82 +778,23 @@ class CalendarController extends Controller
             throw ValidationException::withMessages(['message' => 'zoom予約に失敗しました。']);
         }
 
-        $targetIds = $request['users'];
-        $targetUsersMail = User::where('retire', 0)->whereNotNull('email')->whereIn('id', $targetIds)->where('id', '!=', $active_user->id)->pluck('email')->toArray();
-        $type = $has_prev_date ? '更新' : '作成';
-        $c_records = CalendarRecord::whereIn('id', $ids)->get();
-        $title = $c_records[0]['title'];
-        $details = [];
-        $recursion_types = ["1回のみ", "毎週", "毎月", "毎年"];
-        foreach($c_records as $rec){        
-            $title = $rec['temp_flag'] ? ' (仮)' . $rec['title'] : $rec['title'];
-            $d = [
-                "title" => $rec['title'],
-                "id" => $rec['id'],
-                "start_at" => Carbon::parse($rec['date_start'])->format('Y/m/d H:i'),
-                "recursion" => $recursion_types[$rec['repetition_type']],
-                "content" => $rec['remarks'],
-            ];
-            $details[] = $d;
-        }
-        foreach($targetUsersMail as $to){
-            Mail::to($to)->send(new Calendar( $details, $title, $type, $rec['temp_flag']));
-        }
+        $targetIds = is_array($request['users']) ? array_map('intval', $request['users']) : [];
+
+        // 通知メールと並び順スコアはどちらも予定の保存には関係しないので、
+        // レスポンスを返した後に実行する（失敗してもログだけで main flow は通す）
+        SendCalendarMails::dispatchAfterResponse(
+            array_map('intval', $ids),
+            $targetIds,
+            (int) $active_user->id,
+            $has_prev_date ? '更新' : '作成'
+        );
 
         // 新規作成のときだけ「よく一緒の人」スコアを進める（編集・削除は追わない）
         if(!$has_prev_date){
-            $this->bump_calendar_favourites($targetIds);
+            BumpCalendarFavourites::dispatchAfterResponse($targetIds);
         }
 
         return $records;
-    }
-    /**
-     * ユーザー一覧の並び順に使うスコアを、新しく作られた予定の分だけ進める。
-     * 正確さは求めない：窓（直近N ヶ月）のスライドや編集・削除の反映は
-     * calendar:rebuild-favourites の作り直しに任せる。
-     */
-    private function bump_calendar_favourites($user_ids): void
-    {
-        try {
-            $ids = User::whereIn('id', collect(is_array($user_ids) ? $user_ids : [])->map(fn($id) => (int) $id)->unique()->all())
-                    ->where('retire', 0)
-                    ->where('deleted_flag', 0)
-                    ->orderBy('id')
-                    ->pluck('id')
-                    ->map(fn($id) => (int) $id)
-                    ->all();
-
-            // 1人だけの予定と、11人以上の大きい会議は並び順の参考にならないので無視する
-            $count = count($ids);
-            if($count < 2 || $count > 10){
-                return;
-            }
-
-            $weight = 1 / ($count - 1);
-            $now = now()->toDateTimeString();
-            $rows = [];
-            for($i = 0; $i < $count; $i++){
-                for($j = $i + 1; $j < $count; $j++){
-                    $rows[] = [$ids[$i], $ids[$j], $weight, 1, $now, $now, $now];
-                    $rows[] = [$ids[$j], $ids[$i], $weight, 1, $now, $now, $now];
-                }
-            }
-
-            $placeholders = implode(',', array_fill(0, count($rows), '(?,?,?,?,?,?,?)'));
-            DB::statement("
-                INSERT INTO calendar_favourite_users
-                    (owner_id, member_id, score, shared_count, last_together_at, created_at, updated_at)
-                VALUES {$placeholders} AS new
-                ON DUPLICATE KEY UPDATE
-                    score = calendar_favourite_users.score + new.score,
-                    shared_count = calendar_favourite_users.shared_count + new.shared_count,
-                    last_together_at = GREATEST(COALESCE(calendar_favourite_users.last_together_at, new.last_together_at), new.last_together_at),
-                    updated_at = new.updated_at
-            ", array_merge(...$rows));
-        } catch (\Throwable $e) {
-            // 並び順のためだけの処理なので、失敗しても予定作成は通す
-            \Illuminate\Support\Facades\Log::warning('bump_calendar_favourites failed', ['error' => $e->getMessage()]);
-        }
     }
     private function time_parser($instance, $time){               
         list($hour, $minute) = explode(':', $time);
@@ -1826,25 +1767,13 @@ class CalendarController extends Controller
             case 1:
                 $record->update(['temp_flag' => 0, 'updated_user' => $active_user->id]);
                 $record->related_temp_records()->delete();
-                $title = $record['title'];
-                $details = [];
-    
-                $title = $record['temp_flag'] ? ' (仮)' . $record['title'] : $record['title'];
-                $d = [
-                    "title" => $record['title'],
-                    "id" => $record['id'],
-                    "start_at" => Carbon::parse($record['date_start'])->format('Y/m/d H:i'),
-                    "recursion" => "1回のみ",
-                    "content" => $record['remarks'],
-                ];
-                $details[] = $d;
-                $type = '確定';
-                $targetIds = $record->calendar_users()->pluck('id')->toArray();
-                $targetUsersMail = User::whereIn('id', $targetIds)->where('retire', 0)->whereNotNull('email')->where('id', '!=', $active_user->id)->pluck('email')->toArray();
-
-                foreach($targetUsersMail as $to){
-                    Mail::to($to)->send(new Calendar( $details, $title, $type, $record['temp_flag']));
-                }
+                // メールはレスポンス後に送る（確定処理そのものを待たせない）
+                SendCalendarMails::dispatchAfterResponse(
+                    [(int) $record->id],
+                    $record->calendar_users()->pluck('id')->map(fn($id) => (int) $id)->toArray(),
+                    (int) $active_user->id,
+                    '確定'
+                );
 
                 return response('予約を確定しました。', 200);
             case 0:
