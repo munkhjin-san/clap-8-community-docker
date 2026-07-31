@@ -103,6 +103,12 @@ class FlowFormulaEvaluator
         return [
             'IF', 'CONTAINS', 'AND', 'OR', 'NOT', 'SUM',
             'ROUND', 'ROUNDUP', 'ROUNDDOWN', 'CEILING', 'FLOOR', 'ABS', 'MIN', 'MAX',
+            // text
+            'LEN', 'LEFT', 'RIGHT', 'MID', 'TRIM', 'REMOVESPACE', 'UPPER', 'LOWER', 'REPLACE', 'JOIN',
+            // arrays (subtable columns, multi-select fields)
+            'COUNT', 'COUNTA',
+            // dates
+            'TODAY', 'YEAR', 'MONTH', 'DAY', 'DATEDIF',
         ];
     }
 
@@ -140,14 +146,14 @@ class FlowFormulaEvaluator
                 continue;
             }
 
-            if (preg_match('/\G(>=|<=|!=|<>|==|=|>|<|\+|-|\*|\/|%|\(|\)|,)/u', $formula, $match, 0, $offset)) {
+            if (preg_match('/\G(>=|<=|!=|<>|==|=|>|<|\+|-|\*|\/|%|&|\(|\)|,)/u', $formula, $match, 0, $offset)) {
                 $tokens[] = ['type' => 'operator', 'value' => $match[0]];
                 $offset += strlen($match[0]);
 
                 continue;
             }
 
-            if (preg_match('/\G[^\s(),+\-*\/%<>=!]+/u', $formula, $match, 0, $offset)) {
+            if (preg_match('/\G[^\s(),+\-*\/%<>=!&]+/u', $formula, $match, 0, $offset)) {
                 $tokens[] = ['type' => 'identifier', 'value' => trim($match[0])];
                 $offset += strlen($match[0]);
 
@@ -160,13 +166,29 @@ class FlowFormulaEvaluator
         return $tokens;
     }
 
-    private function parseComparison(): mixed
+    /**
+     * `&` joins text. Deliberately a separate operator rather than teaching `+` to concatenate: an
+     * empty field is non-numeric, so an overloaded `+` would turn [数量] + [単価] into "5" the moment
+     * one of them was blank. Same reason Excel and kintone keep `&` apart.
+     */
+    private function parseConcat(): mixed
     {
         $left = $this->parseAdditive();
 
+        while ($this->matchOperator(['&'])) {
+            $left = $this->toText($left).$this->toText($this->parseAdditive());
+        }
+
+        return $left;
+    }
+
+    private function parseComparison(): mixed
+    {
+        $left = $this->parseConcat();
+
         while ($this->matchOperator(['>', '<', '>=', '<=', '=', '==', '!=', '<>'])) {
             $operator = $this->previous()['value'];
-            $right = $this->parseAdditive();
+            $right = $this->parseConcat();
             $left = $this->compare($left, $right, $operator);
         }
 
@@ -294,7 +316,121 @@ class FlowFormulaEvaluator
             'ABS' => abs($this->toNumber($args[0] ?? null)),
             'MIN' => ($nums = $this->flattenNumbers($args)) ? min($nums) : 0,
             'MAX' => ($nums = $this->flattenNumbers($args)) ? max($nums) : 0,
+
+            // ---- text. All multibyte-aware: these run on Japanese values, where strlen/substr
+            // would count and cut bytes and hand back broken characters. ----
+            'LEN' => mb_strlen($this->toText($args[0] ?? null)),
+            'LEFT' => mb_substr($this->toText($args[0] ?? null), 0, max(0, (int) $this->toNumber($args[1] ?? 0))),
+            'RIGHT' => ($n = max(0, (int) $this->toNumber($args[1] ?? 0))) === 0
+                ? ''
+                : mb_substr($this->toText($args[0] ?? null), -$n),
+            // 1-based start, like a spreadsheet — MID(text, 1, 3) takes the first three characters
+            'MID' => mb_substr(
+                $this->toText($args[0] ?? null),
+                max(0, (int) $this->toNumber($args[1] ?? 1) - 1),
+                max(0, (int) $this->toNumber($args[2] ?? 0))
+            ),
+            'TRIM' => $this->trimText($this->toText($args[0] ?? null)),
+            // Every kind of blank, not just the one you can type: the full-width space is invisible in
+            // the formula editor, so REPLACE(v, "　", "") is a guess about what you actually typed —
+            // and tabs and newlines (from pasted values) survive it either way.
+            'REMOVESPACE' => preg_replace('/[\s\x{3000}]+/u', '', $this->toText($args[0] ?? null)) ?? '',
+            'UPPER' => mb_strtoupper($this->toText($args[0] ?? null)),
+            'LOWER' => mb_strtolower($this->toText($args[0] ?? null)),
+            // by value, not by position: REPLACE(text, 探す文字列, 置き換える文字列). Positional
+            // replacement is what a spreadsheet calls REPLACE, but "swap this text for that" is the
+            // thing people actually want here, and MID covers the positional case.
+            'REPLACE' => str_replace(
+                $this->toText($args[1] ?? null),
+                $this->toText($args[2] ?? null),
+                $this->toText($args[0] ?? null)
+            ),
+            // the separator is the LAST argument, so JOIN([担当], "、") reads naturally
+            'JOIN' => implode(
+                count($args) > 1 ? $this->toText(array_pop($args)) : ', ',
+                array_map(fn ($v) => $this->toText($v), $this->flattenValues($args))
+            ),
+
+            // ---- arrays: a subtable column reference resolves to that column's per-row values ----
+            'COUNT' => count(array_filter($this->flattenValues($args), fn ($v) => is_numeric($v))),
+            'COUNTA' => count(array_filter(
+                $this->flattenValues($args),
+                fn ($v) => ! ($v === null || $v === '' || (is_array($v) && ! $v))
+            )),
+
+            // ---- dates. Values arrive as the stored strings: 'Y-m-d' for 日付,
+            // 'Y-m-d\TH:i' for 日時. Everything is Asia/Tokyo (config('app.timezone')). ----
+            'TODAY' => now()->toDateString(),
+            'YEAR' => (int) ($this->toDate($args[0] ?? null)?->year ?? 0),
+            'MONTH' => (int) ($this->toDate($args[0] ?? null)?->month ?? 0),
+            'DAY' => (int) ($this->toDate($args[0] ?? null)?->day ?? 0),
+            'DATEDIF' => $this->dateDiff($args[0] ?? null, $args[1] ?? null, $this->toText($args[2] ?? 'D')),
+
             default => throw new \RuntimeException("未対応の関数です: {$name}"),
+        };
+    }
+
+    /**
+     * Trim and collapse whitespace, full-width spaces included — pasted values are full of them.
+     *
+     * Regex rather than trim(): trim()'s charlist strips BYTES, so handing it U+3000's three bytes
+     * (E3 80 80) also ate the leading byte of any adjacent kana or kanji and left broken UTF-8 —
+     * '  ご確認　の　ほど  ' came back as an empty string.
+     */
+    private function trimText(string $text): string
+    {
+        $text = preg_replace('/^[\s\x{3000}]+|[\s\x{3000}]+$/u', '', $text) ?? '';
+
+        return preg_replace('/[\s\x{3000}]+/u', ' ', $text) ?? '';
+    }
+
+    /** Flatten args (arrays = subtable columns / multi-select fields) one level, values untouched. */
+    private function flattenValues(array $args): array
+    {
+        $out = [];
+        foreach ($args as $arg) {
+            foreach (is_array($arg) ? $arg : [$arg] as $v) {
+                $out[] = $v;
+            }
+        }
+
+        return $out;
+    }
+
+    /** Parse a date/日時 value. Returns null for anything unparseable, so callers can fall back. */
+    private function toDate(mixed $value): ?\Illuminate\Support\Carbon
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return \Illuminate\Support\Carbon::instance($value);
+        }
+        $text = trim($this->toText($value));
+        if ($text === '') {
+            return null;
+        }
+        try {
+            return \Illuminate\Support\Carbon::parse($text);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * Whole units from $start to $end — negative when $end is earlier. 'D' days (default), 'M'
+     * months, 'Y' years. Returns 0 when either side can't be read as a date, which keeps a formula
+     * on a half-filled record showing a number rather than an error.
+     */
+    private function dateDiff(mixed $start, mixed $end, string $unit): int
+    {
+        $a = $this->toDate($start);
+        $b = $this->toDate($end);
+        if (! $a || ! $b) {
+            return 0;
+        }
+
+        return match (strtoupper(trim($unit)) ?: 'D') {
+            'Y' => (int) $a->diffInYears($b, false),
+            'M' => (int) $a->diffInMonths($b, false),
+            default => (int) $a->startOfDay()->diffInDays($b->startOfDay(), false),
         };
     }
 

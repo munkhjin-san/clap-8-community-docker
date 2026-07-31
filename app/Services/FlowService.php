@@ -10,6 +10,7 @@ use App\Models\FlowRecordValue;
 use App\Models\FlowStatus;
 use App\Models\FlowStatusAction;
 use App\Models\FlowView;
+use App\Models\ProjectRecord;
 use App\Models\User;
 use App\Support\FlowDynamicDate;
 use Illuminate\Support\Carbon;
@@ -976,13 +977,77 @@ class FlowService
             if (self::isLayoutType($field->input_type)) {
                 continue;
             }
-            $v = $values[(string) $field->id] ?? null;
+            $v = $this->formulaDisplayValue($field, $values[(string) $field->id] ?? null);
             $context[(string) $field->id] = $v;
             $context[$field->key] = $v;
             $context[$field->label] = $v;
         }
 
         return $context;
+    }
+
+    /**
+     * What a formula should see for a field whose stored value is a key rather than something a person
+     * would read.
+     *
+     * ユーザー and プロジェクト store ids, 参照 stores a {id, number, label} snapshot and ファイル a list of
+     * file objects. Feeding those to a formula verbatim produced "487" for a person, the project's id
+     * for a project, and "1159, 東京工業株式会社, 2" for a reference — castFormulaResult() flattens an
+     * array by imploding it, so even the label came out buried in punctuation.
+     *
+     * Arrays stay arrays (castFormulaResult joins them) so a multi-user field still reads as a list.
+     *
+     * Trade-off worth knowing: a formula comparing a user field against a numeric id — [担当] == 487 —
+     * compares against the name now. Nobody can read an id off the screen to write such a formula in
+     * the first place, and the same expression against a name is the one people can actually author.
+     */
+    private function formulaDisplayValue($field, mixed $v): mixed
+    {
+        switch ($field->input_type) {
+            case 'user':
+            case 'member':
+                $names = $this->userNameMap();
+
+                return array_values(array_map(
+                    fn ($id) => $names[(int) $id] ?? '#'.$id,
+                    array_filter($this->arrayValue($v), fn ($x) => is_numeric($x))
+                ));
+            case 'project':
+                if ($v === null || $v === '' || ! is_numeric($v)) {
+                    return $v;
+                }
+
+                return $this->projectNameMap()[(int) $v] ?? '#'.$v;
+            case 'reference':
+                // the picked record's label rides along in the stored snapshot — no lookup needed
+                return is_array($v) ? ($v['label'] ?? ($v['number'] ?? null)) : $v;
+            case 'file':
+                return array_values(array_map(
+                    fn ($f) => is_array($f) ? (string) ($f['name'] ?? '') : (string) $f,
+                    $this->arrayValue($v)
+                ));
+            default:
+                return $v;
+        }
+    }
+
+    /**
+     * id => name, loaded at most once per request and only if a formula context actually needs it.
+     * Retired people are included on purpose: a record can legitimately still name one, and dropping
+     * them would silently turn an old record's formula into "#487".
+     */
+    private ?array $userNames = null;
+
+    private ?array $projectNames = null;
+
+    private function userNameMap(): array
+    {
+        return $this->userNames ??= User::query()->pluck('name', 'id')->map(fn ($n) => (string) $n)->all();
+    }
+
+    private function projectNameMap(): array
+    {
+        return $this->projectNames ??= ProjectRecord::query()->pluck('name', 'id')->map(fn ($n) => (string) $n)->all();
     }
 
     public function castFormulaResult(mixed $value, string $type): mixed
