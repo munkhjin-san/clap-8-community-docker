@@ -43,13 +43,16 @@
         </div>
 
         <div class="rd-flow">
-            <div class="rd-flow-status">
+            <!-- Status is a view-mode affair: you can't move status mid-edit, so the pill and its
+                 transitions go away entirely while editing. That also leaves キャンセル/保存 as the bar's
+                 only child, which space-between puts at the left — where the eye already is after
+                 reading the form. -->
+            <div v-if="mode === 'view'" class="rd-flow-status">
                 <template v-if="showStatus">
                     <span class="rd-flow-cur" :style="currentStatusStyle">{{ record?.current_status }}</span>
-                    <!-- status transitions are hidden while editing — you can't move status mid-edit -->
                     <!-- only the actions this user may actually press are shown; the separator
                          goes with them, so a read-only viewer just sees the current status -->
-                    <template v-if="pressableActions.length && mode === 'view'">
+                    <template v-if="pressableActions.length">
                         <span class="rd-flow-sep">→</span>
                         <button
                             v-for="a in pressableActions"
