@@ -745,9 +745,12 @@ const formatFormula = (v: any) => {
 .fi-tbl-del { border: none; background: none; color: gray; cursor: pointer; font-size: 16px; line-height: 1; padding: 4px 5px; }
 .fi-tbl-del:hover { color: #e2574c; }
 .fi-tbl-empty { text-align: center; color: gray; font-size: 12px; padding: 12px; }
-/* cell inputs sit flush inside the grid — the td border provides the structure */
-.fi-tbl td :deep(.fi-input) { border: 1px solid transparent; background: transparent; }
-.fi-tbl td :deep(.fi-input:focus) { border-color: var(--formBorder); background: var(--background-color); }
+/* Cell inputs keep the border every other input has. They used to sit flush — transparent border,
+   transparent background, revealed only on focus — so a cell you could type in looked exactly like a
+   read-only one, and the only way to find out was to click it. Slightly tighter padding than a
+   top-level input (5/7 vs 6/9) so the extra chrome doesn't grow every row. */
+.fi-tbl td :deep(.fi-input) { padding: 5px 7px; }
+.fi-tbl td :deep(.fi-input:focus) { border-color: var(--primary-color); outline: none; }
 .fi-tbl td :deep(.fi-opts) { padding: 4px 2px; gap: 6px 12px; }
 .fi-tbl-add { margin-top: 8px; font-size: 12px; padding: 6px 12px; border: 1px dashed var(--formBorder); border-radius: 6px; color: var(--primary-color); background: var(--background-color); cursor: pointer; }
 .fi-tbl-add:hover { background: var(--bg3); }

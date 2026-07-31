@@ -8,6 +8,15 @@
 .flow-sw.on { background: var(--primary-button, var(--primary-color)); }
 .flow-sw::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .12s; }
 .flow-sw.on::after { left: 18px; }
+/* A switch is 20px tall against a ~31px input (a テーブル row) or a ~36px picker (the record list's
+   inline edit), and a table cell top-aligns its content — so it sat above everything beside it and
+   read as stuck to the top of the row. Centring the CELL rather than nudging the switch means no
+   magic number to keep in step with whatever the neighbouring control's height happens to be.
+   The record list's inline edit needs the same thing, but its own `.rv-row.editing .rv-td` rule ties
+   on specificity and wins by source order, so that half lives in FlowRecordsView next to the rule it
+   has to beat. */
+.fi-tbl td:has(.flow-sw) { vertical-align: middle; }
+
 /* larger variant (FlowViewTab) */
 .flow-sw-lg { width: 38px; height: 22px; border-radius: 11px; }
 .flow-sw-lg::after { width: 18px; height: 18px; }

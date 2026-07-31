@@ -74,7 +74,13 @@
                     </span>
                 </div>
 
-                <table class="rv-table" :class="{ 'rv-fixed': fixedLayout }" @mouseover="onCellOver" @mouseout="onCellOut">
+                <table
+                    class="rv-table"
+                    :class="{ 'rv-fixed': fixedLayout, 'rv-dragging': resizing !== null, 'rv-gridlines': editingId !== null }"
+                    :style="{ '--rv-grip-h': gridHeight ? gridHeight + 'px' : undefined }"
+                    @mouseover="onCellOver"
+                    @mouseout="onCellOut"
+                >
                     <colgroup>
                         <!-- the check and action columns are measured like any other: hardcoding them meant
                              switching to fixed layout resized them, which shifted every column along -->
@@ -89,7 +95,7 @@
                             </th>
                             <th v-for="c in columns" :key="c.key" class="rv-th" :class="{ num: isNumericCol(c) }" @click="toggleSort(c.ref)">
                                 <span class="rv-thlabel">{{ c.label }}<span v-if="String(sortRef) === String(c.ref)" class="rv-arrow">{{ sortDir === 'asc' ? '↑' : '↓' }}</span></span>
-                                <span class="rv-colgrip" title="ドラッグで列幅を変更" @mousedown="startResize(c, $event)" @click.stop></span>
+                                <span class="rv-colgrip" :class="{ dragging: resizing === c.key }" title="ドラッグで列幅を変更" @mousedown="startResize(c, $event)" @click.stop></span>
                             </th>
                             <th class="rv-th rv-th-action"></th>
                         </tr>
@@ -224,7 +230,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useApi } from '@/composables/api'
@@ -535,6 +541,17 @@ const duplicateRecord = (rec: FlowRecordDto) => router.push({ name: 'flow-record
  * Either one switches the table to `table-layout: fixed`, which is what makes the numbers binding.
  */
 const MIN_COL_W = 56
+/** The key of the column being dragged, or null. Holds the key rather than a flag so only that one
+ *  column's handle lights up — as a boolean it marked the whole table and every grip showed at once. */
+const resizing = ref<string | null>(null)
+/**
+ * While a row is being edited the column edges become the drag handles, so the grip has to run the
+ * full height of the table rather than living only in the header — a 9px strip up in the header is a
+ * target nobody finds. The height is measured because the grip is absolutely positioned inside a
+ * sticky <th>, which gives it no way to express "as tall as the table" in CSS alone.
+ */
+const gridHeight = ref(0)
+const measureGrid = () => { gridHeight.value = Math.round(document.querySelector('.rv-table')?.getBoundingClientRect().height ?? 0) }
 const userWidths = ref<Record<string, number>>({})
 const lockWidths = ref<Record<string, number>>({})
 const fixedLayout = computed(() => !!Object.keys(lockWidths.value).length || !!Object.keys(userWidths.value).length)
@@ -580,6 +597,7 @@ const startResize = (c: ResolvedColumn, e: MouseEvent) => {
     const startX = e.clientX
     const startW = userWidths.value[c.key] ?? Math.round(measureColumns()[c.key] ?? 120)
     hidePeek()
+    resizing.value = c.key
 
     const onMove = (ev: MouseEvent) => {
         userWidths.value = { ...userWidths.value, [c.key]: Math.max(MIN_COL_W, Math.round(startW + ev.clientX - startX)) }
@@ -588,6 +606,7 @@ const startResize = (c: ResolvedColumn, e: MouseEvent) => {
         document.removeEventListener('mousemove', onMove)
         document.removeEventListener('mouseup', onUp)
         document.body.classList.remove('rv-resizing')
+        resizing.value = null
         saveWidths()
     }
     document.addEventListener('mousemove', onMove)
@@ -818,10 +837,11 @@ const startInlineEdit = async (rec: FlowRecordDto) => {
     if (!Object.keys(userWidths.value).length) lockWidths.value = measureColumns()
     editingId.value = rec.id
     seedEditValues(rec)
+    nextTick(measureGrid) // the row grows as it turns into inputs
     if (!inlineFields(rec).length) dialog.ping('この表示中の列にはこの行で編集できる項目がありません。')
 }
 
-const releaseWidthLock = () => { lockWidths.value = {} }
+const releaseWidthLock = () => { lockWidths.value = {}; gridHeight.value = 0 }
 
 const cancelInlineEdit = async () => {
     if (isInlineDirty()) {
@@ -909,11 +929,13 @@ onMounted(() => {
     // the popup is anchored to a viewport position, so anything that moves the cell invalidates it
     document.getElementById('rvScroll')?.addEventListener('scroll', hidePeek, { passive: true })
     window.addEventListener('resize', hidePeek)
+    window.addEventListener('resize', measureGrid)
 })
 onBeforeUnmount(() => {
     document.removeEventListener('keydown', onInlineKey)
     document.getElementById('rvScroll')?.removeEventListener('scroll', hidePeek)
     window.removeEventListener('resize', hidePeek)
+    window.removeEventListener('resize', measureGrid)
     clearClickTimer()
     clearPeekTimers()
 })
@@ -982,7 +1004,33 @@ watch([flowId, activeViewId], loadWidths, { immediate: true })
    out-of-flow table covered the column headers. */
 .rv-table.rv-fixed { table-layout: fixed; }
 .rv-colgrip { position: absolute; top: 0; right: 0; width: 9px; height: 100%; cursor: col-resize; user-select: none; }
-.rv-colgrip:hover::after, :global(body.rv-resizing) .rv-colgrip::after { content: ""; position: absolute; top: 4px; bottom: 4px; right: 4px; width: 2px; background: var(--primary-color); border-radius: 1px; }
+/* Editing a row turns every column edge into a handle. The gridlines are the affordance — the line
+   you see is the line you grab — and the grip runs the table's full height (measured into
+   --rv-grip-h) instead of hiding in the header. Only while editing: a full-height 9px band over
+   every column boundary would otherwise sit in front of ordinary row clicks.
+
+   The line is an inset shadow, not a border: a border is part of the cell box, so switching it on
+   widened every cell by 1px and shifted the whole row sideways the moment edit mode opened. An inset
+   shadow paints in the same place and costs no layout, so the columns hold still. */
+.rv-table.rv-gridlines .rv-th, .rv-table.rv-gridlines .rv-td { box-shadow: inset -1px 0 0 var(--calendarBorder); }
+.rv-table.rv-gridlines .rv-td:last-child, .rv-table.rv-gridlines .rv-th:last-child { box-shadow: none; }
+.rv-table.rv-gridlines .rv-colgrip { height: var(--rv-grip-h, 100%); }
+.rv-table.rv-gridlines .rv-colgrip:hover::after, .rv-table.rv-gridlines .rv-colgrip.dragging::after { top: 0; bottom: 0; }
+/* Keep this selector free of :global(). Written as `:global(body.rv-resizing) .rv-colgrip::after`,
+   Vue's scoped compiler emitted just `body.rv-resizing` — dropping the descendant and the
+   pseudo-element — so these styles, background: var(--primary-color) included, were applied to
+   <body> and turned the whole screen black for the duration of a drag. The drag state rides on
+   ordinary classes on the table and the grip instead, which keeps these rules local.
+
+   right: 0 puts the highlight on the column boundary itself — the same 1px the gridline paints, and
+   the grip's own right edge. At right: 4px it floated 4px inside the cell, so the line you grabbed
+   and the line that moved were visibly different lines. */
+.rv-colgrip:hover::after, .rv-colgrip.dragging::after { content: ""; position: absolute; top: 4px; bottom: 4px; right: 0; width: 2px; background: var(--primary-color); border-radius: 1px; }
+/* A drag sweeps the pointer sideways across the other boundaries, and each one it crossed lit up on
+   hover. Only the column actually being resized shows a handle for the duration. */
+.rv-table.rv-dragging .rv-colgrip:not(.dragging):hover::after { content: none; }
+/* body still carries the drag cursor: it must win over whatever the pointer is currently above.
+   This one has no descendant, so it compiles as written. */
 :global(body.rv-resizing) { cursor: col-resize; user-select: none; }
 .rv-th { text-align: left; font-size: 12px; font-weight: normal; color: gray; letter-spacing: .02em; padding: 12px 14px; white-space: nowrap; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--bg3); border-bottom: 1px solid var(--calendarBorder); z-index: 1; }
 .rv-th:hover { color: var(--primary-color); }
@@ -1028,6 +1076,10 @@ watch([flowId, activeViewId], loadWidths, { immediate: true })
    above its input when there isn't room below. */
 .rv-row.editing { background: var(--selected-background); }
 .rv-row.editing .rv-td { vertical-align: top; }
+/* except a cell holding just a switch: 20px against a ~36px picker, top-aligned, reads as stuck to
+   the top of the row. Centring the cell needs no number to keep in step with the neighbour's height.
+   Here rather than in flow-shared.css because the rule above ties on specificity and wins by order. */
+.rv-row.editing .rv-td:has(.flow-sw) { vertical-align: middle; }
 /* No min-width here: that is what re-laid out the table when a row opened for editing. The cell keeps
    its column's width and the inputs fit into it (min-width:0 below), so nothing moves. */
 .rv-td.edit { position: relative; white-space: normal; overflow: visible; padding: 8px 10px; }
