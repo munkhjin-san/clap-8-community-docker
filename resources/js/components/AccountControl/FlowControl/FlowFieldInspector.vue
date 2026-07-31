@@ -61,12 +61,25 @@
                 />
             </template>
 
+            <div v-if="col0.input_type !== 'formula' && !isLayoutType(col0.input_type)" class="irow" style="margin-top: 10px">
+                <label>無効化</label>
+                <span class="flow-sw" :class="{ on: colV(col0).disabled }" @click="setColDisabled(col0, !colV(col0).disabled)"></span>
+            </div>
+            <div class="irow">
+                <label>列幅</label>
+                <div class="flex items-center gap-[6px]">
+                    <input type="number" min="60" v-model.number="col0.width" placeholder="自動" class="custom-a-input !box-border !w-[110px]">
+                    <span class="text-[12px] text-gray-500">px</span>
+                </div>
+            </div>
             <div v-if="col0.input_type !== 'formula'" class="irow" style="margin-top: 10px">
                 <label>必須</label>
                 <span class="flow-sw" :class="{ on: col0.required }" @click="col0.required = !col0.required"></span>
             </div>
 
             <div class="divider"></div>
+            <FlowFieldRules :input-type="col0.input_type" :validation="colV(col0)" :options="col0.options" />
+
             <button class="col-del" :disabled="columns.length <= 1" @click="deleteSelectedColumn">この列を削除</button>
         </template>
 
@@ -129,117 +142,6 @@
             </div>
         </template>
 
-        <template v-if="hasRules">
-            <div class="divider"></div>
-            <div class="sec">入力ルール</div>
-
-            <template v-if="field.input_type === 'short' || field.input_type === 'long'">
-                <div class="irow">
-                    <label>文字数</label>
-                    <div class="minmax">
-                        <input type="number" min="0" v-model.number="v.min_length" placeholder="最小" class="custom-a-input !box-border">
-                        <span class="tilde">〜</span>
-                        <input type="number" min="0" v-model.number="v.max_length" placeholder="最大" class="custom-a-input !box-border">
-                    </div>
-                </div>
-                <div class="irow" v-if="field.input_type === 'short'">
-                    <label>形式</label>
-                    <select v-model="v.format" class="custom-a-input !box-border flex-1">
-                        <option value="none">指定なし</option>
-                        <option value="email">メールアドレス</option>
-                        <option value="tel">電話番号</option>
-                        <option value="url">URL</option>
-                    </select>
-                </div>
-            </template>
-
-            <template v-else-if="field.input_type === 'number'">
-                <div class="irow">
-                    <label>値の範囲</label>
-                    <div class="minmax">
-                        <input type="number" v-model.number="v.min" placeholder="最小" class="custom-a-input !box-border">
-                        <span class="tilde">〜</span>
-                        <input type="number" v-model.number="v.max" placeholder="最大" class="custom-a-input !box-border">
-                    </div>
-                </div>
-                <div class="irow">
-                    <label>整数のみ</label>
-                    <span class="flow-sw" :class="{ on: v.integer_only }" @click="v.integer_only = !v.integer_only"></span>
-                </div>
-            </template>
-
-            <template v-else-if="field.input_type === 'checkbox'">
-                <div class="irow">
-                    <label>選択数</label>
-                    <div class="minmax">
-                        <input type="number" min="0" v-model.number="v.min_select" placeholder="最小" class="custom-a-input !box-border">
-                        <span class="tilde">〜</span>
-                        <input type="number" min="0" v-model.number="v.max_select" placeholder="最大" class="custom-a-input !box-border">
-                    </div>
-                </div>
-            </template>
-
-            <template v-else-if="field.input_type === 'file'">
-                <div class="vcol">
-                    <label class="vlabel">受付形式</label>
-                    <div class="chips">
-                        <button v-for="a in fileAccepts" :key="a.value" class="achip" :class="{ on: (v.accept || []).includes(a.value) }" @click="toggleAccept(a.value)">{{ a.label }}</button>
-                    </div>
-                </div>
-                <div class="irow">
-                    <label>最大サイズ</label>
-                    <div class="flex items-center gap-[6px]">
-                        <input type="number" min="0" v-model.number="v.max_size_mb" placeholder="制限なし" class="custom-a-input !box-border !w-[100px]">
-                        <span class="text-[12px] text-gray-500">MB</span>
-                    </div>
-                </div>
-                <div class="irow">
-                    <label>複数可</label>
-                    <span class="flow-sw" :class="{ on: v.allow_multiple }" @click="v.allow_multiple = !v.allow_multiple"></span>
-                </div>
-            </template>
-
-            <template v-else-if="field.input_type === 'user' || field.input_type === 'member'">
-                <div class="irow">
-                    <label>複数選択</label>
-                    <span class="flow-sw" :class="{ on: v.multiple !== false }" @click="v.multiple = v.multiple === false"></span>
-                </div>
-            </template>
-
-            <template v-else-if="field.input_type === 'date'">
-                <div class="irow">
-                    <label>日付の範囲</label>
-                    <div class="minmax">
-                        <input type="date" v-model="v.min_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
-                        <span class="tilde">〜</span>
-                        <input type="date" v-model="v.max_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
-                    </div>
-                </div>
-            </template>
-
-            <template v-else-if="field.input_type === 'datetime'">
-                <div class="irow">
-                    <label>日時の範囲</label>
-                    <div class="minmax">
-                        <input type="datetime-local" v-model="v.min_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
-                        <span class="tilde">〜</span>
-                        <input type="datetime-local" v-model="v.max_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
-                    </div>
-                </div>
-            </template>
-
-            <template v-else-if="field.input_type === 'time'">
-                <div class="irow">
-                    <label>時刻の範囲</label>
-                    <div class="minmax">
-                        <input type="time" v-model="v.min_time" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
-                        <span class="tilde">〜</span>
-                        <input type="time" v-model="v.max_time" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
-                    </div>
-                </div>
-            </template>
-        </template>
-
         <template v-if="hasOptions">
             <div class="divider"></div>
             <div class="sec">選択肢</div>
@@ -250,44 +152,7 @@
             <button class="flow-ghost-btn mt-[8px]" @click="addOption">＋ 選択肢を追加</button>
         </template>
 
-        <template v-if="hasDefault">
-            <div class="divider"></div>
-            <div class="sec">初期値（新規作成時）</div>
-
-            <input v-if="field.input_type === 'short'" type="text" v-model="v.default" class="custom-a-input !box-border w-full" placeholder="初期テキスト">
-            <textarea v-else-if="field.input_type === 'long'" v-model="v.default" rows="2" class="custom-a-input !box-border w-full" placeholder="初期テキスト"></textarea>
-            <input v-else-if="field.input_type === 'number'" type="number" v-model.number="v.default" class="custom-a-input !box-border w-full" placeholder="初期値">
-
-            <div v-else-if="field.input_type === 'toggle'" class="irow" style="margin: 0">
-                <label>初期状態</label>
-                <span class="flow-sw" :class="{ on: v.default }" @click="v.default = !v.default"></span>
-            </div>
-
-            <select v-else-if="field.input_type === 'select' || field.input_type === 'radio'" v-model="v.default" class="custom-a-input !box-border w-full">
-                <option :value="null">なし</option>
-                <option v-for="o in field.options || []" :key="o" :value="o">{{ o }}</option>
-            </select>
-
-            <div v-else-if="field.input_type === 'checkbox'" class="def-checks">
-                <label v-for="o in field.options || []" :key="o" class="fi-opt">
-                    <input type="checkbox" :checked="defaultArray.includes(o)" @change="toggleDefault(o)"> {{ o }}
-                </label>
-                <span v-if="!(field.options || []).length" class="text-[12px] text-gray-400">選択肢を先に追加してください。</span>
-            </div>
-
-            <template v-else-if="field.input_type === 'date' || field.input_type === 'datetime' || field.input_type === 'time'">
-                <div class="irow" style="margin: 0">
-                    <label>現在日時にする</label>
-                    <span class="flow-sw" :class="{ on: v.default_now }" @click="v.default_now = !v.default_now"></span>
-                </div>
-                <p class="def-hint">オンにすると作成時の日時が自動で入ります。</p>
-            </template>
-
-            <div v-else-if="field.input_type === 'user' || field.input_type === 'member'" class="irow" style="margin: 0">
-                <label>作成者を初期値</label>
-                <span class="flow-sw" :class="{ on: v.default_me }" @click="v.default_me = !v.default_me"></span>
-            </div>
-        </template>
+        <FlowFieldRules :input-type="field.input_type" :validation="v" :options="field.options" />
 
         <template v-if="field.input_type === 'formula'">
             <div class="divider"></div>
@@ -399,6 +264,7 @@ import { referencingFormulas, referencedDeleteMessage, renameFieldRefEverywhere,
 import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 import FlowFieldIcon from './FlowFieldIcon.vue'
+import FlowFieldRules from './FlowFieldRules.vue'
 import FlowFormulaEditor from './FlowFormulaEditor.vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import FlowSearchSelect from './FlowSearchSelect.vue'
@@ -462,22 +328,9 @@ const fileAccepts = FLOW_FILE_ACCEPT
 const typeLabel = (t: string) => FLOW_TYPE_LABEL[t] ?? t
 const hasOptions = computed(() => ['select', 'radio', 'checkbox'].includes(props.field.input_type))
 const isLayout = computed(() => isLayoutType(props.field.input_type))
-const DEFAULT_TYPES = ['short', 'long', 'number', 'select', 'radio', 'checkbox', 'toggle', 'date', 'datetime', 'time', 'user', 'member']
-const hasDefault = computed(() => DEFAULT_TYPES.includes(props.field.input_type))
-const defaultArray = computed<any[]>(() => (Array.isArray(v.value.default) ? v.value.default : []))
-const toggleDefault = (o: string) => {
-    const next = defaultArray.value.slice()
-    const i = next.indexOf(o)
-    if (i >= 0) next.splice(i, 1)
-    else next.push(o)
-    v.value.default = next
-}
 const labelFieldName = computed(() =>
     props.field.input_type === 'heading' ? '見出し文' : props.field.input_type === 'label' ? 'テキスト' : 'ラベル'
 )
-const RULE_TYPES = ['short', 'long', 'number', 'date', 'datetime', 'time', 'checkbox', 'file', 'user', 'member']
-const hasRules = computed(() => RULE_TYPES.includes(props.field.input_type))
-
 // Other formula fields ARE referenceable (chains compute multi-pass server-side) — only self and layout parts are excluded.
 const referenceableFields = computed(() =>
     (props.fields ?? []).filter((f) => f.key !== props.field.key && !isLayoutType(f.input_type) && !isSecretType(f.input_type))
@@ -585,12 +438,6 @@ const onMappingFromChange = (m: { from: string; to: string }) => {
     if (m.to && !destFieldsFor(m.from).some((d) => d.key === m.to)) m.to = ''
 }
 
-const toggleAccept = (val: string) => {
-    if (!v.value.accept) v.value.accept = []
-    const i = v.value.accept.indexOf(val)
-    if (i >= 0) v.value.accept.splice(i, 1)
-    else v.value.accept.push(val)
-}
 
 const setOption = (oi: number, val: string) => { if (props.field.options) props.field.options[oi] = val }
 const addOption = () => {
@@ -600,8 +447,26 @@ const addOption = () => {
 const removeOption = (oi: number) => props.field.options?.splice(oi, 1)
 
 /* ---- table columns ---- */
+/**
+ * A column's rule object, created on demand. TableColumn.validation has always been the same
+ * FlowFieldValidation a field uses — the renderer and the server validator both read it — it simply
+ * had no UI, so it stayed null on every column ever created.
+ */
+const colV = (col: TableColumn): FlowFieldValidation => {
+    if (!col.validation) col.validation = {}
+
+    return col.validation
+}
+// same mutual exclusion as a field: a required column nobody can fill would block every save
+const setColDisabled = (col: TableColumn, val: boolean) => {
+    colV(col).disabled = val
+    if (val) col.required = false
+}
+
 // 'table' stays excluded (no nested tables). formula + reference are allowed as columns.
-const COLUMN_TYPES = FLOW_FIELD_TYPES.filter((t) => !isLayoutType(t.type) && t.type !== 'table')
+// note: this list never honoured projectOnly, which is why メンバー showed up as a column type even on
+// apps with no project — the `deprecated` flag hides it from here as well as from the palette.
+const COLUMN_TYPES = FLOW_FIELD_TYPES.filter((t) => !isLayoutType(t.type) && t.type !== 'table' && !t.deprecated)
 // Variables offered to a calc column's formula editor: sibling columns + top-level fields.
 // Formula columns/fields are referenceable (intra-row chains + cross-level refs compute
 // multi-pass server-side); only the column itself, the owning table, and layout parts are excluded.
@@ -768,7 +633,7 @@ const removeColOption = (col: TableColumn, oi: number) => col.options?.splice(oi
 .col-arrow:hover:not(:disabled) { color: var(--primary-color); }
 .col-arrow:disabled { opacity: 0.3; cursor: default; }
 .col-back { border: none; background: none; color: var(--primary-color); font-size: 12px; cursor: pointer; padding: 0; margin-bottom: 10px; text-align: left; }
-.col-del { border: 1px solid var(--formBorder); background: var(--background-color); color: #dc2626; border-radius: 6px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
+.col-del { border: 1px solid var(--formBorder); margin-top: 20px; background: var(--background-color); color: #dc2626; border-radius: 6px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
 .col-del:disabled { opacity: 0.4; cursor: not-allowed; }
 .flow-ghost-btn { width: fit-content; }
 .formula-area { width: 100%; min-height: 64px; font-family: ui-monospace, monospace; font-size: 13px; resize: vertical; }

@@ -162,7 +162,7 @@ const addTableColumn = (field: FlowField) => {
 
 const groups = ['入力', '選択', '高度', 'レイアウト', 'その他'] as const
 const typesByGroup = (group: string) =>
-    FLOW_FIELD_TYPES.filter((t) => t.group === group && (!t.projectOnly || !!props.def.project_record_id))
+    FLOW_FIELD_TYPES.filter((t) => t.group === group && !t.deprecated && (!t.projectOnly || !!props.def.project_record_id))
 const typeLabel = (t: string) => FLOW_TYPE_LABEL[t] ?? t
 const hasOptions = (t: string) => ['select', 'radio', 'checkbox'].includes(t)
 

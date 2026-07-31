@@ -628,6 +628,13 @@ export interface FlowTypeMeta {
     group: '入力' | '選択' | '高度' | 'レイアウト' | 'その他'
     hasOptions?: boolean
     projectOnly?: boolean
+    /**
+     * Hidden from every type picker, but still a valid type: the label lookup and the whole runtime
+     * keep working, so any field already using it renders, validates and saves as before. Set this
+     * rather than deleting the entry — a deleted entry would leave existing fields showing their raw
+     * type name and drop them out of the type selector.
+     */
+    deprecated?: boolean
 }
 
 export const FLOW_FIELD_TYPES: FlowTypeMeta[] = [
@@ -642,7 +649,13 @@ export const FLOW_FIELD_TYPES: FlowTypeMeta[] = [
     { type: 'checkbox', label: 'チェックボックス', icon: 'checkbox', group: '選択', hasOptions: true },
     { type: 'toggle', label: 'オン/オフ', icon: 'toggle', group: '選択' },
     { type: 'user', label: 'ユーザー', icon: 'user', group: '高度' },
-    { type: 'member', label: 'メンバー', icon: 'member', group: '高度', projectOnly: true },
+    // メンバー is hidden until apps actually integrate with projects. It was meant to be "pick from
+    // this project's members", but the picker was handed the full user list, so it behaved exactly
+    // like ユーザー — same storage (an id array in value_json), same validation, same formula
+    // handling, differing only in label and icon. Nothing in the DB uses it (0 fields, 0 columns).
+    // To bring it back: drop `deprecated` and make the options project-scoped (server-side too, or a
+    // saved record could carry a non-member).
+    { type: 'member', label: 'メンバー', icon: 'member', group: '高度', projectOnly: true, deprecated: true },
     { type: 'formula', label: '計算', icon: 'formula', group: '高度' },
     { type: 'reference', label: 'ルックアップ', icon: 'reference', group: '高度' },
     { type: 'project', label: 'プロジェクト', icon: 'project', group: '高度' },
