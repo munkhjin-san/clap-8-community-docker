@@ -186,7 +186,8 @@ import { useApi } from '@/composables/api'
 import { useFlowOptionsStore } from '@/store/flowOptions'
 import { useFilePreview } from '@/store/filePreview'
 import { useResponsive } from '@/store/responsive'
-import { submittableValues, validateRecordValues } from '@/utils/flowValidation'
+import { submittableValues, validateRecordValues, validationSummary } from '@/utils/flowValidation'
+import { useDialog } from '@/composables/dialog'
 import { recordFingerprint } from '@/utils/flowDirty'
 import { useUnsavedGuard } from '@/composables/unsavedGuard'
 import { emptyFieldValue, resolveFieldDefault } from '@/utils/flowDefaults'
@@ -213,6 +214,7 @@ import type { MenuList } from '@/interface/globalInterface'
 import Back from '@/components/Icons/Back.vue'
 
 const api = useApi()
+const dialog = useDialog()
 const route = useRoute()
 const router = useRouter()
 const responsive = useResponsive()
@@ -535,7 +537,11 @@ const save = async () => {
     const found = validateRecordValues(definition.value?.fields ?? [], values, { ...opts, stored: record.value?.values ?? null })
     Object.keys(errors).forEach((k) => (errors[k] = null))
     Object.assign(errors, found)
-    if (Object.values(found).some(Boolean)) return
+    const problem = validationSummary(definition.value?.fields ?? [], found)
+    if (problem) {
+        dialog.ping(problem)
+        return
+    }
 
     saving.value = true
     try {

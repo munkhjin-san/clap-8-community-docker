@@ -256,7 +256,7 @@ import FlowAppIcon from './FlowAppIcon.vue'
 import { readableTextColor } from '@/utils/flowColor'
 import { pageTitleOverride } from '@/composables/pageTitle'
 import { resolveColumns, applyFilters, applyAdhocFilter, applySort, systemColumnValue, type ResolvedColumn } from '@/utils/flowView'
-import { applyLookupCopy, lockedByServer, validateRecordValues } from '@/utils/flowValidation'
+import { applyLookupCopy, lockedByServer, validateRecordValues, validationSummary } from '@/utils/flowValidation'
 import { emptyFieldValue } from '@/utils/flowDefaults'
 import { useUnsavedGuard } from '@/composables/unsavedGuard'
 import type { FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowViewApi, FlowRecordsResponse, FlowAdhocFilter } from '@/types/flow'
@@ -859,7 +859,13 @@ const saveInline = async (rec: FlowRecordDto) => {
     const found = validateRecordValues(fields, editValues, { stored: rec.values ?? null })
     Object.keys(editErrors).forEach((k) => delete editErrors[k])
     Object.assign(editErrors, found)
-    if (Object.values(found).some(Boolean)) return
+    // a bad column can be scrolled off to the side here, so the under-input message alone is easy to
+    // miss entirely — the row just refuses to close with no reason given
+    const problem = validationSummary(fields, found)
+    if (problem) {
+        dialog.ping(problem)
+        return
+    }
 
     const payload: Record<string, any> = {}
     for (const f of fields) payload[f.id!] = editValues[f.id!]

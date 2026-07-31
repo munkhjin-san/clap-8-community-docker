@@ -113,6 +113,51 @@ export function validateRecordValues(
     return errors
 }
 
+const REQUIRED_MESSAGE = '必須項目です。'
+/** Past this many names the list stops being readable and starts being a wall. */
+const MAX_LISTED = 6
+
+/**
+ * Labels are authored in the app builder, and the ping renders with v-html — so anyone who can name
+ * a field could otherwise run script in the browser of everyone who trips that field's validation.
+ */
+const escapeHtml = (s: string): string =>
+    s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
+
+/**
+ * What to tell the user when validation stops a save, or '' when nothing is wrong.
+ *
+ * Both save paths already write a message under each bad input, but that is invisible when the field
+ * is scrolled off a long form or sits in a column that is off to the side in the list's inline row —
+ * so pressing 保存 looked like it did nothing at all. Naming the fields is the part the user can act
+ * on. 必須 is separated from the rest because "fill this in" and "this value is wrong" are different
+ * jobs, and 必須 is the overwhelmingly common case.
+ *
+ * Fields are walked in definition order so the names read in the same order as the form.
+ */
+export function validationSummary(fields: FlowField[], errors: Record<string, string | null>): string {
+    const missing: string[] = []
+    const invalid: string[] = []
+
+    for (const f of fields) {
+        const message = errors[f.id!]
+        if (!message) continue
+        const label = String(f.label ?? '').trim() || `#${f.id}`
+        ;(message === REQUIRED_MESSAGE ? missing : invalid).push(label)
+    }
+
+    const list = (names: string[]): string => {
+        const shown = names.slice(0, MAX_LISTED).map(escapeHtml).join('、')
+        return names.length > MAX_LISTED ? `${shown} ほか${names.length - MAX_LISTED}件` : shown
+    }
+
+    const lines: string[] = []
+    if (missing.length) lines.push(`必須項目が未入力です：${list(missing)}`)
+    if (invalid.length) lines.push(`入力内容を確認してください：${list(invalid)}`)
+
+    return lines.join('<br>')
+}
+
 /** The values a save may actually send: everything the user could edit, formulas and locks excluded. */
 export function submittableValues(
     fields: FlowField[],
