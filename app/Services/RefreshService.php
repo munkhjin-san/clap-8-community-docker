@@ -1499,9 +1499,14 @@ class RefreshService
             ->sortByDesc(fn (PostRecord $post) => (int) $post->rakuawardScores->sum('score'))
             ->values();
 
+        // Competition ranking: equal scores share a rank (1,2,2,4...) and are flagged as tied.
+        $scores = $posts->map(fn (PostRecord $post) => (int) $post->rakuawardScores->sum('score'));
+
         foreach ($posts as $index => $post) {
+            $score = (int) $scores[$index];
             $post->timestamps = false;
-            $post->rakuaward_rank = $index + 1;
+            $post->rakuaward_rank = $scores->filter(fn ($other) => $other > $score)->count() + 1;
+            $post->rakuaward_rank_tied = $scores->filter(fn ($other) => $other === $score)->count() > 1;
             $post->save();
         }
 
@@ -1529,9 +1534,9 @@ class RefreshService
         ];
     }
 
-    private function grantRakuawardMvp(int $postId, ?int $actorId, int $rank = 0): array
+    private function grantRakuawardMvp(int $postId, ?int $actorId): array
     {
-        return DB::transaction(function () use ($postId, $actorId, $rank) {
+        return DB::transaction(function () use ($postId, $actorId) {
             $post = PostRecord::query()
                 ->where('id', $postId)
                 ->where('app_type', 7)
@@ -1597,9 +1602,6 @@ class RefreshService
 
             $post->timestamps = false;
             $post->rakuaward_granted_at = Carbon::now();
-            if ($rank > 0) {
-                $post->rakuaward_rank = $rank;
-            }
             $post->save();
 
             return ['amount' => $amount];

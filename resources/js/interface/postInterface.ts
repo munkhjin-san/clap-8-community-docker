@@ -73,6 +73,7 @@ export interface Post{
     rakuaward_granted_at?: string | null;
     rakuaward_refunded_at?: string | null;
     rakuaward_rank?: number | null;
+    rakuaward_rank_tied?: boolean;
     rakuaward_scores?: PostRakuawardScore[];
     post_relays?: PostRelay[];
     accepted_post_relay?: PostRelay | null;

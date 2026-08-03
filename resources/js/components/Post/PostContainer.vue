@@ -156,12 +156,12 @@
                 </p>
                 <div class="rakuaward-mvp-list">
                     <div
-                        v-for="(row, i) in rakuawardCurrent"
+                        v-for="row in rankedCurrent"
                         :key="row.id"
                         class="rakuaward-mvp-item group"
                         @click="jumpToPost(row.id)"
                     >
-                        <span class="rakuaward-mvp-rank">{{ i + 1 }}</span>
+                        <span class="rakuaward-mvp-rank">{{ row.rankLabel }}</span>
                         <span class="rakuaward-mvp-people">
                             <UserPanel v-if="row.creator" :user="row.creator" :disableInstant="true" size="18" />
                             <span class="rakuaward-mvp-name">{{ row.creator?.name ?? '—' }}</span>
@@ -181,12 +181,12 @@
                 <p class="rakuaward-mvp-title">{{DateTime.fromFormat(rakuawardMvpMonth, 'yyyy-MM').month}}月度結果発表</p>
                 <div class="rakuaward-mvp-list">
                     <div
-                        v-for="(mvp, i) in visibleMvps"
+                        v-for="mvp in visibleMvps"
                         :key="mvp.id"
                         class="rakuaward-mvp-item group"
                         @click="jumpToPost(mvp.id)"
                     >
-                        <span class="rakuaward-mvp-rank">{{ mvpRankLabel(i) }}</span>
+                        <span class="rakuaward-mvp-rank">{{ mvp.rankLabel }}</span>
                         <span class="rakuaward-mvp-people">
                             <UserPanel v-if="mvp.creator" :user="mvp.creator" :disableInstant="true" size="18" />
                             <span class="rakuaward-mvp-name">{{ mvp.creator?.name ?? '—' }}</span>
@@ -380,7 +380,18 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
     const rakuawardCurrent = ref<RakuawardRankRow[]>([])
     const rakuawardCurrentMonth = ref('')
     const mvpShowAll = ref(false)
-    const visibleMvps = computed(() => mvpShowAll.value ? rakuawardMvps.value : rakuawardMvps.value.slice(0, 5))
+    // Competition ranking by score: equal scores share a rank and get a "タイ" suffix.
+    const withRanks = (rows: RakuawardRankRow[]) => rows.map(row => {
+        const rank = rows.filter(other => other.total_score > row.total_score).length + 1
+        const tied = rows.filter(other => other.total_score === row.total_score).length > 1
+        return {
+            ...row,
+            rankLabel: rank === 1 && !tied ? 'MVP' : `${rank}位${tied ? 'タイ' : ''}`,
+        }
+    })
+    const rankedMvps = computed(() => withRanks(rakuawardMvps.value))
+    const rankedCurrent = computed(() => withRanks(rakuawardCurrent.value))
+    const visibleMvps = computed(() => mvpShowAll.value ? rankedMvps.value : rankedMvps.value.slice(0, 5))
     const fetchRakuawardMvps = async () => {
         const data = await api.get('/rakuaward_mvps', null, { silent: true })
         if (data) {
@@ -398,10 +409,6 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
         const pid = auth.user?.position_id
         return pid != null && Number(pid) < 6
     })
-    const mvpRankLabel = (index: number) => {
-        if (index === 0) return 'MVP'
-        return `${index + 1}位`
-    }
     const viewFullRanking = ref(false)
     const entryData = ref({
         record: <Post | null>null,

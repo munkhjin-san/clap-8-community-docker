@@ -599,8 +599,10 @@ const status = computed(() => {
     if (props.record.app_type === 7) {
         const rank = props.record.rakuaward_rank
         if (rank) {
-            if (rank === 1) return 'MVP'
-            if (rank <= 5) return `${rank}位`
+            const tied = !!props.record.rakuaward_rank_tied
+            // Sole 1st place is the MVP; a shared rank is shown as "N位タイ".
+            if (rank === 1 && !tied) return 'MVP'
+            if (rank <= 5) return `${rank}位${tied ? 'タイ' : ''}`
             return 'ノミネート'
         }
         return DateTime.now() <= niceChargeEnd.value ? 'チャージ受付中' : 'ノミネート'
