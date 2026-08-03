@@ -622,7 +622,7 @@ class DashboardController extends Controller
         $date = Carbon::now();
         $prevMonthStart = $date->clone()->subMonthNoOverflow()->startOfMonth()->format('Y-m-d');
         [$activeUser, $isTimesheetAdmin, $targetUsers, $workGroupIds] = $this->timesheetApprovalScope();
-
+        
         if (empty($targetUsers) || (!$isTimesheetAdmin && empty($workGroupIds))) {
             return [];
         }
@@ -712,18 +712,22 @@ class DashboardController extends Controller
         $headquartersIds = [];
         $hqProject = ProjectRecord::where('id', 20)->first();
         $isTimesheetAdmin = in_array((int) $activeUser->id, self::TIMESHEET_ADMIN_IDS, true);
-
+        $noPmProject = ProjectRecord::where('id', 51)->first();
+        if($noPmProject){
+            $noPmProjectMembers = $noPmProject->members()->pluck('users.id')->toArray();
+        }
         if($hqProject){
             $headquartersIds = $hqProject->members()->pluck('users.id')->toArray();
         }
         if($isTimesheetAdmin){
+            $queryUsers = array_merge($headquartersIds, $noPmProjectMembers);
             $targetUsers = User::where('retire', 0)
                 ->where('partner_flag', 0)
                 ->where('deleted_flag', 0)
                 ->where('on_leave', 0)
-                ->where(function ($query) use ($headquartersIds) {
+                ->where(function ($query) use ($queryUsers) {
                     $query->where('position_id', 6)
-                        ->orWhereIn('id', $headquartersIds);
+                        ->orWhereIn('id', $queryUsers);
                 })
                 ->pluck('id')
                 ->toArray();
