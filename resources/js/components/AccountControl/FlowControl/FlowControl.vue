@@ -118,7 +118,7 @@
                                 <span class="fc-fi"><span class="fc-num">{{ def.records_count ?? 0 }}</span>件</span>
                                 <div class="ml-auto flex items-center gap-[10px]" @click.stop>
                                     <FlowPendingMenu :def-id="def.id" :count="def.pending_actions ?? 0" />
-                                    <FlowBellMenu :def-id="def.id" :count="def.unread_notifications ?? 0" />
+                                    <FlowBellMenu :def-id="def.id" :count="def.unread_notifications ?? 0" @read="getDefinitions" />
                                 </div>
                             </div>
                         </div>
@@ -146,7 +146,7 @@
                                 <div class="ac"><span class="fc-vis">{{ def.is_public ? '全社員' : '限定' }}</span></div>
                                 <div class="fc-td-menu" @click.stop>
                                     <FlowPendingMenu :def-id="def.id" :count="def.pending_actions ?? 0" />
-                                    <FlowBellMenu :def-id="def.id" :count="def.unread_notifications ?? 0" />
+                                    <FlowBellMenu :def-id="def.id" :count="def.unread_notifications ?? 0" @read="getDefinitions" />
                                     <ItemMenu :items="menuItems(def)" teleport />
                                 </div>
                             </div>

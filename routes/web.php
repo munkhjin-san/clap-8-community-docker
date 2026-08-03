@@ -1055,6 +1055,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         // flow notifications (per-app bell badge + popup + prefs + comment read)
         Route::get('/flow_pending_actions/{definition}', [FlowController::class, 'getFlowPendingActions']);
         Route::get('/flow_notifications/{definition}', [FlowController::class, 'getFlowNotifications']);
+        Route::post('/flow_notifications_read_all', [FlowController::class, 'markAllFlowNotificationsRead']);
         Route::post('/flow_notification_pref', [FlowController::class, 'saveFlowNotificationPref']);
         Route::post('/flow_notification_comments_read', [FlowController::class, 'markFlowCommentsRead']);
         // system reference sources (built-in masters, e.g. offices) — mirror the app-reference endpoints

@@ -1470,18 +1470,39 @@ class FlowController extends Controller
     /* ---- flow notifications (per-app bell badge + popup) --------------------------------------- */
 
     /** The bell popup: latest events for this user on this app + their notification prefs. */
-    public function getFlowNotifications($definitionId)
+    /** One page of the bell menu. */
+    private const NOTIFICATIONS_PER_PAGE = 15;
+
+    /**
+     * The bell popup's events, newest first, one page at a time.
+     *
+     * Paged on the id rather than an offset: notifications arrive while the menu is sitting open, and
+     * every new row would shift an offset window down by one, so もっと見る would re-show rows the user
+     * had already scrolled past. An id cursor is anchored to what they have actually seen.
+     *
+     * This replaced a flat limit(30) with no way to ask for more — older notifications existed but
+     * were simply unreachable, and nothing on screen said the list had been cut off.
+     */
+    public function getFlowNotifications(Request $request, $definitionId)
     {
         $user = $this->active_user();
         $definition = FlowDefinition::with('appPermissions')->findOrFail($definitionId);
         abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['view'], 403);
 
-        $events = FlowNotification::where('user_id', $user->id)
+        $before = $request->integer('before') ?: null;
+
+        $rows = FlowNotification::where('user_id', $user->id)
             ->where('flow_definition_id', $definition->id)
+            ->when($before, fn ($q) => $q->where('id', '<', $before))
             ->with(['actor', 'record:id,record_number'])
             ->orderByDesc('id')
-            ->limit(30)
-            ->get()
+            // one past the page: its presence is the has_more answer, without a second COUNT query
+            ->limit(self::NOTIFICATIONS_PER_PAGE + 1)
+            ->get();
+
+        $hasMore = $rows->count() > self::NOTIFICATIONS_PER_PAGE;
+
+        $events = $rows->take(self::NOTIFICATIONS_PER_PAGE)
             ->map(fn ($n) => [
                 'id' => $n->id,
                 'type' => $n->type,
@@ -1490,12 +1511,27 @@ class FlowController extends Controller
                 'meta' => $n->meta,
                 'read' => $n->read_at !== null,
                 'created_at' => $n->created_at,
-            ]);
+            ])
+            ->values();
 
         return response()->json([
             'events' => $events,
+            'has_more' => $hasMore,
             'prefs' => $this->flowNotifications->prefsFor($user, (int) $definition->id),
         ]);
+    }
+
+    /** すべて既読 button in the bell popup → clear every unread event for this user on this app. */
+    public function markAllFlowNotificationsRead(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate([
+            'flow_definition_id' => 'required|integer|exists:flow_definitions,id',
+        ]);
+        $definition = FlowDefinition::with('appPermissions')->findOrFail($data['flow_definition_id']);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['view'], 403);
+
+        return response()->json(['ok' => true, 'read' => $this->flowNotifications->markAllRead($user, $definition)]);
     }
 
     /** Per-user per-app notification opt-in/out (the toggles inside the bell popup). */

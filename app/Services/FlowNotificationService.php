@@ -40,7 +40,25 @@ class FlowNotificationService
 
     public const PREFS = ['comment_own', 'comment_participated', 'new_record', 'status_change', 'pending_action'];
 
-    public function __construct(private FlowService $flowService) {}
+    public function __construct(private FlowService $flowService, private BadgeService $badges) {}
+
+    /**
+     * Drop this user's badge_summary cache after rows actually changed.
+     *
+     * /badge_summary is cached 60s per user and the flow unread total rides it, so reading a
+     * notification left the bell showing the old number for up to a minute — the record was open,
+     * the comments were read, and the badge still said 3. FlowControl already corrects the count
+     * from /flow_definitions, but only on the app list; arriving at a record from anywhere else
+     * (side menu, a link, the bell itself) never passed through that screen.
+     *
+     * Guarded on the affected-row count so opening an already-read record is not a cache bust.
+     */
+    private function invalidateBadges(int $affected, User $user): void
+    {
+        if ($affected > 0) {
+            $this->badges->forgetBadgeSummaryForUser($user);
+        }
+    }
 
     /* ---------------------------------------------------------------- events */
 
@@ -178,11 +196,13 @@ class FlowNotificationService
      */
     public function markRecordOpened(User $user, FlowRecord $record): void
     {
-        FlowNotification::where('user_id', $user->id)
+        $affected = FlowNotification::where('user_id', $user->id)
             ->where('flow_record_id', $record->id)
             ->whereIn('type', ['new_record', 'status_change', 'pending_action'])
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
+
+        $this->invalidateBadges($affected, $user);
     }
 
     /**
@@ -191,22 +211,45 @@ class FlowNotificationService
      */
     public function markImportSeen(User $user, FlowDefinition $definition): void
     {
-        FlowNotification::where('user_id', $user->id)
+        $affected = FlowNotification::where('user_id', $user->id)
             ->where('flow_definition_id', $definition->id)
             ->where('type', 'new_record')
             ->whereNull('flow_record_id')
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
+
+        $this->invalidateBadges($affected, $user);
     }
 
     /** Comment tab actually viewed (FE fires after it has been visible a few seconds). */
     public function markCommentsRead(User $user, FlowRecord $record): void
     {
-        FlowNotification::where('user_id', $user->id)
+        $affected = FlowNotification::where('user_id', $user->id)
             ->where('flow_record_id', $record->id)
             ->where('type', 'comment')
             ->whereNull('read_at')
             ->update(['read_at' => now()]);
+
+        $this->invalidateBadges($affected, $user);
+    }
+
+    /**
+     * すべて既読 — every unread event for this user on this app.
+     *
+     * Read state only. A pending_action row marked read still means the duty is yours: those rows are
+     * withdrawn when the record moves on, and the live 対応待ち counter stays the authority on "you
+     * still have to act". This is the same thing opening each record one by one would have done.
+     */
+    public function markAllRead(User $user, FlowDefinition $definition): int
+    {
+        $affected = FlowNotification::where('user_id', $user->id)
+            ->where('flow_definition_id', $definition->id)
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        $this->invalidateBadges($affected, $user);
+
+        return $affected;
     }
 
     /** Unread badge totals for the portal: [flow_definition_id => count]. */
