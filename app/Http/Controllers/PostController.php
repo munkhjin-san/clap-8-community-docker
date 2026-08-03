@@ -17,6 +17,7 @@ use App\Models\CommentRecord;
 use App\Models\PostRelay;
 use App\Models\PostRelayPrize;
 use App\Models\PostRakuawardScore;
+use App\Models\UserReadHistory;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\Comment;
 use Illuminate\Support\Facades\File; 
@@ -33,6 +34,9 @@ use Illuminate\Validation\ValidationException;
 
 class PostController extends Controller
 {
+    // Read-history key for the monthly rakuaward results announcement.
+    private const RAKUAWARD_RESULT_READABLE = 'rakuaward_result';
+
     protected $badgeService;
     public function __construct(
         BadgeService $badgeService, 
@@ -842,13 +846,49 @@ class PostController extends Controller
     {
         $now = Carbon::now();
         $lastMonth = $now->copy()->subMonthNoOverflow();
+        $mvps = $this->rakuawardMonthRanking($lastMonth);
+
+        $alreadyRead = UserReadHistory::where('readable_type', self::RAKUAWARD_RESULT_READABLE)
+            ->where('readable_id', $this->rakuawardResultKey($lastMonth))
+            ->where('user_id', Auth::id())
+            ->exists();
 
         return response()->json([
             'month' => $lastMonth->format('Y-m'),
-            'mvps' => $this->rakuawardMonthRanking($lastMonth),
+            'mvps' => $mvps,
+            'result_unread' => count($mvps) > 0 && ! $alreadyRead,
             'current_month' => $now->format('Y-m'),
             'current' => $this->rakuawardMonthRanking($now),
         ]);
+    }
+    public function rakuaward_result_read(Request $request)
+    {
+        $request->validate([
+            'month' => 'nullable|date_format:Y-m',
+        ]);
+
+        $month = $request->filled('month')
+            ? Carbon::createFromFormat('Y-m', $request->month)->startOfMonth()
+            : Carbon::now()->subMonthNoOverflow();
+
+        UserReadHistory::updateOrCreate(
+            [
+                'readable_type' => self::RAKUAWARD_RESULT_READABLE,
+                'readable_id' => $this->rakuawardResultKey($month),
+                'user_id' => Auth::id(),
+            ],
+            [
+                'last_read_at' => now(),
+            ],
+        );
+        $this->badgeService->invalidateBadgeSummaryCache();
+
+        return response()->json(['read' => true]);
+    }
+    // The monthly results announcement is a period, not a record, so it is keyed by YYYYMM.
+    private function rakuawardResultKey(Carbon $month): int
+    {
+        return (int) $month->format('Ym');
     }
     private function rakuawardMonthRanking(Carbon $month): array
     {

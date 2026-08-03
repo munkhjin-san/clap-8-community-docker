@@ -600,8 +600,8 @@ const status = computed(() => {
         const rank = props.record.rakuaward_rank
         if (rank) {
             const tied = !!props.record.rakuaward_rank_tied
-            // Sole 1st place is the MVP; a shared rank is shown as "N位タイ".
-            if (rank === 1 && !tied) return 'MVP'
+            // 1st place is always MVP (even when shared); lower shared ranks get "タイ".
+            if (rank === 1) return 'MVP'
             if (rank <= 5) return `${rank}位${tied ? 'タイ' : ''}`
             return 'ノミネート'
         }

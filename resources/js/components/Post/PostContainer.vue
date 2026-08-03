@@ -96,6 +96,8 @@
                         {{ apps[6] }}
                     </router-link>
                     <router-link :to="`/${appName}?app_type=7`" :class="['cat-chip', { 'cat-chip--active': getQuery?.app_type == '7' }]">
+                        <span v-if="rakuawardResultUnread" title="新しい結果発表があります"
+                            class="w-1.5 min-w-1.5 h-1.5 rounded-full bg-[tomato] custom-heartbeat"></span>
                         <PostIcon which="7" size="12" class="hidden under400:block"/>
                         <PostIcon which="7" size="16" class="under400:hidden"/>
                         {{ apps[7] }}
@@ -386,12 +388,13 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
         const tied = rows.filter(other => other.total_score === row.total_score).length > 1
         return {
             ...row,
-            rankLabel: rank === 1 && !tied ? 'MVP' : `${rank}位${tied ? 'タイ' : ''}`,
+            rankLabel: rank === 1 ? 'MVP' : `${rank}位${tied ? 'タイ' : ''}`,
         }
     })
     const rankedMvps = computed(() => withRanks(rakuawardMvps.value))
     const rankedCurrent = computed(() => withRanks(rakuawardCurrent.value))
     const visibleMvps = computed(() => mvpShowAll.value ? rankedMvps.value : rankedMvps.value.slice(0, 5))
+    const rakuawardResultUnread = ref(false)
     const fetchRakuawardMvps = async () => {
         const data = await api.get('/rakuaward_mvps', null, { silent: true })
         if (data) {
@@ -399,7 +402,16 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
             rakuawardMvpMonth.value = data.month ?? ''
             rakuawardCurrent.value = data.current ?? []
             rakuawardCurrentMonth.value = data.current_month ?? ''
+            rakuawardResultUnread.value = !!data.result_unread
         }
+    }
+    // Acknowledge the monthly results announcement (stored in user read history).
+    const markRakuawardResultRead = async () => {
+        if (!rakuawardResultUnread.value) return
+        rakuawardResultUnread.value = false
+        badge.post.rakuaward_result = 0
+        await api.post('/rakuaward_result_read', { month: rakuawardMvpMonth.value }, { silent: true })
+        badge.getbadgeSummary()
     }
     const jumpToPost = (id: number) => {
         router.push({ name: appName.value, query: { app_type: '7', id: String(id) } })
@@ -642,9 +654,17 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
         return query
     })
 
-    watch(() => getQuery.value.app_type, (type) => {
+    // Fetch once up-front so the ノミネート chip can show the unread badge from any tab,
+    // then refresh + acknowledge the announcement whenever that tab is opened.
+    let rakuawardFetched = false
+    watch(() => getQuery.value.app_type, async (type) => {
+        if (appName.value !== 'post') return
+        if (!rakuawardFetched || type === '7') {
+            rakuawardFetched = true
+            await fetchRakuawardMvps()
+        }
         if (type === '7') {
-            fetchRakuawardMvps()
+            await markRakuawardResultRead()
         }
     }, { immediate: true })
 
@@ -855,10 +875,14 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
 }
 
 .rakuaward-mvp-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 13px;
     margin: 0 0 8px;
     color: var(--primary-color);
 }
+
 
 
 .rakuaward-mvp-title--provisional {
