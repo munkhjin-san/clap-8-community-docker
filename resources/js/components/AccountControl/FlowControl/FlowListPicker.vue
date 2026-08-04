@@ -64,6 +64,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
+import { searchKey } from '@/utils/searchText'
 
 type Option = { id: number; name: string }
 
@@ -197,11 +198,13 @@ const chips = computed(() => selectedIds.value.map((id) => ({
 })))
 
 const filtered = computed(() => {
-    const q = query.value.trim().toLowerCase()
+    // searchKey, not toLowerCase: project names carry halfwidth katakana by house rule, so a raw
+    // match could not find ﾃﾙｳｪﾙ from what a person types (テルウェル). Folded once here, not per option.
+    const q = searchKey(query.value.trim())
     const taken = new Set(selectedIds.value)
     return props.options
         .filter((o) => !taken.has(o.id))
-        .filter((o) => !q || o.name.toLowerCase().includes(q))
+        .filter((o) => !q || searchKey(o.name).includes(q))
         .slice(0, 50)
 })
 
