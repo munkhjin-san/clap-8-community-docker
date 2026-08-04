@@ -59,17 +59,6 @@
                 <LoaderButton :loading="saving" content="保存" @triggered="save" />
             </div>
 
-            <template v-if="logs.length">
-                <div class="bank-logline"></div>
-                <div class="bank-logs">
-                    <div class="bank-logs-h">操作履歴</div>
-                    <div v-for="l in logs" :key="l.id" class="bank-log">
-                        <span class="bank-log-a">{{ actionLabel(l.action) }}</span>
-                        <span class="bank-log-w">{{ l.actor ?? '—' }}</span>
-                        <span class="bank-log-t">{{ fmt(l.created_at) }}</span>
-                    </div>
-                </div>
-            </template>
         </template>
     </div>
 </template>
@@ -81,6 +70,9 @@
  * 平文の番号をフォームの初期値にしない：保存済みの番号は伏せ字で示し、必要なときだけ「表示」で
  * 取りに行く。こうしておくと、他の項目だけ直したい人が番号を画面に出さずに済み、出したという
  * 事実はサーバ側で必ず記録される。
+ *
+ * 操作履歴はこの画面には出さない（記録は続けている）。表示する必要が出たら
+ * GET /admin/bank-accounts/{user}/logs がそのまま使える。
  */
 import { onMounted, reactive, ref } from 'vue'
 import { useApi } from '@/composables/api'
@@ -108,7 +100,6 @@ const saving = ref(false)
 const revealing = ref(false)
 const revealed = ref<string | null>(null)
 const account = ref<Account | null>(null)
-const logs = ref<{ id: number; action: string; actor?: string | null; created_at?: string }[]>([])
 
 const form = reactive({
     account_holder: '',
@@ -131,15 +122,9 @@ const load = async () => {
         form.account_holder_kana = account.value?.account_holder_kana ?? ''
         form.account_number = ''
         revealed.value = null
-        await loadLogs()
     } finally {
         loading.value = false
     }
-}
-
-const loadLogs = async () => {
-    const data = await api.get(`/admin/bank-accounts/${props.user!.id}/logs`)
-    logs.value = data?.logs ?? []
 }
 
 const reveal = async () => {
@@ -149,7 +134,6 @@ const reveal = async () => {
         const data = await api.post(`/admin/bank-accounts/${props.user!.id}/reveal`, {}, { silent: true })
         if (data) {
             revealed.value = data.account_number ?? null
-            await loadLogs()   // 表示した事実がすぐ履歴に出る
         }
     } finally {
         revealing.value = false
@@ -165,7 +149,6 @@ const save = async () => {
             form.account_number = ''
             revealed.value = null
             emit('saved')
-            await loadLogs()
         }
     } finally {
         saving.value = false
@@ -176,9 +159,6 @@ const remove = async () => {
     const data = await api.del(`/admin/bank-accounts/${props.user!.id}`, null, { ask: 'この口座情報を削除しますか？', toast: '削除しました。' })
     if (data) { emit('saved'); emit('close') }
 }
-
-const actionLabel = (a: string) =>
-    ({ reveal: '表示', create: '登録', update: '変更', delete: '削除' } as Record<string, string>)[a] ?? a
 
 const fmt = (v?: string | null) => {
     if (!v) return ''
@@ -212,11 +192,4 @@ onMounted(load)
 .bank-btn:hover:not(:disabled) { background: var(--bg3); }
 .bank-btn:disabled { cursor: default; opacity: .6; }
 .bank-btn.danger { color: #e2574c; border-color: #e2574c; }
-.bank-logline { margin-top: 18px; border-top: 1px solid var(--calendarBorder); }
-.bank-logs { margin-top: 12px; }
-.bank-logs-h { font-size: 11px; color: var(--sub-color); letter-spacing: .04em; margin-bottom: 6px; }
-.bank-log { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 11px; color: var(--sub-color); }
-.bank-log-a { width: 34px; flex: none; color: var(--font-color); }
-.bank-log-w { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bank-log-t { font-variant-numeric: tabular-nums; }
 </style>
