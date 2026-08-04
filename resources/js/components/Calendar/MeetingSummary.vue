@@ -305,9 +305,65 @@
                                 :key="`${transcript.id}-${cue.start}-${cueIndex}`"
                                 class="meeting-transcript__cue"
                             >
-                                <time>{{ formatCueTime(cue.start) }}</time>
-                                <strong v-if="cue.speaker">{{ cue.speaker }}</strong>
-                                <p>{{ cue.text }}</p>
+                                <div class="meeting-transcript__meta text-[12px]">
+                                    <span class="transcript-speaker" v-if="cue.speaker">
+                                        <span
+                                            class="text-[gray]"
+                                            :class="{ 'transcript-speaker__name--tappable': tapToEditSpeaker }"
+                                            :role="tapToEditSpeaker ? 'button' : undefined"
+                                            :tabindex="tapToEditSpeaker ? 0 : undefined"
+                                            :aria-label="tapToEditSpeaker ? `${cue.speaker} の話者名を変更する` : undefined"
+                                            @click="tapToEditSpeaker && startSpeakerEdit(transcript.id, cueIndex, cue.speaker)"
+                                            @keydown.enter.prevent="tapToEditSpeaker && startSpeakerEdit(transcript.id, cueIndex, cue.speaker)"
+                                        >{{ cue.speaker }}</span>
+                                        <button
+                                            v-if="!tapToEditSpeaker"
+                                            class="transcript-speaker__edit"
+                                            title="話者名を変更する"
+                                            aria-label="話者名を変更する"
+                                            @click="startSpeakerEdit(transcript.id, cueIndex, cue.speaker)"
+                                        >
+                                            <Edit :size="12"/>
+                                        </button>
+                                    </span>
+                                    <time>{{ formatCueTime(cue.start) }}</time>
+                                </div>
+                                <p class="text-[12px]">{{ cue.text }}</p>
+                                <div
+                                    v-if="isEditingSpeaker(transcript.id, cueIndex)"
+                                    class="transcript-speaker-edit"
+                                >
+                                    <input
+                                        v-model="speakerDraft"
+                                        class="transcript-speaker-edit__input"
+                                        type="text"
+                                        maxlength="100"
+                                        autocomplete="off"
+                                        @keydown.enter.prevent="saveSpeaker('cue')"
+                                        @keydown.esc.prevent="cancelSpeakerEdit()"
+                                    >
+                                    <button
+                                        class="transcript-speaker-edit__button"
+                                        :disabled="speakerSaving || !speakerDraft.trim()"
+                                        @click="saveSpeaker('cue')"
+                                    >
+                                        この行のみ
+                                    </button>
+                                    <button
+                                        class="transcript-speaker-edit__button"
+                                        :disabled="speakerSaving || !speakerDraft.trim()"
+                                        @click="saveSpeaker('all')"
+                                    >
+                                        同じ名前すべて
+                                    </button>
+                                    <button
+                                        class="transcript-speaker-edit__cancel"
+                                        :disabled="speakerSaving"
+                                        @click="cancelSpeakerEdit()"
+                                    >
+                                        キャンセル
+                                    </button>
+                                </div>
                             </div>
                             <p v-if="transcript.cues.length === 0" class="meeting-record-empty">
                                 表示できる文字起こしデータがありません。
@@ -329,9 +385,10 @@
 <script setup lang="ts">
 import Modal from '../Global/Modal.vue';
 import LoaderButton from '../Global/LoaderButton.vue';
-import { defineComponent, h, onMounted, onUnmounted, ref, useTemplateRef, type PropType } from 'vue';
+import { defineComponent, h, nextTick, onMounted, onUnmounted, ref, useTemplateRef, type PropType } from 'vue';
 import { DateTime } from 'luxon';
 import Back from '../Icons/Back.vue';
+import Edit from '../Icons/Edit.vue';
 import ItemMenu from '../Global/ItemMenu.vue';
 import RichEditor from '../Global/RichEditor.vue';
 import CommandButton from '../Global/CommandButton.vue';
@@ -605,6 +662,56 @@ const toggleTranscript = (id: number) => {
         ? expandedTranscripts.value.filter(transcriptId => transcriptId !== id)
         : [...expandedTranscripts.value, id]
 }
+/* 話者名の手直し。VTT は書き換えず、サーバー側に上書き分だけ持たせる */
+/* ホバーできない端末（スマホ・タブレット）では鉛筆を出さず、名前のタップで編集に入る。
+   画面幅ではなくポインタの種類で判定するので、CSS 側のメディアクエリとズレない。 */
+const tapToEditSpeaker = window.matchMedia('(hover: none)').matches
+const speakerEditing = ref<{ transcriptId: number; cueIndex: number } | null>(null)
+const speakerDraft = ref('')
+const speakerSaving = ref(false)
+
+const isEditingSpeaker = (transcriptId: number, cueIndex: number) =>
+    speakerEditing.value?.transcriptId === transcriptId && speakerEditing.value?.cueIndex === cueIndex
+
+const startSpeakerEdit = async (transcriptId: number, cueIndex: number, current: string | null) => {
+    speakerEditing.value = { transcriptId, cueIndex }
+    speakerDraft.value = current ?? ''
+    await nextTick()
+    // 同時に開くのは1つだけなので、その入力欄にフォーカスする
+    document.querySelector<HTMLInputElement>('.transcript-speaker-edit__input')?.focus()
+}
+
+const cancelSpeakerEdit = () => {
+    speakerEditing.value = null
+    speakerDraft.value = ''
+}
+
+const saveSpeaker = async (scope: 'cue' | 'all') => {
+    if (!speakerEditing.value || speakerSaving.value) return
+
+    const name = speakerDraft.value.trim()
+    if (!name) return
+
+    const { transcriptId, cueIndex } = speakerEditing.value
+    speakerSaving.value = true
+
+    try {
+        const data = await api.post('/update_transcript_speaker', {
+            transcript_id: transcriptId,
+            cue_index: cueIndex,
+            name,
+            scope,
+        })
+
+        if (data?.cues) {
+            const target = transcriptsData.value.find(transcript => transcript.id === transcriptId)
+            if (target) target.cues = data.cues
+            cancelSpeakerEdit()
+        }
+    } finally {
+        speakerSaving.value = false
+    }
+}
 const prepareTranscriptText = (transcript: TranscriptData) => {
     return transcript.cues.map(cue => {
         const speaker = cue.speaker ? `${cue.speaker}: ` : ''
@@ -772,6 +879,7 @@ const formatCueTime = (value: string) => {
     display: flex;
     margin-bottom: 14px;
     border-bottom: 1px solid var(--normalBorder);
+
 }
 
 .meeting-record-tab {
@@ -788,6 +896,9 @@ const formatCueTime = (value: string) => {
     font-size: 14px;
     opacity: 0.55;
     transition: opacity 0.15s, border-color 0.15s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .meeting-record-tab.active {
@@ -1104,16 +1215,116 @@ const formatCueTime = (value: string) => {
 
 .meeting-transcript__cue {
     display: grid;
-    grid-template-columns: 54px minmax(90px, 150px) minmax(0, 1fr);
+    /* 時刻と話者は左に縦積み。1行=1キューのままなので時系列は崩れない */
+    grid-template-columns: 96px minmax(0, 1fr);
     gap: 12px;
-    padding: 7px 0;
+    padding: 5px 0;
     line-height: 1.55;
+}
+
+.meeting-transcript__meta {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.transcript-speaker {
+    display: inline-flex;
+    min-width: 0;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+/* 鉛筆はホバー（とキーボードフォーカス）でだけ出す */
+.transcript-speaker__edit {
+    flex: none;
+    display: inline-flex;
+    padding: 2px 0 0;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.meeting-transcript__cue:hover .transcript-speaker__edit,
+.transcript-speaker__edit:focus-visible {
+    opacity: 1;
+}
+
+/* タップで編集に入る端末では、指で押せる高さを確保する（鉛筆は出さない） */
+.transcript-speaker__name--tappable {
+    padding: 2px 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.06);
+}
+
+/* 96px の列だと入力欄が入らないので、編集中は行いっぱいに広げる */
+.transcript-speaker-edit {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.transcript-speaker-edit__input {
+    flex: 0 1 170px;
+    min-width: 0;
+    height: 26px;
+    padding: 0 8px;
+    color: var(--primary-color);
+    font-size: 12px;
+    background: var(--background-color);
+    border: 1px solid var(--formBorder);
+}
+
+.transcript-speaker-edit__input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+.transcript-speaker-edit__button,
+.transcript-speaker-edit__cancel {
+    flex: none;
+    height: 26px;
+    padding: 0 10px;
+    font-size: 12px;
+    background: transparent;
+    border: 1px solid var(--formBorder);
+    cursor: pointer;
+}
+
+.transcript-speaker-edit__button {
+    color: var(--primary-color);
+}
+
+.transcript-speaker-edit__cancel {
+    color: var(--third-color);
+}
+
+.transcript-speaker-edit__button:hover:not(:disabled),
+.transcript-speaker-edit__cancel:hover:not(:disabled) {
+    border-color: var(--primary-color);
+}
+
+.transcript-speaker-edit__button:disabled,
+.transcript-speaker-edit__cancel:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .meeting-transcript__cue time {
     color: gray;
     font-size: 12px;
     font-variant-numeric: tabular-nums;
+}
+
+.meeting-transcript__cue strong {
+    /* 長い名前は省略せず折り返す */
+    overflow-wrap: anywhere;
 }
 
 .meeting-transcript__cue p {
@@ -1155,12 +1366,8 @@ const formatCueTime = (value: string) => {
     }
 
     .meeting-transcript__cue {
-        grid-template-columns: 48px minmax(0, 1fr);
-        gap: 6px 10px;
-    }
-
-    .meeting-transcript__cue p {
-        grid-column: 2;
+        grid-template-columns: 84px minmax(0, 1fr);
+        gap: 10px;
     }
 }
 </style>

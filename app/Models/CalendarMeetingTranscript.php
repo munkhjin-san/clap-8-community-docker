@@ -24,7 +24,38 @@ class CalendarMeetingTranscript extends Model
         'meeting_start_time' => 'datetime',
         'downloaded_at' => 'datetime',
         'download_attempts' => 'integer',
+        'speaker_overrides' => 'array',
     ];
+
+    /**
+     * 保存した手直しを VTT 由来の cue に当てる。
+     * その行だけの指定を、同名まとめての指定より優先する。
+     *
+     * @param  array<int, array{start: string, end: string, speaker: ?string, text: string}>  $cues
+     * @return array<int, array{start: string, end: string, speaker: ?string, text: string}>
+     */
+    public function applySpeakerOverrides(array $cues): array
+    {
+        $overrides = $this->speaker_overrides ?? [];
+        $byName = $overrides['all'] ?? [];
+        $byCue = $overrides['cues'] ?? [];
+
+        if ($byName === [] && $byCue === []) {
+            return $cues;
+        }
+
+        foreach ($cues as $index => $cue) {
+            $original = $cue['speaker'];
+
+            if (array_key_exists((string) $index, $byCue)) {
+                $cues[$index]['speaker'] = $byCue[(string) $index];
+            } elseif ($original !== null && array_key_exists($original, $byName)) {
+                $cues[$index]['speaker'] = $byName[$original];
+            }
+        }
+
+        return $cues;
+    }
 
     public function calendarRecord(): BelongsTo
     {

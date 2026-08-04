@@ -133,6 +133,18 @@ class CalendarController extends Controller
         //     throw ValidationException::withMessages(['message' => 'Zoom予約に失敗しました。']);
         // }
     }
+    /**
+     * ゲストがホストを待たずに入室できる設定。待機室はUIから外したので常にこれを使う。
+     * jbh_time は 0 = 開始時刻前でもいつでも入室可（Zoom APIは 0 / 5 / 10 のみ）。
+     */
+    private function zoom_open_join_settings(): array
+    {
+        return [
+            'waiting_room' => false,
+            'join_before_host' => true,
+            'jbh_time' => 0,
+        ];
+    }
     private function update_zoom_meeting($params){
         $account = $this->zoom_account($params['zoom_id']); 
         $meetings_url = 'https://api.zoom.us/v2/meetings' . '/' . $params['meetingId'];
@@ -141,14 +153,8 @@ class CalendarController extends Controller
             'auto_start_meeting_summary' => $params['auto_start_meeting_summary'],
             'auto_start_ai_companion_questions' => false
         );
-        if($params['waiting_room']){
-            $settings['waiting_room'] = true;
-            $settings['join_before_host'] = false;
-        }else{
-            $settings['waiting_room'] = false;
-            $settings['join_before_host'] = true;
-            $settings['jbh_time'] = 0;
-        }
+        // 待機室は常に無効。ホスト不在でもゲストがいつでも入室できるようにする
+        $settings = array_merge($settings, $this->zoom_open_join_settings());
         $data_to_zoom_api = array(
             'meetingId' => $params['meetingId'],
             'duration' => $params['duration'],
@@ -182,14 +188,8 @@ class CalendarController extends Controller
             'use_pmi' => false,
             'auto_start_meeting_summary' => $params['auto_start_meeting_summary'],
         );
-        if($params['waiting_room']){
-            $settings['waiting_room'] = true;
-            $settings['join_before_host'] = false;
-        }else{
-            $settings['waiting_room'] = false;
-            $settings['join_before_host'] = true;
-            $settings['jbh_time'] = 10;
-        }
+        // 待機室は常に無効。ホスト不在でもゲストがいつでも入室できるようにする
+        $settings = array_merge($settings, $this->zoom_open_join_settings());
         $data_to_zoom_api = array(
             'topic' => $params['title'],
             'type' => $params['type'],
@@ -709,7 +709,6 @@ class CalendarController extends Controller
                     "duration" => $record_duration_minute,
                     "title" => $request['title'],
                     "start_time" => $formattedDate,
-                    "waiting_room" => $request['zoom_waiting_room'],
                     "auto_start_meeting_summary" => $request['zoom_ai_companion'],
                     "zoom_id" => $request['facility']['zoom_value'],
                     "type" => $request['repetition_type'] == 0 ? 2 : 3            
@@ -769,7 +768,7 @@ class CalendarController extends Controller
             "created_at" => $has_prev_date ? $has_prev_date['created_at'] : now(),
             "created_user" => $has_prev_date ? $has_prev_date['created_user'] : $active_user->id,
             "descendant_of" => $has_prev_date ? $has_prev_date['id'] : null,
-            "zoom_waiting_room" => $request['zoom_waiting_room'],
+            "zoom_waiting_room" => false,
             "zoom_ai_companion" => $request['zoom_ai_companion'],
             "real_created_at" => now()
         ]);
@@ -1282,7 +1281,6 @@ class CalendarController extends Controller
                     "start_time" => $formattedDate,    
                     "zoom_id" => $record->zoom_value,
                     "title" => $record['title'],
-                    "waiting_room" => $record['zoom_waiting_room'],      
                     "auto_start_meeting_summary" => $request['zoom_ai_companion'],
                     
                 ];
@@ -1480,7 +1478,7 @@ class CalendarController extends Controller
                     'meeting_uuid' => $transcript->meeting_uuid,
                     'meeting_start_time' => $transcript->meeting_start_time?->toISOString(),
                     'downloaded_at' => $transcript->downloaded_at?->toISOString(),
-                    'cues' => $this->zoomVttParser->parse($content),
+                    'cues' => $transcript->applySpeakerOverrides($this->zoomVttParser->parse($content)),
                     'ai_summary' => $this->serializeTranscriptAiSummary($transcript->aiSummary),
                 ];
             })
@@ -1492,6 +1490,106 @@ class CalendarController extends Controller
         ]);
     }
 
+    /**
+     * 文字起こしの話者名を手直しする。
+     * scope=cue  … その行だけ
+     * scope=all  … この文字起こし内で元が同じ名前の行すべて
+     * VTT 本体は書き換えず、上書き分だけを保存する。
+     */
+    public function update_transcript_speaker(Request $request)
+    {
+        $validated = $request->validate([
+            'transcript_id' => ['required', 'integer'],
+            'cue_index' => ['required', 'integer', 'min:0'],
+            'name' => ['required', 'string', 'max:100'],
+            'scope' => ['required', 'in:cue,all'],
+        ]);
+
+        $transcript = CalendarMeetingTranscript::query()
+            ->with('calendarRecord')
+            ->findOrFail($validated['transcript_id']);
+        $record = $transcript->calendarRecord;
+
+        if (! $record) {
+            throw ValidationException::withMessages([
+                'message' => 'この文字起こしに対応するスケジュールがありません。',
+            ]);
+        }
+
+        $this->authorizeMeetingRecordView($record);
+
+        if (
+            $transcript->status !== CalendarMeetingTranscript::STATUS_DOWNLOADED
+            || ! $transcript->storage_path
+            || ! Storage::disk('local')->exists($transcript->storage_path)
+        ) {
+            throw ValidationException::withMessages([
+                'message' => '編集できる文字起こしファイルがありません。',
+            ]);
+        }
+
+        $name = trim($validated['name']);
+
+        if ($name === '') {
+            throw ValidationException::withMessages(['message' => '話者名を入力してください。']);
+        }
+
+        // 上書きは「VTTの元の名前」を基準に持つので、毎回パースし直して元の名前を引く
+        $cues = $this->zoomVttParser->parse(Storage::disk('local')->get($transcript->storage_path));
+        $cueIndex = $validated['cue_index'];
+
+        if (! array_key_exists($cueIndex, $cues)) {
+            throw ValidationException::withMessages(['message' => '対象の発言が見つかりません。']);
+        }
+
+        $originalName = $cues[$cueIndex]['speaker'];
+        $overrides = $transcript->speaker_overrides ?? [];
+        $byName = $overrides['all'] ?? [];
+        $byCue = $overrides['cues'] ?? [];
+
+        if ($validated['scope'] === 'all') {
+            if ($originalName === null) {
+                throw ValidationException::withMessages([
+                    'message' => '話者名のない発言はまとめて変更できません。',
+                ]);
+            }
+
+            // 元の名前に戻すだけなら上書きを消す
+            if ($name === $originalName) {
+                unset($byName[$originalName]);
+            } else {
+                $byName[$originalName] = $name;
+            }
+
+            // まとめて変更したのに一部だけ残ると分かりづらいので、
+            // 同じ元名を持つ行の個別指定は外す
+            foreach ($cues as $index => $cue) {
+                if ($cue['speaker'] === $originalName) {
+                    unset($byCue[(string) $index]);
+                }
+            }
+        } else {
+            $inheritedName = ($originalName !== null && array_key_exists($originalName, $byName))
+                ? $byName[$originalName]
+                : $originalName;
+
+            // まとめ指定と同じ結果になるなら個別指定は持たない
+            if ($name === $inheritedName) {
+                unset($byCue[(string) $cueIndex]);
+            } else {
+                $byCue[(string) $cueIndex] = $name;
+            }
+        }
+
+        $transcript->speaker_overrides = ($byName === [] && $byCue === [])
+            ? null
+            : ['all' => $byName, 'cues' => $byCue];
+        $transcript->save();
+
+        return response()->json([
+            'cues' => $transcript->applySpeakerOverrides($cues),
+        ]);
+    }
     public function generate_transcript_ai_summary(Request $request)
     {
         $validated = $request->validate([
