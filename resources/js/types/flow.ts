@@ -554,6 +554,8 @@ export interface FlowAuditLogEntry {
 export interface FlowOptionProject {
     id: number
     name: string
+    /** 1 when the current user is on this project. The server already sorts these first. */
+    is_mine?: number
 }
 
 export interface FlowDefinitionListItem {

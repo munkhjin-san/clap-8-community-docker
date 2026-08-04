@@ -900,7 +900,7 @@ class FlowController extends Controller
 
     public function getFlowOptions()
     {
-        $this->active_user();
+        $user = $this->active_user();
 
         return response()->json([
             'users' => User::query()
@@ -913,9 +913,27 @@ class FlowController extends Controller
                 ->select('id', 'name')
                 ->orderBy('sort_flag')
                 ->get(),
+            /*
+             * The projects this person is on come first — with 122 of them, scrolling past everyone
+             * else's to reach your own three is the common case.
+             *
+             * Participation is any project_members row, either authority. The app's own "participated"
+             * queries use the members() relation, which is wherePivot('authority', 0) and so leaves out
+             * the projects you manage — for an account that only ever manages, that returns nothing and
+             * the ordering looks broken. Managing a project is participating in it.
+             *
+             * EXISTS rather than a join: a join over the pivot multiplies rows per membership and would
+             * need a distinct.
+             */
             'projects' => ProjectRecord::query()
-                ->select('id', 'name')
-                ->orderByDesc('id')
+                ->select('project_records.id', 'project_records.name')
+                ->selectRaw(
+                    'EXISTS (SELECT 1 FROM project_members pm'
+                    .' WHERE pm.project_id = project_records.id AND pm.user_id = ? AND pm.deleted_at IS NULL) AS is_mine',
+                    [$user->id]
+                )
+                ->orderByDesc('is_mine')
+                ->orderByDesc('project_records.id')
                 ->get(),
         ]);
     }
