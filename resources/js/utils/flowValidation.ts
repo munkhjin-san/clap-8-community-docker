@@ -79,6 +79,16 @@ function formatLabel(format: string): string {
 export const lockedByServer = (f: FlowField, ids: number[] | null | undefined, isNew?: boolean): boolean =>
     !isNew && Array.isArray(ids) && !ids.includes(Number(f.id))
 
+/**
+ * Value withheld by the server for lack of 閲覧 (FlowRecordDto.unviewable_field_ids).
+ *
+ * Such a field must be skipped by BOTH validation and submission, or hiding a value breaks the record:
+ * a 必須 field whose value the user cannot see would fail validation and block a save they have no way
+ * to fix, and submitting the absent value would write a blank over what is stored.
+ */
+export const isWithheld = (f: FlowField, unviewable: number[] | null | undefined): boolean =>
+    f.id != null && Array.isArray(unviewable) && unviewable.includes(Number(f.id))
+
 /** A field the user could never have typed into, so a save must neither validate nor submit it. */
 export const isUnsubmittable = (f: FlowField, ids: number[] | null | undefined, isNew?: boolean): boolean =>
     f.input_type === 'formula' || isLayoutType(f.input_type) || !!f.validation?.disabled
@@ -95,11 +105,13 @@ export const isUnsubmittable = (f: FlowField, ids: number[] | null | undefined, 
 export function validateRecordValues(
     fields: FlowField[],
     values: Record<string, any>,
-    opts: { editableFieldIds?: number[] | null; isNew?: boolean; stored?: Record<string, any> | null } = {},
+    opts: { editableFieldIds?: number[] | null; isNew?: boolean; stored?: Record<string, any> | null; unviewableFieldIds?: number[] | null } = {},
 ): Record<string, string | null> {
     const errors: Record<string, string | null> = {}
     for (const f of fields) {
         if (f.hidden || isUnsubmittable(f, opts.editableFieldIds, opts.isNew)) continue
+        // no 閲覧 → no value was sent, so there is nothing to judge and 必須 must not fire
+        if (isWithheld(f, opts.unviewableFieldIds)) continue
         if (isSecretType(f.input_type)) {
             const v = values[f.id!]
             const clearing = !!(v && typeof v === 'object' && (v as any).clear)
@@ -162,12 +174,14 @@ export function validationSummary(fields: FlowField[], errors: Record<string, st
 export function submittableValues(
     fields: FlowField[],
     values: Record<string, any>,
-    opts: { editableFieldIds?: number[] | null; isNew?: boolean } = {},
+    opts: { editableFieldIds?: number[] | null; isNew?: boolean; unviewableFieldIds?: number[] | null } = {},
 ): Record<string, any> {
     const payload: Record<string, any> = {}
     for (const f of fields) {
         if (f.hidden || f.input_type === 'formula' || isLayoutType(f.input_type)) continue
         if (lockedByServer(f, opts.editableFieldIds, opts.isNew)) continue
+        // never round-trip a value the server withheld: that would blank the stored one
+        if (isWithheld(f, opts.unviewableFieldIds)) continue
         payload[f.id!] = values[f.id!]
     }
     return payload

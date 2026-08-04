@@ -16,7 +16,13 @@
                         {{ field.label }}
                         <span v-if="field.is_required" class="rf-req">*</span>
                     </label>
-                    <div :class="{ 'rf-disabled': !readonly && uneditable(field) }" :title="readonly ? undefined : lockHint(field)">
+                    <!-- The server withholds the value of a field this user has no 閲覧 on. Say so
+                         explicitly: an empty input would read as "nobody filled this in", which is a
+                         different and misleading statement. While creating, an auto-fill destination
+                         says what WILL happen instead — otherwise the creator cannot tell the field is
+                         filled for them and reasonably assumes it is broken. -->
+                    <div v-if="hidden(field)" class="rf-hidden" :title="hiddenHint(field)">{{ hiddenText(field) }}</div>
+                    <div v-else :class="{ 'rf-disabled': !readonly && uneditable(field) }" :title="readonly ? undefined : lockHint(field)">
                         <FlowFieldInput
                             :field="field"
                             :users="users"
@@ -59,6 +65,8 @@ const props = defineProps<{
     readonly?: boolean
     /** server's answer for this record (see FlowRecordDto.editable_field_ids); null = not resolved */
     editableFieldIds?: number[] | null
+    /** fields whose value the server withheld for lack of 閲覧 (FlowRecordDto.unviewable_field_ids) */
+    unviewableFieldIds?: number[] | null
     /** a record being created has no per-record locks to honour yet */
     isNew?: boolean
     users?: FlowOptionUser[]
@@ -84,6 +92,45 @@ const fieldRows = computed<FlowField[][]>(() => {
 
 const uneditable = (f: FlowField) =>
     !!f.validation?.disabled || lockedByServer(f, props.editableFieldIds, props.isNew)
+
+/**
+ * No 閲覧 on this field, so the server sent no value for it.
+ *
+ * Driven by the server's list rather than re-deriving the permission here: the client has no business
+ * deciding this, and a record being created has nothing withheld yet.
+ */
+const hidden = (f: FlowField) =>
+    f.id != null && (props.unviewableFieldIds ?? []).includes(f.id)
+
+/**
+ * Destination field ids of every ユーザー/プロジェクト auto-fill mapping in this app.
+ *
+ * Read off the definition rather than passed in: the mappings are already here, and the form is the
+ * only place that needs to phrase a withheld field differently depending on whether something is
+ * going to fill it.
+ */
+const autoFilledIds = computed<number[]>(() => {
+    const byKey = new Map(props.fields.filter((f) => f.id != null).map((f) => [f.key, f.id as number]))
+    const out = new Set<number>()
+    for (const f of props.fields) {
+        if (!['user', 'member', 'project'].includes(f.input_type)) continue
+        for (const m of f.validation?.field_mappings ?? []) {
+            const id = byKey.get(m.to)
+            if (id != null) out.add(id)
+        }
+    }
+    return [...out]
+})
+
+const hiddenText = (f: FlowField) =>
+    props.isNew && f.id != null && autoFilledIds.value.includes(f.id)
+        ? '選択したユーザーから自動入力されます'
+        : '閲覧権限がありません'
+
+const hiddenHint = (f: FlowField) =>
+    props.isNew && f.id != null && autoFilledIds.value.includes(f.id)
+        ? '保存時に自動入力されます。このフィールドの閲覧権限がないため値は表示されません。'
+        : 'このフィールドの閲覧権限がありません'
 
 const isReadonly = (f: FlowField) => !!props.readonly || f.input_type === 'formula' || uneditable(f)
 
@@ -111,6 +158,8 @@ const onLookup = (payload: { mappings: { from: string; to: string }[]; source: R
 .rf-label { display: block; font-size: 13px; color: var(--sub-color); margin-bottom: 15px; }
 .rf-req { color: #e2574c; }
 .rf-err { font-size: 11px; color: #e2574c; margin-top: 3px; }
+/* reads as an absent value, not as a field you could fill: no input chrome, muted, italic */
+.rf-hidden { font-size: 12px; color: var(--sub-color); font-style: italic; padding: 6px 0; cursor: default; }
 .rf-disabled { cursor: not-allowed; opacity: 0.6; }
 .rf-disabled > * { pointer-events: none; }
 

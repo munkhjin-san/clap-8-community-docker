@@ -1017,6 +1017,11 @@ class FlowController extends Controller
             'definition' => $definition->makeHidden('appPermissions'),
             'permissions' => $app,
             'views' => $views,
+            // The 新規作成 form loads from this endpoint and has no record to carry per-field answers,
+            // so it would otherwise know nothing about field permissions. It needs these to tell an
+            // auto-fill destination it may not read ("自動入力されます") apart from an ordinary empty
+            // field. Resolved with $record = null: the same basis storeAppRecord() writes on.
+            'new_record_unviewable_field_ids' => $this->flowService->unviewableFieldIds($user, $definition, null),
         ];
 
         // 集計スロット configs live on the app (tool_type=slot), so every view shows them
@@ -1340,8 +1345,17 @@ class FlowController extends Controller
         return response()->json([
             'id' => $source,
             'name' => $s['label'],
+            // Columns are text pseudo-fields unless one declares otherwise. A column CAN declare
+            // 'password': the inspector's copy rule is strict same-type for non-scalars, so such a
+            // column will only offer encrypted destinations — that is how 口座番号 is prevented from
+            // being mapped into an ordinary text field and landing in flow_record_values in clear.
             'fields' => collect($s['columns'])
-                ->map(fn ($c) => ['key' => $c['key'], 'label' => $c['label'], 'input_type' => 'short', 'result_type' => null])
+                ->map(fn ($c) => [
+                    'key' => $c['key'],
+                    'label' => $c['label'],
+                    'input_type' => $c['input_type'] ?? 'short',
+                    'result_type' => null,
+                ])
                 ->values(),
         ]);
     }
@@ -1401,7 +1415,22 @@ class FlowController extends Controller
             return response()->json(['values' => (object) []]);
         }
 
-        $allowed = collect($s['columns'])->pluck('key')->flip();
+        /*
+         * Secret-typed columns are NEVER served here.
+         *
+         * This endpoint is generic and deliberately cheap: it takes a source key and a row id and has
+         * no app/record/field permission context at all. That is fine for 営業所名 or 役職, and became a
+         * hole the moment a column resolved to a decrypted 口座番号 — any authenticated client could
+         * have read anyone's account number with one GET.
+         *
+         * The client never needs it: for a destination the user may write, the value must be visible to
+         * them anyway (so it is not a secret), and for one they may not, applyMasterAutoFill resolves it
+         * server-side during the save. Same rule readFieldValue already enforces for stored secrets.
+         */
+        $allowed = collect($s['columns'])
+            ->reject(fn ($c) => FlowService::isSecret($c['input_type'] ?? 'short'))
+            ->pluck('key')
+            ->flip();
         $resolve = $s['value'] ?? fn ($m, $k) => $m->{$k} ?? null;
 
         $out = [];
@@ -1589,10 +1618,26 @@ class FlowController extends Controller
      */
     private function serializeRecord(FlowRecord $record, $fields, ?array $can = null, ?User $forUser = null, ?FlowDefinition $def = null): array
     {
+        $values = $this->flowService->recordValues($record, $fields);
+
+        // Field-level 閲覧 is applied HERE, after the formulas have been computed from the full set —
+        // stripping first would change what a formula says instead of who may read it. Until this
+        // existed the payload carried every value regardless of the field's 閲覧 rows, so a field
+        // restricted to one person was delivered to (and displayed for) every record viewer.
+        $unviewable = $def !== null && $forUser !== null
+            ? $this->flowService->unviewableFieldIds($forUser, $def, $record)
+            : [];
+        foreach ($unviewable as $fid) {
+            unset($values[(string) $fid]);
+        }
+
         return [
             'id' => $record->id,
             'record_number' => $record->record_number,
-            'values' => $this->flowService->recordValues($record, $fields),
+            'values' => $values,
+            // the front-end renders 閲覧権限がありません for these rather than an empty field, so "hidden"
+            // never reads as "nobody filled it in"
+            'unviewable_field_ids' => $def !== null && $forUser !== null ? $unviewable : null,
             'created_by' => $record->created_by,
             'creator' => $record->createdByUser,
             'current_status_id' => $record->current_status_id,
@@ -1740,6 +1785,11 @@ class FlowController extends Controller
             }
         }
 
+        // same server-side auto-fill as the update path, so a creator without 編集 on the destination
+        // still gets it populated (and cannot dictate what lands there)
+        [$data['values'], $autoFilled] = $this->flowService->applyMasterAutoFill($definition, $data['values'] ?? [], $allowed);
+        $allowed = array_values(array_unique(array_merge($allowed, $autoFilled)));
+
         $checkFields = $definition->fields->filter(fn ($f) => in_array((int) $f->id, $allowed, true));
         $errors = $this->flowService->validateValues($checkFields, $data['values'] ?? []);
         if (! empty($errors)) {
@@ -1790,6 +1840,12 @@ class FlowController extends Controller
         abort_unless($recordPerms['edit'], 403);
 
         $allowed = $this->flowService->editableFieldIdsForRecord($user, $record, $def, $recordPerms);
+
+        // ユーザー/プロジェクト auto-fill for destinations this user may NOT write: resolved server-side
+        // from the master, and the client's value for them discarded. Without this the value showed in
+        // the form and was dropped here, because the writer has no 編集 on the destination.
+        [$data['values'], $autoFilled] = $this->flowService->applyMasterAutoFill($def, $data['values'], $allowed);
+        $allowed = array_values(array_unique(array_merge($allowed, $autoFilled)));
 
         $old = $this->flowService->recordValues($record, $def->fields);
         $merged = $old;

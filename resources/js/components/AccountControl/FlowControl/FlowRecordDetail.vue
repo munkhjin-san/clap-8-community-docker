@@ -89,6 +89,7 @@
                 :errors="errors"
                 :readonly="mode === 'view'"
                 :editable-field-ids="record?.editable_field_ids ?? null"
+                :unviewable-field-ids="isNew ? newUnviewable : (record?.unviewable_field_ids ?? null)"
                 :is-new="isNew"
                 :users="users"
                 :projects="projects"
@@ -296,6 +297,8 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onEditHotkey))
 
 const values = reactive<Record<string, any>>({})
 const errors = reactive<Record<string, string | null>>({})
+/** server's per-field 閲覧 answer for a record that does not exist yet (新規作成) */
+const newUnviewable = ref<number[] | null>(null)
 
 interface StatusActionDto { id: number; label: string; color?: string | null; to_status_id: number | null; to_status?: string | null; can: boolean }
 const statusActions = ref<StatusActionDto[]>([])
@@ -513,6 +516,8 @@ const load = async () => {
             if (data) {
                 definition.value = data.definition
                 permissions.value = data.permissions
+                // no record yet, so the per-field answer comes from the app payload
+                newUnviewable.value = data.new_record_unviewable_field_ids ?? null
                 // duplicate: pull the source record's values to pre-fill the form (view perm enforced server-side)
                 dupValues.value = null
                 if (dupFrom.value) {
@@ -541,7 +546,13 @@ const cancelEdit = () => {
 }
 
 const save = async () => {
-    const opts = { editableFieldIds: record.value?.editable_field_ids ?? null, isNew: isNew.value }
+    const opts = {
+        editableFieldIds: record.value?.editable_field_ids ?? null,
+        isNew: isNew.value,
+        // a field this user has no 閲覧 on arrived without a value: it must not be validated (必須 would
+        // block a save they cannot fix) nor submitted (that would blank what is stored)
+        unviewableFieldIds: record.value?.unviewable_field_ids ?? null,
+    }
     const found = validateRecordValues(definition.value?.fields ?? [], values, { ...opts, stored: record.value?.values ?? null })
     Object.keys(errors).forEach((k) => (errors[k] = null))
     Object.assign(errors, found)

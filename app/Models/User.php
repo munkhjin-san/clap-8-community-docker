@@ -145,6 +145,13 @@ class User extends Authenticatable
     public function offices(){
         return $this->hasOne(officeRecord::class, 'id', 'office_id');
     }
+    /**
+     * 振込口座（1人1件）。管理者のみが扱う機微情報なので、既定でどこからも eager load しないこと
+     * — 必要な経路が明示的に読む。番号はモデル側で復号される。
+     */
+    public function bankAccount(){
+        return $this->hasOne(EmployeeBankAccount::class, 'user_id', 'id');
+    }
     public function work_group_user(){
         return $this->hasMany(workGroupUser::class, 'user_id', 'id')->with('work_group');
     }

@@ -127,6 +127,15 @@ return [
             'path' => storage_path('logs/zoomEvent.log'),
             'level' => 'debug',
         ],
+
+        // 振込口座CSVの取込結果。取り込めなかった行を後から追える形で残す。
+        // 口座番号は書き込まない（ログは平文の出口にしない）。
+        'bank_import' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/bank-import.log'),
+            'level' => 'debug',
+            'days' => 90,
+        ],
     ],
 
 ];

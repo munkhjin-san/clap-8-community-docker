@@ -72,7 +72,8 @@
                         </div>
                     </div>
                     <div class="button-wrapper">
-                        <CommandButton :buttons="[{title: '編集', action:() => openModal(item)}]"/>
+                        <!-- 行アクションは⋮に集約。個別ボタンを並べるとカードの角で場所を取り合うため -->
+                        <ItemMenu :items="rowMenu(item)" />
                         <!-- <button type="submit" @click="openModal(item)" class="account-btn cursor-pointer">
                             編集
                         </button> -->
@@ -95,18 +96,32 @@
                 />
             </div>   
         </Transition>
+        <!-- 振込口座（管理者のみ）。平文の番号は「表示」を押したときだけ取得され、記録される -->
+        <Transition name="modalFade">
+            <div class="overlay" v-if="bankUser">
+                <AdminBankAccount :user="bankUser" @close="bankUser = null" />
+            </div>
+        </Transition>
     </div>
    
 </template>
 <script setup>
-import CommandButton from '../Global/CommandButton.vue';
+import ItemMenu from '../Global/ItemMenu.vue';
 import UserCreate from './UserCreate.vue'
+import AdminBankAccount from './AdminBankAccount.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import { computed, onMounted, ref } from 'vue';
 import PostSearchBar from '../Post/PostSearchBar.vue';
 import { useApi } from '@/composables/api';
     const showModalContent = ref(false)
     const editUserData = ref(null)
+    /** 口座モーダルの対象ユーザー。null で閉じている */
+    const bankUser = ref(null)
+    const openBank = (item) => { bankUser.value = item }
+    const rowMenu = (item) => ([
+        { title: '編集', action: () => openModal(item) },
+        { title: '口座', action: () => openBank(item) },
+    ])
     const passwordFlag = ref(false)
     const scrollContainer = ref(null)
     const retire = ref(0)

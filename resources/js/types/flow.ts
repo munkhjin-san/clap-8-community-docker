@@ -614,6 +614,8 @@ export interface FlowRecordDto {
      * which case fall back to the field definition alone; [] genuinely means "nothing is editable".
      */
     editable_field_ids?: number[] | null
+    /** fields whose value the server withheld for lack of 閲覧; the form shows 閲覧権限がありません */
+    unviewable_field_ids?: number[] | null
 }
 
 export interface FlowRecordsResponse {

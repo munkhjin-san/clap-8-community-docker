@@ -199,6 +199,38 @@
             <p class="def-hint">列名や表の列をクリックすると、その列の設定を編集できます。</p>
         </template>
 
+        <!-- ユーザー/プロジェクト auto-fill. Same editor as the 参照 field's field copy: the source options
+             are this master's allowlisted columns, the destinations and type rules are shared. -->
+        <template v-if="autoFillSource && refTargetFields.length">
+            <div class="divider"></div>
+            <div class="sec">フィールドのコピー（自動入力）</div>
+            <div v-for="(m, mi) in (v.field_mappings || [])" :key="mi" class="map-row">
+                <FlowSearchSelect
+                    class="map-sel"
+                    :model-value="m.from || null"
+                    :options="refFieldOptions"
+                    :clearable="false"
+                    :placeholder="autoFillSource === 'user' ? 'ユーザーの項目' : 'プロジェクトの項目'"
+                    @update:model-value="(val) => { m.from = String(val ?? ''); onMappingFromChange(m) }"
+                />
+                <span class="map-arrow">→</span>
+                <FlowSearchSelect
+                    class="map-sel"
+                    :model-value="m.to || null"
+                    :options="destOptionsFor(m.from)"
+                    :clearable="false"
+                    placeholder="このアプリの項目"
+                    @update:model-value="(val) => m.to = String(val ?? '')"
+                />
+                <button class="map-del" @click="removeMapping(mi)" title="削除"><CloseIcon size="9" /></button>
+            </div>
+            <button class="flow-ghost-btn mt-[20px]" :disabled="!mappingDestFields.length" @click="addMapping">＋ コピーを追加</button>
+            <p class="def-hint">
+                選んだときの値がコピーされます。あとでマスタ側が変わっても、保存済みのレコードはそのままです。コピーされた項目は手で修正できます。
+            </p>
+            <p v-if="autoFillMultiHint" class="def-hint">複数選択のため、1人だけ選ばれているときに自動入力されます。</p>
+        </template>
+
         <template v-if="field.input_type === 'reference'">
             <div class="divider"></div>
             <div class="sec">参照先</div>
@@ -324,6 +356,27 @@ const loadRefFields = async () => {
     refTargetFields.value = (data?.fields ?? []).filter((f: any) => !REF_LABEL_SKIP.includes(f.input_type))
 }
 
+/** The FlowSystemSources key whose columns a ユーザー/プロジェクト field can auto-fill from. */
+const autoFillSourceFor = (t: string): 'user' | 'project' | null =>
+    t === 'project' ? 'project' : (t === 'user' || t === 'member') ? 'user' : null
+const autoFillSource = computed(() => autoFillSourceFor(props.field.input_type))
+/** Loads into the same refTargetFields the 参照 mapping editor reads, so that editor works unchanged. */
+const loadAutoFillFields = async (t: string) => {
+    const src = autoFillSourceFor(t)
+    refTargetFields.value = []
+    if (!src) return
+    const data = await api.get(`/flow_system_fields/${src}`)
+    refTargetFields.value = (data?.fields ?? []).filter((f: any) => !REF_LABEL_SKIP.includes(f.input_type))
+}
+/**
+ * ユーザー fields are 複数選択 by default, so gating the editor on single-select would hide the feature
+ * from most fields. It is shown either way; when several people are selected there is no single 役職 to
+ * copy, so the runtime leaves the destinations alone and this hint says so.
+ */
+const autoFillMultiHint = computed(() =>
+    autoFillSource.value === 'user' && v.value.multiple !== false,
+)
+
 const fileAccepts = FLOW_FILE_ACCEPT
 const typeLabel = (t: string) => FLOW_TYPE_LABEL[t] ?? t
 const hasOptions = computed(() => ['select', 'radio', 'checkbox'].includes(props.field.input_type))
@@ -345,6 +398,13 @@ watch(() => props.field, (f) => {
     if (f.input_type === 'reference') {
         loadRefApps()
         loadRefFields()
+        if (!Array.isArray(f.validation.field_mappings)) f.validation.field_mappings = []
+    }
+    // ユーザー/プロジェクト auto-fill reuses the 参照 field's mapping editor wholesale — same
+    // field_mappings shape, same destination/type rules; only the source columns differ, and those come
+    // from the matching FlowSystemSources entry rather than a target app.
+    if (autoFillSourceFor(f.input_type)) {
+        loadAutoFillFields(f.input_type)
         if (!Array.isArray(f.validation.field_mappings)) f.validation.field_mappings = []
     }
     if (f.input_type === 'table') {
@@ -402,7 +462,11 @@ const refLabelName = computed(() => {
 
 // Destination fields for lookup field-copy: writable fields in THIS app (exclude self, layout,
 // formula (computed), and container/reference/file types that can't take a copied scalar/value).
-const MAP_DEST_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'file', 'formula', 'reference', 'password']
+// 'password' is deliberately NOT skipped: an encrypted field is the only allowed destination for a
+// source column that declares itself 'password' (口座番号), and the strict same-type rule below means
+// a text column still cannot be mapped into one. That pairing is what keeps a secret out of a plain
+// column by construction rather than by convention.
+const MAP_DEST_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'file', 'formula', 'reference']
 const mappingDestFields = computed(() =>
     (props.fields ?? []).filter((f) => f.key !== props.field.key && !MAP_DEST_SKIP.includes(f.input_type))
 )

@@ -185,7 +185,7 @@
             array-value
             avatar
             placeholder="ユーザーを選択"
-            @update:model-value="val = $event"
+            @update:model-value="onMasterPick($event)"
         />
         <div v-else-if="field.input_type === 'file'" class="fi-files">
             <div v-for="(f, i) in arrayVal" :key="f?.id ?? i" class="fi-fileitem fi-file-edit">
@@ -281,7 +281,7 @@
             :model-value="val"
             :options="(projects as any)"
             placeholder="プロジェクトを選択"
-            @update:model-value="val = $event"
+            @update:model-value="onMasterPick($event)"
         />
         <input v-else type="text" v-model="val" class="fi-input">
     </template>
@@ -559,6 +559,50 @@ const refSource = computed(() => props.field.validation?.target_source ?? null)
 const hasRefTarget = computed(() => refTargetId.value != null || refSource.value != null)
 const refLabelField = computed(() => props.field.validation?.label_field ?? '')
 const refMappings = computed(() => (props.field.validation?.field_mappings ?? []).filter((m: any) => m?.from && m?.to))
+
+/* ---- ユーザー / プロジェクト auto-fill -----------------------------------------------------------
+ * Same contract as the 参照 field's field copy, and deliberately the same `field_mappings` shape and
+ * the same `lookup` emit — so the parents (record form and the list's inline row) need no changes at
+ * all: applyLookupCopy already knows what to do with it.
+ *
+ * The master's columns come from FlowSystemSources, so the allowlist and the value resolvers live in
+ * one place and /flow_system_record serves this untouched.
+ */
+const autoFillSource = computed<'user' | 'project' | null>(() =>
+    props.field.input_type === 'project'
+        ? 'project'
+        : (props.field.input_type === 'user' || props.field.input_type === 'member') ? 'user' : null,
+)
+
+/**
+ * Called from the picker's own change handler — never from a watch on `val`.
+ *
+ * `val` also changes when a saved record loads, and re-filling then would overwrite the stored values
+ * with today's master data, which is precisely what the snapshot exists to prevent: an approved
+ * record has to keep saying what was true when it was approved.
+ */
+const onMasterPick = async (next: any) => {
+    val.value = next
+    if (props.readonly || !autoFillSource.value || !refMappings.value.length) return
+
+    const ids = Array.isArray(next) ? next.filter((x) => x != null && x !== '') : (next == null || next === '' ? [] : [next])
+    // emptied → clear the fields it filled, same as clearing a 参照
+    if (!ids.length) {
+        emit('lookup', { mappings: refMappings.value, source: {} })
+
+        return
+    }
+    // more than one person selected: there is no single 役職 to copy, so leave the destinations as they
+    // are rather than picking a winner. The inspector hides the mapping editor for multi-select fields;
+    // this covers a field switched to 複数選択 after mappings were already configured.
+    if (ids.length > 1) return
+
+    try {
+        const keys = encodeURIComponent(refMappings.value.map((m: any) => m.from).join(','))
+        const data = await api.get(`/flow_system_record/${autoFillSource.value}/${ids[0]}?fields=${keys}`)
+        emit('lookup', { mappings: refMappings.value, source: data?.values ?? {} })
+    } catch { /* best-effort, like the 参照 copy: the selection itself is already applied */ }
+}
 const refSelected = computed<any>(() => (props.modelValue && props.modelValue.id ? props.modelValue : null))
 const refQuery = ref('')
 const refOpen = ref(false)

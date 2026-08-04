@@ -13,6 +13,7 @@ use App\Models\FlowView;
 use App\Models\ProjectRecord;
 use App\Models\User;
 use App\Support\FlowDynamicDate;
+use App\Support\FlowSystemSources;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -1698,6 +1699,148 @@ class FlowService
         $cipher = $row->value_text ?? null;
 
         return ($cipher === null || $cipher === '') ? null : app(AccountVault::class)->decrypt($cipher);
+    }
+
+    /** The ユーザー/プロジェクト master a field's picker reads from, or null if it is not such a field. */
+    private static function autoFillSourceKey(FlowField $f): ?string
+    {
+        return match ($f->input_type) {
+            'project' => 'project',
+            'user', 'member' => 'user',
+            default => null,
+        };
+    }
+
+    /** Field ids that are the destination of some ユーザー/プロジェクト auto-fill mapping. */
+    public function autoFillDestinationIds(FlowDefinition $def): array
+    {
+        $fields = $def->relationLoaded('fields') ? $def->fields : $def->fields()->get();
+        $byKey = $fields->keyBy('key');
+        $out = [];
+
+        foreach ($fields as $f) {
+            if (self::autoFillSourceKey($f) === null) {
+                continue;
+            }
+            foreach ((array) ($f->validation['field_mappings'] ?? []) as $m) {
+                $dest = $byKey->get($m['to'] ?? '');
+                if ($dest) {
+                    $out[(int) $dest->id] = true;
+                }
+            }
+        }
+
+        return array_keys($out);
+    }
+
+    /**
+     * Fill ユーザー/プロジェクト auto-fill destinations that this user is NOT allowed to write.
+     *
+     * Why the server does this at all: the destinations are real fields, so they obey field permissions
+     * — which meant that in the intended setup (anyone may pick a person, only one team may read 役職)
+     * the value visibly appeared in the form and was then dropped on insert, because the writer had no
+     * 編集 on it. Worse than not working: the form showed a value that silently vanished.
+     *
+     * Why not simply let the client write it: then "this is an auto-fill" becomes a claim the client
+     * makes, and anyone could put arbitrary text into a restricted field with a crafted request. The
+     * field permission would be advisory. So for a destination the user cannot write, the value is
+     * resolved HERE from the master and whatever the client sent for it is discarded.
+     *
+     * Destinations the user CAN write are left alone on purpose: the client already filled them live
+     * and the user is allowed to correct them, which is the behaviour that makes auto-fill pleasant.
+     *
+     * Returns [$values, $extraWritableIds] — the caller must union those ids into its writable set,
+     * since by definition they are fields the normal permission check just refused.
+     */
+    public function applyMasterAutoFill(FlowDefinition $def, array $values, array $writable): array
+    {
+        $fields = $def->relationLoaded('fields') ? $def->fields : $def->fields()->get();
+        $byKey = $fields->keyBy('key');
+        $extra = [];
+
+        foreach ($fields as $src) {
+            $sourceKey = self::autoFillSourceKey($src);
+            $mappings = (array) ($src->validation['field_mappings'] ?? []);
+            // the picker itself must be writable by this user: the fill is a consequence of them
+            // setting it, not a way to reach fields on a record they cannot touch
+            if ($sourceKey === null || ! $mappings || ! in_array((int) $src->id, $writable, true)) {
+                continue;
+            }
+
+            $raw = $values[(string) $src->id] ?? null;
+            $ids = array_values(array_filter(is_array($raw) ? $raw : [$raw], fn ($x) => $x !== null && $x !== ''));
+            // >1 selected has no single master row to copy from — same rule the client applies
+            $id = count($ids) === 1 ? $ids[0] : null;
+            $attrs = $id !== null ? $this->masterAttributes($sourceKey, $id, array_column($mappings, 'from')) : [];
+
+            foreach ($mappings as $m) {
+                $dest = $byKey->get($m['to'] ?? '');
+                if (! $dest || in_array((int) $dest->id, $writable, true)) {
+                    continue;   // writable → the user's own value wins
+                }
+                $resolved = $attrs[$m['from'] ?? ''] ?? null;
+                // Cleared picker (or an ambiguous multi-select) blanks the copy, matching 参照.
+                // A secret needs the explicit clear marker: for those, a blank means "keep what is
+                // stored", so writing null would silently leave the old 口座番号 on the record after
+                // the person it belonged to was removed.
+                $values[(string) $dest->id] = ($resolved === null || $resolved === '') && self::isSecret($dest->input_type)
+                    ? ['clear' => true]
+                    : $resolved;
+                $extra[] = (int) $dest->id;
+            }
+        }
+
+        return [$values, array_values(array_unique($extra))];
+    }
+
+    /** Allowlisted master attributes for one row, straight from the FlowSystemSources spec. */
+    private function masterAttributes(string $sourceKey, $id, array $wantKeys): array
+    {
+        $spec = FlowSystemSources::get($sourceKey);
+        if (! $spec) {
+            return [];
+        }
+        $query = $spec['model']::query();
+        if (isset($spec['filter'])) {
+            ($spec['filter'])($query);
+        }
+        $row = $query->whereKey($id)->first();
+        if (! $row) {
+            return [];
+        }
+        $allowed = collect($spec['columns'])->pluck('key')->flip();
+        $resolve = $spec['value'] ?? fn ($m, $k) => $m->{$k} ?? null;
+        $out = [];
+        foreach (array_unique($wantKeys) as $k) {
+            if ($allowed->has($k)) {
+                $out[$k] = $resolve($row, $k);
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Field ids whose VALUE this user may not see.
+     *
+     * fieldPermissions() has always resolved a per-field `view`, and search / CSV export / PDF have
+     * always honoured it — but the record payload did not: serializeRecord() sent recordValues() in
+     * full, so a field restricted to one person was still delivered to, and rendered for, everyone who
+     * could open the record. Computing the permission and then not applying it is worse than not
+     * having it, because the builder UI promises it works.
+     *
+     * Callers strip these keys AFTER recordValues() has run, never before: formulas are computed from
+     * the other values, so hiding an input first would change what the formula says rather than who
+     * can read it. A formula's own view permission is what governs the formula.
+     */
+    public function unviewableFieldIds(User $user, FlowDefinition $def, ?FlowRecord $record = null): array
+    {
+        $fp = $this->fieldPermissions($user, $def, $record);
+
+        return array_values(array_map('intval', array_keys(array_filter(
+            $fp,
+            fn ($p) => ($p['view'] ?? true) !== true
+        ))));
     }
 
     /** Field ids the user may edit on a record now: record.edit ∩ field-perm edit ∩ status-rule editable. */

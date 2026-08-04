@@ -15,6 +15,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\AdminActualResultController;
 use App\Http\Controllers\AdminAccountController;
+use App\Http\Controllers\AdminBankAccountController;
 use App\Http\Controllers\AdminCostMasterController;
 use App\Http\Controllers\AdminPaidLeaveLedgerController;
 use App\Http\Controllers\AdminPaidLeavePolicyController;
@@ -323,6 +324,13 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/admin/paid-leave-ledger', [AdminPaidLeaveLedgerController::class, 'index']);
         Route::get('/admin/paid-leave-ledger/{account}', [AdminPaidLeaveLedgerController::class, 'show']);
         Route::post('/admin/paid-leave-ledger/{account}/adjustments', [AdminPaidLeaveLedgerController::class, 'storeAdjustment']);
+        // 振込口座（管理画面 > アカウント）。管理者のみ。平文はreveal経路のみでログ必須。
+        Route::get('/admin/bank-accounts', [AdminBankAccountController::class, 'index']);
+        Route::get('/admin/bank-accounts/{user}', [AdminBankAccountController::class, 'show']);
+        Route::put('/admin/bank-accounts/{user}', [AdminBankAccountController::class, 'upsert']);
+        Route::delete('/admin/bank-accounts/{user}', [AdminBankAccountController::class, 'destroy']);
+        Route::post('/admin/bank-accounts/{user}/reveal', [AdminBankAccountController::class, 'reveal']);
+        Route::get('/admin/bank-accounts/{user}/logs', [AdminBankAccountController::class, 'logs']);
         Route::get('/admin/zoom-accounts', [AdminZoomAccountController::class, 'index']);
         Route::post('/admin/zoom-accounts', [AdminZoomAccountController::class, 'store']);
         Route::put('/admin/zoom-accounts/{zoomAccount}', [AdminZoomAccountController::class, 'update']);
