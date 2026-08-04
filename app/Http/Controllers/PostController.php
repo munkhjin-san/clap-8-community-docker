@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Events\MessageSent;
 use App\Jobs\PostStatusChangeNotification;
 use App\Services\BadgeService;
+use App\Services\RefreshService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Jobs\SocketEmitter;
@@ -826,10 +827,11 @@ class PostController extends Controller
             throw ValidationException::withMessages(['record_id' => 'この投稿にはスコアを付けられません。']);
         }
 
-        if (! is_null($record->rakuaward_granted_at)
-            || ! is_null($record->rakuaward_refunded_at)
-            || Carbon::now()->gt(Carbon::parse($record->created_at)->endOfMonth())) {
-            throw ValidationException::withMessages(['score' => 'スコア受付期間が終了しました。']);
+        // Scoring stays open until a director announces the month (which stores the rank).
+        if (! is_null($record->rakuaward_rank)
+            || ! is_null($record->rakuaward_granted_at)
+            || ! is_null($record->rakuaward_refunded_at)) {
+            throw ValidationException::withMessages(['score' => '発表済みのため採点できません。']);
         }
 
         PostRakuawardScore::updateOrCreate(
@@ -844,22 +846,55 @@ class PostController extends Controller
     }
     public function rakuaward_mvps()
     {
-        $now = Carbon::now();
-        $lastMonth = $now->copy()->subMonthNoOverflow();
-        $mvps = $this->rakuawardMonthRanking($lastMonth);
+        // Results block = the latest month a director has announced.
+        $announced = PostRecord::latestAnnouncedRakuawardMonth();
+        // Provisional block = oldest month still waiting to be announced (stays until announced).
+        $pending = PostRecord::earliestPendingRakuawardMonth();
 
-        $alreadyRead = UserReadHistory::where('readable_type', self::RAKUAWARD_RESULT_READABLE)
-            ->where('readable_id', $this->rakuawardResultKey($lastMonth))
-            ->where('user_id', Auth::id())
-            ->exists();
+        $mvps = $announced ? $this->rakuawardMonthRanking($announced) : [];
+        $alreadyRead = $announced
+            ? UserReadHistory::where('readable_type', self::RAKUAWARD_RESULT_READABLE)
+                ->where('readable_id', $this->rakuawardResultKey($announced))
+                ->where('user_id', Auth::id())
+                ->exists()
+            : true;
 
         return response()->json([
-            'month' => $lastMonth->format('Y-m'),
+            'month' => $announced ? $announced->format('Y-m') : null,
             'mvps' => $mvps,
             'result_unread' => count($mvps) > 0 && ! $alreadyRead,
-            'current_month' => $now->format('Y-m'),
-            'current' => $this->rakuawardMonthRanking($now),
+            'pending_month' => $pending ? $pending->format('Y-m') : null,
+            'pending' => $pending ? $this->rakuawardMonthRanking($pending) : [],
         ]);
+    }
+    public function rakuaward_announce(Request $request, RefreshService $refreshService)
+    {
+        $request->validate([
+            'month' => 'required|date_format:Y-m',
+        ]);
+
+        $user = Auth::user();
+        if ($user->position_id === null || (int) $user->position_id >= 6) {
+            throw ValidationException::withMessages(['month' => '発表する権限がありません。']);
+        }
+
+        $month = Carbon::createFromFormat('Y-m', $request->month)->startOfMonth();
+
+        // Nothing to announce when every nomination of the month is already ranked.
+        $unannounced = PostRecord::where('app_type', 7)
+            ->whereYear('created_at', $month->year)
+            ->whereMonth('created_at', $month->month)
+            ->whereNull('rakuaward_rank')
+            ->exists();
+
+        if (! $unannounced) {
+            throw ValidationException::withMessages(['month' => 'この月は既に発表済みです。']);
+        }
+
+        $result = $refreshService->settleRakuawardMonth((int) $month->year, (int) $month->month, (int) Auth::id());
+        $this->badgeService->invalidateBadgeSummaryCache();
+
+        return response()->json($result);
     }
     public function rakuaward_result_read(Request $request)
     {
@@ -869,7 +904,11 @@ class PostController extends Controller
 
         $month = $request->filled('month')
             ? Carbon::createFromFormat('Y-m', $request->month)->startOfMonth()
-            : Carbon::now()->subMonthNoOverflow();
+            : PostRecord::latestAnnouncedRakuawardMonth();
+
+        if (! $month) {
+            return response()->json(['read' => false]);
+        }
 
         UserReadHistory::updateOrCreate(
             [

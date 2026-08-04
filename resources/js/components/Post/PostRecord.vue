@@ -225,7 +225,7 @@
                         >{{ n }}</button>
                         <PrivateChip class="ml-2"/>
                     </div>
-                    <p v-if="scoreLocked" class="text-[11px] text-[gray] mt-2">採点期間は終了しました</p>
+                    <p v-if="scoreLocked" class="text-[11px] text-[gray] mt-2">発表済みのため採点できません</p>
                     <div v-if="rakuawardScores.length" class="mt-3">
                         <div class="text-[13px]">合計スコア: {{ totalRakuawardScore }}点（採点者 {{ rakuawardScores.length }}人）</div>
                         <div class="flex flex-wrap gap-x-3 gap-y-1 mt-2">
@@ -734,9 +734,11 @@ const isRakuawardDirector = computed(() => {
 const rakuawardScores = ref<PostRakuawardScore[]>([...(props.record.rakuaward_scores ?? [])])
 const totalRakuawardScore = computed(() => rakuawardScores.value.reduce((sum, s) => sum + (s.score || 0), 0))
 const myRakuawardScore = computed(() => rakuawardScores.value.find(s => s.user_id == auth.id)?.score ?? null)
+// Scoring stays open until a director announces the month (which stores the rank).
 const scoreLocked = computed(() => {
-    if (props.record.rakuaward_granted_at || props.record.rakuaward_refunded_at) return true
-    return DateTime.now() > niceChargeEnd.value
+    return !!props.record.rakuaward_rank
+        || !!props.record.rakuaward_granted_at
+        || !!props.record.rakuaward_refunded_at
 })
 const submitScore = async (n: number) => {
     if (scoreLocked.value) return

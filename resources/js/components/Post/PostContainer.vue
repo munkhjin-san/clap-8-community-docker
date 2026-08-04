@@ -151,14 +151,14 @@
                     </div>
                 </template>
             </div>
-            <div v-if="getQuery?.app_type == '7' && isRakuawardDirector && rakuawardCurrent.length" class="rakuaward-mvp-banner rakuaward-mvp-banner--provisional">
+            <div v-if="getQuery?.app_type == '7' && isRakuawardDirector && rakuawardPending.length" class="rakuaward-mvp-banner rakuaward-mvp-banner--provisional">
                 <p class="rakuaward-mvp-title rakuaward-mvp-title--provisional">
                     <PrivateChip />
-                    <span>{{ DateTime.fromFormat(rakuawardCurrentMonth, 'yyyy-MM').month }}月 暫定順位（確定前・社外秘）</span>
+                    <span>{{ DateTime.fromFormat(rakuawardPendingMonth, 'yyyy-MM').month }}月 暫定順位（確定前・社外秘）</span>
                 </p>
                 <div class="rakuaward-mvp-list">
                     <div
-                        v-for="row in rankedCurrent"
+                        v-for="row in rankedPending"
                         :key="row.id"
                         class="rakuaward-mvp-item group"
                         @click="jumpToPost(row.id)"
@@ -178,7 +178,26 @@
                         </div>
                     </div>
                 </div>
+                <div class="flex items-center justify-end gap-3 mt-3 flex-wrap">
+                    <span v-if="pendingMonthInProgress" class="rakuaward-announce-caution">
+                        ※ {{ DateTime.fromFormat(rakuawardPendingMonth, 'yyyy-MM').month }}月は進行中です（順位は変動します）
+                    </span>
+                    <button
+                        type="button"
+                        class="rakuaward-announce-button"
+                        :disabled="announcing"
+                        @click="announceRakuaward"
+                    >
+                        {{ announcing ? '発表中...' : `${DateTime.fromFormat(rakuawardPendingMonth, 'yyyy-MM').month}月度の結果を発表する` }}
+                    </button>
+                </div>
             </div>
+            <Transition name="modalFade">
+                <div v-if="getQuery?.app_type == '7' && showAnnouncementNotice" class="rakuaward-announce-notice">
+                    <span class="rakuaward-announce-notice-dot"></span>
+                    <span>{{ DateTime.fromFormat(rakuawardMvpMonth, 'yyyy-MM').month }}月度の楽アワードランキング発表が完了しました</span>
+                </div>
+            </Transition>
             <div v-if="getQuery?.app_type == '7' && rakuawardMvps.length" class="rakuaward-mvp-banner">
                 <p class="rakuaward-mvp-title">{{DateTime.fromFormat(rakuawardMvpMonth, 'yyyy-MM').month}}月度結果発表</p>
                 <div class="rakuaward-mvp-list">
@@ -379,8 +398,10 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
     type RakuawardRankRow = { id: number; title: string; total_score: number; granted?: boolean; nominee: User | null; creator: User | null }
     const rakuawardMvps = ref<RakuawardRankRow[]>([])
     const rakuawardMvpMonth = ref('')
-    const rakuawardCurrent = ref<RakuawardRankRow[]>([])
-    const rakuawardCurrentMonth = ref('')
+    const rakuawardPending = ref<RakuawardRankRow[]>([])
+    const rakuawardPendingMonth = ref('')
+    const announcing = ref(false)
+    const showAnnouncementNotice = ref(false)
     const mvpShowAll = ref(false)
     // Competition ranking by score: equal scores share a rank and get a "タイ" suffix.
     const withRanks = (rows: RakuawardRankRow[]) => rows.map(row => {
@@ -392,7 +413,7 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
         }
     })
     const rankedMvps = computed(() => withRanks(rakuawardMvps.value))
-    const rankedCurrent = computed(() => withRanks(rakuawardCurrent.value))
+    const rankedPending = computed(() => withRanks(rakuawardPending.value))
     const visibleMvps = computed(() => mvpShowAll.value ? rankedMvps.value : rankedMvps.value.slice(0, 5))
     const rakuawardResultUnread = ref(false)
     const fetchRakuawardMvps = async () => {
@@ -400,8 +421,8 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
         if (data) {
             rakuawardMvps.value = data.mvps ?? []
             rakuawardMvpMonth.value = data.month ?? ''
-            rakuawardCurrent.value = data.current ?? []
-            rakuawardCurrentMonth.value = data.current_month ?? ''
+            rakuawardPending.value = data.pending ?? []
+            rakuawardPendingMonth.value = data.pending_month ?? ''
             rakuawardResultUnread.value = !!data.result_unread
         }
     }
@@ -410,7 +431,31 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
         if (!rakuawardResultUnread.value) return
         rakuawardResultUnread.value = false
         badge.post.rakuaward_result = 0
+        // Briefly explain why the badge was there, then fade it out.
+        showAnnouncementNotice.value = true
+        setTimeout(() => { showAnnouncementNotice.value = false }, 3000)
         await api.post('/rakuaward_result_read', { month: rakuawardMvpMonth.value }, { silent: true })
+        badge.getbadgeSummary()
+    }
+    // True while the pending month is still running (scoring and charging remain open).
+    const pendingMonthInProgress = computed(() => {
+        if (!rakuawardPendingMonth.value) return false
+        const target = DateTime.fromFormat(rakuawardPendingMonth.value, 'yyyy-MM')
+        return target.isValid && target.hasSame(DateTime.now(), 'month')
+    })
+    const announceRakuaward = async () => {
+        if (!rakuawardPendingMonth.value || announcing.value) return
+        const month = DateTime.fromFormat(rakuawardPendingMonth.value, 'yyyy-MM').month
+        const confirmMessage = pendingMonthInProgress.value
+            ? `${month}月はまだ進行中です。\n採点・チャージの受付が続いているため、順位はこの後も変動する可能性があります。\n\nこのまま${month}月度の結果を発表して確定しますか？\n（上位5名がMVPとして確定し、チャージ金額が付与されます。発表後は取り消せません）`
+            : `${month}月度の楽アワードを発表して確定します。\n上位5名がMVPとして確定し、チャージ金額が付与されます。\n発表後は取り消せません。よろしいですか？`
+        const result = await api.post('/rakuaward_announce', { month: rakuawardPendingMonth.value }, {
+            loadingRef: announcing,
+            ask: confirmMessage,
+            toast: `${month}月度の結果を発表しました。`,
+        })
+        if (!result) return
+        await fetchRakuawardMvps()
         badge.getbadgeSummary()
     }
     const jumpToPost = (id: number) => {
@@ -889,6 +934,51 @@ const normalizeDonationFilter = (value: unknown): DonationFilter | null => {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.rakuaward-announce-button {
+    padding: 6px 14px;
+    border: 1px solid var(--primary-button);
+    background: var(--primary-button);
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.rakuaward-announce-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.rakuaward-announce-caution {
+    font-size: 11px;
+    color: #a33d3d;
+}
+
+.rakuaward-announce-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 20px 8px;
+    padding: 8px 12px;
+    background: var(--bg3);
+    color: var(--primary-color);
+    font-size: 12px;
+}
+
+.rakuaward-announce-notice-dot {
+    width: 6px;
+    height: 6px;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    background: tomato;
+}
+
+@media (max-width: 640px) {
+    .rakuaward-announce-notice {
+        margin: 0 12px 8px;
+    }
 }
 
 .rakuaward-mvp-list {

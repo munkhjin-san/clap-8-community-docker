@@ -114,15 +114,11 @@ final class BadgeService
                 $lastChargeablePosts = collect();
             }
             
-            // The monthly rakuaward results announcement counts as a single unread item.
-            $resultMonth = Carbon::now()->subMonthNoOverflow();
+            // The announced rakuaward results counts as a single unread item.
             $rakuawardResult = 0;
-            $hasResults = PostRecord::where('app_type', 7)
-                ->whereYear('created_at', $resultMonth->year)
-                ->whereMonth('created_at', $resultMonth->month)
-                ->exists();
+            $resultMonth = PostRecord::latestAnnouncedRakuawardMonth();
 
-            if ($hasResults) {
+            if ($resultMonth) {
                 $readResult = UserReadHistory::where('readable_type', 'rakuaward_result')
                     ->where('readable_id', (int) $resultMonth->format('Ym'))
                     ->where('user_id', $user->id)
