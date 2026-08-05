@@ -2,65 +2,82 @@
 
 namespace App\Support;
 
-use App\Support\FlowActions\FlowRecordAction;
-use App\Support\FlowActions\FreeePartnerCreateAction;
+use App\Models\FlowRecord;
+use App\Models\User;
 
 /**
- * カスタムボタンから実行できる処理の一覧。
+ * カスタムボタンから呼ばれる処理の置き場。
  *
- * ここに載っているキーだけが実行対象になる。ボタンの設定に入っているのは「キー」であって宛先URL
- * ではないので、アプリ管理者が新しい処理を生やすことはできない（コード追加＝この配列に1行）。
- * 知らないキーは実行せず、ボタン自身が「登録されていません」と言う。
+ * 1処理 = このクラスのメソッド1つ + ACTIONS に1行。ボタンの設定に入るのはそのメソッド名だけで、
+ * 中身は全部ここ＝コードに書く。フィールドの読み方も書き戻し方も宣言せず、必要なことをそのまま
+ * PHPで書けばよい（kintoneのカスタマイズJSをサーバー側でやる、という位置づけ）。
+ *
+ * URLやクラス名を設定に持たせないのは意図的。設定に書かれた宛先をサーバーが呼ぶ形にすると、
+ * アプリ管理者が任意の内部エンドポイントへレコードを送れてしまう。ACTIONS に載っている名前
+ * だけが呼ばれ、それ以外は実行されない。
+ *
+ * 追加のしかた：
+ *   1. ACTIONS に 'メソッド名' => '画面に出す名前' を足す
+ *   2. 同じ名前の public メソッドを書く
+ *
+ * メソッドの約束：
+ *   - 引数は (FlowRecord $record, User $user)
+ *   - 戻り値は ['message' => '完了時に出す文', 'values' => ['フィールドコード' => 値]]（どちらも任意）
+ *     values に入れたものは FlowRecordActionService が書き戻して変更履歴に残す。
+ *     編集させたくないフィールド（編集権限なし）にも入る——保存エンドポイントを通らないため。
+ *   - 実行すべきでない状態なら ValidationException を投げる（画面にそのメッセージが出る）。
  */
 class FlowRecordActions
 {
-    /** @var array<int, class-string<FlowRecordAction>> */
-    private const HANDLERS = [
-        FreeePartnerCreateAction::class,
+    /**
+     * 実行を許可するメソッド名 => 設定画面に出す名前。
+     *
+     * @var array<string, string>
+     */
+    public const ACTIONS = [
+        // 例）'createFreeePartner' => 'freeeに取引先を登録',
     ];
 
-    /** 設定画面用。処理の一覧と、必要／書き戻しフィールドのキーを渡す。 */
+    /** 設定画面用の一覧。 */
     public static function catalog(): array
     {
-        return array_map(fn (string $class) => [
-            'key' => $class::key(),
-            'label' => $class::label(),
-            'description' => $class::description(),
-            'inputs' => array_map(fn ($k, $m) => [
-                'key' => $k,
-                'label' => $m['label'] ?? $k,
-                'required' => (bool) ($m['required'] ?? false),
-            ], array_keys($class::inputs()), $class::inputs()),
-            'outputs' => array_map(fn ($k, $m) => [
-                'key' => $k,
-                'label' => $m['label'] ?? $k,
-            ], array_keys($class::outputs()), $class::outputs()),
-            'once_only' => $class::doneFieldKey() !== null,
-            'confirm' => $class::confirmMessage(),
-        ], self::HANDLERS);
-    }
-
-    /** @return class-string<FlowRecordAction>|null */
-    public static function classFor(?string $key): ?string
-    {
-        if (! filled($key)) {
-            return null;
+        $out = [];
+        foreach (self::ACTIONS as $method => $label) {
+            $out[] = ['key' => $method, 'label' => $label];
         }
 
-        foreach (self::HANDLERS as $class) {
-            if ($class::key() === $key) {
-                return $class;
-            }
-        }
-
-        return null;
+        return $out;
     }
 
-    /** 実行できるインスタンス（依存はコンテナが解決する）。未登録キーは null。 */
-    public static function resolve(?string $key): ?FlowRecordAction
+    /** 許可リストに載っていて、実体のあるメソッドかどうか。 */
+    public static function isCallable(?string $method): bool
     {
-        $class = self::classFor($key);
-
-        return $class ? app($class) : null;
+        return filled($method)
+            && array_key_exists($method, self::ACTIONS)
+            && method_exists(self::class, $method);
     }
+
+    /**
+     * 実行。呼べることは呼び出し側（FlowRecordActionService）が確認済み。
+     *
+     * @return array{message?: string, values?: array<string, mixed>}
+     */
+    public function run(string $method, FlowRecord $record, User $user): array
+    {
+        $result = $this->{$method}($record, $user);
+
+        return is_array($result) ? $result : [];
+    }
+
+    /* ================================================================
+     | ここから下が実際の処理。1メソッド1ボタン。
+     |================================================================ */
+
+    // 例）
+    // public function createFreeePartner(FlowRecord $record, User $user): array
+    // {
+    //     $values = app(FlowService::class)->recordValues($record, $record->definition->fields);
+    //     ... freee API を叩く ...
+    //     return ['message' => '登録しました。', 'values' => ['freee_partner_id' => $id]];
+    // }
 }

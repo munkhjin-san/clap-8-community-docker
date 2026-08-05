@@ -66,18 +66,17 @@
                     </template>
                 </template>
                 <!-- カスタムボタン: same look as a status button, but it runs server-side code instead
-                     of moving the record. Unlike a transition these stay visible when blocked/done —
-                     「実行済み」 is the answer the user came for, and a hidden button reads as a bug. -->
+                     of moving the record. Whether it may run in this state is the handler's call —
+                     it refuses with its own message rather than being pre-greyed here. -->
                 <button
                     v-for="a in customActions"
                     :key="`ca-${a.id}`"
                     class="rd-act"
-                    :class="{ spent: a.status !== 'ready' }"
-                    :style="a.status === 'ready' ? actionStyle(a) : undefined"
-                    :disabled="a.status !== 'ready' || runningAction !== null"
-                    :title="a.reason ?? a.label"
+                    :style="actionStyle(a)"
+                    :disabled="runningAction !== null"
+                    :title="a.label"
                     @click="runAction(a)"
-                >{{ a.label }}{{ a.status === 'done' ? '（実行済み）' : '' }}</button>
+                >{{ a.label }}</button>
             </div>
             <div class="rd-flow-tools">
                 <!-- desktop only: on mobile these consolidate into the ⋮ menu in the title bar -->
@@ -316,11 +315,8 @@ const newUnviewable = ref<number[] | null>(null)
 
 interface StatusActionDto { id: number; label: string; color?: string | null; to_status_id: number | null; to_status?: string | null; can: boolean }
 const statusActions = ref<StatusActionDto[]>([])
-/**
- * カスタムボタン (flow_app_tools tool_type=action). The server sends only the ones this user may
- * press, each already judged: ready / done / blocked with a reason.
- */
-interface CustomActionDto { id: number; label: string; color?: string | null; status: 'ready' | 'done' | 'blocked'; reason?: string | null; confirm?: string | null }
+/** カスタムボタン (flow_app_tools tool_type=action). Only the ones this user may press are sent. */
+interface CustomActionDto { id: number; label: string; color?: string | null }
 const customActions = ref<CustomActionDto[]>([])
 const runningAction = ref<number | null>(null)
 // prev/next record numbers (record-number order, view-permission aware) for the header arrows
@@ -639,13 +635,13 @@ const transition = async (a: StatusActionDto) => {
  * (e.g. the id an external system just issued), and the form holds its own copy of the values.
  */
 const runAction = async (a: CustomActionDto) => {
-    if (!record.value || a.status !== 'ready' || runningAction.value !== null) return
+    if (!record.value || runningAction.value !== null) return
     runningAction.value = a.id
     try {
         const data = await api.post(
             '/flow_record_action',
             { record_id: record.value.id, tool_id: a.id },
-            { ask: a.confirm ?? `「${a.label}」を実行しますか？` },
+            { ask: `「${a.label}」を実行しますか？` },
         )
         if (data) {
             // the message is the handler's own (it carries what the external system returned)
@@ -711,10 +707,6 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-act:hover { opacity: 0.88; }
 .rd-act.off { background: var(--bg3); color: gray; border-color: var(--formBorder); cursor: not-allowed; }
 .rd-act:disabled { cursor: not-allowed; }
-/* カスタムボタン that is 実行済み or 設定不足: still shown (that IS the answer), but plainly
-   not a live button. The reason rides in the title attribute. */
-.rd-act.spent { background: var(--bg3); color: gray; border-color: var(--formBorder); cursor: help; }
-.rd-act.spent:hover { opacity: 1; }
 .rd-body { flex: 1; display: flex; min-height: 0; overflow: hidden; position: relative; }
 .rd-main { flex: 1; min-width: 0; overflow: auto; padding: 20px; }
 /* narrow screens: ignore builder-set pixel widths and stack fields full-width */

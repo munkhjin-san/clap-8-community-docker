@@ -588,7 +588,7 @@ class FlowController extends Controller
         $keptIds = [];
         foreach (array_values($tools) as $i => $t) {
             $config = $t['config'] ?? [];
-            // カスタムボタンの処理はコードの登録済みキーのみ。知らないキーは保存しない
+            // カスタムボタンが呼べるのは許可リストのメソッドだけ。知らない名前は保存しない
             // （保存できてしまうと「設定に書いた宛先を呼ぶ」形に一歩近づく）。
             if (($t['tool_type'] ?? null) === 'action') {
                 $config = $this->sanitizeActionConfig(is_array($config) ? $config : []);
@@ -613,7 +613,7 @@ class FlowController extends Controller
 
     /**
      * カスタムボタンのconfigを、こちらが知っている3つだけに絞る。
-     * handler は登録済みキーでなければ null にする（ボタンは「登録されていません」と出て動かない）。
+     * handler は許可リストにあるメソッド名でなければ null にする（そのボタンは動かない）。
      */
     private function sanitizeActionConfig(array $config): array
     {
@@ -633,7 +633,7 @@ class FlowController extends Controller
             ? $config['color'] : '';
 
         return [
-            'handler' => FlowRecordActions::classFor(is_string($handler) ? $handler : null) ? $handler : null,
+            'handler' => FlowRecordActions::isCallable(is_string($handler) ? $handler : null) ? $handler : null,
             'color' => $color,
             'eligible' => $eligible,
         ];

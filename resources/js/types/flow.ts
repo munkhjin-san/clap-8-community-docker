@@ -439,15 +439,13 @@ export interface ActionToolConfig {
     eligible: ActionSubject[]
 }
 
-/** One registered server-side handler, as offered by /flow_action_catalog. */
+/**
+ * One method the server permits a custom button to call, as offered by /flow_action_catalog.
+ * `key` is the method name; everything the method does lives in PHP, not here.
+ */
 export interface FlowActionCatalogEntry {
     key: string
     label: string
-    description: string
-    inputs: { key: string; label: string; required: boolean }[]
-    outputs: { key: string; label: string }[]
-    once_only: boolean
-    confirm: string
 }
 
 export interface FlowAppTool {
