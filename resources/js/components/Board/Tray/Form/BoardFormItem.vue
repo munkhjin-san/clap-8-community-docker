@@ -1,5 +1,5 @@
 <template>
-    <div class="p-[10px] bg-[var(--bg3)] flex flex-col gap-[10px] text-[14px] text-[var(--primary-color)]">
+    <div class="p-[10px] bg-[var(--message-background)] flex flex-col gap-[10px] text-[14px] text-[var(--primary-color)]">
         <div class="flex justify-between">
             <p class="leading-normal">{{ form.title }}</p>
             <ItemMenu v-if="isAdmin" :items="[
