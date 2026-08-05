@@ -40,20 +40,26 @@ class FlowSystemSources
                 'search' => ['name', 'address'],
                 // default label column when the field hasn't chosen one
                 'label_column' => 'name',
-                // exposed as pseudo-fields (label choices + field-copy sources); all treated as text
+                // exposed as pseudo-fields (label choices + field-copy sources); text unless typed
                 'columns' => [
                     ['key' => 'name', 'label' => '営業所名'],
                     ['key' => 'post_code', 'label' => '郵便番号'],
                     ['key' => 'address', 'label' => '住所'],
                     ['key' => 'tel', 'label' => 'TEL'],
                     ['key' => 'fax', 'label' => 'FAX'],
+                    ['key' => 'employee_count', 'label' => 'メンバー数', 'input_type' => 'number'],
                 ],
                 // optional base filter (exclude the legacy soft-delete flag; SoftDeletes already hides deleted_at)
                 'filter' => fn (Builder $q) => $q->where('deleted_flag', 0),
+                // optional eager aggregates so derived columns stay one query for the whole page of rows.
+                // employees() is the app's definition of an office's active members (retire = 0), so the
+                // count follows it rather than re-deriving the rule here.
+                'with' => fn (Builder $q) => $q->withCount('employees as employee_count'),
                 // per-column value resolver (default: the column attribute). Handles composite columns
                 // like the split post code.
                 'value' => fn ($m, string $key) => match ($key) {
                     'post_code' => self::joinPostCode($m->post_code_1 ?? null, $m->post_code_2 ?? null),
+                    'employee_count' => (int) ($m->employee_count ?? 0),
                     default => $m->{$key} ?? null,
                 },
             ],

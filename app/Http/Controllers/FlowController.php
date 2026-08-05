@@ -1375,6 +1375,9 @@ class FlowController extends Controller
         if (isset($s['filter'])) {
             ($s['filter'])($query);
         }
+        if (isset($s['with'])) {
+            ($s['with'])($query);
+        }
         if ($q !== '') {
             $query->where(function ($w) use ($s, $q) {
                 foreach ($s['search'] as $col) {
@@ -1409,6 +1412,9 @@ class FlowController extends Controller
         $query = $s['model']::query();
         if (isset($s['filter'])) {
             ($s['filter'])($query);
+        }
+        if (isset($s['with'])) {
+            ($s['with'])($query);
         }
         $row = $query->whereKey($id)->first();
         if (! $row) {
