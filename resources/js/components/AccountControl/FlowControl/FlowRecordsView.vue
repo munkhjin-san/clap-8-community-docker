@@ -61,8 +61,15 @@
                         </select>
                         <!-- <span v-else-if="activeView" class="rv-viewname">{{ activeView.name }}</span> -->
                         <button v-if="canBulk && selected.size" class="rv-bulkdel" @click="bulkDelete">選択削除 ({{ selected.size }})</button>
-                        <!-- <span class="rv-count">{{ totalCount }}件</span> -->
                     </div>
+                    <!-- 表示中 / 全体。rv-viewinfo の中ではなく rv-r2 の直下に置くことで
+                         margin-left:auto が行の右端まで効く（中に入れるとそのグループの右端で止まる）。
+                         ツールチップは title 属性ではなく実体のある要素にしている：title はブラウザ任せで
+                         出るまで1秒ほどかかり、この 51×12px の的では出ていないのと区別が付かない。 -->
+                    <span class="rv-count" tabindex="0">
+                        {{ displayRecords.length }} / {{ totalCount }}
+                        <span class="rv-count-tip">{{ countHint }}</span>
+                    </span>
                 </div>
 
                 <div v-if="definition.description" class="rv-desc" v-html="definition.description"></div>
@@ -413,6 +420,28 @@ const filteredClient = computed(() => {
 })
 const totalCount = computed(() => (mode.value === 'server' ? total.value : filteredClient.value.length))
 const pageCount = computed(() => Math.max(1, Math.ceil(totalCount.value / PER_PAGE)))
+
+/**
+ * 件数表示のツールチップ。
+ *
+ * 数字を言葉で言い直すだけでは説明にならないので、分母が何なのかを書く：totalCount はアプリの
+ * 全レコード数ではなく、ビューとフィルターで絞り込んだ結果の件数。ここを誤解すると「アプリには
+ * もっとあるのに数が合わない」と見える。絞り込みが効いているときだけその旨を添える。
+ */
+const countHint = computed(() => {
+    const shown = displayRecords.value.length
+    const matched = totalCount.value
+    // 検索キーワードも絞り込みの一つ。ここを見落として「絞り込みなし＝全件数」と出していたため、
+    // 検索した直後に 0 / 0 と「絞り込みなし」が並んで表示され、説明が事実と食い違っていた。
+    const filtered = hasAdhocFilter.value
+        || (activeView.value?.filters?.length ?? 0) > 0
+        || search.value.trim() !== ''
+    const head = `表示中: ${shown}件 ／ 条件に一致: ${matched}件`
+
+    return filtered
+        ? `${head}\n（ビューとフィルターで絞り込んだ結果の件数です）`
+        : `${head}\n（絞り込みなし＝このアプリの全件数）`
+})
 const displayRecords = computed(() => {
     if (mode.value === 'server') return records.value
     const start = (page.value - 1) * PER_PAGE
@@ -974,11 +1003,26 @@ watch([flowId, activeViewId], loadWidths, { immediate: true })
 .rv-csv :deep(.boardMenuContainer:hover) { background: var(--bg3); border-color: var(--primary-color); }
 .rv-csv :deep(.boardMenuContainer.active) { background: var(--bg3); border-color: var(--primary-color); }
 .rv-csv-inner { display: flex; align-items: center; gap: 6px; }
-.rv-r2 { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 16px; position: sticky; left: 0; background: var(--background-color); }
+/* z-index is required, not decorative: the row is position:sticky with z-index:auto, which does NOT
+   create a stacking context, so the 件数ツールチップ inside it could not be lifted above the table's
+   sticky header (.rv-th, z-index 1) by its own z-index alone — the header painted over its lower half.
+   Giving the row a layer of its own puts everything it contains above the table. */
+.rv-r2 { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 16px; position: sticky; left: 0; z-index: 20; background: var(--background-color); }
 .rv-title { flex: 1 1 auto; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;line-height: 1.5; }
 .rv-viewinfo { display: flex; align-items: center; gap: 8px; flex: none; }
 .rv-viewname { font-size: 13px; color: var(--primary-color); }
-.rv-count { font-size: 12px; color: gray; white-space: nowrap; }
+.rv-count { position: relative; margin-left: auto; flex: none; font-size: 12px; color: gray; white-space: nowrap; font-variant-numeric: tabular-nums; cursor: help; }
+/* 右端に置いた要素なので right:0 で揃える（left 起点だと画面外へ出る）。行は position:sticky なので
+   z-index はその上に乗る値にする。 */
+.rv-count-tip {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 30;
+    display: none; width: max-content; max-width: 260px; padding: 8px 10px;
+    white-space: pre-line; text-align: left; line-height: 1.7; line-break: strict;
+    font-size: 11.5px; color: var(--font-color);
+    background: var(--background-color); border: 1px solid var(--formBorder);
+    border-radius: 6px; box-shadow: 0 6px 20px rgba(0, 0, 0, .14);
+}
+.rv-count:hover .rv-count-tip, .rv-count:focus-visible .rv-count-tip { display: block; }
 .rv-ctrl {
     height: 30px;
     padding: 0 5px;
@@ -1160,5 +1204,8 @@ watch([flowId, activeViewId], loadWidths, { immediate: true })
     .rv-ctrl {
         max-width: 90px;
     }
+    /* 件数は狭い画面では隠す：検索・フィルター・ビュー選択で行が埋まっており、
+       件数は「今どこを見ているか」の補助情報なので最初に落としてよい */
+    .rv-count { display: none; }
 }
 </style>
