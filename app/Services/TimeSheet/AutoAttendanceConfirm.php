@@ -125,8 +125,8 @@ class AutoAttendanceConfirm
             $attendance_record->waiting_pay = $data['month_waiting_allowance_count'];
             $attendance_record->vehicle_pay = $data['month_vehicle_allowance_count'];
             $attendance_record->special_commute_pay = $data['month_special_commute_allowance_count'];
-            $attendance_record->remote_company_pay = $data['month_remote_personal_allowance_count'];
-            $attendance_record->remote_personal_pay = $data['month_remote_company_allowance_count'];
+            $attendance_record->remote_personal_pay = $data['month_remote_personal_allowance_count'];
+            $attendance_record->remote_company_pay = $data['month_remote_company_allowance_count'];
             $attendance_record->expenses = $data['annual_costs'];
             $attendance_record->incentive = $data['annual_incentives'];
             $attendance_record->mileage = $data['mileage'];
