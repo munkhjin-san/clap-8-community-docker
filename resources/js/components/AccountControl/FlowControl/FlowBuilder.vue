@@ -647,7 +647,7 @@ onMounted(async () => {
 .fg-truncate { background: tomato; color: #fff; border: none; border-radius: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .fg-truncate:hover { background: #e8482e; }
 .fg-truncate:disabled { opacity: 0.55; cursor: not-allowed; }
-.fg-danger-hint { font-size: 11.5px; color: gray; margin: 0; }
+.fg-danger-hint { font-size: 11.5px; color: gray; margin: 0; line-height: 1.8; line-break: strict; }
 .fg-label { font-size: 12px; color: gray; font-weight: 500; }
 .fg-required { color: #e24b4a; }
 .fg-toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--primary-color); cursor: pointer; width: fit-content; }

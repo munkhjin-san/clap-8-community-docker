@@ -241,7 +241,7 @@ watch(() => props.def.views.length, () => {
 .vt-editor { background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 10px; padding: 16px; }
 .vt-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .vt-row label { font-size: 12px; color: gray; width: 96px; flex-shrink: 0; }
-.vt-hint { font-size: 11px; color: gray; }
+.vt-hint { font-size: 11.5px; color: gray; line-height: 1.8; line-break: strict; }
 .vt-sec { font-size: 13px; font-weight: 500; margin-bottom: 10px; color: var(--primary-color); }
 /* same segmented control as the ad-hoc filter modal, so AND/OR reads identically in both places */
 .vt-logic { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }

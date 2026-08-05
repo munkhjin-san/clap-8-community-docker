@@ -219,5 +219,5 @@ watch(members, (list) => {
 
 .act-notify { margin-top: 10px; }
 .act-notify small { color: gray; margin-left: 6px; }
-.elig-hint { font-size: 11px; color: gray; }
+.elig-hint { font-size: 11.5px; color: gray; line-height: 1.8; line-break: strict; }
 </style>

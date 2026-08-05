@@ -1775,8 +1775,36 @@ class FlowService
 
             foreach ($mappings as $m) {
                 $dest = $byKey->get($m['to'] ?? '');
-                if (! $dest || in_array((int) $dest->id, $writable, true)) {
-                    continue;   // writable → the user's own value wins
+                if (! $dest) {
+                    continue;
+                }
+                $secretDest = self::isSecret($dest->input_type);
+
+                // Writable and not a secret → the client already filled it live and the user may have
+                // corrected it, so leave it alone.
+                if (! $secretDest && in_array((int) $dest->id, $writable, true)) {
+                    continue;
+                }
+
+                /*
+                 * A secret destination is ALWAYS filled here, writable or not.
+                 *
+                 * The client cannot fill it even when the user is allowed to edit it:
+                 * /flow_system_record refuses to serve secret columns (it has no permission context,
+                 * so serving a decrypted 口座番号 there would hand it to any authenticated caller).
+                 * With the client unable and the server declining because the field "is writable",
+                 * nothing filled it at all — which is exactly what happened.
+                 *
+                 * A value the user typed themselves still wins. The echoed-back boolean marker
+                 * ("a value is stored") is NOT a typed value, so re-picking the person legitimately
+                 * refreshes the snapshot.
+                 */
+                if ($secretDest) {
+                    $submitted = $values[(string) $dest->id] ?? null;
+                    $typed = (is_string($submitted) || is_numeric($submitted)) && trim((string) $submitted) !== '';
+                    if ($typed) {
+                        continue;
+                    }
                 }
                 $resolved = $attrs[$m['from'] ?? ''] ?? null;
                 // Cleared picker (or an ambiguous multi-select) blanks the copy, matching 参照.

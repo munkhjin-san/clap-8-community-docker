@@ -663,7 +663,9 @@ export const FLOW_FIELD_TYPES: FlowTypeMeta[] = [
     { type: 'formula', label: '計算', icon: 'formula', group: '高度' },
     { type: 'reference', label: 'ルックアップ', icon: 'reference', group: '高度' },
     { type: 'project', label: 'プロジェクト', icon: 'project', group: '高度' },
-    { type: 'password', label: 'パスワード（暗号化）', icon: 'password', group: '高度' },
+    // 「（暗号化）」は付けない：暗号化されることは設定パネルの「暗号化について」で説明しており、
+    // 型名に入れるとパレットのチップやバッジで2行に折り返すだけで情報は増えない。
+    { type: 'password', label: 'パスワード', icon: 'password', group: '高度' },
     { type: 'file', label: 'ファイル', icon: 'file', group: 'その他' },
     { type: 'table', label: 'テーブル', icon: 'table', group: 'その他' },
     { type: 'heading', label: '見出し', icon: 'heading', group: 'レイアウト' },

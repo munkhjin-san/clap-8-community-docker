@@ -294,5 +294,5 @@ const openEvent = (ev: BellEvent) => {
 .fbell-pref { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; }
 .fbell-pref-label { font-size: 12px; color: var(--primary-color); line-height: 1.4; }
 .fbell-sw { transform: scale(.85); }
-.fbell-pref-hint { margin: 8px 0 4px; font-size: 11px; color: var(--sub-color); line-height: 1.5; }
+.fbell-pref-hint { margin: 8px 0 4px; font-size: 11px; color: var(--sub-color); line-height: 1.7; }
 </style>
