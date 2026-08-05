@@ -257,15 +257,26 @@ import type { MenuList } from '@/interface/globalInterface';
         }
         
     } 
-    const getDocs = async() => {               
- 
-        const response = await api.post('/user_generate_file_key', {}, {
-            loadingRef: docLoader,
-        })
-        const url = `${window.location.origin}/cdn_external/${auth.id}/${response}${doc_path.value}`
+    const getDocs = async() => {
+        // Office Online（view.officeapps.live.com）が向こう側から取得するので、ログイン不要で
+        // 開けるURLが必要になる。カスタムアプリのファイルは cdn_external（ユーザーIDと鍵さえあれば
+        // storage 配下の任意のパスが読める）ではなく、そのファイル1件だけを指す署名付きの一時URLを使う。
+        let url: string
+        if (source.value === 'flow') {
+            const res = await api.post('/flow_file_viewer_url', { id: currentFile.value.id }, {
+                loadingRef: docLoader,
+            })
+            if (!res?.url) return
+            url = res.url
+        } else {
+            const response = await api.post('/user_generate_file_key', {}, {
+                loadingRef: docLoader,
+            })
+            url = `${window.location.origin}/cdn_external/${auth.id}/${response}${doc_path.value}`
+        }
         const encodedUrl = encodeURIComponent(url);
-        docUrl.value = `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`   
-    }        
+        docUrl.value = `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`
+    }
     const filePreviewClose = () => {
         if (source.value === 'deeplink') {
             window.close(); 

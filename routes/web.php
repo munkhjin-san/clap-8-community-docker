@@ -136,6 +136,12 @@ Route::get('/user_default_thumbnail/{char}/{size}/{color?}', [ContentController:
 Route::prefix('cdn_external')->group(function () {
     Route::get('{user_id}/{keyword}/{any?}', [ContentController::class, 'fileTransferAllExternal'])->where('any', '.*');
 });
+// カスタムアプリのファイルを Office Online に読ませるための出口。セッションを持たない相手向けなので
+// 認証グループの外に置くが、代わりに署名付き・期限付きで、URLが指すファイル1件しか読めない
+// （cdn_external のように storage 配下の任意のパスを配ることはしない）。
+Route::get('/flow_file_external/{fileId}', [FlowController::class, 'serveRecordFileExternal'])
+    ->name('flow.file.external')
+    ->middleware('signed');
 Route::get('/public-surveys/{token}', [PublicSurveyController::class, 'show']);
 Route::get('/public-surveys/{token}/data', [PublicSurveyController::class, 'data']);
 Route::post('/public-surveys/{token}/answers', [PublicSurveyController::class, 'submit'])->middleware('throttle:20,1');
@@ -1095,6 +1101,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/flow_file_upload', [FlowController::class, 'uploadRecordFile']);
         Route::get('/flow_file/{fileId}', [FlowController::class, 'serveRecordFile']);
         Route::post('/flow_file_discard', [FlowController::class, 'discardRecordFile']);
+        // Office形式のプレビュー用：権限を確認したうえで署名付きの一時URLを発行する
+        Route::post('/flow_file_viewer_url', [FlowController::class, 'recordFileViewerUrl']);
 
         Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
 

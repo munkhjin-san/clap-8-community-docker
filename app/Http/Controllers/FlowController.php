@@ -28,6 +28,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Mpdf\Output\Destination;
 
@@ -1309,12 +1310,31 @@ class FlowController extends Controller
     {
         $user = $this->active_user();
         $file = FlowRecordFile::findOrFail($fileId);
+        $record = $this->authorizeRecordFile($file, $user);
 
+        // 監査はここで書く。URLからレコードIDを正規表現で拾って画面に自己申告させていた頃と違い、
+        // バイトを返すのと同じリクエストで記録するので取りこぼしも偽装もできない。
+        if ($record && $request->boolean('dl')) {
+            $this->flowService->logAudit($record->definition, $user, 'file_download', $record, [
+                'file_name' => $file->name,
+                'flow_record_file_id' => $file->id,
+            ]);
+        }
+
+        return $this->streamRecordFile($file, $request->boolean('dl'));
+    }
+
+    /**
+     * ファイル1件の閲覧可否。アプリ→レコード→項目の3段。
+     * 戻り値は持ち主のレコード（保存前の pending は null）。
+     */
+    private function authorizeRecordFile(FlowRecordFile $file, $user): ?FlowRecord
+    {
         // pending（保存前）は本人だけ。保存済みはレコードの権限で判断する。
         if ($file->status === FlowRecordFile::STATUS_PENDING) {
             abort_unless((int) $file->uploaded_by === (int) $user->id, 403);
 
-            return $this->streamRecordFile($file, $request->boolean('dl'));
+            return null;
         }
 
         abort_unless($file->flow_record_id, 404);
@@ -1327,16 +1347,46 @@ class FlowController extends Controller
             abort_unless($fieldPerms[$file->flow_field_id]['view'] ?? true, 403);
         }
 
-        // 監査はここで書く。URLからレコードIDを正規表現で拾って画面に自己申告させていた頃と違い、
-        // バイトを返すのと同じリクエストで記録するので取りこぼしも偽装もできない。
-        if ($request->boolean('dl')) {
-            $this->flowService->logAudit($definition, $user, 'file_download', $record, [
-                'file_name' => $file->name,
-                'flow_record_file_id' => $file->id,
-            ]);
-        }
+        return $record;
+    }
 
-        return $this->streamRecordFile($file, $request->boolean('dl'));
+    /**
+     * Office形式（xlsx/docx/pptx…）を表示するための、署名付きの一時URLを返す。
+     *
+     * これらは Microsoft の Office Online（view.officeapps.live.com）が描画するため、**向こうの
+     * サーバーがログインなしで取得できるURL**が必要になる。既存の仕組み
+     * `/cdn_external/{user_id}/{file_key}/{パス}` は使わない——あれはユーザーIDと8文字の鍵さえあれば
+     * storage 配下の任意のパスを配ってしまい、ファイル項目に権限を付けた意味が無くなる。
+     *
+     * 代わりに、ここで閲覧権限を確かめてから、そのファイル1件だけを指す期限付きの署名URLを出す。
+     * 署名はURL全体（ファイルIDと期限を含む）に掛かるので、別のファイルに向け直せない。
+     */
+    public function recordFileViewerUrl(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate(['id' => 'required|integer']);
+
+        $file = FlowRecordFile::findOrFail($data['id']);
+        $this->authorizeRecordFile($file, $user);
+        abort_if($file->status === FlowRecordFile::STATUS_MISSING, 404, 'ファイルの実体が見つかりません。');
+
+        return response()->json([
+            // Office Online は即座に取得するので、短く切って構わない
+            'url' => URL::temporarySignedRoute('flow.file.external', now()->addMinutes(10), ['fileId' => $file->id]),
+        ]);
+    }
+
+    /**
+     * 署名付きURLでの配信。セッションが無い相手（Office Online）向けの唯一の出口。
+     *
+     * 権限は署名を発行した時点で確認済みで、この署名は1ファイル・10分に限定されている。
+     * `signed` ミドルウェアが改ざんと期限切れを弾く。
+     */
+    public function serveRecordFileExternal($fileId)
+    {
+        $file = FlowRecordFile::findOrFail($fileId);
+
+        return $this->streamRecordFile($file, false);
     }
 
     private function streamRecordFile(FlowRecordFile $file, bool $download)
