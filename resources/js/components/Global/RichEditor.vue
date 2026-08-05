@@ -176,12 +176,26 @@
             >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3 8L9.00319 2H19.9978C20.5513 2 21 2.45531 21 2.9918V21.0082C21 21.556 20.5551 22 20.0066 22H3.9934C3.44476 22 3 21.5501 3 20.9932V8ZM10 4V9H5V20H19V4H10Z"></path></svg>
             </button>
+            <button
+                :title="`${otherThemeName}で確認`"
+                @click.stop="previewOtherTheme = !previewOtherTheme"
+                :class="['toolbar-button', {'command-active': previewOtherTheme}]"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22ZM12 20V4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20Z"></path></svg>
+            </button>
         </div>
-        <div class="editor-wrap">             
+        <div
+            class="editor-wrap"
+            :class="{'editor-wrap-preview': previewOtherTheme}"
+            :style="previewPalette"
+        >
             <editor-content :editor="editor" />
-        </div>        
-    </div>  
-</template>  
+        </div>
+        <p class="theme-check-note">
+            ※ 文字色とマーカーは選んだ色がそのまま保存されます。{{ otherThemeName }}での見え方も確認してください。
+        </p>
+    </div>
+</template>
 <script setup lang="ts">
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
@@ -196,6 +210,8 @@ import CommandButton from './CommandButton.vue'
 import PostSearchPager from '@/components/Post/PostSearchPager.vue'
 import { useApi } from '@/composables/api'
 import CloseIcon from '../Form/CloseIcon.vue'
+import { useTheme } from '@/store/theme'
+import theme from 'assets/theme.json'
 
 const props = defineProps(['initilaValue'])
 const emit = defineEmits(['content-updated'])
@@ -235,6 +251,25 @@ const totalPages = ref(1)
 const perPage = ref(10)
 const api = useApi()
 defineExpose({editor})
+
+// 文字色とマーカーは選んだ時点のHEXで保存されるため、書き手のテーマでしか
+// 見え方を確認できない。編集領域だけ反対テーマの配色に差し替えて確認する。
+const themeStore = useTheme()
+const previewOtherTheme = ref(false)
+const otherThemeName = computed(() => themeStore.dark ? 'ライトテーマ' : 'ダークテーマ')
+
+// theme.json のカスタムプロパティを編集領域にだけ上書きする。
+// カスタムプロパティは継承するので、配下の var(--…) がまとめて切り替わる。
+const previewPalette = computed(() => {
+    if (!previewOtherTheme.value) return {}
+
+    return Object.fromEntries(
+        theme.map(palette => [
+            palette.className,
+            themeStore.dark ? palette.light : palette.dark,
+        ]),
+    )
+})
 const baseColorShadesArray = [
   ['var(--primary-color)', '#666666', '#999999', '#cccccc', '#d9d9d9', '#f3f3f3', '#ffffff'],
   ['#980000', '#ff9900', '#ffff00', '#00ffff', '#4a86e8', '#9900ff', '#ff00ff'],
@@ -710,6 +745,18 @@ const viewFilePicker = (type: LessonFileType) => {
 .editor-wrap{
     line-height: 1.5;
     padding: 15px;
+}
+/* 確認中だけ配色を固定する。var(--…) は :style で上書きした反対テーマの値を拾う */
+.editor-wrap-preview{
+    background: var(--background-color);
+    color: var(--primary-color);
+}
+.theme-check-note{
+    margin: 0;
+    padding: 0 15px 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--sub-color);
 }
 .editor-wrap h1, h2, h3 {
     font-size: revert !important;
