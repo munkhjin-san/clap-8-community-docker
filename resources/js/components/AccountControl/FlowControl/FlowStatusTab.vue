@@ -318,7 +318,7 @@ const deleteEditingAction = () => {
 .canvas-bar { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
 .cb-add { border: 1px dashed var(--formBorder); background: none; border-radius: 7px; padding: 7px 14px; font-size: 12px; color: var(--primary-color); cursor: pointer; white-space: nowrap; }
 .cb-add:hover { background: var(--bg3); }
-.cb-hint { font-size: 11px; color: gray; }
+.cb-hint { font-size: 11.5px; color: gray; line-height: 1.8; line-break: strict; }
 .sf-canvas { max-height: 62vh; overflow: auto; border: 1px solid var(--calendarBorder); border-radius: 12px; background: var(--bg3); }
 .sf-stage { position: relative; width: 100%; }
 
@@ -364,7 +364,7 @@ const deleteEditingAction = () => {
 .ifld input { width: 100%; }
 
 .sec { font-size: 13px; font-weight: 600; margin: 0 0 8px; }
-.hint { font-size: 11px; color: gray; }
+.hint { font-size: 11.5px; color: gray; line-height: 1.8; line-break: strict; }
 .divider { height: 1px; background: var(--calendarBorder); margin: 16px 0; }
 .add-act { width: 100%; border: 1px dashed var(--formBorder); background: none; border-radius: 7px; padding: 8px; font-size: 12px; color: var(--primary-color); cursor: pointer; }
 .add-act:hover { background: var(--bg3); }

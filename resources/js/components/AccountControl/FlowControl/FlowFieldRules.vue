@@ -8,14 +8,14 @@
             <div class="irow">
                 <label>文字数</label>
                 <div class="minmax">
-                    <input type="number" min="0" v-model.number="v.min_length" placeholder="最小" class="custom-a-input !box-border">
+                    <input type="number" min="0" v-model.number="v.min_length" placeholder="最小" class="ffr-input">
                     <span class="tilde">〜</span>
-                    <input type="number" min="0" v-model.number="v.max_length" placeholder="最大" class="custom-a-input !box-border">
+                    <input type="number" min="0" v-model.number="v.max_length" placeholder="最大" class="ffr-input">
                 </div>
             </div>
             <div class="irow" v-if="inputType === 'short'">
                 <label>形式</label>
-                <select v-model="v.format" class="custom-a-input !box-border flex-1">
+                <select v-model="v.format" class="ffr-input">
                     <option value="none">指定なし</option>
                     <option value="email">メールアドレス</option>
                     <option value="tel">電話番号</option>
@@ -28,9 +28,9 @@
             <div class="irow">
                 <label>値の範囲</label>
                 <div class="minmax">
-                    <input type="number" v-model.number="v.min" placeholder="最小" class="custom-a-input !box-border">
+                    <input type="number" v-model.number="v.min" placeholder="最小" class="ffr-input">
                     <span class="tilde">〜</span>
-                    <input type="number" v-model.number="v.max" placeholder="最大" class="custom-a-input !box-border">
+                    <input type="number" v-model.number="v.max" placeholder="最大" class="ffr-input">
                 </div>
             </div>
             <div class="irow">
@@ -43,9 +43,9 @@
             <div class="irow">
                 <label>選択数</label>
                 <div class="minmax">
-                    <input type="number" min="0" v-model.number="v.min_select" placeholder="最小" class="custom-a-input !box-border">
+                    <input type="number" min="0" v-model.number="v.min_select" placeholder="最小" class="ffr-input">
                     <span class="tilde">〜</span>
-                    <input type="number" min="0" v-model.number="v.max_select" placeholder="最大" class="custom-a-input !box-border">
+                    <input type="number" min="0" v-model.number="v.max_select" placeholder="最大" class="ffr-input">
                 </div>
             </div>
         </template>
@@ -60,7 +60,7 @@
             <div class="irow">
                 <label>最大サイズ</label>
                 <div class="flex items-center gap-[6px]">
-                    <input type="number" min="0" v-model.number="v.max_size_mb" placeholder="制限なし" class="custom-a-input !box-border !w-[100px]">
+                    <input type="number" min="0" v-model.number="v.max_size_mb" placeholder="制限なし" class="ffr-input ffr-narrow">
                     <span class="text-[12px] text-gray-500">MB</span>
                 </div>
             </div>
@@ -81,9 +81,9 @@
             <div class="irow">
                 <label>日付の範囲</label>
                 <div class="minmax">
-                    <input type="date" v-model="v.min_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
+                    <input type="date" v-model="v.min_date" class="ffr-input" :style="{ colorScheme: nativeScheme }">
                     <span class="tilde">〜</span>
-                    <input type="date" v-model="v.max_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
+                    <input type="date" v-model="v.max_date" class="ffr-input" :style="{ colorScheme: nativeScheme }">
                 </div>
             </div>
         </template>
@@ -92,9 +92,9 @@
             <div class="irow">
                 <label>日時の範囲</label>
                 <div class="minmax">
-                    <input type="datetime-local" v-model="v.min_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
+                    <input type="datetime-local" v-model="v.min_date" class="ffr-input" :style="{ colorScheme: nativeScheme }">
                     <span class="tilde">〜</span>
-                    <input type="datetime-local" v-model="v.max_date" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
+                    <input type="datetime-local" v-model="v.max_date" class="ffr-input" :style="{ colorScheme: nativeScheme }">
                 </div>
             </div>
         </template>
@@ -103,9 +103,9 @@
             <div class="irow">
                 <label>時刻の範囲</label>
                 <div class="minmax">
-                    <input type="time" v-model="v.min_time" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
+                    <input type="time" v-model="v.min_time" class="ffr-input" :style="{ colorScheme: nativeScheme }">
                     <span class="tilde">〜</span>
-                    <input type="time" v-model="v.max_time" class="custom-a-input !box-border" :style="{ colorScheme: nativeScheme }">
+                    <input type="time" v-model="v.max_time" class="ffr-input" :style="{ colorScheme: nativeScheme }">
                 </div>
             </div>
         </template>
@@ -115,16 +115,16 @@
         <div class="divider"></div>
         <div class="sec">初期値（新規作成時）</div>
 
-        <input v-if="inputType === 'short'" type="text" v-model="v.default" class="custom-a-input !box-border w-full" placeholder="初期テキスト">
-        <textarea v-else-if="inputType === 'long'" v-model="v.default" rows="2" class="custom-a-input !box-border w-full" placeholder="初期テキスト"></textarea>
-        <input v-else-if="inputType === 'number'" type="number" v-model.number="v.default" class="custom-a-input !box-border w-full" placeholder="初期値">
+        <input v-if="inputType === 'short'" type="text" v-model="v.default" class="ffr-input" placeholder="初期テキスト">
+        <textarea v-else-if="inputType === 'long'" v-model="v.default" rows="2" class="ffr-input" placeholder="初期テキスト"></textarea>
+        <input v-else-if="inputType === 'number'" type="number" v-model.number="v.default" class="ffr-input" placeholder="初期値">
 
         <div v-else-if="inputType === 'toggle'" class="irow" style="margin: 0">
             <label>初期状態</label>
             <span class="flow-sw" :class="{ on: v.default }" @click="v.default = !v.default"></span>
         </div>
 
-        <select v-else-if="inputType === 'select' || inputType === 'radio'" v-model="v.default" class="custom-a-input !box-border w-full">
+        <select v-else-if="inputType === 'select' || inputType === 'radio'" v-model="v.default" class="ffr-input">
             <option :value="null">なし</option>
             <option v-for="o in options || []" :key="o" :value="o">{{ o }}</option>
         </select>
@@ -224,5 +224,18 @@ const toggleAccept = (val: string) => {
 .sremove { border: none; background: none; color: gray; cursor: pointer; padding: 4px; display: flex; }
 .def-checks { display: flex; flex-direction: column; gap: 7px; }
 .def-checks .fi-opt { font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
-.def-hint { font-size: 11px; color: gray; margin-top: 6px; }
+.def-hint { font-size: 11.5px; color: gray; margin-top: 6px; line-height: 1.8; line-break: strict; }
+
+/* 自前の入力スタイル。customForm.css の .custom-a-input は使わない：
+   `input[type='text'].custom-a-input { width: 50% }` と `textarea… { min-height: 150px }` を
+   持っていて、要素+属性+クラスで詳細度 0-2-1 のため、こちら側で付けていた w-full（0-1-0）では
+   上書きできなかった。結果、初期値の入力欄がパネル幅の半分のまま小さく、長文の初期値だけ
+   150px も縦に伸びる、という食い違いになっていた。 */
+.ffr-input { box-sizing: border-box; width: 100%; min-width: 0; font-size: 13px; padding: 6px 10px; border: 1px solid var(--formBorder); border-radius: 6px; background: var(--background-color); color: var(--font-color); transition: border-color .15s; }
+.ffr-input:focus { outline: none; border-color: var(--primary-color); }
+.ffr-input::placeholder { color: var(--sub-color); }
+/* rows=2 に見合う高さ。縦だけ伸ばせる */
+textarea.ffr-input { min-height: 58px; resize: vertical; line-height: 1.7; }
+/* 最小〜最大のように横に2つ並ぶものは幅を分け合う */
+.ffr-narrow { width: auto; flex: 1; }
 </style>

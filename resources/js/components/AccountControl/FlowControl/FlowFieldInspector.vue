@@ -110,11 +110,22 @@
         </div>
         <p v-if="v.disabled && !isLayout && field.input_type !== 'formula'" class="def-hint">フォームに表示されますが入力できません。ルックアップの自動入力は反映されます。</p>
 
+        <!-- この項目が他のフィールドの自動入力先になっている場合の逆引き表示 -->
+        <template v-if="autoFillIntoThis.length">
+            <div class="divider"></div>
+            <div class="sec">自動入力されます</div>
+            <div v-for="(a, ai) in autoFillIntoThis" :key="ai" class="af-src">
+                <FlowFieldIcon :type="a.type" :size="13" />
+                <span class="af-src-name">{{ a.label }}</span>
+                <span class="af-src-type">{{ typeLabel(a.type) }}</span>
+            </div>
+        </template>
+
         <template v-if="field.input_type === 'password'">
             <div class="divider"></div>
             <div class="sec">暗号化について</div>
-            <p class="def-hint">値は暗号化して保存され、一覧・CSV出力・検索・PDF・計算式には表示されません。表示するには「表示」ボタンを押す必要があり、操作は監査ログに記録されます。</p>
-            <p class="def-hint">アクセス権を設定していない間は<strong>アプリの管理権限を持つ人だけ</strong>が表示できます。「アクセス権」タブでこの項目の閲覧を設定すると、<strong>そこで許可した人だけ</strong>が表示できるようになります（管理者も一覧に含める必要があります）。</p>
+            <p class="def-hint">値は暗号化して保存され、一覧・CSV出力・検索・PDF・計算式には表示されません。</p>
+            <p class="def-hint">表示するには「表示」ボタンを押す必要があります。</p>
         </template>
 
         <template v-if="field.input_type === 'spacer' || field.input_type === 'divider'">
@@ -204,25 +215,31 @@
         <template v-if="autoFillSource && refTargetFields.length">
             <div class="divider"></div>
             <div class="sec">フィールドのコピー（自動入力）</div>
+            <!-- 縦積み。インスペクタは固定幅のサイドバーなので、2つのセレクトを横に並べると
+                 日本語のラベルが4文字ほどで切れて選べなくなる。 -->
             <div v-for="(m, mi) in (v.field_mappings || [])" :key="mi" class="map-row">
-                <FlowSearchSelect
-                    class="map-sel"
-                    :model-value="m.from || null"
-                    :options="refFieldOptions"
-                    :clearable="false"
-                    :placeholder="autoFillSource === 'user' ? 'ユーザーの項目' : 'プロジェクトの項目'"
-                    @update:model-value="(val) => { m.from = String(val ?? ''); onMappingFromChange(m) }"
-                />
-                <span class="map-arrow">→</span>
-                <FlowSearchSelect
-                    class="map-sel"
-                    :model-value="m.to || null"
-                    :options="destOptionsFor(m.from)"
-                    :clearable="false"
-                    placeholder="このアプリの項目"
-                    @update:model-value="(val) => m.to = String(val ?? '')"
-                />
-                <button class="map-del" @click="removeMapping(mi)" title="削除"><CloseIcon size="9" /></button>
+                <div class="map-line">
+                    <FlowSearchSelect
+                        class="map-sel"
+                        :model-value="m.from || null"
+                        :options="refFieldOptions"
+                        :clearable="false"
+                        :placeholder="autoFillSource === 'user' ? 'ユーザーの項目' : 'プロジェクトの項目'"
+                        @update:model-value="(val) => { m.from = String(val ?? ''); onMappingFromChange(m) }"
+                    />
+                    <button class="map-del" @click="removeMapping(mi)" title="削除"><CloseIcon size="9" /></button>
+                </div>
+                <div class="map-line">
+                    <span class="map-arrow">↓</span>
+                    <FlowSearchSelect
+                        class="map-sel"
+                        :model-value="m.to || null"
+                        :options="destOptionsFor(m.from)"
+                        :clearable="false"
+                        placeholder="このアプリの項目"
+                        @update:model-value="(val) => m.to = String(val ?? '')"
+                    />
+                </div>
             </div>
             <button class="flow-ghost-btn mt-[20px]" :disabled="!mappingDestFields.length" @click="addMapping">＋ コピーを追加</button>
             <p class="def-hint">
@@ -261,24 +278,28 @@
                 <div class="divider"></div>
                 <div class="sec">フィールドのコピー（自動入力）</div>
                 <div v-for="(m, mi) in (v.field_mappings || [])" :key="mi" class="map-row">
-                    <FlowSearchSelect
-                        class="map-sel"
-                        :model-value="m.from || null"
-                        :options="refFieldOptions"
-                        :clearable="false"
-                        placeholder="参照先の項目"
-                        @update:model-value="(val) => { m.from = String(val ?? ''); onMappingFromChange(m) }"
-                    />
-                    <span class="map-arrow">→</span>
-                    <FlowSearchSelect
-                        class="map-sel"
-                        :model-value="m.to || null"
-                        :options="destOptionsFor(m.from)"
-                        :clearable="false"
-                        placeholder="このアプリの項目"
-                        @update:model-value="(val) => m.to = String(val ?? '')"
-                    />
-                    <button class="map-del" @click="removeMapping(mi)" title="削除"><CloseIcon size="9" /></button>
+                    <div class="map-line">
+                        <FlowSearchSelect
+                            class="map-sel"
+                            :model-value="m.from || null"
+                            :options="refFieldOptions"
+                            :clearable="false"
+                            placeholder="参照先の項目"
+                            @update:model-value="(val) => { m.from = String(val ?? ''); onMappingFromChange(m) }"
+                        />
+                        <button class="map-del" @click="removeMapping(mi)" title="削除"><CloseIcon size="9" /></button>
+                    </div>
+                    <div class="map-line">
+                        <span class="map-arrow">↓</span>
+                        <FlowSearchSelect
+                            class="map-sel"
+                            :model-value="m.to || null"
+                            :options="destOptionsFor(m.from)"
+                            :clearable="false"
+                            placeholder="このアプリの項目"
+                            @update:model-value="(val) => m.to = String(val ?? '')"
+                        />
+                    </div>
                 </div>
                 <button class="flow-ghost-btn mt-[20px]" :disabled="!mappingDestFields.length" @click="addMapping">＋ コピーを追加</button>
             </template>
@@ -330,6 +351,15 @@ const refApps = ref<{ id: number; name: string }[]>([])
 const refSystemSources = ref<{ key: string; label: string }[]>([])
 const refTargetFields = ref<{ key: string; label: string; input_type: string; result_type?: string | null }[]>([])
 const REF_LABEL_SKIP = ['heading', 'label', 'spacer', 'divider', 'table', 'reference', 'file', 'password']
+/**
+ * ユーザー/プロジェクト自動入力の「コピー元」候補。REF_LABEL_SKIP を流用してはいけない。
+ *
+ * あちらは「参照レコードの何を“ラベル”として表示するか」の選択肢で、パスワードを除くのは当然
+ * （伏せ字をラベルにする意味がない）。こちらはコピー元の選択肢で、暗号化された口座番号を
+ * 暗号化フィールドへ渡すことがこの機能の主目的なので、password を除いてしまうと肝心の列が
+ * 一覧から消える。実際に消えていた。
+ */
+const AUTOFILL_SOURCE_SKIP = REF_LABEL_SKIP.filter((t) => t !== 'password')
 // a reference targets either a Flow app (target_definition_id) or a system source (target_source)
 const hasRefTarget = computed(() => v.value.target_definition_id != null || !!v.value.target_source)
 const loadRefApps = async () => {
@@ -366,7 +396,7 @@ const loadAutoFillFields = async (t: string) => {
     refTargetFields.value = []
     if (!src) return
     const data = await api.get(`/flow_system_fields/${src}`)
-    refTargetFields.value = (data?.fields ?? []).filter((f: any) => !REF_LABEL_SKIP.includes(f.input_type))
+    refTargetFields.value = (data?.fields ?? []).filter((f: any) => !AUTOFILL_SOURCE_SKIP.includes(f.input_type))
 }
 /**
  * ユーザー fields are 複数選択 by default, so gating the editor on single-select would hide the feature
@@ -376,6 +406,24 @@ const loadAutoFillFields = async (t: string) => {
 const autoFillMultiHint = computed(() =>
     autoFillSource.value === 'user' && v.value.multiple !== false,
 )
+
+/**
+ * この項目を「コピー先」にしているフィールド（ユーザー / プロジェクト / 参照）。
+ *
+ * 設定はコピー元のフィールド側に置いてあるので、コピー先の項目を開いても自分が自動入力される側だと
+ * 分からなかった。「なぜ勝手に値が入るのか」「なぜ手で直しても戻るのか」がこの画面から読み取れない
+ * のは設定漏れと区別できないため、逆引きして出す。
+ */
+const autoFillIntoThis = computed(() => {
+    const me = props.field.key
+    if (!me) return [] as { label: string; type: string; from: string }[]
+
+    return (props.fields ?? [])
+        .filter((f) => f.key !== me)
+        .flatMap((f) => (f.validation?.field_mappings ?? [])
+            .filter((m) => m?.to === me)
+            .map((m) => ({ label: f.label || f.key, type: f.input_type, from: m.from })))
+})
 
 const fileAccepts = FLOW_FILE_ACCEPT
 const typeLabel = (t: string) => FLOW_TYPE_LABEL[t] ?? t
@@ -703,10 +751,16 @@ const removeColOption = (col: TableColumn, oi: number) => col.options?.splice(oi
 .formula-area { width: 100%; min-height: 64px; font-family: ui-monospace, monospace; font-size: 13px; resize: vertical; }
 .def-checks { display: flex; flex-direction: column; gap: 7px; }
 .def-checks .fi-opt { font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
-.def-hint { font-size: 11px; color: gray; margin-top: 6px; }
-.map-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.def-hint { font-size: 11.5px; color: gray; margin-top: 6px; line-height: 1.8; line-break: strict; }
+/* 1組を縦に積み、罫線で囲って組の境目が分かるようにする。横並びだと固定幅のサイドバーでは
+   ラベルが数文字で切れてしまい、どれを選んでいるのか読めなかった。 */
+.af-src { display: flex; align-items: center; gap: 6px; margin-top: 6px; padding: 6px 8px; border: 1px solid var(--calendarBorder); border-radius: 6px; font-size: 12px; }
+.af-src-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.af-src-type { flex: none; font-size: 11px; color: var(--sub-color); }
+.map-row { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; padding: 8px; border: 1px solid var(--calendarBorder); border-radius: 6px; }
+.map-line { display: flex; align-items: center; gap: 6px; }
 .map-sel { flex: 1; min-width: 0; }
-.map-arrow { color: gray; flex: none; font-size: 12px; }
+.map-arrow { color: gray; flex: none; font-size: 12px; width: 13px; text-align: center; }
 .map-del { border: none; background: none; color: gray; cursor: pointer; padding: 4px; display: flex; flex: none; }
 .map-del:hover { color: tomato; }
 .achip { user-select: none; }

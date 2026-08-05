@@ -142,7 +142,7 @@ const openRecord = (it: PendingItem) => {
 .fpend-menu { position: fixed; z-index: 1000; width: 300px; box-sizing: border-box !important; background: var(--background-color); border: 1px solid var(--formBorder); border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, .14); padding: 6px; cursor: default; }
 .fpend-head { display: flex; align-items: baseline; gap: 8px; padding: 4px 8px 6px; border-bottom: 1px solid var(--formBorder); }
 .fpend-title { font-size: 12px; color: var(--sub-color); letter-spacing: .04em; flex-shrink: 0; }
-.fpend-hint { font-size: 10.5px; color: var(--sub-color); opacity: .75; }
+.fpend-hint { font-size: 10.5px; color: var(--sub-color); opacity: .75; line-height: 1.7; }
 .fpend-list { max-height: 320px; overflow-y: auto; padding-top: 4px; }
 /* position/box pinned explicitly — a global button rule otherwise leaks position:absolute + top:50px in here */
 .fpend-item { position: relative; inset: auto; box-sizing: border-box !important; display: flex; align-items: flex-start; gap: 7px; width: 100%; border: none; background: none; text-align: left; padding: 8px; border-radius: 6px; cursor: pointer; }
