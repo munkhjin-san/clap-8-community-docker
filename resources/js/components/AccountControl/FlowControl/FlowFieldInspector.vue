@@ -342,7 +342,7 @@ const commitFieldRename = (newName: string) => {
 const commitColumnRename = (col: TableColumn) => {
     const from = renameFrom.value
     renameFrom.value = ''
-    if (from && from !== col.label) renameColumnRefInTable(props.field, from, col.label)
+    if (from && from !== col.label) renameColumnRefInTable(props.field, from, col.label, props.fields)
 }
 
 /* ---- reference field: target app / system source + label field ---- */
@@ -433,9 +433,40 @@ const labelFieldName = computed(() =>
     props.field.input_type === 'heading' ? '見出し文' : props.field.input_type === 'label' ? 'テキスト' : 'ラベル'
 )
 // Other formula fields ARE referenceable (chains compute multi-pass server-side) — only self and layout parts are excluded.
-const referenceableFields = computed(() =>
-    (props.fields ?? []).filter((f) => f.key !== props.field.key && !isLayoutType(f.input_type) && !isSecretType(f.input_type))
-)
+/**
+ * 計算式で参照できるものの一覧（オートコンプリートに出る候補）。
+ *
+ * テーブルは「表全体」と「列ごと」の両方を出す。評価側は前から `テーブル.列` を解釈できて、
+ * kintone から取り込んだアプリは実際に SUM([販管費テーブル.販管費]) の形を使っているのに、
+ * この一覧が表全体しか出していなかったので、手で組むと SUM([テーブル]) になり
+ * 「1列だけ合計したいのに全部の数値列が合算される」という食い違いになっていた。
+ * 表全体の候補にも（表全体）と付けて、どちらを選んでいるのか読めるようにする。
+ */
+const referenceableFields = computed(() => {
+    const out: { key: string; label: string; input_type: string }[] = []
+
+    for (const f of props.fields ?? []) {
+        if (f.key === props.field.key || isLayoutType(f.input_type) || isSecretType(f.input_type)) continue
+
+        if (f.input_type === 'table') {
+            out.push({ key: f.key, label: `${f.label}（表全体）`, input_type: f.input_type })
+            for (const c of f.validation?.columns ?? []) {
+                if (!c?.key || isLayoutType(c.input_type)) continue
+                out.push({
+                    // 挿入されるのはラベル形式。式を読んだときに何を合計しているのか分かるほうが
+                    // c1/c3 より安全（列キーでも解決できるので、既存の式はそのまま動く）。
+                    key: `${f.label}.${c.label || c.key}`,
+                    label: `${f.label} › ${c.label || c.key}`,
+                    input_type: c.input_type,
+                })
+            }
+            continue
+        }
+        out.push({ key: f.key, label: f.label, input_type: f.input_type })
+    }
+
+    return out
+})
 
 watch(() => props.field, (f) => {
     if (!f) return

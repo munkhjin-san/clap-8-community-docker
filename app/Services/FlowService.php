@@ -985,9 +985,56 @@ class FlowService
             $context[(string) $field->id] = $v;
             $context[$field->key] = $v;
             $context[$field->label] = $v;
+
+            // 列参照 [テーブル.金額] を解決できるようにする。行の中に別名を足すのではなく、平坦な
+            // エントリとして持たせる：行に足すと1セルが2回数えられ、表全体の SUM が倍になる
+            // （実測で 25,600 が 51,200 になった）。
+            if ($field->input_type === 'table') {
+                $this->addTableColumnRefs($context, $field, $v);
+            }
         }
 
         return $context;
+    }
+
+
+    /**
+     * `テーブル.列` で1列だけ取り出せるように、平坦な参照を context に足す。
+     *
+     * 評価側は識別子をまず context のキーとして引くので、"テーブル.金額" というキーがあればそれで
+     * 解決する。行の中に別名を入れる方法もあるが、それだと1セルが列キーと列ラベルの2回数えられ、
+     * 表全体の SUM が倍になる。
+     *
+     * キー・ラベルの4通りを登録するのは、既存の式が列キー（c1 等）で書かれている一方、これから
+     * ピッカーが挿入するのはラベル形式だから。既に埋まっているキーは上書きしない。
+     */
+    private function addTableColumnRefs(array &$context, $field, $rows): void
+    {
+        $columns = is_array($field->validation['columns'] ?? null) ? $field->validation['columns'] : [];
+        if (! is_array($rows) || ! $columns) {
+            return;
+        }
+
+        foreach ($columns as $c) {
+            $key = $c['key'] ?? null;
+            if ($key === null) {
+                continue;
+            }
+            $label = ($c['label'] ?? '') !== '' ? $c['label'] : $key;
+            $values = array_map(fn ($r) => is_array($r) ? ($r[$key] ?? null) : null, $rows);
+
+            foreach ([$field->key, $field->label] as $tableRef) {
+                if ($tableRef === null || $tableRef === '') {
+                    continue;
+                }
+                foreach ([$key, $label] as $colRef) {
+                    $ref = $tableRef.'.'.$colRef;
+                    if (! array_key_exists($ref, $context)) {
+                        $context[$ref] = $values;
+                    }
+                }
+            }
+        }
     }
 
     /**
