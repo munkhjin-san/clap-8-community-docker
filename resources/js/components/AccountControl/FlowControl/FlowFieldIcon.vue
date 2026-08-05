@@ -125,6 +125,11 @@
         <template v-else-if="type === 'divider'">
             <line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="4 3" />
         </template>
+        <!-- カスタムボタン（ツール）: 押せるものであることが伝わるよう、ボタン＋クリック -->
+        <template v-else-if="type === 'button'">
+            <rect x="2.5" y="6.5" width="13" height="8" rx="2.5" />
+            <path d="M13 14.5l2.6 6 1.5-3 3 1.2z" />
+        </template>
         <template v-else>
             <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
         </template>

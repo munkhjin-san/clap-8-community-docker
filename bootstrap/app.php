@@ -199,6 +199,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->job(new CheckUserEvaluation())->dailyAt('01:00');
 
         $schedule->command('posts:close-expired')->dailyAt('02:00');
+        // カスタムアプリ：未保存のまま残った添付ファイルの掃除（保存済みには触らない）
+        $schedule->command('flow:purge-pending-files')->dailyAt('03:50');
         $schedule->command('app:sync-public-holidays')->monthlyOn(1, '01:00');
         $schedule->command('alerts:variance --period='.now()->toDateString())->monthlyOn(20, '18:00');
         $schedule->command('logs:prune-activity-logs')->quarterly();

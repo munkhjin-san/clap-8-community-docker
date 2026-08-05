@@ -17,8 +17,6 @@ use App\Support\FlowSystemSources;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Storage;
 
 class FlowService
 {
@@ -92,8 +90,18 @@ class FlowService
     /** Can this user press this action? (any eligible subject matches, or app-manage as a safety net) */
     public function canPressAction(User $user, FlowRecord $record, FlowStatusAction $action): bool
     {
+        return $this->matchesAnySubject($user, $record, $action->eligible);
+    }
+
+    /**
+     * Shared 押せる人 test for a subject list ([{subject_type, subject_id}]) on a record.
+     * Status-flow buttons and カスタムボタン (flow_app_tools tool_type=action) both use it, so the
+     * two answer the same question the same way — the builder configures one vocabulary.
+     */
+    public function matchesAnySubject(User $user, FlowRecord $record, ?array $eligible): bool
+    {
         $def = $record->definition;
-        foreach (($action->eligible ?? []) as $subj) {
+        foreach (($eligible ?? []) as $subj) {
             $type = $subj['subject_type'] ?? null;
             if ($type && $this->matchesSubject($type, $subj['subject_id'] ?? null, $user, $def, $record)) {
                 return true;
@@ -101,7 +109,7 @@ class FlowService
         }
         // Nobody configured → open to anyone who can edit the record (matches the builder's
         // 「未設定 = 編集権限を持つ全員が押せます」 hint).
-        if (empty($action->eligible)) {
+        if (empty($eligible)) {
             return $this->recordPermissions($user, $record, $def)['edit'];
         }
 
@@ -712,8 +720,9 @@ class FlowService
             'flow_record_id' => $record->id,
             'flow_field_id' => $field->id,
         ]);
-        // Capture the previous file list before we null it, so persistFileField can delete removed files.
-        $oldFiles = $field->input_type === 'file' ? ($value->value_json ?? []) : [];
+        // Capture the previous value before we null it, so removed files can be deleted. Tables need
+        // it too: a file column inside a subtable is a file field in every way that matters.
+        $oldFiles = in_array($field->input_type, ['file', 'table'], true) ? ($value->value_json ?? []) : [];
         $value->fill([
             'value_text' => null, 'value_numeric' => null, 'value_date' => null,
             'value_datetime' => null, 'value_boolean' => null, 'value_json' => null,
@@ -754,7 +763,7 @@ class FlowService
                 $value->value_json = $this->arrayValue($raw);
                 break;
             case 'file':
-                $value->value_json = $this->persistFileField($record, $this->arrayValue($raw), $oldFiles);
+                $value->value_json = $this->files()->syncFieldFiles($record, $field, $this->arrayValue($raw), $oldFiles);
                 break;
             case 'user':
             case 'member':
@@ -763,7 +772,12 @@ class FlowService
                 $value->value_numeric = count($ids) === 1 ? $ids[0] : null;
                 break;
             case 'table':
-                $value->value_json = $this->tableValue($raw, $field);
+                // File columns inside a subtable go through the same attach path as a top-level file
+                // field. Before this they went through none of it: the upload stayed in temp_upload/
+                // and RemoveFile('temp') deleted it after 7 days.
+                $value->value_json = $this->files()->syncTableFiles(
+                    $record, $field, $this->tableValue($raw, $field), $oldFiles
+                );
                 break;
             case 'reference':
                 $ref = $this->referenceValue($raw);
@@ -784,56 +798,35 @@ class FlowService
     }
 
     /**
-     * Move newly-uploaded temp files (from /attach_upload_api) into the record's permanent
-     * folder, keep already-stored ones, and delete files that were removed. Returns the
-     * value_json list with a stable `url` per file.
+     * File handling lives in its own service (ledger table + sharded storage + permissions).
+     * Resolved lazily so FlowService keeps its no-argument constructor — it is built by hand in
+     * a few places and in tests.
      */
-    private function persistFileField(FlowRecord $record, array $incoming, array $old): array
+    private function files(): FlowFileService
     {
-        $dir = "flow_record_files/{$record->id}";
-        $kept = [];
-        $keptIds = [];
+        return app(FlowFileService::class);
+    }
 
-        foreach ($incoming as $f) {
-            if (! is_array($f) || empty($f['id'])) {
+    /** Same url/status decoration as a top-level file field, for file columns inside a subtable. */
+    private function decorateTableFiles(FlowField $field, array $rows): array
+    {
+        $columns = $this->files()->fileColumnKeys($field);
+        if ($columns === []) {
+            return $rows;
+        }
+
+        foreach ($rows as $i => $row) {
+            if (! is_array($row)) {
                 continue;
             }
-            $id = (int) $f['id'];
-            $ext = (string) ($f['extension'] ?? '');
-            $userId = (int) ($f['user_id'] ?? $record->created_by);
-            $destRel = "{$dir}/{$id}_{$userId}.{$ext}";
-
-            if (empty($f['stored'])) {
-                $srcRel = "temp_upload/{$id}.{$ext}";
-                if (Storage::disk('local')->exists($srcRel)) {
-                    File::isDirectory(storage_path("app/{$dir}")) or File::makeDirectory(storage_path("app/{$dir}"), 0755, true, true);
-                    Storage::disk('local')->move($srcRel, $destRel);
+            foreach ($columns as $key) {
+                if (is_array($row[$key] ?? null)) {
+                    $rows[$i][$key] = $this->files()->decorate($row[$key]);
                 }
             }
-
-            $kept[] = [
-                'id' => $id,
-                'name' => (string) ($f['name'] ?? "{$id}.{$ext}"),
-                'extension' => $ext,
-                'mime_type' => $f['mime_type'] ?? null,
-                'size' => $f['size'] ?? null,
-                'user_id' => $userId,
-                'stored' => true,
-                'url' => "/cdn/{$destRel}",
-            ];
-            $keptIds[] = $id;
         }
 
-        // Physically remove files that were dropped from the field.
-        foreach ($old as $f) {
-            if (is_array($f) && ! empty($f['id']) && ! in_array((int) $f['id'], $keptIds, true)) {
-                $ext = (string) ($f['extension'] ?? '');
-                $userId = (int) ($f['user_id'] ?? 0);
-                Storage::disk('local')->delete("{$dir}/{$f['id']}_{$userId}.{$ext}");
-            }
-        }
-
-        return $kept;
+        return $rows;
     }
 
     public function readFieldValue(?FlowRecordValue $value, FlowField $field): mixed
@@ -852,7 +845,11 @@ class FlowService
             'date' => $value->value_date?->toDateString(),
             'datetime' => $value->value_datetime?->format('Y-m-d\TH:i'),
             'toggle' => (bool) $value->value_boolean,
-            'checkbox', 'file', 'user', 'member', 'table' => $value->value_json ?: [],
+            // files carry no url in storage — it is built here, so changing the storage layout
+            // never means rewriting record data
+            'file' => $this->files()->decorate($value->value_json ?: []),
+            'table' => $this->decorateTableFiles($field, $value->value_json ?: []),
+            'checkbox', 'user', 'member' => $value->value_json ?: [],
             'reference' => $value->value_json ?: null,
             'project' => $value->value_numeric === null ? null : (int) $value->value_numeric,
             default => $value->value_text,
@@ -996,7 +993,6 @@ class FlowService
 
         return $context;
     }
-
 
     /**
      * `テーブル.列` で1列だけ取り出せるように、平坦な参照を context に足す。

@@ -82,6 +82,7 @@ const ACTIONS: { key: FlowAuditAction; label: string }[] = [
     { key: 'csv_export', label: 'CSV出力' },
     { key: 'settings_change', label: '設定変更' },
     { key: 'file_download', label: 'ファイルダウンロード' },
+    { key: 'record_action', label: 'カスタムボタン実行' },
 ]
 const actionLabel = (a: FlowAuditAction) => ACTIONS.find((x) => x.key === a)?.label ?? a
 
@@ -162,6 +163,8 @@ const summary = (l: FlowAuditLogEntry) => {
         }
         case 'file_download':
             return `${l.record ? `レコード #${l.record.record_number} · ` : ''}${m.file_name ?? ''}`
+        case 'record_action':
+            return `${l.record ? `レコード #${l.record.record_number} · ` : ''}${m.tool ?? ''}`
         default:
             return ''
     }

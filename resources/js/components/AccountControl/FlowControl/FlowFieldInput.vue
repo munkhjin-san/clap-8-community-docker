@@ -188,11 +188,14 @@
             @update:model-value="onMasterPick($event)"
         />
         <div v-else-if="field.input_type === 'file'" class="fi-files">
-            <div v-for="(f, i) in arrayVal" :key="f?.id ?? i" class="fi-fileitem fi-file-edit">
-                <button type="button" class="fi-file-open" @click="openPreview(i)">
+            <div v-for="(f, i) in arrayVal" :key="f?.id ?? i" class="fi-fileitem fi-file-edit" :class="{ 'fi-file-missing': isMissing(f) }">
+                <!-- a file whose bytes are gone stays listed, unclickable, and says so: the record of
+                     "something was attached here" is worth more than a tidy empty field -->
+                <button type="button" class="fi-file-open" :disabled="isMissing(f)" :title="isMissing(f) ? 'ファイルの実体が見つかりません' : f?.name" @click="openPreview(i)">
                     <img v-if="f?.mime_type === 'image' && f?.url" :src="f.url" class="fi-thumb" alt="">
                     <FileIcon v-else class="fi-fileicon" :ext="f?.extension" />
                     <span class="fi-fname"><span class="fi-fname-base">{{ fileBase(f) }}</span><span class="fi-fname-ext">{{ fileExt(f) }}</span></span>
+                    <span v-if="isMissing(f)" class="fi-file-badge">未検出</span>
                 </button>
                 <button type="button" class="fi-fileremove" title="削除" @click="removeFile(i)">×</button>
             </div>
@@ -222,6 +225,8 @@
                                     :users="users"
                                     :projects="projects"
                                     :readonly="col.input_type === 'formula'"
+                                    :owner-field-id="field.id"
+                                    :column-key="col.key"
                                     @update:model-value="setCell(ri, col.key, $event)"
                                 />
                             </td>
@@ -314,6 +319,13 @@ const props = defineProps<{
     cellPreview?: boolean
     /** record id — only needed so a password field can call the reveal endpoint */
     recordId?: number | null
+    /**
+     * Which real field owns an upload. A subtable cell renders from a synthetic column field with no
+     * id, so the parent table field passes its own id (plus the column key) down — the upload endpoint
+     * derives the app from the field and refuses a column that isn't a file column.
+     */
+    ownerFieldId?: number | null
+    columnKey?: string | null
 }>()
 const projectName = (id: any) => {
     if (id === null || id === undefined || id === '') return '—'
@@ -339,6 +351,9 @@ const fileName = (f: any): string => String(f?.name ?? (typeof f === 'string' ? 
 const fileExt = (f: any): string => { const n = fileName(f); const i = n.lastIndexOf('.'); return i > 0 ? n.slice(i) : '' }
 const fileBase = (f: any): string => { const n = fileName(f); const i = n.lastIndexOf('.'); return i > 0 ? n.slice(0, i) : n }
 
+/** The bytes are gone (an old upload the temp-file purge removed before it was ever moved). */
+const isMissing = (f: any) => f?.status === 'missing' || !f?.url
+
 // Open the shared FilePreview modal (image/pdf/text/video/audio preview + download menu for the rest).
 const openPreview = (i: number) => {
     const src = arrayVal.value
@@ -357,20 +372,27 @@ const openCellPreview = (i: number, e: MouseEvent) => {
 }
 const acceptAttr = computed(() => (props.field.validation?.accept?.length ? props.field.validation.accept.join(',') : undefined))
 
-// Upload to the shared temp store (/attach_upload_api); backend moves them to the record folder on save.
+/**
+ * Upload straight to the app's own file store (/flow_file_upload).
+ *
+ * The shared /attach_upload_api is deliberately not used: it mints a row in `message_files` (the
+ * chat table) just to get an id, which left orphaned rows there and no way to reach the owning
+ * record. The URL comes back from the server — it is never built here, so the storage layout can
+ * change without touching the client.
+ */
+const uploadFieldId = computed(() => props.ownerFieldId ?? props.field.id ?? null)
 const addFiles = async (e: Event) => {
     const target = e.target as HTMLInputElement
     if (!target.files?.length) return
+    if (!uploadFieldId.value) { target.value = ''; return }
     uploading.value = true
     try {
         const fd = new FormData()
-        Array.from(target.files).forEach((file, idx) => fd.append(String(idx), file))
-        const uploaded = (await api.post('/attach_upload_api', fd)) ?? []
-        const added = uploaded.map((u: any) => ({
-            id: u.id, name: u.name, extension: u.extension, mime_type: u.mime_type,
-            size: u.size, user_id: u.user_id, url: `/cdn/temp_upload/${u.id}.${u.extension}`,
-        }))
-        emit('update:modelValue', [...arrayVal.value, ...added])
+        fd.append('field_id', String(uploadFieldId.value))
+        if (props.columnKey) fd.append('column_key', props.columnKey)
+        Array.from(target.files).forEach((file) => fd.append('files[]', file))
+        const res = (await api.post('/flow_file_upload', fd)) as { files: any[] } | null
+        emit('update:modelValue', [...arrayVal.value, ...(res?.files ?? [])])
     } finally {
         uploading.value = false
         target.value = ''
@@ -380,7 +402,10 @@ const addFiles = async (e: Event) => {
 const removeFile = (i: number) => {
     const next = [...arrayVal.value]
     const [removed] = next.splice(i, 1)
-    if (removed && !removed.stored) api.post('/remove_temp_file', { id: removed.id }, { silent: true })
+    // only an un-attached upload needs discarding here; an attached one is released by saving the record
+    if (removed?.id && removed.status === 'pending') {
+        api.post('/flow_file_discard', { id: removed.id }, { silent: true })
+    }
     emit('update:modelValue', next)
 }
 
@@ -771,6 +796,10 @@ const formatFormula = (v: any) => {
 .fi-filemore-btn { border: none; cursor: pointer; font-family: inherit; }
 .fi-filemore-btn:hover { color: var(--primary-color); text-decoration: underline; }
 .fi-fileremove { border: none; background: none; color: gray; cursor: pointer; font-size: 15px; line-height: 1; padding: 0 2px; flex-shrink: 0; }
+/* a file whose bytes are gone: still listed, plainly not openable */
+.fi-file-missing .fi-file-open { color: gray; cursor: not-allowed; }
+.fi-file-missing .fi-file-open:hover .fi-fname { text-decoration: none; }
+.fi-file-badge { flex: none; font-size: 10.5px; color: gray; border: 1px solid var(--formBorder); border-radius: 4px; padding: 0 4px; }
 .fi-fileadd { display: inline-flex; align-items: center; align-self: flex-start; font-size: 12px; padding: 5px 12px; border: 1px dashed var(--formBorder); border-radius: 6px; color: var(--primary-color); cursor: pointer; }
 .fi-fileadd:hover { background: var(--bg3); }
 .fi-heading { font-size: 15px; font-weight: 500; color: var(--primary-color); border-bottom: 1px solid var(--calendarBorder); padding-bottom: 4px; }

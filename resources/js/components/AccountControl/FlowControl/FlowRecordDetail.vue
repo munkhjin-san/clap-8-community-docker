@@ -65,6 +65,19 @@
                         >{{ a.label }}</button>
                     </template>
                 </template>
+                <!-- カスタムボタン: same look as a status button, but it runs server-side code instead
+                     of moving the record. Unlike a transition these stay visible when blocked/done —
+                     「実行済み」 is the answer the user came for, and a hidden button reads as a bug. -->
+                <button
+                    v-for="a in customActions"
+                    :key="`ca-${a.id}`"
+                    class="rd-act"
+                    :class="{ spent: a.status !== 'ready' }"
+                    :style="a.status === 'ready' ? actionStyle(a) : undefined"
+                    :disabled="a.status !== 'ready' || runningAction !== null"
+                    :title="a.reason ?? a.label"
+                    @click="runAction(a)"
+                >{{ a.label }}{{ a.status === 'done' ? '（実行済み）' : '' }}</button>
             </div>
             <div class="rd-flow-tools">
                 <!-- desktop only: on mobile these consolidate into the ⋮ menu in the title bar -->
@@ -242,9 +255,10 @@ const currentStatusStyle = computed(() => {
     const c = record.value?.current_status_id != null ? statusColorById.value[record.value.current_status_id] : null
     return c ? { background: c, color: readableTextColor(c), borderColor: c } : {}
 })
-// action button: its own color, else inherit the app theme accent; auto-contrast text
-const actionStyle = (a: { can: boolean; color?: string | null }) => {
-    if (!a.can) return {}
+// action button: its own color, else inherit the app theme accent; auto-contrast text.
+// `can` is absent on カスタムボタン — the server only returns the ones this user may press.
+const actionStyle = (a: { can?: boolean; color?: string | null }) => {
+    if (a.can === false) return {}
     const c = a.color || appAccent.value
     return { background: c, borderColor: c, color: readableTextColor(c) }
 }
@@ -302,6 +316,13 @@ const newUnviewable = ref<number[] | null>(null)
 
 interface StatusActionDto { id: number; label: string; color?: string | null; to_status_id: number | null; to_status?: string | null; can: boolean }
 const statusActions = ref<StatusActionDto[]>([])
+/**
+ * カスタムボタン (flow_app_tools tool_type=action). The server sends only the ones this user may
+ * press, each already judged: ready / done / blocked with a reason.
+ */
+interface CustomActionDto { id: number; label: string; color?: string | null; status: 'ready' | 'done' | 'blocked'; reason?: string | null; confirm?: string | null }
+const customActions = ref<CustomActionDto[]>([])
+const runningAction = ref<number | null>(null)
 // prev/next record numbers (record-number order, view-permission aware) for the header arrows
 const nav = reactive<{ prev: number | null; next: number | null }>({ prev: null, next: null })
 // list context riding on the record URL (?view/?sf/?sd/?f) — carried across up/down shifts and
@@ -430,7 +451,12 @@ const fieldByKey = computed<Record<string, FlowField>>(() => {
     return map
 })
 const userName = (id: any) => users.value.find((u) => u.id === Number(id))?.name ?? `#${id}`
-const logHeader = (lg: LogDto) => (lg.action === 'created' ? '作成' : '更新')
+const logHeader = (lg: LogDto) => {
+    if (lg.action === 'created') return '作成'
+    // カスタムボタン: the note holds the button's name — 「更新」 alone would hide who did what
+    if (lg.action === 'custom_action') return lg.note ? `${lg.note} を実行` : '処理を実行'
+    return '更新'
+}
 const changeLabel = (key: string) => (key === 'status' ? 'ステータス' : (fieldLabelByKey.value[key] ?? key))
 // history rows for encrypted fields: state what happened, never a value (and never a bare
 // "設定あり → 設定あり", which is what a rotation would otherwise look like)
@@ -505,6 +531,7 @@ const load = async () => {
                 record.value = data.record
                 Object.assign(can, data.can ?? {})
                 statusActions.value = data.status_actions ?? []
+                customActions.value = data.custom_actions ?? []
                 logs.value = data.logs ?? []
                 mentionableUsers.value = data.mentionable_users ?? []
                 unreadComments.value = data.unread_comments ?? 0
@@ -594,12 +621,39 @@ const transition = async (a: StatusActionDto) => {
             record.value = data.record
             Object.assign(can, data.can ?? {})
             statusActions.value = data.status_actions ?? []
+            customActions.value = data.custom_actions ?? []
             logs.value = data.logs ?? []
             mentionableUsers.value = data.mentionable_users ?? []
             permissions.value = data.permissions
         }
     } finally {
         transitioning.value = false
+    }
+}
+
+/**
+ * Runs a カスタムボタン. Nothing about what it does is sent — only which record and which button;
+ * the server resolves the handler from its own registry.
+ *
+ * The whole record is reloaded afterwards because the handler may have written back into fields
+ * (e.g. the id an external system just issued), and the form holds its own copy of the values.
+ */
+const runAction = async (a: CustomActionDto) => {
+    if (!record.value || a.status !== 'ready' || runningAction.value !== null) return
+    runningAction.value = a.id
+    try {
+        const data = await api.post(
+            '/flow_record_action',
+            { record_id: record.value.id, tool_id: a.id },
+            { ask: a.confirm ?? `「${a.label}」を実行しますか？` },
+        )
+        if (data) {
+            // the message is the handler's own (it carries what the external system returned)
+            dialog.toast(data.message ?? `「${a.label}」を実行しました。`)
+            await load()
+        }
+    } finally {
+        runningAction.value = null
     }
 }
 
@@ -657,6 +711,10 @@ watch(() => [flowId.value, recordId.value], (next, prev) => {
 .rd-act:hover { opacity: 0.88; }
 .rd-act.off { background: var(--bg3); color: gray; border-color: var(--formBorder); cursor: not-allowed; }
 .rd-act:disabled { cursor: not-allowed; }
+/* カスタムボタン that is 実行済み or 設定不足: still shown (that IS the answer), but plainly
+   not a live button. The reason rides in the title attribute. */
+.rd-act.spent { background: var(--bg3); color: gray; border-color: var(--formBorder); cursor: help; }
+.rd-act.spent:hover { opacity: 1; }
 .rd-body { flex: 1; display: flex; min-height: 0; overflow: hidden; position: relative; }
 .rd-main { flex: 1; min-width: 0; overflow: auto; padding: 20px; }
 /* narrow screens: ignore builder-set pixel widths and stack fields full-width */

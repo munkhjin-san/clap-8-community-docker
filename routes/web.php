@@ -1082,12 +1082,19 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/flow_tool_pdf/{toolId}/{recordId}', [FlowController::class, 'renderToolPdf']);
         Route::post('/flow_tool_pdf_preview', [FlowController::class, 'previewToolPdf']);
         Route::post('/flow_app_record_transition', [FlowController::class, 'transitionAppRecord']);
+        // カスタムボタン：宛先はコード側の登録済みハンドラが持つ（設定にURLは入らない）
+        Route::get('/flow_action_catalog', [FlowController::class, 'recordActionCatalog']);
+        Route::post('/flow_record_action', [FlowController::class, 'runRecordAction']);
         Route::post('/flow_formula_preview', [FlowController::class, 'previewFormula']);
         Route::get('/flow_app_export/{definition}', [FlowController::class, 'exportRecords']);
         Route::post('/flow_app_import', [FlowController::class, 'importRecords']);
         Route::get('/flow_audit_logs/{definition}', [FlowController::class, 'getFlowAuditLogs']);
         Route::get('/flow_audit_log/{logId}/download', [FlowController::class, 'downloadAuditExport']);
-        Route::post('/flow_file_download_log', [FlowController::class, 'logFileDownload']);
+        // ファイル項目：アップロード／配信／保存前の取り消し。配信は必ずここを通す
+        // （共通の /cdn/{path} は権限を一切見ないため、ファイル項目には使わない）
+        Route::post('/flow_file_upload', [FlowController::class, 'uploadRecordFile']);
+        Route::get('/flow_file/{fileId}', [FlowController::class, 'serveRecordFile']);
+        Route::post('/flow_file_discard', [FlowController::class, 'discardRecordFile']);
 
         Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
 

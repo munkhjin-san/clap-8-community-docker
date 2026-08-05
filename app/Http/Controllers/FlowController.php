@@ -8,14 +8,18 @@ use App\Models\FlowDefinition;
 use App\Models\FlowField;
 use App\Models\FlowNotification;
 use App\Models\FlowRecord;
+use App\Models\FlowRecordFile;
 use App\Models\positionRecord;
 use App\Models\ProjectRecord;
 use App\Models\User;
+use App\Services\FlowFileService;
 use App\Services\FlowFormulaEvaluator;
 use App\Services\FlowNotificationService;
+use App\Services\FlowRecordActionService;
 use App\Services\FlowService;
 use App\Services\KintoneImportService;
 use App\Services\PdfRenderService;
+use App\Support\FlowRecordActions;
 use App\Support\FlowSystemSources;
 use Carbon\Carbon;
 use Illuminate\Contracts\Encryption\DecryptException;
@@ -32,6 +36,7 @@ class FlowController extends Controller
     public function __construct(
         private FlowService $flowService,
         private FlowNotificationService $flowNotifications,
+        private FlowRecordActionService $flowRecordActions,
     ) {}
 
     private function active_user()
@@ -163,6 +168,8 @@ class FlowController extends Controller
             $ids = FlowRecord::withTrashed()->where('flow_definition_id', $definition->id)->pluck('id');
             $n = $ids->count();
             if ($ids->isNotEmpty()) {
+                // 添付の実体も落とす（レコードフォルダごと）
+                app(FlowFileService::class)->deleteForRecordIds($definition->id, $ids->all());
                 DB::table('flow_record_values')->whereIn('flow_record_id', $ids)->delete();
                 DB::table('app_comments')
                     ->whereIn('commentable_id', $ids)
@@ -579,10 +586,16 @@ class FlowController extends Controller
     {
         $keptIds = [];
         foreach (array_values($tools) as $i => $t) {
+            $config = $t['config'] ?? [];
+            // カスタムボタンの処理はコードの登録済みキーのみ。知らないキーは保存しない
+            // （保存できてしまうと「設定に書いた宛先を呼ぶ」形に一歩近づく）。
+            if (($t['tool_type'] ?? null) === 'action') {
+                $config = $this->sanitizeActionConfig(is_array($config) ? $config : []);
+            }
             $payload = [
                 'tool_type' => $t['tool_type'] ?? 'pdf',
                 'name' => $t['name'] ?? 'ツール',
-                'config' => $t['config'] ?? [],
+                'config' => $config,
                 'is_active' => $t['is_active'] ?? true,
                 'sort_order' => $i,
             ];
@@ -595,6 +608,34 @@ class FlowController extends Controller
             $keptIds[] = $model->id;
         }
         $definition->tools()->whereNotIn('id', $keptIds ?: [0])->delete();
+    }
+
+    /**
+     * カスタムボタンのconfigを、こちらが知っている3つだけに絞る。
+     * handler は登録済みキーでなければ null にする（ボタンは「登録されていません」と出て動かない）。
+     */
+    private function sanitizeActionConfig(array $config): array
+    {
+        $handler = $config['handler'] ?? null;
+        $eligible = [];
+        foreach ((array) ($config['eligible'] ?? []) as $subj) {
+            if (! is_array($subj) || ! filled($subj['subject_type'] ?? null)) {
+                continue;
+            }
+            $eligible[] = [
+                'subject_type' => (string) $subj['subject_type'],
+                'subject_id' => isset($subj['subject_id']) && $subj['subject_id'] !== null
+                    ? (int) $subj['subject_id'] : null,
+            ];
+        }
+        $color = is_string($config['color'] ?? null) && preg_match('/^#[0-9a-fA-F]{6}$/', $config['color'])
+            ? $config['color'] : '';
+
+        return [
+            'handler' => FlowRecordActions::classFor(is_string($handler) ? $handler : null) ? $handler : null,
+            'color' => $color,
+            'eligible' => $eligible,
+        ];
     }
 
     /** An app is never view-less: seed 「すべて」 (all columns) if empty, and guarantee one default. */
@@ -1208,31 +1249,119 @@ class FlowController extends Controller
     }
 
     /**
-     * Best-effort self-report of a Flow file-field download (mirrors DriveController's own
-     * writeDownloadLogs precedent: the frontend reports the event after it fires the download,
-     * rather than gating the shared /cdn/ file route itself). The record id is recoverable straight
-     * from the stored path (flow_record_files/{record_id}/...), so no extra props need threading
-     * through FlowFieldInput → FilePreview just to identify which record a download belongs to.
+     * ファイル項目のアップロード先。
+     *
+     * 共通の /attach_upload_api は使わない——あれはIDを取るために message_files（チャット用の
+     * テーブル）に行を作るので、カスタムアプリのファイルがチャット側に溜まっていた。
+     * レコードはまだ無いので pending として置き、保存時に結び付ける。
      */
-    public function logFileDownload(Request $request)
+    public function uploadRecordFile(Request $request)
     {
+        $user = $this->active_user();
         $data = $request->validate([
-            'url' => 'required|string',
-            'name' => 'required|string',
+            'field_id' => 'required|integer|exists:flow_fields,id',
+            'column_key' => 'nullable|string|max:255',
+            'files' => 'required|array|min:1',
+            'files.*' => 'file|max:51200',
         ]);
 
-        if (! preg_match('#^/cdn/flow_record_files/(\d+)/#', $data['url'], $m)) {
-            return response()->noContent();
+        $field = FlowField::findOrFail($data['field_id']);
+        $definition = FlowDefinition::with(['fields', 'appPermissions', 'recordPermissionSets', 'fieldPermissions'])
+            ->findOrFail($field->flow_definition_id);
+
+        // アップロードできるのは、そのアプリにレコードを作れる／編集できる人だけ。
+        $perms = $this->flowService->effectiveAppPermissions($user, $definition);
+        abort_unless($perms['add'] || $perms['edit'], 403);
+        // 項目自体の編集権限も見る（閲覧しかできない項目に添付させない）
+        abort_unless($this->flowService->fieldPermissions($user, $definition)[$field->id]['edit'] ?? true, 403);
+
+        // 送られた field/column が本当にファイルを置ける場所かを確かめる
+        $columnKey = $data['column_key'] ?? null;
+        if ($columnKey !== null) {
+            abort_unless($field->input_type === 'table', 422, 'この項目にファイル列はありません。');
+            abort_unless(
+                in_array($columnKey, app(FlowFileService::class)->fileColumnKeys($field), true),
+                422, 'この列はファイル列ではありません。'
+            );
+        } else {
+            abort_unless($field->input_type === 'file', 422, 'この項目はファイル項目ではありません。');
         }
 
-        $record = FlowRecord::with('definition')->find((int) $m[1]);
-        if (! $record) {
-            return response()->noContent();
+        $stored = [];
+        foreach ($request->file('files') as $upload) {
+            $stored[] = app(FlowFileService::class)
+                ->storePending($upload, $definition, $field, $columnKey, $user->id)
+                ->apiPayload();
         }
 
-        $this->flowService->logAudit($record->definition, $this->active_user(), 'file_download', $record, [
-            'file_name' => $data['name'],
-        ]);
+        return response()->json(['files' => $stored]);
+    }
+
+    /**
+     * ファイルの配信。**権限を見てから流す唯一の経路**。
+     *
+     * これまでファイル項目は共通の /cdn/{path} で配られていて、あのルートは
+     * `response()->file(storage_path('app/'.$path))` を無条件に返すだけだった。つまりログインさえ
+     * していれば、アプリ権限・レコード権限・項目の閲覧権限のすべてを飛び越えて読めた（IDも連番で
+     * 推測できた）。ここでアプリ→レコード→項目の3段を確かめる。
+     */
+    public function serveRecordFile(Request $request, $fileId)
+    {
+        $user = $this->active_user();
+        $file = FlowRecordFile::findOrFail($fileId);
+
+        // pending（保存前）は本人だけ。保存済みはレコードの権限で判断する。
+        if ($file->status === FlowRecordFile::STATUS_PENDING) {
+            abort_unless((int) $file->uploaded_by === (int) $user->id, 403);
+
+            return $this->streamRecordFile($file, $request->boolean('dl'));
+        }
+
+        abort_unless($file->flow_record_id, 404);
+        $record = FlowRecord::with(self::RECORD_DETAIL_WITH)->findOrFail($file->flow_record_id);
+        $definition = $record->definition;
+
+        abort_unless($this->flowService->recordPermissions($user, $record, $definition)['view'], 403);
+        if ($file->flow_field_id) {
+            $fieldPerms = $this->flowService->fieldPermissions($user, $definition, $record);
+            abort_unless($fieldPerms[$file->flow_field_id]['view'] ?? true, 403);
+        }
+
+        // 監査はここで書く。URLからレコードIDを正規表現で拾って画面に自己申告させていた頃と違い、
+        // バイトを返すのと同じリクエストで記録するので取りこぼしも偽装もできない。
+        if ($request->boolean('dl')) {
+            $this->flowService->logAudit($definition, $user, 'file_download', $record, [
+                'file_name' => $file->name,
+                'flow_record_file_id' => $file->id,
+            ]);
+        }
+
+        return $this->streamRecordFile($file, $request->boolean('dl'));
+    }
+
+    private function streamRecordFile(FlowRecordFile $file, bool $download)
+    {
+        abort_if($file->status === FlowRecordFile::STATUS_MISSING, 404, 'ファイルの実体が見つかりません。');
+        abort_unless($file->disk_path && Storage::disk('local')->exists($file->disk_path), 404);
+
+        $absolute = storage_path('app/'.$file->disk_path);
+
+        return $download
+            ? response()->download($absolute, $file->name)
+            : response()->file($absolute);
+    }
+
+    /** 保存前に取り消されたファイルを捨てる（画面で×を押した分）。 */
+    public function discardRecordFile(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate(['id' => 'required|integer']);
+
+        $file = FlowRecordFile::find($data['id']);
+        // 自分がアップロードした pending だけ。保存済みのファイルはレコードの保存で外す。
+        if ($file && $file->status === FlowRecordFile::STATUS_PENDING && (int) $file->uploaded_by === (int) $user->id) {
+            app(FlowFileService::class)->discardPending($file);
+        }
 
         return response()->noContent();
     }
@@ -1757,6 +1886,8 @@ class FlowController extends Controller
             'record' => $this->serializeRecord($record, $def->fields, $recordPerms, $user, $def),
             'can' => $recordPerms,
             'status_actions' => $actions,
+            // カスタムボタン（コード側の処理を呼ぶボタン）。押せる人にだけ返る。
+            'custom_actions' => $this->flowRecordActions->actionsFor($user, $record),
             'logs' => $logs,
             'mentionable_users' => $this->flowService->mentionableUsers($record, $def),
             // unread comment events for THIS user on this record → comment-tab badge
@@ -1917,6 +2048,8 @@ class FlowController extends Controller
             ->findOrFail($data['id']);
         abort_unless($this->flowService->recordPermissions($user, $record, $record->definition)['delete'], 403);
         $this->notifySafely(fn () => $this->flowNotifications->withdrawPendingAction($record));
+        // 添付の実体も落とす（以前は value だけ消してファイルはディスクに残り続けていた）
+        app(FlowFileService::class)->deleteForRecord($record);
         $record->values()->delete();
         $record->delete();
 
@@ -1952,6 +2085,38 @@ class FlowController extends Controller
         $record->load(self::RECORD_DETAIL_WITH);
 
         return $this->respondWithRecordDetail($record);
+    }
+
+    /**
+     * カスタムボタンの実行。
+     *
+     * 受け取るのはレコードIDとボタンID（flow_app_tools）だけ。どこを呼ぶかは設定ではなくコード側の
+     * 登録済みハンドラが決めるので、ここに宛先は一切入ってこない。
+     */
+    public function runRecordAction(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate([
+            'record_id' => 'required|integer|exists:flow_records,id',
+            'tool_id' => 'required|integer',
+        ]);
+
+        $record = FlowRecord::with(self::RECORD_DETAIL_WITH)->findOrFail($data['record_id']);
+        // 実行は書き込みなので、閲覧だけの人は入口で止める（押せる人の判定はサービス側でもう一度）
+        abort_unless($this->flowService->recordPermissions($user, $record, $record->definition)['view'], 403);
+
+        $result = $this->flowRecordActions->run($user, $record, (int) $data['tool_id']);
+
+        $record->load(self::RECORD_DETAIL_WITH);
+        $response = $this->respondWithRecordDetail($record);
+
+        return response()->json($response->getData(true) + ['message' => $result['message']]);
+    }
+
+    /** 設定画面用：コードに登録されているカスタムボタンの処理一覧。 */
+    public function recordActionCatalog()
+    {
+        return response()->json(['actions' => FlowRecordActions::catalog()]);
     }
 
     /** Keep only a safe inline <svg> (strip scripts, event handlers, foreignObject, javascript: hrefs). */

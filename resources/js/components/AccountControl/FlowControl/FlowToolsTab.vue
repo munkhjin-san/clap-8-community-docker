@@ -35,7 +35,7 @@
                         <div class="tt-meta">{{ metaOf(row.tool) }}</div>
                     </div>
                     <span class="flow-sw" :class="{ on: row.tool.is_active }" @click="row.tool.is_active = !row.tool.is_active" title="有効/無効"></span>
-                    <button class="tt-btn" @click="openDesigner(row.i)">{{ kind.type === 'slot' ? '設定' : 'デザイン' }}</button>
+                    <button class="tt-btn" @click="openDesigner(row.i)">{{ kind.type === 'pdf' ? 'デザイン' : '設定' }}</button>
                     <button class="tt-del" @click="def.tools.splice(row.i, 1)" title="削除"><CloseIcon size="10" /></button>
                 </div>
             </div>
@@ -51,6 +51,14 @@
                 :def="def"
                 @close="editingIndex = null"
             />
+            <FlowActionEditor
+                v-else-if="def.tools[editingIndex].tool_type === 'action'"
+                :tool="def.tools[editingIndex]"
+                :def="def"
+                :users="users"
+                :positions="positions"
+                @close="editingIndex = null"
+            />
             <FlowPdfDesigner v-else :tool="def.tools[editingIndex]" :def="def" @close="editingIndex = null" />
         </template>
     </div>
@@ -60,14 +68,15 @@
 import 'styles/flow-shared.css'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { BuilderDefinition, FlowAppTool, FlowOptionUser } from '@/types/flow'
-import { TOOL_KINDS, emptyPdfTemplate, emptySlot, pdfConfig, slotConfig, toolKindByRoute } from '@/types/flow'
+import type { BuilderDefinition, FlowAppTool, FlowOptionPosition, FlowOptionUser } from '@/types/flow'
+import { TOOL_KINDS, actionConfig, eligibleIsConfigured, emptyActionTool, emptyPdfTemplate, emptySlot, pdfConfig, slotConfig, toolKindByRoute } from '@/types/flow'
 import FlowFieldIcon from './FlowFieldIcon.vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
+import FlowActionEditor from './FlowActionEditor.vue'
 import FlowPdfDesigner from './FlowPdfDesigner.vue'
 import FlowSlotEditor from './FlowSlotEditor.vue'
 
-const props = defineProps<{ def: BuilderDefinition; users: FlowOptionUser[] }>()
+const props = defineProps<{ def: BuilderDefinition; users: FlowOptionUser[]; positions: FlowOptionPosition[] }>()
 
 const route = useRoute()
 const router = useRouter()
@@ -95,14 +104,23 @@ const rows = computed(() =>
 )
 const countOf = (type: string) => props.def.tools.filter((t) => t.tool_type === type).length
 
-const metaOf = (tool: FlowAppTool) =>
-    tool.tool_type === 'slot'
-        ? `${slotConfig(tool).position === 'top' ? '表の上' : '表の下'} · ${(slotConfig(tool).items || []).length} 項目`
-        : `${(pdfConfig(tool).elements || []).length} 要素`
+const metaOf = (tool: FlowAppTool) => {
+    if (tool.tool_type === 'slot') {
+        return `${slotConfig(tool).position === 'top' ? '表の上' : '表の下'} · ${(slotConfig(tool).items || []).length} 項目`
+    }
+    if (tool.tool_type === 'action') {
+        const cfg = actionConfig(tool)
+        if (!cfg.handler) return '処理が未選択'
+        return `押せる人: ${eligibleIsConfigured(cfg.eligible) ? `${cfg.eligible.length}件指定` : '編集権限を持つ全員'}`
+    }
+    return `${(pdfConfig(tool).elements || []).length} 要素`
+}
 
 const addOfKind = () => {
     if (kind.value?.type === 'slot') {
         props.def.tools.push({ tool_type: 'slot', name: '集計', is_active: true, config: emptySlot() })
+    } else if (kind.value?.type === 'action') {
+        props.def.tools.push({ tool_type: 'action', name: '新しいボタン', is_active: true, config: emptyActionTool() })
     } else {
         props.def.tools.push({ tool_type: 'pdf', name: '新しいPDF帳票', is_active: true, config: emptyPdfTemplate() })
     }

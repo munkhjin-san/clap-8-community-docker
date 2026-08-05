@@ -282,8 +282,13 @@ import type { MenuList } from '@/interface/globalInterface';
         direcDownload();        
         menu.setMenu( {name: '', id: null})
     }
-    const direcDownload = async() => {                 
-        fetch(currentFile.value.file_path)
+    const direcDownload = async() => {
+        // カスタムアプリのファイルは ?dl=1 で取る。ダウンロードの監査ログはバイトを返すのと同じ
+        // リクエストでサーバー側が書くので、画面からの自己申告（取りこぼす・偽装できる）が要らない。
+        const downloadPath = source.value === 'flow'
+            ? `${currentFile.value.file_path}${currentFile.value.file_path.includes('?') ? '&' : '?'}dl=1`
+            : currentFile.value.file_path
+        fetch(downloadPath)
         .then(response => response.blob())
         .then(blob => {
             const link = document.createElement('a');
@@ -298,10 +303,7 @@ import type { MenuList } from '@/interface/globalInterface';
 
             URL.revokeObjectURL(url);
         })
-        if (source.value === 'flow') {
-            await api.post('/flow_file_download_log', { url: currentFile.value.file_path, name: currentFile.value.name })
-            return
-        }
+        if (source.value === 'flow') return   // 監査は上の ?dl=1 でサーバー側が記録済み
         if (source.value !== 'storage') return
         const payload = {
             id: currentFile.value.id,

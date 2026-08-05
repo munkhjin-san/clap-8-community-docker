@@ -97,7 +97,7 @@
             <FlowFormTab v-show="tab === 'form'" :def="def" />
             <FlowStatusTab v-show="tab === 'status'" :def="def" :users="users" :positions="positions" />
             <FlowViewTab v-show="tab === 'view'" :def="def" :users="users" />
-            <FlowToolsTab v-show="tab === 'tools'" :def="def" :users="users" />
+            <FlowToolsTab v-show="tab === 'tools'" :def="def" :users="users" :positions="positions" />
             <FlowPermissionTab v-show="tab === 'permission'" :def="def" :users="users" :positions="positions" />
             <FlowAuditLogTab v-if="def.id && auditOpened" v-show="tab === 'audit'" :def="def" />
         </div>

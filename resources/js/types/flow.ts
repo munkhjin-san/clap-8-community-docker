@@ -425,20 +425,56 @@ export interface SlotConfig {
     items: SlotAggItem[]
 }
 
+/**
+ * A「カスタムボタン」— a record-detail button whose behaviour lives in server code, not in config.
+ *
+ * `handler` is a KEY into the server's registry (`/flow_action_catalog`), never a URL: the app
+ * builder places, names and gates the button, but cannot invent what it does or where it goes.
+ * `eligible` is the same 押せる人 vocabulary as a status action, so both read identically.
+ */
+export interface ActionToolConfig {
+    handler: string | null
+    /** '' = inherit the app theme colour (same rule as a status action's colour) */
+    color?: string
+    eligible: ActionSubject[]
+}
+
+/** One registered server-side handler, as offered by /flow_action_catalog. */
+export interface FlowActionCatalogEntry {
+    key: string
+    label: string
+    description: string
+    inputs: { key: string; label: string; required: boolean }[]
+    outputs: { key: string; label: string }[]
+    once_only: boolean
+    confirm: string
+}
+
 export interface FlowAppTool {
     id?: number
-    tool_type: 'pdf' | 'slot'
+    tool_type: 'pdf' | 'slot' | 'action'
     name: string
     is_active: boolean
-    config: PdfTemplate | SlotConfig
+    config: PdfTemplate | SlotConfig | ActionToolConfig
 }
 
 /** Narrowing helpers — `config` shape follows `tool_type`, which TS can't infer at every call site. */
 export const isSlotTool = (t: FlowAppTool): boolean => t.tool_type === 'slot'
 export const pdfConfig = (t: FlowAppTool): PdfTemplate => t.config as PdfTemplate
 export const slotConfig = (t: FlowAppTool): SlotConfig => t.config as SlotConfig
+export const actionConfig = (t: FlowAppTool): ActionToolConfig => t.config as ActionToolConfig
 
 export const emptySlot = (): SlotConfig => ({ position: 'bottom', feature: 'aggregation', items: [] })
+export const emptyActionTool = (): ActionToolConfig => ({ handler: null, color: '', eligible: [] })
+
+/**
+ * Has anyone actually been named as 押せる人? An empty list (or one holding only the
+ * position-picker's transient state) means「編集権限を持つ全員」— which is what the server's
+ * matchesAnySubject falls back to, so the hint and the behaviour agree.
+ */
+const NAMED_SUBJECTS = ['creator', 'user', 'creator_project_manager', 'field_project_manager']
+export const eligibleIsConfigured = (eligible: ActionSubject[] | null | undefined): boolean =>
+    (eligible ?? []).some((e) => NAMED_SUBJECTS.includes(e.subject_type))
 
 export const SLOT_AGG_FN_LABEL: Record<SlotAggFn, string> = {
     sum: '合計', avg: '平均', max: '最大', min: '最小',
@@ -452,7 +488,7 @@ export const SLOT_AGG_FN_LABEL: Record<SlotAggFn, string> = {
  * own screen — the root grid and the routing are both driven off this list.
  */
 export interface ToolKind {
-    type: 'pdf' | 'slot'
+    type: 'pdf' | 'slot' | 'action'
     route: string
     label: string
     desc: string
@@ -473,6 +509,13 @@ export const TOOL_KINDS: ToolKind[] = [
         label: '集計スロット',
         desc: 'レコード一覧の表の上または下に、合計・平均・最大・最小を表示します。',
         icon: 'formula',
+    },
+    {
+        type: 'action',
+        route: 'custom-button',
+        label: 'カスタムボタン',
+        desc: 'レコード詳細にボタンを置き、外部連携などの処理を実行します。処理の中身はシステム側で用意したものから選びます。',
+        icon: 'button',
     },
 ]
 
@@ -538,7 +581,7 @@ export interface FlowOptionPosition {
     name: string
 }
 
-export type FlowAuditAction = 'record_view' | 'csv_export' | 'settings_change' | 'file_download'
+export type FlowAuditAction = 'record_view' | 'csv_export' | 'settings_change' | 'file_download' | 'record_action'
 
 /** App-level audit trail entry (「監査ログ」builder tab) — distinct from a record's own 変更履歴. */
 export interface FlowAuditLogEntry {
