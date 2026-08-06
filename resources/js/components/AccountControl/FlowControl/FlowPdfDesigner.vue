@@ -30,7 +30,7 @@
                 </div>
 
                 <!-- canvas -->
-                <div class="pd-canvas-wrap" @pointerdown.self="selectedId = null">
+                <div ref="canvasWrap" class="pd-canvas-wrap" @wheel="onWheel" @pointerdown.self="selectedId = null">
                     <!-- ページの切り替え。1枚しか無いときも出す——増やせることが分かる場所がここしかない。 -->
                     <div class="pd-pages" @pointerdown.stop>
                         <button
@@ -48,6 +48,14 @@
                             title="このページを削除"
                             @click="removePage(currentPage)"
                         ><CloseIcon size="10" /></button>
+
+                        <!-- 表示倍率。既定の62%では差込項目を置く作業がしづらい。 -->
+                        <span class="pd-zoom">
+                            <button title="縮小" :disabled="scale <= ZOOM_MIN" @click="zoomBy(-1)">−</button>
+                            <button class="pd-zoom-val" title="100%に戻す" @click="setZoom(1)">{{ Math.round(scale * 100) }}%</button>
+                            <button title="拡大" :disabled="scale >= ZOOM_MAX" @click="zoomBy(1)">＋</button>
+                            <button class="pd-zoom-fit" title="幅に合わせる" @click="fitToWidth">幅に合わせる</button>
+                        </span>
                     </div>
 
                     <div
@@ -262,7 +270,52 @@ const dialog = useDialog()
 
 const pageW = computed(() => (cfg.value.paper.orientation === 'landscape' ? 1123 : 794))
 const pageH = computed(() => (cfg.value.paper.orientation === 'landscape' ? 794 : 1123))
-const scale = ref(0.62)
+/* ---- 表示倍率 ----
+   要素の座標も文字サイズも掴む判定も、すべて scale を通しているので、ここを変えるだけで
+   全部が追従する（ドラッグ量は / scale しているため、どの倍率でも同じだけ動く）。 */
+const ZOOM_MIN = 0.25
+const ZOOM_MAX = 2
+const ZOOM_STEPS = [0.25, 0.35, 0.5, 0.62, 0.75, 0.9, 1, 1.25, 1.5, 2]
+const ZOOM_KEY = 'flow.pdf.designer.zoom'
+
+const canvasWrap = ref<HTMLElement | null>(null)
+const scale = ref(readStoredZoom())
+
+function readStoredZoom(): number {
+    try {
+        const v = Number(localStorage.getItem(ZOOM_KEY))
+        // 前に使っていた倍率で開く。毎回62%に戻ると、開き直すたびに合わせ直しになる。
+        if (isFinite(v) && v >= ZOOM_MIN && v <= ZOOM_MAX) return v
+    } catch { /* localStorage が使えない環境でも動く */ }
+    return 0.62
+}
+
+const setZoom = (v: number) => {
+    scale.value = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(v * 100) / 100))
+    try { localStorage.setItem(ZOOM_KEY, String(scale.value)) } catch { /* 保存できなくても続行 */ }
+}
+
+/** 段階で動かす。今の値より大きい／小さい最初の段に移る。 */
+const zoomBy = (dir: 1 | -1) => {
+    const next = dir > 0
+        ? ZOOM_STEPS.find((z) => z > scale.value + 0.001)
+        : [...ZOOM_STEPS].reverse().find((z) => z < scale.value - 0.001)
+    setZoom(next ?? scale.value)
+}
+
+/** 見えている幅いっぱいに。狭い画面ではこれが一番使う。 */
+const fitToWidth = () => {
+    const el = canvasWrap.value
+    if (!el) return
+    setZoom((el.clientWidth - 48) / pageW.value)   // 48 = 左右の余白
+}
+
+/** Ctrl / ⌘ + ホイールで拡大縮小。修飾キー無しのときは普通のスクロールのまま。 */
+const onWheel = (e: WheelEvent) => {
+    if (!e.ctrlKey && !e.metaKey) return
+    e.preventDefault()
+    setZoom(scale.value * (e.deltaY < 0 ? 1.1 : 1 / 1.1))
+}
 const selectedId = ref<string | null>(null)
 
 const elements = computed(() => cfg.value.elements)
@@ -648,7 +701,9 @@ const closePreview = () => { if (previewUrl.value) URL.revokeObjectURL(previewUr
 .pd-chip-ico { width: 18px; text-align: center; color: var(--primary-color); font-weight: 700; }
 .pd-hint { font-size: 10.5px; color: gray; line-height: 1.5; margin-top: 6px; }
 
-.pd-canvas-wrap { flex: 1; overflow: auto; display: flex; flex-direction: column; align-items: center; padding: 24px; }
+.pd-canvas-wrap { flex: 1; overflow: auto; display: flex; flex-direction: column; padding: 24px; }
+/* safe を付けないと、拡大して用紙が枠より広くなったとき左端が見切れてスクロールしても戻れない */
+.pd-canvas-wrap { align-items: center; align-items: safe center; }
 .pd-pages { display: flex; align-items: center; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; justify-content: center; }
 .pd-pages button { border: 1px solid var(--formBorder); background: var(--background-color); color: gray; cursor: pointer; height: 26px; min-width: 26px; padding: 0 8px; display: flex; align-items: center; justify-content: center; gap: 5px; font-size: 12px; }
 .pd-page-tab.on { border-color: var(--primary-color); color: var(--primary-color); }
@@ -658,6 +713,10 @@ const closePreview = () => { if (previewUrl.value) URL.revokeObjectURL(previewUr
 .pd-bg-name { font-size: 12px; margin: 0 0 4px; word-break: break-all; }
 .pd-bg-clear { border: 1px solid var(--formBorder); background: var(--background-color); color: gray; cursor: pointer; padding: 5px 10px; font-size: 12px; margin-top: 6px; }
 .pd-page-add { font-size: 14px; }
+.pd-zoom { display: inline-flex; align-items: center; gap: 4px; margin-left: 10px; padding-left: 10px; border-left: 1px solid var(--formBorder); }
+.pd-zoom button:disabled { opacity: .4; cursor: default; }
+.pd-zoom-val { min-width: 48px; }
+.pd-zoom-fit { font-size: 11px; }
 /* Always-white paper: lock dark ink so page content stays readable regardless of app theme. */
 .pd-page { position: relative; background: #fff; color: #1a1a1a; box-shadow: 0 2px 16px rgba(0,0,0,.15); flex-shrink: 0; align-self: flex-start; }
 .pd-el { position: absolute; box-sizing: border-box; cursor: move; outline: 1px dashed transparent; user-select: none; -webkit-user-select: none; }
