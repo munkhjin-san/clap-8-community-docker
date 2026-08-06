@@ -4,6 +4,9 @@ namespace App\Support;
 
 use App\Models\FlowRecord;
 use App\Models\User;
+use App\Services\Freee\FreeePartnerSyncService;
+use App\Services\Freee\FreeeReauthorizationRequiredException;
+use Illuminate\Validation\ValidationException;
 
 /**
  * カスタムボタンから呼ばれる処理の置き場。
@@ -35,8 +38,17 @@ class FlowRecordActions
      * @var array<string, string>
      */
     public const ACTIONS = [
-        // 例）'createFreeePartner' => 'freeeに取引先を登録',
+        'syncFreeePartner' => 'freee連携（取引先の確認・登録）',
     ];
+
+    /** 取引先アプリの項目コード。ボタンの設定ではなくここで固定する。 */
+    private const PARTNER_NAME_KEY = '会社名';
+
+    private const PARTNER_ID_KEY = '取引先ID';
+
+    private const SYNCED_AT_KEY = 'freee同期確認日時';
+
+    public function __construct(private readonly FreeePartnerSyncService $partners) {}
 
     /** 設定画面用の一覧。 */
     public static function catalog(): array
@@ -73,11 +85,43 @@ class FlowRecordActions
      | ここから下が実際の処理。1メソッド1ボタン。
      |================================================================ */
 
-    // 例）
-    // public function createFreeePartner(FlowRecord $record, User $user): array
-    // {
-    //     $values = app(FlowService::class)->recordValues($record, $record->definition->fields);
-    //     ... freee API を叩く ...
-    //     return ['message' => '登録しました。', 'values' => ['freee_partner_id' => $id]];
-    // }
+    /**
+     * 取引先アプリ ⇄ freee会計の取引先。
+     *
+     * 取引先IDが入っていれば実在を確かめるだけ、空なら名前で探して、無ければ作る。
+     * どの経路でも最後に確認日時を打つので、「いつ突き合わせたか」がレコードに残る。
+     */
+    public function syncFreeePartner(FlowRecord $record, User $user): array
+    {
+        try {
+            $result = $this->partners->sync(
+                FreeePartnerSyncService::credential(),
+                $record,
+                self::PARTNER_NAME_KEY,
+                self::PARTNER_ID_KEY,
+            );
+        } catch (FreeeReauthorizationRequiredException $e) {
+            // これは RuntimeException なので、そのままだと500になる。画面に出す文に変える。
+            throw ValidationException::withMessages([
+                'message' => 'freeeとの接続が切れています。管理画面 > 施設 > freee で再認可してください。',
+            ]);
+        }
+
+        $name = $result['partner_name'];
+        $id = $result['partner_id'];
+
+        $message = match ($result['result']) {
+            FreeePartnerSyncService::RESULT_VERIFIED => "freeeの取引先「{$name}」(ID {$id}) と一致しました。",
+            FreeePartnerSyncService::RESULT_LINKED => "freeeの既存の取引先「{$name}」(ID {$id}) と紐付けました。",
+            default => "freeeに取引先「{$name}」(ID {$id}) を作成しました。",
+        };
+
+        // 確認日時は毎回更新する。取引先IDは、新しく決まったときだけ書く。
+        $values = [self::SYNCED_AT_KEY => now()->format('Y-m-d\\TH:i')];
+        if ($result['result'] !== FreeePartnerSyncService::RESULT_VERIFIED) {
+            $values[self::PARTNER_ID_KEY] = $id;
+        }
+
+        return ['message' => $message, 'values' => $values];
+    }
 }

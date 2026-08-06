@@ -2207,38 +2207,6 @@ class FlowController extends Controller
     }
 
     /**
-     * カスタムボタンの実行。
-     *
-     * 受け取るのはレコードIDとボタンID（flow_app_tools）だけ。どこを呼ぶかは設定ではなくコード側の
-     * 登録済みハンドラが決めるので、ここに宛先は一切入ってこない。
-     */
-    public function runRecordAction(Request $request)
-    {
-        $user = $this->active_user();
-        $data = $request->validate([
-            'record_id' => 'required|integer|exists:flow_records,id',
-            'tool_id' => 'required|integer',
-        ]);
-
-        $record = FlowRecord::with(self::RECORD_DETAIL_WITH)->findOrFail($data['record_id']);
-        // 実行は書き込みなので、閲覧だけの人は入口で止める（押せる人の判定はサービス側でもう一度）
-        abort_unless($this->flowService->recordPermissions($user, $record, $record->definition)['view'], 403);
-
-        $result = $this->flowRecordActions->run($user, $record, (int) $data['tool_id']);
-
-        $record->load(self::RECORD_DETAIL_WITH);
-        $response = $this->respondWithRecordDetail($record);
-
-        return response()->json($response->getData(true) + ['message' => $result['message']]);
-    }
-
-    /** 設定画面用：コードに登録されているカスタムボタンの処理一覧。 */
-    public function recordActionCatalog()
-    {
-        return response()->json(['actions' => FlowRecordActions::catalog()]);
-    }
-
-    /**
      * 関連レコードの中身。レコード詳細の「関連レコード」ブロックが1つずつ取りに来る。
      *
      * 行ごとの権限は子アプリの規則で見る（見えないレコードは件数にも入らない）。

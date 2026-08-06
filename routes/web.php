@@ -50,6 +50,7 @@ use App\Http\Controllers\PublicHolidayController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\FlowController;
+use App\Http\Controllers\FlowRecordActionController;
 use App\Http\Controllers\AppCommentController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\FinanceToolController;
@@ -1114,8 +1115,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/flow_tool_background/{definitionId}/{hash}', [FlowController::class, 'toolBackground']);
         Route::post('/flow_app_record_transition', [FlowController::class, 'transitionAppRecord']);
         // カスタムボタン：宛先はコード側の登録済みハンドラが持つ（設定にURLは入らない）
-        Route::get('/flow_action_catalog', [FlowController::class, 'recordActionCatalog']);
-        Route::post('/flow_record_action', [FlowController::class, 'runRecordAction']);
+        Route::get('/flow_action_catalog', [FlowRecordActionController::class, 'catalog']);
+        Route::post('/flow_record_action', [FlowRecordActionController::class, 'run']);
         Route::post('/flow_formula_preview', [FlowController::class, 'previewFormula']);
         Route::get('/flow_app_export/{definition}', [FlowController::class, 'exportRecords']);
         Route::post('/flow_app_import', [FlowController::class, 'importRecords']);
