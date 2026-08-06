@@ -99,6 +99,9 @@ export interface ProjectType {
 interface Project {
     id: number;
     name: string;
+    // freee会計の部門ID。null なら未連携（この値の有無が同期状態を表す）
+    freee_section_id?: number | null;
+    freee_synced_at?: string | null;
     date_start: string;
     date_end: string;
     overview: string;

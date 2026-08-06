@@ -107,8 +107,18 @@ class ProjectRecord extends Model
         'date_end' => 'date',
         'has_goals' => 'boolean',
         'actual_statuses' => 'array',
-        'has_actual_func' => 'boolean'
+        'has_actual_func' => 'boolean',
+        'freee_section_id' => 'integer',
+        'freee_synced_at' => 'datetime',
     ];
+
+    /**
+     * freeeの部門と紐付いているか。freee_section_id の有無がそのまま同期状態。
+     */
+    public function isFreeeSynced(): bool
+    {
+        return filled($this->freee_section_id);
+    }
 
     public function scopeActiveOn(Builder $q, ?Carbon $day = null): Builder
     {

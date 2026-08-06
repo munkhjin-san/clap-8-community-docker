@@ -214,6 +214,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('app:auto-attendance-confirm')->monthlyOn(3, '08:00');
         $schedule->command('app:refresh-automation')->monthlyOn(1, '08:00');
         $schedule->command('contact-batches:poll')->everyFifteenMinutes();
+        // freeeのリフレッシュトークンは更新のたびに90日延びる。使われていなくても毎日温めて連鎖を切らさない。
+        $schedule->command('freee:refresh-tokens')->dailyAt('03:40')->withoutOverlapping();
         $schedule->command('app:seal-audit-daily-digest')->dailyAt('03:00')->appendOutputTo(storage_path('logs/timecard-audit-seal.log'));
         $schedule->command('app:verify-timecard-audit-integrity --require-digest --date='.now()->subDay()->toDateString())->dailyAt('04:00')->appendOutputTo(storage_path('logs/timecard-audit-integrity.log'));
         $schedule->command('app:approve-daily-report')->dailyAt('04:00');

@@ -17,6 +17,7 @@ use App\Http\Controllers\AdminActualResultController;
 use App\Http\Controllers\AdminAccountController;
 use App\Http\Controllers\AdminBankAccountController;
 use App\Http\Controllers\AdminCostMasterController;
+use App\Http\Controllers\AdminFreeeController;
 use App\Http\Controllers\AdminPaidLeaveLedgerController;
 use App\Http\Controllers\AdminPaidLeavePolicyController;
 use App\Http\Controllers\AdminZoomAccountController;
@@ -342,6 +343,27 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::put('/admin/zoom-accounts/{zoomAccount}', [AdminZoomAccountController::class, 'update']);
         Route::delete('/admin/zoom-accounts/{zoomAccount}', [AdminZoomAccountController::class, 'destroy']);
         Route::post('/admin/zoom-accounts/{zoomAccount}/test', [AdminZoomAccountController::class, 'test']);
+        // freee連携（管理画面 > 施設 > freee）
+        Route::get('/admin/freee-credentials', [AdminFreeeController::class, 'index']);
+        Route::post('/admin/freee-credentials', [AdminFreeeController::class, 'store']);
+        Route::put('/admin/freee-credentials/{freeeCredential}', [AdminFreeeController::class, 'update']);
+        Route::delete('/admin/freee-credentials/{freeeCredential}', [AdminFreeeController::class, 'destroy']);
+        Route::post('/admin/freee-credentials/{freeeCredential}/connect', [AdminFreeeController::class, 'connect']);
+        // コールバックを受けられない環境向け：表示された認可コードを手貼りして交換する
+        Route::post('/admin/freee-credentials/{freeeCredential}/exchange-code', [AdminFreeeController::class, 'exchangeCode']);
+        Route::get('/admin/freee-credentials/{freeeCredential}/companies', [AdminFreeeController::class, 'companies']);
+        Route::post('/admin/freee-credentials/{freeeCredential}/company', [AdminFreeeController::class, 'selectCompany']);
+        Route::post('/admin/freee-credentials/{freeeCredential}/refresh', [AdminFreeeController::class, 'refresh']);
+        Route::post('/admin/freee-credentials/{freeeCredential}/test', [AdminFreeeController::class, 'test']);
+        Route::post('/admin/freee-credentials/{freeeCredential}/disconnect', [AdminFreeeController::class, 'disconnect']);
+        // 取引先一覧（freee会計）
+        Route::get('/admin/freee/partners', [AdminFreeeController::class, 'partners']);
+        // プロジェクト ⇄ freee部門（Section）の連携
+        Route::post('/admin/freee/projects/{project}/section', [AdminFreeeController::class, 'syncSection']);
+        Route::get('/admin/freee/projects/{project}/section', [AdminFreeeController::class, 'checkSection']);
+        Route::delete('/admin/freee/projects/{project}/section', [AdminFreeeController::class, 'unlinkSection']);
+        // freeeの同意画面からのリダイレクト先。freeeアプリ管理に登録するURLと完全一致させる。
+        Route::get('/admin/freee/callback', [AdminFreeeController::class, 'callback']);
         Route::get('/admin/calendar-facilities', [AdminCalendarFacilityController::class, 'index']);
         Route::post('/admin/calendar-facilities', [AdminCalendarFacilityController::class, 'store']);
         Route::put('/admin/calendar-facilities/{calendarFacility}', [AdminCalendarFacilityController::class, 'update']);

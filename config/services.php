@@ -107,5 +107,8 @@ return [
         'delivery_url' => env('CUENOTE_DELIVERY_URL', 'https://sms-console.cuenote.jp/v9/delivery'),
     ],
 
-
+    'freee' => [
+        // 呼び出し対象の事業所ID。未設定なら認可時にfreeeが返した company_id を使う。
+        'company_id' => env('FREEE_COMPANY_ID'),
+    ],
 ];
