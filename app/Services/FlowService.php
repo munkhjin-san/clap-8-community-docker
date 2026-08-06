@@ -22,8 +22,15 @@ class FlowService
 {
     private const ADMIN_USER_IDS = [608, 610];
 
-    /** Layout/decoration field types that hold no record value. */
-    public const LAYOUT_TYPES = ['heading', 'label', 'spacer', 'divider'];
+    /**
+     * Field types that hold no record value.
+     *
+     * 「関連レコード」(related) belongs here even though it shows data: it displays OTHER records —
+     * the ones pointing at this one through a ルックアップ field — so this record stores nothing for
+     * it. Listing it here is what keeps it out of saves, formulas, CSV export, search, view columns
+     * and validation without a single special case in any of them.
+     */
+    public const LAYOUT_TYPES = ['heading', 'label', 'spacer', 'divider', 'related'];
 
     public static function isLayoutType(?string $type): bool
     {
@@ -634,10 +641,16 @@ class FlowService
         $col = $this->valueColumnFor($field->input_type);
         $fid = (int) $field->id;
 
-        if ($op === 'is_empty') {
-            $q->whereDoesntHave('values', fn ($v) => $v->where('flow_field_id', $fid)->whereNotNull($col)->where($col, '!=', ''));
-        } elseif ($op === 'not_empty') {
-            $q->whereHas('values', fn ($v) => $v->where('flow_field_id', $fid)->whereNotNull($col)->where($col, '!=', ''));
+        if ($op === 'is_empty' || $op === 'not_empty') {
+            // 「値がある」の判定。JSON列は空でも `[]` が入っていて NULL でも空文字でもないので、
+            // 長さを見ないと未選択のチェックボックスが「値あり」に化ける
+            // （チェックが付いていないレコードを出す一覧が0件になる）。
+            $hasValue = fn ($v) => $v->where('flow_field_id', $fid)
+                ->whereNotNull($col)
+                ->where($col, '!=', '')
+                ->when($col === 'value_json', fn ($x) => $x->whereRaw("JSON_LENGTH({$col}) > 0"));
+
+            $op === 'is_empty' ? $q->whereDoesntHave('values', $hasValue) : $q->whereHas('values', $hasValue);
         } elseif ($op === 'includes_any') {
             // includes_any spans two storage shapes: a JSON array (checkbox option labels, user/member
             // ids) and a plain scalar (select/radio in value_text). For the JSON case, match on
@@ -780,7 +793,8 @@ class FlowService
                 );
                 break;
             case 'reference':
-                $ref = $this->referenceValue($raw);
+                // value_numeric に相手のレコードIDが入るのが、関連レコード（裏引き）の索引になる
+                $ref = $this->referenceValue($raw, $field);
                 $value->value_json = $ref;
                 $value->value_numeric = $ref['id'] ?? null;
                 break;
@@ -1167,17 +1181,57 @@ class FlowService
     }
 
     /** Reference field: snapshot the picked target record as {id, number, label}. */
-    private function referenceValue($raw): ?array
+    /**
+     * ルックアップの保存値。番号とラベルは**サーバーで引き直す**。
+     *
+     * 以前は画面が送ってきた number/label をそのまま入れていたので、IDだけを送るクライアント
+     * （関連レコードの「＋追加」など）では `#undefined` のまま保存され、古いラベルや偽のラベルも
+     * そのまま残った。表示名の出しかた（label_field）はサーバーが知っているので、ここで作る。
+     */
+    private function referenceValue($raw, ?FlowField $field = null): ?array
     {
         if (! is_array($raw) || empty($raw['id'])) {
             return null;
         }
+        $id = (int) $raw['id'];
 
+        $targetId = (int) ($field->validation['target_definition_id'] ?? 0);
+        if ($targetId > 0) {
+            $target = FlowDefinition::with('fields')->find($targetId);
+            $record = $target ? FlowRecord::where('flow_definition_id', $targetId)->find($id) : null;
+            if ($record) {
+                return [
+                    'id' => $id,
+                    'number' => (int) $record->record_number,
+                    'label' => $this->referenceLabel($record, $target, $field->validation['label_field'] ?? null),
+                ];
+            }
+        }
+
+        // 参照先が引けない（システムソース参照など）ときは、送られてきた値をそのまま使う
         return [
-            'id' => (int) $raw['id'],
+            'id' => $id,
             'number' => isset($raw['number']) ? (int) $raw['number'] : null,
             'label' => isset($raw['label']) ? (string) $raw['label'] : '',
         ];
+    }
+
+    /** ルックアップの表示名。label_field が無い／空なら「#レコード番号」。 */
+    private function referenceLabel(FlowRecord $record, FlowDefinition $target, ?string $labelFieldKey): string
+    {
+        $labelField = filled($labelFieldKey) ? $target->fields->firstWhere('key', $labelFieldKey) : null;
+        if ($labelField && ! self::isSecret($labelField->input_type)) {
+            $vals = $this->recordValues($record, $target->fields);
+            $raw = $vals[(string) $labelField->id] ?? null;
+            $label = is_array($raw)
+                ? implode(' / ', array_map(fn ($x) => is_scalar($x) ? (string) $x : '', $raw))
+                : (is_scalar($raw) ? (string) $raw : '');
+            if (trim($label) !== '') {
+                return $label;
+            }
+        }
+
+        return '#'.$record->record_number;
     }
 
     /** Coerce a single table cell for JSON storage, matching the column's input type. */
@@ -1188,6 +1242,8 @@ class FlowService
             'toggle' => $this->booleanValue($raw),
             'checkbox', 'file' => $this->arrayValue($raw),
             'user', 'member' => $this->userIdArrayValue($raw),
+            // テーブル内のルックアップ列は列定義（配列）しか無いため、番号とラベルは画面の値を使う。
+            // トップレベルのルックアップだけがサーバーで引き直される。
             'reference' => $this->referenceValue($raw),
             default => ($raw === null || $raw === '') ? null : (is_scalar($raw) ? (string) $raw : $raw),
         };

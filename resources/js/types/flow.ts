@@ -3,7 +3,7 @@ export type FlowInputType =
     | 'select' | 'radio' | 'checkbox' | 'toggle'
     | 'user' | 'member' | 'formula' | 'file' | 'table' | 'reference' | 'project'
     | 'password'
-    | 'heading' | 'label' | 'spacer' | 'divider'
+    | 'heading' | 'label' | 'spacer' | 'divider' | 'related'
 
 export type FlowRule = 'edit' | 'read' | 'hide'
 
@@ -14,6 +14,11 @@ export interface FlowFieldValidation {
     min?: number | null
     max?: number | null
     integer_only?: boolean
+    /** 数値の表示（see utils/flowNumber）。未設定なら桁区切りあり・単位なし。 */
+    thousand_separator?: boolean
+    decimals?: number | null
+    unit?: string | null
+    unit_position?: 'before' | 'after'
     min_select?: number | null
     max_select?: number | null
     accept?: string[]
@@ -53,6 +58,20 @@ export interface FlowFieldValidation {
      * values are searchable / exportable / columnable / filterable. Top-level reference fields only.
      */
     field_mappings?: FlowLookupMapping[]
+    /**
+     * related（関連レコード）: 既にあるルックアップ関係を裏返して一覧する設定。
+     *
+     * 「値の一致」ではなく関係そのものを選ぶ：child_definition_id のアプリの child_field_id
+     * （このアプリを指しているルックアップ項目）が持ち主。だから項目名を変えても壊れない。
+     */
+    child_definition_id?: number | null
+    child_field_id?: number | null
+    /** 一覧に出す子アプリの項目ID（未設定なら先頭の数項目）。table の columns とは別物。 */
+    related_columns?: number[]
+    /** 合計を出す子アプリの数値項目ID（kintoneの関連レコード一覧にはできない） */
+    related_aggregates?: number[]
+    /** 表示件数の上限（合計は全件が対象） */
+    related_limit?: number | null
 }
 
 export interface FlowLookupMapping {
@@ -124,6 +143,7 @@ export const FLOW_FIELD_DEFAULT_WIDTHS: Partial<Record<FlowInputType, number>> =
     label: 520,
     divider: 640,
     spacer: 200,
+    related: 1080,
 }
 export const defaultWidthFor = (type: FlowInputType): number => FLOW_FIELD_DEFAULT_WIDTHS[type] ?? FLOW_FIELD_DEFAULT_WIDTH
 
@@ -364,6 +384,13 @@ export interface PdfTableColumn {
 export interface PdfElement {
     id: string
     type: PdfElementType
+    /**
+     * 何ページ目に置くか（1始まり）。
+     *
+     * 未設定は1ページ目。単ページ時代に作られたテンプレートはこのキーを持たないので、
+     * 既存の設定はそのまま1ページ目の帳票として出る。
+     */
+    page?: number
     x: number
     y: number
     w: number
@@ -395,11 +422,30 @@ export interface PdfElement {
     showBorder?: boolean   // 罫線の表示（既定 true）
 }
 
+/** 下敷きにする既存PDF。ページNの下に、このPDFのページNが敷かれる。 */
+export interface PdfBackground {
+    path: string        // storage の相対パス（サーバが決める。画面からは触らない）
+    name: string        // 元のファイル名（表示用）
+    pages: number
+}
+
 export interface PdfTemplate {
-    paper: { orientation: 'portrait' | 'landscape' }
+    /** pages 未設定は1ページ。要素の page が指す最大値の方が大きければそちらが優先される。 */
+    paper: { orientation: 'portrait' | 'landscape'; pages?: number }
     elements: PdfElement[]
     filename?: string
+    background?: PdfBackground
 }
+
+/** テンプレートのページ数。設定値と、実際に要素が置かれている位置の大きい方。 */
+export const pdfPageCount = (t?: PdfTemplate | null): number => {
+    if (!t) return 1
+    const used = (t.elements ?? []).reduce((max, el) => Math.max(max, el.page ?? 1), 1)
+    return Math.max(1, t.paper?.pages ?? 1, used)
+}
+
+/** 要素が属するページ（未設定は1ページ目）。 */
+export const pdfElementPage = (el: PdfElement): number => Math.max(1, el.page ?? 1)
 
 /**
  * A「スロット」is a free area pinned above or below the record table. Unlike a view it belongs to the
@@ -713,10 +759,23 @@ export const FLOW_FIELD_TYPES: FlowTypeMeta[] = [
     { type: 'label', label: 'ラベル', icon: 'label', group: 'レイアウト' },
     { type: 'spacer', label: 'スペース', icon: 'spacer', group: 'レイアウト' },
     { type: 'divider', label: '罫線', icon: 'divider', group: 'レイアウト' },
+    // 関連レコード: 値を持たないブロック。ここに出す内容は「このレコードを指している他アプリの
+    // レコード」なので、保存・計算・CSV出力・検索の対象にはならない（isLayoutType に含める）。
+    { type: 'related', label: '関連レコード', icon: 'related', group: 'その他' },
 ]
 
-/** Layout/decoration types that hold no record value. */
-export const FLOW_LAYOUT_TYPES: FlowInputType[] = ['heading', 'label', 'spacer', 'divider']
+/**
+ * Types that hold no record value — must match FlowService::LAYOUT_TYPES on the server.
+ *
+ * 関連レコード（related）is here because this record stores nothing for it: it displays OTHER
+ * records. Being in this list is what keeps it out of list columns, filters, sort, validation,
+ * the dirty check and status field rules. It differs from pure decoration in one way only — it
+ * carries a meaningful label (the panel heading), so the places that hide labels for decoration
+ * check for that explicitly rather than relying on this list.
+ */
+export const FLOW_LAYOUT_TYPES: FlowInputType[] = ['heading', 'label', 'spacer', 'divider', 'related']
+/** Decoration proper: no value AND no meaningful label of its own. */
+export const isDecorationType = (t: FlowInputType) => t !== 'related' && FLOW_LAYOUT_TYPES.includes(t)
 export const isLayoutType = (t: FlowInputType) => FLOW_LAYOUT_TYPES.includes(t)
 
 /**

@@ -1,7 +1,9 @@
 <template>
     <!-- layout / decoration: renders the same in every mode -->
     <div v-if="field.input_type === 'heading'" class="fi-heading">{{ field.label }}</div>
-    <div v-else-if="field.input_type === 'label'" class="fi-labeltext">{{ field.label }}</div>
+    <!-- ラベルはリッチテキスト。保存時に App\Support\FlowRichText で許可タグだけに削ってあるので、
+         ここは v-html で出す（生の入力をそのまま流していない）。 -->
+    <div v-else-if="field.input_type === 'label'" class="fi-labeltext" v-html="field.label"></div>
     <div v-else-if="field.input_type === 'spacer'" class="fi-spacer" :style="{ height: (field.validation?.height || 24) + 'px' }"></div>
     <hr v-else-if="field.input_type === 'divider'" class="fi-divider" :style="{ borderTopStyle: field.validation?.line_style || 'solid' }">
 
@@ -304,6 +306,7 @@ import FileIcon from '@/components/Board/Mixed/FileIcon.vue'
 import FlowListPicker from './FlowListPicker.vue'
 import { isSecretType } from '@/types/flow'
 import { resolveFieldDefault } from '@/utils/flowDefaults'
+import { formatFlowNumber } from '@/utils/flowNumber'
 import { useAuthUserStore } from '@/store/auth'
 import type { FlowField, FlowOptionUser, FlowOptionProject } from '@/types/flow'
 
@@ -716,12 +719,12 @@ const openRefRecord = () => {
     router.push({ name: 'flow-record-detail', params: { flowId: refTargetId.value, recordId: sel.number } })
 }
 
-const formatNumber = (n: any) => (n === null || n === '' ? '' : Number(n).toLocaleString())
+const formatNumber = (n: any) => formatFlowNumber(n, props.field.validation)
 // Formula results: number-typed → comma format (also clears float noise like 385000.00000000006); text → raw.
 const formatFormula = (v: any) => {
     if (v === null || v === '' || v === undefined) return ''
     if (props.field.result_type === 'text') return String(v)
-    return isNaN(Number(v)) ? String(v) : Number(v).toLocaleString()
+    return isNaN(Number(v)) ? String(v) : formatFlowNumber(v, props.field.validation)
 }
 </script>
 

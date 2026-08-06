@@ -106,6 +106,7 @@
                 :users="users"
                 :projects="projects"
                 :record-id="record?.id ?? null"
+                :parent-label="definition?.name"
                 :stacked="isNarrow"
             />
             </div>
@@ -199,12 +200,13 @@ import { useApi } from '@/composables/api'
 import { useFlowOptionsStore } from '@/store/flowOptions'
 import { useFilePreview } from '@/store/filePreview'
 import { useResponsive } from '@/store/responsive'
-import { submittableValues, validateRecordValues, validationSummary } from '@/utils/flowValidation'
+import { applyLookupCopy, submittableValues, validateRecordValues, validationSummary } from '@/utils/flowValidation'
 import { useDialog } from '@/composables/dialog'
 import { recordFingerprint } from '@/utils/flowDirty'
 import { useUnsavedGuard } from '@/composables/unsavedGuard'
 import { emptyFieldValue, resolveFieldDefault } from '@/utils/flowDefaults'
 import { readableTextColor } from '@/utils/flowColor'
+import { formatFlowNumber } from '@/utils/flowNumber'
 import { flowColorValue } from '@/utils/flowColors'
 import { useTheme } from '@/store/theme'
 import { pageTitleOverride } from '@/composables/pageTitle'
@@ -370,6 +372,9 @@ const isNew = computed(() => !recordId.value)
 // record's values instead of plain defaults. Holds the fetched source values while seeding.
 const dupFrom = computed(() => (route.query.from ? String(route.query.from) : null))
 const dupValues = ref<Record<string, any> | null>(null)
+// 関連レコードの「＋追加」: どのルックアップ項目にどのレコードを入れて開くか
+const linkFieldId = computed(() => (route.query.link_field ? Number(route.query.link_field) : null))
+const linkRecordId = computed(() => (route.query.link_record ? Number(route.query.link_record) : null))
 
 
 
@@ -475,7 +480,7 @@ const fmtChange = (key: string, val: any): string => {
     if (t === 'file') return (Array.isArray(val) ? val : [val]).map((x: any) => x?.name ?? x).join('、')
     if (t === 'checkbox') return (Array.isArray(val) ? val : [val]).join(' / ')
     if (t === 'toggle') return val ? 'オン' : 'オフ'
-    if (t === 'number') return Number(val).toLocaleString()
+    if (t === 'number') return formatFlowNumber(val, f?.validation)
     if (t === 'table') return Array.isArray(val) ? `${val.length}行` : '未設定'
     if (t === 'reference') return val?.label || (val?.number != null ? `#${val.number}` : '未設定')
     return String(val)
@@ -509,9 +514,38 @@ const initValues = () => {
         const src = dup && canDuplicateField(f) ? dup[f.id!] : undefined
         values[f.id!] = src !== undefined && src !== null ? cloneVal(src) : resolveFieldDefault(f, auth.id)
     })
+    // 関連レコードの「＋追加」から来たときは、こちらを指すルックアップを埋めておく。
+    // kintoneでは相手のアプリへ移動して親を手で選び直す必要があった部分。
+    if (isNew.value && linkFieldId.value && linkRecordId.value) {
+        const f = (definition.value?.fields ?? []).find((x) => x.id === linkFieldId.value)
+        if (f && f.input_type === 'reference') {
+            values[f.id!] = { id: linkRecordId.value }
+            // 自分で選んだときと同じ状態にする：ルックアップの自動入力もここで走らせる
+            // （選択イベント経由でしか動かないと、＋追加で来た人だけ空欄が残る）
+            prefillLookupCopy(f)
+        }
+    }
     // a secret rewrites its own value to the "keep" instruction as it mounts; the fingerprint folds
     // that into the same state as the marker, so the baseline can be taken right here
     snapshotValues()
+}
+
+/**
+ * 「＋追加」で先に埋めたルックアップについて、自分で選んだときと同じ自動入力を走らせる。
+ * 画面の選択イベントに乗らない経路なので、同じ取得を明示的に呼ぶ。
+ */
+const prefillLookupCopy = async (field: FlowField) => {
+    const mappings = (field.validation?.field_mappings ?? []).filter((m) => m.from && m.to)
+    const targetId = field.validation?.target_definition_id
+    if (!mappings.length || !targetId || !linkRecordId.value) return
+    const keys = [...new Set(mappings.map((m) => m.from))].join(',')
+    const res = await api.get(
+        `/flow_lookup_record/${targetId}/${linkRecordId.value}?fields=${encodeURIComponent(keys)}`,
+        { silent: true },
+    ) as { values?: Record<string, any> } | null
+    if (!res?.values) return
+    applyLookupCopy(definition.value?.fields ?? [], values, errors,
+        { mappings, source: res.values }, { isNew: true })
 }
 
 const load = async () => {

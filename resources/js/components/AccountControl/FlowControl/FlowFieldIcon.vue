@@ -125,6 +125,14 @@
         <template v-else-if="type === 'divider'">
             <line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="4 3" />
         </template>
+        <!-- 関連レコード: 一覧（行）＋ 戻ってくる矢印 = 「こちらを指している行」 -->
+        <template v-else-if="type === 'related'">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <line x1="3" y1="9" x2="21" y2="9" />
+            <line x1="11" y1="13" x2="18" y2="13" />
+            <line x1="11" y1="17" x2="18" y2="17" />
+            <polyline points="8.5,15 6.5,13 8.5,11" />
+        </template>
         <!-- カスタムボタン（ツール）: 押せるものであることが伝わるよう、ボタン＋クリック -->
         <template v-else-if="type === 'button'">
             <rect x="2.5" y="6.5" width="13" height="8" rx="2.5" />

@@ -71,6 +71,48 @@ class FlowFileService
     }
 
     /**
+     * 外部から取り込んだファイルを、はじめからレコードに結び付いた状態で保管する。
+     *
+     * storePending はブラウザからの UploadedFile 前提だが、kintoneからの移行は生のバイト列で
+     * 手に入る。pending を経由せず直接 attached にするのは、移行の途中で掃除ジョブに拾われる
+     * 隙を作らないため。
+     */
+    public function storeImported(
+        FlowRecord $record,
+        FlowField $field,
+        ?string $columnKey,
+        string $name,
+        string $contents,
+        ?string $mimeType,
+        ?int $userId,
+    ): FlowRecordFile {
+        $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        [$kind] = explode('/', $mimeType ?: 'application/octet-stream');
+
+        $file = FlowRecordFile::create([
+            'flow_definition_id' => $record->flow_definition_id,
+            'flow_record_id' => $record->id,
+            'flow_field_id' => $field->id,
+            'table_column_key' => $columnKey,
+            'name' => $name,
+            'extension' => $extension,
+            'mime_type' => $kind,
+            'size' => strlen($contents),
+            'disk_path' => '',
+            'uploaded_by' => $userId,
+            'status' => FlowRecordFile::STATUS_ATTACHED,
+        ]);
+
+        $path = FlowRecordFile::pathFor($record->flow_definition_id, $record->id, $file->id, $extension);
+        $this->ensureDirectory($path);
+        Storage::disk('local')->put($path, $contents);
+
+        $file->update(['disk_path' => $path, 'size' => Storage::disk('local')->size($path)]);
+
+        return $file;
+    }
+
+    /**
      * 保存時：ファイル項目（トップレベル）の中身を確定させる。
      *
      * @param  array  $incoming  画面から来た一覧（少なくとも id を持つ）

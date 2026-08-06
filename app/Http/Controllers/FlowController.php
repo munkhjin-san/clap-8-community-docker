@@ -16,10 +16,12 @@ use App\Services\FlowFileService;
 use App\Services\FlowFormulaEvaluator;
 use App\Services\FlowNotificationService;
 use App\Services\FlowRecordActionService;
+use App\Services\FlowRelatedService;
 use App\Services\FlowService;
 use App\Services\KintoneImportService;
 use App\Services\PdfRenderService;
 use App\Support\FlowRecordActions;
+use App\Support\FlowRichText;
 use App\Support\FlowSystemSources;
 use Carbon\Carbon;
 use Illuminate\Contracts\Encryption\DecryptException;
@@ -234,6 +236,65 @@ class FlowController extends Controller
         ]);
     }
 
+    /**
+     * 下敷きにするPDFを受け取る。
+     *
+     * 既にある帳票（契約書のひな形など）の上に差込項目を置けるようにするためのもの。
+     * ここで**取り込めるかどうかを確かめてから**保存する——出力の瞬間に「この形式は読めません」と
+     * 言われるより、上げた本人がその場で気づける方がいい。
+     */
+    public function uploadToolBackground(Request $request)
+    {
+        $user = $this->active_user();
+        $data = $request->validate([
+            'flow_definition_id' => 'required|integer',
+            'file' => 'required|file|mimetypes:application/pdf|max:20480',
+        ]);
+        $definition = FlowDefinition::findOrFail($data['flow_definition_id']);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['manage'], 403);
+
+        $upload = $request->file('file');
+        $pages = app(PdfRenderService::class)->probeBackground($upload->getRealPath());
+        if ($pages === null) {
+            return response()->json([
+                'message' => 'このPDFは圧縮方式が対応外で、下敷きにできません。'
+                    .'PDFを開いて「印刷 → PDFに保存」または「別名で保存」で作り直したものをお試しください。',
+            ], 422);
+        }
+
+        // 中身のハッシュを名前にする：同じひな形を何度上げても増えないし、推測もされない
+        $hash = sha1_file($upload->getRealPath());
+        $path = "flow_tool_backgrounds/{$definition->id}/{$hash}.pdf";
+        if (! Storage::disk('local')->exists($path)) {
+            Storage::disk('local')->put($path, file_get_contents($upload->getRealPath()));
+        }
+
+        return response()->json([
+            'path' => $path,
+            'name' => $upload->getClientOriginalName(),
+            'pages' => $pages,
+        ]);
+    }
+
+    /** デザイナーが下敷きを表示するための配信。アプリを設定できる人だけ。 */
+    public function toolBackground(Request $request, $definitionId, $hash)
+    {
+        $user = $this->active_user();
+        $definition = FlowDefinition::findOrFail($definitionId);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['manage'], 403);
+
+        // ハッシュ以外の文字は受け取らない（パスに使う値なので、形で弾く）
+        abort_unless(preg_match('/^[a-f0-9]{40}$/', (string) $hash) === 1, 404);
+
+        $path = "flow_tool_backgrounds/{$definition->id}/{$hash}.pdf";
+        abort_unless(Storage::disk('local')->exists($path), 404);
+
+        return response(Storage::disk('local')->get($path), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="background.pdf"',
+        ]);
+    }
+
     private function pdfFilename(FlowAppTool $tool, FlowDefinition $definition, FlowRecord $record): string
     {
         $pattern = $tool->config['filename'] ?? ($tool->name.'_{seq}');
@@ -301,7 +362,9 @@ class FlowController extends Controller
             'fields' => 'array',
             'fields.*.id' => 'nullable|integer',
             'fields.*.key' => 'required|string|max:255',
-            'fields.*.label' => 'nullable|string|max:255',
+            // ラベル項目はHTMLを持つので255では足りない（kintoneの注意書きは1つで約1,000文字）。
+            // データ項目の見出しは syncFields 側で255に丸める。
+            'fields.*.label' => 'nullable|string|max:'.FlowRichText::MAX_LENGTH,
             'fields.*.input_type' => 'required|string|max:50',
             'fields.*.options' => 'nullable|array',
             'fields.*.is_required' => 'boolean',
@@ -667,9 +730,15 @@ class FlowController extends Controller
         $keyToId = [];
 
         foreach ($fields as $index => $field) {
+            // ラベル項目だけHTMLを持てる。画面では v-html で出すので、保存する前にここで削る
+            // （書けるのは管理者でも、実行されるのは閲覧者のブラウザなので信用の問題ではない）。
+            $label = ($field['input_type'] ?? null) === 'label'
+                ? FlowRichText::sanitize($field['label'] ?? '')
+                : mb_substr((string) ($field['label'] ?? ''), 0, 255);
+
             $payload = [
                 'key' => $field['key'],
-                'label' => $field['label'] ?? '',
+                'label' => $label,
                 'input_type' => $field['input_type'],
                 'options' => $field['options'] ?? null,
                 'is_required' => $field['is_required'] ?? false,
@@ -2167,6 +2236,66 @@ class FlowController extends Controller
     public function recordActionCatalog()
     {
         return response()->json(['actions' => FlowRecordActions::catalog()]);
+    }
+
+    /**
+     * 関連レコードの中身。レコード詳細の「関連レコード」ブロックが1つずつ取りに来る。
+     *
+     * 行ごとの権限は子アプリの規則で見る（見えないレコードは件数にも入らない）。
+     */
+    public function relatedRecords($fieldId, $recordId)
+    {
+        $user = $this->active_user();
+        $record = FlowRecord::with(self::RECORD_DETAIL_WITH)->findOrFail($recordId);
+        abort_unless($this->flowService->recordPermissions($user, $record, $record->definition)['view'], 403);
+
+        $field = $record->definition->fields->firstWhere('id', (int) $fieldId);
+        abort_unless($field && $field->input_type === 'related', 404);
+
+        return response()->json(app(FlowRelatedService::class)->listFor($user, $record, $field));
+    }
+
+    /**
+     * 設定画面用：このアプリを指しているルックアップ項目の一覧。
+     *
+     * 「値の一致で結ぶ」のではなく、既にある関係から選ばせるための材料。ここに出てこない
+     * 組み合わせは設定できない＝壊れた関連レコードを作れない。
+     */
+    public function relatedCandidates($definitionId)
+    {
+        $user = $this->active_user();
+        $definition = FlowDefinition::with('appPermissions')->findOrFail($definitionId);
+        abort_unless($this->flowService->effectiveAppPermissions($user, $definition)['manage'], 403);
+
+        $out = [];
+        $others = FlowDefinition::with('fields')->where('id', '!=', $definition->id)->get();
+
+        foreach ($others as $child) {
+            if (! $this->flowService->effectiveAppPermissions($user, $child)['view']) {
+                continue;
+            }
+            $links = $child->fields
+                ->where('input_type', 'reference')
+                ->filter(fn ($f) => (int) ($f->validation['target_definition_id'] ?? 0) === (int) $definition->id)
+                ->values();
+
+            if ($links->isEmpty()) {
+                continue;
+            }
+
+            $out[] = [
+                'definition_id' => $child->id,
+                'definition_name' => $child->name,
+                'link_fields' => $links->map(fn ($f) => ['id' => $f->id, 'label' => $f->label])->values()->all(),
+                // 一覧に出せる項目（列と合計の選択肢）
+                'fields' => $child->fields
+                    ->reject(fn ($f) => FlowService::isLayoutType($f->input_type) || FlowService::isSecret($f->input_type))
+                    ->map(fn ($f) => ['id' => $f->id, 'label' => $f->label, 'input_type' => $f->input_type])
+                    ->values()->all(),
+            ];
+        }
+
+        return response()->json(['candidates' => $out]);
     }
 
     /** Keep only a safe inline <svg> (strip scripts, event handlers, foreignObject, javascript: hrefs). */

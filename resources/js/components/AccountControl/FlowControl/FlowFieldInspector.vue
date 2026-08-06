@@ -84,15 +84,19 @@
         </template>
 
         <template v-else>
-        <div class="insp-h">
-            <FlowFieldIcon :type="field.input_type" :size="15" />
-            <span>{{ typeLabel(field.input_type) }}の設定</span>
-        </div>
+        <!-- 見出しはモーダル側のタイトルが出す（ここにも置くと同じ文字が2回並ぶ） -->
 
-        <div class="irow" v-if="field.input_type !== 'spacer' && field.input_type !== 'divider'" :class="{ 'items-start': field.input_type === 'label' }">
+        <!-- ラベル項目はリッチテキスト。左に見出しを置くと編集領域が痩せるので、幅いっぱいに使う。 -->
+        <RichEditor
+            v-if="field.input_type === 'label'"
+            :key="field.uid || field.key"
+            class="insp-richtext"
+            :initilaValue="field.label"
+            @content-updated="field.label = $event"
+        />
+        <div class="irow" v-else-if="field.input_type !== 'spacer' && field.input_type !== 'divider'">
             <label>{{ labelFieldName }}</label>
-            <textarea v-if="field.input_type === 'label'" v-model="field.label" rows="3" class="custom-a-input !box-border flex-1" placeholder="説明や注意書きを入力"></textarea>
-            <input v-else type="text" v-model="field.label" class="custom-a-input !box-border flex-1"
+            <input type="text" v-model="field.label" class="custom-a-input !box-border flex-1"
                 @focus="renameFrom = field.label" @change="commitFieldRename(field.label)">
         </div>
         <div class="irow" v-if="!isLayout">
@@ -126,6 +130,67 @@
             <div class="sec">暗号化について</div>
             <p class="def-hint">値は暗号化して保存され、一覧・CSV出力・検索・PDF・計算式には表示されません。</p>
             <p class="def-hint">表示するには「表示」ボタンを押す必要があります。</p>
+        </template>
+
+        <!-- 関連レコード：値の一致で結ぶのではなく、既にあるルックアップ関係から選ぶ。
+             ここに出てこない組み合わせは設定できない＝壊れた関連レコードを作れない。 -->
+        <template v-if="field.input_type === 'related'">
+            <div class="sec">表示するレコード</div>
+            <p v-if="relLoading" class="def-hint">読み込み中…</p>
+            <p v-else-if="!relCandidates.length" class="def-hint">
+                このアプリを参照しているアプリがまだありません。相手のアプリに「ルックアップ」項目を追加して、
+                参照先をこのアプリにすると、ここで選べるようになります。
+            </p>
+            <template v-else>
+                <div class="irow">
+                    <label>アプリ</label>
+                    <select v-model.number="v.child_definition_id" class="custom-a-input !box-border flex-1" @change="onRelAppChange">
+                        <option :value="null" disabled>選択…</option>
+                        <option v-for="c in relCandidates" :key="c.definition_id" :value="c.definition_id">{{ c.definition_name }}</option>
+                    </select>
+                </div>
+                <div class="irow" v-if="relPicked">
+                    <label>結び付け</label>
+                    <select v-model.number="v.child_field_id" class="custom-a-input !box-border flex-1">
+                        <option :value="null" disabled>選択…</option>
+                        <option v-for="lf in relPicked.link_fields" :key="lf.id" :value="lf.id">{{ lf.label }}</option>
+                    </select>
+                </div>
+                <p v-if="relPicked" class="def-hint">
+                    「{{ relPicked.definition_name }}」の選んだルックアップ項目がこのレコードを指している行を一覧します。
+                    項目名を変えても壊れません（名前ではなくレコードそのものを見ています）。
+                </p>
+
+                <template v-if="relPicked && v.child_field_id">
+                    <div class="sec">表示する列</div>
+                    <div class="rel-cols">
+                        <label v-for="f in relPicked.fields" :key="f.id" class="rel-chk">
+                            <input type="checkbox" :checked="(v.related_columns ?? []).includes(f.id)" @change="toggleRelCol(f.id)">
+                            {{ f.label }}
+                        </label>
+                    </div>
+                    <p class="def-hint">未選択のときは先頭の数項目を表示します。</p>
+
+                    <div class="sec">合計を出す項目</div>
+                    <p v-if="!relNumericFields.length" class="def-hint">数値・計算の項目がありません。</p>
+                    <div v-else class="rel-cols">
+                        <label v-for="f in relNumericFields" :key="f.id" class="rel-chk">
+                            <input type="checkbox" :checked="(v.related_aggregates ?? []).includes(f.id)" @change="toggleRelAgg(f.id)">
+                            {{ f.label }}
+                        </label>
+                    </div>
+                    <p class="def-hint">合計は表示件数ではなく、閲覧できる全件を対象にします。</p>
+
+                    <div class="irow">
+                        <label>表示件数</label>
+                        <div class="flex items-center gap-[6px]">
+                            <input type="number" min="1" max="200" v-model.number="v.related_limit" class="custom-a-input !box-border !w-[110px]">
+                            <span class="text-[12px] text-gray-500">件まで</span>
+                        </div>
+                    </div>
+                </template>
+            </template>
+            <p class="def-hint">この項目は値を持ちません。CSV出力・検索・計算式・並び替えの対象外です。</p>
         </template>
 
         <template v-if="field.input_type === 'spacer' || field.input_type === 'divider'">
@@ -318,12 +383,13 @@ import { useApi } from '@/composables/api'
 import { useDialog } from '@/composables/dialog'
 import FlowFieldIcon from './FlowFieldIcon.vue'
 import FlowFieldRules from './FlowFieldRules.vue'
+import RichEditor from '@/components/Global/RichEditor.vue'
 import FlowFormulaEditor from './FlowFormulaEditor.vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import FlowSearchSelect from './FlowSearchSelect.vue'
 import { useTheme } from '@/store/theme'
 
-const props = defineProps<{ field: FlowField; fields?: FlowField[]; tools?: FlowAppTool[]; columnKey?: string | null }>()
+const props = defineProps<{ field: FlowField; fields?: FlowField[]; tools?: FlowAppTool[]; columnKey?: string | null; definitionId?: number | null }>()
 const theme = useTheme()
 // native date/time pickers render their icon per `color-scheme`; follow the app theme (dark-mode visibility)
 const nativeScheme = computed(() => (theme.dark ? 'dark' : 'light'))
@@ -468,6 +534,54 @@ const referenceableFields = computed(() => {
     return out
 })
 
+/* ---- 関連レコード（related）: 既にあるルックアップ関係の一覧から選ばせる ----------------
+ * 候補はサーバーが出す（このアプリを target にしているルックアップ項目を持つアプリだけ）。
+ * だから「値の一致で結ぶ」設定が存在せず、壊れた組み合わせを作る余地がない。
+ */
+interface RelCandidate {
+    definition_id: number
+    definition_name: string
+    link_fields: { id: number; label: string }[]
+    fields: { id: number; label: string; input_type: string }[]
+}
+const relCandidates = ref<RelCandidate[]>([])
+const relLoading = ref(false)
+const loadRelCandidates = async () => {
+    if (!props.definitionId || relCandidates.value.length || relLoading.value) return
+    relLoading.value = true
+    try {
+        const d = await api.get(`/flow_related_candidates/${props.definitionId}`) as { candidates: RelCandidate[] } | null
+        relCandidates.value = d?.candidates ?? []
+    } finally {
+        relLoading.value = false
+    }
+}
+const relPicked = computed(() =>
+    relCandidates.value.find((c) => c.definition_id === props.field.validation?.child_definition_id) ?? null)
+const relNumericFields = computed(() =>
+    (relPicked.value?.fields ?? []).filter((f) => f.input_type === 'number' || f.input_type === 'formula'))
+/** Changing the app invalidates every choice made against the previous one. */
+const onRelAppChange = () => {
+    const val = props.field.validation as FlowFieldValidation
+    val.child_field_id = relPicked.value?.link_fields.length === 1 ? relPicked.value.link_fields[0].id : null
+    val.related_columns = []
+    val.related_aggregates = []
+}
+const toggleRelCol = (id: number) => {
+    const val = props.field.validation as FlowFieldValidation
+    const list = Array.isArray(val.related_columns) ? [...val.related_columns] : []
+    const i = list.indexOf(id)
+    i >= 0 ? list.splice(i, 1) : list.push(id)
+    val.related_columns = list
+}
+const toggleRelAgg = (id: number) => {
+    const val = props.field.validation as FlowFieldValidation
+    const list = Array.isArray(val.related_aggregates) ? [...val.related_aggregates] : []
+    const i = list.indexOf(id)
+    i >= 0 ? list.splice(i, 1) : list.push(id)
+    val.related_aggregates = list
+}
+
 watch(() => props.field, (f) => {
     if (!f) return
     // guard against validation arriving as an empty array (PHP serializes empty validation as `[]`);
@@ -485,6 +599,12 @@ watch(() => props.field, (f) => {
     if (autoFillSourceFor(f.input_type)) {
         loadAutoFillFields(f.input_type)
         if (!Array.isArray(f.validation.field_mappings)) f.validation.field_mappings = []
+    }
+    if (f.input_type === 'related') {
+        loadRelCandidates()
+        if (!Array.isArray(f.validation.related_columns)) f.validation.related_columns = []
+        if (!Array.isArray(f.validation.related_aggregates)) f.validation.related_aggregates = []
+        if (f.validation.related_limit == null) f.validation.related_limit = 20
     }
     if (f.input_type === 'table') {
         const cols = Array.isArray(f.validation.columns) ? f.validation.columns : []
@@ -802,4 +922,28 @@ const removeColOption = (col: TableColumn, oi: number) => col.options?.splice(oi
 .tcol-opts { margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--calendarBorder); }
 .tcol-req { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: gray; }
 .sremove:disabled { opacity: .35; cursor: default; }
+
+/* 関連レコード: 列と合計のチェック群。
+   チェックボックス項目（FlowFieldInput の .fi-opt）と同じ見た目に揃える——ブラウザ既定の
+   チェックボックスだけがこの画面で浮いていたため。--primary-button を使うのも同じ理由で、
+   --primary-color はテーマで反転するのでダークモードだと白地に白いチェックになる。 */
+.rel-cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 9px 14px; margin: 6px 0 4px; }
+.rel-chk { display: inline-flex; align-items: flex-start; gap: 9px; font-size: 12.5px; line-height: 1.5; color: var(--primary-color); cursor: pointer; }
+.rel-chk input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none;
+    box-sizing: border-box !important;
+    width: 18px; height: 18px; margin: 0; flex-shrink: 0;
+    border: 1px solid var(--formBorder); border-radius: 5px; background: var(--background-color);
+    position: relative; cursor: pointer; transition: background .12s, border-color .12s, box-shadow .12s;
+}
+.rel-chk:hover input:not(:checked) { border-color: var(--primary-color); }
+.rel-chk input:checked { background: var(--primary-button, var(--primary-color)); border-color: var(--primary-button, var(--primary-color)); }
+.rel-chk input:checked::after {
+    content: ""; position: absolute; left: 5px; top: 2px;
+    width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg);
+}
+.rel-chk input:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 25%, transparent); }
+/* ラベルのリッチテキスト：モーダル内で幅いっぱい、高さは編集しやすい程度に */
+.insp-richtext { width: 100%; margin-bottom: 12px; }
+.insp-richtext :deep(.tiptap) { min-height: 160px; }
 </style>

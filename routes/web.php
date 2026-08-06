@@ -1087,6 +1087,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/flow_app_truncate/{id}', [FlowController::class, 'truncateAppRecords']);
         Route::get('/flow_tool_pdf/{toolId}/{recordId}', [FlowController::class, 'renderToolPdf']);
         Route::post('/flow_tool_pdf_preview', [FlowController::class, 'previewToolPdf']);
+        // PDF帳票の下敷き（既存の帳票の上に差込項目を置くための元PDF）
+        Route::post('/flow_tool_background', [FlowController::class, 'uploadToolBackground']);
+        Route::get('/flow_tool_background/{definitionId}/{hash}', [FlowController::class, 'toolBackground']);
         Route::post('/flow_app_record_transition', [FlowController::class, 'transitionAppRecord']);
         // カスタムボタン：宛先はコード側の登録済みハンドラが持つ（設定にURLは入らない）
         Route::get('/flow_action_catalog', [FlowController::class, 'recordActionCatalog']);
@@ -1103,6 +1106,9 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::post('/flow_file_discard', [FlowController::class, 'discardRecordFile']);
         // Office形式のプレビュー用：権限を確認したうえで署名付きの一時URLを発行する
         Route::post('/flow_file_viewer_url', [FlowController::class, 'recordFileViewerUrl']);
+        // 関連レコード：既にあるルックアップ関係を裏返して一覧する
+        Route::get('/flow_related/{fieldId}/{recordId}', [FlowController::class, 'relatedRecords']);
+        Route::get('/flow_related_candidates/{definition}', [FlowController::class, 'relatedCandidates']);
 
         Route::get('/community_members_tree', [CommunityController::class, 'community_members_tree']);
 

@@ -6,9 +6,21 @@
                 :key="field.id"
                 class="rf-block"
                 :class="{ 'rf-heading-block': isLayoutType(field.input_type) }"
-                :style="{ width: field.input_type === 'heading' ? '100%' : field.width + 'px' }"
+                :style="{ width: field.input_type === 'heading' || field.input_type === 'related' ? '100%' : field.width + 'px' }"
             >
-                <template v-if="isLayoutType(field.input_type)">
+                <!-- 関連レコードは値を持たないブロックだが中身はサーバーから引く。新規作成中は
+                     まだ指されるレコードが無いので出さない。 -->
+                <template v-if="field.input_type === 'related'">
+                    <FlowRelatedRecords
+                        v-if="!isNew && recordId"
+                        :field="field"
+                        :record-id="recordId"
+                        :parent-label="parentLabel"
+                        :users="users"
+                    />
+                    <div v-else class="rf-related-new">{{ field.label || '関連レコード' }}：保存すると表示されます</div>
+                </template>
+                <template v-else-if="isLayoutType(field.input_type)">
                     <FlowFieldInput :field="field" :model-value="null" />
                 </template>
                 <template v-else>
@@ -61,6 +73,7 @@
  */
 import { computed } from 'vue'
 import FlowFieldInput from './FlowFieldInput.vue'
+import FlowRelatedRecords from './FlowRelatedRecords.vue'
 import { isLayoutType, isSecretType } from '@/types/flow'
 import { applyLookupCopy, lockedByServer } from '@/utils/flowValidation'
 import type { FlowField, FlowOptionUser, FlowOptionProject } from '@/types/flow'
@@ -82,6 +95,8 @@ const props = defineProps<{
     recordId?: number | null
     /** one field per line (narrow screens, and the list's inline panel) */
     stacked?: boolean
+    /** this app's name — the 関連レコード block uses it in its ＋追加 tooltip */
+    parentLabel?: string
 }>()
 
 const visibleFields = computed(() => props.fields.filter((f) => !f.hidden))
@@ -204,6 +219,9 @@ const onLookup = (payload: { mappings: { from: string; to: string }[]; source: R
 .rf-row { display: flex; gap: 20px; margin-bottom: 20px; align-items: stretch; }
 .rf-block { flex: 0 0 auto; box-sizing: border-box !important; background: var(--background-color); border: 1px solid var(--calendarBorder); border-radius: 5px; padding: 15px; }
 .rf-heading-block { border: none; background: none; padding: 4px 0; }
+/* 関連レコードは自前で枠を持つので、ブロック側の枠と余白は外す */
+.rf-block:has(> .rr) { border: none; background: none; padding: 0; }
+.rf-related-new { font-size: 12px; color: gray; border: 1.5px dashed var(--formBorder); border-radius: 10px; padding: 14px; text-align: center; }
 .rf-label { display: block; font-size: 13px; color: var(--sub-color); margin-bottom: 15px; }
 .rf-req { color: #e2574c; }
 .rf-inputwrap { position: relative; }

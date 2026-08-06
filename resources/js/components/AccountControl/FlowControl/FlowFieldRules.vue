@@ -37,6 +37,32 @@
                 <label>整数のみ</label>
                 <span class="flow-sw" :class="{ on: v.integer_only }" @click="v.integer_only = !v.integer_only"></span>
             </div>
+
+            <!-- 表示のしかた。数値項目は「金額」にも「ID」にも使われるので、桁区切りは選べる必要がある
+                 （IDに桁区切りが入ると量のように見えてしまう）。 -->
+            <div class="irow">
+                <label>桁区切り</label>
+                <span class="flow-sw" :class="{ on: v.thousand_separator !== false }"
+                    @click="v.thousand_separator = v.thousand_separator === false"></span>
+            </div>
+            <div class="irow">
+                <label>小数点以下</label>
+                <div class="flex items-center gap-[6px]">
+                    <input type="number" min="0" max="10" v-model.number="v.decimals" placeholder="そのまま" class="ffr-input !w-[110px]">
+                    <span class="text-[12px] text-gray-500">桁</span>
+                </div>
+            </div>
+            <div class="irow">
+                <label>単位</label>
+                <div class="flex items-center gap-[6px] flex-1 min-w-0">
+                    <input type="text" v-model="v.unit" placeholder="円・人・% など" maxlength="12" class="ffr-input flex-1 min-w-0">
+                    <select :value="v.unit_position || 'after'" @change="v.unit_position = ($event.target as HTMLSelectElement).value as 'before' | 'after'" class="ffr-input !w-[76px]">
+                        <option value="after">後ろ</option>
+                        <option value="before">前</option>
+                    </select>
+                </div>
+            </div>
+            <p class="ffr-hint">表示例: {{ numberPreview }}</p>
         </template>
 
         <template v-else-if="inputType === 'checkbox'">
@@ -174,6 +200,8 @@ import { useTheme } from '@/store/theme'
 import { FLOW_FILE_ACCEPT } from '@/types/flow'
 import type { FlowFieldValidation, FlowInputType } from '@/types/flow'
 
+import { formatFlowNumber } from '@/utils/flowNumber'
+
 const props = defineProps<{
     inputType: FlowInputType
     validation: FlowFieldValidation
@@ -185,6 +213,9 @@ const theme = useTheme()
 const nativeScheme = computed(() => (theme.dark ? 'dark' : 'light'))
 
 const v = computed<FlowFieldValidation>(() => props.validation)
+
+/** 設定した見え方をその場で示す。桁区切りの有無は数字を見ないと伝わりにくい。 */
+const numberPreview = computed(() => formatFlowNumber(1234567.891, props.validation))
 const fileAccepts = FLOW_FILE_ACCEPT
 
 const RULE_TYPES = ['short', 'long', 'number', 'date', 'datetime', 'time', 'checkbox', 'file', 'user', 'member']
@@ -238,4 +269,5 @@ const toggleAccept = (val: string) => {
 textarea.ffr-input { min-height: 58px; resize: vertical; line-height: 1.7; }
 /* 最小〜最大のように横に2つ並ぶものは幅を分け合う */
 .ffr-narrow { width: auto; flex: 1; }
+.ffr-hint { font-size: 11.5px; color: gray; line-height: 1.7; margin: 2px 0 0; }
 </style>

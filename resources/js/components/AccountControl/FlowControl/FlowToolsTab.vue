@@ -69,7 +69,7 @@ import 'styles/flow-shared.css'
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { BuilderDefinition, FlowAppTool, FlowOptionPosition, FlowOptionUser } from '@/types/flow'
-import { TOOL_KINDS, actionConfig, eligibleIsConfigured, emptyActionTool, emptyPdfTemplate, emptySlot, pdfConfig, slotConfig, toolKindByRoute } from '@/types/flow'
+import { TOOL_KINDS, actionConfig, eligibleIsConfigured, emptyActionTool, emptyPdfTemplate, emptySlot, pdfConfig, pdfPageCount, slotConfig, toolKindByRoute } from '@/types/flow'
 import FlowFieldIcon from './FlowFieldIcon.vue'
 import CloseIcon from '@/components/Form/CloseIcon.vue'
 import FlowActionEditor from './FlowActionEditor.vue'
@@ -113,7 +113,9 @@ const metaOf = (tool: FlowAppTool) => {
         if (!cfg.handler) return '処理が未選択'
         return `押せる人: ${eligibleIsConfigured(cfg.eligible) ? `${cfg.eligible.length}件指定` : '編集権限を持つ全員'}`
     }
-    return `${(pdfConfig(tool).elements || []).length} 要素`
+    const pdf = pdfConfig(tool)
+    const pages = pdfPageCount(pdf)
+    return `${pages > 1 ? `${pages}ページ / ` : ''}${(pdf.elements || []).length} 要素`
 }
 
 const addOfKind = () => {
