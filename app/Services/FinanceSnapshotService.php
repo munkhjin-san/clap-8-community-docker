@@ -80,6 +80,30 @@ class FinanceSnapshotService
         return in_array(self::projectNameKey($projectName), $keys, true);
     }
 
+    public static function actualSourceLabel(array $unit): string
+    {
+        $sourceCounts = is_array($unit['source_counts'] ?? null) ? $unit['source_counts'] : [];
+        $hasActualResult = ! empty($sourceCounts['actual_result']);
+        $hasGoogleSheets = ! empty($sourceCounts['settlement']);
+
+        if ($hasActualResult && $hasGoogleSheets) {
+            return '保存済みActualResult・Google Sheets実績混在';
+        }
+        if ($hasActualResult) {
+            return '保存済みActualResult';
+        }
+        if ($hasGoogleSheets) {
+            return 'Google Sheets実績';
+        }
+
+        return match ((string) ($unit['source'] ?? '')) {
+            'actual_result' => '保存済みActualResult',
+            'settlement' => 'Google Sheets実績',
+            'mixed' => '複数実績ソース混在',
+            default => '保存済みActualResult優先・Google Sheets補完',
+        };
+    }
+
     public function buildFiscalYearSnapshot(
         ?int $fiscalYear = null,
         array $projectIds = [],
@@ -103,13 +127,15 @@ class FinanceSnapshotService
         $settlementData = $this->fetchSettlementData($start, $end, $projects);
         $settlements = $settlementData['rows'] ?? [];
         $settlementPeriods = array_fill_keys($settlementData['existing_periods'] ?? [], true);
-        $latestActualPeriod = $latestClosed->format('Y-m');
+        $latestExpectedActualPeriod = $latestClosed->format('Y-m');
+        $latestActualPeriod = null;
         $currentPeriod = now(config('app.timezone', 'Asia/Tokyo'))->format('Y-m');
-        foreach (($settlementData['existing_periods'] ?? []) as $existingPeriod) {
-            if ($existingPeriod > $latestActualPeriod && $existingPeriod <= $currentPeriod) {
+        foreach (array_keys($settlementData['source_counts_by_period'] ?? []) as $existingPeriod) {
+            if ($existingPeriod <= $currentPeriod && ($latestActualPeriod === null || $existingPeriod > $latestActualPeriod)) {
                 $latestActualPeriod = $existingPeriod;
             }
         }
+        $latestActualPeriod ??= $latestExpectedActualPeriod;
 
         $months = $this->monthKeys($start, $end);
         $summary = [
@@ -261,6 +287,8 @@ class FinanceSnapshotService
             'data_status' => [
                 'missing_settlement_periods' => array_values(array_keys($missingSettlementPeriods)),
                 'forecast_periods' => array_values(array_keys($forecastPeriods)),
+                'latest_expected_actual_period' => $latestExpectedActualPeriod,
+                'actual_data_available' => ($settlementData['source_counts_by_period'] ?? []) !== [],
                 'summary_adjustment' => [
                     'rule' => '集計では、間接費部門・積立部門、およびget_total_financeと同じ期間判定の経営管理本部を売上加算せず、販管費に「販管費 - 売上」として反映します。',
                     'project_names' => ['間接費部門', '積立部門', '経営管理本部'],
@@ -270,8 +298,11 @@ class FinanceSnapshotService
                 'settlement_periods' => array_values(array_keys($settlementPeriods)),
                 'actual_result_periods' => $settlementData['actual_result_periods'] ?? [],
                 'google_sheet_periods' => $settlementData['google_sheet_periods'] ?? [],
+                'google_sheet_fallback_periods' => $settlementData['google_sheet_fallback_periods'] ?? [],
+                'actual_source_counts_by_period' => $settlementData['source_counts_by_period'] ?? [],
+                'google_sheet_warning' => $settlementData['google_sheet_warning'] ?? null,
                 'settlement_sheet_periods' => $settlementData['google_sheet_periods'] ?? [],
-                'forecast_rule' => '着地見込みは、保存済み実績を優先し、該当プロジェクト・月に保存済み実績がない場合はGoogle Sheets実績を使います。どちらもない未確定月だけKintone損益を見込み値として使い、完了済みプロジェクトの完了後月は補完しません。',
+                'forecast_rule' => '着地見込みは、保存済み実績を優先し、該当プロジェクト・月が未保存の場合はGoogle Sheets実績を使います。実績月自体が未登録の場合はKintone損益を見込み値として使います。実績月はあるが該当プロジェクト行だけない場合と、完了済みプロジェクトの完了後月は補完しません。',
                 'actual_sheet_periods' => array_values(array_keys($settlementPeriods)),
             ],
         ];
@@ -368,10 +399,10 @@ class FinanceSnapshotService
         int $limit = 25
     ): array {
         $snapshot = $this->buildFiscalYearSnapshot($fiscalYear, $projectIds, $asOfPeriod, $limit);
-        $latestActual = Carbon::createFromFormat('Y-m-d', $snapshot['latest_actual_period'] . '-01')->startOfMonth();
+        $latestExpectedActual = Carbon::createFromFormat('Y-m-d', $snapshot['latest_closed_period'] . '-01')->startOfMonth();
         $releasedPeriods = array_values(array_filter(
             $snapshot['period']['months'],
-            fn(string $period) => Carbon::createFromFormat('Y-m-d', $period . '-01')->lessThanOrEqualTo($latestActual)
+            fn(string $period) => Carbon::createFromFormat('Y-m-d', $period . '-01')->lessThanOrEqualTo($latestExpectedActual)
         ));
 
         $issues = [
@@ -437,6 +468,7 @@ class FinanceSnapshotService
             'summary' => [
                 'project_count' => $snapshot['project_count'],
                 'released_actual_periods' => $releasedPeriods,
+                'available_actual_periods' => array_keys($snapshot['data_status']['actual_source_counts_by_period'] ?? []),
                 'missing_yearly_plan_count' => $issueCounts['missing_yearly_plan'] ?? 0,
                 'missing_profit_count' => $issueCounts['missing_profit'] ?? 0,
                 'missing_actual_count' => $issueCounts['missing_actual'] ?? 0,
@@ -445,6 +477,7 @@ class FinanceSnapshotService
             ],
             'issues' => $issues,
             'duplicate_profit_records' => array_slice($duplicates, 0, max(1, $limit)),
+            'data_status' => $snapshot['data_status'],
         ];
     }
 
@@ -839,9 +872,10 @@ class FinanceSnapshotService
     private function fetchSettlementData(Carbon $start, Carbon $end, Collection $projects): array
     {
         $projectNames = $projects->pluck('name', 'id')->all();
-        $google = $this->fetchGoogleSettlementData($start, $end, $projectNames);
-        $rows = $google['rows'] ?? [];
+        $rows = [];
         $actualResultPeriods = [];
+        $googleFallbackPeriods = [];
+        $sourceCountsByPeriod = [];
         $actualResultUnits = $this->actualResults->analysisUnitsForProjects($projects, $start, $end);
 
         foreach ($projectNames as $projectId => $projectName) {
@@ -850,18 +884,49 @@ class FinanceSnapshotService
             foreach ($actualResultUnits[(int) $projectId] ?? [] as $period => $unit) {
                 $rows[$projectKey][$period] = $unit;
                 $actualResultPeriods[$period] = true;
+                $sourceCountsByPeriod[$period]['actual_result'] =
+                    ($sourceCountsByPeriod[$period]['actual_result'] ?? 0) + 1;
+            }
+        }
+
+        $googleWarning = null;
+        try {
+            $google = $this->fetchGoogleSettlementData($start, $end, $projectNames);
+        } catch (\Throwable $e) {
+            report($e);
+            $google = ['rows' => [], 'existing_periods' => []];
+            $googleWarning = 'Google Sheets実績を取得できなかったため、保存済みActualResultのみを使用しています。';
+        }
+
+        foreach (($google['rows'] ?? []) as $projectKey => $periodRows) {
+            foreach ($periodRows as $period => $unit) {
+                if (isset($rows[$projectKey][$period])) {
+                    continue;
+                }
+
+                $rows[$projectKey][$period] = $unit;
+                $googleFallbackPeriods[$period] = true;
+                $sourceCountsByPeriod[$period]['google_sheets'] =
+                    ($sourceCountsByPeriod[$period]['google_sheets'] ?? 0) + 1;
             }
         }
 
         $googleSheetPeriods = array_fill_keys($google['existing_periods'] ?? [], true);
+        ksort($actualResultPeriods);
+        ksort($googleSheetPeriods);
+        ksort($googleFallbackPeriods);
         $existingPeriods = array_keys($actualResultPeriods + $googleSheetPeriods);
         sort($existingPeriods);
+        ksort($sourceCountsByPeriod);
 
         return [
             'rows' => $rows,
             'existing_periods' => $existingPeriods,
             'actual_result_periods' => array_values(array_keys($actualResultPeriods)),
             'google_sheet_periods' => array_values(array_keys($googleSheetPeriods)),
+            'google_sheet_fallback_periods' => array_values(array_keys($googleFallbackPeriods)),
+            'source_counts_by_period' => $sourceCountsByPeriod,
+            'google_sheet_warning' => $googleWarning,
         ];
     }
 
