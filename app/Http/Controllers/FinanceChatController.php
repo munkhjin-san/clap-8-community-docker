@@ -491,7 +491,7 @@ TXT;
             $payload = [
                 'model'       => $model,
                 'messages'    => $messages,
-                'max_tokens'  => 1000,
+                'max_completion_tokens' => 1000,
             ];
             if (! empty($tools)) {
                 $payload['tools'] = $tools;
