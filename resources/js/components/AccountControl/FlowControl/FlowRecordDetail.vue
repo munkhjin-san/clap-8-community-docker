@@ -535,6 +535,8 @@ const initValues = () => {
     if (isNew.value && linkFieldId.value && linkRecordId.value) {
         const f = (definition.value?.fields ?? []).find((x) => x.id === linkFieldId.value)
         if (f && f.input_type === 'reference') {
+            // 保存に必要なのはIDだけ。番号と表示名はサーバから取って足す——ここで入れないと
+            // 保存するまで「#undefined」と出る（画面はIDしか受け取っていないため）。
             values[f.id!] = { id: linkRecordId.value }
             // 自分で選んだときと同じ状態にする：ルックアップの自動入力もここで走らせる
             // （選択イベント経由でしか動かないと、＋追加で来た人だけ空欄が残る）
@@ -551,17 +553,31 @@ const initValues = () => {
  * 画面の選択イベントに乗らない経路なので、同じ取得を明示的に呼ぶ。
  */
 const prefillLookupCopy = async (field: FlowField) => {
-    const mappings = (field.validation?.field_mappings ?? []).filter((m) => m.from && m.to)
     const targetId = field.validation?.target_definition_id
-    if (!mappings.length || !targetId || !linkRecordId.value) return
+    if (!targetId || !linkRecordId.value) return
+    const mappings = (field.validation?.field_mappings ?? []).filter((m) => m.from && m.to)
+
+    // 自動入力の対象が無くても呼ぶ：表示用の番号・名前はこの1回で一緒に受け取る
     const keys = [...new Set(mappings.map((m) => m.from))].join(',')
     const res = await api.get(
-        `/flow_lookup_record/${targetId}/${linkRecordId.value}?fields=${encodeURIComponent(keys)}`,
+        `/flow_lookup_record/${targetId}/${linkRecordId.value}`
+            + `?ref_field=${field.id}${keys ? `&fields=${encodeURIComponent(keys)}` : ''}`,
         { silent: true },
-    ) as { values?: Record<string, any> } | null
-    if (!res?.values) return
-    applyLookupCopy(definition.value?.fields ?? [], values, errors,
-        { mappings, source: res.values }, { isNew: true })
+    ) as { values?: Record<string, any>; reference?: { id: number; number: number; label: string | null } } | null
+    if (!res) return
+
+    if (res.reference && values[field.id!]?.id === res.reference.id) {
+        values[field.id!] = {
+            id: res.reference.id,
+            number: res.reference.number,
+            label: res.reference.label ?? '',
+        }
+    }
+
+    if (mappings.length && res.values) {
+        applyLookupCopy(definition.value?.fields ?? [], values, errors,
+            { mappings, source: res.values }, { isNew: true })
+    }
 }
 
 const load = async () => {

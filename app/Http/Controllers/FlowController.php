@@ -1553,9 +1553,23 @@ class FlowController extends Controller
             abort_unless($this->flowService->recordPermissions($user, $record, $definition)['view'], 403);
         }
 
+        // 参照の「表示」に要るもの。IDだけ渡された画面は、番号も名前も知らないまま
+        // 「#undefined」を出すことになる（関連レコードの＋追加から来た場合がこれ）。
+        $refInfo = ['id' => $record->id, 'number' => (int) $record->record_number, 'label' => null];
+        if ($refFieldId = $request->input('ref_field')) {
+            $refField = FlowField::find($refFieldId);
+            if ($refField
+                && $refField->input_type === 'reference'
+                && (int) ($refField->validation['target_definition_id'] ?? 0) === (int) $definition->id) {
+                $refInfo['label'] = $this->flowService->referenceLabel(
+                    $record, $definition, $refField->validation['label_field'] ?? null
+                );
+            }
+        }
+
         $wantKeys = array_values(array_filter(array_map('trim', explode(',', (string) $request->input('fields', '')))));
         if (! $wantKeys) {
-            return response()->json(['values' => (object) []]);
+            return response()->json(['values' => (object) [], 'reference' => $refInfo]);
         }
 
         $fields = $definition->fields;
@@ -1573,7 +1587,7 @@ class FlowController extends Controller
             $out[$key] = $vals[(string) $f->id] ?? null;
         }
 
-        return response()->json(['values' => $out]);
+        return response()->json(['values' => $out, 'reference' => $refInfo]);
     }
 
     /* ---- system reference sources (built-in masters, e.g. offices) ---------------------------------

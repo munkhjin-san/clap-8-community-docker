@@ -1284,7 +1284,8 @@ class FlowService
     }
 
     /** ルックアップの表示名。label_field が無い／空なら「#レコード番号」。 */
-    private function referenceLabel(FlowRecord $record, FlowDefinition $target, ?string $labelFieldKey): string
+    /** 参照の表示名。保存時も画面の先埋めも同じここを通す（食い違わせないため）。 */
+    public function referenceLabel(FlowRecord $record, FlowDefinition $target, ?string $labelFieldKey): string
     {
         $labelField = filled($labelFieldKey) ? $target->fields->firstWhere('key', $labelFieldKey) : null;
         if ($labelField && ! self::isSecret($labelField->input_type)) {
