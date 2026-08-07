@@ -2632,7 +2632,7 @@ class FlowController extends Controller
                 $flag = $ri === 0 ? '*' : '';
                 $rowScalars = $ri === 0 ? $scalarValues : array_fill(0, count($scalarValues), '');
                 $rowTableVals = array_map(
-                    fn ($c) => $this->csvValue(is_array($row) ? ($row[$c['key'] ?? ''] ?? null) : null),
+                    fn ($c) => $this->csvValue(is_array($row) ? ($row[$c['key'] ?? ''] ?? null) : null, $c['input_type'] ?? null),
                     $subCols,
                 );
                 $rows[] = array_merge([$flag], $rowScalars, $rowTableVals);
@@ -2655,7 +2655,7 @@ class FlowController extends Controller
             };
         }
 
-        return $this->csvValue($vals[(string) $col['field']->id] ?? null);
+        return $this->csvValue($vals[(string) $col['field']->id] ?? null, $col['field']->input_type);
     }
 
     /**
@@ -2683,7 +2683,7 @@ class FlowController extends Controller
                 $flag = $ri === 0 ? '*' : '';
                 $id = $ri === 0 ? (string) $rec->record_number : '';
                 $rowVals = array_map(
-                    fn ($c) => $this->csvValue(is_array($row) ? ($row[$c['key'] ?? ''] ?? null) : null),
+                    fn ($c) => $this->csvValue(is_array($row) ? ($row[$c['key'] ?? ''] ?? null) : null, $c['input_type'] ?? null),
                     $subCols,
                 );
                 $rows[] = array_merge([$flag, $id], $rowVals);
@@ -3206,8 +3206,17 @@ class FlowController extends Controller
         }
     }
 
-    private function csvValue($v): string
+    /**
+     * One CSV cell. $inputType is what turns a stored key into the value a person reads: ユーザー and
+     * プロジェクト hold ids, 参照 holds a {id, number, label} snapshot — exported verbatim those came out as
+     * "487", the project's id, and "1159, 東京工業株式会社, 2". The same resolution the record screen and
+     * formulas use (FlowService::displayValue), so the file matches what the app shows. Passing no type
+     * leaves the value alone.
+     */
+    private function csvValue($v, ?string $inputType = null): string
     {
+        $v = $this->flowService->displayValue($inputType, $v);
+
         if (is_array($v)) {
             return implode(', ', array_map(fn ($x) => is_array($x) ? (string) ($x['name'] ?? '') : (string) $x, $v));
         }
@@ -3423,18 +3432,31 @@ class FlowController extends Controller
             'updated_by' => $user->id,
         ]);
         foreach ($headerToField as $header => $field) {
-            $this->flowService->saveFieldValue($record, $field, $rep[$header] ?? null);
+            // ユーザー/プロジェクト columns arrive as names (that is what the export writes) — turn them
+            // back into ids before saving, or the cell would silently import as empty / 0.
+            $cell = $this->flowService->valueFromDisplay($field->input_type, $rep[$header] ?? null);
+            $this->flowService->saveFieldValue($record, $field, $cell);
         }
 
         // Sub-table: one line per group row, keyed by sub-column. Fully-empty lines are dropped.
         if ($tablePlan) {
+            // Sub-column types come off the resolved Table field: a ユーザー/プロジェクト column inside an
+            // existing table needs the same name→id pass as a top-level one. (Columns the import
+            // creates are only ever plain types — see IMPORT_NEW_TYPES — so this only ever matters
+            // when importing into a table that was built in the app.)
+            $subTypes = [];
+            foreach (($tablePlan['field']->validation['columns'] ?? []) as $c) {
+                if (! empty($c['key'])) {
+                    $subTypes[$c['key']] = $c['input_type'] ?? null;
+                }
+            }
             $tableRows = [];
             foreach ($groupRows as $r) {
                 $cells = [];
                 $empty = true;
                 foreach ($tablePlan['subColumns'] as $sc) {
                     $v = $r[$sc['header']] ?? null;
-                    $cells[$sc['key']] = $v;
+                    $cells[$sc['key']] = $this->flowService->valueFromDisplay($subTypes[$sc['key']] ?? null, $v);
                     if (trim((string) $v) !== '') {
                         $empty = false;
                     }

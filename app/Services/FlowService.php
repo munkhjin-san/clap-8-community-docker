@@ -14,6 +14,7 @@ use App\Models\ProjectRecord;
 use App\Models\User;
 use App\Support\FlowDynamicDate;
 use App\Support\FlowSystemSources;
+use App\Support\FlowUserResolver;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -943,10 +944,10 @@ class FlowService
                     if (! $ck) {
                         continue;
                     }
-                    // through formulaDisplayValue for the same reason top-level fields are: a プロジェクト
+                    // through displayValue for the same reason top-level fields are: a プロジェクト
                     // or ユーザー column stores an id, so a calc column reading it printed "173" instead
                     // of the project's name.
-                    $cell = $this->formulaDisplayValue($c['input_type'] ?? null, $row[$ck] ?? null);
+                    $cell = $this->displayValue($c['input_type'] ?? null, $row[$ck] ?? null);
                     $rowContext[$ck] = $cell;
                     if (! empty($c['label'])) {
                         $rowContext[$c['label']] = $cell;
@@ -992,7 +993,7 @@ class FlowService
             if (self::isLayoutType($field->input_type)) {
                 continue;
             }
-            $v = $this->formulaDisplayValue($field->input_type, $values[(string) $field->id] ?? null);
+            $v = $this->displayValue($field->input_type, $values[(string) $field->id] ?? null);
             $context[(string) $field->id] = $v;
             $context[$field->key] = $v;
             $context[$field->label] = $v;
@@ -1048,25 +1049,26 @@ class FlowService
     }
 
     /**
-     * What a formula should see for a field whose stored value is a key rather than something a person
-     * would read.
+     * What a person should see for a field whose stored value is a key rather than something readable.
+     * Used by the formula engine (a formula reads names, not ids) and by the CSV export (same reason —
+     * a spreadsheet column of "487" tells the reader nothing).
      *
      * ユーザー and プロジェクト store ids, 参照 stores a {id, number, label} snapshot and ファイル a list of
-     * file objects. Feeding those to a formula verbatim produced "487" for a person, the project's id
+     * file objects. Feeding those out verbatim produced "487" for a person, the project's id
      * for a project, and "1159, 東京工業株式会社, 2" for a reference — castFormulaResult() flattens an
      * array by imploding it, so even the label came out buried in punctuation.
      *
      * Takes the input type rather than a field: テーブル columns are plain arrays out of the parent
      * field's validation JSON, never field objects, and they need this same treatment — a calc column
-     * reading a プロジェクト column beside it was printing the raw id.
+     * (or an exported sub-table column) reading a プロジェクト column beside it was printing the raw id.
      *
-     * Arrays stay arrays (castFormulaResult joins them) so a multi-user field still reads as a list.
+     * Arrays stay arrays (the caller joins them) so a multi-user field still reads as a list.
      *
      * Trade-off worth knowing: a formula comparing a user field against a numeric id — [担当] == 487 —
      * compares against the name now. Nobody can read an id off the screen to write such a formula in
      * the first place, and the same expression against a name is the one people can actually author.
      */
-    private function formulaDisplayValue(?string $inputType, mixed $v): mixed
+    public function displayValue(?string $inputType, mixed $v): mixed
     {
         switch ($inputType) {
             case 'user':
@@ -1113,6 +1115,66 @@ class FlowService
     private function projectNameMap(): array
     {
         return $this->projectNames ??= ProjectRecord::query()->pluck('name', 'id')->map(fn ($n) => (string) $n)->all();
+    }
+
+    /**
+     * The inverse of displayValue() for the id-holding types, so a CSV cell written by the export
+     * ("山田 太郎, 佐藤 花子" / a project's name) imports back as ids. Without this, exporting names and
+     * re-uploading the same file would blank every ユーザー column and write 0 into every プロジェクト one.
+     *
+     * A cell may equally hold ids ("487, 512") or the "#487" placeholder the export writes for a
+     * person who is no longer in the users table — both come back as that id, so files written before
+     * the export switched to names, or by hand, import exactly as they did.
+     *
+     * Matching ignores the space between 姓 and 名 (FlowUserResolver's rule — CSVs round-tripped
+     * through Excel and other systems disagree about it). A name shared by two people can't be told
+     * apart from a name alone, so the lowest id wins; the alternative — dropping the cell — loses data
+     * the uploader can't see was lost.
+     *
+     * Types other than ユーザー/メンバー/プロジェクト pass straight through: saveFieldValue's own coercion
+     * already reads the text form the export produced.
+     */
+    public function valueFromDisplay(?string $inputType, mixed $raw): mixed
+    {
+        if (! in_array($inputType, ['user', 'member', 'project'], true) || ! is_string($raw)) {
+            return $raw;
+        }
+
+        $parts = [];
+        foreach (preg_split('/[,、]/u', $raw) ?: [] as $piece) {
+            $piece = ltrim(trim($piece), '#');
+            if ($piece !== '') {
+                $parts[] = $piece;
+            }
+        }
+
+        if ($inputType === 'project') {
+            $id = isset($parts[0]) ? $this->idFromNameCell($parts[0], $this->projectNameMap()) : null;
+
+            return $id === null ? '' : $id;   // '' → saveFieldValue clears the cell
+        }
+
+        return array_values(array_filter(array_map(
+            fn ($p) => $this->idFromNameCell($p, $this->userNameMap()),
+            $parts
+        ), fn ($id) => $id !== null));
+    }
+
+    /** One cell of a name-or-id list → the id it means, or null when no such name exists. */
+    private function idFromNameCell(string $cell, array $idToName): ?int
+    {
+        if (is_numeric($cell)) {
+            return (int) $cell;
+        }
+        $needle = FlowUserResolver::normalize($cell);
+        $hits = [];
+        foreach ($idToName as $id => $name) {
+            if (FlowUserResolver::normalize($name) === $needle) {
+                $hits[] = (int) $id;
+            }
+        }
+
+        return $hits ? min($hits) : null;
     }
 
     public function castFormulaResult(mixed $value, string $type): mixed
