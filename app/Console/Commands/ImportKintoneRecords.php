@@ -36,6 +36,7 @@ class ImportKintoneRecords extends Command
         {--dry-run : 書き込まず、取り込む内容を確認する}
         {--limit= : 先頭から指定件数だけ処理する（試すとき用）}
         {--skip-files : 添付ファイルを取り込まない}
+        {--only= : この項目コードだけを取り込む（カンマ区切り。後から足した項目の穴埋め用）}
         {--force : 既にレコードがあっても続行する}';
 
     protected $description = 'kintoneアプリのレコードと添付ファイルを取り込む';
@@ -76,8 +77,20 @@ class ImportKintoneRecords extends Command
             ->reject(fn ($f) => FlowService::isLayoutType($f->input_type) || $f->input_type === 'formula')
             ->keyBy('key');
 
+        // --only：後から項目を足したときの穴埋め用。全項目を入れ直すと、こちらで書いた値
+        // （カスタムボタンが入れた取引先IDなど）まで kintone の内容で上書きしてしまう。
+        if ($only = $this->onlyKeys()) {
+            $missing = array_diff($only, $targets->keys()->all());
+            if ($missing !== []) {
+                $this->error('--only に指定された項目が取り込み先にありません: '.implode('、', $missing));
+
+                return self::FAILURE;
+            }
+            $targets = $targets->filter(fn ($f) => in_array($f->key, $only, true));
+        }
+
         $this->info("kintone app {$appId} → カスタムアプリ #{$definition->id}「{$definition->name}」");
-        $this->line('  取り込み先の項目: '.$targets->count().' 件');
+        $this->line('  取り込み先の項目: '.$targets->count().' 件'.($only ? '（--only 指定: '.implode('、', $only).'）' : ''));
 
         $numberField = $this->option('number-field');
         $this->line('  レコード番号: '.($numberField ? "kintoneの「{$numberField}」" : 'kintoneの $id'));
@@ -183,6 +196,12 @@ class ImportKintoneRecords extends Command
             'record_number' => $number,
         ]);
         $isNew = ! $record->exists;
+        // 穴埋めのときは、こちらに無いレコードを新しく作らない（既にあるものを埋めるだけ）
+        if ($isNew && $this->onlyKeys() !== []) {
+            $this->stats['skipped_values']++;
+
+            return;
+        }
         $record->created_by ??= null;
         $record->updated_by = null;
         $record->save();
@@ -251,6 +270,13 @@ class ImportKintoneRecords extends Command
         }
 
         return $out;
+    }
+
+    /** @return array<int, string> --only で指定された項目コード。 */
+    private function onlyKeys(): array
+    {
+        return collect(explode(',', (string) $this->option('only')))
+            ->map(fn ($k) => trim($k))->filter()->values()->all();
     }
 
     /**
