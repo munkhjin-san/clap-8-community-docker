@@ -267,6 +267,7 @@ import { applyLookupCopy, lockedByServer, validateRecordValues, validationSummar
 import { emptyFieldValue } from '@/utils/flowDefaults'
 import { useUnsavedGuard } from '@/composables/unsavedGuard'
 import type { FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowViewApi, FlowRecordsResponse, FlowAdhocFilter } from '@/types/flow'
+import { decodeAdhoc, encodeAdhoc } from '@/utils/flowAdhoc'
 import type { MenuList } from '@/interface/globalInterface'
 
 const api = useApi()
@@ -297,33 +298,6 @@ const sortRef = ref<number | string | null>(
 const sortDir = ref<'asc' | 'desc'>(route.query.sd === 'desc' ? 'desc' : 'asc')
 const importInput = ref<HTMLInputElement | null>(null)
 
-// ?f= carries the ad-hoc filter as base64url of a compact array form
-// (["and", [field, op, ...values], …]) — raw JSON in the URL reads as a wall of %22
-const encodeAdhoc = (f: FlowAdhocFilter): string => {
-    const compact = [f.logic, ...f.conditions.map((c) => [c.field, c.operator, ...(c.values ?? [])])]
-    const bytes = new TextEncoder().encode(JSON.stringify(compact))
-    return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-}
-const decodeAdhoc = (s: string): FlowAdhocFilter | null => {
-    try {
-        // legacy links carried raw JSON — keep reading them
-        const json = /^[{[]/.test(s) ? s : new TextDecoder().decode(
-            Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (ch) => ch.charCodeAt(0)),
-        )
-        const parsed = JSON.parse(json)
-        if (Array.isArray(parsed)) {
-            const [logic, ...conds] = parsed
-            return {
-                logic: logic === 'or' ? 'or' : 'and',
-                conditions: conds.filter(Array.isArray).map((c: any[]) => ({ field: c[0], operator: c[1], values: c.slice(2) })),
-            }
-        }
-        if (parsed && Array.isArray(parsed.conditions)) {
-            return { logic: parsed.logic === 'or' ? 'or' : 'and', conditions: parsed.conditions }
-        }
-    } catch { /* malformed ?f= — start unfiltered */ }
-    return null
-}
 
 // ad-hoc filter (from the search bar's ⚲ icon) — session-only, not saved to the view
 const adhocFilter = reactive<FlowAdhocFilter>({ logic: 'and', conditions: [] })

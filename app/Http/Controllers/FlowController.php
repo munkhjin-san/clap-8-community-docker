@@ -36,6 +36,9 @@ use Mpdf\Output\Destination;
 
 class FlowController extends Controller
 {
+    /** これを超えるアプリでは、並び順の全件を持たずに番号順で隣を出す。 */
+    private const NAV_MAX_RECORDS = 20000;
+
     public function __construct(
         private FlowService $flowService,
         private FlowNotificationService $flowNotifications,
@@ -1966,9 +1969,7 @@ class FlowController extends Controller
             'can' => $this->flowService->canPressAction($user, $record, $a),
         ])->values();
 
-        // prev/next record numbers for the header nav arrows. Apps without record-level
-        // permission sets: adjacent number in one indexed query. With sets: walk outward
-        // to the first viewable neighbor (bounded — beyond that the arrow just disables).
+        // prev/next record numbers for the header nav arrows.
         $neighbor = function (bool $forward) use ($def, $record, $user) {
             $q = FlowRecord::where('flow_definition_id', $def->id);
             $forward
@@ -2011,8 +2012,76 @@ class FlowController extends Controller
             'mentionable_users' => $this->flowService->mentionableUsers($record, $def),
             // unread comment events for THIS user on this record → comment-tab badge
             'unread_comments' => $this->flowNotifications->unreadCommentCount($user, $record),
-            'nav' => ['prev' => $neighbor(false), 'next' => $neighbor(true)],
+            'nav' => $this->recordNeighbors($def, $record, $user, $neighbor),
         ]);
+    }
+
+    /**
+     * 上下の矢印が指すレコード番号。
+     *
+     * **一覧と同じ並び・同じ絞り込みで隣を探す。** 番号の前後をそのまま辿ると、ビューで絞った
+     * 一覧から開いたときに、一覧に出ていないレコードへ飛んでしまう（画面上の「次」と一致しない）。
+     * 絞り込みと並び順は、レコードのURLに乗って渡ってくる一覧の状態（view_id/sort_field/
+     * sort_dir/filters）から組み直す。指定が無いときも、一覧と同じく既定のビューを使う。
+     *
+     * 番号順に落とすのは、SQLで同じ一覧を作れない場合だけ：
+     *   - 行ごとの権限があるアプリ（一覧を画面側で組んでいる）
+     *   - 数式項目で絞る／並べるビュー（数式は値を保存していないのでSQLで扱えない）
+     *   - 対象が極端に多いアプリ（並び順の全件を持つのが割に合わない）
+     *
+     * @param  callable(bool): ?int  $adjacent  番号で隣を探す従来の方法
+     * @return array{prev: ?int, next: ?int}
+     */
+    private function recordNeighbors(FlowDefinition $def, FlowRecord $record, $user, callable $adjacent): array
+    {
+        $byNumber = fn () => ['prev' => $adjacent(false), 'next' => $adjacent(true)];
+
+        if ($def->recordPermissionSets->isNotEmpty()) {
+            return $byNumber();
+        }
+
+        $request = request();
+        $views = $def->relationLoaded('views') ? $def->views : $def->views()->get();
+        $view = $views->firstWhere('id', (int) $request->input('view_id'))
+            ?? $views->firstWhere('is_default', true) ?? $views->first();
+
+        $filters = is_array($view?->filters) ? $view->filters : [];
+        $logic = $view?->filter_logic === 'or' ? 'or' : 'and';
+        $sort = $request->filled('sort_field')
+            ? [['field' => $request->input('sort_field'), 'direction' => $request->input('sort_dir') === 'desc' ? 'desc' : 'asc']]
+            : (is_array($view?->sort) ? $view->sort : []);
+        $adhoc = $this->decodeAdhocFilter($request);
+
+        $fields = $def->fields;
+        $isFormulaRef = fn ($ref) => is_numeric($ref)
+            && optional($fields->firstWhere('id', (int) $ref))->input_type === 'formula';
+        $usesFormula = collect($filters)->contains(fn ($f) => $isFormulaRef($f['field'] ?? null))
+            || collect($sort)->contains(fn ($s) => $isFormulaRef($s['field'] ?? null))
+            || collect($adhoc['conditions'] ?? [])->contains(fn ($f) => $isFormulaRef($f['field'] ?? null));
+        if ($usesFormula) {
+            return $byNumber();
+        }
+
+        $query = $this->flowService->recordListQuery(
+            $def, $filters, (string) $request->input('search', ''), $adhoc, $logic
+        );
+        if ((clone $query)->count() > self::NAV_MAX_RECORDS) {
+            return $byNumber();
+        }
+        $this->flowService->applyRecordSort($query, $sort, $def);
+
+        $numbers = $query->pluck('flow_records.record_number')->all();
+        $i = array_search($record->record_number, $numbers, true);
+        if ($i === false) {
+            // 今の絞り込みに入っていないレコードを直接開いた場合。隣が無いのが正しい。
+            return ['prev' => null, 'next' => null];
+        }
+
+        // 画面の「一つ下」＝一覧で下の行。番号の大小ではなく並び順で決める。
+        return [
+            'prev' => $numbers[$i + 1] ?? null,
+            'next' => $i > 0 ? $numbers[$i - 1] : null,
+        ];
     }
 
     public function storeAppRecord(Request $request)

@@ -224,6 +224,7 @@ import AppCommentSection from '@/components/Global/AppCommentSection.vue'
 import UserPanel from '@/components/Global/UserPanel.vue'
 import ItemMenu from '@/components/Global/ItemMenu.vue'
 import { isLayoutType, isSecretType } from '@/types/flow'
+import { decodeAdhoc } from '@/utils/flowAdhoc'
 import type { FlowField, FlowDefinitionApi, FlowRecordDto, FlowAppPermissionsDto, FlowAppTool } from '@/types/flow'
 import type { MenuList } from '@/interface/globalInterface'
 import Back from '@/components/Icons/Back.vue'
@@ -330,6 +331,21 @@ const listContext = () => {
     const q: Record<string, any> = {}
     for (const k of LIST_CONTEXT_KEYS) if (route.query[k] != null) q[k] = route.query[k]
     return q
+}
+/**
+ * 上下の矢印を一覧と揃えるために、同じ絞り込み・並び順をサーバへ送る。
+ * 名前は一覧APIに合わせる（URL側は短い名前で持っている）。
+ */
+const navParams = () => {
+    const p = new URLSearchParams()
+    if (route.query.view != null) p.set('view_id', String(route.query.view))
+    if (route.query.sf != null) { p.set('sort_field', String(route.query.sf)); p.set('sort_dir', String(route.query.sd ?? 'asc')) }
+    if (route.query.f != null) {
+        const decoded = decodeAdhoc(String(route.query.f))
+        if (decoded) p.set('filters', JSON.stringify(decoded))
+    }
+    const s = p.toString()
+    return s ? `?${s}` : ''
 }
 const goToRecord = (n: number | null) => {
     if (n == null) return
@@ -554,7 +570,7 @@ const load = async () => {
         await flowOptionsStore.load()
 
         if (recordId.value) {
-            const data = await api.get(`/flow_app_record_by_number/${flowId.value}/${recordId.value}`)
+            const data = await api.get(`/flow_app_record_by_number/${flowId.value}/${recordId.value}${navParams()}`)
             if (data) {
                 definition.value = data.definition
                 permissions.value = data.permissions
