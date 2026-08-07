@@ -6736,15 +6736,162 @@ input:autofill {
   background: var(--bg2) !important;
 }
 
-.project-slide-window {
-  position: absolute;
-  z-index: 24;
+/* プロジェクト一覧と詳細パネルはフレックスで左右に分割する。
+   サイドメニューの開閉やビューポート変化はレイアウトが吸収するため実測は不要 */
+.project-root {
+  display: flex;
+  flex-direction: row;
+}
+
+/* 左カラム＝ヘッダー＋絞り込み＋一覧。詳細パネルが上に重なるだけなので、
+   テーブル自体は開閉で一切リフローしない（列がガタつく原因を断つ） */
+.project-main-column {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
   height: 100%;
-  width: calc(100% - 290px);
+  position: relative;
+}
+
+.project-main-column > .post-header,
+.project-main-column > .project-view-bar {
+  flex: 0 0 auto;
+}
+
+.project-main-column .post-container {
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+}
+
+.project-list-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* 詳細を開いている間、左280pxだけが見える。はみ出す操作類は畳む */
+.project-root.detail-open .project-header-actions {
+  display: none;
+}
+
+.project-search-wrap {
+  transition: width 0.2s ease;
+}
+
+/* 幅だけを詰める。左の余白は動かさないと開閉で位置がズレて見える */
+.project-root.detail-open .project-search-wrap {
+  width: 250px;
+}
+
+.project-root.detail-open .project-view-bar {
+  flex-wrap: wrap;
+}
+
+/* 一覧の上に重ねる。left/right/top/bottom はすべて相対指定なので、
+   サイドメニューの開閉やビューポート変化に実測なしで追従する */
+.project-detail-pane {
+  position: absolute;
   top: 0;
-  left: 290px;
+  right: 0;
+  bottom: 0;
+  left: 280px;
+  z-index: 24;
   background: var(--bg2);
   color: var(--primary-color);
+}
+
+.detailShift-enter-active,
+.detailShift-leave-active {
+  transition: transform 0.2s ease;
+}
+
+.detailShift-enter-from,
+.detailShift-leave-to {
+  transform: translateX(100%);
+}
+
+.project-view-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 20px 8px 20px;
+  flex: 0 0 auto;
+}
+
+.project-view-switch {
+  display: inline-flex;
+  border: 1px solid var(--calendarBorder);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.pv-item {
+  padding: 5px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  color: var(--sub-color);
+  background: var(--background-color);
+}
+
+.pv-item + .pv-item {
+  border-left: 1px solid var(--calendarBorder);
+}
+
+.pv-on {
+  background: var(--primary-button);
+  color: #e4e6eb;
+}
+
+.project-group-row {
+  display: table-row;
+  cursor: pointer;
+}
+
+/* --bg3 は行ホバー色と同じなのでグループ帯には使わない */
+.project-group-cell {
+  background: var(--secondary-background);
+  height: 38px;
+}
+
+.project-group-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-group-count {
+  font-size: 11px;
+  color: var(--sub-color);
+  white-space: nowrap;
+}
+
+.project-group-arrow {
+  flex: 0 0 auto;
+  transition: transform 0.15s ease;
+}
+
+.project-group-arrow.is-open {
+  transform: rotate(-90deg);
+}
+
+.project-co-pm-label {
+  font-size: 10px;
+  color: var(--sub-color);
+  white-space: nowrap;
+}
+
+/* 詳細パネルの左端(280px)が列境界とちょうど重なるようタイトル列を固定する */
+.project-title-head {
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
 }
 
 .hide-scrollbar::-webkit-scrollbar {
@@ -6888,10 +7035,26 @@ button.shift-button {
     height: 100%;
   }
 
-  .project-slide-window {
-    width: 100%;
-    left: 0;
+  .project-detail-pane {
     position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .project-view-bar {
+    padding: 0 15px 8px 15px;
+    gap: 10px;
+  }
+
+  .project-group-row {
+    display: block;
+    margin: 0 15px 10px 15px;
+  }
+
+  .project-group-cell {
+    border-bottom: none;
+    padding: 8px 10px;
   }
 
   .from-left {
