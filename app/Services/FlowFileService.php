@@ -85,6 +85,7 @@ class FlowFileService
         string $contents,
         ?string $mimeType,
         ?int $userId,
+        ?string $externalKey = null,
     ): FlowRecordFile {
         $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
         [$kind] = explode('/', $mimeType ?: 'application/octet-stream');
@@ -101,6 +102,8 @@ class FlowFileService
             'disk_path' => '',
             'uploaded_by' => $userId,
             'status' => FlowRecordFile::STATUS_ATTACHED,
+            // 取り込み元での識別子。再実行で「もう有る」を判定するのに使う。
+            'kintone_file_key' => $externalKey,
         ]);
 
         $path = FlowRecordFile::pathFor($record->flow_definition_id, $record->id, $file->id, $extension);
@@ -390,6 +393,12 @@ class FlowFileService
     }
 
     /** 台帳と実体をまとめて消す。 */
+    /** 1件だけ台帳と実体から取り除く（取り込み元から消えた添付など）。 */
+    public function deleteRecordFile(FlowRecordFile $file): void
+    {
+        $this->forget($file);
+    }
+
     private function forget(FlowRecordFile $file): void
     {
         if ($file->disk_path !== '' && Storage::disk('local')->exists($file->disk_path)) {

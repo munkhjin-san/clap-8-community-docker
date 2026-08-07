@@ -25,7 +25,8 @@ class ImportKintoneAppStructure extends Command
         {kintone_app : kintone側のアプリID}
         {--definition= : 作り直すカスタムアプリのID（省略時は新規作成）}
         {--dry-run : 変更を書かず、作られるフォームを表示する}
-        {--force : 確認せずに実行する（レコードがあっても作り直す。手を入れた設定は失われます）}';
+        {--force : 確認せずに実行する（レコードがあっても作り直す。手を入れた設定は失われます）}
+        {--owner= : 作成者にするユーザーID（省略時は最初のユーザー）}';
 
     protected $description = 'kintoneアプリのフォーム構成（レイアウト込み）をカスタムアプリに取り込む';
 
@@ -61,6 +62,31 @@ class ImportKintoneAppStructure extends Command
                 '文字列__1行__11',     // 担当者テーブル › 決裁者
                 'リンク_3',            // 担当者テーブル › メアド
             ],
+        ],
+        138 => [   // 契約書
+            'groups' => [
+                'グループ',      // 転籍の場合（中身6項目ごと）
+                'グループ_1',    // 【別紙3】【別紙4】【別紙5】（中身は空）
+            ],
+            'fields' => [
+                '担当者',
+                '担当者メールアドレス',
+                '決裁者',
+                '決裁者メールアドレス',
+                '添付ファイル',        // ファイル項目だが6件のみ・不要
+                '指示書その他',
+                '数値',                // 請求書提出期日
+                '発送日',
+                '文字列__1行__2',      // 出向者氏名
+                '日付',                // 出向契約期間開始日
+                '日付_0',              // 出向契約期間満了日
+                '日付_1',              // 出向日前日
+                // サブテーブルは3つとも入れない
+                '委託業務責任者_他社',
+                '副委託業務責任者',
+                '委託業務責任者_自社',
+            ],
+            'columns' => [],
         ],
     ];
 
@@ -180,6 +206,10 @@ class ImportKintoneAppStructure extends Command
             return $definition;
         }
 
+        // 作成者と「作成者は全権」の行を入れておく。これが無いと、作った直後のアプリは
+        // 誰にも見えない（画面では「レコードが存在しませんまたはアクセス権限がありません」になる）。
+        $owner = (int) ($this->option('owner') ?: (DB::table('users')->whereNull('deleted_at')->min('id') ?? 0)) ?: null;
+
         $definition = FlowDefinition::create([
             'name' => $app['name'] ?? ('kintone '.$appId),
             'description' => null,
@@ -187,8 +217,16 @@ class ImportKintoneAppStructure extends Command
             'is_active' => true,
             'use_status_flow' => false,
             'record_seq' => 0,
+            'created_by' => $owner,
         ]);
-        $this->line("対象: カスタムアプリ #{$definition->id}（新規作成）");
+        $definition->appPermissions()->create([
+            'subject_type' => 'creator',
+            'subject_id' => null,
+            'can_view' => true, 'can_add' => true, 'can_edit' => true, 'can_delete' => true,
+            'can_manage' => true, 'can_import' => true, 'can_export' => true, 'can_bulk' => true,
+            'sort_order' => 0,
+        ]);
+        $this->line("対象: カスタムアプリ #{$definition->id}（新規作成 / 作成者 #{$owner}）");
 
         return $definition;
     }
@@ -249,13 +287,7 @@ class ImportKintoneAppStructure extends Command
             $this->line('  関連レコードブロック '.count($keep).' 件はそのまま残しました（kintone由来ではないため）。');
         }
 
-        // kintone側でプロセス管理が無効なら、こちらもステータスを持たない。
-        // （画面からの取込はステータスが定義されていれば enable を見ずに有効化してしまう）
-        if (! $process['enable']) {
-            $definition->statusActions()->delete();
-            $definition->statuses()->delete();
-            $definition->update(['use_status_flow' => false]);
-        }
+        $this->rebuildStatusFlow($definition, $process);
 
         // 列は項目IDで持っているので、作り直したら貼り替える（値を持つ項目だけ、先頭10列）
         $dataIds = collect($created)
@@ -276,13 +308,84 @@ class ImportKintoneAppStructure extends Command
         try {
             $status = $kintone->getProcessManagement($appId);
         } catch (\Throwable $e) {
-            return ['enable' => false, 'statuses' => []];
+            return ['enable' => false, 'statuses' => [], 'actions' => []];
         }
 
         return [
             'enable' => (bool) ($status['enable'] ?? false),
             'statuses' => $status['states'] ?? [],
+            'actions' => $status['actions'] ?? [],
         ];
+    }
+
+    /**
+     * kintoneのプロセス管理を、こちらのステータスと遷移ボタンに写す。
+     *
+     * 状態の並びは kintone の index に従う（連想配列で返るので順序は当てにならない）。
+     * index 0 を初期状態にする——kintoneでは新規レコードがそこから始まる。
+     *
+     * **作業者（assignee）は持ち越さない。** kintoneのアカウントを指しており、こちらの
+     * ユーザーとは一致しない。eligible は空＝「編集できる人が押せる」にしておき、
+     * 誰が押せるかは移行後に画面から決める。
+     *
+     * どの状態からも行けない状態（どのアクションの from にも to にも出てこない）も消さずに残す。
+     * 使われていないように見えても、その状態のレコードが実在しうる。
+     */
+    private function rebuildStatusFlow(FlowDefinition $definition, array $process): void
+    {
+        $definition->statusActions()->delete();
+        $definition->statuses()->delete();
+
+        if (! $process['enable']) {
+            // 画面からの取込はステータスが定義されていれば enable を見ずに有効化してしまうので、明示的に落とす
+            $definition->update(['use_status_flow' => false]);
+
+            return;
+        }
+
+        $states = collect($process['statuses'])
+            ->map(fn ($s, $name) => ['name' => (string) ($s['name'] ?? $name), 'index' => (int) ($s['index'] ?? 0)])
+            ->sortBy('index')
+            ->values();
+
+        $idByName = [];
+        foreach ($states as $i => $st) {
+            $row = $definition->statuses()->create([
+                'name' => $st['name'],
+                'is_initial' => $i === 0,
+                'order_number' => $i,
+            ]);
+            $idByName[$st['name']] = $row->id;
+        }
+
+        $order = 0;
+        $skipped = [];
+        foreach ($process['actions'] as $a) {
+            $from = $idByName[$a['from'] ?? ''] ?? null;
+            $to = $idByName[$a['to'] ?? ''] ?? null;
+            if ($from === null || $to === null) {
+                $skipped[] = (string) ($a['name'] ?? '(名前なし)');
+
+                continue;
+            }
+            $definition->statusActions()->create([
+                'flow_status_id' => $from,
+                'to_status_id' => $to,
+                'name' => (string) ($a['name'] ?? ''),
+                'label' => (string) ($a['name'] ?? ''),
+                'eligible' => [],
+                'notify' => true,
+                'sort_order' => $order++,
+            ]);
+        }
+
+        $definition->update(['use_status_flow' => true]);
+
+        $this->line('  ステータス '.count($idByName).' 件 / 遷移ボタン '.$order.' 件を作りました。');
+        if ($skipped !== []) {
+            $this->warn('  遷移先が見つからないアクションは飛ばしました: '.implode('、', $skipped));
+        }
+        $this->line('  押せる人は未設定です（kintoneの作業者はこちらのユーザーと一致しないため）。');
     }
 
     /** 取り込まれるフォームを行ごとに表示する（--dry-run の中身）。 */

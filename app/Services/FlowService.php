@@ -628,6 +628,11 @@ class FlowService
                 $q->whereNull('current_status_id');
             } elseif ($op === 'not_empty') {
                 $q->whereNotNull('current_status_id');
+            } elseif (in_array($op, ['includes_any', 'equals'], true) && count($vals) > 1) {
+                // 「いずれかの状態」。先頭だけ見ると、3状態を指定した一覧が1状態分しか出ない。
+                $q->whereHas('currentStatus', fn ($s) => $s->whereIn('name', $vals));
+            } elseif ($op === 'not_equals' && count($vals) > 1) {
+                $q->whereDoesntHave('currentStatus', fn ($s) => $s->whereIn('name', $vals));
             } else {
                 $q->whereHas('currentStatus', fn ($s) => $this->applyScalarOp($s, 'name', $op, $first));
             }

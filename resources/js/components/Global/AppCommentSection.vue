@@ -19,6 +19,11 @@
                 >
                     <div class="app-comment-meta">
                         <UserPanel v-if="comment.user" :user="comment.user" with-name size="24" disable-instant />
+                        <!-- 移行してきた分。こちらのユーザーが居ないので、名前を文字として出す -->
+                        <span v-else-if="comment.legacy_author" class="app-comment-legacy" :title="comment.legacy_author">
+                            <span class="app-comment-legacy-name">{{ comment.legacy_author }}</span>
+                            <span class="app-comment-legacy-note">移行</span>
+                        </span>
                         <span>{{ DateParser(comment.created_at) }}</span>
                     </div>
                     <div class="app-comment-body" v-html="mentionFormatter(comment.content, true)"></div>
@@ -448,11 +453,18 @@ const scrollToBottom = async (behavior: ScrollBehavior = 'smooth') => {
     display: flex;
     gap: 16px;
     justify-content: space-between;
+    min-width: 0;
 
-    span{
+    /* 直下の要素だけ。入れ子の名前は自前で省略表示するので nowrap を継がせない */
+    > span{
         color: gray;
         font-size: 11px;
         white-space: nowrap;
+    }
+
+    /* 日時は最後まで残す。縮むのは書き手の名前の側 */
+    > span:last-child{
+        flex: none;
     }
 }
 
@@ -578,4 +590,9 @@ const scrollToBottom = async (behavior: ScrollBehavior = 'smooth') => {
     .app-comment-send-area :deep(svg){ width: 24px; }
 }
 
+/* 書き手の名前は長くなりうる（「【社内】プロジェクトマネージャー」など）。
+   meta は横並びなので、縮められるようにしておかないと日時ごと吹き出しからはみ出す。 */
+.app-comment-legacy { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: gray; min-width: 0; }
+.app-comment-legacy-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.app-comment-legacy-note { border: 1px solid var(--formBorder); padding: 0 5px; font-size: 10px; line-height: 16px; color: gray; flex: none; }
 </style>

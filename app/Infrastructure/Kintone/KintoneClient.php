@@ -250,11 +250,41 @@ class KintoneClient
         }
     }
 
-    public function getComments(string|int $appId, string|int $recordId): array
+    /**
+     * レコードのコメント。
+     *
+     * kintoneは1回に10件までしか返さない。指定しないと既定の10件で打ち切られ、
+     * それ以上付いているレコードのコメントが黙って落ちる。ここで最後まで辿る。
+     *
+     * @param  string  $order  'asc' で古い順（読み返す順に並ぶ）
+     */
+    public function getComments(string|int $appId, string|int $recordId, string $order = 'asc'): array
+    {
+        $all = [];
+        $offset = 0;
+        $limit = 10;   // kintone側の上限
+
+        while (true) {
+            $page = $this->getCommentPage($appId, $recordId, $order, $offset, $limit);
+            $all = array_merge($all, $page);
+            if (count($page) < $limit) {
+                return $all;
+            }
+            $offset += $limit;
+            if ($offset > 1000) {   // 想定外に多い場合の歯止め
+                return $all;
+            }
+        }
+    }
+
+    private function getCommentPage(string|int $appId, string|int $recordId, string $order, int $offset, int $limit): array
     {
         $queryString = http_build_query([
             'app' => $appId,
             'record' => $recordId,
+            'order' => $order === 'desc' ? 'desc' : 'asc',
+            'offset' => $offset,
+            'limit' => $limit,
         ]);
 
         try {
@@ -283,7 +313,11 @@ class KintoneClient
         try {
             $resp = $this->http->get("file.json?{$queryString}", [
                 'headers' => $this->headers('*/*'),
-                'timeout' => 15,
+                // 添付は数十MBになることがある。15秒だと大きいファイルだけが必ず落ちる
+                // （92MBの契約書が64MBまで受け取ったところで打ち切られていた）。
+                'timeout' => 300,
+                // 全く進まなくなった場合はここで見切る
+                'connect_timeout' => 15,
             ]);
 
             return $resp;

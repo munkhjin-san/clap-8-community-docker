@@ -27,6 +27,27 @@ class ImportKintoneViews extends Command
 
     protected $description = 'kintoneの一覧（列・絞り込み・並び順）を取り込む';
 
+    /**
+     * kintoneの日付関数 => こちらの動的日付トークン。
+     *
+     * 引数を取るもの（FROM_TODAY(-60, DAYS) など）に相当するものは無い。
+     * そのままの文字列で入れると常に0件の一覧になるので、そのビューは作らない。
+     */
+    private const DYNAMIC_DATES = [
+        'TODAY()' => 'today',
+        'YESTERDAY()' => 'yesterday',
+        'TOMORROW()' => 'tomorrow',
+        'THIS_WEEK()' => 'this_week',
+        'LAST_WEEK()' => 'last_week',
+        'NEXT_WEEK()' => 'next_week',
+        'THIS_MONTH()' => 'this_month',
+        'LAST_MONTH()' => 'last_month',
+        'NEXT_MONTH()' => 'next_month',
+        'THIS_YEAR()' => 'this_year',
+        'LAST_YEAR()' => 'last_year',
+        'NEXT_YEAR()' => 'next_year',
+    ];
+
     /** kintoneのシステム項目 => こちらの列センチネル。 */
     private const SYSTEM_COLUMNS = [
         'レコード番号' => '$record_number',
@@ -180,14 +201,24 @@ class ImportKintoneViews extends Command
             }
             [$code, $op, $raw] = [trim($m[1]), strtolower(trim($m[2])), trim($m[3])];
 
-            $field = $byKey->get($code);
-            if (! $field) {
+            // ステータスやレコード番号など、項目ではなくシステム列で絞るビューもある
+            $ref = self::SYSTEM_COLUMNS[$code] ?? ($byKey->get($code)->id ?? null);
+            if ($ref === null) {
                 $unresolved[] = $code;
 
                 continue;
             }
 
-            $values = $this->parseValues($raw);
+            $values = array_map(fn ($v) => self::DYNAMIC_DATES[strtoupper((string) $v)] ?? $v, $this->parseValues($raw));
+
+            // 相対日付（FROM_TODAY(-60, DAYS) など）に相当するものがこちらに無い。
+            // 値をそのまま入れると「その文字列と一致するレコード」を探す一覧になり、常に0件になる。
+            $unsupportedFn = collect($values)->first(fn ($v) => is_string($v) && preg_match('/^[A-Z_]+\(/u', $v));
+            if ($unsupportedFn) {
+                $unresolved[] = $unsupportedFn.' に相当する条件がありません';
+
+                continue;
+            }
             // kintone の `in ("")` は「空であること」を意味する
             $isEmptyCheck = $values === [''] || $values === [];
 
@@ -208,7 +239,7 @@ class ImportKintoneViews extends Command
             }
 
             $conditions[] = [
-                'field' => $field->id,
+                'field' => $ref,
                 'operator' => $operator,
                 'values' => in_array($operator, ['is_empty', 'not_empty'], true) ? [] : $values,
             ];
@@ -221,6 +252,10 @@ class ImportKintoneViews extends Command
     private function parseValues(string $raw): array
     {
         $raw = trim($raw);
+        // 関数（FROM_TODAY(-60, DAYS) など）は丸ごと1つの値。外側の括弧だけを外す。
+        if (preg_match('/^[A-Z_]+\(.*\)$/u', $raw)) {
+            return [$raw];
+        }
         if (str_starts_with($raw, '(')) {
             $raw = trim($raw, '()');
         }

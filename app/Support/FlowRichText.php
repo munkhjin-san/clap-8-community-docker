@@ -82,13 +82,27 @@ class FlowRichText
         return trim($out);
     }
 
-    /** 表示用の素のテキスト（一覧やツールチップなど、HTMLを出せない場所向け）。 */
+    /**
+     * 表示用の素のテキスト（一覧やツールチップ、HTMLを出せない項目向け）。
+     *
+     * 見た目の区切りだけは残す：ブロックの終わりを改行に置き換えてからタグを外さないと、
+     * 段落が繋がって一続きの文になってしまう。
+     *
+     * ワープロから貼られたHTMLは、中身の無い段落（`<p><span>&nbsp;</span></p>` など）を
+     * 大量に挟んでくる。そのまま落とすと空白だけの行が延々と続くので、空行は1行にまとめる。
+     */
     public static function toPlainText(?string $html): string
     {
-        $text = preg_replace('#<\s*(br|/p|/div|/li|/h[1-6])\s*/?\s*>#i', "\n", (string) $html) ?? (string) $html;
+        $text = preg_replace('#<\s*(br|/p|/div|/li|/h[1-6]|/tr)\s*/?\s*>#i', "\n", (string) $html) ?? (string) $html;
         $text = html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-        return trim(preg_replace("/\n{3,}/u", "\n\n", $text) ?? $text);
+        // ノーブレークスペースは見えないだけで普通の空白ではない。ここで揃えておかないと
+        // 「空行のはずなのに空でない」行が残る。
+        $text = str_replace(["\u{00a0}", "\u{3000}\n"], [' ', "\n"], $text);
+        $text = preg_replace('/[ \t]+$/mu', '', $text) ?? $text;      // 行末の空白
+        $text = preg_replace("/\n\s*\n(\s*\n)+/u", "\n\n", $text) ?? $text;   // 空行の連続は1行に
+
+        return trim($text);
     }
 
     /** 許可されていない要素・属性を落としながら木を歩く。 */
