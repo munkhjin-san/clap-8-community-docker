@@ -18,7 +18,7 @@
                 </div>
                 <div class="project-view-switch">
                     <div :class="['pv-item', {'pv-on': scope === 'all'}]" @click="scope = 'all'">すべて</div>
-                    <div :class="['pv-item', {'pv-on': scope === 'mine'}]" @click="scope = 'mine'">自分の担当</div>
+                    <div :class="['pv-item', {'pv-on': scope === 'mine'}]" @click="scope = 'mine'">担当部門</div>
                 </div>
             </div>
             <div class="flex gap-4 mr-4 project-header-actions">
