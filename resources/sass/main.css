@@ -6600,7 +6600,7 @@ input:autofill {
 
 .project-search-wrap {
   margin-left: 20px;
-  width: 30%;
+  width: 350px;
 }
 
 .project-cell-row:last-child .project-cell {
@@ -6755,9 +6755,11 @@ input:autofill {
   position: relative;
 }
 
-.project-main-column > .post-header,
-.project-main-column > .project-view-bar {
+.project-main-column > .post-header {
   flex: 0 0 auto;
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 60px;
 }
 
 .project-main-column .post-container {
@@ -6786,8 +6788,15 @@ input:autofill {
   width: 250px;
 }
 
+/* 詳細を開くと見える幅が280pxしかないので、トグルは検索バーの下の段に回す */
 .project-root.detail-open .project-view-bar {
+  width: 100%;
+  max-width: 280px;
+  margin-left: 20px;
+  margin-right: 0;
+  padding-bottom: 8px;
   flex-wrap: wrap;
+  gap: 8px;
 }
 
 /* 一覧の上に重ねる。left/right/top/bottom はすべて相対指定なので、
@@ -6813,11 +6822,13 @@ input:autofill {
   transform: translateX(100%);
 }
 
+/* 検索バーのすぐ右に並べる。margin-right:auto で右側のボタン群を端に押しやる */
 .project-view-bar {
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 0 20px 8px 20px;
+  gap: 12px;
+  margin-left: 16px;
+  margin-right: auto;
   flex: 0 0 auto;
 }
 
@@ -6860,7 +6871,6 @@ input:autofill {
 }
 
 .project-group-name {
-  font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -6872,14 +6882,18 @@ input:autofill {
   white-space: nowrap;
 }
 
+/* Backアイコンは左向きなので、閉じている時は右向き(180deg)、
+   開いている時は下向き(270deg)。差を90degに収めて回転を最短にする */
 .project-group-arrow {
   flex: 0 0 auto;
+  transform: rotate(180deg);
   transition: transform 0.15s ease;
 }
 
 .project-group-arrow.is-open {
-  transform: rotate(-90deg);
+  transform: rotate(270deg);
 }
+
 
 .project-co-pm-label {
   font-size: 10px;
@@ -7042,9 +7056,16 @@ button.shift-button {
     height: 100%;
   }
 
-  .project-view-bar {
-    padding: 0 15px 8px 15px;
-    gap: 10px;
+  /* スマホでは表示切替を出さず、常に「一覧 × すべて」で表示する */
+  .project-root .project-view-bar {
+    display: none;
+  }
+
+  /* ヘッダーは元どおり1行（検索バー＋リソース/集計） */
+  .project-main-column > .post-header {
+    flex-wrap: nowrap;
+    height: 60px;
+    min-height: 0;
   }
 
   .project-group-row {

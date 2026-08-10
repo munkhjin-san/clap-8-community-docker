@@ -11,6 +11,16 @@
                     @search-start="(word) => {keywords = word}"
                 />
             </div>
+            <div class="project-view-bar">
+                <div class="project-view-switch">
+                    <div :class="['pv-item', {'pv-on': grouping === 'none'}]" @click="grouping = 'none'">一覧</div>
+                    <div :class="['pv-item', {'pv-on': grouping === 'pm'}]" @click="grouping = 'pm'">PM別</div>
+                </div>
+                <div class="project-view-switch">
+                    <div :class="['pv-item', {'pv-on': scope === 'all'}]" @click="scope = 'all'">すべて</div>
+                    <div :class="['pv-item', {'pv-on': scope === 'mine'}]" @click="scope = 'mine'">自分の担当</div>
+                </div>
+            </div>
             <div class="flex gap-4 mr-4 project-header-actions">
                 <div v-if="auth.hasPrivilage" class="c-bar-button" @click="router.push({name: 'resource'})">
                     リソース
@@ -18,17 +28,6 @@
                 <div class="c-bar-button" @click="router.push({name: 'total-finance'})">
                     集計
                 </div>
-            </div>
-                        
-        </div>
-        <div class="project-view-bar">
-            <div class="project-view-switch">
-                <div :class="['pv-item', {'pv-on': grouping === 'none'}]" @click="grouping = 'none'">一覧</div>
-                <div :class="['pv-item', {'pv-on': grouping === 'pm'}]" @click="grouping = 'pm'">PM別</div>
-            </div>
-            <div class="project-view-switch">
-                <div :class="['pv-item', {'pv-on': scope === 'all'}]" @click="scope = 'all'">すべて</div>
-                <div :class="['pv-item', {'pv-on': scope === 'mine'}]" @click="scope = 'mine'">自分の担当</div>
             </div>
         </div>
         <Transition name="modalFade">
@@ -138,9 +137,14 @@
                         </Transition>                        
                     </div>                  
                 </div>
-                <template v-for="row in displayRows" :key="row.key">
+                <div
+                    v-for="row in displayRows"
+                    :key="row.key"
+                    :class="rowClass(row)"
+                    @click="rowClick(row)"
+                >
                 <!-- PM別グループの見出し行。空セルはカラム幅を保つための埋めセル -->
-                <div v-if="row.kind === 'group'" class="project-group-row" @click="toggleGroup(row.group.key)">
+                <template v-if="row.kind === 'group'">
                     <div class="project-cell project-group-cell">
                         <div class="flex items-center gap-2">
                             <Back class="project-group-arrow" :class="{'is-open': !collapsedGroups.includes(row.group.key)}" size="10"/>
@@ -151,8 +155,8 @@
                         </div>
                     </div>
                     <div class="project-cell project-group-cell pc" v-for="n in 7" :key="n"></div>
-                </div>
-                <div v-else @click="jumpToProject(row.project)" class="project-cell-row" :class="[{'selected-project-cell' : Number(route.params.projectId) == row.project.id}]">
+                </template>
+                <template v-else>
                     <div class="project-cell project-title-cell">
                         <div class="flex w-full">
                             <div class="flex gap-2 items-center relative w-full">
@@ -194,7 +198,7 @@
                     <!-- PM別表示では見出しのPMは省き、共同PMだけを出して重複表示の理由を示す -->
                     <div class="project-cell pc">
                         <div class="flex items-center gap-1">
-                            <span class="project-co-pm-label" v-if="grouping === 'pm' && rowManagers(row).length">共同</span>
+                            <span class="project-co-pm-label" v-if="effectiveGrouping === 'pm' && rowManagers(row).length">共同</span>
                             <div class="flex">
                                 <UserPanel v-for="member in rowManagers(row)" imgClass="u_icon_20" :user="member" size="20"/>
                             </div>
@@ -208,9 +212,8 @@
                             <span class="my-[auto] ml-[5px] text-[12px] cursor-pointer whitespace-nowrap" v-if="row.project.members.length > 5">...({{row.project.members.length}})</span>
                         </div>
                     </div>
-
-                </div>
                 </template>
+                </div>
             </div>
             </div>
         </div>
@@ -318,6 +321,10 @@ const savedView = (() => {
 })()
 const grouping = ref<Grouping>(savedView.grouping === 'pm' ? 'pm' : 'none')
 const scope = ref<Scope>(savedView.scope === 'mine' ? 'mine' : 'all')
+// スマホでは切替UIを出さないので常に「一覧 × すべて」。
+// 保存済みのPC側の設定を書き換えないよう、表示用の値だけを差し替える
+const effectiveGrouping = computed<Grouping>(() => responsive.mobile ? 'none' : grouping.value)
+const effectiveScope = computed<Scope>(() => responsive.mobile ? 'all' : scope.value)
 const collapsedGroups = ref<number[]>(Array.isArray(savedView.collapsed) ? savedView.collapsed.map(Number) : [])
 watch([grouping, scope, collapsedGroups], () => {
     localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify({
@@ -428,7 +435,7 @@ const sortedProjects = computed(() => {
       badgeState === 0 ||
       (badgeState === 1 && !!project.has_comment_badge);
 
-    const scopeOk = scope.value === 'all' || belongsToMe(project);
+    const scopeOk = effectiveScope.value === 'all' || belongsToMe(project);
 
     return managerOk && memberOk && statusOk && badgeOk && completedOk && scopeOk;
   });
@@ -480,7 +487,7 @@ const pmGroups = computed<ProjectGroup[]>(() => {
 })
 
 const displayRows = computed<DisplayRow[]>(() => {
-    if(grouping.value !== 'pm'){
+    if(effectiveGrouping.value !== 'pm'){
         return sortedProjects.value.map(project => ({
             kind: 'project' as const,
             key: `p-${project.id}`,
@@ -499,11 +506,23 @@ const displayRows = computed<DisplayRow[]>(() => {
     return rows
 })
 
+const rowClass = (row: DisplayRow) => {
+    if(row.kind === 'group') return 'project-group-row'
+    return ['project-cell-row', { 'selected-project-cell': Number(route.params.projectId) === row.project.id }]
+}
+const rowClick = (row: DisplayRow) => {
+    if(row.kind === 'group'){
+        toggleGroup(row.group.key)
+        return
+    }
+    jumpToProject(row.project)
+}
+
 // PM別表示では見出しのPMを除いた共同PMのみを返す
 const rowManagers = (row: DisplayRow) => {
     if(row.kind !== 'project') return []
     const managers = row.project.manager ?? []
-    if(grouping.value !== 'pm') return managers
+    if(effectiveGrouping.value !== 'pm') return managers
     return managers.filter(manager => manager.id !== row.groupKey)
 }
 const groupBadges = (group: ProjectGroup) => {
