@@ -113,7 +113,7 @@ class ImportPartnersFromKintone extends Command
 
         $codes = array_values(array_unique(array_merge(
             array_values(self::FIELD_MAP),
-            ['$id', 'ラジオボタン', '取引区分', '住所1', 'チェックボックス_0', '情報管理に関する質問', '労働契約に関する質問', '作成日時', '更新日時', '取引先ID'],
+            ['$id', 'ラジオボタン', '取引区分', '住所1', 'チェックボックス_0', '情報管理に関する質問', '労働契約に関する質問', '作成日時', '更新日時', '取引先ID', '取引先id'],
         )));
 
         $this->info("kintoneアプリ {$appId} から取引先を読み込みます…");
@@ -232,6 +232,9 @@ class ImportPartnersFromKintone extends Command
         // kintoneの「取引先ID」＝freee会計の取引先ID。本番freeeを向いている環境でのみ意味を持つ。
         // テスト事業所に向けた環境で取り込むと存在しない相手と紐付くので、--no-freee-ids で外せる。
         $row['freee_partner_id'] = $this->option('no-freee-ids') ? null : $this->freeePartnerId($record, $name);
+        // kintone側の取引先連番。契約書（アプリ138）がこの番号で取引先を参照する。
+        $kintoneId = (int) preg_replace('/\D/', '', $this->trimmed($record, '取引先id'));
+        $row['kintone_partner_id'] = $kintoneId > 0 ? $kintoneId : null;
         // 実際に照合したわけではないので同期済みにはしない（スナップショット無し＝初回pushで差分を確認させる）。
         $row['freee_synced_at'] = null;
 
