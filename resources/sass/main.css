@@ -4428,7 +4428,7 @@ input:-webkit-autofill:active {
   display: flex;
   align-items: center;
   position: relative;
-  margin-left: 20px;
+  margin-left: 15px;
 }
 
 .calendar-bar-container {
@@ -6599,8 +6599,8 @@ input:autofill {
 }
 
 .project-search-wrap {
-  margin-left: 20px;
-  width: 350px;
+  margin-left: 15px;
+  width: 250px;
 }
 
 .project-cell-row:last-child .project-cell {
@@ -6653,7 +6653,10 @@ input:autofill {
 }
 
 .project-detail-header {
-  line-height: normal;
+  /* ラベル（背景付きチップ）は行の高さより背が高いので、line-height: normal のままだと
+     値が折り返した2行目がチップに詰まって見える。行間を広げて逃がす。
+     長文ブロック（概要・メモ等）は内側で leading-normal を当てているため影響しない。 */
+  line-height: 2;
   margin-bottom: 20px;
 }
 .project-detail-header pre {

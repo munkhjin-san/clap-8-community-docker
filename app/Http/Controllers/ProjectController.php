@@ -35,6 +35,7 @@ use App\Models\ProjectCheckitemTemplate;
 use App\Models\ProjectCheckitems;
 use App\Models\ProjectRecordReadState;
 use App\Models\ProjectKintoneContractUpdateNotification;
+use App\Models\PartnerRecord;
 use App\Models\ProjectAssignRecord;
 use App\Services\Contracts\CachedContractExtractionService;
 use App\Services\MentionAndNotify;
@@ -177,6 +178,8 @@ class ProjectController extends Controller
             'director',
             'contract',
             'projectType',
+            // 取引先マスタ。JSON列の partners（パートナー企業）とは別物。
+            'partnerRecords:id,name,freee_partner_id',
             'specs.files',
             'memberRoles',
             'checkitems.check_user',
@@ -911,6 +914,18 @@ class ProjectController extends Controller
         $manager = collect($params['manager'])->pluck('id')->toArray();
         $project->members()->sync($members);
         $project->manager()->syncWithPivotValues($manager, ['authority' => 1]);
+
+        // 取引先マスタとの紐付け。キーが送られてこないときは触らない
+        // （項目を持たない画面から保存したときに、既存の紐付けを消さないため）。
+        if (array_key_exists('partner_record_ids', $params)) {
+            $partnerIds = collect($params['partner_record_ids'] ?? [])
+                ->map(fn ($id) => (int) $id)
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+            $project->partnerRecords()->sync($partnerIds);
+        }
 
         $isNew = !$existingProject;
         $newStatus = $filteredParams['status'];
@@ -3412,6 +3427,51 @@ class ProjectController extends Controller
         ->with('requests')->get();
         return response()->json($target_assets);
     }
+    /**
+     * 取引先マスタの選択肢。プロジェクト作成画面の紐付け用。
+     * 管理画面の一覧（/admin/partners）と違い管理者に限定しない代わりに、
+     * 返すのは選択に必要な最小限（id・名称）だけにしている。
+     */
+    public function partner_record_options(Request $request)
+    {
+        $keyword = trim((string) $request->input('keyword', ''));
+        $selected = collect($request->input('selected', []))->map(fn ($id) => (int) $id)->filter();
+
+        $options = PartnerRecord::query()
+            ->select('id', 'name', 'available')
+            ->search($keyword !== '' ? $keyword : null)
+            ->where('available', true)
+            // 管理画面の一覧と同じく登録が新しい順。50件で打ち切るので、
+            // 名前順にすると最近登録した取引先が候補に出てこない。
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(50)
+            ->get();
+
+        // 選択済みは検索語や使用可否に関わらず必ず返す（表示が消えてしまうため）。
+        if ($selected->isNotEmpty()) {
+            $missing = PartnerRecord::query()
+                ->select('id', 'name', 'available')
+                ->whereIn('id', $selected->all())
+                ->whereNotIn('id', $options->pluck('id')->all())
+                ->get();
+            $options = $options->concat($missing);
+        }
+
+        return response()->json(['partners' => $options->values()]);
+    }
+
+    /**
+     * 取引先1件の詳細。プロジェクト詳細から参照するための読み取り専用。
+     * 編集・削除・freee連携は管理画面（/admin/partners）側にしか無い。
+     */
+    public function partner_record_detail(PartnerRecord $partner)
+    {
+        return response()->json([
+            'partner' => $partner->load('projects:id,name'),
+        ]);
+    }
+
     public function get_partners_tags(Request $request){
         $keyword = $request->key;
         $super = $request->super;

@@ -96,6 +96,18 @@ class ProjectRecord extends Model
     {
         return $this->belongsTo(ProjectType::class);
     }
+
+    /**
+     * 取引先マスタ（freee会計の取引先と対応）。
+     *
+     * `partners` という名前は使えない。同名のJSON列（パートナー企業の文字列配列）が既にあり、
+     * リレーションを同じ名前にすると属性キャストを黙って上書きしてしまう。
+     */
+    public function partnerRecords()
+    {
+        return $this->belongsToMany(PartnerRecord::class, 'project_partners', 'project_record_id', 'partner_record_id')
+            ->withTimestamps();
+    }
     protected $guarded = [];
 
     protected $casts = [

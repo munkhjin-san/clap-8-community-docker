@@ -96,6 +96,12 @@ export interface ProjectType {
     key: string
     label: string
 }
+/** プロジェクトに紐付く取引先（一覧・詳細で使う最小構成）。 */
+export interface ProjectPartnerRecord {
+    id: number
+    name: string
+    freee_partner_id: number | null
+}
 interface Project {
     id: number;
     name: string;
@@ -128,7 +134,12 @@ interface Project {
     director_id: number;
     project_conditions: ProjectCondition[]
     category: string[]
+    /** パートナー企業（手入力の文字列配列）。取引先マスタとは別物。 */
     partners: string[]
+    /** 取引先マスタ（freee会計の取引先と対応）。 */
+    partner_records?: ProjectPartnerRecord[]
+    /** 保存時に送る取引先マスタのID配列（画面入力用）。 */
+    partner_record_ids?: number[]
     customers: string[]
     industry_type: string[]
     description: string
@@ -157,6 +168,7 @@ interface Project {
     projectAssignRecords?: ProjectAssignRecord[]
     total_work_time?: number
     total_work_day?: number
+    updated_at?: string
 }
 export interface ProjectAssignRecord {
     id: number;

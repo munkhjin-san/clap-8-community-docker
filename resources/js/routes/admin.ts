@@ -112,6 +112,11 @@ export const adminRoutes: RouteRecordRaw[] = [
                         component: () => import('@/components/AccountControl/ProjectControl/ProjectList.vue'),
                     },
                     {
+                        path: 'partners',
+                        name: 'partnerlist',
+                        component: () => import('@/components/AccountControl/ProjectControl/PartnerList.vue'),
+                    },
+                    {
                         path: 'projecttypes',
                         name: 'projecttypes',
                         component: () => import('@/components/AccountControl/ProjectControl/ProjectTypes.vue'),

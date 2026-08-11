@@ -187,19 +187,53 @@ class FreeeAccountingClient extends FreeeBaseClient
     }
 
     /**
-     * 取引先を作る。送るのは名前だけ——住所や振込先はfreee側で埋める運用。
+     * 取引先を作る。$attributes を渡さなければ名前だけを送る。
      */
-    public function createPartner(FreeeCredential $credential, string $name): array
+    public function createPartner(FreeeCredential $credential, string $name, array $attributes = []): array
     {
-        $payload = $this->post($credential, '/api/1/partners', [
-            'company_id' => $this->companyId($credential),
-            'name' => mb_substr($name, 0, self::PARTNER_NAME_MAX),
-        ]);
+        $payload = $this->post($credential, '/api/1/partners', $this->partnerPayload($credential, $name, $attributes));
 
         // 作ったら一覧キャッシュは古い。
         $this->forgetPartners($credential);
 
         return $payload['partner'] ?? [];
+    }
+
+    /**
+     * 取引先を更新する。freeeのPUTは全項目置換なので、送らなかった項目は消えると考えて
+     * 呼び出し側で必ず全項目を組み立てること。
+     */
+    public function updatePartner(FreeeCredential $credential, int $partnerId, string $name, array $attributes = []): array
+    {
+        $payload = $this->put(
+            $credential,
+            '/api/1/partners/'.$partnerId,
+            $this->partnerPayload($credential, $name, $attributes),
+        );
+
+        $this->forgetPartners($credential);
+
+        return $payload['partner'] ?? [];
+    }
+
+    /**
+     * 取引先の書き込みボディ。
+     *
+     * `available` は送らない。freeeの取引先の作成・更新パラメータに含まれておらず、
+     * 送ると弾かれる可能性がある。使用可否はfreee側で管理し、こちらは取り込むだけ。
+     *
+     * @param  array<string, mixed>  $attributes  住所は address_attributes にまとめて渡す
+     */
+    private function partnerPayload(FreeeCredential $credential, string $name, array $attributes): array
+    {
+        $body = array_merge($attributes, [
+            'company_id' => $this->companyId($credential),
+            'name' => mb_substr($name, 0, self::PARTNER_NAME_MAX),
+        ]);
+
+        // null は「変更しない」ではなく「空で送る」になり得るため落とす。
+        // 空文字は利用者が意図的に消した場合なので残す。
+        return array_filter($body, fn ($value) => $value !== null);
     }
 
     public function cachedPartners(FreeeCredential $credential, bool $fresh = false): array

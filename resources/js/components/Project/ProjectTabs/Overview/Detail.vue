@@ -1,5 +1,5 @@
 <template>
-    <div class="h-[calc(100%-75px)] relative overflow-y-auto" ref="scrollContainer" @scroll="handleScroll"> 
+    <div class="relative" ref="scrollContainer" @scroll="handleScroll"> 
         <div class="project-detail flex flex-col gap-[15px] !px-5" :class="{'!pb-[70px] md:!pb-5': hasPrivilage && (auth.isBoss || auth.isAdmin) && selectedProject?.status == 'pending_director'}">
             <div v-if="hasPrivilage" class="ml-auto sticky top-0 z-10">
                 <div class="flex gap-4 items-center">
@@ -12,10 +12,6 @@
                             差し戻し
                         </button>
                     </div>
-                    <ItemMenu :items="[
-                        {title: '編集する', action: () => editProjects(selectedProject)},
-                        {title: '削除する', action: () => deleteProject(selectedProject)}
-                    ]"/>
                 </div>
             </div>
             <!-- Mobile: sticky bottom bar for approval buttons only -->
@@ -30,117 +26,93 @@
                     </button>
                 </div>
             </Teleport>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <!-- <div class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">部門</span> {{ selectedProject?.is_new ? '新規' : '既存' }}</div>
-                </div> -->
-                <div class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">プロジェクト種別</span> {{ selectedProject?.projectType?.label ?? selectedProject?.project_type?.label ?? '未設定' }}</div>
+            <!-- 基本項目：ラベル幅を固定した定義リスト。2列で並べ、行ごとに罫線で区切る。 -->
+            <section class="pd-fields">
+                <div class="pd-field">
+                    <span class="pd-field__label">プロジェクト種別</span>
+                    <span class="pd-field__value" :class="{ 'is-empty': !projectTypeLabel }">{{ projectTypeLabel || '未設定' }}</span>
                 </div>
-                <div class="project-detail-header" :class="{'text-[tomato]' : checkItemConfirmBadge}">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px] text-[var(--primary-color)]">ステータス</span>{{ PROJECT_STATUS_LABEL[selectedProject?.status ?? ''] ?? '不明' }}</div>
-
+                <div class="pd-field">
+                    <span class="pd-field__label">ステータス</span>
+                    <span class="pd-field__value" :class="{ 'text-[tomato]': checkItemConfirmBadge }">{{ PROJECT_STATUS_LABEL[selectedProject?.status ?? ''] ?? '不明' }}</span>
                 </div>
-                <div class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">プロジェクト期間</span> {{ selectedProject?.date_start && selectedProject.date_end ? `${DateTime.fromISO(selectedProject.date_start).toLocaleString(DateTime.DATE_SHORT)}  ~  ${DateTime.fromISO(selectedProject.date_end).toLocaleString(DateTime.DATE_SHORT)}` : '未設定' }}</div>
-
+                <div class="pd-field">
+                    <span class="pd-field__label">プロジェクト期間</span>
+                    <span class="pd-field__value" :class="{ 'is-empty': !periodText }">{{ periodText || '未設定' }}</span>
                 </div>
-                <div class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">契約開始日</span> {{ selectedProject?.contract_started_at ? `${DateTime.fromISO(selectedProject.contract_started_at).toLocaleString(DateTime.DATE_SHORT)}` : '未設定' }}</div>
-
+                <div class="pd-field">
+                    <span class="pd-field__label">契約開始日</span>
+                    <span class="pd-field__value" :class="{ 'is-empty': !contractStartText }">{{ contractStartText || '未設定' }}</span>
                 </div>
-                <!-- <div class="project-detail-header">
-                </div> -->
-                <div class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">サービスカテゴリー</span>
-                        <div v-if="selectedProject?.category && selectedProject.category.length" class="flex flex-col gap-[15px] mt-[15px]">
-                            <div v-for="cat in selectedProject?.category">
-                                <div>{{ ProjectServiceCategories.find( c => c.value == cat)?.title }}</div>
-                                <div class="text-[12px] text-[gray] mt-[5px]">{{ ProjectServiceCategories.find( c => c.value == cat)?.subtitle }}</div>
+                <div class="pd-field">
+                    <span class="pd-field__label">サービスカテゴリー</span>
+                    <div class="pd-field__value">
+                        <template v-if="selectedProject?.category?.length">
+                            <div v-for="cat in selectedProject.category" :key="cat" class="pd-field__stack">
+                                <div>{{ ProjectServiceCategories.find(c => c.value == cat)?.title }}</div>
+                                <div class="pd-field__sub">{{ ProjectServiceCategories.find(c => c.value == cat)?.subtitle }}</div>
                             </div>
-                        </div>
-                        <span v-else>{{ selectedProject?.category && selectedProject.category.length ? selectedProject.category.join("、") : '未設定' }}</span>
-                    </div> 
-                </div>
-                <div class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">顧客企業</span>
-                        <span >{{ selectedProject?.customers && selectedProject.customers.length ? selectedProject.customers.join("、") : '未設定' }}</span>
-                    </div> 
-                </div>
-                <!-- <div class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">パートナー企業</span>
-                        <span >{{ selectedProject?.partners && selectedProject.partners.length ? selectedProject.partners.join("、") : '未設定' }}</span>
-                    </div> 
-                </div> -->
-                <div class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)] mr-[10px]">業種区分</span>
-                        <span >{{ selectedProject?.industry_type && selectedProject.industry_type.length ? selectedProject.industry_type.join("、") : '未設定' }}</span>
-                    </div> 
-                </div>
-
-                <div v-if="hasPrivilage" class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">PM用非公開メモ</span></div> 
-                    <div class="leading-normal mt-[10px]">
-                        <div v-html="displayHtml"></div>
-
-                        <div
-                            v-if="isTruncated"
-                            @click="toggleFull"
-                            class="mt-[10px] cursor-pointer text-sm"
-                            role="button"
-                            :aria-expanded="isExpanded ? 'true' : 'false'"
-                        >
-                            <CommandButton :buttons="[{title: isExpanded ? '閉じる' : '続きを表示する', action:() => ''}]"/>
-
-                        </div>
+                        </template>
+                        <span v-else class="is-empty">未設定</span>
                     </div>
-                </div> 
-
-                <div class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">概要</span></div> 
-                    <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.description ?? '')"></div>
-                </div> 
-
-                <div class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">ミッション</span></div> 
-                    <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.mission ?? '')"></div>
                 </div>
-                <div class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">イノベーション</span></div> 
-                    <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.innovation ?? '')"></div>
-                </div>
-                <div class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">ストラテジー</span></div> 
-                    <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.strategy_miso ?? '')"></div>
-                </div>
-                <div class="project-detail-header">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">オペレーション</span></div> 
-                    <div class="leading-normal mt-[10px]" v-html="sanitized(selectedProject?.operation ?? '')"></div>
-                </div> 
-                <!-- <div class="project-detail-header" v-if="isManager || auth.isBoss || auth.isAdmin">
-                    <div><span class="p-[5px] text-[12px] bg-[var(--bg3)]">年間収支計画（概要）</span></div> 
-                    <div class="leading-normal mt-[10px] space-y-3">
-                        <div class="flex justify-between">
-                            <span>売上高</span>
-                            <span>{{ yenFmt(planData?.revenue) }}</span>
-                        </div>
-                        <div v-for="expense in EXPENSE_ITEMS" class="flex justify-between">
-                            <span>{{ expense.label }}</span>
-                            <span>{{ yenFmt(planData?.[expense.key]) }}</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>年間利益（見込み）</span>
-                            <span
-                                :class="profit >= 0 ? 'text-profit-positive' : 'text-profit-negative'"
-                            >{{ yenFmt(profit) }}</span>
-                        </div>
-                        <div class="flex flex-col gap-2" v-if="planData?.remarks">
-                            <span>備考</span>
-                            <span>{{ planData?.remarks }}</span>
-                        </div>
+                <div class="pd-field">
+                    <span class="pd-field__label">取引先</span>
+                    <div class="pd-field__value">
+                        <template v-if="selectedProject?.partner_records?.length">
+                            <template v-for="(partner, index) in selectedProject.partner_records" :key="partner.id">
+                                <span v-if="index" class="mr-[2px]">、</span>
+                                <button type="button" class="partner-link" @click="openPartner(partner.id)">{{ partner.name }}</button>
+                            </template>
+                        </template>
+                        <span v-else class="is-empty">未設定</span>
                     </div>
-                </div> -->
-            </div>
+                </div>
+                <div class="pd-field !border-b-0">
+                    <span class="pd-field__label">顧客企業</span>
+                    <span class="pd-field__value" :class="{ 'is-empty': !selectedProject?.customers?.length }">
+                        {{ selectedProject?.customers?.length ? selectedProject.customers.join('、') : '未設定' }}
+                    </span>
+                </div>
+                <div class="pd-field !border-b-0">
+                    <span class="pd-field__label">業種区分</span>
+                    <span class="pd-field__value" :class="{ 'is-empty': !selectedProject?.industry_type?.length }">
+                        {{ selectedProject?.industry_type?.length ? selectedProject.industry_type.join('、') : '未設定' }}
+                    </span>
+                </div>
+            </section>
+
+            <!-- 本文ブロック：枠付きカードに見出しの角マーカーを添える。 -->
+            <section class="pd-cards">
+                <article class="pd-card pd-card--wide">
+                    <div class="pd-card__head"><span class="pd-card__title">概要</span></div>
+                    <ExpandableHtml :html="sanitized(selectedProject?.description ?? '')" :lines="5" />
+                </article>
+
+                <article v-if="hasPrivilage" class="pd-card pd-card--wide">
+                    <div class="pd-card__head"><span class="pd-card__title">PM用非公開メモ</span></div>
+                    <ExpandableHtml :html="sanitized(selectedProject?.private_memo ?? '')" :lines="5" />
+                </article>
+
+                <article class="pd-card">
+                    <div class="pd-card__head"><span class="pd-card__title">ミッション</span></div>
+                    <ExpandableHtml :html="sanitized(selectedProject?.mission ?? '')" :lines="5" />
+                </article>
+                <article class="pd-card">
+                    <div class="pd-card__head"><span class="pd-card__title">イノベーション</span></div>
+                    <ExpandableHtml :html="sanitized(selectedProject?.innovation ?? '')" :lines="5" />
+                </article>
+                <article class="pd-card">
+                    <div class="pd-card__head"><span class="pd-card__title">ストラテジー</span></div>
+                    <ExpandableHtml :html="sanitized(selectedProject?.strategy_miso ?? '')" :lines="5" />
+                </article>
+                <article class="pd-card">
+                    <div class="pd-card__head"><span class="pd-card__title">オペレーション</span></div>
+                    <ExpandableHtml :html="sanitized(selectedProject?.operation ?? '')" :lines="5" />
+                </article>
+            </section>
+
+
             <div v-if="hasPrivilage || (auth.isBoss || auth.isAdmin)">
                 <MessageArea 
                     type="詳細"
@@ -158,16 +130,23 @@
                                   
         </div>
     </div>
+
+    <Teleport to="body">
+        <PartnerModal
+            v-if="partnerDetail"
+            :partner="partnerDetail"
+            readonly
+            @close="partnerDetail = null"
+        />
+    </Teleport>
 </template>
 <script setup lang="ts">
 import { computed, inject, onMounted, ref, useTemplateRef, watch } from 'vue';
-import ItemMenu from '../../../Global/ItemMenu.vue';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { DateTime } from 'luxon';
 import { useProject } from '@/composables/project';
 import ProjectServiceCategories from 'assets/ProjectServiceCategories.json'
-import CommandButton from '@/components/Global/CommandButton.vue';
 import { Project } from '@/interface/projectInterface';
 import { useAuthUserStore } from '@/store/auth';
 import { useApi } from '@/composables/api';
@@ -176,7 +155,43 @@ import { EXPENSE_ITEMS, parseNumber, PROJECT_STATUS_LABEL, yenFmt } from '@/util
 import { useBadgeStore } from '@/store/badge';
 import { useDashboardStore } from '@/store/dashboard';
 import MessageArea from '../../MessageArea.vue';
+import PartnerModal from '@/components/AccountControl/ProjectControl/PartnerModal.vue';
+import ExpandableHtml from '@/components/Global/ExpandableHtml.vue';
+import type { PartnerRecord } from '@/interface/partnerInterface';
     const props = defineProps(['hasPrivilage'])
+
+    const asDate = (value?: string | null) => {
+        if (!value) return null
+        const parsed = DateTime.fromISO(value)
+
+        return parsed.isValid ? parsed : null
+    }
+    const projectTypeLabel = computed(() =>
+        selectedProject?.value?.projectType?.label ?? selectedProject?.value?.project_type?.label ?? '')
+    const periodText = computed(() => {
+        const start = asDate(selectedProject?.value?.date_start)
+        const end = asDate(selectedProject?.value?.date_end)
+        if (!start || !end) return ''
+
+        return `${start.toLocaleString(DateTime.DATE_SHORT)}  ~  ${end.toLocaleString(DateTime.DATE_SHORT)}`
+    })
+    const contractStartText = computed(() =>
+        asDate(selectedProject?.value?.contract_started_at)?.toLocaleString(DateTime.DATE_SHORT) ?? '')
+    // 取引先の参照。編集・削除・freee連携は管理画面側にしか置かないので readonly で開く。
+    const partnerDetail = ref<PartnerRecord | null>(null)
+    const partnerLoading = ref(false)
+    const openPartner = async (partnerId: number) => {
+        if (partnerLoading.value) return
+        partnerLoading.value = true
+        try {
+            const response = await api.get(`/partner_record/${partnerId}`)
+            partnerDetail.value = response?.partner ?? null
+        } catch {
+            // メッセージは useApi が表示済み
+        } finally {
+            partnerLoading.value = false
+        }
+    }
     const editProjects = inject('editProjects') as (project: any) => void
     const deleteProject = inject('deleteProject') as (project: Project | null) => void
     const { selectedProject, updateProject, checkItemConfirmBadge, readProjectMessage } = useProject()
@@ -195,10 +210,6 @@ import MessageArea from '../../MessageArea.vue';
         return saveText
     }
     const { getBatchDashboardData } = useDashboardStore()
-    const fullHtml = computed(() => sanitized(selectedProject?.value?.private_memo ?? ''));
-    const isExpanded = ref(false);
-    const isTruncated = ref(false);
-    const excerptHtml = ref('');
     const route = useRoute()
     const scrollRef = useTemplateRef('scrollContainer')
     onMounted(() => {
@@ -249,103 +260,6 @@ import MessageArea from '../../MessageArea.vue';
     const profit = computed(() => {
         return totalRevenue.value - totalExpenses.value
     })
-    const displayHtml = computed(() => isExpanded.value ? fullHtml.value : excerptHtml.value);
-    const toggleFull = () => { isExpanded.value = !isExpanded.value; };
-    const buildHtmlExcerpt = (html: string, opts?: { maxChars?: number; maxBlocks?: number; skipTags?: string[] }): { html: string; truncated: boolean } => {
-        const maxChars = opts?.maxChars ?? 280;
-        const maxBlocks = opts?.maxBlocks ?? 5;
-        const skipSet = new Set((opts?.skipTags ?? []).map(t => t.toUpperCase()));
-
-        // trivial cases
-        const tmp = document.createElement('div');
-        tmp.innerHTML = html;
-        if (!tmp.textContent || tmp.textContent.trim() === '' || html === '未設定') {
-            return { html, truncated: false };
-        }
-
-        let used = 0;
-        let blocks = 0;
-        let truncated = false;
-
-        const out = document.createElement('div');
-
-        // Walk top-level blocks only; keeps structure tidy
-        for (const child of Array.from(tmp.childNodes)) {
-            if (blocks >= maxBlocks || used >= maxChars) break;
-
-            const { clone, added, hitLimit } = cloneWithLimit(child, maxChars - used, skipSet);
-            if (!clone) continue;
-
-            out.appendChild(clone);
-            used += added;
-            blocks += 1;
-            if (hitLimit) { truncated = true; break; }
-        }
-
-        // If we didn’t reach limits, no need to truncate
-        if (!truncated && used < maxChars && blocks < maxBlocks) {
-            return { html, truncated: false };
-        }
-
-        // Add ellipsis politely
-        out.append('…');
-        return { html: out.innerHTML, truncated: true };
-    }
-
-    const cloneWithLimit = (node: Node, remaining: number, skipSet: Set<string>): { clone?: Node; added: number; hitLimit: boolean } => {
-        // Text node
-        if (node.nodeType === Node.TEXT_NODE) {
-            const text = node.nodeValue ?? '';
-            if (text.length <= remaining) {
-            return { clone: document.createTextNode(text), added: text.length, hitLimit: false };
-            }
-            const sliced = text.slice(0, Math.max(0, remaining));
-            return { clone: document.createTextNode(sliced), added: sliced.length, hitLimit: true };
-        }
-
-        // Element node
-        if (node.nodeType === Node.ELEMENT_NODE) {
-            const el = node as HTMLElement;
-            if (skipSet.has(el.tagName)) {
-            // skip entirely in preview
-            return { clone: undefined, added: 0, hitLimit: false };
-            }
-
-            const clone = el.cloneNode(false) as HTMLElement;
-
-            // Inline elements: treat like text container
-            const isInline = getComputedStyle(el).display === 'inline' || ['A','EM','STRONG','SPAN','SMALL','S','U','I','B','SUB','SUP'].includes(el.tagName);
-
-            let added = 0;
-            let hitLimit = false;
-
-            for (const child of Array.from(el.childNodes)) {
-            if (added >= remaining) { hitLimit = true; break; }
-            const res = cloneWithLimit(child, remaining - added, skipSet);
-            if (res.clone) clone.appendChild(res.clone);
-            added += res.added;
-            if (res.hitLimit) { hitLimit = true; break; }
-            }
-
-            // If an inline became empty and we didn’t add anything, drop it
-            if (isInline && !clone.textContent) {
-            return { clone: undefined, added: 0, hitLimit };
-            }
-            return { clone, added, hitLimit };
-        }
-
-        // Ignore comments/others
-        return { clone: undefined, added: 0, hitLimit: false };
-    }
-    watch(fullHtml, (html) => {const { html: ex, truncated } = buildHtmlExcerpt(html, {
-            maxChars: 280,          // tweak to taste
-            maxBlocks: 6,           // limit number of top-level blocks
-            skipTags: ['TABLE','PRE','CODE','IFRAME','VIDEO'] // avoid heavy stuff in preview
-        });
-        excerptHtml.value = ex;
-        isTruncated.value = truncated;
-        isExpanded.value = false;
-    }, { immediate: true });
 
     const api = useApi()
     type ProjectStatus = 'director_approved' | 'returned'
@@ -366,6 +280,21 @@ import MessageArea from '../../MessageArea.vue';
     }
 </script>
 <style scoped>
+    /* 取引先は押せることが分かるようにする（詳細モーダルを開く）。 */
+    .partner-link{
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--primary-color);
+        font-size: inherit;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        cursor: pointer;
+    }
+    .partner-link:hover{
+        opacity: 0.7;
+    }
+
     @media screen and (max-width: 959px) {
         .project-cell-row:last-child .project-cell {
             border-bottom: 1px solid var(--calendarBorder) !important;
@@ -381,4 +310,98 @@ import MessageArea from '../../MessageArea.vue';
             box-shadow: none !important;
         }
     }
+
+/*
+ * 概要タブのレイアウト。デザイン（Project page redesign）に合わせ、
+ * 色はテーマ変数へ置き換えている（ダークモードで反転させるため）。
+ */
+.pd-fields{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 56px;
+}
+.pd-field{
+    display: flex;
+    gap: 20px;
+    padding: 14px 2px;
+}
+.pd-field__label{
+    flex: 0 0 118px;
+    width: 118px;
+    padding-top: 1px;
+    color: var(--third-color);
+    font-size: 12px;
+    line-height: 1.6;
+}
+.pd-field__value{
+    min-width: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+/* 未入力はグレーで、埋まっている項目と読み分けられるようにする。 */
+.pd-field__value.is-empty,
+.pd-field__value .is-empty{
+    color: var(--third-color);
+}
+.pd-field__stack + .pd-field__stack{
+    margin-top: 10px;
+}
+.pd-field__sub{
+    margin-top: 4px;
+    color: var(--third-color);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.pd-cards{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 8px;
+}
+.pd-card{
+    padding: 20px 22px 22px;
+    border: 1px solid var(--calendarBorder);
+}
+.pd-card--wide{
+    grid-column: 1 / -1;
+}
+.pd-card__head{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+/* 見出しの角マーカー。塗りと白抜きで隣り合うカードを区別する。 */
+.pd-card__mark{
+    width: 8px;
+    height: 8px;
+    background: var(--primary-color);
+}
+.pd-card__mark--hollow{
+    background: transparent;
+    border: 2px solid var(--primary-color);
+}
+.pd-card__title{
+    font-size: 15px;
+}
+
+@media screen and (max-width: 959px){
+    .pd-fields,
+    .pd-cards{
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .pd-fields{
+        gap: 0;
+    }
+    .pd-field{
+        flex-direction: column;
+        gap: 4px;
+    }
+    .pd-field__label{
+        flex: none;
+        width: auto;
+    }
+}
 </style>

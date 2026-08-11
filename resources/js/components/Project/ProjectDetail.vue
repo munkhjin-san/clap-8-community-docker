@@ -1,34 +1,52 @@
 <template>   
-    <div>
-        <div class="post-header">
-            <div class="cursor-pointer" style="display: flex;align-items: center;height: 50px;position: sticky;top: 0;background: var(--bg2);">
-                <div @click="router.push({name: 'project'})" style="height: 50px;width: 50px;min-width:50px;display: flex;justify-content: center;align-items: center;fill:var(--primary-color)">
-                    <svg version="1.1" width="15" height="15" viewBox="0 0 20 32" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M0.775 17.789c1.305 1.166 2.612 2.332 3.927 3.486 1.311 1.161 2.634 2.308 3.953 3.46 1.316 1.156 2.646 2.296 3.973 3.439 1.33 1.139 2.667 2.273 4.015 3.394 0.662 0.551 1.647 0.52 2.272-0.107 0.65-0.654 0.619-1.725-0.020-2.393-1.198-1.253-2.407-2.495-3.621-3.729-1.232-1.245-2.462-2.492-3.704-3.725-0.902-0.9-1.803-1.802-2.707-2.699-0.033-0.032-0.055-0.069-0.072-0.106-0.045-0.036-0.082-0.080-0.111-0.129-0.069-0.047-0.129-0.117-0.176-0.216-0.021-0.047-0.044-0.092-0.066-0.136-0.12-0.062-0.214-0.168-0.246-0.325-0.001-0.005-0.002-0.009-0.003-0.014-0.104-0.157-0.187-0.327-0.254-0.505-0.109-0.185-0.182-0.388-0.226-0.601-0.002-0.012-0.005-0.024-0.007-0.036-0.016-0.085-0.028-0.172-0.036-0.259-0.195-0.593-0.26-1.183 0.030-1.653 0.006-0.157 0.067-0.277 0.157-0.361 0.019-0.050 0.039-0.099 0.063-0.149 0.040-0.084 0.1-0.145 0.17-0.188 0.008-0.015 0.019-0.028 0.028-0.042 0.032-0.13 0.106-0.228 0.202-0.293 0.072-0.145 0.157-0.287 0.26-0.43 0.046-0.063 0.101-0.113 0.163-0.151 0.018-0.020 0.037-0.038 0.059-0.054 0.014-0.059 0.044-0.116 0.094-0.165 0.9-0.888 1.797-1.782 2.699-2.672 1.244-1.231 2.476-2.475 3.714-3.717l1.843-1.871 1.832-1.885c0.655-0.681 0.669-1.793-0.044-2.48-0.652-0.631-1.693-0.624-2.385-0.038l-1.964 1.66-1.995 1.71c-1.32 1.149-2.648 2.293-3.962 3.45s-2.636 2.308-3.943 3.474c-1.311 1.159-3.284 2.806-4.106 3.689s-0.792 2.492 0.191 3.369z"></path>
-                    </svg>
-                </div>
-                
-                <div class="project-nav-bar">
-                    <div @click="jumpRoute(item)" v-for="(item, index) in pathGenerator" class="flex items-center">
-                        <span class="project-path">{{ item.label }}</span>
-                        <span v-if="index + 1 !== pathGenerator.length">／</span>
-                    </div>
-                    <div class="ml-4 text-xs p-1 bg-[var(--bg3)]">
-                        {{ PROJECT_STATUS_LABEL[selectedProject?.status ?? ''] ?? '不明' }}
-                    </div>
-                </div>
-                
-            </div>  
-        </div>
-        <div class="mx-[20px] flex whitespace-nowrap overflow-auto hide-scrollbar">
-            <router-link :id="tab.path == 'finance' ? 'financeSelection' : ''" :to="{name : tab.path}" v-for="tab in tabs" :key="tab.name" class="tab tab-link flex items-center gap-[5px]" :class="{active: tab.path ? route.fullPath.includes(tab.path) : false}">
+    <header class="pd-header">
+        <div class="pd-header__top">
+            <button type="button" class="pd-back" title="プロジェクト一覧へ" @click="router.push({name: 'project'})">
+                <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10 3 5 8l5 5" />
+                </svg>
+            </button>
 
-                <div class="tab-name">{{ tab.name }}</div>
+            <div class="pd-header__title">
+                <div class="pd-header__name-row">
+                    <span class="pd-name">{{ selectedProject?.name }}</span>
+                    <span class="pd-status">
+                        <span class="pd-status__dot"></span>{{ PROJECT_STATUS_LABEL[selectedProject?.status ?? ''] ?? '不明' }}
+                    </span>
+                </div>
+                <!-- 成果目標・人事考課など下位ルートに入ったときだけ、戻り先を示す。 -->
+                <div v-if="pathGenerator.length > 1" class="pd-crumbs">
+                    <template v-for="(item, index) in pathGenerator" :key="index">
+                        <button type="button" class="pd-crumb" @click="jumpRoute(item)">{{ item.label }}</button>
+                        <span v-if="index + 1 !== pathGenerator.length" class="pd-crumb__sep">／</span>
+                    </template>
+                </div>
+            </div>
+
+            <div v-if="hasPrivilage" class="pd-header__actions">
+                <ItemMenu :items="[
+                    { title: '編集する', action: () => editProjects(selectedProject) },
+                    { title: '削除する', action: () => deleteProject(selectedProject) },
+                ]" />
+            </div>
+        </div>
+
+        <nav class="pd-tabs">
+            <router-link
+                v-for="tab in tabs"
+                :id="tab.path == 'finance' ? 'financeSelection' : ''"
+                :key="tab.name"
+                :to="{ name: tab.path }"
+                class="pd-tab"
+                :class="{ 'pd-tab--active': tab.path ? route.fullPath.includes(tab.path) : false }"
+            >
+                <span class="pd-tab__name">{{ tab.name }}</span>
                 <Badge v-for="b in badgesForTab(tab.path)" :key="b.key" v-show="b.value" :title="b.title" :style="badgeStyle(b.variant)" :count="b.value" />
             </router-link>
-        </div>
-    </div>
-    <div class="mx-[20px] relative under960:mx-0 h-[calc(100%-100px)] overflow-hidden bg-[var(--background-color)]">
+        </nav>
+    </header>
+
+    <div class="relative under960:mx-0 h-[calc(100%-88px)] overflow-hidden bg-[var(--background-color)]">
         <div class="cal-month-loader" style="height: 100%; top: 0;" v-if="initialLoader">
             <div id="loaderMini">
                 <div class="spinner-mini" style="border-color: transparent rgb(134 134 134) rgb(134 134 134);"></div>
@@ -52,9 +70,11 @@ import { useAuthUserStore } from '@/store/auth';
 import { useBadgeStore } from '@/store/badge';
 import { useTutorialStore } from '@/store/tutorial';
 import { PROJECT_STATUS_LABEL } from '@/utils/tools';
-import { computed, onMounted, provide, ref } from 'vue';
+import { computed, inject, onMounted, provide, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Badge from '../Global/Badge.vue';
+import ItemMenu from '../Global/ItemMenu.vue';
+import { DateTime } from 'luxon';
 
     const props = defineProps(['userList', 'maxInterval', 'projects', 'ownProjectIds'])
     const route = useRoute()
@@ -64,6 +84,10 @@ import Badge from '../Global/Badge.vue';
     const initialLoader = ref(false)
     const auth = useAuthUserStore()
     const { selectedProject, memberData, projectReportBadge, checkItemConfirmBadge, kintoneContractBadge } = useProject() 
+    // 編集・削除は ProjectContainer が provide しているものをそのまま使う。
+    const editProjects = inject('editProjects') as (project: any) => void
+    const deleteProject = inject('deleteProject') as (project: any) => void
+
     const userId = computed(() => auth.activeUser?.id ?? auth.id ?? null);
     type Tab = { name: string; path: string };
     type BadgeVariant = "confirm" | "comment";
@@ -217,28 +241,133 @@ import Badge from '../Global/Badge.vue';
     })
 </script>
 <style scoped>
-    .tab{
-        padding: 0 10px;
-        cursor: pointer;
-        height: 40px;
-    }
-    .tab.active{
-        background-color: var(--background-color);
-        position: sticky;
-        left: 0;
-        right: 0;
-        z-index: 2;
-    }
-    .tab-link{
-        text-decoration: none;
-        color: var(--primary-color);
-    }
-    .tab-link:hover{
-        text-decoration: none;
-        font-weight: normal;
-    }
-    .tab-name{
-        font-size: 13px;
-    }
+/*
+ * ヘッダーとタブ。デザイン（Project page redesign）に合わせつつ、
+ * 色はテーマ変数に置き換えている（#111/#fff 直書きだとダークモードで反転しないため）。
+ */
+.pd-header{
+    padding: 18px 20px 0;
+    border-bottom: 1px solid var(--calendarBorder);
+    background: var(--background-color);
+}
+.pd-header__top{
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+.pd-back{
+    display: flex;
+    margin-top: 4px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--third-color);
+    cursor: pointer;
+}
+.pd-back:hover{
+    color: var(--primary-color);
+}
+.pd-header__title{
+    flex: 1;
+    min-width: 0;
+}
+.pd-header__name-row{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.pd-name{
+    font-size: 16px;
+    letter-spacing: .01em;
+    line-height: 1.4;
+}
+.pd-status{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--primary-color);
+    color: var(--background-color);
+    font-size: 11.5px;
+    white-space: nowrap;
+}
+.pd-status__dot{
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--background-color);
+}
+.pd-crumbs{
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 12px;
+}
+.pd-crumb{
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--third-color);
+    font-size: inherit;
+    cursor: pointer;
+}
+.pd-crumb:hover{
+    color: var(--primary-color);
+}
+.pd-crumb__sep{
+    color: var(--calendarBorder);
+}
+.pd-header__actions{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 2px;
+}
 
+.pd-tabs{
+    display: flex;
+    margin-top: 18px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-bottom: -1px;
+}
+.pd-tabs::-webkit-scrollbar{
+    display: none;
+}
+.pd-tab{
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 10px 10px;
+    border-bottom: 1px solid transparent;
+    color: var(--third-color);
+    font-size: 13.5px;
+    white-space: nowrap;
+    text-decoration: none;
+}
+.pd-tab:hover{
+    color: var(--primary-color);
+    text-decoration: none;
+}
+/* `is-active` は使わない。admin.css のグローバル指定
+   （.is-active{background:#000 !important}）に乗っ取られてタブが黒く潰れる。 */
+.pd-tab--active{
+    border-bottom-color: var(--primary-color);
+    color: var(--primary-color);
+}
+.pd-tab__name{
+    font-size: 13.5px;
+}
+
+@media screen and (max-width: 959px){
+    .pd-header{
+        padding: 14px 15px 0;
+    }
+    .pd-name{
+        font-size: 15px;
+    }
+}
 </style>

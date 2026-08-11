@@ -54,6 +54,17 @@ abstract class FreeeBaseClient
     }
 
     /**
+     * PUTリクエスト。POSTと同じく401の拾い直しは1回だけ。
+     */
+    public function put(FreeeCredential $credential, string $path, array $body): array
+    {
+        $response = $this->sendJson($credential, 'put', $path, $body);
+        $payload = $response->json();
+
+        return is_array($payload) ? $payload : [];
+    }
+
+    /**
      * 呼び出しに使う事業所ID。
      *
      * 設定（FREEE_COMPANY_ID）があればそれを優先し、無ければ認可時にfreeeが返した値を使う。

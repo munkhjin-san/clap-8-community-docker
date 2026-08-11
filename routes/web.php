@@ -3,6 +3,7 @@
 use App\Http\Controllers\AssetController;
 use App\Http\Controllers\AssetCategoryController;
 use App\Http\Controllers\CustomFormController;
+use App\Http\Controllers\PartnerRecordController;
 use App\Http\Controllers\ProjectController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
@@ -365,6 +366,17 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::delete('/admin/freee/projects/{project}/section', [AdminFreeeController::class, 'unlinkSection']);
         // freeeの同意画面からのリダイレクト先。freeeアプリ管理に登録するURLと完全一致させる。
         Route::get('/admin/freee/callback', [AdminFreeeController::class, 'callback']);
+        // 取引先マスタ（管理画面 > プロジェクト管理 > 取引先）
+        Route::get('/admin/partners', [PartnerRecordController::class, 'index']);
+        Route::post('/admin/partners', [PartnerRecordController::class, 'store']);
+        Route::get('/admin/partners/selectable-projects', [PartnerRecordController::class, 'selectableProjects']);
+        Route::put('/admin/partners/{partner}', [PartnerRecordController::class, 'update']);
+        Route::delete('/admin/partners/{partner}', [PartnerRecordController::class, 'destroy']);
+        Route::put('/admin/partners/{partner}/projects', [PartnerRecordController::class, 'syncProjects']);
+        Route::post('/admin/partners/{partner}/freee/push', [PartnerRecordController::class, 'pushToFreee']);
+        Route::post('/admin/partners/{partner}/freee/pull', [PartnerRecordController::class, 'pullFromFreee']);
+        Route::get('/admin/partners/{partner}/freee', [PartnerRecordController::class, 'checkFreee']);
+        Route::delete('/admin/partners/{partner}/freee', [PartnerRecordController::class, 'unlinkFreee']);
         Route::get('/admin/calendar-facilities', [AdminCalendarFacilityController::class, 'index']);
         Route::post('/admin/calendar-facilities', [AdminCalendarFacilityController::class, 'store']);
         Route::put('/admin/calendar-facilities/{calendarFacility}', [AdminCalendarFacilityController::class, 'update']);
@@ -494,6 +506,7 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_departments_calendar', [CalendarController::class, 'get_departments_calendar']);
         Route::get('/get_schedule_summaries', [CalendarController::class, 'get_schedule_summaries']);
         Route::post('/generate_transcript_ai_summary', [CalendarController::class, 'generate_transcript_ai_summary']);
+    Route::post('/update_transcript_speaker', [CalendarController::class, 'update_transcript_speaker']);
         Route::put('/save_edited_summary', [CalendarController::class, 'save_edited_summary']);
         Route::delete('/delete_schedule_summary', [CalendarController::class, 'delete_schedule_summary']);
         Route::post('/calendar_temp_reserve', [CalendarController::class, 'calendar_temp_reserve']);
@@ -762,6 +775,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::get('/get_profit', [ProjectController::class, 'get_profit']);
         Route::get('/get_settlement', [ProjectController::class, 'get_settlement']);
         Route::post('/get_partners_tags', [ProjectController::class, 'get_partners_tags']);
+    Route::get('/partner_record_options', [ProjectController::class, 'partner_record_options']);
+    Route::get('/partner_record/{partner}', [ProjectController::class, 'partner_record_detail']);
         Route::get('/get_task_comment_badge', [ProjectController::class, 'get_task_comment_badge']);
         Route::get('/get_dispatch_data', [ProjectController::class, 'get_dispatch_data']);
         Route::get('/get_total_finance', [ProjectController::class, 'get_total_finance']);

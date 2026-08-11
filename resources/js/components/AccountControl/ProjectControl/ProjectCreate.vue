@@ -347,6 +347,12 @@
                                     ref="partnerSelectorRef"
                                 />
                             </div>
+                            <div class="si-box flex flex-col gap-[15px]">
+                                <PartnerRecordSelector
+                                    v-model="projectParams.partner_record_ids!"
+                                    placeHolder="取引先"
+                                />
+                            </div>
                             <div class=si-box>
                                 <div style="background:inherit;">        
                                     <div style="position:relative;background:inherit;">
@@ -758,6 +764,7 @@ import ShortInput from '@/components/Form/ShortInput.vue';
 import LongInput from '@/components/Form/LongInput.vue';
 import MemberSelector from '@/components/Form/MemberSelector.vue';
 import LoaderButton from '@/components/Global/LoaderButton.vue';
+import PartnerRecordSelector from '@/components/Form/PartnerRecordSelector.vue';
 import PartnerSelector from '@/components/Form/PartnerSelector.vue';
 import { computed, onBeforeUnmount, onMounted, reactive, ref, toRaw, useTemplateRef, watch } from 'vue';
 import { Task } from '@/interface/globalInterface';
@@ -788,7 +795,7 @@ import { useTutorialStore } from '@/store/tutorial';
 import ProjectCreationForm from '@/components/Project/ProjectTabs/Overview/ProjectCreationForm.vue';
 import { validator } from '@/validation/validator';
 import type { ProjectCreationSpecData } from '@/components/Project/ProjectTabs/Overview/projectCreationForm';
-import type { ProjectActualStatus, ProjectType } from '@/interface/projectInterface';
+import type { ProjectActualStatus, ProjectPartnerRecord, ProjectType } from '@/interface/projectInterface';
 import { useDashboardStore } from '@/store/dashboard';
 import { useBadgeStore } from '@/store/badge';
 
@@ -960,6 +967,10 @@ onMounted(() => {
     }
     if(projectParams.partners == null){
         projectParams.partners = []
+    }
+    // 編集時は既存の紐付けをIDの配列に展開する。
+    if(projectParams.partner_record_ids == null){
+        projectParams.partner_record_ids = (props.editData?.partner_records ?? []).map((partner: ProjectPartnerRecord) => partner.id)
     }
     if(!props.editData){
         projectParams.date_start = DateTime.now().toISODate()

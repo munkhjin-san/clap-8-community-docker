@@ -94,10 +94,10 @@
                             />
                         </Transition>
                     </div>
-                    
-                    <div class="project-cell pc">サービスカテゴリ</div>
-                    <div class="project-cell pc">顧客企業</div>
-                    <div class="project-cell pc">業種区分</div>
+                    <div class="project-cell">サービスカテゴリ</div>
+                    <div class="project-cell">取引先</div>
+                    <div class="project-cell">顧客企業</div>
+                    <div class="project-cell">業種区分</div>
                     <!-- <div class="project-cell">概要</div> -->
 
                     <div class="project-cell pc cursor-pointer relative">
@@ -154,7 +154,7 @@
                             <Badge style="position: unset;" title="グループ内バッジ" :count="groupBadges(row.group)" v-if="groupBadges(row.group) > 0"/>
                         </div>
                     </div>
-                    <div class="project-cell project-group-cell pc" v-for="n in 7" :key="n"></div>
+                    <div class="project-cell project-group-cell pc" v-for="n in 8" :key="n"></div>
                 </template>
                 <template v-else>
                     <div class="project-cell project-title-cell">
@@ -178,6 +178,13 @@
                         <div style="position: relative;">
                             <div class="text-wrap">
                                 <p v-for="cat in row.project.category || []">{{ cat }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="project-cell pc">
+                        <div style="position: relative;">
+                            <div class="text-wrap">
+                                <p v-for="partner in row.project.partner_records || []" :key="partner.id">{{ partner.name }}</p>
                             </div>
                         </div>
                     </div>
