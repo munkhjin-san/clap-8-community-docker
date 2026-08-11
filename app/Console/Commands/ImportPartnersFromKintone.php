@@ -15,12 +15,12 @@ use Normalizer;
  * 画面にボタンは置かない。継続的な同期ではなく初期データの投入が目的で、
  * 誤って再実行されると手で直した内容を上書きしてしまうため。
  *
+ * 「取引先ID」(大文字ID・例 12176776) は freee会計の取引先ID。既定で freee_partner_id に
+ * 取り込むが、**本番freeeを向いている環境でのみ正しい**。テスト事業所に繋いだ環境では
+ * 存在しない相手と紐付くので、その場合は --no-freee-ids を付けて未連携で取り込むこと。
+ * （「取引先id」＝小文字id は kintone 側の連番で、freeeとは無関係。混同しないこと）
+ *
  * 取り込まないもの:
- *  - 「取引先ID」(大文字ID・例 12176776) … freeeの取引先ID。**本番freeeのID**であり、
- *    この環境が繋いでいるテスト事業所とは一致しない。取り込むと存在しない相手と
- *    紐付いた状態になるため、すべて未連携（freee_partner_id = null）で取り込む。
- *    本番freeeに向けるときは、この項目を freee_partner_id に写すよう変更して再実行する。
- *    （「取引先id」＝小文字id は kintone 側の連番で、freeeとは無関係。混同しないこと）
  *  - 電話番号 … アプリ118のトップレベルに項目が無い。
  */
 class ImportPartnersFromKintone extends Command
@@ -28,6 +28,7 @@ class ImportPartnersFromKintone extends Command
     protected $signature = 'partners:import-kintone
         {--app=118 : kintoneのアプリID}
         {--fresh : 取り込み前に既存の取引先を全件削除する}
+        {--no-freee-ids : kintoneの「取引先ID」を取り込まず、すべて未連携にする}
         {--dry-run : 保存せず件数と内訳だけ表示する}';
 
     protected $description = 'kintoneアプリ「取引先」から取引先マスタを取り込む（一度きりの移行用）';
@@ -102,6 +103,9 @@ class ImportPartnersFromKintone extends Command
     /** 形式が合わず取り込まなかった値。黙って落とさず最後に一覧で出す。 */
     private array $invalid = [];
 
+    /** 取り込み済みのfreee取引先ID => 取引先名。UNIQUE制約違反を防ぐための重複検知に使う。 */
+    private array $seenFreeeIds = [];
+
     public function handle(KintoneClient $kintone): int
     {
         $appId = (int) $this->option('app');
@@ -109,7 +113,7 @@ class ImportPartnersFromKintone extends Command
 
         $codes = array_values(array_unique(array_merge(
             array_values(self::FIELD_MAP),
-            ['$id', 'ラジオボタン', '取引区分', '住所1', 'チェックボックス_0', '情報管理に関する質問', '労働契約に関する質問', '作成日時', '更新日時'],
+            ['$id', 'ラジオボタン', '取引区分', '住所1', 'チェックボックス_0', '情報管理に関する質問', '労働契約に関する質問', '作成日時', '更新日時', '取引先ID'],
         )));
 
         $this->info("kintoneアプリ {$appId} から取引先を読み込みます…");
@@ -156,6 +160,8 @@ class ImportPartnersFromKintone extends Command
 
         $withPref = count(array_filter($rows, fn ($r) => $r['prefecture_code'] !== null));
         $ended = count(array_filter($rows, fn ($r) => $r['available'] === false));
+        $linked = count(array_filter($rows, fn ($r) => $r['freee_partner_id'] !== null));
+        $this->line("  freee取引先IDを取り込み: {$linked}件".($this->option('no-freee-ids') ? '（--no-freee-ids のため0件）' : ''));
         $this->line("  都道府県を住所から判定: {$withPref}件");
         $this->line("  契約終了フラグにより使用不可: {$ended}件");
 
@@ -223,8 +229,10 @@ class ImportPartnersFromKintone extends Command
         $row['information_security_answers'] = $this->answers($record, '情報管理に関する質問', self::INFO_SECURITY_MAP);
         $row['labor_contract_answers'] = $this->answers($record, '労働契約に関する質問', self::LABOR_CONTRACT_MAP);
 
-        // freeeは未連携で取り込む（kintoneのIDは本番freeeのもので、この環境とは一致しない）。
-        $row['freee_partner_id'] = null;
+        // kintoneの「取引先ID」＝freee会計の取引先ID。本番freeeを向いている環境でのみ意味を持つ。
+        // テスト事業所に向けた環境で取り込むと存在しない相手と紐付くので、--no-freee-ids で外せる。
+        $row['freee_partner_id'] = $this->option('no-freee-ids') ? null : $this->freeePartnerId($record, $name);
+        // 実際に照合したわけではないので同期済みにはしない（スナップショット無し＝初回pushで差分を確認させる）。
         $row['freee_synced_at'] = null;
 
         // 登録日時はkintoneのものを引き継ぐ。取り込み時刻を入れると全件が同じ日時になり、
@@ -349,6 +357,29 @@ class ImportPartnersFromKintone extends Command
         }
 
         return $normalized;
+    }
+
+    /**
+     * freeeの取引先ID。列にUNIQUE制約があるため、同じIDが複数レコードに入っていたら
+     * 先勝ちで1件だけ採用し、残りは未連携にして報告する（そのまま入れると取り込み全体が落ちる）。
+     */
+    private function freeePartnerId(array $record, string $name): ?int
+    {
+        $value = (int) preg_replace('/\D/', '', $this->trimmed($record, '取引先ID'));
+
+        if ($value <= 0) {
+            return null;
+        }
+
+        if (isset($this->seenFreeeIds[$value])) {
+            $this->invalid[] = "freee取引先IDが重複しているため未連携で取り込みました: {$name}（#{$value} は「{$this->seenFreeeIds[$value]}」と重複）";
+
+            return null;
+        }
+
+        $this->seenFreeeIds[$value] = $name;
+
+        return $value;
     }
 
     /** kintoneの日時（ISO8601・UTC）をアプリのタイムゾーンに直す。 */
