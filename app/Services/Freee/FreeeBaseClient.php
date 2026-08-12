@@ -229,7 +229,41 @@ abstract class FreeeBaseClient
             }
         }
 
-        return $this->productLabel().' APIエラー'.($status ? '（HTTP '.$status.'）' : '').'：'.$this->clean((string) $detail);
+        $detail = $this->clean((string) $detail);
+        $hint = $this->errorHint($status, $detail, is_array($payload) ? $payload : []);
+
+        return $this->productLabel().' APIエラー'.($status ? '（HTTP '.$status.'）' : '').'：'.$detail.$hint;
+    }
+
+    /**
+     * freeeのエラーに、対処が分かる補足を足す。
+     *
+     * 原文は必ず残す：こちらの判定が外れていても、利用者が本当の理由を読めるようにする。
+     * よく踏む3つを区別できるようにしておく。
+     *  - 月次締め（登録も削除もできない。締めを解除するしかない）
+     *  - アプリの権限不足（権限を足して「再認可」が必要。トークン更新では反映されない）
+     *  - 利用者の権限不足（freee側のロール。振替伝票は既定では管理者のみ）
+     */
+    protected function errorHint(?int $status, string $detail, array $payload): string
+    {
+        if (str_contains($detail, '締め') || str_contains($detail, 'ロック')) {
+            return ' ※対象月がfreeeで締められている可能性があります。'
+                .'締め済みの月は登録・更新・削除のいずれもできません。freeeで月次締めを解除してから再実行してください。';
+        }
+
+        $body = json_encode($payload, JSON_UNESCAPED_UNICODE) ?: '';
+
+        if ($status === 401 && str_contains($body, 'user_do_not_have_permission')) {
+            return ' ※認可したfreeeユーザーにこの操作の権限がありません。'
+                .'振替伝票は既定では管理者のみ登録できます。freee側のロールを確認してください。';
+        }
+
+        if ($status === 403) {
+            return ' ※freeeアプリの権限設定に不足があります。'
+                .'必要な権限を追加したうえで、連携解除→再認可を行ってください（トークン更新では反映されません）。';
+        }
+
+        return '';
     }
 
     protected function clean(string $detail): string

@@ -3,14 +3,11 @@
 namespace App\Services;
 
 use Illuminate\Contracts\Validation\Validator as ValidatorContract;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\MessageBag;
 use Illuminate\Validation\ValidationException;
 
-class ActualResultCsvService
+class ActualResultCalculationService
 {
-    private const ENCODINGS = ['UTF-8', 'SJIS-win', 'CP932', 'EUC-JP', 'ISO-2022-JP'];
-
     private const INDIRECT_RATE = 0.10;
 
     private const PERFORMANCE_BONUS_RATE = 0.10;
@@ -151,135 +148,92 @@ class ActualResultCsvService
     {
     }
 
-    public function calculateFromUploadedFile(UploadedFile $file): array
+    /**
+     * freee会計APIから取り込んだ明細行から実績を計算する。
+     *
+     * @param array<int, array<string, mixed>> $detailRows accumulateDetailRow が受け取る形の明細
+     * @param array<string, mixed> $fileMeta 画面表示用のメタ情報
+     */
+    public function calculateFromFreee(array $detailRows, string $calculationMonth, array $fileMeta = []): array
     {
-        return $this->calculateFromPath($file->getRealPath(), $file->getClientOriginalName());
-    }
-
-    public function calculateFromPath(string $path, ?string $originalName = null): array
-    {
-        if (! is_readable($path)) {
-            throw $this->validationException([
-                'file' => 'CSVファイルを読み込めませんでした。',
-            ]);
-        }
-
-        $rawContents = file_get_contents($path);
-
-        if ($rawContents === false || $rawContents === '') {
-            throw $this->validationException([
-                'file' => 'CSVファイルが空です。',
-            ]);
-        }
-
-        [$contents, $encoding] = $this->normalizeEncoding($rawContents);
-        $rows = $this->parseRows($contents);
-
-        if (count($rows) < 2) {
-            throw $this->validationException([
-                'file' => '試算表CSVの行数が不足しています。',
-            ]);
-        }
-
-        [$headerIndex, $header] = $this->findHeader($rows);
-        $indexes = $this->columnIndexes($header);
-        $title = $this->firstFilledCell($rows[0] ?? []);
-        $this->validateCsvIdentity($title);
-        $period = $this->periodLabel($title);
-        $calculationMonth = $this->singleCalculationMonth($title);
-        $reserveAllocationResult = null;
         $departments = [];
         $accountTotals = [];
-        $detailRowCount = 0;
-        $skippedRows = 0;
 
-        for ($rowIndex = $headerIndex + 1; $rowIndex < count($rows); $rowIndex++) {
-            $row = $rows[$rowIndex];
-
-            if ($this->isOperatingProfitTotalRow($row)) {
-                $skippedRows += count($rows) - $rowIndex;
-                break;
-            }
-
-            $sourceDepartment = $this->cell($row, $indexes['department']);
-            $department = $this->normalizeDepartment($sourceDepartment);
-            $accountName = $this->cell($row, $indexes['account_name']);
-
-            if ($sourceDepartment === '' || $accountName === '') {
-                $skippedRows++;
-                continue;
-            }
-
-            $detailRowCount++;
-            $accountCode = $this->cell($row, $indexes['account_code']);
-            $debitText = $this->cell($row, $indexes['debit']);
-            $creditText = $this->cell($row, $indexes['credit']);
-            $balanceText = $this->cell($row, $indexes['balance']);
-            $endingText = $this->cell($row, $indexes['ending']);
-            $debit = $this->money($debitText);
-            $credit = $this->money($creditText);
-            $balance = $this->money($balanceText);
-            $endingBalance = $this->money($endingText);
-            $accountMeta = $this->accountMeta($accountName, $accountCode, $department);
-            $category = $accountMeta['category'];
-            $hasBalance = $this->hasNumericValue($balanceText);
-            $amount = $hasBalance ? $balance : 0;
-            $amountSource = $hasBalance ? 'balance' : 'blank';
-
-            if (! isset($departments[$department])) {
-                $departments[$department] = $this->emptyDepartment($department);
-            }
-
-            $departments[$department]['row_count']++;
-            $this->rememberSourceDepartment($departments[$department], $sourceDepartment);
-
-            if ($category === 'sales') {
-                $departments[$department]['sales'] += $amount;
-                $departments[$department]['ending_sales'] += $endingBalance;
-            } else {
-                $departments[$department]['expenses'] += $amount;
-                $departments[$department]['ending_expenses'] += $endingBalance;
-            }
-
-            $this->accumulateDepartmentBucket($departments[$department], $accountMeta['bucket'], $amount);
-
-            $accountKey = "{$accountCode}|{$accountName}|{$category}|{$accountMeta['bucket']}";
-            $this->accumulateAccount($departments[$department]['accounts'], $accountKey, [
-                'account_code' => $accountCode,
-                'account_name' => $accountName,
-                'category' => $category,
-                'bucket' => $accountMeta['bucket'],
-                'bucket_label' => $accountMeta['bucket_label'],
-                'amount_source' => $amountSource,
-                'amount' => $amount,
-                'debit' => $debit,
-                'credit' => $credit,
-                'balance' => $balance,
-                'ending_balance' => $endingBalance,
-                'source_department' => $sourceDepartment,
-            ]);
-            $this->accumulateAccount($accountTotals, $accountKey, [
-                'account_code' => $accountCode,
-                'account_name' => $accountName,
-                'category' => $category,
-                'bucket' => $accountMeta['bucket'],
-                'bucket_label' => $accountMeta['bucket_label'],
-                'amount_source' => $amountSource,
-                'amount' => $amount,
-                'debit' => $debit,
-                'credit' => $credit,
-                'balance' => $balance,
-                'ending_balance' => $endingBalance,
-                'source_department' => $sourceDepartment,
-            ]);
+        foreach ($detailRows as $row) {
+            $this->accumulateDetailRow($departments, $accountTotals, $row);
         }
 
-        if ($detailRowCount === 0) {
+        if ($departments === []) {
             throw $this->validationException([
-                'file' => '部門別の明細行が見つかりませんでした。',
+                'file' => 'freeeから部門別の明細を取得できませんでした。対象月に仕訳があるか、プロジェクトとfreee部門が連携済みかを確認してください。',
             ]);
         }
 
+        return $this->finalizeResult($departments, $accountTotals, $calculationMonth, $fileMeta + [
+            'detail_rows' => count($detailRows),
+            'skipped_rows' => 0,
+        ]);
+    }
+
+    /**
+     * GLOWDが計算してfreeeへ書き出す科目かどうか。
+     *
+     * 取込時にこれらを除外することで、自分が登録した値を読み戻して
+     * 「計算せずfreeeの値をそのまま使う」状態に陥るのを防ぐ。
+     */
+    /**
+     * 取込時に別名を畳んだ部門を、freeeの部門名に戻すための候補を返す。
+     *
+     * 例：取込では 経営管理本部共通部門 → 経営管理本部 に畳むので、
+     * 送信時は 経営管理本部 → 経営管理本部共通部門 に戻さないと
+     * freee側に該当する部門が無く、仕訳を送れない。
+     * 同名の部門がfreeeにあればそちらが優先されるよう、自分自身を先頭に置く。
+     *
+     * @return array<int, string>
+     */
+    public function freeeSectionNameCandidates(string $department): array
+    {
+        $names = [$department];
+
+        foreach (self::DEPARTMENT_ALIASES as $source => $target) {
+            if ($target === $department) {
+                $names[] = $source;
+            }
+        }
+
+        return $names;
+    }
+
+    public function isGeneratedAccountName(string $accountName): bool
+    {
+        if (
+            str_contains($accountName, '社内振替入金')
+            || str_contains($accountName, '間接配賦売上高')
+            || str_contains($accountName, '間接配賦発注額')
+            || $accountName === self::BONUS_ACCRUAL_EXPENSE_ACCOUNT
+        ) {
+            return true;
+        }
+
+        foreach (array_keys(self::RESERVE_BUCKETS) as $needle) {
+            if (str_contains($accountName, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * 明細の集計が終わったあとの共通処理。取込元に依存しない。
+     */
+    private function finalizeResult(
+        array $departments,
+        array $accountTotals,
+        ?string $calculationMonth,
+        array $fileMeta
+    ): array {
+        $reserveAllocationResult = null;
         $calculationSources = $this->calculationSourcesFromDepartments($departments);
 
         if (
@@ -288,7 +242,7 @@ class ActualResultCsvService
             && $calculationSources['base_reserve_expenses'] === self::SOURCE_AUTO_CALCULATED
         ) {
             $reserveAllocationResult = $this->reserveAllocation->allocationsForMonth($calculationMonth);
-            
+
             $this->applyGeneratedReserveAllocations(
                 $departments,
                 $accountTotals,
@@ -310,17 +264,17 @@ class ActualResultCsvService
             : 0;
 
         return [
-            'file' => [
-                'name' => $originalName,
-                'title' => $title,
-                'period' => $period,
+            'file' => $fileMeta + [
+                'name' => null,
+                'title' => null,
+                'period' => null,
                 'calculation_month' => $calculationMonth,
-                'encoding' => $encoding,
-                'source_rows' => max(count($rows) - ($headerIndex + 1), 0),
-                'detail_rows' => $detailRowCount,
-                'skipped_rows' => $skippedRows,
-                'generated_reserve_rows' => $reserveAllocationResult['stats']['generated_rows'] ?? 0,
-                'generated_reserve_total' => $reserveAllocationResult['stats']['generated_total'] ?? 0,
+                'encoding' => null,
+                'source_rows' => 0,
+                'detail_rows' => 0,
+                'skipped_rows' => 0,
+                'generated_reserve_rows' => $reserveAllocationStats['generated_rows'] ?? 0,
+                'generated_reserve_total' => $reserveAllocationStats['generated_total'] ?? 0,
                 'generated_basic_bonus_accrual_total' => $generatedBasicBonusAccrualTotal,
                 'generated_bonus_accrual_expense' => $generatedBonusAccrualExpense,
                 'generated_reserve_warnings' => $reserveAllocationResult['warnings'] ?? [],
@@ -333,111 +287,62 @@ class ActualResultCsvService
         ];
     }
 
-    public function recalculateResultPayload(array $result): array
+    /**
+     * 明細1行を部門別・勘定科目別の集計に足し込む。
+     *
+     * @param array<string, mixed> $row
+     */
+    private function accumulateDetailRow(array &$departments, array &$accountTotals, array $row): void
     {
-        $departments = [];
-        $accountTotals = [];
-        $csvSnapshots = [];
-        $storedDepartmentsByName = [];
+        $sourceDepartment = (string) ($row['source_department'] ?? '');
+        $accountName = (string) ($row['account_name'] ?? '');
 
-        foreach ($result['departments'] ?? [] as $storedDepartment) {
-            $departmentName = (string) ($storedDepartment['department'] ?? '');
-
-            if ($departmentName !== '') {
-                $storedDepartmentsByName[$departmentName] = $storedDepartment;
-            }
+        if ($sourceDepartment === '' || $accountName === '') {
+            return;
         }
 
-        $calculationSources = $this->normalizeCalculationSources(
-            $result['file']['calculation_sources']
-                ?? $this->calculationSourcesFromDepartments($storedDepartmentsByName)
-        );
+        $department = $this->normalizeDepartment($sourceDepartment);
+        $accountCode = (string) ($row['account_code'] ?? '');
+        $accountMeta = $this->accountMeta($accountName, $accountCode, $department, $row['category_hint'] ?? null);
+        $category = $accountMeta['category'];
+        $amount = ($row['has_amount'] ?? true) ? (int) ($row['balance'] ?? 0) : 0;
+        $endingBalance = (int) ($row['ending_balance'] ?? 0);
 
-        foreach ($result['departments'] ?? [] as $storedDepartment) {
-            $departmentName = (string) ($storedDepartment['department'] ?? '');
-
-            if ($departmentName === '') {
-                continue;
-            }
-
-            $department = $this->emptyDepartment($departmentName);
-            $department['source_departments'] = $storedDepartment['source_departments'] ?? [$departmentName];
-            $department['row_count'] = (int) ($storedDepartment['row_count'] ?? count($storedDepartment['accounts'] ?? []));
-            $csvSnapshots[$departmentName] = $this->csvSnapshot($storedDepartment);
-
-            foreach ($storedDepartment['accounts'] ?? [] as $account) {
-                if ($this->shouldSkipStoredGeneratedAccount($account, $calculationSources)) {
-                    continue;
-                }
-
-                foreach ($this->storedAccountRows($account, $departmentName) as $row) {
-                    if ($row['account_name'] === '') {
-                        continue;
-                    }
-
-                    if ($row['category'] === 'sales') {
-                        $department['sales'] += $row['amount'];
-                        $department['ending_sales'] += $row['ending_balance'];
-                    } else {
-                        $department['expenses'] += $row['amount'];
-                        $department['ending_expenses'] += $row['ending_balance'];
-                    }
-
-                    $this->accumulateDepartmentBucket($department, $row['bucket'], $row['amount']);
-                    $this->accumulateAccount($department['accounts'], $this->accountKey($row), $row);
-                    $this->accumulateAccount($accountTotals, $this->accountKey($row), $row);
-                }
-            }
-
-            $departments[$departmentName] = $department;
+        if (! isset($departments[$department])) {
+            $departments[$department] = $this->emptyDepartment($department);
         }
 
-        $reserveAllocationStats = [
-            'basic_bonus_accrual_total' => (int) ($result['file']['generated_basic_bonus_accrual_total'] ?? 0),
+        $departments[$department]['row_count']++;
+        $this->rememberSourceDepartment($departments[$department], $sourceDepartment);
+
+        if ($category === 'sales') {
+            $departments[$department]['sales'] += $amount;
+            $departments[$department]['ending_sales'] += $endingBalance;
+        } else {
+            $departments[$department]['expenses'] += $amount;
+            $departments[$department]['ending_expenses'] += $endingBalance;
+        }
+
+        $this->accumulateDepartmentBucket($departments[$department], $accountMeta['bucket'], $amount);
+
+        $accountKey = "{$accountCode}|{$accountName}|{$category}|{$accountMeta['bucket']}";
+        $payload = [
+            'account_code' => $accountCode,
+            'account_name' => $accountName,
+            'category' => $category,
+            'bucket' => $accountMeta['bucket'],
+            'bucket_label' => $accountMeta['bucket_label'],
+            'amount_source' => (string) ($row['amount_source'] ?? 'balance'),
+            'amount' => $amount,
+            'debit' => (int) ($row['debit'] ?? 0),
+            'credit' => (int) ($row['credit'] ?? 0),
+            'balance' => (int) ($row['balance'] ?? 0),
+            'ending_balance' => $endingBalance,
+            'source_department' => $sourceDepartment,
         ];
-        $departmentRows = $this->finishDepartments(
-            $departments,
-            $calculationSources,
-            $reserveAllocationStats,
-            $result['file']['calculation_month'] ?? null
-        );
 
-        foreach ($departmentRows as &$departmentRow) {
-            $departmentName = (string) ($departmentRow['department'] ?? '');
-
-            foreach ($csvSnapshots[$departmentName] ?? [] as $key => $value) {
-                $departmentRow[$key] = $value;
-            }
-        }
-        unset($departmentRow);
-
-        usort($departmentRows, fn (array $a, array $b) => ($b['sales'] <=> $a['sales']) ?: strcmp($a['department'], $b['department']));
-
-        $accountTotalRows = array_values($accountTotals);
-        usort($accountTotalRows, fn (array $a, array $b) => strcmp($a['category'], $b['category']) ?: (abs($b['amount']) <=> abs($a['amount'])));
-
-        $result['departments'] = $departmentRows;
-        $result['account_totals'] = $accountTotalRows;
-        $result['summary'] = $this->summary($departmentRows);
-        $result['file']['generated_basic_bonus_accrual_total'] = $reserveAllocationStats['basic_bonus_accrual_total'];
-        $result['file']['generated_bonus_accrual_expense'] = $calculationSources['bonus_accrual_expense'] === self::SOURCE_AUTO_CALCULATED
-            ? $this->generatedBonusAccrualExpenseFromRows($departmentRows)
-            : 0;
-        $result['file']['calculation_source_mode'] = $this->primaryCalculationSourceMode($calculationSources);
-        $result['file']['calculation_sources'] = $calculationSources;
-
-        return $result;
-    }
-
-    private function normalizeEncoding(string $contents): array
-    {
-        $encoding = mb_detect_encoding($contents, self::ENCODINGS, true) ?: 'SJIS-win';
-
-        if ($encoding !== 'UTF-8') {
-            $contents = mb_convert_encoding($contents, 'UTF-8', $encoding);
-        }
-
-        return [$this->stripBom($contents), $encoding];
+        $this->accumulateAccount($departments[$department]['accounts'], $accountKey, $payload);
+        $this->accumulateAccount($accountTotals, $accountKey, $payload);
     }
 
     private function validationException(array $messages): ValidationException
@@ -492,40 +397,6 @@ class ActualResultCsvService
         };
 
         return new ValidationException($validator);
-    }
-
-    private function parseRows(string $contents): array
-    {
-        $stream = fopen('php://temp/maxmemory:10485760', 'r+');
-        fwrite($stream, $contents);
-        rewind($stream);
-
-        $rows = [];
-
-        while (($row = fgetcsv($stream, null, ',', '"', '')) !== false) {
-            $cleaned = array_map(fn ($cell) => $this->cleanCell((string) $cell), $row);
-
-            if (count($cleaned) === 1 && $cleaned[0] === '') {
-                continue;
-            }
-
-            $rows[] = $cleaned;
-        }
-
-        fclose($stream);
-
-        return $rows;
-    }
-
-    private function isOperatingProfitTotalRow(array $row): bool
-    {
-        foreach ($row as $cell) {
-            if (in_array((string) $cell, self::OPERATING_PROFIT_TOTAL_LABELS, true)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private function calculationSourcesFromDepartments(array $departments): array
@@ -722,74 +593,11 @@ class ActualResultCsvService
         }
     }
 
-    private function findHeader(array $rows): array
-    {
-        foreach ($rows as $index => $row) {
-            if (
-                $this->indexOf($row, '部門') !== null
-                && $this->indexOf($row, '貸借合計') !== null
-            ) {
-                return [$index, $row];
-            }
-        }
-
-        throw $this->validationException([
-            'file' => '試算表CSVのヘッダー行を判定できませんでした。',
-        ]);
-    }
-
-    private function columnIndexes(array $header): array
-    {
-        $accountCode = $this->indexOf($header, '勘定科目コード');
-        $department = $this->indexOf($header, '部門');
-        $debit = $this->indexOf($header, '借方金額');
-        $credit = $this->indexOf($header, '貸方金額');
-        $balance = $this->indexOf($header, '貸借合計');
-        $ending = $this->lastIndexMatching($header, '/期末/u');
-
-        if ($accountCode === null || $department === null || $balance === null || $ending === null) {
-            throw $this->validationException([
-                'file' => '試算表CSVに必要な列がありません。',
-            ]);
-        }
-
-        $accountName = $this->accountNameIndex($header, $accountCode, $department);
-
-        if ($accountName === null) {
-            throw $this->validationException([
-                'file' => '試算表CSVの勘定科目列を判定できませんでした。',
-            ]);
-        }
-
-        return [
-            'account_code' => $accountCode,
-            'account_name' => $accountName,
-            'department' => $department,
-            'debit' => $debit,
-            'credit' => $credit,
-            'balance' => $balance,
-            'ending' => $ending,
-        ];
-    }
-
-    private function accountNameIndex(array $header, int $accountCode, int $department): ?int
-    {
-        $namedIndex = $this->indexOf($header, '勘定科目');
-
-        if ($namedIndex !== null) {
-            return $namedIndex;
-        }
-
-        for ($index = $accountCode + 1; $index < $department; $index++) {
-            if (($header[$index] ?? '') === '') {
-                return $index;
-            }
-        }
-
-        return null;
-    }
-
-    private function accountMeta(string $accountName, string $accountCode, string $department): array
+    /**
+     * @param string|null $categoryHint freee APIの勘定科目区分から判る収益/費用の別。
+     *                                  勘定科目コードが無いfreee取込で 400番台/800番台の判定を代替する。
+     */
+    private function accountMeta(string $accountName, string $accountCode, string $department, ?string $categoryHint = null): array
     {
         if (str_contains($accountName, '期首商品棚卸高') || $accountCode === '720') {
             return $this->meta('expense', 'beginning_inventory');
@@ -821,6 +629,16 @@ class ActualResultCsvService
             }
         }
 
+        // 名前で決まる科目を先に確定させたうえで、残りをfreeeの区分で振り分ける。
+        // 区分が無ければ従来どおり名前とコードで判定する。
+        if ($categoryHint === 'sales') {
+            return $this->meta('sales', str_contains($accountName, '雑収入') ? 'other_sales' : 'operating_sales');
+        }
+
+        if ($categoryHint === 'expense') {
+            return $this->meta('expense', 'ordinary_expense');
+        }
+
         if ($this->isSalesAccount($accountName, $accountCode)) {
             return $this->meta('sales', str_contains($accountName, '雑収入') ? 'other_sales' : 'operating_sales');
         }
@@ -837,109 +655,10 @@ class ActualResultCsvService
         ];
     }
 
-    private function storedAccountRow(array $account, string $department): array
-    {
-        $accountCode = (string) ($account['account_code'] ?? '');
-        $accountName = (string) ($account['account_name'] ?? '');
-        $category = (string) ($account['category'] ?? '');
-        $bucket = (string) ($account['bucket'] ?? '');
 
-        if (! in_array($category, ['sales', 'expense'], true) || ! isset(self::BUCKET_LABELS[$bucket])) {
-            $meta = $this->accountMeta($accountName, $accountCode, $department);
-            $category = $meta['category'];
-            $bucket = $meta['bucket'];
-        }
 
-        $amount = (int) round((float) ($account['amount'] ?? $account['balance'] ?? 0));
 
-        return [
-            'account_code' => $accountCode,
-            'account_name' => $accountName,
-            'category' => $category,
-            'bucket' => $bucket,
-            'bucket_label' => self::BUCKET_LABELS[$bucket] ?? (string) ($account['bucket_label'] ?? $bucket),
-            'amount_source' => (string) ($account['amount_source'] ?? 'stored'),
-            'amount' => $amount,
-            'debit' => (int) round((float) ($account['debit'] ?? ($category === 'expense' ? $amount : 0))),
-            'credit' => (int) round((float) ($account['credit'] ?? ($category === 'sales' ? $amount : 0))),
-            'balance' => (int) round((float) ($account['balance'] ?? $amount)),
-            'ending_balance' => (int) round((float) ($account['ending_balance'] ?? 0)),
-            'rows' => max((int) ($account['rows'] ?? 1), 1),
-            'source_department' => (string) ($account['source_department'] ?? $department),
-        ];
-    }
 
-    /**
-     * Rehydrate aggregate accounts by source so edit recalculation preserves the
-     * source-department split used by management-headquarters transfers.
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    private function storedAccountRows(array $account, string $department): array
-    {
-        $sourceAmounts = $account['source_amounts'] ?? [];
-
-        if (! is_array($sourceAmounts) || $sourceAmounts === []) {
-            return [$this->storedAccountRow($account, $department)];
-        }
-
-        $rows = [];
-
-        foreach ($sourceAmounts as $sourceDepartment => $source) {
-            if (! is_array($source)) {
-                continue;
-            }
-
-            $rows[] = $this->storedAccountRow(array_merge($account, $source, [
-                'source_department' => (string) $sourceDepartment,
-            ]), $department);
-        }
-
-        return $rows ?: [$this->storedAccountRow($account, $department)];
-    }
-
-    private function shouldSkipStoredGeneratedAccount(array $account, array $calculationSources): bool
-    {
-        $amountSource = (string) ($account['amount_source'] ?? '');
-
-        if (in_array($amountSource, ['generated_internal_sales', 'generated_bonus_accrual'], true)) {
-            return true;
-        }
-
-        if ($amountSource !== 'generated_charge') {
-            return false;
-        }
-
-        $bucket = (string) ($account['bucket'] ?? '');
-
-        return in_array($bucket, ['performance_bonus_reserve', 'indirect_allocation_expense'], true)
-            && $this->shouldGenerateChargeAccount($bucket, $calculationSources);
-    }
-
-    /**
-     * @return array<string, int>
-     */
-    private function csvSnapshot(array $department): array
-    {
-        $keys = [
-            'csv_sales',
-            'csv_expenses',
-            'csv_reserve_transfer_sales',
-            'csv_indirect_allocation_sales',
-            'csv_indirect_allocation_expense',
-            'csv_performance_bonus_reserve',
-            'csv_profit',
-        ];
-        $snapshot = [];
-
-        foreach ($keys as $key) {
-            if (array_key_exists($key, $department)) {
-                $snapshot[$key] = (int) $department[$key];
-            }
-        }
-
-        return $snapshot;
-    }
 
     private function accountKey(array $account): string
     {
@@ -1197,6 +916,14 @@ class ActualResultCsvService
             + $performanceBonusAccrualTotal;
     }
 
+    /**
+     * 賞与引当金繰入額に積む業績連動賞与。
+     *
+     * 部門ごとの「業績連動賞与積立金」（＝各部門の支出）は赤字部門を0で止めるが、
+     * 引当金の繰入額はマイナスも含めて合算する。会社全体の引当額は
+     * 赤字部門のぶんだけ減る、という運用に合わせている。
+     * ここに max(…, 0) を入れてはいけない。
+     */
     private function performanceBonusAccrualAmount(array $department, ?string $calculationMonth = null): int
     {
         return $this->shouldGeneratePerformanceBonus($department['department'])
@@ -1777,158 +1504,6 @@ class ActualResultCsvService
         $target['source_departments'][] = $sourceDepartment;
     }
 
-    private function money(string $value): int
-    {
-        $normalized = $this->normalizeMoneyText($value);
-
-        if ($normalized === '') {
-            return 0;
-        }
-
-        $negative = false;
-
-        if (str_starts_with($normalized, '△')) {
-            $negative = true;
-            $normalized = substr($normalized, strlen('△'));
-        }
-
-        if (preg_match('/^\((.*)\)$/', $normalized, $matches)) {
-            $negative = true;
-            $normalized = $matches[1];
-        }
-
-        if (str_starts_with($normalized, '-')) {
-            $negative = true;
-            $normalized = substr($normalized, 1);
-        }
-
-        $normalized = preg_replace('/[^0-9.]/', '', $normalized) ?? '';
-
-        if ($normalized === '') {
-            return 0;
-        }
-
-        $amount = (int) round((float) $normalized);
-
-        return $negative ? -$amount : $amount;
-    }
-
-    private function hasNumericValue(string $value): bool
-    {
-        return preg_match('/[0-9０-９]/u', $value) === 1;
-    }
-
-    private function normalizeMoneyText(string $value): string
-    {
-        $value = trim(mb_convert_kana($value, 'as', 'UTF-8'));
-
-        return str_replace([',', '￥', '¥', '円', ' '], '', $value);
-    }
-
-    private function cleanCell(string $value): string
-    {
-        return trim(str_replace("\u{3000}", ' ', $value));
-    }
-
-    private function cell(array $row, ?int $index): string
-    {
-        if ($index === null) {
-            return '';
-        }
-
-        return $this->cleanCell((string) ($row[$index] ?? ''));
-    }
-
-    private function indexOf(array $row, string $label): ?int
-    {
-        $index = array_search($label, $row, true);
-
-        return $index === false ? null : $index;
-    }
-
-    private function lastIndexMatching(array $row, string $pattern): ?int
-    {
-        for ($index = count($row) - 1; $index >= 0; $index--) {
-            if (preg_match($pattern, (string) ($row[$index] ?? '')) === 1) {
-                return $index;
-            }
-        }
-
-        return null;
-    }
-
-    private function firstFilledCell(array $row): string
-    {
-        foreach ($row as $cell) {
-            $cell = $this->cleanCell((string) $cell);
-
-            if ($cell !== '') {
-                return $cell;
-            }
-        }
-
-        return '';
-    }
-
-    private function periodLabel(string $title): ?string
-    {
-        if (preg_match('/期間[:：]([^、）]+)/u', $title, $matches) === 1) {
-            return $matches[1];
-        }
-
-        return null;
-    }
-
-    private function validateCsvIdentity(string $title): void
-    {
-        if (! str_contains($title, '損益計算書')) {
-            throw $this->validationException([
-                'file' => '損益計算書の試算表CSVを選択してください。',
-            ]);
-        }
-
-        if (preg_match('/表示単位[:：]\s*円/u', $title) !== 1) {
-            throw $this->validationException([
-                'file' => '表示単位が「円」の損益計算書CSVを選択してください。',
-            ]);
-        }
-    }
-
-    private function singleCalculationMonth(string $title): string
-    {
-        if (preg_match(
-            '/期間[:：]\s*(\d{4})年\s*(\d{1,2})月\s*[～〜~]\s*(\d{4})年\s*(\d{1,2})月/u',
-            $title,
-            $matches
-        ) !== 1) {
-            throw $this->validationException([
-                'file' => 'CSVタイトルから対象期間を判定できませんでした。',
-            ]);
-        }
-
-        $startYear = (int) $matches[1];
-        $startMonth = (int) $matches[2];
-        $endYear = (int) $matches[3];
-        $endMonth = (int) $matches[4];
-
-        if (
-            ! checkdate($startMonth, 1, $startYear)
-            || ! checkdate($endMonth, 1, $endYear)
-        ) {
-            throw $this->validationException([
-                'file' => 'CSVの対象期間が正しくありません。',
-            ]);
-        }
-
-        if ($startYear !== $endYear || $startMonth !== $endMonth) {
-            throw $this->validationException([
-                'file' => '月次実績には開始月と終了月が同じCSVを選択してください。',
-            ]);
-        }
-
-        return sprintf('%04d-%02d', $startYear, $startMonth);
-    }
-
     private function margin(int $sales, int $profit): ?float
     {
         if ($sales === 0) {
@@ -1937,9 +1512,5 @@ class ActualResultCsvService
 
         return round($profit / $sales * 100, 2, PHP_ROUND_HALF_UP);
     }
-
-    private function stripBom(string $contents): string
-    {
-        return preg_replace('/^\xEF\xBB\xBF/', '', $contents) ?? $contents;
-    }
 }
+

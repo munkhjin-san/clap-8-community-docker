@@ -97,6 +97,153 @@ class FreeeAccountingClient extends FreeeBaseClient
     }
 
     /**
+     * 損益計算書（試算表）を部門別内訳つきで取得する。
+     *
+     * CSVの「貸借合計」に相当するのが closing_balance。期間を月初〜月末で指定すれば
+     * その月の増減額が返る（APIは常に円単位の整数で、千円表示の設定は影響しない）。
+     *
+     * breakdown_display_type=section で各勘定科目行に sections[] がぶら下がり、
+     * これが CSV の「部門」列＝プロジェクト別の内訳にあたる。
+     *
+     * @return array{balances?: array<int, array>}
+     */
+    public function trialPl(FreeeCredential $credential, string $startDate, string $endDate): array
+    {
+        $payload = $this->get($credential, '/api/1/reports/trial_pl', [
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+            'breakdown_display_type' => 'section',
+            // 勘定科目単位で受け取る（group にすると内訳が科目グループに丸められる）。
+            'account_item_display_type' => 'account_item',
+        ]);
+
+        return $payload['trial_pl'] ?? [];
+    }
+
+    /**
+     * 振替伝票を登録する。
+     *
+     * freeeには冪等キーが無いため、二重登録を防ぐ責任は呼び出し側にある。
+     * 借方合計と貸方合計が一致しない場合はfreee側で弾かれる。
+     *
+     * @param array<int, array<string, mixed>> $details 借方・貸方の明細
+     */
+    public function createManualJournal(FreeeCredential $credential, string $issueDate, array $details): array
+    {
+        $payload = $this->post($credential, '/api/1/manual_journals', [
+            'company_id' => $this->companyId($credential),
+            'issue_date' => $issueDate,
+            'details' => array_values($details),
+        ]);
+
+        return $payload['manual_journal'] ?? [];
+    }
+
+    /**
+     * 登録済みの振替伝票を差し替える。明細は全件送り直す仕様。
+     *
+     * 再送時に削除→再登録をせずに済むので、freee側の伝票番号が変わらない。
+     *
+     * @param array<int, array<string, mixed>> $details
+     */
+    public function updateManualJournal(FreeeCredential $credential, int $journalId, string $issueDate, array $details): array
+    {
+        $payload = $this->sendJson($credential, 'put', '/api/1/manual_journals/'.$journalId, [
+            'company_id' => $this->companyId($credential),
+            'issue_date' => $issueDate,
+            'details' => array_values($details),
+        ])->json();
+
+        return is_array($payload) ? ($payload['manual_journal'] ?? []) : [];
+    }
+
+    /**
+     * 振替伝票を削除する。テストで登録したものを片付けるために使う。
+     * 月次締め済みの期間は freee 側で拒否される。
+     */
+    public function deleteManualJournal(FreeeCredential $credential, int $journalId): void
+    {
+        $this->sendJson(
+            $credential,
+            'delete',
+            '/api/1/manual_journals/'.$journalId.'?company_id='.$this->companyId($credential),
+            [],
+        );
+    }
+
+    /**
+     * 勘定科目一覧。仕訳を作る際に「科目名 → account_item_id」を引くために使う。
+     *
+     * @return array<int, array>
+     */
+    public function accountItems(FreeeCredential $credential, bool $fresh = false): array
+    {
+        $key = 'freee:account_items:'.$this->companyId($credential);
+
+        if ($fresh) {
+            Cache::forget($key);
+        }
+
+        return Cache::remember(
+            $key,
+            self::CACHE_TTL_SECONDS,
+            fn () => array_values($this->get($credential, '/api/1/account_items')['account_items'] ?? []),
+        );
+    }
+
+    /**
+     * 品目一覧。賞与引当金繰入額の内訳（基本賞与 / 業績連動賞与）に使う。
+     *
+     * @return array<int, array>
+     */
+    public function items(FreeeCredential $credential, bool $fresh = false): array
+    {
+        $key = 'freee:items:'.$this->companyId($credential);
+
+        if ($fresh) {
+            Cache::forget($key);
+        }
+
+        return Cache::remember(
+            $key,
+            self::CACHE_TTL_SECONDS,
+            fn () => array_values($this->get($credential, '/api/1/items')['items'] ?? []),
+        );
+    }
+
+    /**
+     * 品目名から1件引く。完全一致のみ。
+     */
+    public function findItemByName(FreeeCredential $credential, string $name, bool $fresh = false): ?array
+    {
+        $name = trim($name);
+
+        foreach ($this->items($credential, $fresh) as $item) {
+            if (trim((string) ($item['name'] ?? '')) === $name) {
+                return $item;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 科目名から勘定科目を1件引く。完全一致のみ（似た名前を勝手に選ばない）。
+     */
+    public function findAccountItemByName(FreeeCredential $credential, string $name, bool $fresh = false): ?array
+    {
+        $name = trim($name);
+
+        foreach ($this->accountItems($credential, $fresh) as $item) {
+            if (trim((string) ($item['name'] ?? '')) === $name) {
+                return $item;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * 部門（Section）一覧。ページングパラメータが無く、常に全件返る。
      *
      * @return array<int, array>
