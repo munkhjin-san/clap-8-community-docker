@@ -142,6 +142,7 @@
                                     </button>
                                     <div
                                         v-if="isProjectDetailBoxOpen(mobileSegment)"
+                                        :ref="setProjectDetailBoxRef"
                                         class="project-chip-box mobile-project-chip-box"
                                         :data-segment-key="segmentKey(mobileSegment)"
                                         :class="`project-chip-box-${activeProjectDetail?.type}`"
@@ -164,7 +165,7 @@
                                                     </div>
                                                     <p v-if="cost.content">{{ cost.content }}</p>
                                                     <div v-if="isCostImage(cost)" class="project-chip-box-file">
-                                                        <img @click="previewCostFile(cost)" loading="lazy" v-if="cost?.file_path" :src="costFileUrl(cost)"/>
+                                                        <img @click="previewCostFile(cost)" v-if="cost?.file_path" :src="costFileUrl(cost)"/>
                                                     </div>
                                                     <div v-else-if="cost.file_path" class="project-chip-box-file">
                                                         <div class="cursor-pointer" style="position:relative;" @click="previewCostFile(cost)">
@@ -371,6 +372,7 @@
                 </button>
                 <div
                     v-if="dayAllowanceSegment && isProjectDetailBoxOpen(dayAllowanceSegment, 'allowance')"
+                    :ref="setProjectDetailBoxRef"
                     class="project-chip-box project-chip-box-allowance"
                     :data-segment-key="segmentKey(dayAllowanceSegment)"
                     :style="projectDetailBoxStyle"
@@ -403,6 +405,7 @@
                 </button>
                 <div
                     v-if="segment && isProjectDetailBoxOpen(segment, detailColumn.type)"
+                    :ref="setProjectDetailBoxRef"
                     class="project-chip-box"
                     :data-segment-key="segmentKey(segment)"
                     :class="`project-chip-box-${detailColumn.type}`"
@@ -425,7 +428,7 @@
                                 </div>
                                 <p v-if="cost.content">{{ cost.content }}</p>
                                 <div v-if="isCostImage(cost)" class="project-chip-box-file">
-                                    <img @click="previewCostFile(cost)" loading="lazy" v-if="cost?.file_path" :src="costFileUrl(cost)"/>
+                                    <img @click="previewCostFile(cost)" v-if="cost?.file_path" :src="costFileUrl(cost)"/>
                                 </div>
                                 <div v-else-if="cost.file_path" class="project-chip-box-file">
                                     <div class="cursor-pointer" style="position:relative;" @click="previewCostFile(cost)">
@@ -474,6 +477,7 @@
                 </button>
                 <div
                     v-if="segment && isProjectDetailBoxOpen(segment, detailColumn.type)"
+                    :ref="setProjectDetailBoxRef"
                     class="project-chip-box"
                     :data-segment-key="segmentKey(segment)"
                     :class="`project-chip-box-${detailColumn.type}`"
@@ -496,7 +500,7 @@
                                 </div>
                                 <p v-if="cost.content">{{ cost.content }}</p>
                                 <div v-if="isCostImage(cost)" class="project-chip-box-file">
-                                    <img @click="previewCostFile(cost)" loading="lazy" v-if="cost?.file_path" :src="costFileUrl(cost)"/>
+                                    <img @click="previewCostFile(cost)" v-if="cost?.file_path" :src="costFileUrl(cost)"/>
                                 </div>
                                 <div v-else-if="cost.file_path" class="project-chip-box-file">
                                     <div class="cursor-pointer" style="position:relative;" @click="previewCostFile(cost)">
@@ -668,6 +672,10 @@ const projectDetailInstanceId = Math.random().toString(36).slice(2)
 const activeProjectDetail = ref(null)
 const projectDetailBoxTopOffset = ref(0)
 const projectDetailBoxMaxHeight = ref('')
+const projectDetailBoxEl = ref(null)
+let projectDetailBoxResizeObserver = null
+let projectDetailBoxSyncing = false
+let projectDetailBoxSyncQueued = false
 const overtimeApproveBox = ref(null)
 const overtimeApproveBoxTopOffset = ref(0)
 const activeOvertimeBoxKey = ref(null)
@@ -1329,19 +1337,72 @@ const floatingBoxTopOffset = (box) => {
         maxHeight: limits.maxHeight,
     }
 }
+const setProjectDetailBoxRef = (element) => {
+    if (element instanceof HTMLElement) {
+        projectDetailBoxEl.value = element
+        return
+    }
+    if (projectDetailBoxEl.value && !projectDetailBoxEl.value.isConnected) {
+        projectDetailBoxEl.value = null
+    }
+}
+// floatingBoxTopOffset returns a correction relative to where the box currently sits,
+// so the DOM has to hold the previously applied offset before the next measurement.
+const syncProjectDetailBoxPosition = async(box) => {
+    if (projectDetailBoxSyncing) {
+        projectDetailBoxSyncQueued = true
+        return
+    }
+
+    projectDetailBoxSyncing = true
+    try {
+        let pass = 0
+        do {
+            projectDetailBoxSyncQueued = false
+            await nextTick()
+            if (!box?.isConnected || box.offsetParent === null) return
+
+            const { offset, maxHeight } = floatingBoxTopOffset(box)
+            projectDetailBoxTopOffset.value += offset
+            projectDetailBoxMaxHeight.value = maxHeight
+            await nextTick()
+            pass += 1
+        } while (projectDetailBoxSyncQueued && pass < 3)
+    } finally {
+        projectDetailBoxSyncing = false
+        projectDetailBoxSyncQueued = false
+    }
+}
+const stopObservingProjectDetailBox = () => {
+    projectDetailBoxResizeObserver?.disconnect()
+    projectDetailBoxResizeObserver = null
+}
+// Late-growing content (images, wrapped text) must re-run the fit instead of
+// keeping the offset measured on the collapsed first layout.
+const observeProjectDetailBox = (box) => {
+    stopObservingProjectDetailBox()
+    if (typeof ResizeObserver === 'undefined') return
+
+    projectDetailBoxResizeObserver = new ResizeObserver(() => {
+        const target = projectDetailBoxEl.value
+        if (!activeProjectDetail.value || target !== box || !box.isConnected) return
+        syncProjectDetailBoxPosition(box)
+    })
+    projectDetailBoxResizeObserver.observe(box)
+}
 const positionProjectDetailBox = async() => {
+    stopObservingProjectDetailBox()
     projectDetailBoxTopOffset.value = 0
     projectDetailBoxMaxHeight.value = ''
     await nextTick()
     await new Promise(resolve => requestAnimationFrame(resolve))
 
-    const box = [...document.querySelectorAll('.project-chip-box')]
-        .find(element => element instanceof HTMLElement && element.offsetParent !== null)
-    if (!box) return
+    const box = projectDetailBoxEl.value
+    if (!box?.isConnected || box.offsetParent === null) return
 
-    const { offset, maxHeight } = floatingBoxTopOffset(box)
-    projectDetailBoxTopOffset.value = offset
-    projectDetailBoxMaxHeight.value = maxHeight
+    await syncProjectDetailBoxPosition(box)
+    if (projectDetailBoxEl.value !== box || !box.isConnected) return
+    observeProjectDetailBox(box)
 }
 const openProjectDetailBox = async(segment, detail) => {
     const type = typeof detail === 'string' ? detail : detail?.type
@@ -1364,7 +1425,9 @@ const toggleProjectDetailBox = (segment, detail) => {
     openProjectDetailBox(segment, detail)
 }
 const closeProjectDetailBox = () => {
+    stopObservingProjectDetailBox()
     activeProjectDetail.value = null
+    projectDetailBoxEl.value = null
     projectDetailBoxTopOffset.value = 0
     projectDetailBoxMaxHeight.value = ''
     removeProjectDetailOutsideClick()
@@ -1411,6 +1474,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
     window.removeEventListener('resize', syncMobileLayout)
     document.removeEventListener(PROJECT_DETAIL_OPEN_EVENT, handleProjectDetailOpenEvent)
+    stopObservingProjectDetailBox()
     removeProjectDetailOutsideClick()
     removeOvertimeApproveOutsideListeners()
 })
@@ -1457,7 +1521,7 @@ const projectDetailBoxText = (segment) => {
     return values[type] || ''
 }
 const projectCostKey = (cost) => {
-    return cost?.id ?? `${cost?.department ?? ''}-${cost?.type ?? ''}-${cost?.content ?? ''}-${cost?.expenses ?? ''}`
+    return cost?.id ?? `${cost?.department ?? ''}-${cost?.type ?? ''}-${cost?.content ?? ''}-${cost?.expenses ?? ''}-${cost?.file_path ?? ''}`
 }
 const projectCostTitle = (cost) => {
     return hasWorkCostLabel(cost) ?? '経費'
@@ -2734,9 +2798,11 @@ const hasVehicle = computed(() => {
     margin-top: 8px;
 }
 
+/* Fixed box so the popover height is known before the image loads. */
 .project-chip-box-file img {
-    max-width: 100%;
-    max-height: 120px;
+    display: block;
+    width: 100%;
+    height: 120px;
     border: 1px solid var(--calendarBorder);
     border-radius: 4px;
     cursor: pointer;
