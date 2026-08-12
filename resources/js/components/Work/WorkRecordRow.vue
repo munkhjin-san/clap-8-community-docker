@@ -639,10 +639,12 @@ import WeatherIcon from '../Global/WeatherIcon.vue';
 import { DateTime } from 'luxon';
 import { customParser } from '@/utils/tools';
 import { useAuthUserStore } from '@/store/auth';
+import { useFilePreview } from '@/store/filePreview';
 import UserPanel from '../Global/UserPanel.vue';
 const menu = useMenuStore()
 const responsive = useResponsive()
 const auth = useAuthUserStore()
+const filePreview = useFilePreview()
 const costOptions = [{label: '交通費', value: 1},
                     {label:'通信費', value: 2},
                     {label:'宿泊費', value: 3},
@@ -1449,6 +1451,9 @@ const handleProjectDetailOpenEvent = (event) => {
 }
 const handleProjectDetailDocumentClick = (event) => {
     if (!activeProjectDetail.value) return
+    // The file preview renders outside this row, so closing a receipt would otherwise
+    // count as an outside click and drop the box the receipt was opened from.
+    if (filePreview.active) return
 
     const target = event.target
     if (!(target instanceof Element)) {
