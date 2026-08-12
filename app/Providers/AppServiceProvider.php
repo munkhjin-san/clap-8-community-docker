@@ -45,8 +45,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(BoardControllerProxy::class, fn($app) =>
             new BoardControllerProxy($app->make(\App\Http\Controllers\BoardController::class))
         );
-        $this->app->bind(ActualResultCsvService::class, fn($app) =>
-            new ActualResultCsvService($app->make(ActualReserveAllocationService::class))
+        $this->app->bind(ActualResultCalculationService::class, fn($app) =>
+            new ActualResultCalculationService($app->make(ActualReserveAllocationService::class))
         );
     }
 

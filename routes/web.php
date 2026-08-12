@@ -392,10 +392,8 @@ Route::group(["middleware"=> ["auth", "session.expired"]],function(){
         Route::delete('/admin/cost-items/{costItem}/rates/{rate}', [AdminCostMasterController::class, 'destroyRate']);
         Route::get('/admin/actual-results', [AdminActualResultController::class, 'show']);
         Route::get('/admin/actual-results/export', [AdminActualResultController::class, 'export']);
-        Route::get('/admin/actual-results/account-options', [AdminActualResultController::class, 'accountOptions']);
-        Route::get('/admin/actual-results/edit-histories', [AdminActualResultController::class, 'editHistories']);
-        Route::post('/admin/actual-results/calculate', [AdminActualResultController::class, 'calculate']);
-        Route::patch('/admin/actual-results/departments/{department}/accounts', [AdminActualResultController::class, 'updateDepartmentAccount']);
+        Route::post('/admin/actual-results/sync-freee', [AdminActualResultController::class, 'syncFromFreee']);
+        Route::post('/admin/actual-results/post-freee', [AdminActualResultController::class, 'postToFreee']);
         Route::post('/one_shot_confirmation', [WorkController::class, 'one_shot_confirmation']);    
         
         //User
