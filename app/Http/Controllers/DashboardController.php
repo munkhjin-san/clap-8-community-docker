@@ -20,6 +20,9 @@ use App\Models\ProjectGoal;
 use App\Models\ProjectAssignRecord;
 use Carbon\Carbon;
 use App\Models\ProjectRecord;
+use App\Models\ProjectFinanceComment;
+use App\Models\ProjectResourceComment;
+use App\Support\ProjectAccess;
 use App\Models\CalendarRecord;
 use App\Models\PostRecord;
 use App\Models\PostRelay;
@@ -105,6 +108,75 @@ class DashboardController extends Controller
         $active_user = $this->active_user();
         $messages = $this->reminderMessageService->getReminderMessagesForUser($active_user, ['remindedMessages']);
         return $messages['remindedMessages'];
+    }
+    // リマインドメッセージカードの「プロジェクト」側。収支コメントと要員コメントのリマインド分。
+    public function remindedProjectComments(){
+        $active_user = $this->active_user();
+
+        $monthLabel = fn(?string $period) => $period
+            ? Carbon::parse($period . '-01')->format('Y年n月')
+            : null;
+
+        // --- 収支コメント ---
+        $financeQuery = ProjectFinanceComment::query()
+            ->whereHas('remindUsers', fn($q) => $q->where('user_id', $active_user->id));
+
+        // 役員・管理系と全社閲覧ユーザー以外は、自分が関わるプロジェクトだけに絞る。
+        // リマインド後にプロジェクトから外れた場合でも残り続けないようにする。
+        if (!ProjectAccess::hasProjectFullAccess($active_user) && !ProjectAccess::isCompanyAdmin($active_user)) {
+            $financeQuery->whereIn('project_record_id', ProjectRecord::query()
+                ->where('director_id', $active_user->id)
+                ->orWhereIn('id', DB::table('project_members')
+                    ->where('user_id', $active_user->id)
+                    ->select('project_id'))
+                ->select('id'));
+        }
+
+        $finance = $financeQuery
+            ->with(['author:id,name,icon_path,icon_bg', 'project:id,name'])
+            ->get()
+            ->map(fn($comment) => [
+                'kind'         => 'finance',
+                'id'           => $comment->id,
+                'project_id'   => $comment->project_record_id,
+                'project_name' => $comment->project?->name,
+                'member_name'  => null,
+                'period'       => $comment->period,
+                'month_label'  => $monthLabel($comment->period),
+                'comment'      => $comment->comment,
+                'created_at'   => $comment->created_at,
+                'author'       => $comment->author,
+            ]);
+
+        // --- 要員コメント ---
+        // project_resource_comments はプロジェクト単位ではないため、要員ページ自体の
+        // 閲覧条件（auth.hasPrivilage 相当）をそのまま使う。
+        $canViewResource = ($active_user->position_id !== null && $active_user->position_id <= 6)
+            || $active_user->isAdmin();
+
+        $resource = $canViewResource
+            ? ProjectResourceComment::query()
+                ->whereHas('remindUsers', fn($q) => $q->where('user_id', $active_user->id))
+                ->with(['author:id,name,icon_path,icon_bg'])
+                ->get()
+                ->map(fn($comment) => [
+                    'kind'         => 'resource',
+                    'id'           => $comment->id,
+                    'project_id'   => null,
+                    'project_name' => null,
+                    'member_name'  => $comment->member_name,
+                    'period'       => $comment->period,
+                    'month_label'  => $monthLabel($comment->period),
+                    'comment'      => $comment->comment,
+                    'created_at'   => $comment->created_at,
+                    'author'       => $comment->author,
+                ])
+            : collect();
+
+        return $finance
+            ->concat($resource)
+            ->sortByDesc('created_at')
+            ->values();
     }
     public function pendingApprovalTasks(){
         $active_user = $this->active_user();

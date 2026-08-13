@@ -76,6 +76,22 @@ export type DashboardNoticeCard = CardBase & {
 }
 
 export type DashboardMessageCardData = Message[]
+/** リマインドされた収支・要員コメント — リマインドメッセージカードの「プロジェクト」側 */
+export type DashboardRemindedProjectComment = {
+    kind: 'finance' | 'resource'
+    id: number
+    /** 収支のみ。要員コメントはプロジェクト単位ではないため null */
+    project_id: number | null
+    project_name: string | null
+    /** 要員のみ */
+    member_name: string | null
+    period: string | null
+    month_label: string | null
+    comment: string
+    created_at: string
+    author: User
+}
+export type DashboardRemindedProjectCommentData = DashboardRemindedProjectComment[]
 export type DashboardTaskCardData = Task[]
 export type DashboardSurveyCardData = CustomForm[]
 export type DashboardOverdueGoalCardData = unknown[]
@@ -268,6 +284,7 @@ export type DashboardCollectionData = {
     pendingApprovalTasks: DashboardTaskCardData
     pendingGoalsUserForHR: DashboardPendingGoalsForHrData
     remindedMessages: DashboardMessageCardData
+    remindedProjectComments: DashboardRemindedProjectCommentData
     schedules: DashboardScheduleCardData
     pendingDailyReports: DashboardPendingDailyReportsData
     mustCheckMessages: DashboardMessageCardData
@@ -300,6 +317,7 @@ export const DASHBOARD_COLLECTION_KEYS = [
     'pendingApprovalTasks',
     'pendingGoalsUserForHR',
     'remindedMessages',
+    'remindedProjectComments',
     'schedules',
     'pendingDailyReports',
     'mustCheckMessages',
@@ -366,6 +384,7 @@ export const createDashboardCollectionData = (): DashboardCollectionData => ({
     pendingApprovalTasks: [],
     pendingGoalsUserForHR: [],
     remindedMessages: [],
+    remindedProjectComments: [],
     schedules: createDashboardScheduleCardData(),
     pendingDailyReports: [],
     mustCheckMessages: [],

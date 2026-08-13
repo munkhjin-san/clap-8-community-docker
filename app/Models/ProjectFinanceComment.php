@@ -27,6 +27,11 @@ class ProjectFinanceComment extends Model
     public function reply() {
         return $this->hasOne(ProjectFinanceComment::class, 'id', 'reply_id')->with(['author:id,name,icon_path,icon_bg']);
     }
+    // messageRecord::messageRemindUsers と同じく、リマインド中の行だけを返す
+    public function remindUsers()
+    {
+        return $this->morphMany(ProjectCommentRemind::class, 'comment')->where('reminded', 1);
+    }
     protected $casts = [
         'period' => 'string',
     ];

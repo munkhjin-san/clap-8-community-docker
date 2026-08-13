@@ -270,7 +270,7 @@
     </div>
 </template>
 <script lang="ts" setup>
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import CloseIcon from '../Form/CloseIcon.vue';
 import { useApi } from '@/composables/api';
 import { DateTime, MonthNumbers } from 'luxon';
@@ -288,6 +288,7 @@ import ResourceSort from './Resource/ResourceSort.vue';
 type PeriodCell = { year:number; month:number; period:string; fiscalYear:number }
 
 const router = useRouter()
+const route = useRoute()
 const api = useApi()
 const MAX_RANGE_MONTHS = 12
 const currentMonth = DateTime.now().startOf('month')
@@ -356,8 +357,16 @@ const normalizeRange = (rawStart: DateTime, rawEnd: DateTime) => {
   return { start, end }
 }
 
-const periodStart = ref<DateTime>(currentMonth)
-const periodEnd = ref<DateTime>(currentMonth)
+// ダッシュボードのリマインドからの遷移用。ref の初期値として読むことで、
+// watch が余計に発火して二重フェッチになるのを避ける。
+const initialPeriod = (() => {
+  const q = route.query.period
+  if (typeof q !== 'string') return null
+  const dt = DateTime.fromFormat(`${q}-01`, 'yyyy-MM-dd', { zone: 'Asia/Tokyo' })
+  return dt.isValid ? dt : null
+})()
+const periodStart = ref<DateTime>(initialPeriod ?? currentMonth)
+const periodEnd = ref<DateTime>(initialPeriod ?? currentMonth)
 
 const periodStartIso = computed(() => periodStart.value.toFormat('yyyy-MM'))
 const periodEndIso = computed(() => periodEnd.value.toFormat('yyyy-MM'))
@@ -630,6 +639,11 @@ watch(allowRemainingFilter, (value) => {
 onMounted(async () => {
     await fetchData()
     await fetchCommentCounts()
+    // comment_member が付いていればその要員のコメントを自動で開く（Finance の comment_period と同じ形）
+    const member = route.query.comment_member
+    if (typeof member === 'string' && member && showComment.value) {
+        selectedCommentMember.value = member
+    }
 })
 </script>
 <style scoped lang="scss">
