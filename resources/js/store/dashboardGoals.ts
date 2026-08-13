@@ -518,6 +518,7 @@ export function useGoalConstants() {
     return {
         CARD_DATA_KEY_BY_TYPE: {
             remindedMessages: 'remindedMessages',
+            remindedProjectComments: 'remindedProjectComments',
             mustCheckMessages: 'mustCheckMessages',
             mustSignMessages: 'mustSignMessages',
             unfinishedTasks: 'unfinishedTasks',

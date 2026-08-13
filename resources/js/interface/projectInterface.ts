@@ -427,7 +427,16 @@ export interface FinanceComment {
     author: User;
     created_at: string;
     checked_users: User[];
+    remind_users?: ProjectCommentRemind[];
     reply: FinanceComment;
+}
+/** 収支・要員コメント共用の project_comment_reminds の行 */
+export interface ProjectCommentRemind {
+    id: number;
+    comment_type: string;
+    comment_id: number;
+    user_id: number;
+    reminded: boolean;
 }
 export interface ResourceComment {
     id: number;
@@ -438,6 +447,7 @@ export interface ResourceComment {
     author: User;
     created_at: string;
     checked_users: User[];
+    remind_users?: ProjectCommentRemind[];
     reply: ResourceComment;
 }
 interface QuickEditText {

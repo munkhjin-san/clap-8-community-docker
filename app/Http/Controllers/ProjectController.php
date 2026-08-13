@@ -20,6 +20,7 @@ use App\Models\ProjectGoal;
 use App\Models\taskRecord;
 use App\Models\User;
 use App\Models\ProjectFinanceComment;
+use App\Models\ProjectCommentRemind;
 use App\Models\ProjectFinanceLastRead;
 use App\Models\ProjectCase;
 use App\Models\messageFile;
@@ -4497,7 +4498,7 @@ class ProjectController extends Controller
             
         }
         // load author for UI if you want
-        $comment->load(['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply']);
+        $comment->load(['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply', 'remindUsers']);
 
         return response()->json($comment, 201);
     }
@@ -4510,9 +4511,9 @@ class ProjectController extends Controller
 
         $comment = ProjectFinanceComment::where('project_record_id', $data['project_record_id'])
                 ->where('period', $data['period'])
-                ->with(['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply'])
+                ->with(['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply', 'remindUsers'])
                 ->get();
-        
+
         return response()->json($comment);
     }
     public function monthlyCount(Request $req, ProjectRecord $project)
@@ -4770,7 +4771,35 @@ class ProjectController extends Controller
 
         return response()->json($comment->fresh()->load('checkedUsers'));
     }
+    public function project_comment_remind(Request $request)
+    {
+        $active_user = $this->active_user();
 
+        $data = $request->validate([
+            'id'   => ['required', 'integer'],
+            'kind' => ['required', 'string', 'in:finance,resource'],
+        ]);
+
+        $comment = $data['kind'] === 'finance'
+            ? ProjectFinanceComment::findOrFail($data['id'])
+            : ProjectResourceComment::findOrFail($data['id']);
+
+        $remind = ProjectCommentRemind::firstOrNew([
+            'comment_type' => $comment->getMorphClass(),
+            'comment_id'   => $comment->id,
+            'user_id'      => $active_user->id,
+        ]);
+
+        $remind->reminded = $remind->exists ? ! $remind->reminded : true;
+        $remind->save();
+
+        return response()->json([
+            'reminded' => (bool) $remind->reminded,
+            'data'     => $comment->fresh()->load($data['kind'] === 'finance'
+                ? ['author:id,name,icon_path,icon_bg', 'checkedUsers', 'reply', 'remindUsers']
+                : ['author:id,name,icon_path,icon_bg', 'remindUsers']),
+        ]);
+    }
     public function project_resource_comment(Request $req) {
         $user = $this->active_user();
         $data = $req->validate([
