@@ -9,10 +9,12 @@ use App\Models\ProjectRecord;
 use App\Models\taskRecord;
 use Illuminate\Support\Collection;
 use Carbon\Carbon;
+use App\Services\SharedService;
 final class ProjectNotifyService
 {
     public function __construct(
         private readonly BoardControllerProxy $boardController, // thin proxy around your real controller method
+        private readonly SharedService $sharedService,
     ) {
     }
 
@@ -38,7 +40,7 @@ final class ProjectNotifyService
         ];
 
         $this->boardController->chatAdd($payload);
-        $this->createTask($overrideUser->id, $boardId, $message);
+        $this->createTask($overrideUser->id, $boardId, $message, $project->name);
     }
 
     private function generateMessage(
@@ -80,7 +82,7 @@ final class ProjectNotifyService
             $url
         );
     }
-    public function createTask($override_user_id, $board_id, $message){
+    public function createTask($override_user_id, $board_id, $message, $projectName){
         $mention_users = boardToUser::where('record_id', $board_id)->whereNot('user_id', 610)->pluck('user_id')->toArray();
         $override_user = User::select('id', 'name', 'icon_path', 'icon_bg')
                              ->findOrFail($override_user_id);
@@ -91,8 +93,12 @@ final class ProjectNotifyService
             "end_at" => $eom,
             "remarks" => $message,
             "board_id" => $board_id,
+            "sync_to_schedule" => 1,
+            "title" => $projectName,
+            "response_time" => 60,
         ]);
         $task->executors()->sync($mention_users);
+        $this->sharedService->syncTaskToCalendar($task, $mention_users);
         return $task;
     }
 

@@ -46,7 +46,7 @@
                         </div>
                     </div>
                     <div class="flex items-center ml-auto">
-                        <div @click.stop="toggleRemind" :title="reminded ? 'リマインドから外す' : 'リマインド'" class="reactButton" :class="{ reactOn: reminding }">
+                        <div @click.stop="toggleRemind" :title="reminded ? 'リマインドから外す' : 'リマインド'" class="reactButton" :class="{ reactOn: reminding }" :style="isOwnComment ? 'margin: 5px -10px -10px -10px' : ''">
                             <svg v-if="reminded" xmlns="http://www.w3.org/2000/svg" height="12" class="m-auto dot-menu" style="fill: var(--primary-color)" viewBox="0 0 11.84 13.06">
                             <path d="M11.42,9.04c-.31-.09-.59-.28-.84-.5-.07-.2-.12-.51-.15-.77-.1-.79-.15-1.61-.25-2.42-.1-.87-.29-1.84-.87-2.55-.47-.61-1.13-1.11-1.88-1.31-.03,0-.05-.03-.05-.06,0-.4,0-.87,0-.87,0-.31-.25-.57-.57-.57,0,0-1.78,0-1.78,0-.31,0-.57.25-.56.57v.87s-.02.06-.05.06c-.75.2-1.4.7-1.88,1.31-.84,1.07-.85,2.5-1,3.78-.04.4-.07.81-.12,1.19-.04.27-.07.52-.15.76,0,0,0,0,0,.01-.09.08-.31.25-.43.32-.13.07-.26.14-.4.18C.44,9.03,0,9.56,0,9.56c0,0,0,1.22,0,1.23,0,.29.23.51.52.51.9,0,2.42-.02,3.72-.03-.01.05-.02.1-.01.16,0,.02,0,.07.01.09.06.39.21.74.49,1.04.47.49,1.2.61,1.84.41.63-.23,1.03-.9,1.04-1.54,0-.05,0-.1,0-.14,1.3,0,2.8.02,3.7.02.29,0,.52-.23.52-.52,0,0,0-1.22,0-1.23,0,0-.44-.54-.43-.52M11.1,8.55s0,0,0,0c0,0,0,0,0,0,0,0,0,0,0,0"/>
                             </svg>
@@ -192,6 +192,9 @@ import { useMessageUsers } from '@/store/messageUsers';
         return !(props.comment.user_id == auth.activeUser.id && !props.comment.checked_users.length)
     })
     const reminding = ref(false)
+    // 自分のコメントは右寄せ表示なので、はみ出し分のマイナスマージンを当てる。
+    // 他人のコメントは返信ボタンが並ぶため素のままにする。
+    const isOwnComment = computed(() => props.comment.author.id === auth.activeUser.id)
     // remind_users はリマインド中の行だけが返るので、自分の行があれば ON。
     const reminded = computed(() => {
         return (props.comment.remind_users ?? []).some(r => r.user_id === auth.activeUser.id)
@@ -201,7 +204,7 @@ import { useMessageUsers } from '@/store/messageUsers';
 
         reminding.value = true
         try {
-            await api.post('/project_comment_remind', { id: props.comment.id, kind: 'finance' })
+            await api.post('/project_comment_remind', { id: props.comment.id, kind: 'finance' }, {toast: reminded.value ? 'リマインドから外しました' : 'リマインドしました'})
             emit('reload')
         } finally {
             reminding.value = false
