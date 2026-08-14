@@ -4772,6 +4772,7 @@ class WorkController extends Controller
         }
         $checkDuplicateRequest = PlannedLeaveChangeRequest::where('user_id', $shift->user_id)
                                     ->where('shift_record_id', $shift->id)
+                                    ->where('status', 'pending')
                                     ->exists();
         if($checkDuplicateRequest){
             throw ValidationException::withMessages(['message' => '既に同シフトに対して変更申請が存在しています。']);
