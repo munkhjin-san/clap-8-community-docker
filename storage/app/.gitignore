@@ -1,6 +1,4 @@
 *
 !public/
 !.gitignore
-!regulation_openai_store/
-!regulation_openai_store/**
 package-lock.json
