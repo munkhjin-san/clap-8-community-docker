@@ -11,10 +11,10 @@
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
 
     @if (app()->environment('production'))
-        <link rel="icon" href="/dark2.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
-        <link rel="icon" href="/light2.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
+        <link rel="icon" href="/dark3.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
+        <link rel="icon" href="/light3.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
     @else
-        <link rel="icon" href="/dev2.svg" type="image/svg+xml">
+        <link rel="icon" href="/dev3.svg" type="image/svg+xml">
     @endif
 
     <link rel="manifest" href="/manifest.json">
