@@ -4058,7 +4058,7 @@ class ProjectController extends Controller
                     }                    
                     
 
-                } else if ($profitData) {
+                } else if ($profitData && empty($actualSettlementData)) {
                     // $totalSales = round( (float) $profitData['売上高合計'] + (float) $profitData['内部売上高合計'], 0, PHP_ROUND_HALF_UP);
                     // $totalExpense = (int)  $profitData['販売管理費合計'] + (int) $profitData['間接費配賦'] + (int) $profitData['業績連動賞与積立金'];
                     $settlementFromProfit = [
