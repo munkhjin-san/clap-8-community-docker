@@ -43,7 +43,7 @@
         if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
             artwork: [
-            { src: '/v7/512.png', sizes: '512x512', type: 'image/png' },
+            { src: '/v9/512.png', sizes: '512x512', type: 'image/png' },
             ],
         });
         }

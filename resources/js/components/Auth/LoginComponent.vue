@@ -2,7 +2,7 @@
 <div class="login-wrapper" style="display: flex;height: 100dvh">
     <form class="login-form" action="/login" method="post" ref="loginForm">
         <div class="login-header flex flex-col items-center gap-2 mb-5">   
-            <img :src="`/lg_${theme.dark ? 'white' : 'black'}.webp`" style="max-width: min(160px, 40vw);">
+            <img :src="`/lg_${theme.dark ? 'white' : 'black'}2.webp`" style="max-width: min(160px, 40vw);">
         </div>
         <div class="login-content">                
             <div class="login-group row">
