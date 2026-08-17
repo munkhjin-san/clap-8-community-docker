@@ -89,7 +89,13 @@ class FreeeActualResultService
 
             foreach ($line['sections'] ?? [] as $section) {
                 $sectionId = (int) ($section['id'] ?? 0);
-                $amount = (int) round((float) ($section['closing_balance'] ?? 0));
+
+                // closing_balance は期首からの累計（CSVの「期末」に相当）で、
+                // 指定期間の増減ではない。当月分は期末 − 期首で取る
+                // （CSVの「貸借合計」に相当）。この差を取らないと前月分まで混ざる。
+                $opening = (int) round((float) ($section['opening_balance'] ?? 0));
+                $closing = (int) round((float) ($section['closing_balance'] ?? 0));
+                $amount = $closing - $opening;
 
                 if ($amount === 0) {
                     continue;
@@ -124,11 +130,11 @@ class FreeeActualResultService
                     // 400番台=売上のようなコード判定に誤って使われないよう空にする。
                     'account_code' => '',
                     'category_hint' => $categoryHint,
-                    'debit' => $isSales ? 0 : $amount,
-                    'credit' => $isSales ? $amount : 0,
+                    'debit' => (int) round((float) ($section['debit_amount'] ?? ($isSales ? 0 : $amount))),
+                    'credit' => (int) round((float) ($section['credit_amount'] ?? ($isSales ? $amount : 0))),
                     'balance' => $amount,
-                    // 期末残高（年初来）は別リクエストが必要なため、当月のみを扱う。
-                    'ending_balance' => 0,
+                    // closing_balance は期首からの累計なので、そのまま期末残高として使える。
+                    'ending_balance' => $closing,
                     'amount_source' => 'balance',
                     'has_amount' => true,
                 ];
