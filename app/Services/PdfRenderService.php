@@ -307,7 +307,9 @@ class PdfRenderService
             case 'text':
                 return '<div style="'.$this->textCss($style).'">'.nl2br(e((string) ($el['text'] ?? ''))).'</div>';
             case 'field':
-                return '<div style="'.$this->textCss($style).'">'.e($this->formatValue($byKey[$el['fieldKey'] ?? ''] ?? null, $el)).'</div>';
+                // 改行は <br> に直す。HTMLは生の改行を空白として畳むので、複数行項目が
+                // 「text breakline test」と1行に潰れて出ていた（静的テキスト側は元から nl2br 済み）。
+                return '<div style="'.$this->textCss($style).'">'.nl2br(e($this->formatValue($byKey[$el['fieldKey'] ?? ''] ?? null, $el))).'</div>';
             case 'today': // 現在日付 — rendered at generation time
                 $pattern = is_array($el['format'] ?? null) ? ($el['format']['pattern'] ?? 'Y年n月j日') : 'Y年n月j日';
 
@@ -475,7 +477,8 @@ class PdfRenderService
             foreach ($columns as $c) {
                 $al = $this->safeAlign($c['align'] ?? 'left');
                 $raw = is_array($row) ? ($row[$c['colKey'] ?? ''] ?? null) : null;
-                $txt = e($this->formatScalar($raw, $c['format'] ?? null, $c));
+                // 明細の升でも同じ：複数行の値が1行に潰れないようにする
+                $txt = nl2br(e($this->formatScalar($raw, $c['format'] ?? null, $c)));
                 $html .= "<td style=\"text-align:{$al}; border:{$cellBorder}; padding:4px 6px;\">{$txt}</td>";
             }
             $html .= '</tr>';
