@@ -151,9 +151,22 @@
 
                             <div class="detail-body">
                                 <div class="detail-stats">
-                                    <div v-for="(metric, index) in detailMetrics" :key="index" class="stat-cell" :class="{ filler: metric.filler }">
+                                    <div
+                                        v-for="(metric, index) in detailMetrics"
+                                        :key="index"
+                                        class="stat-cell"
+                                        :class="{ filler: metric.filler, clickable: !!metric.bucket }"
+                                        :role="metric.bucket ? 'button' : undefined"
+                                        :tabindex="metric.bucket ? 0 : undefined"
+                                        :title="metric.bucket ? `${metric.label}の内訳（${metric.detailCount}名）を見る` : undefined"
+                                        @click="metric.bucket && openAllocation(metric)"
+                                        @keydown.enter="metric.bucket && openAllocation(metric)"
+                                    >
                                         <template v-if="!metric.filler">
-                                            <div class="stat-label">{{ metric.label }}</div>
+                                            <div class="stat-label">
+                                                {{ metric.label }}
+                                                <span v-if="metric.bucket" class="stat-detail-badge">{{ metric.detailCount }}名</span>
+                                            </div>
                                             <div class="stat-value" :style="{ color: metric.color }">{{ metric.value }}</div>
                                         </template>
                                     </div>
@@ -191,6 +204,42 @@
                 <p>CSVをアップロードして、この月の実績を保存してください。</p>
             </section>
         </main>
+
+        <Modal v-if="allocationOpen" custom-class="actual-result-allocation-modal" @close="allocationOpen = false">
+            <template #title>
+                <div class="actual-modal-title">
+                    <span>{{ selectedDepartment?.department }} ・ {{ selectedMonthKey }}</span>
+                    <p class="text-base">{{ allocationLabel }}の内訳（勤務時間で按分）</p>
+                </div>
+            </template>
+            <template #content>
+                <div class="allocation-list">
+                    <div class="allocation-row allocation-head">
+                        <span>メンバー</span>
+                        <span>当部門</span>
+                        <span>全体</span>
+                        <span>割合</span>
+                        <span>金額</span>
+                    </div>
+                    <div v-for="(row, index) in allocationRows" :key="index" class="allocation-row">
+                        <span class="allocation-name">
+                            {{ row.user_name || '(氏名なし)' }}
+                            <small>{{ row.user_code }}</small>
+                        </span>
+                        <span>{{ formatMinutes(row.work_minutes) }}</span>
+                        <span>{{ formatMinutes(row.total_work_minutes) }}</span>
+                        <span>{{ allocationShare(row) }}</span>
+                        <span class="allocation-amount">{{ formatCurrency(row.amount) }}</span>
+                    </div>
+                    <div v-if="allocationRows.length === 0" class="allocation-empty">内訳がありません。</div>
+                    <div v-else class="allocation-row allocation-total">
+                        <span>合計（{{ allocationRows.length }}名）</span>
+                        <span></span><span></span><span></span>
+                        <span class="allocation-amount">{{ formatCurrency(allocationTotal) }}</span>
+                    </div>
+                </div>
+            </template>
+        </Modal>
 
         <Modal v-if="warningOpen" custom-class="actual-result-warning-modal" @close="warningOpen = false">
             <template #title>
@@ -250,6 +299,18 @@ interface DetailMetric {
     value: string;
     color: string;
     filler: boolean;
+    /** 内訳を持つ積立金のときだけ入る。クリックで明細を開く。 */
+    bucket?: string;
+    detailCount?: number;
+}
+
+interface AllocationDetail {
+    user_name: string;
+    user_code: string;
+    work_minutes: number;
+    total_work_minutes: number;
+    source_amount: number;
+    amount: number;
 }
 
 const actualResultExportColumns: { header: string; key: ActualResultExportKey }[] = [
@@ -286,6 +347,9 @@ const result = ref<ActualResult | null>(null);
 const selectedDepartmentName = ref('');
 const loading = ref(false);
 const uploadError = ref('');
+const allocationOpen = ref(false);
+const allocationBucket = ref('');
+const allocationLabel = ref('');
 const search = ref('');
 const sortKey = ref<ActualResultSortKey>('real_profit');
 const warningOpen = ref(false);
@@ -387,14 +451,37 @@ const displayRows = computed(() => filteredDepartments.value.map((department) =>
     },
 })));
 
+/** 積立金の内訳（誰の勤務時間から幾ら配分されたか）を勘定科目明細から拾う。 */
+const allocationDetailsFor = (bucket: string): AllocationDetail[] => {
+    const accounts = selectedDepartment.value?.accounts || [];
+    const account = accounts.find((a) => a.bucket === bucket && (a.allocation_details?.length ?? 0) > 0);
+
+    return [...(account?.allocation_details || [])].sort((a, b) => b.amount - a.amount);
+};
+
 const detailMetrics = computed<DetailMetric[]>(() => {
     const department = selectedDepartment.value;
 
     if (!department) return [];
 
     const dash = showZeroAsDash ? '—' : formatCurrency(0);
-    const amount = (label: string, value: number, profit = false): DetailMetric => {
+    const amount = (label: string, value: number, profit = false, bucket?: string): DetailMetric => {
         if (value === 0) return { label, value: dash, color: 'var(--text-3)', filler: false };
+
+        if (bucket) {
+            const details = allocationDetailsFor(bucket);
+
+            if (details.length) {
+                return {
+                    label,
+                    value: formatCurrency(value),
+                    color: 'var(--text)',
+                    filler: false,
+                    bucket,
+                    detailCount: details.length,
+                };
+            }
+        }
 
         return {
             label,
@@ -415,10 +502,10 @@ const detailMetrics = computed<DetailMetric[]>(() => {
         amount('利益', department.real_profit, true),
         { label: '利益率', value: formatMargin(department.real_margin), color: department.real_profit < 0 ? 'var(--neg)' : 'var(--pos)', filler: false },
         { label: '通常利益率', value: formatMargin(department.margin), color: department.normal_profit < 0 ? 'var(--neg)' : 'var(--pos)', filler: false },
-        amount('基本賞与', department.basic_bonus_reserve),
-        amount('有給', department.paid_leave_reserve),
-        amount('福利厚生', department.welfare_reserve),
-        amount('リフレッシュ', department.refresh_reserve),
+        amount('基本賞与', department.basic_bonus_reserve, false, 'basic_bonus_reserve'),
+        amount('有給', department.paid_leave_reserve, false, 'paid_leave_reserve'),
+        amount('福利厚生', department.welfare_reserve, false, 'welfare_reserve'),
+        amount('リフレッシュ', department.refresh_reserve, false, 'refresh_reserve'),
         amount('振替売上', department.reserve_transfer_sales),
     ];
 });
@@ -606,7 +693,34 @@ const exportCsv = () => {
 
 const selectDepartment = (department: ActualDepartment) => {
     selectedDepartmentName.value = department.department;
+    allocationOpen.value = false;
 };
+
+/** 積立金の内訳モーダル。 */
+const openAllocation = (metric: DetailMetric) => {
+    if (!metric.bucket) return;
+
+    allocationBucket.value = metric.bucket;
+    allocationLabel.value = metric.label;
+    allocationOpen.value = true;
+};
+
+const allocationRows = computed(() => allocationDetailsFor(allocationBucket.value));
+
+const allocationTotal = computed(() =>
+    allocationRows.value.reduce((sum, row) => sum + (row.amount || 0), 0));
+
+const formatMinutes = (minutes: number) => {
+    const h = Math.floor((minutes || 0) / 60);
+    const m = (minutes || 0) % 60;
+
+    return m === 0 ? `${h}時間` : `${h}時間${m}分`;
+};
+
+const allocationShare = (row: AllocationDetail) =>
+    row.total_work_minutes > 0
+        ? `${(row.work_minutes / row.total_work_minutes * 100).toFixed(1)}%`
+        : '—';
 
 const formatCurrency = (value: number) => `${new Intl.NumberFormat('ja-JP').format(Math.round(value || 0))}円`;
 const formatMargin = (value: number | null) => value === null ? '-' : `${Number(value).toFixed(1)}%`;
@@ -1283,6 +1397,84 @@ select:focus {
 }
 
 /* modals (teleported - use global theme vars) */
+/* 内訳を持つ数値はクリックできることが分かるようにする */
+.stat-cell.clickable {
+    cursor: pointer;
+    transition: background-color .12s ease, border-color .12s ease;
+}
+
+.stat-cell.clickable:hover,
+.stat-cell.clickable:focus-visible {
+    background: var(--hover);
+    border-color: var(--accent);
+    outline: none;
+}
+
+.stat-detail-badge {
+    margin-left: 4px;
+    padding: 0 4px;
+    border-radius: 4px;
+    background: var(--hover);
+    color: var(--text-3);
+    font-size: 10px;
+}
+
+.allocation-list {
+    display: flex;
+    flex-direction: column;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.allocation-row {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr 1fr .7fr 1.1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+}
+
+.allocation-row span:not(.allocation-name) {
+    text-align: right;
+}
+
+.allocation-head {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    color: var(--text-3);
+    font-size: 11px;
+}
+
+.allocation-name {
+    display: flex;
+    flex-direction: column;
+}
+
+.allocation-name small {
+    color: var(--text-3);
+    font-size: 10px;
+}
+
+.allocation-amount {
+    font-weight: 600;
+}
+
+.allocation-total {
+    border-bottom: none;
+    border-top: 2px solid var(--border);
+    font-weight: 600;
+}
+
+.allocation-empty {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-3);
+    font-size: 12px;
+}
+
 .actual-modal-title span {
     display: block;
     font-size: 11px;

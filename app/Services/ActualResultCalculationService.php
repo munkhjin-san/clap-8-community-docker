@@ -590,6 +590,16 @@ class ActualResultCalculationService
 
             $this->accumulateAccount($departments[$department]['accounts'], $accountKey, $row);
             $this->accumulateAccount($accountTotals, $accountKey, $row);
+
+            // 誰の勤務時間から幾ら配分されたかを残す。画面の内訳表示に使う。
+            $departments[$department]['accounts'][$accountKey]['allocation_details'][] = [
+                'user_name' => (string) ($allocation['user_name'] ?? ''),
+                'user_code' => (string) ($allocation['user_code'] ?? ''),
+                'work_minutes' => (int) ($allocation['work_minutes'] ?? 0),
+                'total_work_minutes' => (int) ($allocation['total_work_minutes'] ?? 0),
+                'source_amount' => (int) ($allocation['source_amount'] ?? 0),
+                'amount' => $amount,
+            ];
         }
     }
 
@@ -1050,6 +1060,8 @@ class ActualResultCalculationService
                             'rows' => 1,
                         ],
                     ],
+                // 誰にいくら配分したかの内訳は作り直しで消さない。
+                'allocation_details' => $existing['allocation_details'] ?? [],
             ];
         }
     }
