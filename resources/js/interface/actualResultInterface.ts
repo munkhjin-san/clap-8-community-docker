@@ -35,6 +35,18 @@ export interface ActualAccount {
         source_amount: number;
         amount: number;
     }[];
+    /** 賞与引当金繰入額の内訳（基本賞与分＋部門ごとの業績連動分）。積立部門にのみ入る。 */
+    accrual_breakdown?: {
+        basic_bonus_total: number;
+        basic_bonus_users: number;
+        performance_bonus_total: number;
+        performance_bonus_by_department: {
+            department: string;
+            normal_profit: number;
+            rate: number;
+            amount: number;
+        }[];
+    };
 }
 
 export interface ActualDepartment {

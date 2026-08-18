@@ -827,6 +827,7 @@ class ActualResultCalculationService
         $indirectAllocationSales = 0;
         $reserveTransferSales = 0;
         $performanceBonusAccrualTotal = 0;
+        $performanceBonusAccrualDetails = [];
         $reserveTransferSalesByBucket = array_fill_keys(array_keys(self::RESERVE_TRANSFER_SALES_ACCOUNTS), 0);
 
         foreach ($departments as $department) {
@@ -836,7 +837,20 @@ class ActualResultCalculationService
 
             $indirectAllocationSales += $department['indirect_allocation_expense'];
             $reserveTransferSales += $department['reserve_expenses'];
-            $performanceBonusAccrualTotal += $this->performanceBonusAccrualAmount($department, $calculationMonth);
+
+            $performanceBonusAccrual = $this->performanceBonusAccrualAmount($department, $calculationMonth);
+            $performanceBonusAccrualTotal += $performanceBonusAccrual;
+
+            // 賞与引当金繰入額のうち業績連動分が、どの部門から幾ら来たかを残す。
+            // 赤字部門はマイナスで効くので、内訳が見えないと総額の説明がつかない。
+            if ($performanceBonusAccrual !== 0) {
+                $performanceBonusAccrualDetails[] = [
+                    'department' => (string) $department['department'],
+                    'normal_profit' => (int) ($department['normal_profit'] ?? 0),
+                    'rate' => $this->performanceBonusRate((string) $department['department'], $calculationMonth),
+                    'amount' => $performanceBonusAccrual,
+                ];
+            }
 
             foreach (array_keys($reserveTransferSalesByBucket) as $bucket) {
                 $reserveTransferSalesByBucket[$bucket] += $department[$bucket] ?? 0;
@@ -864,9 +878,17 @@ class ActualResultCalculationService
         }
 
         if ($calculationSources['bonus_accrual_expense'] === self::SOURCE_AUTO_CALCULATED) {
+            usort($performanceBonusAccrualDetails, fn (array $a, array $b) => $b['amount'] <=> $a['amount']);
+
             $this->replaceReserveBonusAccrualExpenseAccount(
                 $departments[self::RESERVE_DEPARTMENT],
-                $this->bonusAccrualExpenseAmount($performanceBonusAccrualTotal, $reserveAllocationStats)
+                $this->bonusAccrualExpenseAmount($performanceBonusAccrualTotal, $reserveAllocationStats),
+                [
+                    'basic_bonus_total' => (int) ($reserveAllocationStats['basic_bonus_accrual_total'] ?? 0),
+                    'basic_bonus_users' => (int) ($reserveAllocationStats['basic_bonus_accrual_users'] ?? 0),
+                    'performance_bonus_total' => $performanceBonusAccrualTotal,
+                    'performance_bonus_by_department' => $performanceBonusAccrualDetails,
+                ]
             );
         }
 
@@ -951,8 +973,14 @@ class ActualResultCalculationService
             : 0;
     }
 
-    private function replaceReserveBonusAccrualExpenseAccount(array &$reserveDepartment, int $amount): void
-    {
+    /**
+     * @param array<string, mixed> $breakdown 画面で内訳を出すための明細（基本賞与分・業績連動分）
+     */
+    private function replaceReserveBonusAccrualExpenseAccount(
+        array &$reserveDepartment,
+        int $amount,
+        array $breakdown = []
+    ): void {
         $accountKey = '|' . self::BONUS_ACCRUAL_EXPENSE_ACCOUNT . '|expense|ordinary_expense';
         $existingRows = 0;
         $existingAmount = 0;
@@ -1003,6 +1031,7 @@ class ActualResultCalculationService
                     'rows' => 1,
                 ],
             ],
+            'accrual_breakdown' => $breakdown,
         ];
     }
 

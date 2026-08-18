@@ -174,10 +174,23 @@
 
                                 <div class="account-heading">勘定科目明細</div>
                                 <div class="account-list">
-                                    <div v-for="account in selectedDepartment.accounts" :key="accountKey(account)" class="account-row">
+                                    <div
+                                        v-for="account in selectedDepartment.accounts"
+                                        :key="accountKey(account)"
+                                        class="account-row"
+                                        :class="{ clickable: hasAccrualBreakdown(account) }"
+                                        :role="hasAccrualBreakdown(account) ? 'button' : undefined"
+                                        :tabindex="hasAccrualBreakdown(account) ? 0 : undefined"
+                                        :title="hasAccrualBreakdown(account) ? '内訳を見る' : undefined"
+                                        @click="hasAccrualBreakdown(account) && openAccrual(account)"
+                                        @keydown.enter="hasAccrualBreakdown(account) && openAccrual(account)"
+                                    >
                                         <div class="account-info">
                                             <span :class="['category-pill', account.category]">{{ account.bucket_label || categoryLabel(account.category) }}</span>
-                                            <p class="account-name">{{ account.account_name }}</p>
+                                            <p class="account-name">
+                                                {{ account.account_name }}
+                                                <span v-if="hasAccrualBreakdown(account)" class="stat-detail-badge">内訳</span>
+                                            </p>
                                             <small>{{ accountDetailLabel(account) }}</small>
                                         </div>
                                         <div class="account-amount" :style="{ color: account.amount < 0 ? 'var(--neg)' : 'var(--text)' }">
@@ -236,6 +249,60 @@
                         <span>合計（{{ allocationRows.length }}名）</span>
                         <span></span><span></span><span></span>
                         <span class="allocation-amount">{{ formatCurrency(allocationTotal) }}</span>
+                    </div>
+                </div>
+            </template>
+        </Modal>
+
+        <Modal v-if="accrualOpen" custom-class="actual-result-allocation-modal" @close="accrualOpen = false">
+            <template #title>
+                <div class="actual-modal-title">
+                    <span>{{ selectedDepartment?.department }} ・ {{ selectedMonthKey }}</span>
+                    <p class="text-base">賞与引当金繰入額の内訳</p>
+                </div>
+            </template>
+            <template #content>
+                <div class="allocation-list">
+                    <div class="allocation-row allocation-head accrual-row">
+                        <span>区分</span>
+                        <span>通常利益</span>
+                        <span>率</span>
+                        <span>金額</span>
+                    </div>
+
+                    <div class="allocation-row accrual-row accrual-group">
+                        <span class="allocation-name">
+                            基本賞与分
+                            <small>社内振替入金（基本賞与）・{{ accrualBreakdown?.basic_bonus_users ?? 0 }}名</small>
+                        </span>
+                        <span>—</span>
+                        <span>—</span>
+                        <span class="allocation-amount">{{ formatCurrency(accrualBreakdown?.basic_bonus_total ?? 0) }}</span>
+                    </div>
+
+                    <div class="allocation-row accrual-row accrual-group">
+                        <span class="allocation-name">
+                            業績連動分
+                            <small>各部門 10%×通常利益（マイナス込み）</small>
+                        </span>
+                        <span>—</span>
+                        <span>—</span>
+                        <span class="allocation-amount">{{ formatCurrency(accrualBreakdown?.performance_bonus_total ?? 0) }}</span>
+                    </div>
+
+                    <div v-for="(row, index) in accrualDepartments" :key="index" class="allocation-row accrual-row accrual-child">
+                        <span class="allocation-name">{{ row.department }}</span>
+                        <span>{{ formatCurrency(row.normal_profit) }}</span>
+                        <span>{{ Math.round(row.rate * 100) }}%</span>
+                        <span class="allocation-amount" :style="{ color: row.amount < 0 ? 'var(--neg)' : 'var(--text)' }">
+                            {{ formatCurrency(row.amount) }}
+                        </span>
+                    </div>
+
+                    <div class="allocation-row accrual-row allocation-total">
+                        <span>合計</span>
+                        <span></span><span></span>
+                        <span class="allocation-amount">{{ formatCurrency(accrualAccount?.amount ?? 0) }}</span>
                     </div>
                 </div>
             </template>
@@ -350,6 +417,8 @@ const uploadError = ref('');
 const allocationOpen = ref(false);
 const allocationBucket = ref('');
 const allocationLabel = ref('');
+const accrualOpen = ref(false);
+const accrualAccount = ref<ActualAccount | null>(null);
 const search = ref('');
 const sortKey = ref<ActualResultSortKey>('real_profit');
 const warningOpen = ref(false);
@@ -716,6 +785,22 @@ const formatMinutes = (minutes: number) => {
 
     return m === 0 ? `${h}時間` : `${h}時間${m}分`;
 };
+
+/** 賞与引当金繰入額の内訳（基本賞与分＋部門ごとの業績連動分）。 */
+const hasAccrualBreakdown = (account: ActualAccount) =>
+    (account.accrual_breakdown?.performance_bonus_by_department?.length ?? 0) > 0
+    || (account.accrual_breakdown?.basic_bonus_total ?? 0) !== 0;
+
+const openAccrual = (account: ActualAccount) => {
+    accrualAccount.value = account;
+    accrualOpen.value = true;
+};
+
+const accrualBreakdown = computed(() => accrualAccount.value?.accrual_breakdown ?? null);
+
+const accrualDepartments = computed(() =>
+    [...(accrualBreakdown.value?.performance_bonus_by_department ?? [])]
+        .sort((a, b) => b.amount - a.amount));
 
 const allocationShare = (row: AllocationDetail) =>
     row.total_work_minutes > 0
@@ -1466,6 +1551,31 @@ select:focus {
     border-bottom: none;
     border-top: 2px solid var(--border);
     font-weight: 600;
+}
+
+.account-row.clickable {
+    cursor: pointer;
+    transition: background-color .12s ease;
+}
+
+.account-row.clickable:hover,
+.account-row.clickable:focus-visible {
+    background: var(--hover);
+    outline: none;
+}
+
+.accrual-row {
+    grid-template-columns: 1.8fr 1fr .5fr 1.1fr;
+}
+
+.accrual-group {
+    font-weight: 600;
+    background: var(--hover);
+}
+
+.accrual-child .allocation-name {
+    padding-left: 14px;
+    color: var(--text-2);
 }
 
 .allocation-empty {
