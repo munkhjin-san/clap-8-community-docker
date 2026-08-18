@@ -65,6 +65,7 @@ class ActualResultCalculationService
         self::INDIRECT_DEPARTMENT,
         self::RESERVE_DEPARTMENT,
         'ｵﾝｻｲﾄ営業支援(物販)',
+        '営業外部門',
     ];
 
     private const DEPARTMENT_ALIASES = [
