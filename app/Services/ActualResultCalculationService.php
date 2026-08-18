@@ -56,6 +56,7 @@ class ActualResultCalculationService
         '総務',
         '財務会計',
         'ｼｽﾃﾑ開発',
+        '営業外部門',
     ];
 
     private const NO_PERFORMANCE_BONUS_DEPARTMENTS = [
