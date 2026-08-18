@@ -50,6 +50,12 @@ class ActualResultCalculationService
         self::RESERVE_DEPARTMENT,
         self::MANAGEMENT_DEPARTMENT,
         self::EXECUTIVE_DEPARTMENT,
+        '人事労務',
+        '情報ｼｽﾃﾑ',
+        '法務・ﾘｽｸﾏﾈｼﾞﾒﾝﾄ',
+        '総務',
+        '財務会計',
+        'ｼｽﾃﾑ開発',
     ];
 
     private const NO_PERFORMANCE_BONUS_DEPARTMENTS = [
