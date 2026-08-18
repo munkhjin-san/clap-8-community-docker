@@ -217,7 +217,18 @@
                         <label class="pd-f">ファイル名パターン
                             <input v-model="cfg.filename" placeholder="請求書_{seq}">
                         </label>
-                        <p class="pd-hint">{seq}=レコード番号 / {id}=ID / {app}=アプリ名</p>
+                        <p class="pd-hint">{seq}=レコード番号 / {id}=内部ID / {app}=アプリ名</p>
+                        <p class="pd-hint">{フィールドコード} でその項目の値が入ります（例: {契約書No}_{取引先}）。</p>
+
+                        <div class="irow pd-pageno">
+                            <label>ページ番号</label>
+                            <span
+                                class="flow-sw"
+                                :class="{ on: cfg.paper.page_number !== false }"
+                                @click="cfg.paper.page_number = cfg.paper.page_number === false"
+                            ></span>
+                        </div>
+                        <p class="pd-hint">各ページの下に「1 / 2」を入れます。</p>
 
                         <div class="pd-bg-sec">
                             <div class="pd-insp-h">下敷きPDF</div>
@@ -709,6 +720,8 @@ const closePreview = () => { if (previewUrl.value) URL.revokeObjectURL(previewUr
 .pd-page-tab.on { border-color: var(--primary-color); color: var(--primary-color); }
 .pd-page-tab.empty { border-style: dashed; }
 .pd-bg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.pd-pageno { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
+.pd-pageno label { font-size: 12px; color: gray; }
 .pd-bg-sec { border-top: 1px solid var(--formBorder); margin-top: 14px; padding-top: 12px; }
 .pd-bg-name { font-size: 12px; margin: 0 0 4px; word-break: break-all; }
 .pd-bg-clear { border: 1px solid var(--formBorder); background: var(--background-color); color: gray; cursor: pointer; padding: 5px 10px; font-size: 12px; margin-top: 6px; }

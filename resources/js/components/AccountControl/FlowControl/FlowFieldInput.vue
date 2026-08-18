@@ -73,31 +73,29 @@
                     <span class="fi-fname"><span class="fi-fname-base">{{ fileBase(f) }}</span><span class="fi-fname-ext">{{ fileExt(f) }}</span></span>
                 </button>
             </template>
-            <!-- table: first file + a "+N" badge for the rest. Inside a subtable on the record detail
-                 (cellPreview) these stay compact but open the preview modal like a top-level file
-                 field; the modal receives the whole cell's files, so "+N" is the way in to the rest.
-                 In a record-list cell there is nothing to open into, so they render as plain spans
-                 and the click keeps bubbling up to open the record. -->
+            <!-- テーブルの升：ファイルは全部、縦に並べる。「先頭＋N件」だと、何が入っているかを
+                 見るのに毎回開く必要があった。名前は升の幅で切り詰めるので、長い名前が来ても
+                 列幅は動かない（全体を見たいときはホバーで出る）。
+                 サブテーブル・関連レコード（cellPreview）ではプレビューを開くボタンになる。
+                 レコード一覧の升には開く先が無いので素の span にして、クリックはそのまま
+                 レコードを開く側へ通す。 -->
             <template v-else>
-                <component
-                    :is="cellPreview ? 'button' : 'span'"
-                    :type="cellPreview ? 'button' : undefined"
-                    class="fi-fileitem"
-                    :class="{ 'fi-file-btn': cellPreview }"
-                    @click="openCellPreview(0, $event)"
-                >
-                    <img v-if="arrayVal[0]?.mime_type === 'image' && arrayVal[0]?.url" :src="arrayVal[0].url" class="fi-thumb" alt="">
-                    <FileIcon v-else class="fi-fileicon" :ext="arrayVal[0]?.extension" />
-                    <span class="fi-fname"><span class="fi-fname-base">{{ fileBase(arrayVal[0]) }}</span><span class="fi-fname-ext">{{ fileExt(arrayVal[0]) }}</span></span>
-                </component>
-                <component
-                    :is="cellPreview ? 'button' : 'span'"
-                    v-if="arrayVal.length > 1"
-                    :type="cellPreview ? 'button' : undefined"
-                    class="fi-filemore"
-                    :class="{ 'fi-filemore-btn': cellPreview }"
-                    @click="openCellPreview(1, $event)"
-                >+{{ arrayVal.length - 1 }}</component>
+                <span class="fi-filelist">
+                    <component
+                        :is="cellPreview ? 'button' : 'span'"
+                        v-for="(f, i) in arrayVal"
+                        :key="f?.id ?? i"
+                        :type="cellPreview ? 'button' : undefined"
+                        class="fi-fileitem fi-filerow"
+                        :class="{ 'fi-file-btn': cellPreview }"
+                        :title="fileBase(f) + fileExt(f)"
+                        @click="openCellPreview(i, $event)"
+                    >
+                        <img v-if="f?.mime_type === 'image' && f?.url" :src="f.url" class="fi-thumb" alt="">
+                        <FileIcon v-else class="fi-fileicon" :ext="f?.extension" />
+                        <span class="fi-fname"><span class="fi-fname-base">{{ fileBase(f) }}</span><span class="fi-fname-ext">{{ fileExt(f) }}</span></span>
+                    </component>
+                </span>
             </template>
         </template>
         <template v-else-if="field.input_type === 'select' || field.input_type === 'radio'"><span class="fi-pill">{{ val }}</span></template>
@@ -793,8 +791,13 @@ const formatFormula = (v: any) => {
 .fi-fileicon :deep(svg) { width: 16px !important; min-width: 16px !important; height: 20px !important; display: block; }
 .fi-thumb { width: 20px; height: 20px; object-fit: cover; border-radius: 3px; flex-shrink: 0; }
 .fi-fname { display: inline-flex; min-width: 0; max-width: 20ch; font-size: 12.5px; }
+
 .fi-fname-base { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fi-fname-ext { flex-shrink: 0; white-space: nowrap; }
+/* 升の中は縦一列。幅の歯止めは .fi-fname の max-width（文字数）が持つ——表は auto レイアウトで、
+   升の幅は中身で決まるため、% で上限を書いても「中身の幅」を指すだけで効かない。 */
+.fi-filelist { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; max-width: 100%; }
+.fi-filerow { margin: 0; max-width: 100%; }
 .fi-filemore { font-size: 11px; color: gray; background: var(--bg3); border-radius: 8px; padding: 1px 7px; margin-left: 2px; align-self: center; flex-shrink: 0; }
 .fi-filemore-btn { border: none; cursor: pointer; font-family: inherit; }
 .fi-filemore-btn:hover { color: var(--primary-color); text-decoration: underline; }

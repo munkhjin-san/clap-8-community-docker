@@ -298,17 +298,74 @@ class FlowController extends Controller
         ]);
     }
 
+    /**
+     * 出力するPDFのファイル名。
+     *
+     * `{seq}` `{id}` `{app}` に加えて、`{フィールドコード}` でそのレコードの値を差し込める。
+     * 「契約書No_取引先名.pdf」のように、保存した後で中身を開かずに見分けられるようにするため。
+     *
+     * 値の出し方は画面と同じ FlowService::displayValue を通す——ユーザーやプロジェクトは
+     * IDを持っているので、そのままだとファイル名に「487」と入ってしまう。
+     *
+     * 知らない `{…}` はそのまま残す。黙って空にすると、書き間違えたコードが「値が空だった」と
+     * 見分けられなくなる。
+     */
     private function pdfFilename(FlowAppTool $tool, FlowDefinition $definition, FlowRecord $record): string
     {
         $pattern = $tool->config['filename'] ?? ($tool->name.'_{seq}');
-        $name = strtr($pattern, [
-            '{seq}' => (string) ($record->record_seq ?? $record->id),
+
+        $replacements = [
+            // {seq} は画面に出ているレコード番号。flow_records に record_seq は無く、
+            // これまでは黙って内部IDに落ちていた（説明文の「レコード番号」と食い違っていた）。
+            '{seq}' => (string) ($record->record_number ?? $record->id),
             '{id}' => (string) $record->id,
             '{app}' => (string) $definition->name,
-        ]);
-        $name = preg_replace('/[\/\\\\:*?"<>|]/', '_', $name);
+        ];
 
-        return ($name ?: 'document').'.pdf';
+        if (str_contains($pattern, '{')) {
+            $fields = $definition->relationLoaded('fields') ? $definition->fields : $definition->fields()->get();
+            $values = $this->flowService->recordValues($record, $fields);
+            foreach ($fields as $f) {
+                $token = '{'.$f->key.'}';
+                if (isset($replacements[$token]) || ! str_contains($pattern, $token)) {
+                    continue;
+                }
+                // 秘匿項目はファイル名に出さない。名前は保存先にもメールにも残る。
+                if (FlowService::isSecret($f->input_type) || FlowService::isLayoutType($f->input_type)) {
+                    $replacements[$token] = '';
+
+                    continue;
+                }
+                $replacements[$token] = $this->filenamePart(
+                    $this->flowService->displayValue($f->input_type, $values[(string) $f->id] ?? null)
+                );
+            }
+        }
+
+        $name = strtr($pattern, $replacements);
+        // パスに使えない文字と改行を落とす。長文項目を差し込むと改行が混ざりうる。
+        $name = preg_replace('/[\/\\\\:*?"<>|\r\n\t]/', '_', $name);
+        $name = trim(preg_replace('/\s+/u', ' ', $name) ?? $name);
+        // ファイル名の上限（多くのファイルシステムで255バイト）に収める
+        $name = mb_strimwidth($name, 0, 180, '');
+
+        return ($name !== '' ? $name : 'document').'.pdf';
+    }
+
+    /** 差し込む値を1つの文字列にする。配列（ファイル・ユーザーなど）は中黒でつなぐ。 */
+    private function filenamePart(mixed $v): string
+    {
+        if (is_array($v)) {
+            return implode('・', array_map(
+                fn ($x) => is_array($x) ? (string) ($x['name'] ?? $x['label'] ?? '') : (string) $x,
+                $v
+            ));
+        }
+        if (is_bool($v)) {
+            return $v ? 'true' : 'false';
+        }
+
+        return $v === null ? '' : (string) $v;
     }
 
     /**

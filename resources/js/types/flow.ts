@@ -431,7 +431,8 @@ export interface PdfBackground {
 
 export interface PdfTemplate {
     /** pages 未設定は1ページ。要素の page が指す最大値の方が大きければそちらが優先される。 */
-    paper: { orientation: 'portrait' | 'landscape'; pages?: number }
+    /** page_number 未設定は「出す」。この設定より前のテンプレートの見た目を変えないため。 */
+    paper: { orientation: 'portrait' | 'landscape'; pages?: number; page_number?: boolean }
     elements: PdfElement[]
     filename?: string
     background?: PdfBackground

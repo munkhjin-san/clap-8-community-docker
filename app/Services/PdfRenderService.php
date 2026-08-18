@@ -110,7 +110,11 @@ class PdfRenderService
             'margin_bottom' => 12,
             'margin_footer' => 5,
         ]));
-        $mpdf->SetHTMLFooter('<div style="text-align:center; font-size:8pt; color:#9aa1ac;">{PAGENO} / {nbpg}</div>');
+        // ページ番号は既定で出す。設定が無い（＝この設定より前に作られた）テンプレートは
+        // 今までどおり出したいので、false のときだけ止める。
+        if (($template['paper']['page_number'] ?? true) !== false) {
+            $mpdf->SetHTMLFooter('<div style="text-align:center; font-size:8pt; color:#9aa1ac;">{PAGENO} / {nbpg}</div>');
+        }
 
         $pages = $this->pagesOf($template);
         $background = $this->openBackground($mpdf, $template);
