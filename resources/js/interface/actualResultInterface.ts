@@ -26,6 +26,15 @@ export interface ActualAccount {
     ending_balance: number;
     rows: number;
     source_departments: string[];
+    /** 積立金の配分内訳（勤怠ベース）。自動計算された積立金にのみ入る。 */
+    allocation_details?: {
+        user_name: string;
+        user_code: string;
+        work_minutes: number;
+        total_work_minutes: number;
+        source_amount: number;
+        amount: number;
+    }[];
 }
 
 export interface ActualDepartment {
